@@ -4,6 +4,7 @@ vars:
   WORKER_NAME: remy-sport
   CF_SUBDOMAIN: gedw99
   DEPLOYED_URL: 'https://{{.WORKER_NAME}}.{{.CF_SUBDOMAIN}}.workers.dev'
+  GITHUB_REPO: 'https://github.com/joeblew999/remy-sport'
 
 tasks:
   setup:
@@ -61,66 +62,12 @@ tasks:
 
   versions:
     desc: Generate versions.json with git history and CF versions
-    cmds:
-      - |
-        node -e "(async () => {
-        const fs = require('fs');
-        const https = require('https');
-        const { execSync } = require('child_process');
-        const run = cmd => execSync(cmd, { encoding: 'utf-8' }).trim();
-
-        // Build current entry
-        const current = {
-          _generated: new Date().toISOString(),
-          app: require('./package.json').version,
-          url: '{{.DEPLOYED_URL}}',
-          git: {
-            commit: run('git rev-parse --short HEAD'),
-            branch: run('git branch --show-current'),
-            tag: run('git describe --tags --always 2>/dev/null || echo none'),
-          },
-        };
-
-        // Load existing history
-        let history = [];
-        try {
-          const prev = JSON.parse(fs.readFileSync('versions.json', 'utf-8'));
-          history = prev.history || [];
-          if (history[0]?.git?.commit !== current.git.commit) {
-            history.unshift(prev.current || { app: prev.app, git: prev.git, url: prev.url });
-          }
-        } catch {}
-        history = history.filter(h => h.git?.commit !== current.git.commit);
-        history = history.slice(0, 20);
-
-        // Health-check a URL (returns true/false)
-        const checkHealth = url => new Promise(resolve => {
-          https.get(url + '/api/health', { timeout: 5000 }, res => resolve(res.statusCode === 200))
-            .on('error', () => resolve(false))
-            .on('timeout', function() { this.destroy(); resolve(false); });
-        });
-
-        // Fetch CF versions with health-checked preview URLs
-        let cf_versions = [];
-        try {
-          const raw = JSON.parse(run('bunx wrangler versions list --json 2>/dev/null'));
-          cf_versions = await Promise.all(raw.map(async v => {
-            const previewId = v.id.split('-')[0];
-            const previewUrl = v.metadata.has_preview
-              ? 'https://' + previewId + '-{{.WORKER_NAME}}.{{.CF_SUBDOMAIN}}.workers.dev' : null;
-            const healthy = previewUrl ? await checkHealth(previewUrl) : false;
-            return {
-              id: v.id,
-              number: v.number,
-              created: v.metadata.created_on,
-              source: v.annotations?.['workers/triggered_by'] || v.metadata.source,
-              url: healthy ? previewUrl : null,
-            };
-          }));
-        } catch {}
-
-        fs.writeFileSync('versions.json', JSON.stringify({ current, history, cf_versions }, null, 2) + '\n');
-        })()"
+    cmd: bun scripts/versions.ts
+    env:
+      DEPLOYED_URL: "{{.DEPLOYED_URL}}"
+      GITHUB_REPO: "{{.GITHUB_REPO}}"
+      WORKER_NAME: "{{.WORKER_NAME}}"
+      CF_SUBDOMAIN: "{{.CF_SUBDOMAIN}}"
 
 includes:
   cf:
