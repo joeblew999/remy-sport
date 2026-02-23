@@ -59,6 +59,12 @@
 - SCIM — cross-domain identity management
 - SIWE — Sign In With Ethereum
 
+## ADRs (Architectural Decision Records)
+- All ADRs live in `docs/adr/` with the naming convention `NNN-short-title.md` (e.g. `001-deployment-versioning.md`)
+- ADRs document **plans before implementation** — write the ADR first, get approval, then implement
+- ADR format: **Status** (proposed/accepted/implemented), **Context** (why), **Decision** (what), **Implementation** (how, with concrete steps and file paths), **Consequences** (trade-offs)
+- Reference ADRs from CONTEXT.md when they affect conventions or architecture
+
 ## Conventions
 - All plan and architectural decision files go in `docs/adr/`
 - Always use `task` commands to run things (e.g. `task dev`, `task test`, `task deploy`) — both AI agents and humans use the same Taskfile so we dogfood our own tooling

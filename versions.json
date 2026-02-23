@@ -1,9 +1,10 @@
 {
-  "_generated": "2026-02-23T01:45:30Z",
+  "_generated": "2026-02-23T02:02:13Z",
   "app": "0.1.0",
+  "url": "https://remy-sport.gedw99.workers.dev",
   "git": {
-    "commit": "b6f40ea",
+    "commit": "377dc25",
     "branch": "main",
-    "tag": "b6f40ea"
+    "tag": "377dc25"
   }
 }

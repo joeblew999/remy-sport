@@ -1,20 +1,12 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi"
 import type { AppEnv } from "../types"
+import { layout } from "../views/layout"
 
 const home = new OpenAPIHono<AppEnv>()
 
 home.get("/", (c) => {
   const user = c.get("user")
-  return c.html(`<!DOCTYPE html>
-<html lang="en" data-theme="dark">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Remy Sport</title>
-  <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
-  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-</head>
-<body class="min-h-screen flex items-center justify-center bg-base-200">
+  return c.html(layout("Remy Sport", `
   <div class="text-center max-w-xl px-8">
     <h1 class="text-5xl font-bold mb-2">Remy Sport</h1>
     <p class="text-base-content/60 text-lg mb-8">Sports platform for basketball</p>
@@ -41,12 +33,11 @@ home.get("/", (c) => {
       .then(v => {
         if (!v || v.error) return
         const el = document.getElementById('version-info')
-        el.textContent = 'v' + v.app + ' · ' + v.git.commit + ' · ' + v.git.branch
+        const link = v.url ? '<a href="' + v.url + '" class="link link-hover">' + v.url + '</a>' : ''
+        el.innerHTML = 'v' + v.app + ' · ' + v.git.commit + ' · ' + v.git.branch + (link ? '<br>' + link : '')
       })
       .catch(() => {})
-  </script>
-</body>
-</html>`)
+  </script>`))
 })
 
 const healthRoute = createRoute({

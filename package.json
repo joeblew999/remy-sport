@@ -2,12 +2,7 @@
   "name": "remy-sport",
   "version": "0.1.0",
   "type": "module",
-  "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "deploy:staging": "wrangler deploy --env staging",
-    "deploy:production": "wrangler deploy --env production"
-  },
+  "scripts": {},
   "dependencies": {
     "@hono/zod-openapi": "^0.18.0",
     "better-auth": "^1.2.0",

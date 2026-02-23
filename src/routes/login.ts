@@ -1,5 +1,6 @@
 import { Hono } from "hono"
 import type { AppEnv } from "../types"
+import { layout } from "../views/layout"
 
 const login = new Hono<AppEnv>()
 
@@ -9,16 +10,7 @@ login.get("/login", (c) => {
     return c.redirect("/")
   }
 
-  return c.html(`<!DOCTYPE html>
-<html lang="en" data-theme="dark">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sign In — Remy Sport</title>
-  <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
-  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-</head>
-<body class="min-h-screen flex items-center justify-center bg-base-200">
+  return c.html(layout("Sign In — Remy Sport", `
   <div class="card bg-base-100 shadow-xl w-full max-w-md">
     <div class="card-body">
       <h1 class="card-title text-2xl" id="title">Sign In</h1>
@@ -100,9 +92,7 @@ login.get("/login", (c) => {
         btn.disabled = false
       }
     })
-  </script>
-</body>
-</html>`)
+  </script>`))
 })
 
 export default login
