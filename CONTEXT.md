@@ -11,6 +11,8 @@
 - **MCP** — model context protocol
 - **Better Auth** — authentication (with plugins for 2FA, organizations, roles, etc.)
 - **Drizzle ORM** — database ORM for D1
+- **Datastar** — server-driven reactivity via SSE + `data-*` attributes (proposed, see ADR 004)
+- **Lit** — Web Components for reusable UI widgets (proposed, see ADR 004)
 - **DaisyUI v5** — UI components via CDN (no build step)
 - **Tailwind CSS 4** — utility CSS via CDN
 - **Playwright** — end-to-end testing
@@ -83,6 +85,10 @@
 | User | `user@remy.dev` | `user12345!` |
 
 Seeded via `task seed` (local) or `task seed:remote` (deployed). See ADR 002.
+
+## Roadmap & Research
+- [docs/roadmap.md](docs/roadmap.md) — phased feature roadmap with provenance from competitor research
+- [docs/sites.md](docs/sites.md) — competitive research (feature extraction from 5 basketball/sports platforms)
 
 ## References
 - https://hono.dev/llms.txt

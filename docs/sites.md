@@ -1,6 +1,33 @@
-# sites
+# Competitive Research
 
-To find the features we want from other sites...
+Feature extraction from competitor basketball/sports platforms. Provenance for the [roadmap](roadmap.md).
+
+## Common Features Summary
+
+Features that appear across **3+ sites** — these are table stakes:
+
+| Feature | EE | SS | FIBA | TS | BAS | Count |
+|---|---|---|---|---|---|---|
+| Tournament/event creation & listing | x | x | x | x | x | 5/5 |
+| Event type variety (tournament, league, camp, tryout) | x | x | x | x | x | 5/5 |
+| Age/gender divisions | x | x | x | | x | 4/5 |
+| User auth & accounts | x | x | x | | x | 4/5 |
+| Team/player profiles | x | x | x | | | 3/5 |
+| Event filtering (location, date, type) | x | | x | x | x | 4/5 |
+| Rankings/standings | x | x | x | | | 3/5 |
+| Score/results tracking | | x | x | | | 2/5 |
+| Social media integration | | x | x | x | x | 4/5 |
+| Mobile/responsive design | | x | x | x | | 3/5 |
+| Registration & payments | x | x | | | x | 3/5 |
+| Bracket/scheduling | | x | x | | | 2/5 |
+| Live scores/streaming | | x | x | | x | 3/5 |
+| Contact/support channels | x | x | | x | x | 4/5 |
+
+**Key:** EE=Exposure Events, SS=SportsSync, FIBA=FIBA, TS=TournamentScoop, BAS=BAS Singapore
+
+---
+
+## Per-Site Feature Details
 
 ## https://basketball.exposureevents.com/youth-basketball-events
 
@@ -175,4 +202,74 @@ To find the features we want from other sites...
 - Global suppliers (Junckers, Kuehne+Nagel, Schelde)
 
 ---
+
+## http://tournamentscoop.com/basketball/index.php
+
+### Event Listing & Discovery
+- Free event posting for organizers
+- Event categories: Tournaments, Tryouts, Camps/Clinics, Leagues
+- Countdown timers showing days until events
+- Featured event carousel with 15+ tournaments
+- Event cards with org logos, dates, locations, coordinator contact info
+- Multi-state coverage (Texas primary, plus GA, MO, IN, SC, OK, and more)
+
+### Event Types
+- Youth basketball tournaments (1-day and multi-day)
+- NCAA Certified tournaments
+- Showcases and invitationals
+- Camps and clinics
+- Tryouts
+- Leagues
+
+### Content & Communication
+- Video submission for content creators
+- Twitter feed integration
+- Contact forms and direct coordinator info (phone, email, website)
+- Social sharing (AddThis widget)
+- News/promotional articles
+
+### Technical
+- Search functionality
+- Click-tracking for sponsored content
+- Ad placement (sidebar + featured sections)
+- Mobile-friendly navigation
+
+---
+
+## https://bas.org.sg/5v5-tournaments/
+
+### Tournament & Competition Management
+- 5v5 tournament organization and listings
+- 3x3 tournament format (separate section)
+- Year-based filtering (2018–2025)
+- Breadcrumb navigation for event hierarchy
+
+### Development Programs
+- U19 National Youth Development Programme (NYDP)
+- NYDP Combine selection process
+- Pathways development program
+- Coaching clinics with international coaches
+- Skills clinics
+
+### Services
+- Court booking (training, tournaments, corporate events)
+- Medical team support and injury assessment
+- Referee and table official certification courses
+- Live game streaming (YouTube)
+- Safeguarding/safe sport officer
+
+### Registration & Accounts
+- User account system with profiles
+- WooCommerce integration for registration payments
+- Club membership structure
+
+### Communication & Support
+- Dedicated contact channels: referees, safeguarding, medical, admin
+- Physical facility (Singapore Basketball Centre)
+- Social media: Facebook, Instagram, TikTok, YouTube
+
+### Technical
+- WordPress + Elementor CMS
+- WooCommerce e-commerce
+- Lazy-loading for performance
 
