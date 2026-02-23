@@ -46,11 +46,16 @@ home.get("/", (c) => {
           html += '</ul></details>'
         }
 
-        // CF worker versions
+        // CF worker versions with preview links
         if (data.cf_versions && data.cf_versions.length > 0) {
           html += '<details class="mt-2 text-left"><summary class="cursor-pointer">CF versions (' + data.cf_versions.length + ')</summary><ul class="mt-1 space-y-1">'
           data.cf_versions.forEach(v => {
-            html += '<li>#' + v.number + ' · ' + v.id.slice(0, 8) + ' · ' + v.source + ' · ' + new Date(v.created).toLocaleDateString() + '</li>'
+            const label = '#' + v.number + ' · ' + v.id.slice(0, 8) + ' · ' + v.source + ' · ' + new Date(v.created).toLocaleDateString()
+            if (v.url) {
+              html += '<li><a href="' + v.url + '" class="link link-hover">' + label + '</a></li>'
+            } else {
+              html += '<li>' + label + '</li>'
+            }
           })
           html += '</ul></details>'
         }

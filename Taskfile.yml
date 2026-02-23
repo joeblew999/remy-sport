@@ -95,16 +95,21 @@ tasks:
         // Keep last 20 entries
         history = history.slice(0, 20);
 
-        // Fetch CF versions
+        // Fetch CF versions with preview URLs
         let cf_versions = [];
         try {
           cf_versions = JSON.parse(run('bunx wrangler versions list --json 2>/dev/null'))
-            .map(v => ({
-              id: v.id,
-              number: v.number,
-              created: v.metadata.created_on,
-              source: v.annotations?.['workers/triggered_by'] || v.metadata.source,
-            }));
+            .map(v => {
+              const previewId = v.id.split('-')[0];
+              return {
+                id: v.id,
+                number: v.number,
+                created: v.metadata.created_on,
+                source: v.annotations?.['workers/triggered_by'] || v.metadata.source,
+                has_preview: v.metadata.has_preview,
+                url: v.metadata.has_preview ? 'https://' + previewId + '-{{.WORKER_NAME}}.{{.CF_SUBDOMAIN}}.workers.dev' : null,
+              };
+            });
         } catch {}
 
         fs.writeFileSync('versions.json', JSON.stringify({ current, history, cf_versions }, null, 2) + '\n');
