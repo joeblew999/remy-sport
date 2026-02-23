@@ -6,6 +6,7 @@ import { sessionMiddleware } from "./middleware/session"
 import authRoutes from "./routes/auth"
 import homeRoutes from "./routes/home"
 import loginRoutes from "./routes/login"
+import seedRoutes from "./routes/seed"
 import type { AppEnv } from "./types"
 
 const app = new OpenAPIHono<AppEnv>()
@@ -13,6 +14,10 @@ const app = new OpenAPIHono<AppEnv>()
 // Global middleware
 app.use(logger())
 app.use(cors({ origin: "*", credentials: true }))
+
+// Seed route registered before CSRF — called via curl/scripts, not browsers
+app.route("/", seedRoutes)
+
 app.use(csrf())
 app.use("*", sessionMiddleware)
 

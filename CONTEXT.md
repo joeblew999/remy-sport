@@ -63,6 +63,7 @@
 - All ADRs live in `docs/adr/` with the naming convention `NNN-short-title.md` (e.g. `001-deployment-versioning.md`)
 - ADRs document **plans before implementation** — write the ADR first, get approval, then implement
 - ADR format: **Status** (proposed/accepted/implemented), **Context** (why), **Decision** (what), **Implementation** (how, with concrete steps and file paths), **Consequences** (trade-offs)
+- ADRs **must include Taskfile changes** — every feature needs tasks for running, seeding, testing, deploying, etc. If a feature adds new workflows, the ADR must specify the exact task names and what they do
 - Reference ADRs from CONTEXT.md when they affect conventions or architecture
 
 ## Conventions
@@ -74,6 +75,14 @@
 - Continuously refactor Taskfiles, code, and this CONTEXT.md as you work — keep everything clean and up to date
 - Always use well-known `autocomplete` attributes on form fields (`email`, `name`, `current-password`, `new-password`, etc.) so browser autofill and password managers work correctly
 - Run `task test` after changes to verify everything still works
+
+## Seed Users (dev/test only)
+| Role | Email | Password |
+|---|---|---|
+| Admin | `admin@remy.dev` | `admin1234!` |
+| User | `user@remy.dev` | `user12345!` |
+
+Seeded via `task seed` (local) or `task seed:remote` (deployed). See ADR 002.
 
 ## References
 - https://hono.dev/llms.txt

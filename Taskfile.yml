@@ -5,6 +5,7 @@ vars:
   CF_SUBDOMAIN: gedw99
   DEPLOYED_URL: 'https://{{.WORKER_NAME}}.{{.CF_SUBDOMAIN}}.workers.dev'
   GITHUB_REPO: 'https://github.com/joeblew999/remy-sport'
+  LOCAL_URL: 'http://localhost:8787'
 
 tasks:
   setup:
@@ -49,8 +50,16 @@ tasks:
     desc: Run playwright tests with UI
     cmd: bunx playwright test --ui
 
+  seed:
+    desc: Seed local D1 with dev users (requires task dev running)
+    cmd: curl -sf -X POST {{.LOCAL_URL}}/api/seed | jq .
+
+  seed:remote:
+    desc: Seed remote D1 with dev users (idempotent)
+    cmd: curl -sf -X POST {{.DEPLOYED_URL}}/api/seed | jq .
+
   deploy:
-    desc: Build, deploy, migrate remote, and test deployed worker (idempotent)
+    desc: Build, deploy, migrate remote, seed, and test deployed worker
     cmds:
       - task: setup
       - task: check
@@ -58,6 +67,7 @@ tasks:
       - task: versions
       - task: cf:deploy
       - task: cf:d1:migrations:apply:remote
+      - task: seed:remote
       - task: test:deployed
 
   versions:

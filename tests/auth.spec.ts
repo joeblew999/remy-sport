@@ -1,35 +1,45 @@
 import { test, expect } from "@playwright/test"
 
-const testPassword = "testpassword123"
-const testName = "Test User"
+// Seed users (see ADR 002 / CONTEXT.md)
+const ADMIN = { email: "admin@remy.dev", password: "admin1234!", name: "Admin" }
+const USER = { email: "user@remy.dev", password: "user12345!", name: "User" }
 
 test.describe.serial("Auth flow", () => {
-  const email = `auth-test-${Date.now()}@example.com`
+  test("seed endpoint creates dev users (idempotent)", async ({ request }) => {
+    const res = await request.post("/api/seed")
+    expect(res.ok()).toBeTruthy()
+    const body = await res.json()
+    expect(body.seeded).toHaveLength(2)
+    for (const u of body.seeded) {
+      expect(["created", "exists"]).toContain(u.status)
+    }
+  })
 
-  test("can sign up a new user", async ({ request }) => {
-    const res = await request.post("/api/auth/sign-up/email", {
-      data: { email, password: testPassword, name: testName },
+  test("admin can sign in", async ({ request }) => {
+    const res = await request.post("/api/auth/sign-in/email", {
+      data: { email: ADMIN.email, password: ADMIN.password },
     })
     expect(res.ok()).toBeTruthy()
     const body = await res.json()
-    expect(body.user.email).toBe(email)
-    expect(body.user.name).toBe(testName)
+    expect(body.user.email).toBe(ADMIN.email)
+    expect(body.user.name).toBe(ADMIN.name)
     expect(body.token).toBeTruthy()
   })
 
-  test("can sign in with same credentials", async ({ request }) => {
+  test("user can sign in", async ({ request }) => {
     const res = await request.post("/api/auth/sign-in/email", {
-      data: { email, password: testPassword },
+      data: { email: USER.email, password: USER.password },
     })
     expect(res.ok()).toBeTruthy()
     const body = await res.json()
-    expect(body.user.email).toBe(email)
+    expect(body.user.email).toBe(USER.email)
+    expect(body.user.name).toBe(USER.name)
     expect(body.token).toBeTruthy()
   })
 
   test("rejects sign in with wrong password", async ({ request }) => {
     const res = await request.post("/api/auth/sign-in/email", {
-      data: { email, password: "wrongpassword123" },
+      data: { email: ADMIN.email, password: "wrongpassword123" },
     })
     expect(res.ok()).toBeFalsy()
   })

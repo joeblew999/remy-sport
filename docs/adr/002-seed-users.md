@@ -1,10 +1,10 @@
 # ADR 002: Seed Users for Development and Testing
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 
-Developers and Playwright tests need predictable user accounts to work with. Currently, tests create throwaway users with random emails on every run, and developers must manually register through the UI. This is slow and unreliable — tests can't verify role-based features, and devs waste time on setup.
+Developers and Playwright tests need predictable user accounts to work with. Previously, tests created throwaway users with random emails on every run, and developers had to manually register through the UI. This was slow and unreliable — tests couldn't verify role-based features, and devs wasted time on setup.
 
 We need two well-known seed users:
 
@@ -17,69 +17,59 @@ These are **dev/test credentials only** — not for production.
 
 ## Decision
 
-### 1. Seed script
+### 1. Seed endpoint
 
-Create `src/db/seed.ts` that upserts the two users via Better Auth's `signUpEmail` API. The script is idempotent — it skips users that already exist.
+`POST /api/seed` endpoint (`src/routes/seed.ts`) that upserts the two users via Better Auth's `signUpEmail` API. The endpoint is idempotent — it skips users that already exist. The worker itself handles seeding through its existing auth stack (no separate script runner needed).
 
 ### 2. Taskfile integration
 
-Add a `seed` task that runs the seed script against local D1. Add `seed:remote` for the deployed worker. Wire `seed` into the `setup` task so local dev always has users ready.
+| Task | Description |
+|---|---|
+| `task seed` | Curl `POST /api/seed` on local dev server (requires `task dev` running) |
+| `task seed:remote` | Curl `POST /api/seed` on deployed worker |
 
-```yaml
-seed:
-  desc: Seed local D1 with dev users (idempotent)
-  deps: [setup]
-  cmd: # call seed endpoint or script
-
-seed:remote:
-  desc: Seed remote D1 with dev users (idempotent)
-  cmd: # call seed endpoint on deployed worker
-```
+`seed:remote` is wired into the `deploy` pipeline after remote DB migrations, before deployed tests. For local dev, developers run `task seed` while `task dev` is running.
 
 ### 3. Login page quick-fill
 
-Display the seed user credentials on the login page (only in dev) as clickable buttons so developers can one-click sign in. Show a small card below the form:
+The login page shows dev account buttons below the form:
 
 ```
 ── Dev accounts ──
-[Admin] admin@remy.dev
-[User]  user@remy.dev
+[Admin] [User]
 ```
 
-Clicking fills the email/password fields and submits the form.
+Clicking fills the email/password fields and submits the form automatically.
 
-### 4. Better Auth Admin plugin
+### 4. Playwright test updates
 
-Enable the Better Auth `admin` plugin to give the admin user elevated privileges. This lays the groundwork for admin-only routes and features.
+Tests use the seed users instead of creating random accounts:
+- First test calls `/api/seed` to ensure users exist
+- Verifies both admin and user can sign in with known credentials
+- Tests the quick-fill buttons are visible on the login page
 
-### 5. Playwright test updates
+### 5. Better Auth Admin plugin (future)
 
-Update tests to use the seed users instead of creating random accounts. Add tests that verify:
-- Admin user can access admin-only endpoints
-- Normal user is blocked from admin endpoints
-- Both users can sign in with known credentials
+Enable the Better Auth `admin` plugin to give the admin user elevated privileges. Deferred until admin-only routes are needed.
 
 ## Implementation
 
-### Files to create/modify
+### Files created/modified
 
 | File | Change |
 |---|---|
-| `src/db/seed.ts` | New — seed script with admin + user accounts |
-| `src/routes/login.ts` | Add dev account quick-fill cards |
-| `src/auth.ts` | Enable admin plugin |
-| `Taskfile.yml` | Add `seed` and `seed:remote` tasks, wire into `setup` |
-| `tests/auth.spec.ts` | Use seed users, add admin vs user tests |
-| `CONTEXT.md` | Document seed user credentials |
-
-### Seed endpoint approach
-
-Add a `POST /api/seed` endpoint (gated behind a dev check or secret) that the Taskfile calls via `curl`. This avoids needing a separate script runner — the worker itself handles seeding through its existing auth stack.
+| `src/routes/seed.ts` | NEW — `POST /api/seed` endpoint |
+| `src/index.ts` | Register seed routes |
+| `src/views/login.ts` | Dev account quick-fill buttons + `fillDev()` function |
+| `Taskfile.yml` | `seed` and `seed:remote` tasks; `seed:remote` in deploy pipeline |
+| `tests/auth.spec.ts` | Use seed users, test seed endpoint |
+| `tests/login.spec.ts` | Test quick-fill buttons visible |
+| `CONTEXT.md` | Document seed user credentials, ADR Taskfile convention |
 
 ## Consequences
 
-- Developers get instant working accounts on `task setup`
 - Playwright tests are deterministic — no more random emails
-- Login page shows quick-fill in dev, reducing friction
-- Admin plugin enables role-based features going forward
+- Login page shows quick-fill, reducing dev friction
 - Seed credentials are well-known and documented — never use in production
+- Admin plugin deferred until needed (avoids premature complexity)
+- Deploy pipeline seeds remote DB automatically
