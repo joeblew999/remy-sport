@@ -11,6 +11,8 @@
 - **MCP** — model context protocol
 - **Better Auth** — authentication (with plugins for 2FA, organizations, roles, etc.)
 - **Drizzle ORM** — database ORM for D1
+- **DaisyUI v5** — UI components via CDN (no build step)
+- **Tailwind CSS 4** — utility CSS via CDN
 - **Playwright** — end-to-end testing
 
 ### Runtime & Infrastructure

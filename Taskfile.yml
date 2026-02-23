@@ -34,6 +34,23 @@ tasks:
     desc: Run playwright tests with UI
     cmd: bunx playwright test --ui
 
+  versions:
+    desc: Generate versions.json with deployment info
+    cmds:
+      - |
+        APP_VERSION=$(node -p "require('./package.json').version")
+        cat <<EOF > versions.json
+        {
+          "_generated": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "app": "$APP_VERSION",
+          "git": {
+            "commit": "$(git rev-parse --short HEAD)",
+            "branch": "$(git branch --show-current)",
+            "tag": "$(git describe --tags --always 2>/dev/null || echo 'none')"
+          }
+        }
+        EOF
+
 includes:
   cf:
     taskfile: ./taskfiles/Taskfile.cloudflare.yml
