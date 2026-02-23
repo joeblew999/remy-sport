@@ -1,16 +1,27 @@
 {
   "current": {
-    "_generated": "2026-02-23T02:21:36.904Z",
+    "_generated": "2026-02-23T02:34:18.069Z",
     "app": "0.1.0",
     "url": "https://remy-sport.gedw99.workers.dev",
     "git": {
-      "commit": "62998f3",
+      "commit": "0e1db39",
       "branch": "main",
-      "tag": "62998f3",
-      "github": "https://github.com/joeblew999/remy-sport/commit/62998f34022bcb9f9ae9be4eab0054831e7fbe25"
+      "tag": "0e1db39",
+      "github": "https://github.com/joeblew999/remy-sport/commit/0e1db3986e22facad59daa7c6a2bfd9be3f66ac3"
     }
   },
   "history": [
+    {
+      "_generated": "2026-02-23T02:21:36.904Z",
+      "app": "0.1.0",
+      "url": "https://remy-sport.gedw99.workers.dev",
+      "git": {
+        "commit": "62998f3",
+        "branch": "main",
+        "tag": "62998f3",
+        "github": "https://github.com/joeblew999/remy-sport/commit/62998f34022bcb9f9ae9be4eab0054831e7fbe25"
+      }
+    },
     {
       "_generated": "2026-02-23T02:18:01.788Z",
       "app": "0.1.0",
@@ -111,6 +122,13 @@
       "created": "2026-02-23T02:12:30.058191Z",
       "source": "version_upload",
       "url": "https://6d536404-remy-sport.gedw99.workers.dev"
+    },
+    {
+      "id": "ac1fc8c2-be6e-4c0e-85ff-6f4d0c821b56",
+      "number": 8,
+      "created": "2026-02-23T02:21:46.990104Z",
+      "source": "version_upload",
+      "url": "https://ac1fc8c2-remy-sport.gedw99.workers.dev"
     }
   ]
 }
