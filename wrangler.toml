@@ -1,0 +1,20 @@
+name = "remy-sport"
+main = "src/index.ts"
+compatibility_date = "2024-12-19"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "remy-sport-db"
+database_id = "TODO_REPLACE_WITH_DB_ID"
+migrations_dir = "src/db/migrations"
+
+# R2 Storage
+[[r2_buckets]]
+binding = "STORAGE"
+bucket_name = "remy-sport-storage"
+
+[vars]
+BETTER_AUTH_SECRET = "dev-secret-change-in-production"
+BETTER_AUTH_URL = "http://localhost:8787"

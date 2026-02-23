@@ -1,0 +1,40 @@
+version: "3"
+
+tasks:
+  setup:
+    desc: Install deps and apply local migrations (idempotent)
+    cmds:
+      - task: install
+      - task: cf:d1:migrations:apply
+
+  install:
+    desc: Install dependencies
+    sources:
+      - package.json
+      - bun.lock
+    generates:
+      - node_modules/.package-lock.json
+    cmd: bun install
+
+  dev:
+    desc: Start local dev server
+    deps: [setup]
+    cmd: bunx wrangler dev
+
+  check:
+    desc: Type check the project
+    cmd: bunx tsc --noEmit
+
+  test:
+    desc: Run playwright tests
+    deps: [setup]
+    cmd: bunx playwright test
+
+  test:ui:
+    desc: Run playwright tests with UI
+    cmd: bunx playwright test --ui
+
+includes:
+  cf:
+    taskfile: ./taskfiles/Taskfile.cloudflare.yml
+    optional: false

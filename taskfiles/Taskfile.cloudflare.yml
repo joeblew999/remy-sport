@@ -1,0 +1,121 @@
+version: "3"
+
+vars:
+  WORKER_NAME: remy-sport
+  DB_NAME: '{{.WORKER_NAME}}-db'
+
+tasks:
+  # --- Development ---
+  dev:
+    desc: Start local dev server with wrangler
+    cmd: bunx wrangler dev
+
+  dev:remote:
+    desc: Start dev server against remote Cloudflare resources
+    cmd: bunx wrangler dev --remote
+
+  # --- Deployment ---
+  deploy:
+    desc: Deploy worker to Cloudflare
+    cmd: bunx wrangler deploy
+
+  deploy:staging:
+    desc: Deploy worker to staging environment
+    cmd: bunx wrangler deploy --env staging
+
+  deploy:production:
+    desc: Deploy worker to production environment
+    cmd: bunx wrangler deploy --env production
+
+  # --- Versioned Deployments ---
+  versions:list:
+    desc: List deployed versions
+    cmd: bunx wrangler versions list
+
+  versions:upload:
+    desc: Create a new version without deploying
+    cmd: bunx wrangler versions upload
+
+  versions:deploy:
+    desc: Gradually roll out a version (interactive)
+    cmd: bunx wrangler versions deploy
+
+  rollback:
+    desc: Roll back to previous version
+    cmd: bunx wrangler rollback
+
+  # --- D1 Database ---
+  d1:list:
+    desc: List D1 databases
+    cmd: bunx wrangler d1 list
+
+  d1:create:
+    desc: Create a new D1 database (pass name as -- <name>)
+    cmd: bunx wrangler d1 create {{.CLI_ARGS}}
+
+  d1:execute:
+    desc: Execute SQL against local D1 (-- --command "SQL" or -- --file path)
+    cmd: bunx wrangler d1 execute {{.DB_NAME}} --local {{.CLI_ARGS}}
+
+  d1:execute:remote:
+    desc: Execute SQL against remote D1
+    cmd: bunx wrangler d1 execute {{.DB_NAME}} --remote {{.CLI_ARGS}}
+
+  d1:migrations:create:
+    desc: Create a new D1 migration (pass name as -- <name>)
+    cmd: bunx wrangler d1 migrations create {{.DB_NAME}} {{.CLI_ARGS}}
+
+  d1:migrations:apply:
+    desc: Apply D1 migrations locally (idempotent)
+    cmd: bunx wrangler d1 migrations apply {{.DB_NAME}} --local
+
+  d1:migrations:apply:remote:
+    desc: Apply D1 migrations to remote (idempotent)
+    cmd: bunx wrangler d1 migrations apply {{.DB_NAME}} --remote
+
+  # --- R2 Storage ---
+  r2:list:
+    desc: List R2 buckets
+    cmd: bunx wrangler r2 bucket list
+
+  r2:create:
+    desc: Create an R2 bucket (pass name as -- <name>)
+    cmd: bunx wrangler r2 bucket create {{.CLI_ARGS}}
+
+  r2:objects:list:
+    desc: List objects in an R2 bucket (-- <bucket>)
+    cmd: bunx wrangler r2 object list {{.CLI_ARGS}}
+
+  r2:object:put:
+    desc: Upload file to R2 (-- <bucket/key> --file <path>)
+    cmd: bunx wrangler r2 object put {{.CLI_ARGS}}
+
+  r2:object:get:
+    desc: Download file from R2 (-- <bucket/key>)
+    cmd: bunx wrangler r2 object get {{.CLI_ARGS}}
+
+  r2:object:delete:
+    desc: Delete file from R2 (-- <bucket/key>)
+    cmd: bunx wrangler r2 object delete {{.CLI_ARGS}}
+
+  # --- Secrets & Config ---
+  secret:put:
+    desc: Set a secret (interactive, -- <name>)
+    cmd: bunx wrangler secret put {{.CLI_ARGS}}
+
+  secret:list:
+    desc: List secrets
+    cmd: bunx wrangler secret list
+
+  secret:delete:
+    desc: Delete a secret (-- <name>)
+    cmd: bunx wrangler secret delete {{.CLI_ARGS}}
+
+  # --- Logs & Debugging ---
+  tail:
+    desc: Tail live worker logs
+    cmd: bunx wrangler tail
+
+  whoami:
+    desc: Show current Cloudflare auth info
+    cmd: bunx wrangler whoami
