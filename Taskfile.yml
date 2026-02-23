@@ -63,8 +63,9 @@ tasks:
     desc: Generate versions.json with git history and CF versions
     cmds:
       - |
-        node -e "
+        node -e "(async () => {
         const fs = require('fs');
+        const https = require('https');
         const { execSync } = require('child_process');
         const run = cmd => execSync(cmd, { encoding: 'utf-8' }).trim();
 
@@ -85,35 +86,41 @@ tasks:
         try {
           const prev = JSON.parse(fs.readFileSync('versions.json', 'utf-8'));
           history = prev.history || [];
-          // Don't duplicate if same commit
           if (history[0]?.git?.commit !== current.git.commit) {
             history.unshift(prev.current || { app: prev.app, git: prev.git, url: prev.url });
           }
         } catch {}
-        // Remove entries with same commit as current
         history = history.filter(h => h.git?.commit !== current.git.commit);
-        // Keep last 20 entries
         history = history.slice(0, 20);
 
-        // Fetch CF versions with preview URLs
+        // Health-check a URL (returns true/false)
+        const checkHealth = url => new Promise(resolve => {
+          https.get(url + '/api/health', { timeout: 5000 }, res => resolve(res.statusCode === 200))
+            .on('error', () => resolve(false))
+            .on('timeout', function() { this.destroy(); resolve(false); });
+        });
+
+        // Fetch CF versions with health-checked preview URLs
         let cf_versions = [];
         try {
-          cf_versions = JSON.parse(run('bunx wrangler versions list --json 2>/dev/null'))
-            .map(v => {
-              const previewId = v.id.split('-')[0];
-              return {
-                id: v.id,
-                number: v.number,
-                created: v.metadata.created_on,
-                source: v.annotations?.['workers/triggered_by'] || v.metadata.source,
-                has_preview: v.metadata.has_preview,
-                url: v.metadata.has_preview ? 'https://' + previewId + '-{{.WORKER_NAME}}.{{.CF_SUBDOMAIN}}.workers.dev' : null,
-              };
-            });
+          const raw = JSON.parse(run('bunx wrangler versions list --json 2>/dev/null'));
+          cf_versions = await Promise.all(raw.map(async v => {
+            const previewId = v.id.split('-')[0];
+            const previewUrl = v.metadata.has_preview
+              ? 'https://' + previewId + '-{{.WORKER_NAME}}.{{.CF_SUBDOMAIN}}.workers.dev' : null;
+            const healthy = previewUrl ? await checkHealth(previewUrl) : false;
+            return {
+              id: v.id,
+              number: v.number,
+              created: v.metadata.created_on,
+              source: v.annotations?.['workers/triggered_by'] || v.metadata.source,
+              url: healthy ? previewUrl : null,
+            };
+          }));
         } catch {}
 
         fs.writeFileSync('versions.json', JSON.stringify({ current, history, cf_versions }, null, 2) + '\n');
-        "
+        })()"
 
 includes:
   cf:

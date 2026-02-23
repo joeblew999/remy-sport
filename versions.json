@@ -1,15 +1,25 @@
 {
   "current": {
-    "_generated": "2026-02-23T02:07:57.401Z",
+    "_generated": "2026-02-23T02:11:30.693Z",
     "app": "0.1.0",
     "url": "https://remy-sport.gedw99.workers.dev",
     "git": {
-      "commit": "1478ec5",
+      "commit": "9691462",
       "branch": "main",
-      "tag": "1478ec5"
+      "tag": "9691462"
     }
   },
   "history": [
+    {
+      "_generated": "2026-02-23T02:07:57.401Z",
+      "app": "0.1.0",
+      "url": "https://remy-sport.gedw99.workers.dev",
+      "git": {
+        "commit": "1478ec5",
+        "branch": "main",
+        "tag": "1478ec5"
+      }
+    },
     {
       "_generated": "2026-02-23T02:05:08.211Z",
       "app": "0.1.0",
@@ -36,15 +46,13 @@
       "number": 1,
       "created": "2026-02-23T01:42:17.694022Z",
       "source": "upload",
-      "has_preview": true,
-      "url": "https://a5690437-remy-sport.gedw99.workers.dev"
+      "url": null
     },
     {
       "id": "e35973e3-50d5-424f-b231-807ec8024ab9",
       "number": 2,
       "created": "2026-02-23T01:42:20.364454Z",
       "source": "secret",
-      "has_preview": false,
       "url": null
     },
     {
@@ -52,7 +60,6 @@
       "number": 3,
       "created": "2026-02-23T01:42:56.668318Z",
       "source": "version_upload",
-      "has_preview": true,
       "url": "https://ed99867b-remy-sport.gedw99.workers.dev"
     },
     {
@@ -60,7 +67,6 @@
       "number": 4,
       "created": "2026-02-23T01:44:56.842219Z",
       "source": "version_upload",
-      "has_preview": true,
       "url": "https://aaeb13ca-remy-sport.gedw99.workers.dev"
     },
     {
@@ -68,8 +74,14 @@
       "number": 5,
       "created": "2026-02-23T01:52:28.511003Z",
       "source": "version_upload",
-      "has_preview": true,
       "url": "https://915252d1-remy-sport.gedw99.workers.dev"
+    },
+    {
+      "id": "5fbaf4cf-2d5d-454d-8468-5213037ff632",
+      "number": 6,
+      "created": "2026-02-23T02:09:39.656153Z",
+      "source": "version_upload",
+      "url": "https://5fbaf4cf-remy-sport.gedw99.workers.dev"
     }
   ]
 }
