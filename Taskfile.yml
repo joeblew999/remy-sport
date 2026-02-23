@@ -60,28 +60,55 @@ tasks:
       - task: test:deployed
 
   versions:
-    desc: Generate versions.json with deployment info (idempotent via checksum)
-    sources:
-      - package.json
-      - .git/HEAD
-      - .git/refs/heads/**/*
-    generates:
-      - versions.json
+    desc: Generate versions.json with git history and CF versions
     cmds:
       - |
-        APP_VERSION=$(node -p "require('./package.json').version")
-        cat <<EOF > versions.json
-        {
-          "_generated": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-          "app": "$APP_VERSION",
-          "url": "{{.DEPLOYED_URL}}",
-          "git": {
-            "commit": "$(git rev-parse --short HEAD)",
-            "branch": "$(git branch --show-current)",
-            "tag": "$(git describe --tags --always 2>/dev/null || echo 'none')"
+        node -e "
+        const fs = require('fs');
+        const { execSync } = require('child_process');
+        const run = cmd => execSync(cmd, { encoding: 'utf-8' }).trim();
+
+        // Build current entry
+        const current = {
+          _generated: new Date().toISOString(),
+          app: require('./package.json').version,
+          url: '{{.DEPLOYED_URL}}',
+          git: {
+            commit: run('git rev-parse --short HEAD'),
+            branch: run('git branch --show-current'),
+            tag: run('git describe --tags --always 2>/dev/null || echo none'),
+          },
+        };
+
+        // Load existing history
+        let history = [];
+        try {
+          const prev = JSON.parse(fs.readFileSync('versions.json', 'utf-8'));
+          history = prev.history || [];
+          // Don't duplicate if same commit
+          if (history[0]?.git?.commit !== current.git.commit) {
+            history.unshift(prev.current || { app: prev.app, git: prev.git, url: prev.url });
           }
-        }
-        EOF
+        } catch {}
+        // Remove entries with same commit as current
+        history = history.filter(h => h.git?.commit !== current.git.commit);
+        // Keep last 20 entries
+        history = history.slice(0, 20);
+
+        // Fetch CF versions
+        let cf_versions = [];
+        try {
+          cf_versions = JSON.parse(run('bunx wrangler versions list --json 2>/dev/null'))
+            .map(v => ({
+              id: v.id,
+              number: v.number,
+              created: v.metadata.created_on,
+              source: v.annotations?.['workers/triggered_by'] || v.metadata.source,
+            }));
+        } catch {}
+
+        fs.writeFileSync('versions.json', JSON.stringify({ current, history, cf_versions }, null, 2) + '\n');
+        "
 
 includes:
   cf:

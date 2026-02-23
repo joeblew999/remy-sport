@@ -6,40 +6,50 @@
 
 We deploy to Cloudflare Workers and need a reliable way to:
 - Track what code is running in production
+- See the full history of all deployed versions
 - Roll back to a previous version if something breaks
 - Gradually shift traffic to new versions to reduce risk
-- Surface the running version in the UI for debugging
+- Surface all version info in the UI with clickable links
 
 Cloudflare Workers supports three concepts: **Worker** (the app), **Version** (immutable snapshot of code + config), and **Deployment** (which version(s) serve traffic). Up to 100 recent versions are available for rollback.
 
 ## Decision
 
-### App-level versioning (`versions.json`)
+### `versions.json` structure
 
-Generate `versions.json` at **dev time** (before deploy) with:
-- `app` — semver from `package.json`
-- `git.commit` — short SHA
-- `git.branch` — current branch
-- `git.tag` — git tag or commit fallback
-- `_generated` — UTC timestamp
-- `url` — the deployed worker URL (built from `WORKER_NAME` + `CF_SUBDOMAIN` Taskfile vars)
+Generated at **dev time** by `task versions`. Contains three sections:
 
-This file is bundled into the worker and served at `/api/versions`. The home page displays it in the footer with a clickable link to the deployed version.
+```json
+{
+  "current": {
+    "_generated": "2026-02-23T02:00:00Z",
+    "app": "0.1.0",
+    "url": "https://remy-sport.gedw99.workers.dev",
+    "git": { "commit": "abc1234", "branch": "main", "tag": "v0.1.0" }
+  },
+  "history": [
+    { "app": "0.1.0", "git": { "commit": "def5678", "branch": "main", "tag": "..." }, "url": "..." }
+  ],
+  "cf_versions": [
+    { "id": "uuid", "number": 5, "created": "...", "source": "upload" }
+  ]
+}
+```
 
-Key insight: the deployed URL is **deterministic** — it's built from the worker name and CF account subdomain, both known at dev time. No runtime discovery needed.
+- **`current`** — the version being deployed (git info + deployed URL)
+- **`history`** — previous app versions (last 20, appended automatically, deduped by commit)
+- **`cf_versions`** — Cloudflare Worker versions fetched from `wrangler versions list --json`
 
-The `task versions` task is idempotent — it only regenerates when `package.json` or git HEAD changes.
+Key insight: the deployed URL is **deterministic** — built from `WORKER_NAME` + `CF_SUBDOMAIN` Taskfile vars at dev time. No runtime discovery needed.
 
 ### Version display in UI
 
-The home page footer shows all version info with a link to the deployed instance:
+The home page footer shows:
+1. Current version: `v0.1.0 · abc1234 · main` with a clickable link to the deployed URL
+2. Expandable **Deploy history** — all previous app deployments
+3. Expandable **CF versions** — all Cloudflare Worker versions with IDs, numbers, and sources
 
-```
-v0.1.0 · abc1234 · main
-https://remy-sport.gedw99.workers.dev
-```
-
-The link is embedded in `versions.json` at build time, so the UI just renders it — no URL construction at runtime.
+Everything is embedded in `versions.json` at build time — the UI just renders it.
 
 ### Cloudflare Workers versioning
 
@@ -60,7 +70,7 @@ The full deploy pipeline runs these steps in order:
 1. `setup` — install deps, apply local migrations
 2. `check` — TypeScript type check
 3. `test` — Playwright tests locally
-4. `versions` — generate versions.json
+4. `versions` — generate versions.json (git history + CF versions)
 5. `cf:deploy` — deploy to Cloudflare
 6. `cf:d1:migrations:apply:remote` — apply remote DB migrations
 7. `test:deployed` — Playwright tests against the live worker
@@ -91,7 +101,8 @@ This gives access to `env.CF_VERSION.id` and `env.CF_VERSION.tag` in the worker.
 ## Consequences
 
 - Every deploy is automatically tested end-to-end before and after
-- The running version is always visible in the UI
+- Full version history is visible in the UI — both app deploys and CF versions
+- All URLs are built at dev time — no runtime discovery complexity
 - Rollback is one command (`task cf:rollback`)
 - Gradual rollouts are available when we need them for higher-risk changes
 - DB migrations are separate from code versions — they must be backwards-compatible since rollback doesn't revert migrations
