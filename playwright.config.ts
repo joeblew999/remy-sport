@@ -1,5 +1,8 @@
 import { defineConfig } from "@playwright/test"
 
+const baseURL = process.env.BASE_URL || "http://localhost:8787"
+const isLocal = !process.env.BASE_URL
+
 export default defineConfig({
   testDir: "./tests",
   fullyParallel: true,
@@ -8,13 +11,15 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: "html",
   use: {
-    baseURL: "http://localhost:8787",
+    baseURL,
     trace: "on-first-retry",
   },
-  webServer: {
-    command: "bunx wrangler dev",
-    url: "http://localhost:8787/api/health",
-    reuseExistingServer: !process.env.CI,
-    timeout: 15000,
-  },
+  ...(isLocal && {
+    webServer: {
+      command: "bunx wrangler dev",
+      url: "http://localhost:8787/api/health",
+      reuseExistingServer: !process.env.CI,
+      timeout: 15000,
+    },
+  }),
 })

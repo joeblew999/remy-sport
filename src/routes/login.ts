@@ -27,12 +27,12 @@ login.get("/login", (c) => {
       <form id="authForm">
         <div class="hidden" id="nameField">
           <label class="label" for="name">Name</label>
-          <input type="text" id="name" name="name" placeholder="Your name" class="input input-bordered w-full mb-3" />
+          <input type="text" id="name" name="name" placeholder="Your name" autocomplete="name" class="input input-bordered w-full mb-3" />
         </div>
         <label class="label" for="email">Email</label>
-        <input type="email" id="email" name="email" placeholder="you@example.com" required class="input input-bordered w-full mb-3" />
+        <input type="email" id="email" name="email" placeholder="you@example.com" required autocomplete="email" class="input input-bordered w-full mb-3" />
         <label class="label" for="password">Password</label>
-        <input type="password" id="password" name="password" placeholder="Min 8 characters" required minlength="8" class="input input-bordered w-full mb-4" />
+        <input type="password" id="password" name="password" placeholder="Min 8 characters" required minlength="8" autocomplete="current-password" class="input input-bordered w-full mb-4" />
         <button type="submit" id="submitBtn" class="btn btn-primary w-full">Sign In</button>
       </form>
       <div class="text-center mt-4 text-sm text-base-content/60">
@@ -52,6 +52,7 @@ login.get("/login", (c) => {
       document.getElementById('toggleText').textContent = isSignUp ? 'Already have an account?' : "Don't have an account?"
       document.getElementById('toggleLink').textContent = isSignUp ? 'Sign In' : 'Sign Up'
       document.getElementById('nameField').style.display = isSignUp ? 'block' : 'none'
+      document.getElementById('password').autocomplete = isSignUp ? 'new-password' : 'current-password'
     }
 
     function toggleMode() {

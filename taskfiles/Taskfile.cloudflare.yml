@@ -3,6 +3,7 @@ version: "3"
 vars:
   WORKER_NAME: remy-sport
   DB_NAME: '{{.WORKER_NAME}}-db'
+  BUCKET_NAME: '{{.WORKER_NAME}}-storage'
 
 tasks:
   # --- Development ---
@@ -16,7 +17,12 @@ tasks:
 
   # --- Deployment ---
   deploy:
-    desc: Deploy worker to Cloudflare
+    desc: Deploy worker to Cloudflare (idempotent via checksum)
+    sources:
+      - src/**/*.ts
+      - wrangler.toml
+      - package.json
+      - versions.json
     cmd: bunx wrangler deploy
 
   deploy:staging:
@@ -50,20 +56,34 @@ tasks:
     cmd: bunx wrangler d1 list
 
   d1:create:
-    desc: Create a new D1 database (pass name as -- <name>)
-    cmd: bunx wrangler d1 create {{.CLI_ARGS}}
+    desc: Create the project D1 database
+    cmd: bunx wrangler d1 create {{.DB_NAME}}
+
+  d1:tables:
+    desc: List tables in local D1
+    cmd: bunx wrangler d1 execute {{.DB_NAME}} --local --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+
+  d1:tables:remote:
+    desc: List tables in remote D1
+    cmd: bunx wrangler d1 execute {{.DB_NAME}} --remote --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
 
   d1:execute:
-    desc: Execute SQL against local D1 (-- --command "SQL" or -- --file path)
-    cmd: bunx wrangler d1 execute {{.DB_NAME}} --local {{.CLI_ARGS}}
+    desc: Execute SQL against local D1
+    cmd: bunx wrangler d1 execute {{.DB_NAME}} --local --command "{{.SQL}}"
+    requires:
+      vars: [SQL]
 
   d1:execute:remote:
     desc: Execute SQL against remote D1
-    cmd: bunx wrangler d1 execute {{.DB_NAME}} --remote {{.CLI_ARGS}}
+    cmd: bunx wrangler d1 execute {{.DB_NAME}} --remote --command "{{.SQL}}"
+    requires:
+      vars: [SQL]
 
   d1:migrations:create:
-    desc: Create a new D1 migration (pass name as -- <name>)
-    cmd: bunx wrangler d1 migrations create {{.DB_NAME}} {{.CLI_ARGS}}
+    desc: Create a new D1 migration
+    cmd: bunx wrangler d1 migrations create {{.DB_NAME}} "{{.NAME}}"
+    requires:
+      vars: [NAME]
 
   d1:migrations:apply:
     desc: Apply D1 migrations locally (idempotent)
@@ -79,37 +99,17 @@ tasks:
     cmd: bunx wrangler r2 bucket list
 
   r2:create:
-    desc: Create an R2 bucket (pass name as -- <name>)
-    cmd: bunx wrangler r2 bucket create {{.CLI_ARGS}}
+    desc: Create the project R2 bucket
+    cmd: bunx wrangler r2 bucket create {{.BUCKET_NAME}}
 
-  r2:objects:list:
-    desc: List objects in an R2 bucket (-- <bucket>)
-    cmd: bunx wrangler r2 object list {{.CLI_ARGS}}
-
-  r2:object:put:
-    desc: Upload file to R2 (-- <bucket/key> --file <path>)
-    cmd: bunx wrangler r2 object put {{.CLI_ARGS}}
-
-  r2:object:get:
-    desc: Download file from R2 (-- <bucket/key>)
-    cmd: bunx wrangler r2 object get {{.CLI_ARGS}}
-
-  r2:object:delete:
-    desc: Delete file from R2 (-- <bucket/key>)
-    cmd: bunx wrangler r2 object delete {{.CLI_ARGS}}
+  r2:objects:
+    desc: List objects in the project R2 bucket
+    cmd: bunx wrangler r2 object list {{.BUCKET_NAME}}
 
   # --- Secrets & Config ---
-  secret:put:
-    desc: Set a secret (interactive, -- <name>)
-    cmd: bunx wrangler secret put {{.CLI_ARGS}}
-
   secret:list:
     desc: List secrets
     cmd: bunx wrangler secret list
-
-  secret:delete:
-    desc: Delete a secret (-- <name>)
-    cmd: bunx wrangler secret delete {{.CLI_ARGS}}
 
   # --- Logs & Debugging ---
   tail:

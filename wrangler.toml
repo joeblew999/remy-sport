@@ -7,7 +7,7 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "remy-sport-db"
-database_id = "TODO_REPLACE_WITH_DB_ID"
+database_id = "3bf4aa25-3250-491e-83e7-ba8dbf5562f5"
 migrations_dir = "src/db/migrations"
 
 # R2 Storage
@@ -16,5 +16,7 @@ binding = "STORAGE"
 bucket_name = "remy-sport-storage"
 
 [vars]
-BETTER_AUTH_SECRET = "dev-secret-change-in-production"
-BETTER_AUTH_URL = "http://localhost:8787"
+BETTER_AUTH_URL = "https://remy-sport.gedw99.workers.dev"
+
+# BETTER_AUTH_SECRET is set via `wrangler secret` — not stored in config
+# For local dev, .dev.vars provides the secret

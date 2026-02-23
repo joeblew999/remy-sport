@@ -61,9 +61,12 @@
 
 ## Conventions
 - All plan and architectural decision files go in `docs/adr/`
-- Always use `task` commands to run things (e.g. `task dev`, `task test`, `task cf:deploy`) — both AI agents and humans use the same Taskfile so we dogfood our own tooling
+- Always use `task` commands to run things (e.g. `task dev`, `task test`, `task deploy`) — both AI agents and humans use the same Taskfile so we dogfood our own tooling
 - Never run raw `bun`, `bunx wrangler`, or other commands directly when a task exists for it
+- Taskfile tasks must be **idempotent** — use `sources`/`generates` checksums so tasks skip when inputs haven't changed. Every task that can be idempotent should be (install, check, deploy, versions, etc.)
+- Taskfile tasks must work **without requiring user args** — use named vars with defaults, project-level config, or auto-detection instead of CLI_ARGS
 - Continuously refactor Taskfiles, code, and this CONTEXT.md as you work — keep everything clean and up to date
+- Always use well-known `autocomplete` attributes on form fields (`email`, `name`, `current-password`, `new-password`, etc.) so browser autofill and password managers work correctly
 - Run `task test` after changes to verify everything still works
 
 ## References
