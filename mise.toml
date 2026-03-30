@@ -1,7 +1,7 @@
 [tools]
 bun  = "1.3.11"
 jq   = "1.8.1"
-node = "lts"
+node = "24.14.1"
 
 [env]
 WORKER_NAME  = "remy-sport"
