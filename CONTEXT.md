@@ -25,7 +25,7 @@
 
 ### Tooling
 - **bun** — package manager and runtime
-- **Taskfile** — task runner
+- **mise** — task runner and tool version manager
 
 ### Key Details
 - MCP server runs on Cloudflare
@@ -65,18 +65,18 @@
 - All ADRs live in `docs/dev/adr/` with the naming convention `NNN-short-title.md` (e.g. `001-deployment-versioning.md`)
 - ADRs document **plans before implementation** — write the ADR first, get approval, then implement
 - ADR format: **Status** (proposed/accepted/implemented), **Context** (why), **Decision** (what), **Implementation** (how, with concrete steps and file paths), **Consequences** (trade-offs)
-- ADRs **must include Taskfile changes** — every feature needs tasks for running, seeding, testing, deploying, etc. If a feature adds new workflows, the ADR must specify the exact task names and what they do
+- ADRs **must include mise task definitions** — every feature needs tasks for running, seeding, testing, deploying, etc. If a feature adds new workflows, the ADR must specify the exact task names and what they do
 - Reference ADRs from CONTEXT.md when they affect conventions or architecture
 
 ## Conventions
 - All plan and architectural decision files go in `docs/dev/adr/`
-- Always use `task` commands to run things (e.g. `task dev`, `task test`, `task deploy`) — both AI agents and humans use the same Taskfile so we dogfood our own tooling
-- Never run raw `bun`, `bunx wrangler`, or other commands directly when a task exists for it
-- Taskfile tasks must be **idempotent** — use `sources`/`generates` checksums so tasks skip when inputs haven't changed. Every task that can be idempotent should be (install, check, deploy, versions, etc.)
-- Taskfile tasks must work **without requiring user args** — use named vars with defaults, project-level config, or auto-detection instead of CLI_ARGS
-- Continuously refactor Taskfiles, code, and this CONTEXT.md as you work — keep everything clean and up to date
+- Always use `mise run` commands to run things (e.g. `mise run dev`, `mise run test`, `mise run deploy`) — both AI agents and humans use the same mise tasks so we dogfood our own tooling
+- Never run raw `bun`, `bunx wrangler`, or other commands directly when a mise task exists for it
+- Mise tasks must be **idempotent** where possible — tasks should skip when inputs haven't changed
+- Mise tasks must work **without requiring user args** — use env vars with defaults or auto-detection instead of positional args
+- Continuously refactor mise tasks, code, and this CONTEXT.md as you work — keep everything clean and up to date
 - Always use well-known `autocomplete` attributes on form fields (`email`, `name`, `current-password`, `new-password`, etc.) so browser autofill and password managers work correctly
-- Run `task test` after changes to verify everything still works
+- Run `mise run test` after changes to verify everything still works
 
 ## Seed Users (dev/test only)
 | Role | Email | Password |
@@ -84,7 +84,7 @@
 | Admin | `admin@remy.dev` | `admin1234!` |
 | User | `user@remy.dev` | `user12345!` |
 
-Seeded via `task seed` (local) or `task seed:remote` (deployed). See ADR 002.
+Seeded via `mise run seed` (local) or `mise run seed:remote` (deployed). See ADR 002.
 
 ## Dev Docs (`docs/dev/`)
 - [docs/dev/README.md](docs/dev/README.md) — entry point for all dev docs

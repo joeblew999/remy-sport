@@ -28,12 +28,12 @@ TBD — needs research on:
 - Better Auth MCP plugin integration
 - **MCP proxy/bridge approach** — find an existing solution that lets Claude connect to a remote MCP server without self-restart (e.g. `mcp-proxy`, Cloudflare's MCP tools, or similar)
 
-## Taskfile
+## Mise tasks
 
 | Task | Description |
 |---|---|
-| `task mcp:start` | Start local MCP proxy bridge |
-| `task mcp:test` | Test MCP server connectivity and tool listing |
+| `mise runmcp:start` | Start local MCP proxy bridge |
+| `mise runmcp:test` | Test MCP server connectivity and tool listing |
 
 ## Consequences
 

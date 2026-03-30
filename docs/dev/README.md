@@ -12,3 +12,4 @@ Documentation for developers and AI agents working on the platform.
 | [adr/002-seed-users.md](adr/002-seed-users.md) | Seed users for dev and test |
 | [adr/003-mcp-server.md](adr/003-mcp-server.md) | MCP server on Cloudflare |
 | [adr/004-datastar-lit-ui.md](adr/004-datastar-lit-ui.md) | Datastar + Lit for the UI layer |
+| [adr/005-api-and-authorization.md](adr/005-api-and-authorization.md) | API generation pipeline + three-layer authz (role, ownership, event type) |

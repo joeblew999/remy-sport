@@ -1,0 +1,195 @@
+[env]
+WORKER_NAME = "remy-sport"
+CF_SUBDOMAIN = "gedw99"
+DEPLOYED_URL = "https://remy-sport.gedw99.workers.dev"
+GITHUB_REPO = "https://github.com/joeblew999/remy-sport"
+LOCAL_URL = "http://localhost:8787"
+DB_NAME = "remy-sport-db"
+BUCKET_NAME = "remy-sport-storage"
+
+# ---------------------------------------------------------------------------
+# Setup
+# ---------------------------------------------------------------------------
+
+[tasks.install]
+description = "Install dependencies (idempotent via bun.lock)"
+sources = ["package.json", "bun.lock"]
+run = "bun install"
+
+[tasks.setup]
+description = "Install deps and apply local D1 migrations"
+depends = ["install", "cf:d1:migrations:apply"]
+
+# ---------------------------------------------------------------------------
+# Dev
+# ---------------------------------------------------------------------------
+
+[tasks.dev]
+description = "Start local dev server (port 8787)"
+depends = ["setup"]
+run = "bunx wrangler dev"
+
+[tasks."dev:remote"]
+description = "Dev server against remote Cloudflare resources"
+run = "bunx wrangler dev --remote"
+
+# ---------------------------------------------------------------------------
+# Checks & tests
+# ---------------------------------------------------------------------------
+
+[tasks.check]
+description = "TypeScript type check (idempotent via checksum)"
+sources = ["src/**/*.ts", "tsconfig.json"]
+run = "bunx tsc --noEmit"
+
+[tasks.test]
+description = "Run Playwright tests locally"
+depends = ["setup"]
+run = "bunx playwright test"
+
+[tasks."test:deployed"]
+description = "Run Playwright tests against deployed worker"
+env = { BASE_URL = "{{env.DEPLOYED_URL}}" }
+run = "bunx playwright test"
+
+[tasks."test:ui"]
+description = "Run Playwright tests with interactive UI"
+run = "bunx playwright test --ui"
+
+# ---------------------------------------------------------------------------
+# Versions
+# ---------------------------------------------------------------------------
+
+[tasks.versions]
+description = "Generate versions.json (git history + CF versions)"
+run = "bun scripts/versions.ts"
+
+# ---------------------------------------------------------------------------
+# Seed
+# ---------------------------------------------------------------------------
+
+[tasks.seed]
+description = "Seed local D1 with dev users (requires mise run dev)"
+run = "curl -sf -X POST {{env.LOCAL_URL}}/api/seed | jq ."
+
+[tasks."seed:remote"]
+description = "Seed remote D1 with dev users (idempotent)"
+run = "curl -sf -X POST {{env.DEPLOYED_URL}}/api/seed | jq ."
+
+# ---------------------------------------------------------------------------
+# Deploy pipeline
+# ---------------------------------------------------------------------------
+
+[tasks.deploy]
+description = "Full deploy pipeline: setup → check → test → versions → deploy → migrate → seed → test:deployed"
+depends = [
+  "setup",
+  "check",
+  "test",
+  "versions",
+  "cf:deploy",
+  "cf:d1:migrations:apply:remote",
+  "seed:remote",
+  "test:deployed",
+]
+
+# ---------------------------------------------------------------------------
+# Cloudflare — deploy
+# ---------------------------------------------------------------------------
+
+[tasks."cf:deploy"]
+description = "Deploy worker to Cloudflare (idempotent via source checksum)"
+sources = ["src/**/*.ts", "wrangler.toml", "package.json", "versions.json"]
+run = "bunx wrangler deploy"
+
+[tasks."cf:deploy:staging"]
+description = "Deploy worker to staging environment"
+run = "bunx wrangler deploy --env staging"
+
+[tasks."cf:deploy:production"]
+description = "Deploy worker to production environment"
+run = "bunx wrangler deploy --env production"
+
+# ---------------------------------------------------------------------------
+# Cloudflare — versioned deployments
+# ---------------------------------------------------------------------------
+
+[tasks."cf:versions:list"]
+description = "List all deployed versions"
+run = "bunx wrangler versions list"
+
+[tasks."cf:versions:upload"]
+description = "Upload a new version without deploying"
+run = "bunx wrangler versions upload"
+
+[tasks."cf:versions:deploy"]
+description = "Gradual rollout — split traffic between versions (interactive)"
+run = "bunx wrangler versions deploy"
+
+[tasks."cf:rollback"]
+description = "Roll back to the previous version"
+run = "bunx wrangler rollback"
+
+# ---------------------------------------------------------------------------
+# Cloudflare — D1 database
+# ---------------------------------------------------------------------------
+
+[tasks."cf:d1:list"]
+description = "List D1 databases"
+run = "bunx wrangler d1 list"
+
+[tasks."cf:d1:create"]
+description = "Create the project D1 database"
+run = "bunx wrangler d1 create {{env.DB_NAME}}"
+
+[tasks."cf:d1:tables"]
+description = "List tables in local D1"
+run = "bunx wrangler d1 execute {{env.DB_NAME}} --local --command \"SELECT name FROM sqlite_master WHERE type='table' ORDER BY name\""
+
+[tasks."cf:d1:tables:remote"]
+description = "List tables in remote D1"
+run = "bunx wrangler d1 execute {{env.DB_NAME}} --remote --command \"SELECT name FROM sqlite_master WHERE type='table' ORDER BY name\""
+
+[tasks."cf:d1:migrations:create"]
+description = "Create a new D1 migration (set NAME env var)"
+run = "bunx wrangler d1 migrations create {{env.DB_NAME}} \"$NAME\""
+
+[tasks."cf:d1:migrations:apply"]
+description = "Apply D1 migrations locally (idempotent)"
+run = "bunx wrangler d1 migrations apply {{env.DB_NAME}} --local"
+
+[tasks."cf:d1:migrations:apply:remote"]
+description = "Apply D1 migrations to remote (idempotent)"
+run = "bunx wrangler d1 migrations apply {{env.DB_NAME}} --remote"
+
+# ---------------------------------------------------------------------------
+# Cloudflare — R2 storage
+# ---------------------------------------------------------------------------
+
+[tasks."cf:r2:list"]
+description = "List R2 buckets"
+run = "bunx wrangler r2 bucket list"
+
+[tasks."cf:r2:create"]
+description = "Create the project R2 bucket"
+run = "bunx wrangler r2 bucket create {{env.BUCKET_NAME}}"
+
+[tasks."cf:r2:objects"]
+description = "List objects in the R2 bucket"
+run = "bunx wrangler r2 object list {{env.BUCKET_NAME}}"
+
+# ---------------------------------------------------------------------------
+# Cloudflare — secrets & debugging
+# ---------------------------------------------------------------------------
+
+[tasks."cf:secret:list"]
+description = "List secrets set on the worker"
+run = "bunx wrangler secret list"
+
+[tasks."cf:tail"]
+description = "Tail live worker logs"
+run = "bunx wrangler tail"
+
+[tasks."cf:whoami"]
+description = "Show current Cloudflare auth info"
+run = "bunx wrangler whoami"

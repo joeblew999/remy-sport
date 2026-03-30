@@ -21,14 +21,14 @@ These are **dev/test credentials only** — not for production.
 
 `POST /api/seed` endpoint (`src/routes/seed.ts`) that upserts the two users via Better Auth's `signUpEmail` API. The endpoint is idempotent — it skips users that already exist. The worker itself handles seeding through its existing auth stack (no separate script runner needed).
 
-### 2. Taskfile integration
+### 2. Mise tasks
 
 | Task | Description |
 |---|---|
-| `task seed` | Curl `POST /api/seed` on local dev server (requires `task dev` running) |
-| `task seed:remote` | Curl `POST /api/seed` on deployed worker |
+| `mise runseed` | Curl `POST /api/seed` on local dev server (requires `mise rundev` running) |
+| `mise runseed:remote` | Curl `POST /api/seed` on deployed worker |
 
-`seed:remote` is wired into the `deploy` pipeline after remote DB migrations, before deployed tests. For local dev, developers run `task seed` while `task dev` is running.
+`seed:remote` is wired into the `deploy` pipeline after remote DB migrations, before deployed tests. For local dev, developers run `mise runseed` while `mise rundev` is running.
 
 ### 3. Login page quick-fill
 
@@ -61,10 +61,10 @@ Enable the Better Auth `admin` plugin to give the admin user elevated privileges
 | `src/routes/seed.ts` | NEW — `POST /api/seed` endpoint |
 | `src/index.ts` | Register seed routes |
 | `src/views/login.ts` | Dev account quick-fill buttons + `fillDev()` function |
-| `Taskfile.yml` | `seed` and `seed:remote` tasks; `seed:remote` in deploy pipeline |
+| `mise.toml` | `seed` and `seed:remote` tasks; `seed:remote` in deploy pipeline |
 | `tests/auth.spec.ts` | Use seed users, test seed endpoint |
 | `tests/login.spec.ts` | Test quick-fill buttons visible |
-| `CONTEXT.md` | Document seed user credentials, ADR Taskfile convention |
+| `CONTEXT.md` | Document seed user credentials, ADR mise tasks convention |
 
 ## Consequences
 

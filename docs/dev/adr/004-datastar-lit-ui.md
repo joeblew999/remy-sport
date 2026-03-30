@@ -78,9 +78,9 @@ Datastar + Lit adoption is incremental — each roadmap phase can add what it ne
 | `src/components/` | NEW directory for Lit components (per phase) |
 | `src/lib/datastar.ts` | NEW — SSE response helpers wrapping Hono streams (based on dweldon pattern) |
 | `package.json` | Add `lit`, `@starfederation/datastar` dependencies |
-| `Taskfile.yml` | Add `components:build` and `components:dev` tasks if Lit needs bundling |
+| `mise.toml` | Add `components:build` and `components:dev` tasks if Lit needs bundling |
 
-### Taskfile changes
+### Mise tasks
 
 | Task | Description |
 |---|---|
