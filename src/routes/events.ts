@@ -5,9 +5,9 @@ import type { AppEnv } from "../types"
 import * as schema from "../db/schema"
 import { requirePermission } from "../middleware/require-permission"
 import { ownedBy } from "../middleware/owned-by"
-import { requireEventType } from "../middleware/event-type"
 
 const EventTypeSchema = z.enum(["tournament", "league", "camp", "showcase"])
+type EventType = z.infer<typeof EventTypeSchema>
 
 const EventSchema = z.object({
   id: z.string(),
@@ -33,6 +33,18 @@ const UpdateEventSchema = z.object({
 
 const ErrorSchema = z.object({ error: z.string() })
 
+function serializeEvent(row: typeof schema.event.$inferSelect) {
+  return {
+    id: row.id,
+    name: row.name,
+    type: row.type as EventType,
+    description: row.description,
+    createdBy: row.createdBy,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  }
+}
+
 const events = new OpenAPIHono<AppEnv>()
 
 // ── GET /api/events — public, list all events ──────────────────────────────
@@ -51,13 +63,7 @@ const listEventsRoute = createRoute({
 events.openapi(listEventsRoute, async (c) => {
   const db = drizzle(c.env.DB, { schema })
   const rows = await db.select().from(schema.event).all()
-  return c.json({
-    events: rows.map((r) => ({
-      ...r,
-      createdAt: r.createdAt.toISOString(),
-      updatedAt: r.updatedAt.toISOString(),
-    })),
-  })
+  return c.json({ events: rows.map(serializeEvent) })
 })
 
 // ── GET /api/events/:id — public, get single event ─────────────────────────
@@ -82,7 +88,7 @@ events.openapi(getEventRoute, async (c) => {
   const db = drizzle(c.env.DB, { schema })
   const row = await db.select().from(schema.event).where(eq(schema.event.id, id)).get()
   if (!row) return c.json({ error: "Not found" }, 404)
-  return c.json({ ...row, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() })
+  return c.json(serializeEvent(row), 200)
 })
 
 // ── POST /api/events — requires event:create ────────────────────────────────
@@ -109,7 +115,7 @@ const createEventRoute = createRoute({
 
 events.openapi(createEventRoute, async (c) => {
   const user = c.get("user")!
-  const body = c.req.valid("json")
+  const body = c.req.valid("json" as never) as z.infer<typeof CreateEventSchema>
   const db = drizzle(c.env.DB, { schema })
   const now = new Date()
   const id = crypto.randomUUID()
@@ -127,7 +133,12 @@ events.openapi(createEventRoute, async (c) => {
   await db.insert(schema.event).values(row)
 
   return c.json(
-    { ...row, createdAt: now.toISOString(), updatedAt: now.toISOString() },
+    {
+      ...row,
+      type: row.type as EventType,
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+    },
     201,
   )
 })
@@ -158,8 +169,8 @@ const updateEventRoute = createRoute({
 })
 
 events.openapi(updateEventRoute, async (c) => {
-  const { id } = c.req.valid("param")
-  const body = c.req.valid("json")
+  const { id } = c.req.valid("param" as never) as { id: string }
+  const body = c.req.valid("json" as never) as z.infer<typeof UpdateEventSchema>
   const db = drizzle(c.env.DB, { schema })
   const now = new Date()
 
@@ -169,11 +180,8 @@ events.openapi(updateEventRoute, async (c) => {
     .where(eq(schema.event.id, id))
 
   const updated = await db.select().from(schema.event).where(eq(schema.event.id, id)).get()
-  return c.json({
-    ...updated!,
-    createdAt: updated!.createdAt.toISOString(),
-    updatedAt: updated!.updatedAt.toISOString(),
-  })
+  if (!updated) return c.json({ error: "Not found" }, 404)
+  return c.json(serializeEvent(updated), 200)
 })
 
 // ── DELETE /api/events/:id — requires event:delete + ownership ──────────────
@@ -198,7 +206,7 @@ const deleteEventRoute = createRoute({
 })
 
 events.openapi(deleteEventRoute, async (c) => {
-  const { id } = c.req.valid("param")
+  const { id } = c.req.valid("param" as never) as { id: string }
   const db = drizzle(c.env.DB, { schema })
   await db.delete(schema.event).where(eq(schema.event.id, id))
   return c.json({ deleted: true })
