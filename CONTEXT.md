@@ -24,9 +24,29 @@ mise run dev
 
 **Notes:**
 - If `jq` install fails due to GitHub API rate limits, retry with `GITHUB_TOKEN="" mise install jq`
-- Playwright browser download may fail in cloud environments (DNS blocks to `storage.googleapis.com`). API tests will still pass; browser tests will be skipped.
 - After the dev server is running, seed dev users with `mise run seed`
-- Run `mise run test` to verify — expect API tests to pass; browser tests require Playwright chromium installed locally (`bun x playwright install --with-deps chromium`)
+- Run `mise run test` to verify all 14 tests pass
+
+### Playwright browser install (proxy environments)
+
+`bun x playwright install --with-deps chromium` may fail in proxy environments because Playwright's Node.js downloader doesn't use `HTTP_PROXY` for DNS. Workaround — download with `curl` and extract manually:
+
+```bash
+# Install system deps (needs apt/sudo)
+bun x playwright install-deps chromium
+
+# Download browser binaries via curl (respects proxy)
+curl -sL -o /tmp/chrome-linux64.zip "https://cdn.playwright.dev/builds/cft/145.0.7632.6/linux64/chrome-linux64.zip"
+curl -sL -o /tmp/chrome-headless-shell-linux64.zip "https://cdn.playwright.dev/builds/cft/145.0.7632.6/linux64/chrome-headless-shell-linux64.zip"
+
+# Extract to Playwright cache
+PW_DIR="$HOME/.cache/ms-playwright"
+mkdir -p "$PW_DIR/chromium-1208" "$PW_DIR/chromium_headless_shell-1208"
+unzip -qo /tmp/chrome-linux64.zip -d "$PW_DIR/chromium-1208/"
+unzip -qo /tmp/chrome-headless-shell-linux64.zip -d "$PW_DIR/chromium_headless_shell-1208/"
+```
+
+> **Version note:** The revision (`1208`) and browser version (`145.0.7632.6`) must match what's in `node_modules/playwright-core/browsers.json`. Update the URLs/paths if Playwright is upgraded.
 
 ## Stack
 
