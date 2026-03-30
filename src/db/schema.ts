@@ -6,6 +6,10 @@ export const user = sqliteTable("user", {
   email: text("email").unique().notNull(),
   emailVerified: integer("email_verified", { mode: "boolean" }),
   image: text("image"),
+  role: text("role").default("user"),
+  banned: integer("banned", { mode: "boolean" }).default(false),
+  banReason: text("ban_reason"),
+  banExpires: integer("ban_expires", { mode: "timestamp" }),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 })
@@ -37,6 +41,18 @@ export const account = sqliteTable("account", {
   scope: text("scope"),
   idToken: text("id_token"),
   password: text("password"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+})
+
+export const event = sqliteTable("event", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  type: text("type").notNull(), // tournament, league, camp, showcase
+  description: text("description"),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 })

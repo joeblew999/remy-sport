@@ -1,15 +1,15 @@
 import { test, expect } from "@playwright/test"
 
-// Seed users (see ADR 002 / CONTEXT.md)
+// Seed users (see ADR 005 / CONTEXT.md)
 const ADMIN = { email: "admin@remy.dev", password: "admin1234!", name: "Admin" }
-const USER = { email: "user@remy.dev", password: "user12345!", name: "User" }
+const SPECTATOR = { email: "spectator@remy.dev", password: "spectator1!", name: "Spectator" }
 
 test.describe.serial("Auth flow", () => {
   test("seed endpoint creates dev users (idempotent)", async ({ request }) => {
     const res = await request.post("/api/seed")
     expect(res.ok()).toBeTruthy()
     const body = await res.json()
-    expect(body.seeded).toHaveLength(2)
+    expect(body.seeded).toHaveLength(6)
     for (const u of body.seeded) {
       expect(["created", "exists"]).toContain(u.status)
     }
@@ -26,14 +26,14 @@ test.describe.serial("Auth flow", () => {
     expect(body.token).toBeTruthy()
   })
 
-  test("user can sign in", async ({ request }) => {
+  test("spectator can sign in", async ({ request }) => {
     const res = await request.post("/api/auth/sign-in/email", {
-      data: { email: USER.email, password: USER.password },
+      data: { email: SPECTATOR.email, password: SPECTATOR.password },
     })
     expect(res.ok()).toBeTruthy()
     const body = await res.json()
-    expect(body.user.email).toBe(USER.email)
-    expect(body.user.name).toBe(USER.name)
+    expect(body.user.email).toBe(SPECTATOR.email)
+    expect(body.user.name).toBe(SPECTATOR.name)
     expect(body.token).toBeTruthy()
   })
 

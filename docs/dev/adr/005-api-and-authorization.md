@@ -1,6 +1,6 @@
 # ADR 005: API & Authorization
 
-**Status:** Proposed
+**Status:** Implemented
 
 ## Context
 

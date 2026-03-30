@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
+import { admin } from "better-auth/plugins/admin"
 import { drizzle } from "drizzle-orm/d1"
 import type { Context } from "hono"
 import type { AppEnv } from "./types"
@@ -13,8 +14,12 @@ export function createAuth(c: Context<AppEnv>) {
     secret: c.env.BETTER_AUTH_SECRET,
     baseURL: c.env.BETTER_AUTH_URL,
     basePath: "/api/auth",
+    trustedOrigins: ["http://localhost:8787"],
     emailAndPassword: {
       enabled: true,
     },
+    plugins: [
+      admin(),
+    ],
   })
 }

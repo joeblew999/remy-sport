@@ -26,9 +26,10 @@ test.describe("Login page", () => {
     await expect(backLink).toBeVisible()
   })
 
-  test("shows dev account quick-fill buttons", async ({ page }) => {
+  test("shows quick-fill buttons for all 6 actors", async ({ page }) => {
     await page.goto("/login")
-    await expect(page.locator("button:text('Admin')")).toBeVisible()
-    await expect(page.locator("button:text('User')")).toBeVisible()
+    for (const role of ["Admin", "Organizer", "Coach", "Player", "Spectator", "Referee"]) {
+      await expect(page.locator(`button:text('${role}')`)).toBeVisible()
+    }
   })
 })

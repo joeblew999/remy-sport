@@ -10,6 +10,7 @@ export function homePage(user: User): string {
          </div>
        </div>
        <div class="flex gap-4 justify-center">
+         <a href="/dashboard" class="btn btn-primary">Dashboard</a>
          <a href="/api/auth/sign-out" class="btn btn-outline">Sign Out</a>
        </div>`
     : `<div class="flex gap-4 justify-center">

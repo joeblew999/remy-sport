@@ -22,9 +22,13 @@ export function loginPage(): string {
       </div>
       <a href="/" class="link text-center mt-4 text-sm text-base-content/40">Back to home</a>
       <div class="divider text-xs text-base-content/40">Dev accounts</div>
-      <div class="flex gap-2 justify-center">
+      <div class="flex gap-2 flex-wrap justify-center">
         <button onclick="fillDev('admin@remy.dev','admin1234!')" class="btn btn-ghost btn-xs">Admin</button>
-        <button onclick="fillDev('user@remy.dev','user12345!')" class="btn btn-ghost btn-xs">User</button>
+        <button onclick="fillDev('organizer@remy.dev','organizer1!')" class="btn btn-ghost btn-xs">Organizer</button>
+        <button onclick="fillDev('coach@remy.dev','coach12345!')" class="btn btn-ghost btn-xs">Coach</button>
+        <button onclick="fillDev('player@remy.dev','player1234!')" class="btn btn-ghost btn-xs">Player</button>
+        <button onclick="fillDev('spectator@remy.dev','spectator1!')" class="btn btn-ghost btn-xs">Spectator</button>
+        <button onclick="fillDev('referee@remy.dev','referee1234!')" class="btn btn-ghost btn-xs">Referee</button>
       </div>
     </div>
   </div>
