@@ -7,7 +7,8 @@ const SEED_USERS = [
   { email: "organizer@remy.dev", password: "organizer1!", name: "Organizer", role: "organizer" },
   { email: "coach@remy.dev", password: "coach12345!", name: "Coach", role: "coach" },
   { email: "player@remy.dev", password: "player1234!", name: "Player", role: "player" },
-  { email: "user@remy.dev", password: "user12345!", name: "Spectator", role: "spectator" },
+  { email: "spectator@remy.dev", password: "spectator1!", name: "Spectator", role: "spectator" },
+  { email: "referee@remy.dev", password: "referee1234!", name: "Referee", role: "referee" },
 ]
 
 const seed = new Hono<AppEnv>()

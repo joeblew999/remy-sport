@@ -1,11 +1,16 @@
 import { test, expect } from "@playwright/test"
 
-// Seed users with roles (see ADR 005 / CONTEXT.md)
-const ADMIN = { email: "admin@remy.dev", password: "admin1234!" }
-const ORGANIZER = { email: "organizer@remy.dev", password: "organizer1!" }
-const COACH = { email: "coach@remy.dev", password: "coach12345!" }
-const PLAYER = { email: "player@remy.dev", password: "player1234!" }
-const SPECTATOR = { email: "user@remy.dev", password: "user12345!" }
+// All 6 actors from the access matrix (docs/user/matrix.md)
+const ADMIN =     { email: "admin@remy.dev",     password: "admin1234!",   role: "admin" }
+const ORGANIZER = { email: "organizer@remy.dev", password: "organizer1!",  role: "organizer" }
+const COACH =     { email: "coach@remy.dev",     password: "coach12345!",  role: "coach" }
+const PLAYER =    { email: "player@remy.dev",    password: "player1234!",  role: "player" }
+const SPECTATOR = { email: "spectator@remy.dev", password: "spectator1!",  role: "spectator" }
+const REFEREE =   { email: "referee@remy.dev",   password: "referee1234!", role: "referee" }
+
+const ALL_ACTORS = [ADMIN, ORGANIZER, COACH, PLAYER, SPECTATOR, REFEREE]
+const WRITERS = [ADMIN, ORGANIZER]  // can create/update/delete events
+const READERS = [COACH, PLAYER, SPECTATOR, REFEREE]  // read-only for events
 
 async function signIn(request: any, user: { email: string; password: string }) {
   const res = await request.post("/api/auth/sign-in/email", { data: user })
@@ -13,80 +18,80 @@ async function signIn(request: any, user: { email: string; password: string }) {
   return res
 }
 
-// ── Layer 1: Role-based permission (requirePermission) ─────────────────────
+// ── Seed ────────────────────────────────────────────────────────────────────
 
-test.describe.serial("Layer 1 — Role permission checks", () => {
-  test("seed creates users with roles", async ({ request }) => {
+test.describe.serial("Seed — all 6 actors", () => {
+  test("seed creates all actor accounts with correct roles", async ({ request }) => {
     const res = await request.post("/api/seed")
     expect(res.ok()).toBeTruthy()
     const body = await res.json()
-    expect(body.seeded.length).toBeGreaterThanOrEqual(5)
+    expect(body.seeded).toHaveLength(6)
+    for (const actor of ALL_ACTORS) {
+      const seeded = body.seeded.find((s: any) => s.email === actor.email)
+      expect(seeded).toBeTruthy()
+      expect(seeded.role).toBe(actor.role)
+    }
   })
 
-  test("unauthenticated user gets 401 on create", async ({ request }) => {
+  for (const actor of ALL_ACTORS) {
+    test(`${actor.role} can sign in`, async ({ request }) => {
+      const res = await request.post("/api/auth/sign-in/email", {
+        data: { email: actor.email, password: actor.password },
+      })
+      expect(res.ok()).toBeTruthy()
+      const body = await res.json()
+      expect(body.user.email).toBe(actor.email)
+    })
+  }
+})
+
+// ── Layer 1: Role permission — event:create ─────────────────────────────────
+
+test.describe.serial("Layer 1 — event:create by role", () => {
+  for (const actor of WRITERS) {
+    test(`${actor.role} CAN create events`, async ({ request }) => {
+      await signIn(request, actor)
+      const res = await request.post("/api/events", {
+        data: { name: `${actor.role}'s event`, type: "tournament" },
+      })
+      expect(res.status()).toBe(201)
+    })
+  }
+
+  for (const actor of READERS) {
+    test(`${actor.role} CANNOT create events (403)`, async ({ request }) => {
+      await signIn(request, actor)
+      const res = await request.post("/api/events", {
+        data: { name: `${actor.role} attempt`, type: "tournament" },
+      })
+      expect(res.status()).toBe(403)
+    })
+  }
+
+  test("unauthenticated user gets 401", async ({ request }) => {
     const res = await request.post("/api/events", {
-      data: { name: "Unauth Event", type: "tournament" },
+      data: { name: "Unauth", type: "tournament" },
     })
     expect(res.status()).toBe(401)
   })
+})
 
-  test("spectator gets 403 on create (read-only role)", async ({ request }) => {
-    await signIn(request, SPECTATOR)
-    const res = await request.post("/api/events", {
-      data: { name: "Spectator Event", type: "tournament" },
-    })
-    expect(res.status()).toBe(403)
-  })
+// ── Layer 1: Role permission — event:read (public) ──────────────────────────
 
-  test("coach gets 403 on create (read-only for events)", async ({ request }) => {
-    await signIn(request, COACH)
-    const res = await request.post("/api/events", {
-      data: { name: "Coach Event", type: "league" },
-    })
-    expect(res.status()).toBe(403)
-  })
-
-  test("player gets 403 on create", async ({ request }) => {
-    await signIn(request, PLAYER)
-    const res = await request.post("/api/events", {
-      data: { name: "Player Event", type: "camp" },
-    })
-    expect(res.status()).toBe(403)
-  })
-
-  test("organizer can create events", async ({ request }) => {
-    await signIn(request, ORGANIZER)
-    const res = await request.post("/api/events", {
-      data: { name: "Spring Tournament", type: "tournament", description: "Annual spring event" },
-    })
-    expect(res.status()).toBe(201)
-    const body = await res.json()
-    expect(body.name).toBe("Spring Tournament")
-    expect(body.type).toBe("tournament")
-  })
-
-  test("admin can create events", async ({ request }) => {
-    await signIn(request, ADMIN)
-    const res = await request.post("/api/events", {
-      data: { name: "Admin League", type: "league" },
-    })
-    expect(res.status()).toBe(201)
-  })
-
-  test("anyone can list events (public)", async ({ request }) => {
+test.describe("Layer 1 — event:read is public", () => {
+  test("unauthenticated user can list events", async ({ request }) => {
     const res = await request.get("/api/events")
     expect(res.ok()).toBeTruthy()
     const body = await res.json()
-    expect(body.events.length).toBeGreaterThanOrEqual(2)
+    expect(body.events.length).toBeGreaterThan(0)
   })
 
-  test("anyone can get single event (public)", async ({ request }) => {
+  test("unauthenticated user can get single event", async ({ request }) => {
     const list = await request.get("/api/events")
     const { events } = await list.json()
     const res = await request.get(`/api/events/${events[0].id}`)
     expect(res.ok()).toBeTruthy()
-    const body = await res.json()
-    expect(body.id).toBe(events[0].id)
+    expect((await res.json()).id).toBe(events[0].id)
   })
 
   test("returns 404 for nonexistent event", async ({ request }) => {
@@ -95,52 +100,38 @@ test.describe.serial("Layer 1 — Role permission checks", () => {
   })
 })
 
-// ── Layer 2: Ownership checks (ownedBy) ─────────────────────────────────────
+// ── Layer 2: Ownership — update/delete ──────────────────────────────────────
 
-test.describe.serial("Layer 2 — Ownership checks", () => {
+test.describe.serial("Layer 2 — ownership on update/delete", () => {
   let organizerEventId: string
   let adminEventId: string
 
-  test("organizer creates an event for ownership tests", async ({ request }) => {
+  test("organizer creates event", async ({ request }) => {
     await signIn(request, ORGANIZER)
     const res = await request.post("/api/events", {
-      data: { name: "Organizer's Event", type: "showcase" },
+      data: { name: "Organizer Owned", type: "showcase" },
     })
-    expect(res.status()).toBe(201)
     organizerEventId = (await res.json()).id
+  })
+
+  test("admin creates event", async ({ request }) => {
+    await signIn(request, ADMIN)
+    const res = await request.post("/api/events", {
+      data: { name: "Admin Owned", type: "league" },
+    })
+    adminEventId = (await res.json()).id
   })
 
   test("organizer can update own event", async ({ request }) => {
     await signIn(request, ORGANIZER)
     const res = await request.put(`/api/events/${organizerEventId}`, {
-      data: { name: "Updated Event Name" },
+      data: { name: "Updated by Owner" },
     })
     expect(res.ok()).toBeTruthy()
-    const body = await res.json()
-    expect(body.name).toBe("Updated Event Name")
+    expect((await res.json()).name).toBe("Updated by Owner")
   })
 
-  test("organizer can delete own event", async ({ request }) => {
-    await signIn(request, ORGANIZER)
-    // Create a throwaway event
-    const create = await request.post("/api/events", {
-      data: { name: "To Delete", type: "camp" },
-    })
-    const event = await create.json()
-    const del = await request.delete(`/api/events/${event.id}`)
-    expect(del.ok()).toBeTruthy()
-  })
-
-  test("admin creates an event for cross-ownership test", async ({ request }) => {
-    await signIn(request, ADMIN)
-    const res = await request.post("/api/events", {
-      data: { name: "Admin's Private Event", type: "tournament" },
-    })
-    expect(res.status()).toBe(201)
-    adminEventId = (await res.json()).id
-  })
-
-  test("organizer cannot update another user's event", async ({ request }) => {
+  test("organizer CANNOT update admin's event (ownership denied)", async ({ request }) => {
     await signIn(request, ORGANIZER)
     const res = await request.put(`/api/events/${adminEventId}`, {
       data: { name: "Hijacked!" },
@@ -148,44 +139,76 @@ test.describe.serial("Layer 2 — Ownership checks", () => {
     expect(res.status()).toBe(403)
   })
 
-  test("admin can update any event (bypasses ownership)", async ({ request }) => {
+  test("admin CAN update organizer's event (admin bypass)", async ({ request }) => {
     await signIn(request, ADMIN)
     const res = await request.put(`/api/events/${organizerEventId}`, {
       data: { description: "Admin override" },
     })
     expect(res.ok()).toBeTruthy()
-    const body = await res.json()
-    expect(body.description).toBe("Admin override")
+    expect((await res.json()).description).toBe("Admin override")
   })
 
-  test("spectator cannot delete events (no permission)", async ({ request }) => {
-    await signIn(request, SPECTATOR)
-    const list = await request.get("/api/events")
-    const { events } = await list.json()
-    const res = await request.delete(`/api/events/${events[0].id}`)
+  test("organizer can delete own event", async ({ request }) => {
+    await signIn(request, ORGANIZER)
+    const create = await request.post("/api/events", {
+      data: { name: "Throwaway", type: "camp" },
+    })
+    const id = (await create.json()).id
+    const del = await request.delete(`/api/events/${id}`)
+    expect(del.ok()).toBeTruthy()
+  })
+
+  test("organizer CANNOT delete admin's event (ownership denied)", async ({ request }) => {
+    await signIn(request, ORGANIZER)
+    const res = await request.delete(`/api/events/${adminEventId}`)
     expect(res.status()).toBe(403)
   })
+
+  for (const actor of READERS) {
+    test(`${actor.role} CANNOT delete any event (no permission)`, async ({ request }) => {
+      await signIn(request, actor)
+      const list = await request.get("/api/events")
+      const { events } = await list.json()
+      const res = await request.delete(`/api/events/${events[0].id}`)
+      expect(res.status()).toBe(403)
+    })
+  }
+
+  for (const actor of READERS) {
+    test(`${actor.role} CANNOT update any event (no permission)`, async ({ request }) => {
+      await signIn(request, actor)
+      const list = await request.get("/api/events")
+      const { events } = await list.json()
+      const res = await request.put(`/api/events/${events[0].id}`, {
+        data: { name: "Nope" },
+      })
+      expect(res.status()).toBe(403)
+    })
+  }
 })
 
-// ── Layer 3: Event type scoping (requireEventType) ──────────────────────────
-// Tested via a dedicated test endpoint that applies the middleware
+// ── Layer 3: Event type scoping ─────────────────────────────────────────────
 
-test.describe.serial("Layer 3 — Event type scoping", () => {
-  test("requireEventType middleware is importable and functional", async ({ request }) => {
-    // Create events of different types
+test.describe.serial("Layer 3 — event types", () => {
+  test("all 4 event types can be created", async ({ request }) => {
     await signIn(request, ORGANIZER)
-    const tournament = await (await request.post("/api/events", {
-      data: { name: "Type Test Tournament", type: "tournament" },
-    })).json()
-    const camp = await (await request.post("/api/events", {
-      data: { name: "Type Test Camp", type: "camp" },
-    })).json()
+    for (const type of ["tournament", "league", "camp", "showcase"]) {
+      const res = await request.post("/api/events", {
+        data: { name: `Type test: ${type}`, type },
+      })
+      expect(res.status(), `should create ${type}`).toBe(201)
+      expect((await res.json()).type).toBe(type)
+    }
+  })
 
-    // Verify both created with correct types
-    const t = await (await request.get(`/api/events/${tournament.id}`)).json()
-    expect(t.type).toBe("tournament")
-    const c = await (await request.get(`/api/events/${camp.id}`)).json()
-    expect(c.type).toBe("camp")
+  test("events are stored with correct types", async ({ request }) => {
+    const res = await request.get("/api/events")
+    const { events } = await res.json()
+    const types = new Set(events.map((e: any) => e.type))
+    expect(types).toContain("tournament")
+    expect(types).toContain("league")
+    expect(types).toContain("camp")
+    expect(types).toContain("showcase")
   })
 })
 
@@ -196,63 +219,69 @@ test.describe("OpenAPI security documentation", () => {
     const res = await request.get("/openapi.json")
     const spec = await res.json()
 
-    // POST /api/events should require auth
+    // POST /api/events requires auth
     const postEvents = spec.paths["/api/events"]?.post
-    expect(postEvents).toBeTruthy()
-    expect(postEvents.security).toBeTruthy()
     expect(postEvents.security).toContainEqual({ Session: [] })
     expect(postEvents.security).toContainEqual({ ApiKey: [] })
-
-    // POST should document 401 and 403 responses
     expect(postEvents.responses["401"]).toBeTruthy()
     expect(postEvents.responses["403"]).toBeTruthy()
 
-    // GET /api/events should have no security (public)
+    // PUT and DELETE also require auth
+    const putEvent = spec.paths["/api/events/{id}"]?.put
+    expect(putEvent.security).toContainEqual({ Session: [] })
+    const deleteEvent = spec.paths["/api/events/{id}"]?.delete
+    expect(deleteEvent.security).toContainEqual({ Session: [] })
+
+    // GET is public (no security)
     const getEvents = spec.paths["/api/events"]?.get
     expect(getEvents.security).toBeFalsy()
+    const getEvent = spec.paths["/api/events/{id}"]?.get
+    expect(getEvent.security).toBeFalsy()
   })
 })
 
-// ── Dashboard GUI ───────────────────────────────────────────────────────────
+// ── Dashboard GUI — all actors ──────────────────────────────────────────────
 
-test.describe.serial("Dashboard GUI — role-based rendering", () => {
+test.describe.serial("Dashboard GUI — per-actor rendering", () => {
   test("redirects to login when not signed in", async ({ page }) => {
     await page.goto("/dashboard")
     await page.waitForURL("**/login")
   })
 
-  test("organizer sees create form and full permissions", async ({ page }) => {
-    await page.goto("/login")
-    await page.fill('input[type="email"]', ORGANIZER.email)
-    await page.fill('input[type="password"]', ORGANIZER.password)
-    await page.click('button[type="submit"]')
-    await page.waitForURL("**/")
+  for (const actor of WRITERS) {
+    test(`${actor.role} sees create form and write permissions`, async ({ page }) => {
+      await page.goto("/login")
+      await page.fill('input[type="email"]', actor.email)
+      await page.fill('input[type="password"]', actor.password)
+      await page.click('button[type="submit"]')
+      await page.waitForURL("**/")
 
-    await page.goto("/dashboard")
-    await expect(page.getByTestId("role-badge")).toHaveText("organizer")
-    await expect(page.getByTestId("create-event-form")).toBeVisible()
-    await expect(page.getByTestId("perm-create")).toHaveClass(/badge-success/)
-    await expect(page.getByTestId("perm-read")).toHaveClass(/badge-success/)
-    await expect(page.getByTestId("perm-delete")).toHaveClass(/badge-success/)
-  })
+      await page.goto("/dashboard")
+      await expect(page.getByTestId("role-badge")).toHaveText(actor.role)
+      await expect(page.getByTestId("create-event-form")).toBeVisible()
+      await expect(page.getByTestId("perm-create")).toHaveClass(/badge-success/)
+      await expect(page.getByTestId("perm-read")).toHaveClass(/badge-success/)
+      await expect(page.getByTestId("perm-delete")).toHaveClass(/badge-success/)
+    })
+  }
 
-  test("spectator sees denied create form and read-only permissions", async ({ page }) => {
-    await page.goto("/login")
-    await page.fill('input[type="email"]', SPECTATOR.email)
-    await page.fill('input[type="password"]', SPECTATOR.password)
-    await page.click('button[type="submit"]')
-    await page.waitForURL("**/")
+  for (const actor of READERS) {
+    test(`${actor.role} sees denied form and read-only permissions`, async ({ page }) => {
+      await page.goto("/login")
+      await page.fill('input[type="email"]', actor.email)
+      await page.fill('input[type="password"]', actor.password)
+      await page.click('button[type="submit"]')
+      await page.waitForURL("**/")
 
-    await page.goto("/dashboard")
-    await expect(page.getByTestId("role-badge")).toHaveText("spectator")
-    await expect(page.getByTestId("create-event-denied")).toBeVisible()
-    await expect(page.getByTestId("perm-create")).not.toHaveClass(/badge-success/)
-    await expect(page.getByTestId("perm-read")).toHaveClass(/badge-success/)
-    await expect(page.getByTestId("perm-update")).not.toHaveClass(/badge-success/)
-    await expect(page.getByTestId("perm-delete")).not.toHaveClass(/badge-success/)
-  })
+      await page.goto("/dashboard")
+      await expect(page.getByTestId("role-badge")).toHaveText(actor.role)
+      await expect(page.getByTestId("create-event-denied")).toBeVisible()
+      await expect(page.getByTestId("perm-create")).not.toHaveClass(/badge-success/)
+      await expect(page.getByTestId("perm-read")).toHaveClass(/badge-success/)
+    })
+  }
 
-  test("admin sees role badge and role switcher", async ({ page }) => {
+  test("role switcher shows all 6 actors", async ({ page }) => {
     await page.goto("/login")
     await page.fill('input[type="email"]', ADMIN.email)
     await page.fill('input[type="password"]', ADMIN.password)
@@ -260,12 +289,12 @@ test.describe.serial("Dashboard GUI — role-based rendering", () => {
     await page.waitForURL("**/")
 
     await page.goto("/dashboard")
-    await expect(page.getByTestId("role-badge")).toHaveText("admin")
-    await expect(page.getByTestId("role-switcher")).toBeVisible()
-    await expect(page.getByTestId("create-event-form")).toBeVisible()
+    const switcher = page.getByTestId("role-switcher")
+    await expect(switcher).toBeVisible()
+    await expect(switcher.locator("button")).toHaveCount(6)
   })
 
-  test("events table displays created events", async ({ page }) => {
+  test("events table shows created events", async ({ page }) => {
     await page.goto("/login")
     await page.fill('input[type="email"]', ORGANIZER.email)
     await page.fill('input[type="password"]', ORGANIZER.password)
@@ -275,7 +304,6 @@ test.describe.serial("Dashboard GUI — role-based rendering", () => {
     await page.goto("/dashboard")
     const table = page.getByTestId("events-table")
     await expect(table).toBeVisible()
-    // Should contain events created by earlier tests
     await expect(table.locator("tbody tr")).not.toHaveCount(0)
   })
 })

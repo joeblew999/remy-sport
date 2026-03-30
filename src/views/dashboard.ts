@@ -130,7 +130,8 @@ export function dashboardPage(user: User, events: Event[]): string {
           <button onclick="switchRole('organizer@remy.dev','organizer1!')" class="btn btn-xs ${role === 'organizer' ? 'btn-primary' : 'btn-ghost'}">Organizer</button>
           <button onclick="switchRole('coach@remy.dev','coach12345!')" class="btn btn-xs ${role === 'coach' ? 'btn-secondary' : 'btn-ghost'}">Coach</button>
           <button onclick="switchRole('player@remy.dev','player1234!')" class="btn btn-xs ${role === 'player' ? 'btn-accent' : 'btn-ghost'}">Player</button>
-          <button onclick="switchRole('user@remy.dev','user12345!')" class="btn btn-xs ${role === 'spectator' ? 'btn-ghost btn-active' : 'btn-ghost'}">Spectator</button>
+          <button onclick="switchRole('spectator@remy.dev','spectator1!')" class="btn btn-xs ${role === 'spectator' ? 'btn-ghost btn-active' : 'btn-ghost'}">Spectator</button>
+          <button onclick="switchRole('referee@remy.dev','referee1234!')" class="btn btn-xs ${role === 'referee' ? 'btn-warning' : 'btn-ghost'}">Referee</button>
         </div>
       </div>
     </div>
