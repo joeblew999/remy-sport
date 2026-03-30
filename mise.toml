@@ -23,6 +23,37 @@ run         = "bun install"
 description = "Install deps and apply local D1 migrations"
 depends     = ["install", "cf:d1:migrations:apply"]
 
+[tasks."playwright:install"]
+description = "Install Playwright browsers (proxy-safe, idempotent)"
+depends     = ["install"]
+run         = """
+BROWSERS_JSON="node_modules/playwright-core/browsers.json"
+CHROMIUM_VERSION=$(node -e "const b=require('./$BROWSERS_JSON'); const c=b.browsers.find(x=>x.name==='chromium'); console.log(c.browserVersion)")
+CHROMIUM_REV=$(node -e "const b=require('./$BROWSERS_JSON'); const c=b.browsers.find(x=>x.name==='chromium'); console.log(c.revision)")
+PW_DIR="$HOME/.cache/ms-playwright"
+
+if [ -d "$PW_DIR/chromium-$CHROMIUM_REV/chrome-linux64" ] && [ -d "$PW_DIR/chromium_headless_shell-$CHROMIUM_REV/chrome-headless-shell-linux64" ]; then
+  echo "Playwright chromium v$CHROMIUM_REV already installed, skipping"
+  exit 0
+fi
+
+echo "Installing Playwright chromium $CHROMIUM_VERSION (rev $CHROMIUM_REV) via curl..."
+curl -fsSL -o /tmp/chrome-linux64.zip "https://cdn.playwright.dev/builds/cft/$CHROMIUM_VERSION/linux64/chrome-linux64.zip"
+curl -fsSL -o /tmp/chrome-headless-shell-linux64.zip "https://cdn.playwright.dev/builds/cft/$CHROMIUM_VERSION/linux64/chrome-headless-shell-linux64.zip"
+
+mkdir -p "$PW_DIR/chromium-$CHROMIUM_REV" "$PW_DIR/chromium_headless_shell-$CHROMIUM_REV"
+unzip -qo /tmp/chrome-linux64.zip -d "$PW_DIR/chromium-$CHROMIUM_REV/"
+unzip -qo /tmp/chrome-headless-shell-linux64.zip -d "$PW_DIR/chromium_headless_shell-$CHROMIUM_REV/"
+rm -f /tmp/chrome-linux64.zip /tmp/chrome-headless-shell-linux64.zip
+
+# Install system deps for Chromium (if apt available)
+if command -v apt-get &>/dev/null; then
+  bun x playwright install-deps chromium 2>/dev/null || true
+fi
+
+echo "Playwright chromium v$CHROMIUM_REV installed successfully"
+"""
+
 [tasks.dev]
 description = "Start local dev server (port 8787)"
 depends     = ["setup"]
@@ -36,7 +67,7 @@ run         = "bun x tsc --noEmit"
 
 [tasks.test]
 description = "Run Playwright tests locally"
-depends     = ["setup"]
+depends     = ["setup", "playwright:install"]
 run         = "bun x playwright test"
 
 [tasks.versions]
