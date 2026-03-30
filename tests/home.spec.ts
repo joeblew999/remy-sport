@@ -30,12 +30,22 @@ test.describe("Health endpoint", () => {
 })
 
 test.describe("OpenAPI doc", () => {
-  test("returns valid OpenAPI spec", async ({ request }) => {
-    const res = await request.get("/doc")
+  test("returns valid OpenAPI spec with security schemes", async ({ request }) => {
+    const res = await request.get("/openapi.json")
     expect(res.ok()).toBeTruthy()
     const body = await res.json()
     expect(body.openapi).toBe("3.0.0")
     expect(body.info.title).toBe("Remy Sport API")
     expect(body.paths["/api/health"]).toBeTruthy()
+    expect(body.paths["/api/events"]).toBeTruthy()
+    expect(body.components.securitySchemes.Session).toBeTruthy()
+    expect(body.components.securitySchemes.ApiKey).toBeTruthy()
+  })
+
+  test("serves Swagger UI", async ({ request }) => {
+    const res = await request.get("/doc")
+    expect(res.ok()).toBeTruthy()
+    const html = await res.text()
+    expect(html).toContain("swagger-ui")
   })
 })
