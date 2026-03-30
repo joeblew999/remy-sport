@@ -2,6 +2,32 @@
 
 <!-- This is the main agent context file. CLAUDE.md and GEMINI.md are aliases that point here. -->
 
+## Claude Code Bootstrap (run at session start)
+
+When starting a new session, run these commands in order to get the project running:
+
+```bash
+# 1. Install mise (if not already installed)
+curl https://mise.run | sh
+export PATH="$HOME/.local/bin:$PATH"
+eval "$(mise activate bash)"
+
+# 2. Trust the project config
+mise trust
+
+# 3. Install deps + apply local D1 migrations
+mise run setup
+
+# 4. Start dev server (runs on http://localhost:8787)
+mise run dev
+```
+
+**Notes:**
+- If `jq` install fails due to GitHub API rate limits, retry with `GITHUB_TOKEN="" mise install jq`
+- Playwright browser download may fail in cloud environments (DNS blocks to `storage.googleapis.com`). API tests will still pass; browser tests will be skipped.
+- After the dev server is running, seed dev users with `mise run seed`
+- Run `mise run test` to verify — expect API tests to pass; browser tests require Playwright chromium installed locally (`bun x playwright install --with-deps chromium`)
+
 ## Stack
 
 ### Frameworks & Libraries
