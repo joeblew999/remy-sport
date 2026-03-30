@@ -24,7 +24,6 @@ echo "eval \"\$(mise activate bash)\"" >> "$CLAUDE_ENV_FILE"
 mise trust
 mise install || GITHUB_TOKEN="" mise install
 
-# ── Setup project + Playwright browsers ─────────────────────────────────────
+# ── Setup project (deps + migrations + Playwright) ─────────────────────────
 eval "$(mise activate bash)"
 mise run setup
-mise run playwright:install

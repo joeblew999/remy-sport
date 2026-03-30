@@ -20,8 +20,8 @@ sources     = ["package.json", "bun.lock"]
 run         = "bun install"
 
 [tasks.setup]
-description = "Install deps and apply local D1 migrations"
-depends     = ["install", "cf:d1:migrations:apply"]
+description = "Install deps, apply local D1 migrations, and install Playwright"
+depends     = ["install", "cf:d1:migrations:apply", "playwright:install"]
 
 [tasks."playwright:install"]
 description = "Install Playwright browsers (proxy-safe, idempotent)"
@@ -67,15 +67,31 @@ run         = "bun x tsc --noEmit"
 
 [tasks.test]
 description = "Run Playwright tests locally"
-depends     = ["setup", "playwright:install"]
+depends     = ["setup"]
 run         = "bun x playwright test"
 
 [tasks.versions]
 description = "Generate versions.json"
 run         = "bun scripts/versions.ts"
 
+[tasks."dev:seed"]
+description = "Start dev server, wait for readiness, seed, then keep server running"
+depends     = ["setup"]
+run         = """
+bun x wrangler dev &
+SERVER_PID=$!
+for i in $(seq 1 30); do
+  if curl -sf http://localhost:8787/ >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+curl -sf -X POST {{env.DEV_URL}}/api/seed | jq . || true
+wait $SERVER_PID
+"""
+
 [tasks.seed]
-description = "Seed local D1 with dev users (requires mise run dev)"
+description = "Seed local D1 with dev users (requires running dev server)"
 run         = "curl -sf -X POST {{env.DEV_URL}}/api/seed | jq ."
 
 [tasks.deploy]
