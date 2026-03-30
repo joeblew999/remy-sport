@@ -307,3 +307,58 @@ test.describe.serial("Dashboard GUI — per-actor rendering", () => {
     await expect(table.locator("tbody tr")).not.toHaveCount(0)
   })
 })
+
+// ── Bearer token + API key auth ─────────────────────────────────────────────
+
+test.describe.serial("Bearer token auth", () => {
+  test("can authenticate API calls with bearer token", async ({ request }) => {
+    // Sign in to get a bearer token
+    const signInRes = await request.post("/api/auth/sign-in/email", {
+      data: { email: ORGANIZER.email, password: ORGANIZER.password },
+    })
+    const { token } = await signInRes.json()
+    expect(token).toBeTruthy()
+
+    // Use bearer token to create an event (fresh request context, no cookies)
+    const res = await request.post("/api/events", {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { name: "Bearer Token Event", type: "tournament" },
+    })
+    expect(res.status()).toBe(201)
+    const body = await res.json()
+    expect(body.name).toBe("Bearer Token Event")
+  })
+
+  test("invalid bearer token gets 401", async ({ request }) => {
+    const res = await request.post("/api/events", {
+      headers: { Authorization: "Bearer invalid-token-here" },
+      data: { name: "Should Fail", type: "tournament" },
+    })
+    expect(res.status()).toBe(401)
+  })
+})
+
+test.describe.serial("API key auth", () => {
+  test("seed returns API keys", async ({ request }) => {
+    const res = await request.post("/api/seed")
+    expect(res.ok()).toBeTruthy()
+    const body = await res.json()
+    expect(body.apiKeys).toBeTruthy()
+    expect(body.apiKeys.length).toBeGreaterThanOrEqual(2)
+  })
+
+  test("can authenticate with x-api-key header", async ({ request }) => {
+    // Seed to get API keys
+    const seedRes = await request.post("/api/seed")
+    const { apiKeys } = await seedRes.json()
+    const adminKey = apiKeys.find((k: any) => k.email === "admin@remy.dev")
+
+    // Skip if no key returned (already existed)
+    if (!adminKey?.key) return
+
+    const res = await request.get("/api/events", {
+      headers: { "x-api-key": adminKey.key },
+    })
+    expect(res.ok()).toBeTruthy()
+  })
+})

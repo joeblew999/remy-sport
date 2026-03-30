@@ -1,6 +1,8 @@
 import { betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { admin } from "better-auth/plugins/admin"
+import { bearer } from "better-auth/plugins/bearer"
+import { apiKey } from "better-auth/plugins"
 import { drizzle } from "drizzle-orm/d1"
 import type { Context } from "hono"
 import type { AppEnv } from "./types"
@@ -20,6 +22,8 @@ export function createAuth(c: Context<AppEnv>) {
     },
     plugins: [
       admin(),
+      bearer(),
+      apiKey(),
     ],
   })
 }

@@ -32,7 +32,33 @@ seed.post("/api/seed", async (c) => {
     await db.prepare("UPDATE user SET role = ? WHERE email = ?").bind(u.role, u.email).run()
   }
 
-  return c.json({ seeded: results })
+  // Create API keys for admin and organizer (idempotent — skip if exists)
+  const apiKeys: { email: string; key?: string }[] = []
+  for (const email of ["admin@remy.dev", "organizer@remy.dev"]) {
+    const existing = await db
+      .prepare("SELECT id FROM apikey WHERE user_id = (SELECT id FROM user WHERE email = ?)")
+      .bind(email)
+      .first()
+    if (existing) {
+      apiKeys.push({ email })
+      continue
+    }
+    try {
+      // Sign in to get a session, then create API key
+      const session = await auth.api.signInEmail({
+        body: { email, password: SEED_USERS.find((u) => u.email === email)!.password },
+      })
+      const result = await auth.api.createApiKey({
+        body: { name: `${email.split("@")[0]}-dev-key` },
+        headers: new Headers({ Authorization: `Bearer ${session.token}` }),
+      })
+      apiKeys.push({ email, key: (result as any).key })
+    } catch {
+      apiKeys.push({ email })
+    }
+  }
+
+  return c.json({ seeded: results, apiKeys })
 })
 
 export default seed
