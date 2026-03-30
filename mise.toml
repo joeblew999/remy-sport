@@ -4,13 +4,13 @@ jq   = "1.8.1"
 node = "24.14.1"
 
 [env]
-WORKER_NAME  = "remy-sport"
-CF_SUBDOMAIN = "gedw99"
-DEPLOYED_URL = "https://remy-sport.gedw99.workers.dev"
-GITHUB_REPO  = "https://github.com/joeblew999/remy-sport"
-LOCAL_URL    = "http://localhost:8787"
-DB_NAME      = "remy-sport-db"
-BUCKET_NAME  = "remy-sport-storage"
+CF_WORKER_NAME  = "remy-sport"
+CF_SUBDOMAIN    = "gedw99"
+CF_DEPLOY_URL   = "https://remy-sport.gedw99.workers.dev"
+CF_D1_NAME      = "remy-sport-db"
+CF_R2_NAME      = "remy-sport-storage"
+DEV_URL         = "http://localhost:8787"
+GITHUB_REPO_URL = "https://github.com/joeblew999/remy-sport"
 
 # ── Core ────────────────────────────────────────────────────────────────────
 
@@ -30,6 +30,7 @@ run         = "bun x wrangler dev"
 
 [tasks.check]
 description = "TypeScript type check"
+depends     = ["cf:types"]
 sources     = ["src/**/*.ts", "tsconfig.json"]
 run         = "bun x tsc --noEmit"
 
@@ -44,7 +45,7 @@ run         = "bun scripts/versions.ts"
 
 [tasks.seed]
 description = "Seed local D1 with dev users (requires mise run dev)"
-run         = "curl -sf -X POST {{env.LOCAL_URL}}/api/seed | jq ."
+run         = "curl -sf -X POST {{env.DEV_URL}}/api/seed | jq ."
 
 [tasks.deploy]
 description = "Full deploy pipeline"
@@ -58,7 +59,7 @@ run         = "bun x wrangler dev --remote"
 
 [tasks."test:deployed"]
 description = "Run Playwright tests against deployed worker"
-env         = { BASE_URL = "{{env.DEPLOYED_URL}}" }
+env         = { BASE_URL = "{{env.CF_DEPLOY_URL}}" }
 run         = "bun x playwright test"
 
 [tasks."test:ui"]
@@ -67,7 +68,7 @@ run         = "bun x playwright test --ui"
 
 [tasks."seed:remote"]
 description = "Seed remote D1 with dev users (idempotent)"
-run         = "curl -sf -X POST {{env.DEPLOYED_URL}}/api/seed | jq ."
+run         = "curl -sf -X POST {{env.CF_DEPLOY_URL}}/api/seed | jq ."
 
 # ── cf: deploy ───────────────────────────────────────────────────────────────
 
@@ -112,6 +113,10 @@ run         = "bun x wrangler whoami"
 description = "List secrets set on the worker"
 run         = "bun x wrangler secret list"
 
+[tasks."cf:types"]
+description = "Generate TypeScript types from wrangler bindings (worker-configuration.d.ts)"
+run         = "bun x wrangler types"
+
 # ── cf:d1: database ──────────────────────────────────────────────────────────
 
 [tasks."cf:d1:list"]
@@ -120,27 +125,27 @@ run         = "bun x wrangler d1 list"
 
 [tasks."cf:d1:create"]
 description = "Create the project D1 database"
-run         = "bun x wrangler d1 create {{env.DB_NAME}}"
+run         = "bun x wrangler d1 create {{env.CF_D1_NAME}}"
 
 [tasks."cf:d1:tables"]
 description = "List tables in local D1"
-run         = "bun x wrangler d1 execute {{env.DB_NAME}} --local --command \"SELECT name FROM sqlite_master WHERE type='table' ORDER BY name\""
+run         = "bun x wrangler d1 execute {{env.CF_D1_NAME}} --local --command \"SELECT name FROM sqlite_master WHERE type='table' ORDER BY name\""
 
 [tasks."cf:d1:tables:remote"]
 description = "List tables in remote D1"
-run         = "bun x wrangler d1 execute {{env.DB_NAME}} --remote --command \"SELECT name FROM sqlite_master WHERE type='table' ORDER BY name\""
+run         = "bun x wrangler d1 execute {{env.CF_D1_NAME}} --remote --command \"SELECT name FROM sqlite_master WHERE type='table' ORDER BY name\""
 
 [tasks."cf:d1:migrations:create"]
 description = "Create a new D1 migration (set NAME env var)"
-run         = "bun x wrangler d1 migrations create {{env.DB_NAME}} \"$NAME\""
+run         = "bun x wrangler d1 migrations create {{env.CF_D1_NAME}} \"$NAME\""
 
 [tasks."cf:d1:migrations:apply"]
 description = "Apply D1 migrations locally (idempotent)"
-run         = "bun x wrangler d1 migrations apply {{env.DB_NAME}} --local"
+run         = "bun x wrangler d1 migrations apply {{env.CF_D1_NAME}} --local"
 
 [tasks."cf:d1:migrations:apply:remote"]
 description = "Apply D1 migrations to remote (idempotent)"
-run         = "bun x wrangler d1 migrations apply {{env.DB_NAME}} --remote"
+run         = "bun x wrangler d1 migrations apply {{env.CF_D1_NAME}} --remote"
 
 # ── cf:r2: storage ───────────────────────────────────────────────────────────
 
@@ -150,8 +155,8 @@ run         = "bun x wrangler r2 bucket list"
 
 [tasks."cf:r2:create"]
 description = "Create the project R2 bucket"
-run         = "bun x wrangler r2 bucket create {{env.BUCKET_NAME}}"
+run         = "bun x wrangler r2 bucket create {{env.CF_R2_NAME}}"
 
 [tasks."cf:r2:objects"]
 description = "List objects in the R2 bucket"
-run         = "bun x wrangler r2 object list {{env.BUCKET_NAME}}"
+run         = "bun x wrangler r2 object list {{env.CF_R2_NAME}}"
