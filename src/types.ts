@@ -12,6 +12,7 @@ export type Variables = {
     name: string | null
     emailVerified: boolean
     image?: string | null | undefined
+    role?: string | null
     createdAt: Date
     updatedAt: Date
   } | null

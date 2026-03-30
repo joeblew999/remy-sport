@@ -29,6 +29,6 @@ test.describe("Login page", () => {
   test("shows dev account quick-fill buttons", async ({ page }) => {
     await page.goto("/login")
     await expect(page.locator("button:text('Admin')")).toBeVisible()
-    await expect(page.locator("button:text('User')")).toBeVisible()
+    await expect(page.locator("button:text('Spectator')")).toBeVisible()
   })
 })

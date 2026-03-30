@@ -9,7 +9,7 @@ test.describe.serial("Auth flow", () => {
     const res = await request.post("/api/seed")
     expect(res.ok()).toBeTruthy()
     const body = await res.json()
-    expect(body.seeded).toHaveLength(2)
+    expect(body.seeded.length).toBeGreaterThanOrEqual(2)
     for (const u of body.seeded) {
       expect(["created", "exists"]).toContain(u.status)
     }

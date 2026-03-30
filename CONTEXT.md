@@ -111,7 +111,10 @@ The SessionStart hook (`.claude/hooks/session-start.sh`) automatically runs step
 | Role | Email | Password |
 |---|---|---|
 | Admin | `admin@remy.dev` | `admin1234!` |
-| User | `user@remy.dev` | `user12345!` |
+| Organizer | `organizer@remy.dev` | `organizer1!` |
+| Coach | `coach@remy.dev` | `coach12345!` |
+| Player | `player@remy.dev` | `player1234!` |
+| Spectator | `user@remy.dev` | `user12345!` |
 
 Seeded via `mise run seed` (local) or `mise run seed:remote` (deployed). See ADR 002.
 

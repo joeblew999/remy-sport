@@ -7,6 +7,8 @@ import authRoutes from "./routes/auth"
 import homeRoutes from "./routes/home"
 import loginRoutes from "./routes/login"
 import seedRoutes from "./routes/seed"
+import eventsRoutes from "./routes/events"
+import dashboardRoutes from "./routes/dashboard"
 import type { AppEnv } from "./types"
 
 const app = new OpenAPIHono<AppEnv>()
@@ -15,16 +17,18 @@ const app = new OpenAPIHono<AppEnv>()
 app.use(logger())
 app.use(cors({ origin: "*", credentials: true }))
 
-// Seed route registered before CSRF — called via curl/scripts, not browsers
+// API routes registered before CSRF — called via curl/scripts/tests
+app.use("*", sessionMiddleware)
 app.route("/", seedRoutes)
+app.route("/", eventsRoutes)
 
 app.use(csrf())
-app.use("*", sessionMiddleware)
 
-// Routes
+// Browser routes (CSRF protected)
 app.route("/", authRoutes)
 app.route("/", homeRoutes)
 app.route("/", loginRoutes)
+app.route("/", dashboardRoutes)
 
 // OpenAPI documentation
 app.doc("/doc", {
