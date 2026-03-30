@@ -62,14 +62,14 @@
 - SIWE — Sign In With Ethereum
 
 ## ADRs (Architectural Decision Records)
-- All ADRs live in `docs/adr/` with the naming convention `NNN-short-title.md` (e.g. `001-deployment-versioning.md`)
+- All ADRs live in `docs/dev/adr/` with the naming convention `NNN-short-title.md` (e.g. `001-deployment-versioning.md`)
 - ADRs document **plans before implementation** — write the ADR first, get approval, then implement
 - ADR format: **Status** (proposed/accepted/implemented), **Context** (why), **Decision** (what), **Implementation** (how, with concrete steps and file paths), **Consequences** (trade-offs)
 - ADRs **must include Taskfile changes** — every feature needs tasks for running, seeding, testing, deploying, etc. If a feature adds new workflows, the ADR must specify the exact task names and what they do
 - Reference ADRs from CONTEXT.md when they affect conventions or architecture
 
 ## Conventions
-- All plan and architectural decision files go in `docs/adr/`
+- All plan and architectural decision files go in `docs/dev/adr/`
 - Always use `task` commands to run things (e.g. `task dev`, `task test`, `task deploy`) — both AI agents and humans use the same Taskfile so we dogfood our own tooling
 - Never run raw `bun`, `bunx wrangler`, or other commands directly when a task exists for it
 - Taskfile tasks must be **idempotent** — use `sources`/`generates` checksums so tasks skip when inputs haven't changed. Every task that can be idempotent should be (install, check, deploy, versions, etc.)
@@ -86,9 +86,18 @@
 
 Seeded via `task seed` (local) or `task seed:remote` (deployed). See ADR 002.
 
-## Roadmap & Research
-- [docs/roadmap.md](docs/roadmap.md) — phased feature roadmap with provenance from competitor research
-- [docs/sites.md](docs/sites.md) — competitive research (feature extraction from 5 basketball/sports platforms)
+## Dev Docs (`docs/dev/`)
+- [docs/dev/README.md](docs/dev/README.md) — entry point for all dev docs
+- [docs/dev/roadmap.md](docs/dev/roadmap.md) — phased feature roadmap with provenance from competitor research
+- [docs/dev/sites.md](docs/dev/sites.md) — competitive research (feature extraction from 5 basketball/sports platforms)
+- [docs/dev/adr/](docs/dev/adr/) — architectural decision records
+
+## User Docs (`docs/user/`)
+- [docs/user/README.md](docs/user/README.md) — entry point for all user docs
+- [docs/user/matrix.md](docs/user/matrix.md) — **primary reference**: full Actor × Feature × Event Type access matrix (W/R)
+- [docs/user/roadmap.md](docs/user/roadmap.md) — user-facing feature roadmap
+- [docs/user/actors.md](docs/user/actors.md) — actor/user type definitions
+- [docs/user/event-types.md](docs/user/event-types.md) — event type definitions (Tournament, League, Camp/Clinic, Showcase)
 
 ## References
 - https://hono.dev/llms.txt
