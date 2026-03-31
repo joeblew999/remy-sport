@@ -72,7 +72,7 @@ Compare with the [design doc](matrix.md) to see the full vision.
 | session | define | W | W | — | — | — | — |
 | session | read | R | R | R | R | R | — |
 | court | assign | W | W | — | — | — | — |
-| court | read | R | R | — | — | — | R |
+| court | read | R | R | R | R | R | R |
 | score | enter | W | W | — | — | — | W |
 | score | read | R | R | R | R | R | R |
 | attendance | record | W | W | W | — | — | — |

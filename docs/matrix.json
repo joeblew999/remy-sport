@@ -244,9 +244,9 @@
       "roles": {
         "admin":     ["assign", "read"],
         "organizer": ["assign", "read"],
-        "coach":     [],
-        "player":    [],
-        "spectator": [],
+        "coach":     ["read"],
+        "player":    ["read"],
+        "spectator": ["read"],
         "referee":   ["read"]
       },
       "routes": {
