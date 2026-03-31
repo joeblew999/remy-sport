@@ -212,6 +212,111 @@ export const matchReferee = sqliteTable("match_referee", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 })
 
+// Phase 5 — Divisions, registrations, consolation brackets
+
+export const division = sqliteTable("division", {
+  id: text("id").primaryKey(),
+  eventId: text("event_id")
+    .notNull()
+    .references(() => event.id),
+  name: text("name").notNull(),
+  ageGroup: text("age_group"), // e.g. "U12", "U14", "Open"
+  gender: text("gender"), // e.g. "male", "female", "mixed"
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+})
+
+export const registration = sqliteTable("registration", {
+  id: text("id").primaryKey(),
+  eventId: text("event_id")
+    .notNull()
+    .references(() => event.id),
+  type: text("type").notNull(), // "team" | "player"
+  teamId: text("team_id").references(() => team.id),
+  playerId: text("player_id").references(() => playerProfile.id),
+  status: text("status").notNull().default("pending"), // pending, approved, rejected
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+})
+
+export const consolationBracket = sqliteTable("consolation_bracket", {
+  id: text("id").primaryKey(),
+  eventId: text("event_id")
+    .notNull()
+    .references(() => event.id),
+  name: text("name").notNull(),
+  data: text("data"), // JSON bracket structure
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+})
+
+// Phase 6 — User preferences, notifications, live streams, moderation
+
+export const spoilerPreference = sqliteTable("spoiler_preference", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+})
+
+export const notificationSubscription = sqliteTable("notification_subscription", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id),
+  eventId: text("event_id").references(() => event.id),
+  type: text("type").notNull(), // "push", "email"
+  endpoint: text("endpoint"), // push endpoint URL
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+})
+
+export const liveStream = sqliteTable("live_stream", {
+  id: text("id").primaryKey(),
+  eventId: text("event_id")
+    .notNull()
+    .references(() => event.id),
+  title: text("title").notNull(),
+  url: text("url").notNull(),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+})
+
+export const moderationFlag = sqliteTable("moderation_flag", {
+  id: text("id").primaryKey(),
+  resourceType: text("resource_type").notNull(), // "event", "team", "player"
+  resourceId: text("resource_id").notNull(),
+  reason: text("reason").notNull(),
+  status: text("status").notNull().default("pending"), // pending, reviewed, resolved
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id),
+  reviewedBy: text("reviewed_by").references(() => user.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+})
+
+// ── Better Auth tables ──────────────────────────────────────────────────────
+
 export const apikey = sqliteTable("apikey", {
   id: text("id").primaryKey(),
   name: text("name"),

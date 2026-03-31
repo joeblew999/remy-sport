@@ -18,24 +18,24 @@ Compare with the [design doc](matrix.md) to see the full vision.
 
 | Status | Count | Resources |
 |---|---|---|
-| Implemented | 11/26 | event, team, player, roster, bracket, fixture, session, court, score, attendance, user |
-| Planned | 6/26 | division, registration, find-team, consolation-bracket, results-archive, spoiler |
-| Not Started | 9/26 | standings, player-stats, season-records, live-scores, notifications, live-stream, court-status, ai-assistant, moderation |
+| Implemented | 26/26 | event, division, registration, team, player, roster, find-team, bracket, consolation-bracket, fixture, session, court, score, attendance, results-archive, spoiler, standings, player-stats, season-records, live-scores, notifications, live-stream, court-status, ai-assistant, user, moderation |
+| Planned | 0/26 | — |
+| Not Started | 0/26 | — |
 
-**Progress: 11/26 resources implemented (42%)**
+**Progress: 26/26 resources implemented (100%)**
 
 ### By Feature Group
 
 | Group | Implemented | Planned | Not Started |
 |---|---|---|---|
-| events | event | division, registration | — |
-| teams-players | team, player, roster | find-team | — |
-| schedules-brackets | bracket, fixture, session, court | consolation-bracket | — |
-| scores-results | score, attendance | results-archive, spoiler | — |
-| rankings-standings | — | — | standings, player-stats, season-records |
-| live-realtime | — | — | live-scores, notifications, live-stream, court-status |
-| ai-assistant | — | — | ai-assistant |
-| admin | user | — | moderation |
+| events | event, division, registration | — | — |
+| teams-players | team, player, roster, find-team | — | — |
+| schedules-brackets | bracket, consolation-bracket, fixture, session, court | — | — |
+| scores-results | score, attendance, results-archive, spoiler | — | — |
+| rankings-standings | standings, player-stats, season-records | — | — |
+| live-realtime | live-scores, notifications, live-stream, court-status | — | — |
+| ai-assistant | ai-assistant | — | — |
+| admin | user, moderation | — | — |
 
 ---
 
@@ -47,6 +47,13 @@ Compare with the [design doc](matrix.md) to see the full vision.
 | event | read | R | R | R | R | R | R |
 | event | update | W | W | — | — | — | — |
 | event | delete | W | W | — | — | — | — |
+| division | create | W | W | — | — | — | — |
+| division | read | R | R | R | R | R | R |
+| division | update | W | W | — | — | — | — |
+| division | delete | W | W | — | — | — | — |
+| registration | register-team | W | — | W | — | — | — |
+| registration | register-player | W | — | — | W | — | — |
+| registration | read | R | R | R | R | R | — |
 | team | create | W | — | W | — | — | — |
 | team | read | R | R | R | R | R | — |
 | team | update | W | — | W | — | — | — |
@@ -55,8 +62,11 @@ Compare with the [design doc](matrix.md) to see the full vision.
 | player | read | R | R | R | R | R | — |
 | player | update | W | — | W | W | — | — |
 | roster | manage | W | — | W | — | — | — |
+| find-team | read | R | — | — | R | — | — |
 | bracket | generate | W | W | — | — | — | — |
 | bracket | read | R | R | R | R | R | R |
+| consolation-bracket | generate | W | W | — | — | — | — |
+| consolation-bracket | read | R | R | R | R | R | R |
 | fixture | generate | W | W | — | — | — | — |
 | fixture | read | R | R | R | R | R | R |
 | session | define | W | W | — | — | — | — |
@@ -67,7 +77,23 @@ Compare with the [design doc](matrix.md) to see the full vision.
 | score | read | R | R | R | R | R | R |
 | attendance | record | W | W | W | — | — | — |
 | attendance | read | R | R | R | — | — | — |
+| results-archive | read | R | R | R | R | R | R |
+| spoiler | toggle | — | — | W | W | W | — |
+| spoiler | read | — | — | R | R | R | — |
+| standings | read | R | R | R | R | R | R |
+| player-stats | read | R | R | R | R | R | — |
+| season-records | read | R | R | R | R | R | — |
+| live-scores | read | R | R | R | R | R | R |
+| notifications | subscribe | — | — | W | W | W | — |
+| notifications | read | — | — | R | R | R | — |
+| live-stream | manage | W | W | — | — | — | — |
+| live-stream | read | R | R | R | R | R | — |
+| court-status | read | R | R | R | R | R | R |
+| ai-assistant | create-event | W | W | — | — | — | — |
+| ai-assistant | suggest-bracket | W | W | — | — | — | — |
+| ai-assistant | qa | W | W | W | W | W | W |
 | user | manage | W | — | — | — | — | — |
+| moderation | manage | W | — | — | — | — | — |
 
 ---
 
@@ -76,38 +102,31 @@ Compare with the [design doc](matrix.md) to see the full vision.
 | Resource | T | L | K | Sh |
 |---|:---:|:---:|:---:|:---:|
 | event | x | x | x | x |
+| division | x | x |  | x |
+| registration | x | x | x | x |
 | team | x | x |  | x |
 | player | x | x | x | x |
 | roster | x | x |  | x |
+| find-team | x | x |  | x |
 | bracket | x |  |  | x |
+| consolation-bracket | x |  |  |  |
 | fixture | x | x |  |  |
 | session |  |  | x |  |
 | court | x | x |  | x |
 | score | x | x |  | x |
 | attendance |  |  | x |  |
+| results-archive | x | x |  | x |
+| spoiler | x | x |  | x |
+| standings | x | x |  |  |
+| player-stats | x | x |  | x |
+| season-records |  | x |  |  |
+| live-scores | x | x |  | x |
+| notifications | x | x |  | x |
+| live-stream | x | x |  | x |
+| court-status | x | x |  | x |
+| ai-assistant | x | x | x | x |
 | user | x | x | x | x |
-
----
-
-## Planned & Not Started Resources
-
-| Resource | Status | Group | Design Features | Event Types |
-|---|---|---|---|---|
-| division | Planned | events | Age & gender divisions | T, L, Sh |
-| registration | Planned | events | Register team, Register as player | T, L, K, Sh |
-| find-team | Planned | teams-players | Find a team | T, L, Sh |
-| consolation-bracket | Planned | schedules-brackets | Consolation / back draw | T |
-| results-archive | Planned | scores-results | View results archive | T, L, Sh |
-| spoiler | Planned | scores-results | Spoiler mode | T, L, Sh |
-| standings | Not Started | rankings-standings | View standings table, View rank movement, View rankings history | T, L |
-| player-stats | Not Started | rankings-standings | View player stats | T, L, Sh |
-| season-records | Not Started | rankings-standings | View season records | L |
-| live-scores | Not Started | live-realtime | Live scores | T, L, Sh |
-| notifications | Not Started | live-realtime | Push notifications | T, L, Sh |
-| live-stream | Not Started | live-realtime | Live stream links | T, L, Sh |
-| court-status | Not Started | live-realtime | Court status board | T, L, Sh |
-| ai-assistant | Not Started | ai-assistant | Create event by chat, Bracket suggestions, Q&A | T, L, K, Sh |
-| moderation | Not Started | admin | Moderate listings | T, L, K, Sh |
+| moderation | x | x | x | x |
 
 ---
 

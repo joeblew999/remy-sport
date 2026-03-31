@@ -126,6 +126,6 @@ test.describe.serial("Matrix coverage — access control ↔ API routes", () => 
   test("matrix resource count matches expected (catches forgotten resources)", async () => {
     // RESOURCES is imported from generated matrix-data.ts — if someone adds a resource
     // to matrix.json and regenerates, this count auto-updates.
-    expect(RESOURCES.length).toBe(11) // event, team, player, roster, score, bracket, fixture, session, attendance, court, user
+    expect(RESOURCES.length).toBe(26)
   })
 })

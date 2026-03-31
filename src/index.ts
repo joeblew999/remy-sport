@@ -23,6 +23,21 @@ import matchRefereesRoutes from "./routes/match-referees"
 import usersRoutes from "./routes/users"
 import permissionsRoutes from "./routes/permissions"
 import dashboardRoutes from "./routes/dashboard"
+import divisionsRoutes from "./routes/divisions"
+import registrationsRoutes from "./routes/registrations"
+import findTeamRoutes from "./routes/find-team"
+import consolationBracketsRoutes from "./routes/consolation-brackets"
+import resultsArchiveRoutes from "./routes/results-archive"
+import spoilerRoutes from "./routes/spoiler"
+import standingsRoutes from "./routes/standings"
+import playerStatsRoutes from "./routes/player-stats"
+import seasonRecordsRoutes from "./routes/season-records"
+import liveScoresRoutes from "./routes/live-scores"
+import notificationsRoutes from "./routes/notifications"
+import liveStreamsRoutes from "./routes/live-streams"
+import courtStatusRoutes from "./routes/court-status"
+import aiAssistantRoutes from "./routes/ai-assistant"
+import moderationRoutes from "./routes/moderation"
 import type { AppEnv } from "./types"
 
 const app = new OpenAPIHono<AppEnv>()
@@ -63,6 +78,21 @@ app.route("/", attendanceRoutes)
 app.route("/", matchRefereesRoutes)
 app.route("/", usersRoutes)
 app.route("/", permissionsRoutes)
+app.route("/", divisionsRoutes)
+app.route("/", registrationsRoutes)
+app.route("/", findTeamRoutes)
+app.route("/", consolationBracketsRoutes)
+app.route("/", resultsArchiveRoutes)
+app.route("/", spoilerRoutes)
+app.route("/", standingsRoutes)
+app.route("/", playerStatsRoutes)
+app.route("/", seasonRecordsRoutes)
+app.route("/", liveScoresRoutes)
+app.route("/", notificationsRoutes)
+app.route("/", liveStreamsRoutes)
+app.route("/", courtStatusRoutes)
+app.route("/", aiAssistantRoutes)
+app.route("/", moderationRoutes)
 
 app.use(csrf())
 

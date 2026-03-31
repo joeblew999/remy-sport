@@ -7,6 +7,7 @@
     "event": {
       "group": "events",
       "status": "implemented",
+      "publicRead": true,
       "designFeatures": ["Browse events", "Event detail page", "Create event"],
       "actions": ["create", "read", "update", "delete"],
       "eventTypes": ["tournament", "league", "camp", "showcase"],
@@ -27,7 +28,8 @@
     },
     "division": {
       "group": "events",
-      "status": "planned",
+      "status": "implemented",
+      "publicRead": true,
       "designFeatures": ["Age & gender divisions"],
       "actions": ["create", "read", "update", "delete"],
       "eventTypes": ["tournament", "league", "showcase"],
@@ -48,7 +50,8 @@
     },
     "registration": {
       "group": "events",
-      "status": "planned",
+      "status": "implemented",
+      "publicRead": true,
       "designFeatures": ["Register team", "Register as player"],
       "actions": ["register-team", "register-player", "read"],
       "eventTypes": ["tournament", "league", "camp", "showcase"],
@@ -69,6 +72,7 @@
     "team": {
       "group": "teams-players",
       "status": "implemented",
+      "publicRead": true,
       "designFeatures": ["Create team profile"],
       "actions": ["create", "read", "update", "delete"],
       "eventTypes": ["tournament", "league", "showcase"],
@@ -90,6 +94,7 @@
     "player": {
       "group": "teams-players",
       "status": "implemented",
+      "publicRead": true,
       "designFeatures": ["Create player profile"],
       "actions": ["create", "read", "update"],
       "eventTypes": ["tournament", "league", "camp", "showcase"],
@@ -130,7 +135,7 @@
     },
     "find-team": {
       "group": "teams-players",
-      "status": "planned",
+      "status": "implemented",
       "designFeatures": ["Find a team"],
       "actions": ["read"],
       "eventTypes": ["tournament", "league", "showcase"],
@@ -149,6 +154,7 @@
     "bracket": {
       "group": "schedules-brackets",
       "status": "implemented",
+      "publicRead": true,
       "designFeatures": ["View bracket", "Generate brackets"],
       "actions": ["generate", "read"],
       "eventTypes": ["tournament", "showcase"],
@@ -167,7 +173,8 @@
     },
     "consolation-bracket": {
       "group": "schedules-brackets",
-      "status": "planned",
+      "status": "implemented",
+      "publicRead": true,
       "designFeatures": ["Consolation / back draw"],
       "actions": ["generate", "read"],
       "eventTypes": ["tournament"],
@@ -187,6 +194,7 @@
     "fixture": {
       "group": "schedules-brackets",
       "status": "implemented",
+      "publicRead": true,
       "designFeatures": ["View fixture schedule", "Generate fixtures"],
       "actions": ["generate", "read"],
       "eventTypes": ["tournament", "league"],
@@ -209,6 +217,7 @@
     "session": {
       "group": "schedules-brackets",
       "status": "implemented",
+      "publicRead": true,
       "designFeatures": ["Define session schedule"],
       "actions": ["define", "read"],
       "eventTypes": ["camp"],
@@ -228,6 +237,7 @@
     "court": {
       "group": "schedules-brackets",
       "status": "implemented",
+      "publicRead": true,
       "designFeatures": ["View court assignments", "Assign courts"],
       "actions": ["assign", "read"],
       "eventTypes": ["tournament", "league", "showcase"],
@@ -247,6 +257,7 @@
     "score": {
       "group": "scores-results",
       "status": "implemented",
+      "publicRead": true,
       "designFeatures": ["Enter scores", "View game results", "Confirm match status", "View match status"],
       "actions": ["enter", "read"],
       "eventTypes": ["tournament", "league", "showcase"],
@@ -269,6 +280,7 @@
     "attendance": {
       "group": "scores-results",
       "status": "implemented",
+      "publicRead": true,
       "designFeatures": ["Record attendance"],
       "actions": ["record", "read"],
       "eventTypes": ["camp"],
@@ -287,7 +299,8 @@
     },
     "results-archive": {
       "group": "scores-results",
-      "status": "planned",
+      "status": "implemented",
+      "publicRead": true,
       "designFeatures": ["View results archive"],
       "actions": ["read"],
       "eventTypes": ["tournament", "league", "showcase"],
@@ -305,7 +318,7 @@
     },
     "spoiler": {
       "group": "scores-results",
-      "status": "planned",
+      "status": "implemented",
       "designFeatures": ["Spoiler mode"],
       "actions": ["toggle", "read"],
       "eventTypes": ["tournament", "league", "showcase"],
@@ -324,7 +337,8 @@
     },
     "standings": {
       "group": "rankings-standings",
-      "status": "not_started",
+      "status": "implemented",
+      "publicRead": true,
       "designFeatures": ["View standings table", "View rank movement", "View rankings history"],
       "actions": ["read"],
       "eventTypes": ["tournament", "league"],
@@ -342,7 +356,8 @@
     },
     "player-stats": {
       "group": "rankings-standings",
-      "status": "not_started",
+      "status": "implemented",
+      "publicRead": true,
       "designFeatures": ["View player stats"],
       "actions": ["read"],
       "eventTypes": ["tournament", "league", "showcase"],
@@ -360,7 +375,8 @@
     },
     "season-records": {
       "group": "rankings-standings",
-      "status": "not_started",
+      "status": "implemented",
+      "publicRead": true,
       "designFeatures": ["View season records"],
       "actions": ["read"],
       "eventTypes": ["league"],
@@ -378,7 +394,8 @@
     },
     "live-scores": {
       "group": "live-realtime",
-      "status": "not_started",
+      "status": "implemented",
+      "publicRead": true,
       "designFeatures": ["Live scores"],
       "actions": ["read"],
       "eventTypes": ["tournament", "league", "showcase"],
@@ -396,7 +413,7 @@
     },
     "notifications": {
       "group": "live-realtime",
-      "status": "not_started",
+      "status": "implemented",
       "designFeatures": ["Push notifications"],
       "actions": ["subscribe", "read"],
       "eventTypes": ["tournament", "league", "showcase"],
@@ -415,7 +432,8 @@
     },
     "live-stream": {
       "group": "live-realtime",
-      "status": "not_started",
+      "status": "implemented",
+      "publicRead": true,
       "designFeatures": ["Live stream links"],
       "actions": ["manage", "read"],
       "eventTypes": ["tournament", "league", "showcase"],
@@ -434,7 +452,8 @@
     },
     "court-status": {
       "group": "live-realtime",
-      "status": "not_started",
+      "status": "implemented",
+      "publicRead": true,
       "designFeatures": ["Court status board"],
       "actions": ["read"],
       "eventTypes": ["tournament", "league", "showcase"],
@@ -452,7 +471,7 @@
     },
     "ai-assistant": {
       "group": "ai-assistant",
-      "status": "not_started",
+      "status": "implemented",
       "designFeatures": ["Create event by chat", "Bracket suggestions", "Q&A"],
       "actions": ["create-event", "suggest-bracket", "qa"],
       "eventTypes": ["tournament", "league", "camp", "showcase"],
@@ -493,7 +512,7 @@
     },
     "moderation": {
       "group": "admin",
-      "status": "not_started",
+      "status": "implemented",
       "designFeatures": ["Moderate listings"],
       "actions": ["manage"],
       "eventTypes": ["tournament", "league", "camp", "showcase"],

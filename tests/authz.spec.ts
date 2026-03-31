@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test"
 import { ADMIN, ORGANIZER, COACH, PLAYER, SPECTATOR, REFEREE, ALL_ACTORS, signIn, actorsCan, actorsCannot } from "./helpers"
+import { RESOURCES } from "../src/auth/matrix-data.gen"
 
 const WRITERS = actorsCan("event", "create")
 const READERS = actorsCannot("event", "create")
@@ -222,7 +223,7 @@ test.describe.serial("Dashboard GUI — per-actor rendering", () => {
     await expect(switcher.locator("button")).toHaveCount(6)
   })
 
-  test("permission matrix shows all 11 resources", async ({ page }) => {
+  test("permission matrix shows all resources", async ({ page }) => {
     await page.goto("/login")
     await page.fill('input[type="email"]', ADMIN.email)
     await page.fill('input[type="password"]', ADMIN.password)
@@ -232,8 +233,8 @@ test.describe.serial("Dashboard GUI — per-actor rendering", () => {
     await page.goto("/dashboard")
     const matrix = page.getByTestId("permission-matrix")
     await expect(matrix).toBeVisible()
-    // Admin should see all 11 resource rows
-    await expect(matrix.locator("tbody tr")).toHaveCount(11)
+    // Admin should see all resource rows (count from generated matrix-data)
+    await expect(matrix.locator("tbody tr")).toHaveCount(RESOURCES.length)
   })
 
   test("resource explorer is present", async ({ page }) => {

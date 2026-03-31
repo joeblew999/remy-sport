@@ -58,8 +58,10 @@ function generateAccessControl(): string {
 
   // Build the createAccessControl call (implemented only)
   const acEntries = implemented.map(
-    ([resource, info]) =>
-      `  ${resource.padEnd(12)}: ${JSON.stringify(info.actions)},`
+    ([resource, info]) => {
+      const key = resource.includes("-") ? JSON.stringify(resource) : resource.padEnd(12)
+      return `  ${key}: ${JSON.stringify(info.actions)},`
+    }
   )
   lines.push(`export const ac = createAccessControl({`)
   lines.push(...acEntries)
@@ -74,7 +76,8 @@ function generateAccessControl(): string {
     for (const [resource, info] of implemented) {
       const perms = info.roles[role] || []
       if (perms.length > 0) {
-        roleEntries.push(`  ${resource.padEnd(12)}: ${JSON.stringify(perms)},`)
+        const key = resource.includes("-") ? JSON.stringify(resource) : resource.padEnd(12)
+        roleEntries.push(`  ${key}: ${JSON.stringify(perms)},`)
       }
     }
 
@@ -143,11 +146,11 @@ function generateMatrixData(): string {
   lines.push(`}`)
   lines.push(``)
 
-  // Public read endpoints (implemented only)
+  // Public read endpoints (implemented only, where publicRead is true)
   lines.push(`/** Public read endpoints (no auth required). */`)
   lines.push(`export const PUBLIC_READS: { method: string; path: string }[] = [`)
   for (const [, info] of implemented) {
-    if (info.routes.read) {
+    if (info.publicRead && info.routes.read) {
       lines.push(`  { method: "${info.routes.read.method}", path: "${info.routes.read.path}" },`)
     }
   }
