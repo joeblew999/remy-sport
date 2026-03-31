@@ -8,12 +8,12 @@ export const ac = createAccessControl({
   team        : ["create","read","update","delete"],
   player      : ["create","read","update"],
   roster      : ["manage"],
-  score       : ["enter","read"],
   bracket     : ["generate","read"],
   fixture     : ["generate","read"],
   session     : ["define","read"],
-  attendance  : ["record","read"],
   court       : ["assign","read"],
+  score       : ["enter","read"],
+  attendance  : ["record","read"],
   user        : ["manage"],
 })
 
@@ -22,12 +22,12 @@ export const adminRole = ac.newRole({
   team        : ["create","read","update","delete"],
   player      : ["create","read","update"],
   roster      : ["manage"],
-  score       : ["enter","read"],
   bracket     : ["generate","read"],
   fixture     : ["generate","read"],
   session     : ["define","read"],
-  attendance  : ["record","read"],
   court       : ["assign","read"],
+  score       : ["enter","read"],
+  attendance  : ["record","read"],
   user        : ["manage"],
 })
 
@@ -35,12 +35,12 @@ export const organizer = ac.newRole({
   event       : ["create","read","update","delete"],
   team        : ["read"],
   player      : ["read"],
-  score       : ["enter","read"],
   bracket     : ["generate","read"],
   fixture     : ["generate","read"],
   session     : ["define","read"],
-  attendance  : ["record","read"],
   court       : ["assign","read"],
+  score       : ["enter","read"],
+  attendance  : ["record","read"],
 })
 
 export const coach = ac.newRole({
@@ -48,10 +48,10 @@ export const coach = ac.newRole({
   team        : ["create","read","update"],
   player      : ["create","read","update"],
   roster      : ["manage"],
-  score       : ["read"],
   bracket     : ["read"],
   fixture     : ["read"],
   session     : ["read"],
+  score       : ["read"],
   attendance  : ["record","read"],
 })
 
@@ -59,28 +59,28 @@ export const player = ac.newRole({
   event       : ["read"],
   team        : ["read"],
   player      : ["create","read","update"],
-  score       : ["read"],
   bracket     : ["read"],
   fixture     : ["read"],
   session     : ["read"],
+  score       : ["read"],
 })
 
 export const spectator = ac.newRole({
   event       : ["read"],
   team        : ["read"],
   player      : ["read"],
-  score       : ["read"],
   bracket     : ["read"],
   fixture     : ["read"],
   session     : ["read"],
+  score       : ["read"],
 })
 
 export const referee = ac.newRole({
   event       : ["read"],
-  score       : ["enter","read"],
   bracket     : ["read"],
   fixture     : ["read"],
   court       : ["read"],
+  score       : ["enter","read"],
 })
 
 export const roles = {
