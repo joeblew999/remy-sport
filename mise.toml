@@ -74,6 +74,10 @@ run         = "bun x playwright test"
 description = "Generate versions.json"
 run         = "bun scripts/versions.ts"
 
+[tasks."api:types"]
+description = "Generate typed API client from OpenAPI spec (requires running dev server)"
+run         = "bun scripts/generate-api-types.ts"
+
 [tasks."dev:seed"]
 description = "Start dev server, wait for readiness, seed, then keep server running"
 depends     = ["setup"]
