@@ -9,6 +9,16 @@ import homeRoutes from "./routes/home"
 import loginRoutes from "./routes/login"
 import seedRoutes from "./routes/seed"
 import eventsRoutes from "./routes/events"
+import teamsRoutes from "./routes/teams"
+import playersRoutes from "./routes/players"
+import matchesRoutes from "./routes/matches"
+import scoresRoutes from "./routes/scores"
+import bracketsRoutes from "./routes/brackets"
+import fixturesRoutes from "./routes/fixtures"
+import rostersRoutes from "./routes/rosters"
+import courtsRoutes from "./routes/courts"
+import sessionsRoutes from "./routes/sessions"
+import attendanceRoutes from "./routes/attendance"
 import dashboardRoutes from "./routes/dashboard"
 import type { AppEnv } from "./types"
 
@@ -37,6 +47,16 @@ app.use("*", sessionMiddleware)
 // API routes registered before CSRF — called via curl/scripts/tests
 app.route("/", seedRoutes)
 app.route("/", eventsRoutes)
+app.route("/", teamsRoutes)
+app.route("/", playersRoutes)
+app.route("/", matchesRoutes)
+app.route("/", scoresRoutes)
+app.route("/", bracketsRoutes)
+app.route("/", fixturesRoutes)
+app.route("/", rostersRoutes)
+app.route("/", courtsRoutes)
+app.route("/", sessionsRoutes)
+app.route("/", attendanceRoutes)
 
 app.use(csrf())
 

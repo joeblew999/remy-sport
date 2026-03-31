@@ -57,6 +57,161 @@ export const event = sqliteTable("event", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 })
 
+export const team = sqliteTable("team", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  eventId: text("event_id")
+    .notNull()
+    .references(() => event.id),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+})
+
+export const playerProfile = sqliteTable("player_profile", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  position: text("position"),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+})
+
+// Phase 2 — Scores, brackets, fixtures
+
+export const match = sqliteTable("match", {
+  id: text("id").primaryKey(),
+  eventId: text("event_id")
+    .notNull()
+    .references(() => event.id),
+  homeTeamId: text("home_team_id").references(() => team.id),
+  awayTeamId: text("away_team_id").references(() => team.id),
+  status: text("status").notNull().default("scheduled"), // scheduled, in_progress, completed
+  scheduledAt: integer("scheduled_at", { mode: "timestamp" }),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+})
+
+export const score = sqliteTable("score", {
+  id: text("id").primaryKey(),
+  matchId: text("match_id")
+    .notNull()
+    .references(() => match.id),
+  homeScore: integer("home_score").notNull().default(0),
+  awayScore: integer("away_score").notNull().default(0),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+})
+
+export const bracket = sqliteTable("bracket", {
+  id: text("id").primaryKey(),
+  eventId: text("event_id")
+    .notNull()
+    .references(() => event.id),
+  name: text("name").notNull(),
+  data: text("data"), // JSON bracket structure
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+})
+
+export const fixture = sqliteTable("fixture", {
+  id: text("id").primaryKey(),
+  eventId: text("event_id")
+    .notNull()
+    .references(() => event.id),
+  name: text("name").notNull(),
+  data: text("data"), // JSON fixture schedule
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+})
+
+// Phase 3 — Rosters, courts, attendance
+
+export const roster = sqliteTable("roster", {
+  id: text("id").primaryKey(),
+  teamId: text("team_id")
+    .notNull()
+    .references(() => team.id),
+  playerId: text("player_id")
+    .notNull()
+    .references(() => playerProfile.id),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+})
+
+export const court = sqliteTable("court", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  eventId: text("event_id")
+    .notNull()
+    .references(() => event.id),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+})
+
+export const campSession = sqliteTable("camp_session", {
+  id: text("id").primaryKey(),
+  eventId: text("event_id")
+    .notNull()
+    .references(() => event.id),
+  name: text("name").notNull(),
+  scheduledAt: integer("scheduled_at", { mode: "timestamp" }),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+})
+
+export const attendance = sqliteTable("attendance", {
+  id: text("id").primaryKey(),
+  campSessionId: text("camp_session_id")
+    .notNull()
+    .references(() => campSession.id),
+  playerId: text("player_id")
+    .notNull()
+    .references(() => playerProfile.id),
+  present: integer("present", { mode: "boolean" }).notNull().default(true),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+})
+
+// Phase 4 — Referee match-scoping
+
+export const matchReferee = sqliteTable("match_referee", {
+  id: text("id").primaryKey(),
+  matchId: text("match_id")
+    .notNull()
+    .references(() => match.id),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+})
+
 export const apikey = sqliteTable("apikey", {
   id: text("id").primaryKey(),
   name: text("name"),
