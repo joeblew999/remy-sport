@@ -12,16 +12,31 @@ const ROLE_BADGES: Record<string, string> = {
 
 const RESOURCE_LABELS: Record<string, string> = {
   event: "Events",
+  division: "Divisions",
+  registration: "Registrations",
   team: "Teams",
   player: "Players",
   roster: "Rosters",
-  score: "Scores",
+  "find-team": "Find a Team",
   bracket: "Brackets",
+  "consolation-bracket": "Consolation Brackets",
   fixture: "Fixtures",
   session: "Camp Sessions",
-  attendance: "Attendance",
   court: "Courts",
+  score: "Scores",
+  attendance: "Attendance",
+  "results-archive": "Results Archive",
+  spoiler: "Spoiler Mode",
+  standings: "Standings",
+  "player-stats": "Player Stats",
+  "season-records": "Season Records",
+  "live-scores": "Live Scores",
+  notifications: "Notifications",
+  "live-stream": "Live Streams",
+  "court-status": "Court Status",
+  "ai-assistant": "AI Assistant",
   user: "User Management",
+  moderation: "Moderation",
 }
 
 const ACTION_LABELS: Record<string, string> = {
@@ -35,6 +50,13 @@ const ACTION_LABELS: Record<string, string> = {
   record: "Record",
   assign: "Assign",
   manage: "Manage",
+  "register-team": "Register Team",
+  "register-player": "Register Player",
+  toggle: "Toggle",
+  subscribe: "Subscribe",
+  "create-event": "Create Event",
+  "suggest-bracket": "Suggest Bracket",
+  qa: "Q&A",
 }
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
@@ -335,37 +357,62 @@ export function dashboardPage(user: User): string {
 
     function buildPayload(resource, action) {
       // Returns minimal valid payload for testing write actions
+      const eid = getFirstId('event');
+      const ts = Date.now();
       switch (resource) {
         case 'event':
-          if (action === 'create') return { name: 'Test Event ' + Date.now(), type: 'tournament' };
-          if (action === 'update') return { name: 'Updated ' + Date.now() };
+          if (action === 'create') return { name: 'Test Event ' + ts, type: 'tournament' };
+          if (action === 'update') return { name: 'Updated ' + ts };
           if (action === 'delete') return {};
           break;
+        case 'division':
+          if (action === 'create') return { eventId: eid, name: 'Div ' + ts, ageGroup: 'U14' };
+          if (action === 'update') return { name: 'Updated Div ' + ts };
+          if (action === 'delete') return {};
+          break;
+        case 'registration':
+          if (action === 'register-team') return { eventId: eid, teamId: getFirstId('team') };
+          if (action === 'register-player') return { eventId: eid, playerId: getFirstId('player') };
+          break;
         case 'team':
-          if (action === 'create') return { name: 'Test Team ' + Date.now(), eventId: getFirstId('event') };
-          if (action === 'update') return { name: 'Updated ' + Date.now() };
+          if (action === 'create') return { name: 'Test Team ' + ts, eventId: eid };
+          if (action === 'update') return { name: 'Updated ' + ts };
           if (action === 'delete') return {};
           break;
         case 'player':
-          if (action === 'create') return { name: 'Test Player ' + Date.now(), position: 'Forward' };
-          if (action === 'update') return { name: 'Updated ' + Date.now() };
+          if (action === 'create') return { name: 'Test Player ' + ts, position: 'Forward' };
+          if (action === 'update') return { name: 'Updated ' + ts };
           break;
         case 'roster':
           return { teamId: getFirstId('team'), playerId: getFirstId('player') };
+        case 'bracket':
+        case 'consolation-bracket':
+          return { eventId: eid, name: resource + ' ' + ts };
+        case 'fixture':
+          return { eventId: eid, name: 'Fixture ' + ts };
+        case 'session':
+          return { eventId: eid, name: 'Session ' + ts };
+        case 'court':
+          return { name: 'Court ' + ts, eventId: eid };
         case 'score':
           return { matchId: getFirstId('match'), homeScore: Math.floor(Math.random() * 10), awayScore: Math.floor(Math.random() * 10) };
-        case 'bracket':
-          return { eventId: getFirstId('event'), name: 'Bracket ' + Date.now() };
-        case 'fixture':
-          return { eventId: getFirstId('event'), name: 'Fixture ' + Date.now() };
-        case 'session':
-          return { eventId: getFirstId('event'), name: 'Session ' + Date.now() };
         case 'attendance':
-          return { eventId: getFirstId('event'), campSessionId: getFirstId('session'), playerId: getFirstId('player'), present: true };
-        case 'court':
-          return { name: 'Court ' + Date.now(), eventId: getFirstId('event') };
+          return { eventId: eid, campSessionId: getFirstId('session'), playerId: getFirstId('player'), present: true };
+        case 'spoiler':
+          return { enabled: false };
+        case 'notifications':
+          return { type: 'push' };
+        case 'live-stream':
+          return { eventId: eid, title: 'Stream ' + ts, url: 'https://example.com/live' };
+        case 'ai-assistant':
+          if (action === 'create-event') return { prompt: 'Create a summer tournament' };
+          if (action === 'suggest-bracket') return { eventId: eid, teamCount: 8 };
+          if (action === 'qa') return { question: 'How do brackets work?' };
+          break;
         case 'user':
           return { banned: false };
+        case 'moderation':
+          return { status: 'reviewed' };
       }
       return {};
     }
