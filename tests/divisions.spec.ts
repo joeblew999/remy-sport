@@ -1,8 +1,5 @@
 import { test, expect } from "@playwright/test"
-import { ORGANIZER, signIn, actorsCan, actorsCannot } from "./helpers"
-
-const CREATORS = actorsCan("division", "create")
-const NO_CREATE = actorsCannot("division", "create")
+import { ORGANIZER, signIn, authzTests } from "./helpers"
 
 test.describe.serial("Division — CRUD by role", () => {
   let eventId: string
@@ -19,32 +16,13 @@ test.describe.serial("Division — CRUD by role", () => {
     eventId = (await res.json()).id
   })
 
-  for (const actor of CREATORS) {
-    test(`${actor.role} CAN create divisions`, async ({ request }) => {
-      await signIn(request, actor)
-      const res = await request.post("/api/divisions", {
-        data: { eventId, name: `Div ${actor.role}`, ageGroup: "U14", gender: "mixed" },
-      })
-      expect(res.status()).toBe(201)
-      const body = await res.json()
-      expect(body.name).toBe(`Div ${actor.role}`)
-    })
-  }
-
-  for (const actor of NO_CREATE) {
-    test(`${actor.role} CANNOT create divisions (403)`, async ({ request }) => {
-      await signIn(request, actor)
-      const res = await request.post("/api/divisions", {
-        data: { eventId, name: "Nope" },
-      })
-      expect(res.status()).toBe(403)
-    })
-  }
+  authzTests("division", "create", "post", "/api/divisions",
+    (actor) => ({ eventId, name: `Div ${actor.role}`, ageGroup: "U14", gender: "mixed" }),
+    { check: (body, actor) => expect(body.name).toBe(`Div ${actor.role}`) })
 
   test("GET /api/divisions returns list", async ({ request }) => {
     const res = await request.get("/api/divisions")
     expect(res.ok()).toBeTruthy()
-    const body = await res.json()
-    expect(body.divisions.length).toBeGreaterThan(0)
+    expect((await res.json()).divisions.length).toBeGreaterThan(0)
   })
 })

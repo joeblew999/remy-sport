@@ -53,3 +53,98 @@ export async function signIn(request: any, user: { email: string; password: stri
 export async function seed(request: any) {
   await request.post("/api/seed")
 }
+
+// ── Reusable test builders (DRY) ───────────────────────────────────────────
+
+import { test } from "@playwright/test"
+
+/**
+ * Generates a full public-read test suite: seed → GET → verify array property.
+ *
+ *   describePublicRead("Standings", "/api/standings", "standings")
+ */
+export function describePublicRead(label: string, endpoint: string, property: string) {
+  test.describe.serial(`${label} — public read`, () => {
+    test("seed", async ({ request }) => {
+      await request.post("/api/seed")
+    })
+
+    test(`GET ${endpoint} returns ${property}`, async ({ request }) => {
+      const res = await request.get(endpoint)
+      expect(res.ok()).toBeTruthy()
+      const body = await res.json()
+      expect(body).toHaveProperty(property)
+      expect(Array.isArray(body[property])).toBeTruthy()
+    })
+  })
+}
+
+type Method = "get" | "post" | "put" | "delete"
+
+/**
+ * Generates CAN / CANNOT loops for a single resource:action.
+ * Must be called inside a `test.describe.serial` block.
+ *
+ *   authzTests("division", "create", "post", "/api/divisions",
+ *     (actor) => ({ eventId, name: `Div ${actor.role}` }),
+ *     { status: 201, check: (body, actor) => expect(body.name).toBe(`Div ${actor.role}`) })
+ */
+export function authzTests(
+  resource: string,
+  action: string,
+  method: Method,
+  endpoint: string,
+  dataFn: (actor: Actor) => any,
+  opts: { status?: number; check?: (body: any, actor: Actor) => void } = {},
+) {
+  const allowed = actorsCan(resource, action)
+  const denied = actorsCannot(resource, action)
+  const expectedStatus = opts.status ?? (method === "post" ? 201 : 200)
+
+  for (const actor of allowed) {
+    test(`${actor.role} CAN ${action}`, async ({ request }) => {
+      await signIn(request, actor)
+      const res = await request[method](endpoint, { data: dataFn(actor) })
+      expect(res.status()).toBe(expectedStatus)
+      if (opts.check) opts.check(await res.json(), actor)
+    })
+  }
+
+  for (const actor of denied) {
+    test(`${actor.role} CANNOT ${action} (403)`, async ({ request }) => {
+      await signIn(request, actor)
+      const res = await request[method](endpoint, { data: dataFn(actor) })
+      expect(res.status()).toBe(403)
+    })
+  }
+}
+
+/**
+ * Generates a read-authz loop: CAN read → 200, CANNOT read → 403.
+ * Must be called inside a `test.describe.serial` block.
+ *
+ *   authzReadTests("find-team", "read", "/api/find-team", "teams")
+ */
+export function authzReadTests(
+  resource: string,
+  action: string,
+  endpoint: string,
+  property: string,
+) {
+  for (const actor of actorsCan(resource, action)) {
+    test(`${actor.role} CAN ${action}`, async ({ request }) => {
+      await signIn(request, actor)
+      const res = await request.get(endpoint)
+      expect(res.ok()).toBeTruthy()
+      expect(await res.json()).toHaveProperty(property)
+    })
+  }
+
+  for (const actor of actorsCannot(resource, action)) {
+    test(`${actor.role} CANNOT ${action} (403)`, async ({ request }) => {
+      await signIn(request, actor)
+      const res = await request.get(endpoint)
+      expect(res.status()).toBe(403)
+    })
+  }
+}

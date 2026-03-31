@@ -1,8 +1,5 @@
 import { test, expect } from "@playwright/test"
-import { ORGANIZER, signIn, actorsCan, actorsCannot } from "./helpers"
-
-const GENERATORS = actorsCan("consolation-bracket", "generate")
-const NO_GEN = actorsCannot("consolation-bracket", "generate")
+import { ORGANIZER, signIn, authzTests } from "./helpers"
 
 test.describe.serial("Consolation Bracket — generate by role", () => {
   let eventId: string
@@ -19,30 +16,12 @@ test.describe.serial("Consolation Bracket — generate by role", () => {
     eventId = (await res.json()).id
   })
 
-  for (const actor of GENERATORS) {
-    test(`${actor.role} CAN generate consolation brackets`, async ({ request }) => {
-      await signIn(request, actor)
-      const res = await request.post("/api/consolation-brackets", {
-        data: { eventId, name: `CB ${actor.role}` },
-      })
-      expect(res.status()).toBe(201)
-    })
-  }
-
-  for (const actor of NO_GEN) {
-    test(`${actor.role} CANNOT generate consolation brackets (403)`, async ({ request }) => {
-      await signIn(request, actor)
-      const res = await request.post("/api/consolation-brackets", {
-        data: { eventId, name: "Nope" },
-      })
-      expect(res.status()).toBe(403)
-    })
-  }
+  authzTests("consolation-bracket", "generate", "post", "/api/consolation-brackets",
+    (actor) => ({ eventId, name: `CB ${actor.role}` }))
 
   test("GET /api/consolation-brackets returns list", async ({ request }) => {
     const res = await request.get("/api/consolation-brackets")
     expect(res.ok()).toBeTruthy()
-    const body = await res.json()
-    expect(body.consolationBrackets.length).toBeGreaterThan(0)
+    expect((await res.json()).consolationBrackets.length).toBeGreaterThan(0)
   })
 })
