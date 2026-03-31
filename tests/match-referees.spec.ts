@@ -1,8 +1,9 @@
 import { test, expect } from "@playwright/test"
-import { ADMIN, ORGANIZER, COACH, PLAYER, SPECTATOR, REFEREE, signIn } from "./helpers"
+import { ORGANIZER, REFEREE, signIn, actorsCan, actorsCannot } from "./helpers"
 
-const ASSIGNERS   = [ADMIN, ORGANIZER]
-const NO_ASSIGN   = [COACH, PLAYER, SPECTATOR, REFEREE]
+// Match referee assignment is gated by fixture:generate permission
+const ASSIGNERS  = actorsCan("fixture", "generate")
+const NO_ASSIGN  = actorsCannot("fixture", "generate")
 
 test.describe.serial("Match Referee — assign by role", () => {
   let matchId: string

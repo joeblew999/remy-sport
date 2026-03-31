@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test"
-import { ADMIN, ORGANIZER, COACH, PLAYER, SPECTATOR, REFEREE, ALL_ACTORS, signIn } from "./helpers"
+import { ADMIN, ORGANIZER, COACH, PLAYER, SPECTATOR, REFEREE, ALL_ACTORS, signIn, actorsCan, actorsCannot } from "./helpers"
 
-const WRITERS = [ADMIN, ORGANIZER]
-const READERS = [COACH, PLAYER, SPECTATOR, REFEREE]
+const WRITERS = actorsCan("event", "create")
+const READERS = actorsCannot("event", "create")
 
 // ── Seed ────────────────────────────────────────────────────────────────────
 

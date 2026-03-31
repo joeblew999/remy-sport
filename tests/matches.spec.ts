@@ -1,8 +1,9 @@
 import { test, expect } from "@playwright/test"
-import { ADMIN, ORGANIZER, COACH, PLAYER, SPECTATOR, REFEREE, signIn } from "./helpers"
+import { ORGANIZER, signIn, actorsCan, actorsCannot } from "./helpers"
 
-const STATUS_UPDATERS  = [ADMIN, ORGANIZER, REFEREE]
-const NO_STATUS_UPDATE = [COACH, PLAYER, SPECTATOR]
+// Match status updates are gated by score:enter permission
+const STATUS_UPDATERS  = actorsCan("score", "enter")
+const NO_STATUS_UPDATE = actorsCannot("score", "enter")
 
 test.describe.serial("Match — status update by role", () => {
   let matchId: string

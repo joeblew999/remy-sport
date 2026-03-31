@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test"
-import { ADMIN, ORGANIZER, COACH, PLAYER, SPECTATOR, REFEREE, signIn } from "./helpers"
+import { ORGANIZER, signIn, actorsCan, actorsCannot } from "./helpers"
 
-const GENERATORS   = [ADMIN, ORGANIZER]
-const NO_GENERATE  = [COACH, PLAYER, SPECTATOR, REFEREE]
+const GENERATORS  = actorsCan("fixture", "generate")
+const NO_GENERATE = actorsCannot("fixture", "generate")
 
 test.describe.serial("Fixture — generate by role", () => {
   let eventId: string

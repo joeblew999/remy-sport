@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test"
-import { ADMIN, ORGANIZER, COACH, PLAYER, SPECTATOR, REFEREE, signIn } from "./helpers"
+import { ADMIN, SPECTATOR, signIn, actorsCannot } from "./helpers"
 
-const NON_ADMINS = [ORGANIZER, COACH, PLAYER, SPECTATOR, REFEREE]
+const NON_ADMINS = actorsCannot("user", "manage")
 
 test.describe.serial("User management — admin only", () => {
   test("seed", async ({ request }) => {

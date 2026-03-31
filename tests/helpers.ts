@@ -1,4 +1,9 @@
 import { expect } from "@playwright/test"
+import { readFileSync } from "node:fs"
+import { resolve, dirname } from "node:path"
+import { fileURLToPath } from "node:url"
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
 
 // ── Seed actors (matches src/routes/seed.ts) ────────────────────────────────
 
@@ -12,6 +17,30 @@ export const REFEREE =   { email: "referee@remy.dev",   password: "referee1234!"
 export type Actor = typeof ADMIN
 
 export const ALL_ACTORS = [ADMIN, ORGANIZER, COACH, PLAYER, SPECTATOR, REFEREE] as const
+
+// ── Matrix-driven role lookups ──────────────────────────────────────────────
+
+const ACTOR_BY_ROLE: Record<string, Actor> = Object.fromEntries(
+  ALL_ACTORS.map((a) => [a.role, a])
+)
+
+const matrix = JSON.parse(
+  readFileSync(resolve(__dirname, "../docs/matrix.json"), "utf-8")
+)
+
+/** Actors whose role grants `action` on `resource` (from matrix.json). */
+export function actorsCan(resource: string, action: string): Actor[] {
+  const res = matrix.resources[resource]
+  if (!res) throw new Error(`Unknown matrix resource: ${resource}`)
+  return ALL_ACTORS.filter((a) => (res.roles[a.role] || []).includes(action))
+}
+
+/** Actors whose role does NOT grant `action` on `resource`. */
+export function actorsCannot(resource: string, action: string): Actor[] {
+  const res = matrix.resources[resource]
+  if (!res) throw new Error(`Unknown matrix resource: ${resource}`)
+  return ALL_ACTORS.filter((a) => !(res.roles[a.role] || []).includes(action))
+}
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test"
+import { ALL_ACTORS } from "./helpers"
 
 test.describe("Login page", () => {
   test("renders sign in form", async ({ page }) => {
@@ -28,8 +29,9 @@ test.describe("Login page", () => {
 
   test("shows quick-fill buttons for all 6 actors", async ({ page }) => {
     await page.goto("/login")
-    for (const role of ["Admin", "Organizer", "Coach", "Player", "Spectator", "Referee"]) {
-      await expect(page.locator(`button:text('${role}')`)).toBeVisible()
+    for (const actor of ALL_ACTORS) {
+      const label = actor.role.charAt(0).toUpperCase() + actor.role.slice(1)
+      await expect(page.locator(`button:text('${label}')`)).toBeVisible()
     }
   })
 })

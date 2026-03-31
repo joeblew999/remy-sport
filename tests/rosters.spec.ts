@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test"
-import { ADMIN, ORGANIZER, COACH, PLAYER, SPECTATOR, REFEREE, signIn } from "./helpers"
+import { ADMIN, signIn, actorsCan, actorsCannot } from "./helpers"
 
-const MANAGERS    = [ADMIN, COACH]
-const NO_MANAGE   = [ORGANIZER, PLAYER, SPECTATOR, REFEREE]
+const MANAGERS   = actorsCan("roster", "manage")
+const NO_MANAGE  = actorsCannot("roster", "manage")
 
 test.describe.serial("Roster — manage by role", () => {
   let teamId: string

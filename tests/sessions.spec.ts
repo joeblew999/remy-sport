@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test"
-import { ADMIN, ORGANIZER, COACH, PLAYER, SPECTATOR, REFEREE, signIn } from "./helpers"
+import { ORGANIZER, signIn, actorsCan, actorsCannot } from "./helpers"
 
-const DEFINERS    = [ADMIN, ORGANIZER]
-const NO_DEFINE   = [COACH, PLAYER, SPECTATOR, REFEREE]
+const DEFINERS   = actorsCan("session", "define")
+const NO_DEFINE  = actorsCannot("session", "define")
 
 test.describe.serial("Camp Session — define by role", () => {
   let eventId: string

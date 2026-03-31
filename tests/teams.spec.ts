@@ -1,10 +1,10 @@
 import { test, expect } from "@playwright/test"
-import { ADMIN, ORGANIZER, COACH, PLAYER, SPECTATOR, REFEREE, signIn } from "./helpers"
+import { ADMIN, ORGANIZER, COACH, signIn, actorsCan, actorsCannot } from "./helpers"
 
-const CREATORS   = [ADMIN, COACH]
-const NO_CREATE  = [ORGANIZER, PLAYER, SPECTATOR, REFEREE]
-const NO_UPDATE  = [ORGANIZER, PLAYER, SPECTATOR, REFEREE]
-const NO_DELETE  = [ORGANIZER, COACH, PLAYER, SPECTATOR, REFEREE]
+const CREATORS   = actorsCan("team", "create")
+const NO_CREATE  = actorsCannot("team", "create")
+const NO_UPDATE  = actorsCannot("team", "update")
+const NO_DELETE  = actorsCannot("team", "delete")
 
 // ── team:create by role ────────────────────────────────────────────────────
 
