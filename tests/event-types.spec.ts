@@ -1,13 +1,5 @@
 import { test, expect } from "@playwright/test"
-
-const ADMIN =     { email: "admin@remy.dev",     password: "admin1234!",   role: "admin" }
-const ORGANIZER = { email: "organizer@remy.dev", password: "organizer1!",  role: "organizer" }
-
-async function signIn(request: any, user: { email: string; password: string }) {
-  const res = await request.post("/api/auth/sign-in/email", { data: user })
-  expect(res.ok()).toBeTruthy()
-  return res
-}
+import { ADMIN, ORGANIZER, signIn } from "./helpers"
 
 // ── Layer 3: Event type scoping ────────────────────────────────────────────
 

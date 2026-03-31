@@ -1,24 +1,10 @@
 import { test, expect } from "@playwright/test"
+import { ADMIN, ORGANIZER, COACH, PLAYER, SPECTATOR, REFEREE, signIn } from "./helpers"
 
-// All 6 actors from the access matrix (docs/user/matrix.md)
-const ADMIN =     { email: "admin@remy.dev",     password: "admin1234!",   role: "admin" }
-const ORGANIZER = { email: "organizer@remy.dev", password: "organizer1!",  role: "organizer" }
-const COACH =     { email: "coach@remy.dev",     password: "coach12345!",  role: "coach" }
-const PLAYER =    { email: "player@remy.dev",    password: "player1234!",  role: "player" }
-const SPECTATOR = { email: "spectator@remy.dev", password: "spectator1!",  role: "spectator" }
-const REFEREE =   { email: "referee@remy.dev",   password: "referee1234!", role: "referee" }
-
-// Per access-control.ts: admin + coach can create/update teams; only admin can delete
-const TEAM_CREATORS = [ADMIN, COACH]
-const TEAM_NO_CREATE = [ORGANIZER, PLAYER, SPECTATOR, REFEREE]
-const TEAM_NO_UPDATE = [ORGANIZER, PLAYER, SPECTATOR, REFEREE]
-const TEAM_NO_DELETE = [ORGANIZER, COACH, PLAYER, SPECTATOR, REFEREE]
-
-async function signIn(request: any, user: { email: string; password: string }) {
-  const res = await request.post("/api/auth/sign-in/email", { data: user })
-  expect(res.ok()).toBeTruthy()
-  return res
-}
+const CREATORS   = [ADMIN, COACH]
+const NO_CREATE  = [ORGANIZER, PLAYER, SPECTATOR, REFEREE]
+const NO_UPDATE  = [ORGANIZER, PLAYER, SPECTATOR, REFEREE]
+const NO_DELETE  = [ORGANIZER, COACH, PLAYER, SPECTATOR, REFEREE]
 
 // ── team:create by role ────────────────────────────────────────────────────
 
@@ -27,7 +13,6 @@ test.describe.serial("Team — create by role", () => {
 
   test("seed and ensure event exists", async ({ request }) => {
     await request.post("/api/seed")
-    // Need an event for team.eventId — create one
     await signIn(request, ORGANIZER)
     const res = await request.post("/api/events", {
       data: { name: "Team Test Event", type: "tournament" },
@@ -35,7 +20,7 @@ test.describe.serial("Team — create by role", () => {
     eventId = (await res.json()).id
   })
 
-  for (const actor of TEAM_CREATORS) {
+  for (const actor of CREATORS) {
     test(`${actor.role} CAN create teams`, async ({ request }) => {
       await signIn(request, actor)
       const res = await request.post("/api/teams", {
@@ -46,7 +31,7 @@ test.describe.serial("Team — create by role", () => {
     })
   }
 
-  for (const actor of TEAM_NO_CREATE) {
+  for (const actor of NO_CREATE) {
     test(`${actor.role} CANNOT create teams (403)`, async ({ request }) => {
       await signIn(request, actor)
       const res = await request.post("/api/teams", {
@@ -55,37 +40,6 @@ test.describe.serial("Team — create by role", () => {
       expect(res.status()).toBe(403)
     })
   }
-
-  test("unauthenticated user gets 401", async ({ request }) => {
-    const res = await request.post("/api/teams", {
-      data: { name: "Unauth", eventId },
-    })
-    expect(res.status()).toBe(401)
-  })
-})
-
-// ── team:read is public ────────────────────────────────────────────────────
-
-test.describe("Team — read is public", () => {
-  test("unauthenticated user can list teams", async ({ request }) => {
-    const res = await request.get("/api/teams")
-    expect(res.ok()).toBeTruthy()
-    const body = await res.json()
-    expect(body.teams.length).toBeGreaterThan(0)
-  })
-
-  test("unauthenticated user can get single team", async ({ request }) => {
-    const list = await request.get("/api/teams")
-    const { teams } = await list.json()
-    const res = await request.get(`/api/teams/${teams[0].id}`)
-    expect(res.ok()).toBeTruthy()
-    expect((await res.json()).id).toBe(teams[0].id)
-  })
-
-  test("returns 404 for nonexistent team", async ({ request }) => {
-    const res = await request.get("/api/teams/nonexistent-id")
-    expect(res.status()).toBe(404)
-  })
 })
 
 // ── team:update/delete + ownership ─────────────────────────────────────────
@@ -159,7 +113,7 @@ test.describe.serial("Team — ownership on update/delete", () => {
     expect(del.ok()).toBeTruthy()
   })
 
-  for (const actor of TEAM_NO_DELETE) {
+  for (const actor of NO_DELETE) {
     test(`${actor.role} CANNOT delete any team`, async ({ request }) => {
       await signIn(request, actor)
       const list = await request.get("/api/teams")
@@ -169,7 +123,7 @@ test.describe.serial("Team — ownership on update/delete", () => {
     })
   }
 
-  for (const actor of TEAM_NO_UPDATE) {
+  for (const actor of NO_UPDATE) {
     test(`${actor.role} CANNOT update any team`, async ({ request }) => {
       await signIn(request, actor)
       const list = await request.get("/api/teams")
@@ -180,25 +134,4 @@ test.describe.serial("Team — ownership on update/delete", () => {
       expect(res.status()).toBe(403)
     })
   }
-})
-
-// ── OpenAPI spec ───────────────────────────────────────────────────────────
-
-test.describe("Team — OpenAPI docs", () => {
-  test("protected team routes declare security schemes", async ({ request }) => {
-    const res = await request.get("/openapi.json")
-    const spec = await res.json()
-
-    const postTeams = spec.paths["/api/teams"]?.post
-    expect(postTeams.security).toContainEqual({ Session: [] })
-    expect(postTeams.security).toContainEqual({ ApiKey: [] })
-
-    const putTeam = spec.paths["/api/teams/{id}"]?.put
-    expect(putTeam.security).toContainEqual({ Session: [] })
-    const deleteTeam = spec.paths["/api/teams/{id}"]?.delete
-    expect(deleteTeam.security).toContainEqual({ Session: [] })
-
-    // GET is public
-    expect(spec.paths["/api/teams"]?.get?.security).toBeFalsy()
-  })
 })

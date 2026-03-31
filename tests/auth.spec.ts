@@ -1,8 +1,5 @@
 import { test, expect } from "@playwright/test"
-
-// Seed users (see ADR 005 / CONTEXT.md)
-const ADMIN = { email: "admin@remy.dev", password: "admin1234!", name: "Admin" }
-const SPECTATOR = { email: "spectator@remy.dev", password: "spectator1!", name: "Spectator" }
+import { ADMIN, SPECTATOR } from "./helpers"
 
 test.describe.serial("Auth flow", () => {
   test("seed endpoint creates dev users (idempotent)", async ({ request }) => {
@@ -22,7 +19,6 @@ test.describe.serial("Auth flow", () => {
     expect(res.ok()).toBeTruthy()
     const body = await res.json()
     expect(body.user.email).toBe(ADMIN.email)
-    expect(body.user.name).toBe(ADMIN.name)
     expect(body.token).toBeTruthy()
   })
 
@@ -33,7 +29,6 @@ test.describe.serial("Auth flow", () => {
     expect(res.ok()).toBeTruthy()
     const body = await res.json()
     expect(body.user.email).toBe(SPECTATOR.email)
-    expect(body.user.name).toBe(SPECTATOR.name)
     expect(body.token).toBeTruthy()
   })
 

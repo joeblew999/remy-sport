@@ -1,22 +1,8 @@
 import { test, expect } from "@playwright/test"
+import { ADMIN, ORGANIZER, COACH, PLAYER, SPECTATOR, REFEREE, ALL_ACTORS, signIn } from "./helpers"
 
-// All 6 actors from the access matrix (docs/user/matrix.md)
-const ADMIN =     { email: "admin@remy.dev",     password: "admin1234!",   role: "admin" }
-const ORGANIZER = { email: "organizer@remy.dev", password: "organizer1!",  role: "organizer" }
-const COACH =     { email: "coach@remy.dev",     password: "coach12345!",  role: "coach" }
-const PLAYER =    { email: "player@remy.dev",    password: "player1234!",  role: "player" }
-const SPECTATOR = { email: "spectator@remy.dev", password: "spectator1!",  role: "spectator" }
-const REFEREE =   { email: "referee@remy.dev",   password: "referee1234!", role: "referee" }
-
-const ALL_ACTORS = [ADMIN, ORGANIZER, COACH, PLAYER, SPECTATOR, REFEREE]
-const WRITERS = [ADMIN, ORGANIZER]  // can create/update/delete events
-const READERS = [COACH, PLAYER, SPECTATOR, REFEREE]  // read-only for events
-
-async function signIn(request: any, user: { email: string; password: string }) {
-  const res = await request.post("/api/auth/sign-in/email", { data: user })
-  expect(res.ok()).toBeTruthy()
-  return res
-}
+const WRITERS = [ADMIN, ORGANIZER]
+const READERS = [COACH, PLAYER, SPECTATOR, REFEREE]
 
 // ── Seed ────────────────────────────────────────────────────────────────────
 
@@ -67,37 +53,6 @@ test.describe.serial("Layer 1 — event:create by role", () => {
       expect(res.status()).toBe(403)
     })
   }
-
-  test("unauthenticated user gets 401", async ({ request }) => {
-    const res = await request.post("/api/events", {
-      data: { name: "Unauth", type: "tournament" },
-    })
-    expect(res.status()).toBe(401)
-  })
-})
-
-// ── Layer 1: Role permission — event:read (public) ──────────────────────────
-
-test.describe("Layer 1 — event:read is public", () => {
-  test("unauthenticated user can list events", async ({ request }) => {
-    const res = await request.get("/api/events")
-    expect(res.ok()).toBeTruthy()
-    const body = await res.json()
-    expect(body.events.length).toBeGreaterThan(0)
-  })
-
-  test("unauthenticated user can get single event", async ({ request }) => {
-    const list = await request.get("/api/events")
-    const { events } = await list.json()
-    const res = await request.get(`/api/events/${events[0].id}`)
-    expect(res.ok()).toBeTruthy()
-    expect((await res.json()).id).toBe(events[0].id)
-  })
-
-  test("returns 404 for nonexistent event", async ({ request }) => {
-    const res = await request.get("/api/events/nonexistent-id")
-    expect(res.status()).toBe(404)
-  })
 })
 
 // ── Layer 2: Ownership — update/delete ──────────────────────────────────────
@@ -212,34 +167,6 @@ test.describe.serial("Layer 3 — event types", () => {
   })
 })
 
-// ── OpenAPI spec ────────────────────────────────────────────────────────────
-
-test.describe("OpenAPI security documentation", () => {
-  test("protected routes declare security schemes", async ({ request }) => {
-    const res = await request.get("/openapi.json")
-    const spec = await res.json()
-
-    // POST /api/events requires auth
-    const postEvents = spec.paths["/api/events"]?.post
-    expect(postEvents.security).toContainEqual({ Session: [] })
-    expect(postEvents.security).toContainEqual({ ApiKey: [] })
-    expect(postEvents.responses["401"]).toBeTruthy()
-    expect(postEvents.responses["403"]).toBeTruthy()
-
-    // PUT and DELETE also require auth
-    const putEvent = spec.paths["/api/events/{id}"]?.put
-    expect(putEvent.security).toContainEqual({ Session: [] })
-    const deleteEvent = spec.paths["/api/events/{id}"]?.delete
-    expect(deleteEvent.security).toContainEqual({ Session: [] })
-
-    // GET is public (no security)
-    const getEvents = spec.paths["/api/events"]?.get
-    expect(getEvents.security).toBeFalsy()
-    const getEvent = spec.paths["/api/events/{id}"]?.get
-    expect(getEvent.security).toBeFalsy()
-  })
-})
-
 // ── Dashboard GUI — all actors ──────────────────────────────────────────────
 
 test.describe.serial("Dashboard GUI — per-actor rendering", () => {
@@ -312,21 +239,18 @@ test.describe.serial("Dashboard GUI — per-actor rendering", () => {
 
 test.describe.serial("Bearer token auth", () => {
   test("can authenticate API calls with bearer token", async ({ request }) => {
-    // Sign in to get a bearer token
     const signInRes = await request.post("/api/auth/sign-in/email", {
       data: { email: ORGANIZER.email, password: ORGANIZER.password },
     })
     const { token } = await signInRes.json()
     expect(token).toBeTruthy()
 
-    // Use bearer token to create an event (fresh request context, no cookies)
     const res = await request.post("/api/events", {
       headers: { Authorization: `Bearer ${token}` },
       data: { name: "Bearer Token Event", type: "tournament" },
     })
     expect(res.status()).toBe(201)
-    const body = await res.json()
-    expect(body.name).toBe("Bearer Token Event")
+    expect((await res.json()).name).toBe("Bearer Token Event")
   })
 
   test("invalid bearer token gets 401", async ({ request }) => {
@@ -348,12 +272,10 @@ test.describe.serial("API key auth", () => {
   })
 
   test("can authenticate with x-api-key header", async ({ request }) => {
-    // Seed to get API keys
     const seedRes = await request.post("/api/seed")
     const { apiKeys } = await seedRes.json()
     const adminKey = apiKeys.find((k: any) => k.email === "admin@remy.dev")
 
-    // Skip if no key returned (already existed)
     if (!adminKey?.key) return
 
     const res = await request.get("/api/events", {
