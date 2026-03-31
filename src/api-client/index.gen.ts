@@ -1,6 +1,6 @@
 // Auto-generated — do not edit. Run: mise run api:types
 import createClient from "openapi-fetch"
-import type { paths } from "./schema.js"
+import type { paths } from "./schema.gen.js"
 
 /**
  * Typed API client generated from the OpenAPI spec.
@@ -11,4 +11,4 @@ import type { paths } from "./schema.js"
  */
 export const api = createClient<paths>({ baseUrl: "/" })
 
-export type { paths } from "./schema.js"
+export type { paths } from "./schema.gen.js"

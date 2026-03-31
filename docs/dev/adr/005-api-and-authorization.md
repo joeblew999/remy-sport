@@ -4,7 +4,7 @@
 
 ## Context
 
-The platform has six actor types (Organizer, Coach, Player, Spectator, Referee, Admin) and four event types (Tournament, League, Camp/Clinic, Showcase). The full access matrix is defined in [docs/user/matrix.md](../../user/matrix.md).
+The platform has six actor types (Organizer, Coach, Player, Spectator, Referee, Admin) and four event types (Tournament, League, Camp/Clinic, Showcase). The full access matrix is defined in [docs/user/matrix.gen.md](../../user/matrix.gen.md).
 
 API generation and authorization are combined in this ADR because in this stack they are inseparable. `createRoute()` from `@hono/zod-openapi` is the single declaration point for:
 
@@ -126,7 +126,7 @@ app.get('/doc', swaggerUI({ url: '/openapi.json' }))
 Single source of truth for all role permissions.
 
 ```ts
-// src/auth/access-control.ts
+// src/auth/access-control.gen.ts (generated from docs/matrix.json)
 import { createAccessControl } from 'better-auth/plugins/access'
 
 export const ac = createAccessControl({
@@ -285,7 +285,7 @@ const listEventsRoute = createRoute({
 src/
   app.ts                     — OpenAPIHono setup, security schemes, session middleware
   auth/
-    access-control.ts        — createAccessControl() schema and role definitions
+    access-control.gen.ts    — createAccessControl() schema and role definitions (generated)
   middleware/
     require-permission.ts    — Layer 1: Better Auth hasPermission()
     owned-by.ts              — Layer 2: resource ownership D1 query

@@ -1,6 +1,6 @@
 import { createMiddleware } from "hono/factory"
 import type { AppEnv } from "../types"
-import { roles } from "../auth/access-control"
+import { roles } from "../auth/access-control.gen"
 
 export function requirePermission(resource: string, action: string) {
   return createMiddleware<AppEnv>(async (c, next) => {

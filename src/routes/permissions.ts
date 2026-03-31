@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi"
 import type { AppEnv } from "../types"
-import { roles } from "../auth/access-control"
-import { RESOURCES, EVENT_TYPE_SCOPE, ROUTE_MAP } from "../auth/matrix-data"
+import { roles } from "../auth/access-control.gen"
+import { RESOURCES, EVENT_TYPE_SCOPE, ROUTE_MAP } from "../auth/matrix-data.gen"
 
 /** Derive resource→actions from ROUTE_MAP keys. */
 function actionsFor(resource: string): string[] {

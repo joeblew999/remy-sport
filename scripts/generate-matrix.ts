@@ -6,9 +6,9 @@
  *         bun scripts/generate-matrix.ts
  *
  * Outputs:
- *   src/auth/access-control.ts     — role-permission definitions
- *   src/auth/matrix-data.ts        — typed matrix data for runtime use
- *   docs/user/matrix.md            — human-readable markdown table
+ *   src/auth/access-control.gen.ts — role-permission definitions
+ *   src/auth/matrix-data.gen.ts    — typed matrix data for runtime use
+ *   docs/user/matrix.gen.md        — human-readable markdown table
  */
 import { writeFileSync, readFileSync } from "node:fs"
 import { resolve } from "node:path"
@@ -34,7 +34,7 @@ function header(lang: "ts" | "md") {
   return lang === "ts" ? ts.join("\n") : md.join("\n")
 }
 
-// ── 1. src/auth/access-control.ts ───────────────────────────────────────────
+// ── 1. src/auth/access-control.gen.ts ────────────────────────────────────────
 
 function generateAccessControl(): string {
   const lines: string[] = [
@@ -87,7 +87,7 @@ function generateAccessControl(): string {
   return lines.join("\n")
 }
 
-// ── 2. src/auth/matrix-data.ts ──────────────────────────────────────────────
+// ── 2. src/auth/matrix-data.gen.ts ───────────────────────────────────────────
 
 function generateMatrixData(): string {
   const lines: string[] = [
@@ -147,7 +147,7 @@ function generateMatrixData(): string {
   return lines.join("\n")
 }
 
-// ── 3. docs/user/matrix.md ──────────────────────────────────────────────────
+// ── 3. docs/user/matrix.gen.md ───────────────────────────────────────────────
 
 function generateMatrixMd(): string {
   const lines: string[] = [
@@ -215,9 +215,9 @@ function generateMatrixMd(): string {
 // ── Run ─────────────────────────────────────────────────────────────────────
 
 const outputs = [
-  { path: "src/auth/access-control.ts", content: generateAccessControl() },
-  { path: "src/auth/matrix-data.ts", content: generateMatrixData() },
-  { path: "docs/user/matrix.md", content: generateMatrixMd() },
+  { path: "src/auth/access-control.gen.ts", content: generateAccessControl() },
+  { path: "src/auth/matrix-data.gen.ts", content: generateMatrixData() },
+  { path: "docs/user/matrix.gen.md", content: generateMatrixMd() },
 ]
 
 for (const { path, content } of outputs) {

@@ -1,11 +1,11 @@
 import { test, expect } from "@playwright/test"
-import { RESOURCES, ROUTE_MAP, PUBLIC_READS } from "../src/auth/matrix-data"
+import { RESOURCES, ROUTE_MAP, PUBLIC_READS } from "../src/auth/matrix-data.gen"
 
 /**
  * Matrix coverage test: verifies every resource+action in the access-control
  * matrix has a corresponding protected API route.
  *
- * All constants are imported from the generated src/auth/matrix-data.ts
+ * All constants are imported from the generated src/auth/matrix-data.gen.ts
  * (source of truth: docs/matrix.json). No hard-coded data here.
  *
  * This test reads the live OpenAPI spec and checks:

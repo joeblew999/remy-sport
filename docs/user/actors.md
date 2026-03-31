@@ -95,7 +95,7 @@ The platform serves six distinct user types. Each has different goals, permissio
 
 ---
 
-See [matrix.md](matrix.md) for the full Actor × Feature × Event Type access matrix.
+See [matrix.gen.md](matrix.gen.md) for the full Actor × Feature × Event Type access matrix.
 
 ## Capability matrix
 
