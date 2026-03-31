@@ -18,6 +18,7 @@ async function signIn(request: any, user: { email: string; password: string }) {
 }
 
 test.describe.serial("Attendance — record by role", () => {
+  let eventId: string
   let campSessionId: string
   let playerId: string
 
@@ -30,7 +31,7 @@ test.describe.serial("Attendance — record by role", () => {
     const evt = await request.post("/api/events", {
       data: { name: "Attendance Camp", type: "camp" },
     })
-    const eventId = (await evt.json()).id
+    eventId = (await evt.json()).id
 
     const sess = await request.post("/api/sessions", {
       data: { eventId, name: "Morning Session" },
@@ -47,7 +48,7 @@ test.describe.serial("Attendance — record by role", () => {
     test(`${actor.role} CAN record attendance`, async ({ request }) => {
       await signIn(request, actor)
       const res = await request.post("/api/attendance", {
-        data: { campSessionId, playerId, present: true },
+        data: { eventId, campSessionId, playerId, present: true },
       })
       expect(res.status()).toBe(201)
       expect((await res.json()).present).toBe(true)
@@ -58,7 +59,7 @@ test.describe.serial("Attendance — record by role", () => {
     test(`${actor.role} CANNOT record attendance (403)`, async ({ request }) => {
       await signIn(request, actor)
       const res = await request.post("/api/attendance", {
-        data: { campSessionId, playerId, present: false },
+        data: { eventId, campSessionId, playerId, present: false },
       })
       expect(res.status()).toBe(403)
     })

@@ -22,6 +22,12 @@ const CreateMatchSchema = z.object({
   awayTeamId: z.string().optional(),
 })
 
+const MatchStatusSchema = z.enum(["scheduled", "in_progress", "half_time", "completed"])
+
+const UpdateMatchStatusSchema = z.object({
+  status: MatchStatusSchema,
+})
+
 const ErrorSchema = z.object({ error: z.string() })
 
 function serialize(row: typeof schema.match.$inferSelect) {
@@ -97,6 +103,64 @@ matches.openapi(createRoute2, async (c) => {
     { ...serialize({ ...row, scheduledAt: null }) },
     201,
   )
+})
+
+// ── GET /api/matches/:id — public ──────────────────────────────────────────
+
+const getMatchRoute = createRoute({
+  method: "get",
+  path: "/api/matches/{id}",
+  request: { params: z.object({ id: z.string() }) },
+  responses: {
+    200: { description: "Match details", content: { "application/json": { schema: MatchSchema } } },
+    404: { description: "Not found", content: { "application/json": { schema: ErrorSchema } } },
+  },
+})
+
+matches.openapi(getMatchRoute, async (c) => {
+  const { id } = c.req.valid("param")
+  const db = drizzle(c.env.DB, { schema })
+  const row = await db.select().from(schema.match).where(eq(schema.match.id, id)).get()
+  if (!row) return c.json({ error: "Not found" }, 404)
+  return c.json(serialize(row), 200)
+})
+
+// ── PUT /api/matches/:id/status — confirm match status (O, R, A) ──────────
+
+const updateMatchStatusRoute = createRoute({
+  method: "put",
+  path: "/api/matches/{id}/status",
+  request: {
+    params: z.object({ id: z.string() }),
+    body: { content: { "application/json": { schema: UpdateMatchStatusSchema } } },
+  },
+  responses: {
+    200: { description: "Match status updated", content: { "application/json": { schema: MatchSchema } } },
+    401: { description: "Unauthorized", content: { "application/json": { schema: ErrorSchema } } },
+    403: { description: "Forbidden", content: { "application/json": { schema: ErrorSchema } } },
+    404: { description: "Not found", content: { "application/json": { schema: ErrorSchema } } },
+  },
+  security: [{ Session: [] }, { ApiKey: [] }],
+  // score:enter permission covers match status confirmation (O, R, A per matrix)
+  middleware: [requirePermission("score", "enter")] as const,
+})
+
+matches.openapi(updateMatchStatusRoute, async (c) => {
+  const { id } = c.req.valid("param" as never) as { id: string }
+  const body = c.req.valid("json" as never) as z.infer<typeof UpdateMatchStatusSchema>
+  const db = drizzle(c.env.DB, { schema })
+  const now = new Date()
+
+  const existing = await db.select().from(schema.match).where(eq(schema.match.id, id)).get()
+  if (!existing) return c.json({ error: "Not found" }, 404)
+
+  await db
+    .update(schema.match)
+    .set({ status: body.status, updatedAt: now })
+    .where(eq(schema.match.id, id))
+
+  const updated = await db.select().from(schema.match).where(eq(schema.match.id, id)).get()
+  return c.json(serialize(updated!), 200)
 })
 
 export default matches

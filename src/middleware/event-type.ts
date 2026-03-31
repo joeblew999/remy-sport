@@ -11,10 +11,23 @@ type EventType = "tournament" | "league" | "camp" | "showcase"
  * Ensures the operation applies to the given event types.
  * Returns 422 (not 403) — the actor has permission, but the operation
  * doesn't apply to this event type.
+ *
+ * Resolves eventId from: URL param (eventId or id), or JSON body (eventId).
  */
 export function requireEventType(...types: EventType[]) {
   return createMiddleware<AppEnv>(async (c, next) => {
-    const eventId = c.req.param("eventId") || c.req.param("id")
+    let eventId = c.req.param("eventId") || c.req.param("id")
+
+    // Fallback: read eventId from JSON body (for POST routes like brackets, fixtures)
+    if (!eventId) {
+      try {
+        const body = await c.req.json()
+        eventId = body.eventId
+      } catch {
+        // not JSON or no body
+      }
+    }
+
     if (!eventId) return c.json({ error: "Missing event ID" }, 400)
 
     const db = drizzle(c.env.DB, { schema })

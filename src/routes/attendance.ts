@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/d1"
 import type { AppEnv } from "../types"
 import * as schema from "../db/schema"
 import { requirePermission } from "../middleware/require-permission"
+import { requireEventType } from "../middleware/event-type"
 
 const AttendanceSchema = z.object({
   id: z.string(),
@@ -14,6 +15,7 @@ const AttendanceSchema = z.object({
 })
 
 const RecordAttendanceSchema = z.object({
+  eventId: z.string().min(1),
   campSessionId: z.string().min(1),
   playerId: z.string().min(1),
   present: z.boolean().optional(),
@@ -61,9 +63,10 @@ const recordRoute = createRoute({
     201: { description: "Attendance recorded", content: { "application/json": { schema: AttendanceSchema } } },
     401: { description: "Unauthorized", content: { "application/json": { schema: ErrorSchema } } },
     403: { description: "Forbidden", content: { "application/json": { schema: ErrorSchema } } },
+    422: { description: "Not applicable for this event type", content: { "application/json": { schema: ErrorSchema } } },
   },
   security: [{ Session: [] }, { ApiKey: [] }],
-  middleware: [requirePermission("attendance", "record")] as const,
+  middleware: [requirePermission("attendance", "record"), requireEventType("camp")] as const,
 })
 
 attendance.openapi(recordRoute, async (c) => {

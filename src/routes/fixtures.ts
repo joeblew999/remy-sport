@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm"
 import type { AppEnv } from "../types"
 import * as schema from "../db/schema"
 import { requirePermission } from "../middleware/require-permission"
+import { requireEventType } from "../middleware/event-type"
 
 const FixtureSchema = z.object({
   id: z.string(),
@@ -82,9 +83,10 @@ const generateRoute = createRoute({
     201: { description: "Fixture generated", content: { "application/json": { schema: FixtureSchema } } },
     401: { description: "Unauthorized", content: { "application/json": { schema: ErrorSchema } } },
     403: { description: "Forbidden", content: { "application/json": { schema: ErrorSchema } } },
+    422: { description: "Not applicable for this event type", content: { "application/json": { schema: ErrorSchema } } },
   },
   security: [{ Session: [] }, { ApiKey: [] }],
-  middleware: [requirePermission("fixture", "generate")] as const,
+  middleware: [requirePermission("fixture", "generate"), requireEventType("tournament", "league")] as const,
 })
 
 fixtures.openapi(generateRoute, async (c) => {

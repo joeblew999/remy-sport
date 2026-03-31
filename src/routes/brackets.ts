@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm"
 import type { AppEnv } from "../types"
 import * as schema from "../db/schema"
 import { requirePermission } from "../middleware/require-permission"
+import { requireEventType } from "../middleware/event-type"
 
 const BracketSchema = z.object({
   id: z.string(),
@@ -82,9 +83,10 @@ const generateRoute = createRoute({
     201: { description: "Bracket generated", content: { "application/json": { schema: BracketSchema } } },
     401: { description: "Unauthorized", content: { "application/json": { schema: ErrorSchema } } },
     403: { description: "Forbidden", content: { "application/json": { schema: ErrorSchema } } },
+    422: { description: "Not applicable for this event type", content: { "application/json": { schema: ErrorSchema } } },
   },
   security: [{ Session: [] }, { ApiKey: [] }],
-  middleware: [requirePermission("bracket", "generate")] as const,
+  middleware: [requirePermission("bracket", "generate"), requireEventType("tournament", "showcase")] as const,
 })
 
 brackets.openapi(generateRoute, async (c) => {
