@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm"
 import type { AppEnv } from "../types"
 import * as schema from "../db/schema"
 import { requirePermission } from "../middleware/require-permission"
+import { ownedBy } from "../middleware/owned-by"
 
 const RosterSchema = z.object({
   id: z.string(),
@@ -94,7 +95,7 @@ const deleteRoute = createRoute({
     403: { description: "Forbidden", content: { "application/json": { schema: ErrorSchema } } },
   },
   security: [{ Session: [] }, { ApiKey: [] }],
-  middleware: [requirePermission("roster", "manage")] as const,
+  middleware: [requirePermission("roster", "manage"), ownedBy(schema.roster, "id")] as const,
 })
 
 rosters.openapi(deleteRoute, async (c) => {
