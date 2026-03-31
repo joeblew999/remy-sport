@@ -167,7 +167,7 @@ test.describe.serial("Layer 3 — event types", () => {
   })
 })
 
-// ── Dashboard GUI — all actors ──────────────────────────────────────────────
+// ── Dashboard GUI — data-driven matrix explorer ─────────────────────────────
 
 test.describe.serial("Dashboard GUI — per-actor rendering", () => {
   test("redirects to login when not signed in", async ({ page }) => {
@@ -176,7 +176,7 @@ test.describe.serial("Dashboard GUI — per-actor rendering", () => {
   })
 
   for (const actor of WRITERS) {
-    test(`${actor.role} sees create form and write permissions`, async ({ page }) => {
+    test(`${actor.role} sees permission matrix with write access`, async ({ page }) => {
       await page.goto("/login")
       await page.fill('input[type="email"]', actor.email)
       await page.fill('input[type="password"]', actor.password)
@@ -185,15 +185,15 @@ test.describe.serial("Dashboard GUI — per-actor rendering", () => {
 
       await page.goto("/dashboard")
       await expect(page.getByTestId("role-badge")).toHaveText(actor.role)
-      await expect(page.getByTestId("create-event-form")).toBeVisible()
-      await expect(page.getByTestId("perm-create")).toHaveClass(/badge-success/)
-      await expect(page.getByTestId("perm-read")).toHaveClass(/badge-success/)
-      await expect(page.getByTestId("perm-delete")).toHaveClass(/badge-success/)
+      await expect(page.getByTestId("permission-matrix")).toBeVisible()
+      // Writers should see event:create as allowed (green badge)
+      await expect(page.getByTestId("perm-event-create")).toHaveClass(/badge-success/)
+      await expect(page.getByTestId("perm-event-read")).toHaveClass(/badge-success/)
     })
   }
 
   for (const actor of READERS) {
-    test(`${actor.role} sees denied form and read-only permissions`, async ({ page }) => {
+    test(`${actor.role} sees permission matrix with read-only access`, async ({ page }) => {
       await page.goto("/login")
       await page.fill('input[type="email"]', actor.email)
       await page.fill('input[type="password"]', actor.password)
@@ -202,9 +202,10 @@ test.describe.serial("Dashboard GUI — per-actor rendering", () => {
 
       await page.goto("/dashboard")
       await expect(page.getByTestId("role-badge")).toHaveText(actor.role)
-      await expect(page.getByTestId("create-event-denied")).toBeVisible()
-      await expect(page.getByTestId("perm-create")).not.toHaveClass(/badge-success/)
-      await expect(page.getByTestId("perm-read")).toHaveClass(/badge-success/)
+      await expect(page.getByTestId("permission-matrix")).toBeVisible()
+      // Readers should NOT have event:create
+      await expect(page.getByTestId("perm-event-create")).not.toHaveClass(/badge-success/)
+      await expect(page.getByTestId("perm-event-read")).toHaveClass(/badge-success/)
     })
   }
 
@@ -221,17 +222,30 @@ test.describe.serial("Dashboard GUI — per-actor rendering", () => {
     await expect(switcher.locator("button")).toHaveCount(6)
   })
 
-  test("events table shows created events", async ({ page }) => {
+  test("permission matrix shows all 11 resources", async ({ page }) => {
     await page.goto("/login")
-    await page.fill('input[type="email"]', ORGANIZER.email)
-    await page.fill('input[type="password"]', ORGANIZER.password)
+    await page.fill('input[type="email"]', ADMIN.email)
+    await page.fill('input[type="password"]', ADMIN.password)
     await page.click('button[type="submit"]')
     await page.waitForURL("**/")
 
     await page.goto("/dashboard")
-    const table = page.getByTestId("events-table")
-    await expect(table).toBeVisible()
-    await expect(table.locator("tbody tr")).not.toHaveCount(0)
+    const matrix = page.getByTestId("permission-matrix")
+    await expect(matrix).toBeVisible()
+    // Admin should see all 11 resource rows
+    await expect(matrix.locator("tbody tr")).toHaveCount(11)
+  })
+
+  test("resource explorer is present", async ({ page }) => {
+    await page.goto("/login")
+    await page.fill('input[type="email"]', ADMIN.email)
+    await page.fill('input[type="password"]', ADMIN.password)
+    await page.click('button[type="submit"]')
+    await page.waitForURL("**/")
+
+    await page.goto("/dashboard")
+    await expect(page.getByTestId("resource-explorer")).toBeVisible()
+    await expect(page.getByTestId("action-log")).toBeVisible()
   })
 })
 

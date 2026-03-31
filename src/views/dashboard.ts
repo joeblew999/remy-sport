@@ -1,5 +1,4 @@
 type User = { id: string; name: string | null; email: string; role?: string | null }
-type Event = { id: string; name: string; type: string; description: string | null; createdBy: string; createdAt: string }
 
 const ROLE_BADGES: Record<string, string> = {
   admin: "badge-error",
@@ -11,44 +10,50 @@ const ROLE_BADGES: Record<string, string> = {
   user: "badge-ghost",
 }
 
-const ROLE_PERMISSIONS: Record<string, string[]> = {
-  admin: ["create", "read", "update", "delete"],
-  organizer: ["create", "read", "update", "delete"],
-  coach: ["read"],
-  player: ["read"],
-  spectator: ["read"],
-  referee: ["read"],
-  user: ["read"],
+const RESOURCE_LABELS: Record<string, string> = {
+  event: "Events",
+  team: "Teams",
+  player: "Players",
+  roster: "Rosters",
+  score: "Scores",
+  bracket: "Brackets",
+  fixture: "Fixtures",
+  session: "Camp Sessions",
+  attendance: "Attendance",
+  court: "Courts",
+  user: "User Management",
 }
 
-export function dashboardPage(user: User, events: Event[]): string {
+const ACTION_LABELS: Record<string, string> = {
+  create: "Create",
+  read: "Read",
+  update: "Update",
+  delete: "Delete",
+  enter: "Enter",
+  generate: "Generate",
+  define: "Define",
+  record: "Record",
+  assign: "Assign",
+  manage: "Manage",
+}
+
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  tournament: "Tournament",
+  league: "League",
+  camp: "Camp / Clinic",
+  showcase: "Showcase",
+}
+
+export function dashboardPage(user: User): string {
   const role = user.role || "user"
   const badge = ROLE_BADGES[role] || "badge-ghost"
-  const perms = ROLE_PERMISSIONS[role] || ["read"]
-  const canCreate = perms.includes("create")
-  const canDelete = perms.includes("delete")
-
-  const eventRows = events.length === 0
-    ? `<tr><td colspan="5" class="text-center text-base-content/40">No events yet. ${canCreate ? "Create one below." : "Sign in as organizer or admin to create events."}</td></tr>`
-    : events.map((e) => `
-        <tr>
-          <td>${e.name}</td>
-          <td><span class="badge badge-sm badge-outline">${e.type}</span></td>
-          <td class="text-sm text-base-content/60">${e.description || "—"}</td>
-          <td class="text-sm text-base-content/40">${new Date(e.createdAt).toLocaleDateString()}</td>
-          <td>
-            ${canDelete && (e.createdBy === user.id || role === "admin")
-              ? `<button onclick="deleteEvent('${e.id}')" class="btn btn-ghost btn-xs text-error">Delete</button>`
-              : ""}
-          </td>
-        </tr>`).join("")
 
   return `
-  <div class="w-full max-w-4xl px-4 py-8">
+  <div class="w-full max-w-6xl px-4 py-8">
     <div class="flex items-center justify-between mb-6">
       <div>
         <h1 class="text-3xl font-bold">Dashboard</h1>
-        <p class="text-base-content/60">Events & Authorization Demo</p>
+        <p class="text-base-content/60">Access Control Matrix Explorer</p>
       </div>
       <div class="text-right">
         <p class="font-semibold">${user.name || user.email}</p>
@@ -61,68 +66,8 @@ export function dashboardPage(user: User, events: Event[]): string {
       </div>
     </div>
 
-    <!-- Permission summary -->
-    <div class="card bg-base-100 shadow mb-6">
-      <div class="card-body py-4">
-        <h2 class="card-title text-sm uppercase tracking-wider text-base-content/40">Your Permissions (Event)</h2>
-        <div class="flex gap-2 flex-wrap" data-testid="permissions">
-          ${["create", "read", "update", "delete"].map((p) =>
-            `<span class="badge ${perms.includes(p) ? "badge-success" : "badge-neutral opacity-30"}" data-testid="perm-${p}">${p}</span>`
-          ).join("")}
-        </div>
-      </div>
-    </div>
-
-    <!-- Events table -->
-    <div class="card bg-base-100 shadow mb-6">
-      <div class="card-body">
-        <h2 class="card-title">Events</h2>
-        <div class="overflow-x-auto">
-          <table class="table" data-testid="events-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Type</th>
-                <th>Description</th>
-                <th>Created</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>${eventRows}</tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- Create event form (only shown for authorized roles) -->
-    ${canCreate ? `
-    <div class="card bg-base-100 shadow mb-6" data-testid="create-event-form">
-      <div class="card-body">
-        <h2 class="card-title">Create Event</h2>
-        <div class="alert alert-error text-sm hidden" id="createError"></div>
-        <div class="alert alert-success text-sm hidden" id="createSuccess"></div>
-        <form id="createEventForm" class="flex flex-col gap-3">
-          <input type="text" name="name" placeholder="Event name" required autocomplete="off" class="input input-bordered" />
-          <select name="type" required class="select select-bordered">
-            <option value="tournament">Tournament</option>
-            <option value="league">League</option>
-            <option value="camp">Camp / Clinic</option>
-            <option value="showcase">Showcase</option>
-          </select>
-          <input type="text" name="description" placeholder="Description (optional)" autocomplete="off" class="input input-bordered" />
-          <button type="submit" class="btn btn-primary">Create Event</button>
-        </form>
-      </div>
-    </div>` : `
-    <div class="card bg-base-100 shadow mb-6 opacity-50" data-testid="create-event-denied">
-      <div class="card-body">
-        <h2 class="card-title">Create Event</h2>
-        <p class="text-base-content/40">Your role (<strong>${role}</strong>) does not have permission to create events.</p>
-      </div>
-    </div>`}
-
     <!-- Quick role switch (dev only) -->
-    <div class="card bg-base-100 shadow">
+    <div class="card bg-base-100 shadow mb-6">
       <div class="card-body py-4">
         <h2 class="card-title text-sm uppercase tracking-wider text-base-content/40">Switch Role (Dev)</h2>
         <div class="flex gap-2 flex-wrap" data-testid="role-switcher">
@@ -135,61 +80,342 @@ export function dashboardPage(user: User, events: Event[]): string {
         </div>
       </div>
     </div>
+
+    <!-- Full permission matrix -->
+    <div class="card bg-base-100 shadow mb-6" data-testid="permission-matrix">
+      <div class="card-body">
+        <h2 class="card-title">Permission Matrix</h2>
+        <p class="text-sm text-base-content/60 mb-4">
+          Showing resolved permissions for <span class="badge ${badge} badge-sm">${role}</span>.
+          Green = allowed, gray = denied. Click any allowed write action to try it.
+        </p>
+        <div class="overflow-x-auto">
+          <table class="table table-sm" id="matrixTable">
+            <thead>
+              <tr>
+                <th>Resource</th>
+                <th>Actions</th>
+                <th>Event Types</th>
+              </tr>
+            </thead>
+            <tbody id="matrixBody">
+              <tr><td colspan="3" class="text-center text-base-content/40">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resource explorer -->
+    <div class="card bg-base-100 shadow mb-6" data-testid="resource-explorer">
+      <div class="card-body">
+        <h2 class="card-title">Resource Explorer</h2>
+        <p class="text-sm text-base-content/60 mb-4">
+          Select a resource to view its data and test write actions. Responses come live from the API.
+        </p>
+        <div class="flex gap-2 flex-wrap mb-4" id="resourceTabs"></div>
+        <div id="resourcePanel">
+          <p class="text-base-content/40 text-sm">Select a resource above to explore.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live action log -->
+    <div class="card bg-base-100 shadow mb-6" data-testid="action-log">
+      <div class="card-body">
+        <div class="flex items-center justify-between">
+          <h2 class="card-title">Action Log</h2>
+          <button onclick="clearLog()" class="btn btn-ghost btn-xs">Clear</button>
+        </div>
+        <p class="text-sm text-base-content/60 mb-2">
+          Every API call is logged here with method, status, and response.
+        </p>
+        <div id="logEntries" class="font-mono text-xs max-h-64 overflow-y-auto space-y-1">
+          <p class="text-base-content/40">No actions yet.</p>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
+    const RESOURCE_LABELS = ${JSON.stringify(RESOURCE_LABELS)};
+    const ACTION_LABELS = ${JSON.stringify(ACTION_LABELS)};
+    const EVENT_TYPE_LABELS = ${JSON.stringify(EVENT_TYPE_LABELS)};
+
+    let permissions = null;
+    let currentResource = null;
+
+    // ── Logging ──────────────────────────────────────────────────────────
+
+    function logAction(method, path, status, body) {
+      const el = document.getElementById('logEntries');
+      if (el.querySelector('.text-base-content\\\\/40')) el.innerHTML = '';
+      const color = status < 300 ? 'text-success' : status < 400 ? 'text-warning' : 'text-error';
+      const statusLabel = status === 201 ? '201 Created' : status === 200 ? '200 OK' : status === 401 ? '401 Unauthorized' : status === 403 ? '403 Forbidden' : status === 422 ? '422 Wrong Event Type' : status + '';
+      const time = new Date().toLocaleTimeString();
+      const bodyStr = typeof body === 'object' ? JSON.stringify(body).slice(0, 120) : '';
+      el.innerHTML = '<div class="flex gap-2"><span class="text-base-content/40">' + time + '</span><span class="font-bold">' + method + '</span><span>' + path + '</span><span class="' + color + ' font-bold">' + statusLabel + '</span><span class="text-base-content/50 truncate">' + bodyStr + '</span></div>' + el.innerHTML;
+    }
+
+    function clearLog() {
+      document.getElementById('logEntries').innerHTML = '<p class="text-base-content/40">No actions yet.</p>';
+    }
+
+    // ── API helper ───────────────────────────────────────────────────────
+
+    async function apiCall(method, path, data) {
+      const opts = { method, headers: { 'Content-Type': 'application/json' } };
+      if (data && method !== 'GET') opts.body = JSON.stringify(data);
+      const res = await fetch(path, opts);
+      let body;
+      try { body = await res.json(); } catch { body = {}; }
+      logAction(method, path, res.status, body);
+      return { status: res.status, body };
+    }
+
+    // ── Permission matrix ────────────────────────────────────────────────
+
+    async function loadPermissions() {
+      const { status, body } = await apiCall('GET', '/api/permissions');
+      if (status !== 200) return;
+      permissions = body;
+      renderMatrix();
+      renderResourceTabs();
+    }
+
+    function renderMatrix() {
+      const tbody = document.getElementById('matrixBody');
+      tbody.innerHTML = '';
+      for (const [resource, info] of Object.entries(permissions.resources)) {
+        const tr = document.createElement('tr');
+        // Resource name
+        const tdName = document.createElement('td');
+        tdName.className = 'font-semibold';
+        tdName.textContent = RESOURCE_LABELS[resource] || resource;
+        tr.appendChild(tdName);
+        // Actions
+        const tdActions = document.createElement('td');
+        const actionsHtml = Object.entries(info.actions).map(([action, allowed]) => {
+          const label = ACTION_LABELS[action] || action;
+          if (allowed) {
+            return '<span class="badge badge-success badge-sm cursor-pointer hover:badge-outline" data-testid="perm-' + resource + '-' + action + '" onclick="tryAction(\\'' + resource + '\\',\\'' + action + '\\')">' + label + '</span>';
+          }
+          return '<span class="badge badge-neutral badge-sm opacity-30" data-testid="perm-' + resource + '-' + action + '">' + label + '</span>';
+        }).join(' ');
+        tdActions.innerHTML = actionsHtml;
+        tr.appendChild(tdActions);
+        // Event types
+        const tdTypes = document.createElement('td');
+        tdTypes.innerHTML = info.eventTypes.map(t =>
+          '<span class="badge badge-outline badge-xs">' + (EVENT_TYPE_LABELS[t] || t) + '</span>'
+        ).join(' ');
+        tr.appendChild(tdTypes);
+        tbody.appendChild(tr);
+      }
+    }
+
+    // ── Resource tabs ────────────────────────────────────────────────────
+
+    function renderResourceTabs() {
+      const container = document.getElementById('resourceTabs');
+      container.innerHTML = '';
+      for (const resource of Object.keys(permissions.resources)) {
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-sm ' + (currentResource === resource ? 'btn-primary' : 'btn-ghost');
+        btn.textContent = RESOURCE_LABELS[resource] || resource;
+        btn.onclick = () => selectResource(resource);
+        container.appendChild(btn);
+      }
+    }
+
+    async function selectResource(resource) {
+      currentResource = resource;
+      renderResourceTabs();
+      const info = permissions.resources[resource];
+      const panel = document.getElementById('resourcePanel');
+
+      // Find the read route
+      const readRoute = info.routes['read'];
+      if (!readRoute) {
+        panel.innerHTML = '<p class="text-base-content/40">No read endpoint for this resource.</p>';
+        return;
+      }
+
+      panel.innerHTML = '<div class="flex items-center gap-2"><span class="loading loading-spinner loading-sm"></span> Loading…</div>';
+
+      const { status, body } = await apiCall(readRoute.method, readRoute.path);
+
+      if (status !== 200) {
+        panel.innerHTML = '<div class="alert alert-error text-sm">Failed to load: ' + status + '</div>';
+        return;
+      }
+
+      // Find the data array in the response (it's usually the first array value)
+      const dataKey = Object.keys(body).find(k => Array.isArray(body[k])) || Object.keys(body)[0];
+      const items = Array.isArray(body[dataKey]) ? body[dataKey] : body[dataKey] ? [body[dataKey]] : [];
+
+      // Build table
+      const columns = items.length > 0 ? Object.keys(items[0]).filter(k => !['createdBy'].includes(k)) : [];
+
+      // Write actions available
+      const writeActions = Object.entries(info.actions)
+        .filter(([action, allowed]) => action !== 'read' && allowed)
+        .map(([action]) => action);
+
+      let html = '';
+
+      // Write action buttons
+      if (writeActions.length > 0) {
+        html += '<div class="flex gap-2 mb-4">';
+        for (const action of writeActions) {
+          html += '<button class="btn btn-sm btn-success btn-outline" onclick="tryAction(\\'' + resource + '\\',\\'' + action + '\\')">' + (ACTION_LABELS[action] || action) + '</button>';
+        }
+        html += '</div>';
+      } else {
+        html += '<div class="alert alert-warning text-sm mb-4">Your role (' + permissions.role + ') has no write access to ' + (RESOURCE_LABELS[resource] || resource) + '.</div>';
+      }
+
+      // Data table
+      html += '<div class="overflow-x-auto"><table class="table table-xs table-zebra"><thead><tr>';
+      for (const col of columns) {
+        html += '<th>' + col + '</th>';
+      }
+      html += '</tr></thead><tbody>';
+      if (items.length === 0) {
+        html += '<tr><td colspan="' + (columns.length || 1) + '" class="text-center text-base-content/40">No data yet</td></tr>';
+      }
+      for (const item of items.slice(0, 50)) {
+        html += '<tr>';
+        for (const col of columns) {
+          const val = item[col];
+          const display = val === null ? '—' : typeof val === 'boolean' ? (val ? '✓' : '✗') : String(val).length > 30 ? String(val).slice(0, 30) + '…' : String(val);
+          html += '<td class="text-xs">' + display + '</td>';
+        }
+        html += '</tr>';
+      }
+      html += '</tbody></table></div>';
+      if (items.length > 50) {
+        html += '<p class="text-xs text-base-content/40 mt-2">Showing first 50 of ' + items.length + ' items.</p>';
+      }
+
+      panel.innerHTML = html;
+    }
+
+    // ── Try write action ─────────────────────────────────────────────────
+
+    async function tryAction(resource, action) {
+      const info = permissions.resources[resource];
+      const route = info.routes[action];
+      if (!route) {
+        logAction('?', resource + ':' + action, 0, { error: 'No route defined' });
+        return;
+      }
+
+      // Build minimal valid payload for each resource+action
+      const payload = buildPayload(resource, action);
+      const path = route.path.replace('{id}', payload._id || '00000000-0000-0000-0000-000000000000');
+      delete payload._id;
+
+      const { status, body } = await apiCall(route.method, path, Object.keys(payload).length > 0 ? payload : undefined);
+
+      // Show result in a toast
+      const toast = document.createElement('div');
+      toast.className = 'toast toast-end toast-top z-50';
+      const alertClass = status < 300 ? 'alert-success' : status === 403 ? 'alert-error' : status === 422 ? 'alert-warning' : 'alert-info';
+      const statusLabel = status === 201 ? 'Created!' : status === 200 ? 'Success' : status === 403 ? 'Forbidden (403)' : status === 401 ? 'Unauthorized (401)' : status === 422 ? 'Wrong event type (422)' : 'Error ' + status;
+      toast.innerHTML = '<div class="alert ' + alertClass + ' text-sm shadow-lg"><span><strong>' + (ACTION_LABELS[action] || action) + ' ' + (RESOURCE_LABELS[resource] || resource) + '</strong>: ' + statusLabel + '</span></div>';
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+
+      // Refresh the resource panel if we're viewing it
+      if (currentResource === resource && status < 300) {
+        setTimeout(() => selectResource(resource), 300);
+      }
+    }
+
+    function buildPayload(resource, action) {
+      // Returns minimal valid payload for testing write actions
+      switch (resource) {
+        case 'event':
+          if (action === 'create') return { name: 'Test Event ' + Date.now(), type: 'tournament' };
+          if (action === 'update') return { name: 'Updated ' + Date.now() };
+          if (action === 'delete') return {};
+          break;
+        case 'team':
+          if (action === 'create') return { name: 'Test Team ' + Date.now(), eventId: getFirstId('event') };
+          if (action === 'update') return { name: 'Updated ' + Date.now() };
+          if (action === 'delete') return {};
+          break;
+        case 'player':
+          if (action === 'create') return { name: 'Test Player ' + Date.now(), position: 'Forward' };
+          if (action === 'update') return { name: 'Updated ' + Date.now() };
+          break;
+        case 'roster':
+          return { teamId: getFirstId('team'), playerId: getFirstId('player') };
+        case 'score':
+          return { matchId: getFirstId('match'), homeScore: Math.floor(Math.random() * 10), awayScore: Math.floor(Math.random() * 10) };
+        case 'bracket':
+          return { eventId: getFirstId('event'), name: 'Bracket ' + Date.now() };
+        case 'fixture':
+          return { eventId: getFirstId('event'), name: 'Fixture ' + Date.now() };
+        case 'session':
+          return { eventId: getFirstId('event'), name: 'Session ' + Date.now() };
+        case 'attendance':
+          return { eventId: getFirstId('event'), campSessionId: getFirstId('session'), playerId: getFirstId('player'), present: true };
+        case 'court':
+          return { name: 'Court ' + Date.now(), eventId: getFirstId('event') };
+        case 'user':
+          return { banned: false };
+      }
+      return {};
+    }
+
+    // Cache of first IDs per resource for building payloads
+    const idCache = {};
+    function getFirstId(resource) {
+      return idCache[resource] || '00000000-0000-0000-0000-000000000000';
+    }
+
+    async function cacheIds() {
+      const resources = ['event', 'team', 'player', 'match', 'session'];
+      const endpoints = {
+        event: '/api/events',
+        team: '/api/teams',
+        player: '/api/players',
+        match: '/api/matches',
+        session: '/api/sessions',
+      };
+      for (const r of resources) {
+        try {
+          const res = await fetch(endpoints[r]);
+          if (res.ok) {
+            const body = await res.json();
+            const key = Object.keys(body).find(k => Array.isArray(body[k]));
+            if (key && body[key].length > 0) {
+              idCache[r] = body[key][0].id;
+            }
+          }
+        } catch {}
+      }
+    }
+
+    // ── Role switching ───────────────────────────────────────────────────
+
     async function switchRole(email, password) {
-      // Sign out first
-      await fetch('/api/auth/sign-out', { method: 'POST' })
-      // Sign in as new role
+      await fetch('/api/auth/sign-out', { method: 'POST' });
       const res = await fetch('/api/auth/sign-in/email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
-      })
-      if (res.ok) window.location.reload()
+      });
+      if (res.ok) window.location.reload();
     }
 
-    async function deleteEvent(id) {
-      if (!confirm('Delete this event?')) return
-      const res = await fetch('/api/events/' + id, { method: 'DELETE' })
-      if (res.ok) window.location.reload()
-      else {
-        const data = await res.json().catch(() => ({}))
-        alert(data.error || 'Failed to delete')
-      }
-    }
+    // ── Init ─────────────────────────────────────────────────────────────
 
-    document.getElementById('createEventForm')?.addEventListener('submit', async (e) => {
-      e.preventDefault()
-      const form = e.target
-      const errorEl = document.getElementById('createError')
-      const successEl = document.getElementById('createSuccess')
-      errorEl.classList.add('hidden')
-      successEl.classList.add('hidden')
-
-      const body = {
-        name: form.name.value,
-        type: form.type.value,
-        description: form.description.value || undefined,
-      }
-
-      const res = await fetch('/api/events', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-
-      if (res.ok) {
-        successEl.textContent = 'Event created!'
-        successEl.classList.remove('hidden')
-        form.reset()
-        setTimeout(() => window.location.reload(), 500)
-      } else {
-        const data = await res.json().catch(() => ({}))
-        errorEl.textContent = data.error || 'Failed to create event'
-        errorEl.classList.remove('hidden')
-      }
-    })
+    (async () => {
+      await cacheIds();
+      await loadPermissions();
+    })();
   </script>`
 }

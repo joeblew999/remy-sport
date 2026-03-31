@@ -21,6 +21,7 @@ import sessionsRoutes from "./routes/sessions"
 import attendanceRoutes from "./routes/attendance"
 import matchRefereesRoutes from "./routes/match-referees"
 import usersRoutes from "./routes/users"
+import permissionsRoutes from "./routes/permissions"
 import dashboardRoutes from "./routes/dashboard"
 import type { AppEnv } from "./types"
 
@@ -61,6 +62,7 @@ app.route("/", sessionsRoutes)
 app.route("/", attendanceRoutes)
 app.route("/", matchRefereesRoutes)
 app.route("/", usersRoutes)
+app.route("/", permissionsRoutes)
 
 app.use(csrf())
 
