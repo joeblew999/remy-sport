@@ -4,7 +4,7 @@
 
 ## Context
 
-The platform has six actor types (Organizer, Coach, Player, Spectator, Referee, Admin) and four event types (Tournament, League, Camp/Clinic, Showcase). The full access matrix is defined in [docs/user/matrix.gen.md](../../user/matrix.gen.md).
+The platform has six actor types (Organizer, Coach, Player, Spectator, Referee, Admin) and four event types (Tournament, League, Camp/Clinic, Showcase). The full access matrix is defined in [docs/user/matrix.md](../../user/matrix.md).
 
 API generation and authorization are combined in this ADR because in this stack they are inseparable. `createRoute()` from `@hono/zod-openapi` is the single declaration point for:
 

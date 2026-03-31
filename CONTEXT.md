@@ -127,7 +127,8 @@ Seeded via `mise run seed` (local) or `mise run seed:remote` (deployed). See ADR
 
 ## User Docs (`docs/user/`)
 - [docs/user/README.md](docs/user/README.md) — entry point for all user docs
-- [docs/user/matrix.gen.md](docs/user/matrix.gen.md) — **primary reference**: full Actor × Feature × Event Type access matrix (W/R) (generated from docs/matrix.json)
+- [docs/user/matrix.md](docs/user/matrix.md) — **design doc**: full Actor × Feature × Event Type access matrix (what we want)
+- [docs/user/matrix.gen.md](docs/user/matrix.gen.md) — **generated**: implemented access matrix (what we got, from docs/matrix.json)
 - [docs/user/roadmap.md](docs/user/roadmap.md) — user-facing feature roadmap
 - [docs/user/actors.md](docs/user/actors.md) — actor/user type definitions
 - [docs/user/event-types.md](docs/user/event-types.md) — event type definitions (Tournament, League, Camp/Clinic, Showcase)
