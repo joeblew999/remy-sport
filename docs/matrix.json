@@ -1,0 +1,198 @@
+{
+  "_comment": "Single source of truth for the access-control matrix. All role permissions, event-type scoping, and route mappings are defined here. Run 'mise run matrix:generate' after editing.",
+  "roles": ["admin", "organizer", "coach", "player", "spectator", "referee"],
+  "eventTypes": ["tournament", "league", "camp", "showcase"],
+  "resources": {
+    "event": {
+      "actions": ["create", "read", "update", "delete"],
+      "eventTypes": ["tournament", "league", "camp", "showcase"],
+      "roles": {
+        "admin":     ["create", "read", "update", "delete"],
+        "organizer": ["create", "read", "update", "delete"],
+        "coach":     ["read"],
+        "player":    ["read"],
+        "spectator": ["read"],
+        "referee":   ["read"]
+      },
+      "routes": {
+        "create": { "method": "POST",   "path": "/api/events" },
+        "read":   { "method": "GET",    "path": "/api/events" },
+        "update": { "method": "PUT",    "path": "/api/events/{id}" },
+        "delete": { "method": "DELETE", "path": "/api/events/{id}" }
+      }
+    },
+    "team": {
+      "actions": ["create", "read", "update", "delete"],
+      "eventTypes": ["tournament", "league", "showcase"],
+      "roles": {
+        "admin":     ["create", "read", "update", "delete"],
+        "organizer": ["read"],
+        "coach":     ["create", "read", "update"],
+        "player":    ["read"],
+        "spectator": ["read"],
+        "referee":   []
+      },
+      "routes": {
+        "create": { "method": "POST",   "path": "/api/teams" },
+        "read":   { "method": "GET",    "path": "/api/teams" },
+        "update": { "method": "PUT",    "path": "/api/teams/{id}" },
+        "delete": { "method": "DELETE", "path": "/api/teams/{id}" }
+      }
+    },
+    "player": {
+      "actions": ["create", "read", "update"],
+      "eventTypes": ["tournament", "league", "camp", "showcase"],
+      "roles": {
+        "admin":     ["create", "read", "update"],
+        "organizer": ["read"],
+        "coach":     ["create", "read", "update"],
+        "player":    ["create", "read", "update"],
+        "spectator": ["read"],
+        "referee":   []
+      },
+      "routes": {
+        "create": { "method": "POST", "path": "/api/players" },
+        "read":   { "method": "GET",  "path": "/api/players" },
+        "update": { "method": "PUT",  "path": "/api/players/{id}" }
+      }
+    },
+    "roster": {
+      "actions": ["manage"],
+      "eventTypes": ["tournament", "league", "showcase"],
+      "roles": {
+        "admin":     ["manage"],
+        "organizer": [],
+        "coach":     ["manage"],
+        "player":    [],
+        "spectator": [],
+        "referee":   []
+      },
+      "routes": {
+        "manage": { "method": "POST", "path": "/api/rosters" }
+      },
+      "additionalRoutes": [
+        { "action": "manage", "method": "DELETE", "path": "/api/rosters/{id}" }
+      ]
+    },
+    "score": {
+      "actions": ["enter", "read"],
+      "eventTypes": ["tournament", "league", "showcase"],
+      "roles": {
+        "admin":     ["enter", "read"],
+        "organizer": ["enter", "read"],
+        "coach":     ["read"],
+        "player":    ["read"],
+        "spectator": ["read"],
+        "referee":   ["enter", "read"]
+      },
+      "routes": {
+        "enter": { "method": "POST", "path": "/api/scores" },
+        "read":  { "method": "GET",  "path": "/api/scores" }
+      },
+      "additionalRoutes": [
+        { "action": "enter", "method": "PUT", "path": "/api/matches/{id}/status" }
+      ]
+    },
+    "bracket": {
+      "actions": ["generate", "read"],
+      "eventTypes": ["tournament", "showcase"],
+      "roles": {
+        "admin":     ["generate", "read"],
+        "organizer": ["generate", "read"],
+        "coach":     ["read"],
+        "player":    ["read"],
+        "spectator": ["read"],
+        "referee":   ["read"]
+      },
+      "routes": {
+        "generate": { "method": "POST", "path": "/api/brackets" },
+        "read":     { "method": "GET",  "path": "/api/brackets" }
+      }
+    },
+    "fixture": {
+      "actions": ["generate", "read"],
+      "eventTypes": ["tournament", "league"],
+      "roles": {
+        "admin":     ["generate", "read"],
+        "organizer": ["generate", "read"],
+        "coach":     ["read"],
+        "player":    ["read"],
+        "spectator": ["read"],
+        "referee":   ["read"]
+      },
+      "routes": {
+        "generate": { "method": "POST", "path": "/api/fixtures" },
+        "read":     { "method": "GET",  "path": "/api/fixtures" }
+      },
+      "additionalRoutes": [
+        { "action": "generate", "method": "POST", "path": "/api/matches" }
+      ]
+    },
+    "session": {
+      "actions": ["define", "read"],
+      "eventTypes": ["camp"],
+      "roles": {
+        "admin":     ["define", "read"],
+        "organizer": ["define", "read"],
+        "coach":     ["read"],
+        "player":    ["read"],
+        "spectator": ["read"],
+        "referee":   []
+      },
+      "routes": {
+        "define": { "method": "POST", "path": "/api/sessions" },
+        "read":   { "method": "GET",  "path": "/api/sessions" }
+      }
+    },
+    "attendance": {
+      "actions": ["record", "read"],
+      "eventTypes": ["camp"],
+      "roles": {
+        "admin":     ["record", "read"],
+        "organizer": ["record", "read"],
+        "coach":     ["record", "read"],
+        "player":    [],
+        "spectator": [],
+        "referee":   []
+      },
+      "routes": {
+        "record": { "method": "POST", "path": "/api/attendance" },
+        "read":   { "method": "GET",  "path": "/api/attendance" }
+      }
+    },
+    "court": {
+      "actions": ["assign", "read"],
+      "eventTypes": ["tournament", "league", "showcase"],
+      "roles": {
+        "admin":     ["assign", "read"],
+        "organizer": ["assign", "read"],
+        "coach":     [],
+        "player":    [],
+        "spectator": [],
+        "referee":   ["read"]
+      },
+      "routes": {
+        "assign": { "method": "POST", "path": "/api/courts" },
+        "read":   { "method": "GET",  "path": "/api/courts" }
+      }
+    },
+    "user": {
+      "actions": ["manage"],
+      "eventTypes": ["tournament", "league", "camp", "showcase"],
+      "roles": {
+        "admin":     ["manage"],
+        "organizer": [],
+        "coach":     [],
+        "player":    [],
+        "spectator": [],
+        "referee":   []
+      },
+      "routes": {
+        "manage": { "method": "GET", "path": "/api/users" }
+      },
+      "additionalRoutes": [
+        { "action": "manage", "method": "PUT", "path": "/api/users/{id}" }
+      ]
+    }
+  }
+}

@@ -74,6 +74,11 @@ run         = "bun x playwright test"
 description = "Generate versions.json"
 run         = "bun scripts/versions.ts"
 
+[tasks."matrix:generate"]
+description = "Regenerate all derived files from docs/matrix.json"
+sources     = ["docs/matrix.json", "scripts/generate-matrix.ts"]
+run         = "bun scripts/generate-matrix.ts"
+
 [tasks."api:types"]
 description = "Generate typed API client from OpenAPI spec (requires running dev server)"
 run         = "bun scripts/generate-api-types.ts"

@@ -1,130 +1,66 @@
+<!-- GENERATED from docs/matrix.json — do not edit manually. -->
+<!-- Regenerate: mise run matrix:generate -->
+
 # Access Matrix
 
 Single source of truth for who can do what, across all features and event types.
 
-**Actors:** O = Organizer · C = Coach · P = Player · S = Spectator · R = Referee · A = Admin
+**Actors:** A = Admin · O = Organizer · C = Coach · P = Player · S = Spectator · R = Referee
 
 **Event types:** T = Tournament · L = League · K = Camp/Clinic · Sh = Showcase
 
-**Access:** W = writes/creates data · R = reads only · — = not applicable
+**Access:** W = writes · R = reads · — = no access
 
 ---
 
-## Matrix 1 — Feature × Actor
+## Matrix 1 — Resource × Actor
 
-Who can access each feature, and whether they read or write.
-
-| Feature | O | C | P | S | R | A |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Auth** |
-| Sign in / Sign out | W | W | W | W | W | W |
-| **Events** |
-| Browse events | R | R | R | R | R | R |
-| Event detail page | R | R | R | R | R | R |
-| Create event | W | | | | | W |
-| Age & gender divisions | W | | | | | W |
-| Register team | | W | | | | W |
-| Register as player | | | W | | | W |
-| **Teams & Players** |
-| Create team profile | | W | | | | W |
-| Create player profile | | W | W | | | W |
-| Manage roster | | W | | | | W |
-| Find a team | | | R | | | |
-| **Schedules & Brackets** |
-| View bracket | R | R | R | R | R | R |
-| View fixture schedule | R | R | R | R | R | R |
-| View court assignments | R | R | R | R | R | R |
-| Generate brackets | W | | | | | W |
-| Generate fixtures | W | | | | | W |
-| Define session schedule | W | | | | | W |
-| Assign courts | W | | | | | W |
-| **Scores & Results** |
-| Enter scores | W | | | | W | W |
-| Confirm match status | W | | | | W | W |
-| Record attendance | W | W | | | | W |
-| View game results | R | R | R | R | R | R |
-| View match status | R | R | R | R | R | R |
-| Spoiler mode | | R | R | R | | |
-| View results archive | R | R | R | R | R | R |
-| **Rankings & Standings** |
-| View standings table | R | R | R | R | R | R |
-| View rank movement | R | R | R | R | R | R |
-| View rankings history | R | R | R | R | R | R |
-| View player stats | R | R | R | R | | R |
-| View season records | R | R | R | R | | R |
-| **Live & Real-time** |
-| Live scores | R | R | R | R | R | R |
-| Push notifications | | R | R | R | | |
-| Install app (PWA) | R | R | R | R | R | R |
-| Live stream links | | R | R | R | | |
-| Court status board | R | R | R | R | R | R |
-| **AI Assistant** |
-| Create event by chat | W | | | | | W |
-| Bracket suggestions | W | | | | | W |
-| Q&A | R | R | R | R | R | R |
-| **Admin** |
-| Manage all users | | | | | | W |
-| Moderate listings | | | | | | W |
+| Resource | Action | A | O | C | P | S | R |
+|---|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| event | create | W | W | — | — | — | — |
+| event | read | R | R | R | R | R | R |
+| event | update | W | W | — | — | — | — |
+| event | delete | W | W | — | — | — | — |
+| team | create | W | — | W | — | — | — |
+| team | read | R | R | R | R | R | — |
+| team | update | W | — | W | — | — | — |
+| team | delete | W | — | — | — | — | — |
+| player | create | W | — | W | W | — | — |
+| player | read | R | R | R | R | R | — |
+| player | update | W | — | W | W | — | — |
+| roster | manage | W | — | W | — | — | — |
+| score | enter | W | W | — | — | — | W |
+| score | read | R | R | R | R | R | R |
+| bracket | generate | W | W | — | — | — | — |
+| bracket | read | R | R | R | R | R | R |
+| fixture | generate | W | W | — | — | — | — |
+| fixture | read | R | R | R | R | R | R |
+| session | define | W | W | — | — | — | — |
+| session | read | R | R | R | R | R | — |
+| attendance | record | W | W | W | — | — | — |
+| attendance | read | R | R | R | — | — | — |
+| court | assign | W | W | — | — | — | — |
+| court | read | R | R | — | — | — | R |
+| user | manage | W | — | — | — | — | — |
 
 ---
 
-## Matrix 2 — Feature × Event Type
+## Matrix 2 — Resource × Event Type
 
-Which features apply to which event types.
-
-| Feature | T | L | K | Sh |
+| Resource | T | L | K | Sh |
 |---|:---:|:---:|:---:|:---:|
-| **Events** |
-| Browse & detail | x | x | x | x |
-| Create event | x | x | x | x |
-| Age & gender divisions | x | x | | x |
-| Register team | x | x | | x |
-| Register as player | | | x | x |
-| **Teams & Players** |
-| Team profile | x | x | | x |
-| Player profile | x | x | x | x |
-| Roster management | x | x | | x |
-| Find a team | x | x | | x |
-| **Schedules & Brackets** |
-| Bracket | x | | | x |
-| Fixture schedule | x | x | | |
-| Session schedule | | | x | |
-| Court assignments | x | x | | x |
-| Consolation / back draw | x | | | |
-| **Scores & Results** |
-| Score entry | x | x | | x |
-| Match status | x | x | | x |
-| Results archive | x | x | | x |
-| Attendance tracking | | | x | |
-| **Rankings & Standings** |
-| Standings table | x | x | | |
-| Rank movement | x | x | | |
-| Rankings history | x | x | | |
-| Player stats | x | x | | x |
-| Season records | | x | | |
-| **Live & Real-time** |
-| Live scores | x | x | | x |
-| Push notifications | x | x | | x |
-| Live stream links | x | x | | x |
-| Court status board | x | x | | x |
-| **AI Assistant** |
-| Event creation by chat | x | x | x | x |
-| Bracket suggestions | x | | | x |
-| Q&A | x | x | x | x |
+| event | x | x | x | x |
+| team | x | x |  | x |
+| player | x | x | x | x |
+| roster | x | x |  | x |
+| score | x | x |  | x |
+| bracket | x |  |  | x |
+| fixture | x | x |  |  |
+| session |  |  | x |  |
+| attendance |  |  | x |  |
+| court | x | x |  | x |
+| user | x | x | x | x |
 
 ---
 
-## Actor write summary
-
-| Actor | Writes | Never writes |
-|---|---|---|
-| Organizer | Events, divisions, brackets, fixtures, courts, scores, match status | — |
-| Coach | Team profile, player profiles, roster, registrations, attendance | Scores, brackets, events |
-| Player | Own profile, individual registrations | Scores, rosters, events, brackets |
-| Spectator | **Nothing** | Everything |
-| Referee | Scores, match status | Events, rosters, brackets, profiles |
-| Admin | Everything any other actor can write | — |
-
----
-
-*See [actors.md](actors.md) · [event-types.md](event-types.md) · [roadmap.md](roadmap.md)*
+*Source: [docs/matrix.json](../matrix.json) · Regenerate: `mise run matrix:generate`*
