@@ -233,8 +233,9 @@ test.describe.serial("Dashboard GUI — per-actor rendering", () => {
     await page.goto("/dashboard")
     const matrix = page.getByTestId("permission-matrix")
     await expect(matrix).toBeVisible()
-    // Admin should see all resource rows (count from generated matrix-data)
-    await expect(matrix.locator("tbody tr")).toHaveCount(RESOURCES.length)
+    // Admin should see all resource rows + group header rows (8 groups)
+    const GROUP_COUNT = 8
+    await expect(matrix.locator("tbody tr")).toHaveCount(RESOURCES.length + GROUP_COUNT)
   })
 
   test("resource explorer is present", async ({ page }) => {

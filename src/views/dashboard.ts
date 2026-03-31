@@ -66,6 +66,17 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   showcase: "Showcase",
 }
 
+const RESOURCE_GROUPS: [string, string[]][] = [
+  ["Events", ["event", "division", "registration"]],
+  ["Teams & Players", ["team", "player", "roster", "find-team"]],
+  ["Schedules & Brackets", ["bracket", "consolation-bracket", "fixture", "session", "court"]],
+  ["Scores & Results", ["score", "attendance", "results-archive", "spoiler"]],
+  ["Rankings", ["standings", "player-stats", "season-records"]],
+  ["Live & Realtime", ["live-scores", "notifications", "live-stream", "court-status"]],
+  ["AI", ["ai-assistant"]],
+  ["Admin", ["user", "moderation"]],
+]
+
 export function dashboardPage(user: User): string {
   const role = user.role || "user"
   const badge = ROLE_BADGES[role] || "badge-ghost"
@@ -106,7 +117,7 @@ export function dashboardPage(user: User): string {
     <!-- Full permission matrix -->
     <div class="card bg-base-100 shadow mb-6" data-testid="permission-matrix">
       <div class="card-body">
-        <h2 class="card-title">Permission Matrix</h2>
+        <h2 class="card-title">Permission Matrix <span class="badge badge-neutral badge-sm" id="resourceCount"></span></h2>
         <p class="text-sm text-base-content/60 mb-4">
           Showing resolved permissions for <span class="badge ${badge} badge-sm">${role}</span>.
           Green = allowed, gray = denied. Click any allowed write action to try it.
@@ -135,8 +146,8 @@ export function dashboardPage(user: User): string {
         <p class="text-sm text-base-content/60 mb-4">
           Select a resource to view its data and test write actions. Responses come live from the API.
         </p>
-        <div class="flex gap-2 flex-wrap mb-4" id="resourceTabs"></div>
-        <div id="resourcePanel">
+        <div id="resourceTabs"></div>
+        <div id="resourcePanel" class="mt-4">
           <p class="text-base-content/40 text-sm">Select a resource above to explore.</p>
         </div>
       </div>
@@ -163,6 +174,7 @@ export function dashboardPage(user: User): string {
     const RESOURCE_LABELS = ${JSON.stringify(RESOURCE_LABELS)};
     const ACTION_LABELS = ${JSON.stringify(ACTION_LABELS)};
     const EVENT_TYPE_LABELS = ${JSON.stringify(EVENT_TYPE_LABELS)};
+    const RESOURCE_GROUPS = ${JSON.stringify(RESOURCE_GROUPS)};
 
     let permissions = null;
     let currentResource = null;
@@ -208,56 +220,94 @@ export function dashboardPage(user: User): string {
     function renderMatrix() {
       const tbody = document.getElementById('matrixBody');
       tbody.innerHTML = '';
-      for (const [resource, info] of Object.entries(permissions.resources)) {
-        const tr = document.createElement('tr');
-        // Resource name
-        const tdName = document.createElement('td');
-        tdName.className = 'font-semibold';
-        tdName.textContent = RESOURCE_LABELS[resource] || resource;
-        tr.appendChild(tdName);
-        // Actions
-        const tdActions = document.createElement('td');
-        const actionsHtml = Object.entries(info.actions).map(([action, allowed]) => {
-          const label = ACTION_LABELS[action] || action;
-          if (allowed) {
-            return '<span class="badge badge-success badge-sm cursor-pointer hover:badge-outline" data-testid="perm-' + resource + '-' + action + '" onclick="tryAction(\\'' + resource + '\\',\\'' + action + '\\')">' + label + '</span>';
-          }
-          return '<span class="badge badge-neutral badge-sm opacity-30" data-testid="perm-' + resource + '-' + action + '">' + label + '</span>';
-        }).join(' ');
-        tdActions.innerHTML = actionsHtml;
-        tr.appendChild(tdActions);
-        // Event types
-        const tdTypes = document.createElement('td');
-        tdTypes.innerHTML = info.eventTypes.map(t =>
-          '<span class="badge badge-outline badge-xs">' + (EVENT_TYPE_LABELS[t] || t) + '</span>'
-        ).join(' ');
-        tr.appendChild(tdTypes);
-        tbody.appendChild(tr);
+      const allResources = Object.keys(permissions.resources);
+      document.getElementById('resourceCount').textContent = allResources.length + ' resources';
+
+      for (const [group, resources] of RESOURCE_GROUPS) {
+        const groupResources = resources.filter(function(r) { return allResources.includes(r); });
+        if (groupResources.length === 0) continue;
+
+        // Group header
+        var headerTr = document.createElement('tr');
+        var headerTd = document.createElement('td');
+        headerTd.colSpan = 3;
+        headerTd.className = 'bg-base-200 text-xs font-bold uppercase tracking-wider text-base-content/50 py-1';
+        headerTd.textContent = group;
+        headerTr.appendChild(headerTd);
+        tbody.appendChild(headerTr);
+
+        for (var i = 0; i < groupResources.length; i++) {
+          var resource = groupResources[i];
+          var info = permissions.resources[resource];
+          var tr = document.createElement('tr');
+
+          var tdName = document.createElement('td');
+          tdName.className = 'font-semibold';
+          tdName.textContent = RESOURCE_LABELS[resource] || resource;
+          tr.appendChild(tdName);
+
+          var tdActions = document.createElement('td');
+          var actionsHtml = Object.entries(info.actions).map(function(pair) {
+            var action = pair[0], allowed = pair[1];
+            var label = ACTION_LABELS[action] || action;
+            if (allowed) {
+              return '<span class="badge badge-success badge-sm cursor-pointer hover:badge-outline" data-testid="perm-' + resource + '-' + action + '" onclick="tryAction(\\'' + resource + '\\',\\'' + action + '\\')">' + label + '</span>';
+            }
+            return '<span class="badge badge-neutral badge-sm opacity-30" data-testid="perm-' + resource + '-' + action + '">' + label + '</span>';
+          }).join(' ');
+          tdActions.innerHTML = actionsHtml;
+          tr.appendChild(tdActions);
+
+          var tdTypes = document.createElement('td');
+          tdTypes.innerHTML = info.eventTypes.map(function(t) {
+            return '<span class="badge badge-outline badge-xs">' + (EVENT_TYPE_LABELS[t] || t) + '</span>';
+          }).join(' ');
+          tr.appendChild(tdTypes);
+          tbody.appendChild(tr);
+        }
       }
     }
 
-    // ── Resource tabs ────────────────────────────────────────────────────
+    // ── Resource tabs (grouped) ──────────────────────────────────────────
 
     function renderResourceTabs() {
-      const container = document.getElementById('resourceTabs');
+      var container = document.getElementById('resourceTabs');
       container.innerHTML = '';
-      for (const resource of Object.keys(permissions.resources)) {
-        const btn = document.createElement('button');
-        btn.className = 'btn btn-sm ' + (currentResource === resource ? 'btn-primary' : 'btn-ghost');
-        btn.textContent = RESOURCE_LABELS[resource] || resource;
-        btn.onclick = () => selectResource(resource);
-        container.appendChild(btn);
+      var allResources = Object.keys(permissions.resources);
+
+      for (var g = 0; g < RESOURCE_GROUPS.length; g++) {
+        var group = RESOURCE_GROUPS[g][0];
+        var resources = RESOURCE_GROUPS[g][1].filter(function(r) { return allResources.includes(r); });
+        if (resources.length === 0) continue;
+
+        var groupDiv = document.createElement('div');
+        groupDiv.className = 'mb-2';
+        var label = document.createElement('span');
+        label.className = 'text-xs font-bold uppercase tracking-wider text-base-content/40 mr-2';
+        label.textContent = group;
+        groupDiv.appendChild(label);
+
+        for (var i = 0; i < resources.length; i++) {
+          var resource = resources[i];
+          var btn = document.createElement('button');
+          btn.className = 'btn btn-xs ' + (currentResource === resource ? 'btn-primary' : 'btn-ghost');
+          btn.textContent = RESOURCE_LABELS[resource] || resource;
+          btn.setAttribute('data-resource', resource);
+          btn.onclick = function() { selectResource(this.getAttribute('data-resource')); };
+          groupDiv.appendChild(btn);
+        }
+        container.appendChild(groupDiv);
       }
     }
 
     async function selectResource(resource) {
       currentResource = resource;
       renderResourceTabs();
-      const info = permissions.resources[resource];
-      const panel = document.getElementById('resourcePanel');
+      var info = permissions.resources[resource];
+      var panel = document.getElementById('resourcePanel');
 
       // Find the read route
-      const readRoute = info.routes['read'];
+      var readRoute = info.routes['read'];
       if (!readRoute) {
         panel.innerHTML = '<p class="text-base-content/40">No read endpoint for this resource.</p>';
         return;
@@ -265,31 +315,31 @@ export function dashboardPage(user: User): string {
 
       panel.innerHTML = '<div class="flex items-center gap-2"><span class="loading loading-spinner loading-sm"></span> Loading…</div>';
 
-      const { status, body } = await apiCall(readRoute.method, readRoute.path);
+      var result = await apiCall(readRoute.method, readRoute.path);
 
-      if (status !== 200) {
-        panel.innerHTML = '<div class="alert alert-error text-sm">Failed to load: ' + status + '</div>';
+      if (result.status !== 200) {
+        panel.innerHTML = '<div class="alert alert-error text-sm">Failed to load: ' + result.status + '</div>';
         return;
       }
 
-      // Find the data array in the response (it's usually the first array value)
-      const dataKey = Object.keys(body).find(k => Array.isArray(body[k])) || Object.keys(body)[0];
-      const items = Array.isArray(body[dataKey]) ? body[dataKey] : body[dataKey] ? [body[dataKey]] : [];
+      var body = result.body;
+      // Find the data array in the response
+      var dataKey = Object.keys(body).find(function(k) { return Array.isArray(body[k]); }) || Object.keys(body)[0];
+      var items = Array.isArray(body[dataKey]) ? body[dataKey] : body[dataKey] ? [body[dataKey]] : [];
 
-      // Build table
-      const columns = items.length > 0 ? Object.keys(items[0]).filter(k => !['createdBy'].includes(k)) : [];
+      var columns = items.length > 0 ? Object.keys(items[0]).filter(function(k) { return k !== 'createdBy'; }) : [];
 
       // Write actions available
-      const writeActions = Object.entries(info.actions)
-        .filter(([action, allowed]) => action !== 'read' && allowed)
-        .map(([action]) => action);
+      var writeActions = Object.entries(info.actions)
+        .filter(function(pair) { return pair[0] !== 'read' && pair[1]; })
+        .map(function(pair) { return pair[0]; });
 
-      let html = '';
+      var html = '';
 
-      // Write action buttons
       if (writeActions.length > 0) {
-        html += '<div class="flex gap-2 mb-4">';
-        for (const action of writeActions) {
+        html += '<div class="flex gap-2 mb-4 flex-wrap">';
+        for (var i = 0; i < writeActions.length; i++) {
+          var action = writeActions[i];
           html += '<button class="btn btn-sm btn-success btn-outline" onclick="tryAction(\\'' + resource + '\\',\\'' + action + '\\')">' + (ACTION_LABELS[action] || action) + '</button>';
         }
         html += '</div>';
@@ -297,20 +347,19 @@ export function dashboardPage(user: User): string {
         html += '<div class="alert alert-warning text-sm mb-4">Your role (' + permissions.role + ') has no write access to ' + (RESOURCE_LABELS[resource] || resource) + '.</div>';
       }
 
-      // Data table
       html += '<div class="overflow-x-auto"><table class="table table-xs table-zebra"><thead><tr>';
-      for (const col of columns) {
-        html += '<th>' + col + '</th>';
+      for (var c = 0; c < columns.length; c++) {
+        html += '<th>' + columns[c] + '</th>';
       }
       html += '</tr></thead><tbody>';
       if (items.length === 0) {
         html += '<tr><td colspan="' + (columns.length || 1) + '" class="text-center text-base-content/40">No data yet</td></tr>';
       }
-      for (const item of items.slice(0, 50)) {
+      for (var r = 0; r < Math.min(items.length, 50); r++) {
         html += '<tr>';
-        for (const col of columns) {
-          const val = item[col];
-          const display = val === null ? '—' : typeof val === 'boolean' ? (val ? '✓' : '✗') : String(val).length > 30 ? String(val).slice(0, 30) + '…' : String(val);
+        for (var c = 0; c < columns.length; c++) {
+          var val = items[r][columns[c]];
+          var display = val === null ? '\\u2014' : typeof val === 'boolean' ? (val ? '\\u2713' : '\\u2717') : String(val).length > 30 ? String(val).slice(0, 30) + '\\u2026' : String(val);
           html += '<td class="text-xs">' + display + '</td>';
         }
         html += '</tr>';
@@ -326,39 +375,35 @@ export function dashboardPage(user: User): string {
     // ── Try write action ─────────────────────────────────────────────────
 
     async function tryAction(resource, action) {
-      const info = permissions.resources[resource];
-      const route = info.routes[action];
+      var info = permissions.resources[resource];
+      var route = info.routes[action];
       if (!route) {
         logAction('?', resource + ':' + action, 0, { error: 'No route defined' });
         return;
       }
 
-      // Build minimal valid payload for each resource+action
-      const payload = buildPayload(resource, action);
-      const path = route.path.replace('{id}', payload._id || '00000000-0000-0000-0000-000000000000');
+      var payload = buildPayload(resource, action);
+      var path = route.path.replace('{id}', payload._id || '00000000-0000-0000-0000-000000000000');
       delete payload._id;
 
-      const { status, body } = await apiCall(route.method, path, Object.keys(payload).length > 0 ? payload : undefined);
+      var result = await apiCall(route.method, path, Object.keys(payload).length > 0 ? payload : undefined);
 
-      // Show result in a toast
-      const toast = document.createElement('div');
+      var toast = document.createElement('div');
       toast.className = 'toast toast-end toast-top z-50';
-      const alertClass = status < 300 ? 'alert-success' : status === 403 ? 'alert-error' : status === 422 ? 'alert-warning' : 'alert-info';
-      const statusLabel = status === 201 ? 'Created!' : status === 200 ? 'Success' : status === 403 ? 'Forbidden (403)' : status === 401 ? 'Unauthorized (401)' : status === 422 ? 'Wrong event type (422)' : 'Error ' + status;
+      var alertClass = result.status < 300 ? 'alert-success' : result.status === 403 ? 'alert-error' : result.status === 422 ? 'alert-warning' : 'alert-info';
+      var statusLabel = result.status === 201 ? 'Created!' : result.status === 200 ? 'Success' : result.status === 403 ? 'Forbidden (403)' : result.status === 401 ? 'Unauthorized (401)' : result.status === 422 ? 'Wrong event type (422)' : 'Error ' + result.status;
       toast.innerHTML = '<div class="alert ' + alertClass + ' text-sm shadow-lg"><span><strong>' + (ACTION_LABELS[action] || action) + ' ' + (RESOURCE_LABELS[resource] || resource) + '</strong>: ' + statusLabel + '</span></div>';
       document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 3000);
+      setTimeout(function() { toast.remove(); }, 3000);
 
-      // Refresh the resource panel if we're viewing it
-      if (currentResource === resource && status < 300) {
-        setTimeout(() => selectResource(resource), 300);
+      if (currentResource === resource && result.status < 300) {
+        setTimeout(function() { selectResource(resource); }, 300);
       }
     }
 
     function buildPayload(resource, action) {
-      // Returns minimal valid payload for testing write actions
-      const eid = getFirstId('event');
-      const ts = Date.now();
+      var eid = getFirstId('event');
+      var ts = Date.now();
       switch (resource) {
         case 'event':
           if (action === 'create') return { name: 'Test Event ' + ts, type: 'tournament' };
@@ -418,31 +463,36 @@ export function dashboardPage(user: User): string {
     }
 
     // Cache of first IDs per resource for building payloads
-    const idCache = {};
+    var idCache = {};
     function getFirstId(resource) {
       return idCache[resource] || '00000000-0000-0000-0000-000000000000';
     }
 
     async function cacheIds() {
-      const resources = ['event', 'team', 'player', 'match', 'session'];
-      const endpoints = {
+      var endpoints = {
         event: '/api/events',
         team: '/api/teams',
         player: '/api/players',
         match: '/api/matches',
         session: '/api/sessions',
+        division: '/api/divisions',
+        registration: '/api/registrations',
+        bracket: '/api/brackets',
+        'consolation-bracket': '/api/consolation-brackets',
+        court: '/api/courts',
+        score: '/api/scores',
       };
-      for (const r of resources) {
+      for (var r of Object.keys(endpoints)) {
         try {
-          const res = await fetch(endpoints[r]);
+          var res = await fetch(endpoints[r]);
           if (res.ok) {
-            const body = await res.json();
-            const key = Object.keys(body).find(k => Array.isArray(body[k]));
+            var body = await res.json();
+            var key = Object.keys(body).find(function(k) { return Array.isArray(body[k]); });
             if (key && body[key].length > 0) {
               idCache[r] = body[key][0].id;
             }
           }
-        } catch {}
+        } catch(e) {}
       }
     }
 
@@ -450,17 +500,17 @@ export function dashboardPage(user: User): string {
 
     async function switchRole(email, password) {
       await fetch('/api/auth/sign-out', { method: 'POST' });
-      const res = await fetch('/api/auth/sign-in/email', {
+      var res = await fetch('/api/auth/sign-in/email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email, password: password }),
       });
       if (res.ok) window.location.reload();
     }
 
     // ── Init ─────────────────────────────────────────────────────────────
 
-    (async () => {
+    (async function() {
       await cacheIds();
       await loadPermissions();
     })();
