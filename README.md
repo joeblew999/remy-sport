@@ -4,8 +4,9 @@ Sports platform for basketball, built on Cloudflare Workers.
 
 ## URLs
 
-- **Local:** http://localhost:8787
-- **Production:** https://remy-sport.gedw99.workers.dev
+- **Local (worker):** http://localhost:8787
+- **Production (worker):** https://remy-sport.gedw99.workers.dev
+- **Design prototype (public):** https://remy-sport-design.pages.dev — clickable hi-fi reference for pilot feedback. **Not the production app** — see [Design](#design).
 - **Repo:** https://github.com/joeblew999/remy-sport
 
 ## Companion repo: business docs
