@@ -1,6 +1,6 @@
 # Claude Design — Project Contract (remy-sport)
 
-> **Contract version: 2026-04-29.** When loading this file, echo this line back so we can confirm we're aligned.
+> **Contract version: 2026-04-29 r2.** When loading this file, echo this line back so we can confirm we're aligned.
 >
 > **For AI tools (Claude Design, Claude Code, future agents) and humans editing this project.**
 > Treat this file as the authoritative source of truth for filenames, paths, naming, and ownership. The README links here. If anything in this file conflicts with the README, this file wins.
@@ -28,18 +28,26 @@ So the loop is: edits made in Claude Design require a manual zip-and-sync to lan
 |---|---|
 | `app/index.html`          | `docs/design/prototype/index.html`            |
 | `app/main.jsx`            | `docs/design/prototype/main.jsx`              |
-| `app/pages.jsx`           | `docs/design/prototype/pages.jsx`             |
 | `app/shell.jsx`           | `docs/design/prototype/shell.jsx`             |
 | `app/data.js`             | `docs/design/prototype/data.js`               |
 | `app/styles.css`          | `docs/design/prototype/styles.css`            |
 | `app/tweaks-panel.jsx`    | `docs/design/prototype/tweaks-panel.jsx`      |
+| `app/lib/data.jsx`        | `docs/design/prototype/lib/data.jsx`          |
+| `app/pages/discover.jsx`  | `docs/design/prototype/pages/discover.jsx`    |
+| `app/pages/event.jsx`     | `docs/design/prototype/pages/event.jsx`       |
+| `app/pages/bracket.jsx`   | `docs/design/prototype/pages/bracket.jsx`     |
+| `app/pages/live.jsx`      | `docs/design/prototype/pages/live.jsx`        |
+| `app/pages/team.jsx`      | `docs/design/prototype/pages/team.jsx`        |
+| `app/pages/profile.jsx`   | `docs/design/prototype/pages/profile.jsx`     |
+
+**Note:** `app/pages.jsx` was split into per-page files under `app/pages/` (round 1 reusability refactor, 2026-04-29). The single-file version no longer exists.
 
 ## Naming conventions (please adopt in Claude Design)
 
 - **No spaces in filenames.** ASCII, lowercase, hyphens.
 - **Stable export name.** Always `remy-sport-design.zip`. Do **not** suffix `-2`, `(1)`, etc. — overwrite the same file.
 - **Stable folder layout inside the zip.** Top level: `app/`, `biz/`, optionally `design_handoff/`. Don't reorganise without first updating this file.
-- **Flat prototype.** Keep `app/` flat — don't introduce nested folders. The React-via-CDN setup loads files relatively and breaks if paths shift.
+- **Sub-folders are now allowed under `app/`.** Specifically `app/pages/` and `app/lib/` exist. Any new sub-folder must be added to the file mapping table above before generating files into it.
 
 ## Ownership rules
 
