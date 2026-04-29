@@ -1,14 +1,27 @@
 # Handoff: Remy Sport — Pitch Deck & App Prototype
 
-## Source
+## Source / round-tripping with Claude Design
 
-Authored in **Claude Design** — edit there, re-export, and replace these files for round-tripping:
+Authored in **Claude Design** — project ID `019dd7a8-708f-7bcf-a952-77b03ae9db3e`. Edit there, re-export, and replace the files at the paths below.
 
-- Project: https://claude.ai/design/p/019dd7a8-708f-7bcf-a952-77b03ae9db3e
-- App prototype: https://claude.ai/design/p/019dd7a8-708f-7bcf-a952-77b03ae9db3e?file=app%2Findex.html
-- Pitch deck: https://claude.ai/design/p/019dd7a8-708f-7bcf-a952-77b03ae9db3e?file=biz%2FPitch+Deck.html
+- Project root: https://claude.ai/design/p/019dd7a8-708f-7bcf-a952-77b03ae9db3e
+- App prototype entry: https://claude.ai/design/p/019dd7a8-708f-7bcf-a952-77b03ae9db3e?file=app%2Findex.html
+- Pitch deck (in the biz repo): https://claude.ai/design/p/019dd7a8-708f-7bcf-a952-77b03ae9db3e?file=biz%2FPitch+Deck.html
 
-The pitch deck lives in the biz repo at `remy-sport-biz/pitchdeck/`; the app prototype below.
+**File mapping (Claude Design → this repo):**
+
+| Claude Design path | This repo path |
+|---|---|
+| `app/index.html` | `prototype/index.html` |
+| `app/main.jsx` | `prototype/main.jsx` |
+| `app/pages.jsx` | `prototype/pages.jsx` |
+| `app/shell.jsx` | `prototype/shell.jsx` |
+| `app/data.js` | `prototype/data.js` |
+| `app/styles.css` | `prototype/styles.css` |
+| `app/tweaks-panel.jsx` | `prototype/tweaks-panel.jsx` |
+| `design_handoff_remy_sport/README.md` | `README.md` (this file) |
+
+The pitch deck (`biz/Pitch Deck.html`, `biz/deck-stage.js`) lives in the biz repo at `remy-sport-biz/pitchdeck/` — see that repo's README for its mapping.
 
 ## Overview
 

@@ -48,6 +48,25 @@ Hi-fi prototype and design system spec from the design handoff:
 - [docs/design/README.md](docs/design/README.md) — design tokens (colors, type, spacing), fidelity notes, recreation guidance
 - [docs/design/prototype/](docs/design/prototype/) — clickable React prototype (CDN/Babel; reference only, not production code)
 
-**Source / round-tripping:** authored in [Claude Design — app/index.html](https://claude.ai/design/p/019dd7a8-708f-7bcf-a952-77b03ae9db3e?file=app%2Findex.html) (project [019dd7a8-708f-7bcf-a952-77b03ae9db3e](https://claude.ai/design/p/019dd7a8-708f-7bcf-a952-77b03ae9db3e), which also contains the pitch deck). Edit there, re-export, and replace the files in `docs/design/prototype/`.
+### Round-tripping with Claude Design
 
-The matching pitch deck lives in the biz repo at `remy-sport-biz/pitchdeck/`.
+These files are authored in **[Claude Design](https://claude.ai/design/p/019dd7a8-708f-7bcf-a952-77b03ae9db3e)** — project ID `019dd7a8-708f-7bcf-a952-77b03ae9db3e`. Open Claude Design, edit, re-export, and replace the files at the paths below.
+
+**File mapping (Claude Design → this repo):**
+
+| Claude Design path | This repo path |
+|---|---|
+| `app/index.html` | [docs/design/prototype/index.html](docs/design/prototype/index.html) |
+| `app/main.jsx` | [docs/design/prototype/main.jsx](docs/design/prototype/main.jsx) |
+| `app/pages.jsx` | [docs/design/prototype/pages.jsx](docs/design/prototype/pages.jsx) |
+| `app/shell.jsx` | [docs/design/prototype/shell.jsx](docs/design/prototype/shell.jsx) |
+| `app/data.js` | [docs/design/prototype/data.js](docs/design/prototype/data.js) |
+| `app/styles.css` | [docs/design/prototype/styles.css](docs/design/prototype/styles.css) |
+| `app/tweaks-panel.jsx` | [docs/design/prototype/tweaks-panel.jsx](docs/design/prototype/tweaks-panel.jsx) |
+| `design_handoff_remy_sport/README.md` | [docs/design/README.md](docs/design/README.md) |
+
+Direct deep-links:
+- App prototype entry: https://claude.ai/design/p/019dd7a8-708f-7bcf-a952-77b03ae9db3e?file=app%2Findex.html
+- Project root: https://claude.ai/design/p/019dd7a8-708f-7bcf-a952-77b03ae9db3e
+
+The same Claude Design project also contains the **pitch deck** under `biz/` — that lives in the biz repo at `remy-sport-biz/pitchdeck/`. See that repo's README for its mapping.
