@@ -58,6 +58,8 @@ Hi-fi prototype and design system spec from the design handoff:
 
 These files are authored in **[Claude Design](https://claude.ai/design/p/019dd7a8-708f-7bcf-a952-77b03ae9db3e)** — project ID `019dd7a8-708f-7bcf-a952-77b03ae9db3e`. Open Claude Design, edit, re-export, and replace the files at the paths below.
 
+> **The full project contract — naming conventions, ownership rules, future requests — lives in [CLAUDE-DESIGN.md](CLAUDE-DESIGN.md).** Paste/link it into the Claude Design project knowledge so the rules travel with the project.
+
 **File mapping (Claude Design → this repo):**
 
 | Claude Design path | This repo path |
