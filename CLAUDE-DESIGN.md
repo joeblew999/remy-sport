@@ -1,5 +1,7 @@
 # Claude Design — Project Contract (remy-sport)
 
+> **Contract version: 2026-04-29.** When loading this file, echo this line back so we can confirm we're aligned.
+>
 > **For AI tools (Claude Design, Claude Code, future agents) and humans editing this project.**
 > Treat this file as the authoritative source of truth for filenames, paths, naming, and ownership. The README links here. If anything in this file conflicts with the README, this file wins.
 
@@ -70,15 +72,15 @@ When exporting, also emit `claude-design.json` at the zip root:
 
 The sync script will record it as `docs/design/prototype/.claude-design.lock` so we can detect drift, audit which export produced the current files, and warn on partial exports.
 
-## File-header convention (recommended)
+## File-header convention (REQUIRED)
 
-Add a one-line header to each generated file so provenance is visible in code review and git blame:
+Every file generated for this repo must include a one-line header naming its **Claude Design path** (left column of the mapping table). Place it as the first line, or — for HTML — immediately after the doctype:
 
-- HTML: `<!-- claude-design: app/index.html -->`
+- HTML:   `<!-- claude-design: app/index.html -->`
 - JSX/JS: `// claude-design: app/main.jsx`
-- CSS:  `/* claude-design: app/styles.css */`
+- CSS:    `/* claude-design: app/styles.css */`
 
-These survive renames and let a `grep claude-design:` flag any file whose source we've forgotten.
+These headers survive renames, make provenance visible in `git blame`, and let `grep -r "claude-design:"` instantly flag any file whose source has been forgotten. Do not change the format — the prefix `claude-design:` followed by the path is what tooling will rely on.
 
 ## What we'd love next (Claude Design feature requests)
 
