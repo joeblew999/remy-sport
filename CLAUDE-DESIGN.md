@@ -1,6 +1,6 @@
 # Claude Design — Project Contract (remy-sport)
 
-> **Contract version: 2026-04-29 r3.** When loading this file, echo this line back so we can confirm we're aligned.
+> **Contract version: 2026-04-29 r4.** When loading this file, echo this line back so we can confirm we're aligned.
 >
 > **For AI tools (Claude Design, Claude Code, future agents) and humans editing this project.**
 > Treat this file as the authoritative source of truth for filenames, paths, naming, and ownership. The README links here. If anything in this file conflicts with the README, this file wins.
@@ -55,6 +55,22 @@ So the loop is: edits made in Claude Design require a manual zip-and-sync to lan
 - **Stable export name.** Always `remy-sport-design.zip`. Do **not** suffix `-2`, `(1)`, etc. — overwrite the same file.
 - **Stable folder layout inside the zip.** Top level: `app/`, `biz/`, optionally `design_handoff/`. Don't reorganise without first updating this file.
 - **Sub-folders are now allowed under `app/`.** Specifically `app/pages/`, `app/lib/`, and `app/components/` exist. Any new sub-folder must be added to the file mapping table above before generating files into it.
+
+## Platform constraints (Web + Tauri Mobile + Tauri Desktop)
+
+The prototype targets **all three** in production per [decision-003](https://github.com/joeblew999/remy-sport-biz/blob/main/decisions/decision-003-frontend-targets.md): web (Cloudflare Pages), Tauri Desktop (macOS/Windows/Linux), and Tauri Mobile (iOS/Android) — same React bundle in all three. Generated code must stay platform-agnostic so it runs identically in a browser and inside a Tauri webview (WebKit / WebView2 / WebKitGTK).
+
+Concretely, **don't generate code that depends on**:
+
+- **Node APIs** — `process`, `fs`, `path`, `Buffer`, `__dirname`, `require()`. The webview is a browser, not Node. (Workers code in the dev repo's `src/` is allowed Node-style imports because it runs on Cloudflare Workers — that's a different target. The prototype is webview-only.)
+- **Path-absolute asset URLs** that start with `/`. Tauri serves assets via `tauri://localhost/` and mobile filesystems break on absolute paths. Use **relative paths** like `<link href="styles.css">` not `<link href="/styles.css">`.
+- **`@tauri-apps/api` calls outside a capability layer.** If a feature needs Tauri-only APIs (filesystem, native menus, push, deep links), wrap them in `app/lib/platform.jsx` (to be added when the production rebuild starts) that detects `isTauri()` and provides graceful web fallbacks. Don't import `@tauri-apps/api` directly from page or component files.
+- **Browser-only APIs without fallbacks** — `localStorage` is fine (Tauri webview supports it), but `window.requestIdleCallback`, `window.requestPersistentNotificationPermission`, and similar fringe APIs may not exist on iOS WKWebView. Use feature detection.
+- **Path-based routing.** Routing must stay hash-based (`#/event/e1`) — already enforced by `app/lib/router.jsx`. Path-based routes (`/event/e1`) require server rewrites that don't exist in Tauri webviews.
+
+**Window chrome:** the current `tauri-chrome` div is CSS-mocked. Real Tauri provides the actual window on desktop and hides chrome entirely on mobile. Don't generate code that assumes the chrome is always present — the `showTauriChrome` toggle is what gates it today and will become platform-detected later.
+
+**Mobile-responsive design is a separate, future concern** but worth noting now: the prototype's sidebar layout is desktop-shaped. Don't add new layouts that hard-code wide viewports without leaving room for a responsive collapse later.
 
 ## Ownership rules
 
