@@ -40,3 +40,14 @@ task cf:tail              # tail live worker logs
 ```
 
 See `task --list` for all available tasks.
+
+## Design
+
+Hi-fi prototype and design system spec from the design handoff:
+
+- [docs/design/README.md](docs/design/README.md) — design tokens (colors, type, spacing), fidelity notes, recreation guidance
+- [docs/design/prototype/](docs/design/prototype/) — clickable React prototype (CDN/Babel; reference only, not production code)
+
+**Source / round-tripping:** authored in [Claude Design — app/index.html](https://claude.ai/design/p/019dd7a8-708f-7bcf-a952-77b03ae9db3e?file=app%2Findex.html) (project [019dd7a8-708f-7bcf-a952-77b03ae9db3e](https://claude.ai/design/p/019dd7a8-708f-7bcf-a952-77b03ae9db3e), which also contains the pitch deck). Edit there, re-export, and replace the files in `docs/design/prototype/`.
+
+The matching pitch deck lives in the biz repo at `remy-sport-biz/pitchdeck/`.
