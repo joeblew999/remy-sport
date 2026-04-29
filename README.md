@@ -69,4 +69,15 @@ Direct deep-links:
 - App prototype entry: https://claude.ai/design/p/019dd7a8-708f-7bcf-a952-77b03ae9db3e?file=app%2Findex.html
 - Project root: https://claude.ai/design/p/019dd7a8-708f-7bcf-a952-77b03ae9db3e
 
-The same Claude Design project also contains the **pitch deck** under `biz/` — that lives in the biz repo at `remy-sport-biz/pitchdeck/`. See that repo's README for its mapping.
+#### Syncing from Claude
+
+After downloading the project zip from Claude (Project menu → Download in claude.ai), drop it in `~/Downloads/` and run:
+
+```sh
+./scripts/sync-from-claude.sh
+./scripts/sync-from-claude.sh ~/Downloads/some-specific-export.zip
+```
+
+The script extracts the zip's `app/` folder into [docs/design/prototype/](docs/design/prototype/), replacing what's there. Review with `git diff docs/design/prototype` and commit.
+
+The same Claude Design project also contains the **pitch deck** under `biz/` — that lives in the biz repo at `remy-sport-biz/pitchdeck/`. See that repo's README for its mapping (and matching sync script).

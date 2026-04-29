@@ -23,6 +23,17 @@ Authored in **Claude Design** — project ID `019dd7a8-708f-7bcf-a952-77b03ae9db
 
 The pitch deck (`biz/Pitch Deck.html`, `biz/deck-stage.js`) lives in the biz repo at `remy-sport-biz/pitchdeck/` — see that repo's README for its mapping.
 
+### Syncing from Claude
+
+After downloading the project zip from Claude (Project menu → Download in claude.ai), drop it in `~/Downloads/` and run from the repo root:
+
+```sh
+./scripts/sync-from-claude.sh
+./scripts/sync-from-claude.sh ~/Downloads/some-specific-export.zip
+```
+
+The script extracts the zip's `app/` folder into `docs/design/prototype/`, replacing what's there. Review with `git diff docs/design/prototype` and commit.
+
 ## Overview
 
 This package contains two design artifacts for **Remy Sport**, a basketball events platform for Thai schools that supports tournaments, leagues, camps, and showcases:
