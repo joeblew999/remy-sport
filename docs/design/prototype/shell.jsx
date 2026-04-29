@@ -1,3 +1,4 @@
+// claude-design: app/shell.jsx
 // Shell components: Sidebar, Topbar, AppShell
 
 const { useState, useEffect } = React;

@@ -1,3 +1,4 @@
+// claude-design: app/main.jsx
 // Main app entry
 const { useState: u_S, useEffect: u_E } = React;
 

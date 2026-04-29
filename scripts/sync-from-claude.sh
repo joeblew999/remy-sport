@@ -35,33 +35,43 @@ fi
 
 [[ -f "$ZIP" ]] || { echo "error: not a file: $ZIP" >&2; exit 1; }
 
-# --- inspect the zip -------------------------------------------------------
-# Project zips wrap everything in a single top-level folder. Find it, then
-# verify it contains the app/ subdir we want.
-TOP="$(unzip -Z1 "$ZIP" | awk -F/ 'NF>1 {print $1; exit}')"
-if [[ -z "$TOP" ]]; then
-  echo "error: zip has no top-level folder — wrong file?" >&2
-  exit 1
-fi
-
-if ! unzip -Z1 "$ZIP" | grep -q "^$TOP/$SRC_SUBDIR/"; then
-  echo "error: zip does not contain $TOP/$SRC_SUBDIR/ — wrong project?" >&2
-  exit 1
-fi
-
-# --- extract to a temp dir, then swap --------------------------------------
+# --- extract to a temp dir, then locate the export root --------------------
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-echo "› extracting $TOP/$SRC_SUBDIR/ …"
-unzip -q "$ZIP" "$TOP/$SRC_SUBDIR/*" -d "$TMP"
+echo "› extracting …"
+unzip -q "$ZIP" -d "$TMP"
 
+# The export root is whichever directory contains both app/ and biz/.
+# Earlier exports had a wrapper folder (e.g. Remy-sports/{app,biz}); newer
+# exports place app/ and biz/ at the zip root. Handle both.
+ROOT=""
+if [[ -d "$TMP/app" && -d "$TMP/biz" ]]; then
+  ROOT="$TMP"
+else
+  for d in "$TMP"/*/; do
+    if [[ -d "${d}app" && -d "${d}biz" ]]; then
+      ROOT="${d%/}"
+      break
+    fi
+  done
+fi
+if [[ -z "$ROOT" ]]; then
+  echo "error: zip has no app/+biz/ structure — wrong project?" >&2
+  exit 1
+fi
+if [[ ! -d "$ROOT/$SRC_SUBDIR" ]]; then
+  echo "error: zip does not contain $SRC_SUBDIR/ — wrong project?" >&2
+  exit 1
+fi
+
+# --- swap into DEST --------------------------------------------------------
 mkdir -p "$DEST"
 # Wipe DEST contents (but keep the dir) so removed files actually disappear
 find "$DEST" -mindepth 1 -delete
 
 # Copy extracted contents into DEST
-cp -R "$TMP/$TOP/$SRC_SUBDIR/." "$DEST/"
+cp -R "$ROOT/$SRC_SUBDIR/." "$DEST/"
 
 # --- summarize -------------------------------------------------------------
 echo

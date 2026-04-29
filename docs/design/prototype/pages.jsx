@@ -1,3 +1,4 @@
+// claude-design: app/pages.jsx
 // Page components for Remy Sport prototype
 const { useState: uS, useEffect: uE } = React;
 const { Icon: Ico, Crest: Cr } = window.RemyShell;

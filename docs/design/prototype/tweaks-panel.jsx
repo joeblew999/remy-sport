@@ -1,4 +1,4 @@
-
+// claude-design: app/tweaks-panel.jsx
 // tweaks-panel.jsx
 // Reusable Tweaks shell + form-control helpers.
 //

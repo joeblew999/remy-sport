@@ -1,3 +1,4 @@
+// claude-design: app/data.js
 // Mock data for Remy Sport prototype
 
 const TEAMS = [
