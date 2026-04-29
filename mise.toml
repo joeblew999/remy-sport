@@ -210,6 +210,10 @@ run         = "bun x wrangler r2 object list {{env.CF_R2_NAME}}"
 
 # ── Design ──────────────────────────────────────────────────────────────────
 
+[tasks."design:serve"]
+description = "Serve the design prototype locally (port 5174) and open it in a browser"
+run         = "bun run scripts/serve-design.ts"
+
 [tasks."design:pull"]
 description = "Sync the design prototype from the latest Claude Design zip in ~/Downloads/"
 run         = "scripts/sync-from-claude.sh"
