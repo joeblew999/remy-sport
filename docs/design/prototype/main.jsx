@@ -11,7 +11,7 @@ const TWEAK_DEFAULTS = window.TWEAK_DEFAULTS || {
 
 function App() {
   const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
-  const [route, setRoute] = u_S({ page: 'discover' });
+  const { route, goto } = window.RemyRouter.useRouter();
   const [lang, setLang] = u_S(tweaks.language);
   const [spoiler, setSpoiler] = u_S(tweaks.spoilerMode);
 
@@ -22,11 +22,6 @@ function App() {
     document.documentElement.style.setProperty('--accent', tweaks.accentColor);
     document.documentElement.style.setProperty('--accent-deep', tweaks.accentColor);
   }, [tweaks.accentColor]);
-
-  const goto = (r) => {
-    setRoute(r);
-    document.querySelector('.page')?.scrollTo({ top: 0 });
-  };
 
   const { Sidebar, Topbar } = window.RemyShell;
   const P = window.RemyPages;
@@ -101,7 +96,7 @@ function App() {
 }
 
 function tryRender() {
-  if (typeof TweaksPanel === 'undefined' || !window.RemyShell || !window.RemyPages) {
+  if (typeof TweaksPanel === 'undefined' || !window.RemyShell || !window.RemyPages || !window.RemyRouter) {
     return setTimeout(tryRender, 30);
   }
   ReactDOM.createRoot(document.getElementById('root')).render(<App/>);

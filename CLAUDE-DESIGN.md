@@ -1,6 +1,6 @@
 # Claude Design — Project Contract (remy-sport)
 
-> **Contract version: 2026-04-29 r2.** When loading this file, echo this line back so we can confirm we're aligned.
+> **Contract version: 2026-04-29 r3.** When loading this file, echo this line back so we can confirm we're aligned.
 >
 > **For AI tools (Claude Design, Claude Code, future agents) and humans editing this project.**
 > Treat this file as the authoritative source of truth for filenames, paths, naming, and ownership. The README links here. If anything in this file conflicts with the README, this file wins.
@@ -26,28 +26,35 @@ So the loop is: edits made in Claude Design require a manual zip-and-sync to lan
 
 | Claude Design path        | This repo path                                |
 |---|---|
-| `app/index.html`          | `docs/design/prototype/index.html`            |
-| `app/main.jsx`            | `docs/design/prototype/main.jsx`              |
-| `app/shell.jsx`           | `docs/design/prototype/shell.jsx`             |
-| `app/data.js`             | `docs/design/prototype/data.js`               |
-| `app/styles.css`          | `docs/design/prototype/styles.css`            |
-| `app/tweaks-panel.jsx`    | `docs/design/prototype/tweaks-panel.jsx`      |
-| `app/lib/data.jsx`        | `docs/design/prototype/lib/data.jsx`          |
-| `app/pages/discover.jsx`  | `docs/design/prototype/pages/discover.jsx`    |
-| `app/pages/event.jsx`     | `docs/design/prototype/pages/event.jsx`       |
-| `app/pages/bracket.jsx`   | `docs/design/prototype/pages/bracket.jsx`     |
-| `app/pages/live.jsx`      | `docs/design/prototype/pages/live.jsx`        |
-| `app/pages/team.jsx`      | `docs/design/prototype/pages/team.jsx`        |
-| `app/pages/profile.jsx`   | `docs/design/prototype/pages/profile.jsx`     |
+| `app/index.html`            | `docs/design/prototype/index.html`              |
+| `app/main.jsx`              | `docs/design/prototype/main.jsx`                |
+| `app/data.js`               | `docs/design/prototype/data.js`                 |
+| `app/styles.css`            | `docs/design/prototype/styles.css`              |
+| `app/tweaks-panel.jsx`      | `docs/design/prototype/tweaks-panel.jsx`        |
+| `app/lib/data.jsx`          | `docs/design/prototype/lib/data.jsx`            |
+| `app/lib/router.jsx`        | `docs/design/prototype/lib/router.jsx`          |
+| `app/lib/i18n.jsx`          | `docs/design/prototype/lib/i18n.jsx`            |
+| `app/components/icon.jsx`   | `docs/design/prototype/components/icon.jsx`     |
+| `app/components/crest.jsx`  | `docs/design/prototype/components/crest.jsx`    |
+| `app/components/sidebar.jsx`| `docs/design/prototype/components/sidebar.jsx`  |
+| `app/components/topbar.jsx` | `docs/design/prototype/components/topbar.jsx`   |
+| `app/pages/discover.jsx`    | `docs/design/prototype/pages/discover.jsx`      |
+| `app/pages/event.jsx`       | `docs/design/prototype/pages/event.jsx`         |
+| `app/pages/bracket.jsx`     | `docs/design/prototype/pages/bracket.jsx`       |
+| `app/pages/live.jsx`        | `docs/design/prototype/pages/live.jsx`          |
+| `app/pages/team.jsx`        | `docs/design/prototype/pages/team.jsx`          |
+| `app/pages/profile.jsx`     | `docs/design/prototype/pages/profile.jsx`       |
 
-**Note:** `app/pages.jsx` was split into per-page files under `app/pages/` (round 1 reusability refactor, 2026-04-29). The single-file version no longer exists.
+**Refactor notes (2026-04-29):**
+- **Round 1:** `app/pages.jsx` (38 KB single file) split into per-page files under `app/pages/`. The single-file version no longer exists.
+- **Round 2:** `app/shell.jsx` split into per-component files under `app/components/`; new `app/lib/router.jsx` (hash-based router) and `app/lib/i18n.jsx` (i18n hook + helpers); JSDoc typedefs added to `data.js` and `lib/data.jsx`. The single-file `shell.jsx` no longer exists.
 
 ## Naming conventions (please adopt in Claude Design)
 
 - **No spaces in filenames.** ASCII, lowercase, hyphens.
 - **Stable export name.** Always `remy-sport-design.zip`. Do **not** suffix `-2`, `(1)`, etc. — overwrite the same file.
 - **Stable folder layout inside the zip.** Top level: `app/`, `biz/`, optionally `design_handoff/`. Don't reorganise without first updating this file.
-- **Sub-folders are now allowed under `app/`.** Specifically `app/pages/` and `app/lib/` exist. Any new sub-folder must be added to the file mapping table above before generating files into it.
+- **Sub-folders are now allowed under `app/`.** Specifically `app/pages/`, `app/lib/`, and `app/components/` exist. Any new sub-folder must be added to the file mapping table above before generating files into it.
 
 ## Ownership rules
 

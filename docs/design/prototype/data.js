@@ -1,5 +1,66 @@
 // claude-design: app/data.js
-// Mock data for Remy Sport prototype
+// Mock data for Remy Sport prototype.
+//
+// Type definitions are JSDoc-only — they exist so editors / `tsc --noEmit`
+// can pick them up without changing runtime behaviour. The production
+// rebuild can convert these to .ts type imports verbatim.
+
+/**
+ * @typedef {Object} Team
+ * @property {string} id
+ * @property {string} name
+ * @property {string} [nameTh]
+ * @property {string} short
+ * @property {'a' | 'b'} crest
+ * @property {string} city
+ * @property {string} [record]
+ */
+
+/**
+ * @typedef {'tournament' | 'league' | 'camp' | 'showcase'} EventType
+ */
+
+/**
+ * @typedef {'live' | 'open' | 'upcoming' | 'closed'} EventStatus
+ */
+
+/**
+ * @typedef {Object} Event
+ * @property {string} id
+ * @property {EventType} type
+ * @property {string} title
+ * @property {string} [titleTh]
+ * @property {string} div
+ * @property {string} loc
+ * @property {string} city
+ * @property {number} day
+ * @property {string} mo
+ * @property {string} date
+ * @property {EventStatus} status
+ * @property {string} statusLabel
+ * @property {number} teams
+ * @property {number} courts
+ * @property {number} games
+ * @property {number} gamesPlayed
+ * @property {string} organizer
+ */
+
+/** @typedef {Object} Bracket Shape varies; see data below for actual fields. */
+/** @typedef {Object} LiveGame Shape varies; see data below for actual fields. */
+/** @typedef {Object} Standing Shape varies; see data below for actual fields. */
+
+/**
+ * @typedef {Object} RosterPlayer
+ * @property {number} num
+ * @property {string} [name]
+ */
+
+/**
+ * @typedef {Object} FeedItem
+ * @property {string} desc HTML allowed (rendered with dangerouslySetInnerHTML).
+ * @property {string} ts
+ * @property {'live' | 'on' | 'muted'} [dot]
+ */
 
 const TEAMS = [
   { id: 't1', name: "Bangkok Christian", nameTh: "กรุงเทพคริสเตียน", short: "BKC", crest: 'a', city: 'Bangkok', record: '4–0' },
