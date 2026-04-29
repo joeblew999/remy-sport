@@ -11,14 +11,14 @@
 - **This repo owns:** the **app prototype** (`app/*`) — clickable hi-fi React-via-CDN reference. **Design reference, not production code** — the production app lives in `src/` and is built independently.
 - **Sibling repo:** `remy-sport-biz` owns the **pitch deck**. Same Claude Design project, different files. See its `CLAUDE-DESIGN.md`.
 
-## Round-trip flow (forward only, today)
+## How the round-trip actually works
 
-1. Edit in Claude Design.
-2. Project menu → **Download** → zip lands in `~/Downloads/`.
-3. Run `mise run design:pull` (or `./scripts/sync-from-claude.sh`). Script extracts the zip's `app/` folder into `docs/design/prototype/`, replacing what's there.
-4. Review `git diff docs/design/prototype/`, commit.
+| Direction | Mechanism | Notes |
+|---|---|---|
+| **Repo → Claude Design** | Claude Design reads files via its `github_*` tools, on demand, against the `ref` requested. | No caching. Every read hits GitHub fresh. Bootstrapped via a line in this project's CLAUDE.md telling Claude Design to fetch `CLAUDE-DESIGN.md` from `main` at the start of every task. Mid-session edits in the repo are picked up only when Claude Design is asked to re-read (or starts a new task that triggers the bootstrap). |
+| **Claude Design → Repo** | Manual: Project menu → **Download** → zip → `mise run design:pull`. | No push API today. The script extracts the zip's `app/` folder into `docs/design/prototype/`. Review with `git diff docs/design/prototype/` and commit. |
 
-There is **no automated reverse direction**. Edits made in this repo do not flow back to Claude Design.
+So the loop is: edits made in Claude Design require a manual zip-and-sync to land in the repo; edits made in the repo are visible to Claude Design as soon as it's asked to read again (which the CLAUDE.md bootstrap arranges to happen on every task).
 
 ## File mapping (Claude Design → this repo)
 
@@ -82,6 +82,5 @@ These survive renames and let a `grep claude-design:` flag any file whose source
 
 ## What we'd love next (Claude Design feature requests)
 
-1. **"Push to GitHub" button** — opens a PR against the configured repo with the new files. Eliminates the download/script dance.
-2. **"Pull from GitHub" button** — fetch the latest committed state into the Claude Design project. Closes the reverse direction.
-3. **Read this file at session start** — when generating files for the Remy Sport project, fetch `CLAUDE-DESIGN.md` from each repo's `main` branch and treat it as part of the system prompt.
+1. **"Push to GitHub" button** — opens a PR against the configured repo with the new files. Closes the only remaining manual step in the loop.
+2. **Visible "pull latest from main" affordance** — today, refreshing the contract requires explicitly asking Claude Design to re-read. A button (or auto-refresh on `main` advance) would prevent stale rule-following mid-session.
