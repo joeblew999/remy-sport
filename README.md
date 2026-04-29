@@ -8,6 +8,23 @@ Sports platform for basketball, built on Cloudflare Workers.
 - **Production:** https://remy-sport.gedw99.workers.dev
 - **Repo:** https://github.com/joeblew999/remy-sport
 
+## Companion repo: business docs
+
+The Product Owner's source-of-truth for *what* to build (and *why*) lives in **[remy-sport-biz](https://github.com/joeblew999/remy-sport-biz)**, a sibling repo. Engineers should treat that repo as authoritative for product decisions, domain definitions, and acceptance criteria. Concretely, when working on a feature here, look in biz for:
+
+| Looking for | Path in `remy-sport-biz` |
+|---|---|
+| Who are the users? | [`domain/actors.md`](https://github.com/joeblew999/remy-sport-biz/blob/main/domain/actors.md) — six actors and their goals |
+| What event shapes does the platform support? | [`domain/event-types.md`](https://github.com/joeblew999/remy-sport-biz/blob/main/domain/event-types.md) — Tournament / League / Camp / Showcase |
+| Who can do what? | [`access/matrix.md`](https://github.com/joeblew999/remy-sport-biz/blob/main/access/matrix.md) — capability matrix, generated from `data/seed/` |
+| What are we building, in what order? | [`roadmap/roadmap.md`](https://github.com/joeblew999/remy-sport-biz/blob/main/roadmap/roadmap.md) — Now / Next / Later |
+| Epics and user stories | [`backlog/epics/`](https://github.com/joeblew999/remy-sport-biz/tree/main/backlog/epics/), [`backlog/stories/`](https://github.com/joeblew999/remy-sport-biz/tree/main/backlog/stories/) — acceptance criteria live in the stories |
+| Why a thing is the way it is | [`decisions/`](https://github.com/joeblew999/remy-sport-biz/tree/main/decisions/) — ADRs (e.g. Better Auth, Zanzibar-style auth) |
+| Realistic test data | [`data/seed/`](https://github.com/joeblew999/remy-sport-biz/tree/main/data/seed/) — CSVs the dev team loads into local D1 |
+| Pitch deck (stakeholder-facing) | [`pitchdeck/`](https://github.com/joeblew999/remy-sport-biz/tree/main/pitchdeck/) — also rendered to `remy-sport-pitchdeck.pdf` |
+
+If you're a contributor and biz says X but the code says Y, **biz wins** unless there's an ADR documenting the divergence. Open a PR against biz first if you think a domain rule needs updating.
+
 ## Prerequisites
 
 This repo uses [**mise**](https://mise.jdx.dev) to manage tools (bun, node, jq) and tasks. Install it once:
@@ -53,6 +70,22 @@ Hi-fi prototype and design system spec from the design handoff:
 
 - [docs/design/README.md](docs/design/README.md) — design tokens (colors, type, spacing), fidelity notes, recreation guidance
 - [docs/design/prototype/](docs/design/prototype/) — clickable React prototype (CDN/Babel; reference only, not production code)
+
+### Local preview
+
+```sh
+mise run design:serve   # http://localhost:5174 — opens in browser
+```
+
+### Public preview (Cloudflare Pages)
+
+To share the prototype with pilot schools, coaches, and stakeholders for feedback, deploy the static prototype to Cloudflare Pages:
+
+```sh
+mise run design:deploy   # ships docs/design/prototype/ to Cloudflare Pages
+```
+
+First run creates the `remy-sport-design` Pages project; subsequent runs are deploys. The public URL is reported at the end of `wrangler`'s output (typically `https://remy-sport-design.pages.dev`).
 
 ### Round-tripping with Claude Design
 

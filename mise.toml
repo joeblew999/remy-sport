@@ -217,3 +217,7 @@ run         = "bun run scripts/serve-design.ts"
 [tasks."design:pull"]
 description = "Sync the design prototype from the latest Claude Design zip in ~/Downloads/"
 run         = "scripts/sync-from-claude.sh"
+
+[tasks."design:deploy"]
+description = "Deploy the design prototype to Cloudflare Pages (project: remy-sport-design)"
+run         = "bun x wrangler pages deploy docs/design/prototype --project-name=remy-sport-design --branch=main --commit-dirty=true"
