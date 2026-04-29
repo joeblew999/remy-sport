@@ -207,3 +207,9 @@ run         = "bun x wrangler r2 bucket create {{env.CF_R2_NAME}}"
 [tasks."cf:r2:objects"]
 description = "List objects in the R2 bucket"
 run         = "bun x wrangler r2 object list {{env.CF_R2_NAME}}"
+
+# ── Design ──────────────────────────────────────────────────────────────────
+
+[tasks."design:pull"]
+description = "Sync the design prototype from the latest Claude Design zip in ~/Downloads/"
+run         = "scripts/sync-from-claude.sh"

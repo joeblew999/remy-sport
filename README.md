@@ -10,36 +10,42 @@ Sports platform for basketball, built on Cloudflare Workers.
 
 ## Prerequisites
 
-- [bun](https://bun.sh)
-- [task](https://taskfile.dev)
+This repo uses [**mise**](https://mise.jdx.dev) to manage tools (bun, node, jq) and tasks. Install it once:
+
+```sh
+curl https://mise.run | sh        # macOS / Linux
+```
+
+Then in this folder, mise installs the right tool versions automatically the first time you run a task.
+
 - [Cloudflare account](https://dash.cloudflare.com) (for deploy)
 
 ## Development
 
 ```sh
-task setup   # install deps + apply local D1 migrations
-task dev     # start local dev server at :8787
-task check   # type check
-task test    # run playwright tests
-task test:ui # run playwright tests with UI
+mise run setup   # install deps + apply local D1 migrations + Playwright
+mise run dev     # start local dev server at :8787
+mise run check   # type check
+mise run test    # run playwright tests
+mise run test:ui # run playwright tests with UI
 ```
 
 ## Deploy
 
 ```sh
-task deploy  # full pipeline: setup, check, test, versions, deploy, remote migrate, test:deployed
+mise run deploy  # full pipeline: setup, check, test, versions, deploy, remote migrate, test:deployed
 ```
 
 ## Cloudflare Resources
 
 ```sh
-task cf:d1:tables         # list local D1 tables
-task cf:d1:tables:remote  # list remote D1 tables
-task cf:secret:list       # list worker secrets
-task cf:tail              # tail live worker logs
+mise run cf:d1:tables         # list local D1 tables
+mise run cf:d1:tables:remote  # list remote D1 tables
+mise run cf:secret:list       # list worker secrets
+mise run cf:tail              # tail live worker logs
 ```
 
-See `task --list` for all available tasks.
+See `mise tasks` for all available tasks.
 
 ## Design
 
@@ -74,6 +80,8 @@ Direct deep-links:
 After downloading the project zip from Claude (Project menu → Download in claude.ai), drop it in `~/Downloads/` and run:
 
 ```sh
+mise run design:pull
+# or directly:
 ./scripts/sync-from-claude.sh
 ./scripts/sync-from-claude.sh ~/Downloads/some-specific-export.zip
 ```
