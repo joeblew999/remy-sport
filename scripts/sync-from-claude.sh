@@ -78,5 +78,23 @@ echo
 echo "✓ synced into $DEST"
 echo
 ( cd "$REPO_ROOT" && git status --short -- docs/design/prototype )
+
+# --- post-sync cleanup -----------------------------------------------------
+# Remove remy-sport-design*.zip from ~/Downloads after a successful sync —
+# the zip is transport-only and keeping older copies makes macOS auto-suffix
+# '-2', '-3' on future downloads. Pattern is unique enough not to hit
+# anything else. Skip cleanup if the user passed an explicit zip path
+# (their file, their call). Set REMY_KEEP_ZIP=1 to opt out.
+if [[ $# -eq 0 && -z "${REMY_KEEP_ZIP:-}" ]]; then
+  echo
+  shopt -s nullglob
+  zips=("$HOME/Downloads"/remy-sport-design*.zip)
+  shopt -u nullglob
+  if (( ${#zips[@]} > 0 )); then
+    rm -f "${zips[@]}"
+    echo "› cleaned ~/Downloads/remy-sport-design*.zip (${#zips[@]} file$([[ ${#zips[@]} -ne 1 ]] && echo s))"
+  fi
+fi
+
 echo
 echo "next: review with \`git diff docs/design/prototype\`, then commit."
