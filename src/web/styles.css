@@ -807,14 +807,147 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 /* ---------- Tweaks panel positioning override ---------- */
 .tweaks-panel { z-index: 9999;}
 
-/* mobile responsive shim — keeps the layout readable, but the design is desktop-first */
-@media (max-width: 900px) {
+/* ─── Hamburger button (visible only on narrow viewports) ─── */
+.menu-btn {
+  display: none;
+  width: 36px; height: 36px;
+  background: transparent; border: 1px solid var(--rule);
+  border-radius: 8px; padding: 0; cursor: pointer;
+  flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+}
+.menu-btn span {
+  display: block; width: 16px; height: 1.5px; background: var(--ink); border-radius: 2px;
+}
+.nav-backdrop {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 99;
+  animation: nav-backdrop-in 0.18s ease-out;
+}
+@keyframes nav-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* ─── Tablet: ≤ 1024px ─── */
+@media (max-width: 1024px) {
+  .app { grid-template-columns: 220px 1fr; }
+  .page-inner { padding: 24px 24px 64px; }
+  .page-header { padding: 24px 24px 18px; }
+  .dash-grid { grid-template-columns: 1fr; gap: 24px; }
+  .live-side-grid { grid-template-columns: 1fr; }
+  .roster-grid { grid-template-columns: repeat(2, 1fr); }
+  .event-stats { grid-template-columns: repeat(3, 1fr); }
+  .event-stats .stat-cell:nth-child(4),
+  .event-stats .stat-cell:nth-child(5) { border-top: 1px solid var(--rule); padding-top: 14px; margin-top: 6px; }
+  .topbar .install-btn { display: none; }
+}
+
+/* ─── Mobile: ≤ 768px ─── */
+@media (max-width: 768px) {
+  /* Hide tauri chrome on mobile; it's a desktop affordance only. */
+  .tauri-chrome { display: none; }
+  .app { height: 100vh !important; }
+
+  /* Off-canvas sidebar drawer */
   .app { grid-template-columns: 1fr; }
-  .sidebar { display: none; }
-  .event-list-header, .event-row { grid-template-columns: 50px 2fr 1fr 80px;}
-  .event-list-header > :nth-child(n+5), .event-row > :nth-child(n+5) { display: none;}
-  .event-stats { grid-template-columns: repeat(2, 1fr);}
-  .stat-cell { border-right: none !important; border-bottom: 1px solid var(--rule); padding: 12px 0 !important;}
-  .live-scoreboard { grid-template-columns: 1fr;}
-  .score-numbers { font-size: 100px; justify-content: center;}
+  .sidebar {
+    display: flex;
+    position: fixed; top: 0; bottom: 0; left: 0;
+    width: min(80vw, 300px);
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 0.22s ease-out;
+    box-shadow: 2px 0 24px rgba(0,0,0,0.15);
+  }
+  .app.nav-open .sidebar { transform: translateX(0); }
+  .app.nav-open .nav-backdrop { display: block; }
+
+  /* Hamburger replaces the hidden sidebar at the top of the topbar */
+  .menu-btn { display: flex; }
+  .topbar {
+    flex-wrap: wrap;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  .topbar .search { order: 99; flex-basis: 100%; min-width: 0; }
+  .topbar .search .kbd { display: none; }
+  .topbar .lang-switch button,
+  .topbar .icon-btn,
+  .menu-btn { min-width: 36px; min-height: 36px; }
+
+  /* Page layout */
+  .page-inner { padding: 16px 14px 56px; }
+  .page-header { padding: 16px 14px 14px; }
+  .page-header h1 { font-size: clamp(28px, 6vw, 38px); line-height: 1.1; }
+
+  /* Discover toolbar wraps; tables become scrollable cards */
+  .discover-toolbar { flex-direction: column; align-items: stretch; gap: 12px; padding: 12px 14px; }
+  .tab-row { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+  .tab-row .tab { white-space: nowrap; }
+  .filter-row { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+  .filter-row .chip { white-space: nowrap; flex-shrink: 0; }
+
+  /* Event list collapses to date + name + status */
+  .event-list-header { display: none; }
+  .event-row {
+    grid-template-columns: 60px 1fr auto;
+    grid-template-areas:
+      "date title arrow"
+      "date meta arrow"
+      "date status arrow";
+    gap: 4px 12px;
+    padding: 14px 16px;
+    min-height: 80px;
+  }
+  .event-row > :nth-child(1) { grid-area: date; }
+  .event-row > :nth-child(2) { grid-area: title; }
+  .event-row > :nth-child(7) { grid-area: arrow; }
+  .event-row > :nth-child(3),
+  .event-row > :nth-child(4),
+  .event-row > :nth-child(5) { display: none; }
+  .event-row > :nth-child(6) { grid-area: status; align-self: start; }
+
+  /* Tables: horizontal-scroll containers */
+  .standing-row { font-size: 12px; padding-left: 12px; padding-right: 12px; }
+  .roster-grid { grid-template-columns: 1fr; }
+  .player-card { padding: 12px; }
+
+  /* Live scoreboard stacks */
+  .live-scoreboard { grid-template-columns: 1fr; gap: 16px; padding: 18px 14px; }
+  .score-numbers { font-size: clamp(64px, 16vw, 96px); justify-content: center; }
+  .score-team.r { text-align: center; }
+  .live-clock { padding: 14px; }
+  .quarters-table { font-size: 12px; }
+  .live-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+
+  /* Event hero */
+  .event-hero { padding: 18px 14px; }
+  .event-hero h1 { font-size: clamp(24px, 6vw, 36px); }
+  .event-stats { grid-template-columns: repeat(2, 1fr); padding: 12px 14px; }
+  .event-stats .stat-cell:nth-child(n+3) { border-top: 1px solid var(--rule); padding-top: 12px; margin-top: 6px; }
+  .stat-cell { border-right: none !important; padding: 8px 0 !important; }
+  .event-actions { flex-wrap: wrap; }
+  .event-actions .btn { flex: 1 1 auto; min-height: 44px; }
+
+  /* Tab bars become horizontally scrollable */
+  .detail-tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; padding: 0 14px; }
+  .detail-tabs .tab { white-space: nowrap; flex-shrink: 0; min-height: 40px; }
+
+  /* Bracket: switch to vertical list of rounds */
+  .bracket { flex-direction: column; gap: 16px; }
+  .bracket-round { min-width: 0; }
+
+  /* Team hero: stack */
+  .team-hero { grid-template-columns: 1fr; gap: 16px; padding: 18px 14px; }
+  .team-hero h1 { font-size: clamp(24px, 6vw, 32px); }
+
+  /* Section headings */
+  .section-h { padding: 16px 14px 8px; }
+  .dash-card { margin: 0 14px; border-radius: 10px; }
+}
+
+/* ─── Touch-target safety: bump small buttons everywhere on coarse pointers ─── */
+@media (pointer: coarse) {
+  .nav-item, .tab, .chip, .icon-btn, .install-btn {
+    min-height: 40px;
+  }
 }

@@ -208,20 +208,21 @@ run         = "bun x wrangler r2 bucket create {{env.CF_R2_NAME}}"
 description = "List objects in the R2 bucket"
 run         = "bun x wrangler r2 object list {{env.CF_R2_NAME}}"
 
-# ── Design ──────────────────────────────────────────────────────────────────
+# ── Web app (src/web/) ──────────────────────────────────────────────────────
 
-[tasks."design:serve"]
-description = "Serve the design prototype locally (port 5174) and open it in a browser"
-run         = "bun run scripts/serve-design.ts"
+[tasks."web:dev"]
+description = "Run the web app via Vite dev server (port 5175, HMR)"
+run         = "bun x vite --config src/web/vite.config.ts"
 
-[tasks."design:pull"]
-description = "Sync the design prototype from the latest Claude Design zip in ~/Downloads/"
-run         = "scripts/sync-from-claude.sh"
+[tasks."web:build"]
+description = "Production build → dist/web/"
+run         = "bun x vite build --config src/web/vite.config.ts"
 
-[tasks."design:dev"]
-description = "Run the design prototype on Cloudflare's local Pages emulator (port 8788)"
-run         = "bun x wrangler pages dev docs/design/prototype --port 8788"
+[tasks."web:typecheck"]
+description = "TypeScript type-check src/web/ (no emit)"
+run         = "bun x tsc -p src/web/tsconfig.json --noEmit"
 
-[tasks."design:deploy"]
-description = "Deploy the design prototype to Cloudflare Pages (project: remy-sport-design)"
-run         = "bun x wrangler pages deploy docs/design/prototype --project-name=remy-sport-design --branch=main --commit-dirty=true"
+[tasks."web:deploy"]
+description = "Build and deploy the web app to Cloudflare Pages (project: remy-sport-design)"
+depends     = ["web:build"]
+run         = "bun x wrangler pages deploy dist/web --project-name=remy-sport-design --branch=main --commit-dirty=true"

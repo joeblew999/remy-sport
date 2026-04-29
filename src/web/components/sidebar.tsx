@@ -1,15 +1,21 @@
-// claude-design: app/components/sidebar.jsx
+import { Icon } from "./icon";
 
-function Sidebar({ page, setPage }) {
-  const Icon = window.RemyShell.Icon;
-  const items = [
-    { id: 'discover', label: 'Discover', count: '124' },
-    { id: 'events', label: 'My events', count: '6' },
-    { id: 'team', label: 'My team', count: 'SGS' },
-    { id: 'live', label: 'Live now', count: '3' },
-    { id: 'standings', label: 'Standings', count: null },
-    { id: 'profile', label: 'Profile', count: null },
-  ];
+interface NavItem {
+  id: string;
+  label: string;
+  count: string | null;
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { id: "discover",  label: "Discover",   count: "124" },
+  { id: "events",    label: "My events",  count: "6" },
+  { id: "team",      label: "My team",    count: "SGS" },
+  { id: "live",      label: "Live now",   count: "3" },
+  { id: "standings", label: "Standings",  count: null },
+  { id: "profile",   label: "Profile",    count: null },
+];
+
+export function Sidebar({ page, setPage }: { page: string; setPage: (p: string) => void }) {
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -18,9 +24,9 @@ function Sidebar({ page, setPage }) {
       </div>
       <div className="nav-group">
         <div className="label">Browse</div>
-        {items.slice(0, 4).map(it => (
-          <button key={it.id} className={`nav-item ${page === it.id ? 'active' : ''}`} onClick={() => setPage(it.id)}>
-            <span className="ico"><Icon name={it.id === 'team' ? 'teams' : it.id} /></span>
+        {NAV_ITEMS.slice(0, 4).map(it => (
+          <button key={it.id} className={`nav-item ${page === it.id ? "active" : ""}`} onClick={() => setPage(it.id)}>
+            <span className="ico"><Icon name={it.id === "team" ? "teams" : it.id} /></span>
             <span>{it.label}</span>
             {it.count && <span className="count">{it.count}</span>}
           </button>
@@ -28,8 +34,8 @@ function Sidebar({ page, setPage }) {
       </div>
       <div className="nav-group">
         <div className="label">You</div>
-        {items.slice(4).map(it => (
-          <button key={it.id} className={`nav-item ${page === it.id ? 'active' : ''}`} onClick={() => setPage(it.id)}>
+        {NAV_ITEMS.slice(4).map(it => (
+          <button key={it.id} className={`nav-item ${page === it.id ? "active" : ""}`} onClick={() => setPage(it.id)}>
             <span className="ico"><Icon name={it.id} /></span>
             <span>{it.label}</span>
             {it.count && <span className="count">{it.count}</span>}
@@ -39,11 +45,11 @@ function Sidebar({ page, setPage }) {
       <div className="nav-group">
         <div className="label">Following</div>
         <button className="nav-item">
-          <span className="ico" style={{ background: 'var(--accent)', borderRadius: '50%' }}></span>
+          <span className="ico" style={{ background: "var(--accent)", borderRadius: "50%" }}></span>
           <span>Saint Gabriel's</span>
         </button>
         <button className="nav-item">
-          <span className="ico" style={{ background: 'var(--court)', borderRadius: '50%' }}></span>
+          <span className="ico" style={{ background: "var(--court)", borderRadius: "50%" }}></span>
           <span>Bangkok Cup '26</span>
         </button>
       </div>
@@ -59,5 +65,3 @@ function Sidebar({ page, setPage }) {
     </aside>
   );
 }
-
-window.RemyShell = Object.assign(window.RemyShell || {}, { Sidebar });
