@@ -1,0 +1,12 @@
+name = "cedar-on-workers-spike"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Local-only D1 for the loading-pattern spike — wrangler creates ./.wrangler/state/v3/d1/...
+# Database ID is a placeholder; real one would be `wrangler d1 create cedar-spike-db`.
+[[d1_databases]]
+binding = "DB"
+database_name = "cedar-spike-db"
+database_id = "00000000-0000-0000-0000-000000000001"
+migrations_dir = "migrations"

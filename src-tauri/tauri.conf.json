@@ -1,0 +1,39 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Remy Sport",
+  "version": "0.1.0",
+  "identifier": "net.ubuntusoftware.remysport",
+  "build": {
+    "frontendDist": "../dist/web",
+    "devUrl": "http://localhost:8787/app",
+    "beforeDevCommand": "mise run web:build",
+    "beforeBuildCommand": "mise run web:build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Remy Sport",
+        "width": 1280,
+        "height": 900,
+        "minWidth": 380,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}
