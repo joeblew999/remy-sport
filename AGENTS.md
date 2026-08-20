@@ -173,6 +173,23 @@ Notes worth knowing before debugging a deploy:
 - **A first deploy is not instantly reachable.** DNS propagation and edge-certificate issuance take minutes, which is what `cf:wait` covers. A machine that queried the hostname before it existed may hold a negative DNS cache entry for several minutes longer.
 - **`database_id` is written by `cf:d1:ensure`**, never by hand. If `wrangler.toml` changes after a bootstrap, that is expected — review and commit it.
 
+## Tauri (desktop + iOS)
+
+```bash
+mise run tauri:build      # macOS .app + .dmg
+mise run dev              # in one terminal — the desktop/iOS shells need it
+mise run tauri:dev        # desktop, against the local Worker
+mise run tauri:ios:dev    # Simulator, against the local Worker
+```
+
+`tauri.conf.json` points `devUrl` at `http://localhost:8787/app`, so the shells load the SPA from the running Worker and the same relative `/api/*` calls work as on the web. `tauri:dev` and `tauri:ios:dev` check for that Worker and say so plainly instead of opening a blank window.
+
+`tauri.conf.json` already runs `mise run web:build` via `beforeDevCommand`/`beforeBuildCommand`, so the Tauri tasks deliberately do **not** list `web:build` in `depends` — doing both rebuilt the SPA twice per invocation.
+
+**`tauri:ios:init` needs CocoaPods.** Tauri looks for the Homebrew keg and otherwise falls back to `gem install`, which requires sudo and fails unattended. Install it with `brew install cocoapods`. The generated `src-tauri/gen/apple` project is committed; `gen/schemas` is not.
+
+`tauri info` reports `@tauri-apps/plugin-log: not installed!`. That is expected — the log plugin is Rust-side only and used in debug builds; the SPA calls no Tauri JS APIs, so adding the JS package would only add an unused dependency.
+
 ## Seed Users (dev/test only)
 | Role | Email | Password |
 |---|---|---|

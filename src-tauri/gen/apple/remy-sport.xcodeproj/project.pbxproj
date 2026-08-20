@@ -1,0 +1,460 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0AF73A78878B12F21BA147A5 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A102DE33A99C2E79A8200428 /* MetalKit.framework */; };
+		0D86C11B8C84FFBE1701E8CB /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CC1886963483C7D0DBDD4BB0 /* WebKit.framework */; };
+		170D30B3087A2809AB124BE2 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 0429F58841EEFDDF9A2E510A /* assets */; };
+		45B180DEB06B65240E5FE821 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5A0FE404FA5D6CAB1F5F268A /* Assets.xcassets */; };
+		5DB53B89A17C41B2E43CA13E /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EC6295742303CCDB42243DC0 /* Metal.framework */; };
+		61B69E7B4B7C24041924005F /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DB1E0F7F3D525C74F31BA639 /* CoreGraphics.framework */; };
+		7C893140E93E4A3F4C217CFD /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B8C252F55FF0060369575990 /* Security.framework */; };
+		97B5D2F0C095E48A1E794D42 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 80CFF8AACD17CC1ADE50A058 /* LaunchScreen.storyboard */; };
+		AA5AA42434377B67CA18E6DA /* libapp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 79FD67F97E54F64688D23AB3 /* libapp.a */; };
+		BF241BB7CB5D30D2E472366C /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4567A0BC88EF6737DE7256A5 /* UIKit.framework */; };
+		C4A1C160FF71641968B3A8B2 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2E529C0F9DDEA4A55CF40FB7 /* QuartzCore.framework */; };
+		FCD63A668714D939C79FFD4B /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 6D56C8802E3243657AADD7C4 /* main.mm */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0429F58841EEFDDF9A2E510A /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = assets; sourceTree = SOURCE_ROOT; };
+		04DBBFFD33B329296542D513 /* remy-sport_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "remy-sport_iOS.entitlements"; sourceTree = "<group>"; };
+		22976EC13B23A6F160A4FEAA /* remy-sport_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "remy-sport_iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		2E529C0F9DDEA4A55CF40FB7 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
+		4567A0BC88EF6737DE7256A5 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
+		5A0FE404FA5D6CAB1F5F268A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		5B3B9C25BC22E817D92849D8 /* main.rs */ = {isa = PBXFileReference; path = main.rs; sourceTree = "<group>"; };
+		6D56C8802E3243657AADD7C4 /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
+		79FD67F97E54F64688D23AB3 /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
+		80BD4C1F39DE39D3DE193A1F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		80CFF8AACD17CC1ADE50A058 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
+		9362D411176046CF802865A8 /* lib.rs */ = {isa = PBXFileReference; path = lib.rs; sourceTree = "<group>"; };
+		A102DE33A99C2E79A8200428 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
+		B8C252F55FF0060369575990 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		CC1886963483C7D0DBDD4BB0 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
+		CE86767E97DCE280C52E9693 /* bindings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
+		DB1E0F7F3D525C74F31BA639 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
+		EC6295742303CCDB42243DC0 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		F38B920D77217826DBB00428 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA5AA42434377B67CA18E6DA /* libapp.a in Frameworks */,
+				61B69E7B4B7C24041924005F /* CoreGraphics.framework in Frameworks */,
+				5DB53B89A17C41B2E43CA13E /* Metal.framework in Frameworks */,
+				0AF73A78878B12F21BA147A5 /* MetalKit.framework in Frameworks */,
+				C4A1C160FF71641968B3A8B2 /* QuartzCore.framework in Frameworks */,
+				7C893140E93E4A3F4C217CFD /* Security.framework in Frameworks */,
+				BF241BB7CB5D30D2E472366C /* UIKit.framework in Frameworks */,
+				0D86C11B8C84FFBE1701E8CB /* WebKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		02B026BD56CF9CBF23A7D013 = {
+			isa = PBXGroup;
+			children = (
+				0429F58841EEFDDF9A2E510A /* assets */,
+				5A0FE404FA5D6CAB1F5F268A /* Assets.xcassets */,
+				80CFF8AACD17CC1ADE50A058 /* LaunchScreen.storyboard */,
+				2190275234AFFD7FB1F3CE72 /* Externals */,
+				2398068F3D5052AE099B86AF /* remy-sport_iOS */,
+				C930728FC68F53F280E5EAF4 /* Sources */,
+				489001EE0CC872247435AE9A /* src */,
+				C0F3840D31A97F013BAB4738 /* Frameworks */,
+				3FD66BD12716442094D571B8 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		2190275234AFFD7FB1F3CE72 /* Externals */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Externals;
+			sourceTree = "<group>";
+		};
+		2398068F3D5052AE099B86AF /* remy-sport_iOS */ = {
+			isa = PBXGroup;
+			children = (
+				80BD4C1F39DE39D3DE193A1F /* Info.plist */,
+				04DBBFFD33B329296542D513 /* remy-sport_iOS.entitlements */,
+			);
+			path = "remy-sport_iOS";
+			sourceTree = "<group>";
+		};
+		3E0CD6365E05CC06AB460B89 /* remy-sport */ = {
+			isa = PBXGroup;
+			children = (
+				6D56C8802E3243657AADD7C4 /* main.mm */,
+				CFDC12A17952CBE3E749763B /* bindings */,
+			);
+			path = "remy-sport";
+			sourceTree = "<group>";
+		};
+		3FD66BD12716442094D571B8 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				22976EC13B23A6F160A4FEAA /* remy-sport_iOS.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		489001EE0CC872247435AE9A /* src */ = {
+			isa = PBXGroup;
+			children = (
+				9362D411176046CF802865A8 /* lib.rs */,
+				5B3B9C25BC22E817D92849D8 /* main.rs */,
+			);
+			name = src;
+			path = ../../src;
+			sourceTree = "<group>";
+		};
+		C0F3840D31A97F013BAB4738 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				DB1E0F7F3D525C74F31BA639 /* CoreGraphics.framework */,
+				79FD67F97E54F64688D23AB3 /* libapp.a */,
+				EC6295742303CCDB42243DC0 /* Metal.framework */,
+				A102DE33A99C2E79A8200428 /* MetalKit.framework */,
+				2E529C0F9DDEA4A55CF40FB7 /* QuartzCore.framework */,
+				B8C252F55FF0060369575990 /* Security.framework */,
+				4567A0BC88EF6737DE7256A5 /* UIKit.framework */,
+				CC1886963483C7D0DBDD4BB0 /* WebKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		C930728FC68F53F280E5EAF4 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				3E0CD6365E05CC06AB460B89 /* remy-sport */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		CFDC12A17952CBE3E749763B /* bindings */ = {
+			isa = PBXGroup;
+			children = (
+				CE86767E97DCE280C52E9693 /* bindings.h */,
+			);
+			path = bindings;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		58D26E9AAF9396C6F8B15767 /* remy-sport_iOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6F7A610B634E91062EF3B71F /* Build configuration list for PBXNativeTarget "remy-sport_iOS" */;
+			buildPhases = (
+				22EB3237294F4FBE05A0C67A /* Build Rust Code */,
+				DF3DB22994D4795B7E0A0A22 /* Sources */,
+				8B07C69D99244AF1D18B92BE /* Resources */,
+				F38B920D77217826DBB00428 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "remy-sport_iOS";
+			packageProductDependencies = (
+			);
+			productName = "remy-sport_iOS";
+			productReference = 22976EC13B23A6F160A4FEAA /* remy-sport_iOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		BFCD86298DAC9AC0980B7B78 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = 5C9DE03FB9022B25902D4BD0 /* Build configuration list for PBXProject "remy-sport" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 02B026BD56CF9CBF23A7D013;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 3FD66BD12716442094D571B8 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				58D26E9AAF9396C6F8B15767 /* remy-sport_iOS */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		8B07C69D99244AF1D18B92BE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				45B180DEB06B65240E5FE821 /* Assets.xcassets in Resources */,
+				97B5D2F0C095E48A1E794D42 /* LaunchScreen.storyboard in Resources */,
+				170D30B3087A2809AB124BE2 /* assets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		22EB3237294F4FBE05A0C67A /* Build Rust Code */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build Rust Code";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/Externals/x86_64/${CONFIGURATION}/libapp.a",
+				"$(SRCROOT)/Externals/arm64/${CONFIGURATION}/libapp.a",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "bun tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths \"${FRAMEWORK_SEARCH_PATHS:?}\" --header-search-paths \"${HEADER_SEARCH_PATHS:?}\" --gcc-preprocessor-definitions \"${GCC_PREPROCESSOR_DEFINITIONS:-}\" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		DF3DB22994D4795B7E0A0A22 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FCD63A668714D939C79FFD4B /* main.mm in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		6B0B7DDF95CFAC67A394AB53 /* debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ARCHS = (
+					arm64,
+				);
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "remy-sport_iOS/remy-sport_iOS.entitlements";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				ENABLE_BITCODE = NO;
+				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\".\"",
+				);
+				INFOPLIST_FILE = "remy-sport_iOS/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = net.ubuntusoftware.remysport;
+				PRODUCT_NAME = "Remy Sport";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALID_ARCHS = arm64;
+			};
+			name = debug;
+		};
+		8BDDDFE3235F4A72BAC52C12 /* release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = release;
+		};
+		CC9D6D5449684BB94854BA2F /* debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = debug;
+		};
+		F7305C8F5CCEFA5EB17296FF /* release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ARCHS = (
+					arm64,
+				);
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "remy-sport_iOS/remy-sport_iOS.entitlements";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				ENABLE_BITCODE = NO;
+				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\".\"",
+				);
+				INFOPLIST_FILE = "remy-sport_iOS/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = net.ubuntusoftware.remysport;
+				PRODUCT_NAME = "Remy Sport";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALID_ARCHS = arm64;
+			};
+			name = release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		5C9DE03FB9022B25902D4BD0 /* Build configuration list for PBXProject "remy-sport" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CC9D6D5449684BB94854BA2F /* debug */,
+				8BDDDFE3235F4A72BAC52C12 /* release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = debug;
+		};
+		6F7A610B634E91062EF3B71F /* Build configuration list for PBXNativeTarget "remy-sport_iOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6B0B7DDF95CFAC67A394AB53 /* debug */,
+				F7305C8F5CCEFA5EB17296FF /* release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = BFCD86298DAC9AC0980B7B78 /* Project object */;
+}
