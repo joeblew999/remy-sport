@@ -1,6 +1,6 @@
 # ADR 005: API & Authorization
 
-**Status:** Implemented
+**Status:** Partially implemented — see [Implementation status](#implementation-status)
 
 ## Context
 
@@ -305,6 +305,26 @@ src/
 | `mise run seed` | Seeds admin, organizer, coach, player accounts with correct roles |
 | `mise run test` | Playwright tests covering authz scenarios per actor and event type |
 | `mise run dev` | Serves Swagger UI at `/doc` — security schemes and 403/422 responses visible |
+
+## Implementation status
+
+Audited against `main` on 2026-08-20. This ADR previously read **Implemented**, which was not accurate — the status is corrected here rather than in place, so the gap is visible rather than quietly closed.
+
+| Piece | File | Status |
+|---|---|---|
+| Access-control schema (`createAccessControl`, 6 roles) | `src/auth/access-control.ts` | ✅ built |
+| `requirePermission` middleware | `src/middleware/require-permission.ts` | ✅ built, wired on 3 routes |
+| `ownedBy` middleware (Layer 2 ownership) | `src/middleware/owned-by.ts` | ✅ built, wired on event update + delete |
+| Session middleware, security schemes, Swagger UI | `src/middleware/session.ts`, `src/index.ts` | ✅ built |
+| `requireEventType` middleware (Layer 3) | `src/middleware/event-type.ts` | ⚠️ **built but never called** — zero call sites |
+| Referee scoped to a specific match | — | ❌ **not built** — no join table, no route |
+| Resource coverage | `src/routes/` | ⚠️ **events only** — 6 endpoints across 2 route files |
+
+Verified by `mise run test`: 59/59 pass, covering Layer 1 (public read, create-by-role), Layer 2 (ownership), and per-actor dashboard rendering. The two gaps above have no tests because they have no implementation.
+
+Note: the "Step 1 — App setup" section below shows this wiring in `src/app.ts`. No such file exists — security schemes, session middleware and Swagger UI all live in `src/index.ts`. The code blocks in this ADR are illustrative of the intended shape, not a literal map of the tree.
+
+The full resource set described in this ADR — teams, players, matches, scores, brackets, fixtures, rosters, courts, sessions, attendance — was implemented on the unmerged branch `origin/claude/run-system-s8QDJ` (2026-03-31, 72 endpoints, 24 tables) and never merged. `main` diverged on 2026-04-29 toward the Vite/React GUI. That branch is unreviewed and is **not** proposed for merge here; it is recorded so the gap's history is traceable.
 
 ## Consequences
 

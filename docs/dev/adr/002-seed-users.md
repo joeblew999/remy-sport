@@ -6,20 +6,26 @@
 
 Developers and Playwright tests need predictable user accounts to work with. Previously, tests created throwaway users with random emails on every run, and developers had to manually register through the UI. This was slow and unreliable — tests couldn't verify role-based features, and devs wasted time on setup.
 
-We need two well-known seed users:
+We need one well-known seed user per actor role, so tests can verify role-based access for every actor:
 
-| Role | Email | Password | Purpose |
-|---|---|---|---|
-| Admin | `admin@remy.dev` | `admin1234!` | Admin features, privileged actions |
-| User | `user@remy.dev` | `user12345!` | Normal user flows, default testing |
+| Role | Email | Password |
+|---|---|---|
+| Admin | `admin@remy.dev` | `admin1234!` |
+| Organizer | `organizer@remy.dev` | `organizer1!` |
+| Coach | `coach@remy.dev` | `coach12345!` |
+| Player | `player@remy.dev` | `player1234!` |
+| Spectator | `spectator@remy.dev` | `spectator1!` |
+| Referee | `referee@remy.dev` | `referee1234!` |
 
 These are **dev/test credentials only** — not for production.
+
+> **Amended 2026-08-20.** This ADR originally specified two users (`admin@remy.dev` and `user@remy.dev`). It was superseded in practice by [ADR 005](005-api-and-authorization.md), which needs one account per actor role. [src/routes/seed.ts](../../../src/routes/seed.ts) creates the six above; `user@remy.dev` no longer exists. The table is corrected here to match the code.
 
 ## Decision
 
 ### 1. Seed endpoint
 
-`POST /api/seed` endpoint (`src/routes/seed.ts`) that upserts the two users via Better Auth's `signUpEmail` API. The endpoint is idempotent — it skips users that already exist. The worker itself handles seeding through its existing auth stack (no separate script runner needed).
+`POST /api/seed` endpoint (`src/routes/seed.ts`) that upserts the seed users via Better Auth's `signUpEmail` API. The endpoint is idempotent — it skips users that already exist. The worker itself handles seeding through its existing auth stack (no separate script runner needed).
 
 ### 2. Mise tasks
 
@@ -36,7 +42,7 @@ The login page shows dev account buttons below the form:
 
 ```
 ── Dev accounts ──
-[Admin] [User]
+[Admin] [Organizer] [Coach] [Player] [Spectator] [Referee]
 ```
 
 Clicking fills the email/password fields and submits the form automatically.
@@ -45,7 +51,7 @@ Clicking fills the email/password fields and submits the form automatically.
 
 Tests use the seed users instead of creating random accounts:
 - First test calls `/api/seed` to ensure users exist
-- Verifies both admin and user can sign in with known credentials
+- Verifies all six actors can sign in with known credentials
 - Tests the quick-fill buttons are visible on the login page
 
 ### 5. Better Auth Admin plugin (future)
@@ -64,7 +70,7 @@ Enable the Better Auth `admin` plugin to give the admin user elevated privileges
 | `mise.toml` | `seed` and `seed:remote` tasks; `seed:remote` in deploy pipeline |
 | `tests/auth.spec.ts` | Use seed users, test seed endpoint |
 | `tests/login.spec.ts` | Test quick-fill buttons visible |
-| `CONTEXT.md` | Document seed user credentials, ADR mise tasks convention |
+| `CONTEXT.md` (now `AGENTS.md`) | Document seed user credentials, ADR mise tasks convention |
 
 ## Consequences
 

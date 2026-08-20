@@ -1,4 +1,4 @@
-<!-- This file is an alias. All project context lives in CONTEXT.md -->
-<!-- Keep all instructions and conventions in CONTEXT.md -->
+<!-- This file is an alias. All project context lives in AGENTS.md -->
+<!-- Keep all instructions and conventions in AGENTS.md -->
 
-See [CONTEXT.md](CONTEXT.md) for all project context and instructions.
+See [AGENTS.md](AGENTS.md) for all project context and instructions.
