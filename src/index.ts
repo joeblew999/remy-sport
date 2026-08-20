@@ -10,6 +10,7 @@ import loginRoutes from "./routes/login"
 import seedRoutes from "./routes/seed"
 import eventsRoutes from "./routes/events"
 import dashboardRoutes from "./routes/dashboard"
+import wellKnownRoutes from "./routes/well-known"
 import type { AppEnv } from "./types"
 
 const app = new OpenAPIHono<AppEnv>()
@@ -29,7 +30,12 @@ app.openAPIRegistry.registerComponent("securitySchemes", "ApiKey", {
 
 // Global middleware
 app.use(logger())
-app.use(cors({ origin: "*", credentials: true }))
+
+// CORS applies only to /api/*, and only for anonymous cross-origin reads.
+// `origin: "*"` with `credentials: true` is rejected by browsers, so credentials
+// are deliberately absent — the GUI is served from this same origin (see the
+// [assets] block in wrangler.toml) and therefore needs no CORS at all.
+app.use("/api/*", cors({ origin: "*" }))
 
 // Session middleware — resolves session before all routes
 app.use("*", sessionMiddleware)
@@ -37,6 +43,10 @@ app.use("*", sessionMiddleware)
 // API routes registered before CSRF — called via curl/scripts/tests
 app.route("/", seedRoutes)
 app.route("/", eventsRoutes)
+
+// Apple/Android deep-link association files. Must be before CSRF — they are
+// fetched by Apple's and Google's crawlers, not by a browser session.
+app.route("/", wellKnownRoutes)
 
 app.use(csrf())
 
@@ -57,5 +67,16 @@ app.doc("/openapi.json", {
 
 // Swagger UI at /doc
 app.get("/doc", swaggerUI({ url: "/openapi.json" }))
+
+// ── SPA (src/web) ───────────────────────────────────────────────────────────
+// Served from this Worker at /app so the GUI and API share one origin.
+// The SPA uses hash routing (#/event/e1), so every deep link resolves to
+// /app itself — no server-side rewrite table needed.
+app.get("/app", (c) =>
+  c.env.ASSETS.fetch(new Request(new URL("/index.html", c.req.url), c.req.raw)),
+)
+
+// Hashed JS/CSS bundles and any other static file.
+app.all("*", (c) => c.env.ASSETS.fetch(c.req.raw))
 
 export default app

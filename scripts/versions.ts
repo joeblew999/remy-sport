@@ -1,11 +1,11 @@
 /**
  * Generate versions.json with git history and Cloudflare Worker versions.
  *
- * Env vars (passed from Taskfile):
- *   DEPLOYED_URL   — production worker URL
- *   GITHUB_REPO    — GitHub repo URL (for commit links)
- *   WORKER_NAME    — CF worker name (for preview URLs)
- *   CF_SUBDOMAIN   — CF account subdomain (for preview URLs)
+ * Env vars (from mise.toml [env]):
+ *   CF_DEPLOY_URL   — production worker URL
+ *   GITHUB_REPO_URL — GitHub repo URL (for commit links)
+ *   CF_WORKER_NAME  — CF worker name (for preview URLs)
+ *   CF_SUBDOMAIN    — CF account subdomain (for preview URLs)
  */
 
 import { execSync } from "child_process"
@@ -14,10 +14,21 @@ import https from "https"
 
 const run = (cmd: string) => execSync(cmd, { encoding: "utf-8" }).trim()
 
-const DEPLOYED_URL = process.env.DEPLOYED_URL!
-const GITHUB_REPO = process.env.GITHUB_REPO!
-const WORKER_NAME = process.env.WORKER_NAME!
-const CF_SUBDOMAIN = process.env.CF_SUBDOMAIN!
+// Names must match mise.toml [env]. Fail loudly rather than writing
+// "undefined" into versions.json, which the GUI renders as a broken link.
+function requireEnv(name: string): string {
+  const v = process.env[name]
+  if (!v) {
+    console.error(`versions.ts: missing required env var ${name} (expected from mise.toml [env])`)
+    process.exit(1)
+  }
+  return v
+}
+
+const DEPLOYED_URL = requireEnv("CF_DEPLOY_URL")
+const GITHUB_REPO = requireEnv("GITHUB_REPO_URL")
+const WORKER_NAME = requireEnv("CF_WORKER_NAME")
+const CF_SUBDOMAIN = requireEnv("CF_SUBDOMAIN")
 
 // --- Current version from git ---
 

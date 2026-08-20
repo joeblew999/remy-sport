@@ -2,11 +2,14 @@
 bun  = "1.3.11"
 jq   = "1.8.1"
 node = "24.14.1"
+# Standalone binary, so it belongs here rather than in package.json.
+# (The Tauri CLI is an npm package — pinned in package.json alongside wrangler.)
+"aqua:cloudflare/cloudflared" = "2026.8.2"
 
 [env]
 CF_WORKER_NAME  = "remy-sport"
 CF_SUBDOMAIN    = "gedw99"
-CF_DEPLOY_URL   = "https://remy-sport.gedw99.workers.dev"
+CF_DEPLOY_URL   = "https://remy.ubuntusoftware.net"
 CF_D1_NAME      = "remy-sport-db"
 CF_R2_NAME      = "remy-sport-storage"
 DEV_URL         = "http://localhost:8787"
@@ -19,9 +22,58 @@ description = "Install dependencies"
 sources     = ["package.json", "bun.lock"]
 run         = "bun install"
 
+[tasks."auth:schema:generate"]
+description = "Regenerate src/db/auth-schema.ts from src/auth.config.ts via the Better Auth CLI"
+depends     = ["install"]
+# Better Auth owns its own tables — we do not hand-write them. Adding a plugin
+# or an extra user field in auth.config.ts changes the schema, so re-run this
+# and then create a migration (cf:d1:migrations:create) for the delta.
+#
+# The CLI needs a module-level `auth` export, which src/auth.cli.ts provides;
+# the runtime instance takes a Hono Context and cannot be imported here.
+run         = "bun x @better-auth/cli generate --config src/auth.cli.ts --output src/db/auth-schema.ts -y"
+
+[tasks."auth:schema:check"]
+description = "Fail if src/db/auth-schema.ts is stale relative to src/auth.config.ts"
+depends     = ["install"]
+# Guards the drift that broke sign-in: a generated file that someone edited by
+# hand, or a config change nobody regenerated for.
+run = """
+set -e
+TMP=$(mktemp -d)
+bun x @better-auth/cli generate --config src/auth.cli.ts --output "$TMP/auth-schema.ts" -y >/dev/null 2>&1
+if ! diff -q "$TMP/auth-schema.ts" src/db/auth-schema.ts >/dev/null; then
+  echo "auth:schema:check: src/db/auth-schema.ts is stale — run 'mise run auth:schema:generate'" >&2
+  diff "$TMP/auth-schema.ts" src/db/auth-schema.ts || true
+  rm -rf "$TMP"
+  exit 1
+fi
+rm -rf "$TMP"
+echo "auth:schema:check: auth-schema.ts is up to date"
+"""
+
+[tasks."deps:outdated"]
+description = "Show npm packages behind their latest release"
+depends     = ["install"]
+run         = "bun outdated"
+
+[tasks."deps:update"]
+description = "Update npm packages within the semver ranges in package.json"
+# Only moves within existing ranges — a major bump still needs the range in
+# package.json edited deliberately, so this can never silently cross a breaking
+# boundary. Run `mise run check` and `mise run test` afterwards.
+depends     = ["install"]
+run = """
+set -e
+bun update
+mise run check
+"""
+
 [tasks.setup]
-description = "Install deps, apply local D1 migrations, and install Playwright"
-depends     = ["install", "cf:d1:migrations:apply", "playwright:install"]
+description = "Install deps, write .dev.vars, apply local D1 migrations, and install Playwright"
+# These four are genuinely independent, so running them in parallel is correct
+# here — unlike the deploy pipeline, which needs explicit ordering (ADR 006 §8).
+depends     = ["install", "dev:vars", "cf:d1:migrations:apply", "playwright:install"]
 
 [tasks."playwright:install"]
 description = "Install Playwright browsers (proxy-safe, idempotent)"
@@ -30,6 +82,15 @@ run         = """
 BROWSERS_JSON="node_modules/playwright-core/browsers.json"
 CHROMIUM_VERSION=$(node -e "const b=require('./$BROWSERS_JSON'); const c=b.browsers.find(x=>x.name==='chromium'); console.log(c.browserVersion)")
 CHROMIUM_REV=$(node -e "const b=require('./$BROWSERS_JSON'); const c=b.browsers.find(x=>x.name==='chromium'); console.log(c.revision)")
+
+# macOS: the curl path below is linux64-only, and Playwright reads
+# ~/Library/Caches/ms-playwright (not ~/.cache). Use Playwright's own
+# installer, which is idempotent and picks the right arch.
+if [ "$(uname -s)" = "Darwin" ]; then
+  bun x playwright install chromium
+  exit 0
+fi
+
 PW_DIR="$HOME/.cache/ms-playwright"
 
 if [ -d "$PW_DIR/chromium-$CHROMIUM_REV/chrome-linux64" ] && [ -d "$PW_DIR/chromium_headless_shell-$CHROMIUM_REV/chrome-headless-shell-linux64" ]; then
@@ -92,11 +153,37 @@ wait $SERVER_PID
 
 [tasks.seed]
 description = "Seed local D1 with dev users (requires running dev server)"
-run         = "curl -sf -X POST {{env.DEV_URL}}/api/seed | jq ."
+# See the pipefail note on seed:remote.
+run = """
+set -o pipefail
+curl -sf -X POST {{env.DEV_URL}}/api/seed | jq .
+"""
 
 [tasks.deploy]
 description = "Full deploy pipeline"
-depends     = ["setup", "check", "test", "versions", "cf:deploy", "cf:d1:migrations:apply:remote", "seed:remote", "test:deployed"]
+# Sequencing lives in the run block, NOT in depends (ADR 006 §8). mise runs
+# independent sibling dependencies in parallel — it honours the dependency
+# graph, not list order — so the old flat depends list let test:deployed race
+# cf:deploy and seed:remote race the remote migrations.
+#
+# Chaining the tasks through depends was rejected: it would couple them, so
+# `mise run seed:remote` would trigger a full deploy as a side effect. Ordering
+# is a property of this pipeline, not of the individual tasks.
+depends     = ["setup"]
+run = """
+set -e
+mise run check
+mise run auth:schema:check
+mise run test
+mise run versions
+mise run cf:env:bootstrap
+mise run cf:deploy
+mise run cf:secret:set
+mise run cf:wait
+mise run cf:d1:migrations:apply:remote
+mise run seed:remote
+mise run test:deployed
+"""
 
 # ── Remote / test variants ───────────────────────────────────────────────────
 
@@ -109,120 +196,339 @@ description = "Run Playwright tests against deployed worker"
 env         = { BASE_URL = "{{env.CF_DEPLOY_URL}}" }
 run         = "bun x playwright test"
 
+[tasks."test:grep"]
+description = "Run only tests whose title matches GREP (unset GREP runs everything)"
+depends     = ["setup"]
+# GREP defaults to empty, which matches every title — so the task still runs
+# without any user-supplied arg, per the AGENTS.md convention.
+run         = 'bun x playwright test --grep "${GREP:-}"'
+
 [tasks."test:ui"]
 description = "Run Playwright tests with interactive UI"
 run         = "bun x playwright test --ui"
 
 [tasks."seed:remote"]
 description = "Seed remote D1 with dev users (idempotent)"
-run         = "curl -sf -X POST {{env.CF_DEPLOY_URL}}/api/seed | jq ."
+# pipefail is required, not stylistic: a shell pipeline reports the LAST
+# command's status, so `curl -sf ... | jq .` exits 0 even when curl fails —
+# jq simply gets empty input. That masked a failed remote seed as success,
+# including under the deploy pipeline's `set -e`.
+run = """
+set -o pipefail
+curl -sf -X POST {{env.CF_DEPLOY_URL}}/api/seed | jq .
+"""
+
+# ── cf:env: provisioning (ADR 006) ───────────────────────────────────────────
+# Ensure-style, not create-style: each task checks whether the resource exists
+# and creates it only if absent, so re-running is always safe. cf:d1:create and
+# cf:r2:create remain as explicit escape hatches but are in no pipeline.
+
+[tasks."cf:env:bootstrap"]
+description = "Provision all Cloudflare resources for this project (idempotent)"
+# Ordered, not parallel: cf:secret:set needs the worker to exist, and the worker
+# cannot deploy until D1 and R2 do. See the note in cf:secret:set.
+depends     = ["install"]
+run = """
+set -e
+mise run cf:d1:ensure
+mise run cf:r2:ensure
+mise run cf:secret:set
+"""
+
+[tasks."cf:wait"]
+description = "Wait until the deployed URL actually serves traffic"
+# A freshly bound custom domain is not immediately usable: wrangler creates the
+# DNS record and requests an edge certificate, but propagation and issuance take
+# minutes. The first deploy failed here with `getaddrinfo ENOTFOUND` because
+# migrations, seeding and test:deployed all ran the instant cf:deploy returned.
+run = """
+for i in $(seq 1 60); do
+  if curl -sf -o /dev/null {{env.CF_DEPLOY_URL}}/api/health; then
+    echo "cf:wait: {{env.CF_DEPLOY_URL}} is serving"
+    exit 0
+  fi
+  sleep 5
+done
+echo "cf:wait: {{env.CF_DEPLOY_URL}} did not respond within 5 minutes" >&2
+exit 1
+"""
+
+[tasks."cf:d1:ensure"]
+description = "Create D1 if absent; write the resolved database_id into wrangler.toml"
+depends     = ["install"]
+run         = "bun scripts/cf-ensure.ts d1"
+
+[tasks."cf:r2:ensure"]
+description = "Create the R2 bucket if absent"
+depends     = ["install"]
+run         = "bun scripts/cf-ensure.ts r2"
+
+[tasks."cf:secret:set"]
+description = "Set BETTER_AUTH_SECRET on the deployed worker (generates one if unset)"
+depends     = ["install"]
+# `wrangler secret put` prompts when attached to a TTY and has no value flag, so
+# the value is piped via stdin to work unattended. It is never echoed.
+#
+# The worker must already exist — `wrangler secret list` errors with "Worker not
+# found" on a never-deployed script. So this skips cleanly when called from
+# cf:env:bootstrap before the first deploy, and the deploy pipeline calls it
+# again immediately after cf:deploy. Idempotent, so running it twice is free.
+run = """
+if ! SECRETS=$(mise run -q cf:secret:list 2>&1); then
+  echo "cf:secret:set: worker not deployed yet — skipping (deploy runs this again afterwards)"
+  exit 0
+fi
+if echo "$SECRETS" | grep -q BETTER_AUTH_SECRET; then
+  echo "cf:secret:set: BETTER_AUTH_SECRET already set, no change"
+  exit 0
+fi
+SECRET="${BETTER_AUTH_SECRET:-$(openssl rand -base64 32)}"
+printf '%s' "$SECRET" | bun x wrangler secret put BETTER_AUTH_SECRET
+echo "cf:secret:set: BETTER_AUTH_SECRET set"
+"""
+
+[tasks."dev:vars"]
+description = "Write .dev.vars with a generated BETTER_AUTH_SECRET if absent"
+depends     = ["install"]
+run         = "bun scripts/dev-vars.ts"
 
 # ── cf: deploy ───────────────────────────────────────────────────────────────
 
 [tasks."cf:deploy"]
-description = "Deploy worker to Cloudflare"
-sources     = ["src/**/*.ts", "wrangler.toml", "package.json", "versions.json"]
+description = "Deploy worker (API + SPA) to Cloudflare"
+# web:build must run first — wrangler uploads dist/web via the [assets] binding,
+# so deploying without a fresh build ships stale or missing GUI assets.
+depends     = ["install", "web:build"]
+sources     = ["src/**/*.ts", "src/web/**/*", "wrangler.toml", "package.json", "versions.json"]
 run         = "bun x wrangler deploy"
 
 [tasks."cf:deploy:staging"]
 description = "Deploy to staging environment"
+depends     = ["install"]
 run         = "bun x wrangler deploy --env staging"
 
 [tasks."cf:deploy:production"]
 description = "Deploy to production environment"
+depends     = ["install"]
 run         = "bun x wrangler deploy --env production"
 
 [tasks."cf:versions:list"]
 description = "List deployed versions"
+depends     = ["install"]
 run         = "bun x wrangler versions list"
 
 [tasks."cf:versions:upload"]
 description = "Upload a version without deploying"
+depends     = ["install"]
 run         = "bun x wrangler versions upload"
 
 [tasks."cf:versions:deploy"]
 description = "Gradual rollout (interactive)"
+depends     = ["install"]
 run         = "bun x wrangler versions deploy"
 
 [tasks."cf:rollback"]
 description = "Roll back to the previous version"
+depends     = ["install"]
 run         = "bun x wrangler rollback"
 
 [tasks."cf:tail"]
 description = "Tail live worker logs"
+depends     = ["install"]
 run         = "bun x wrangler tail"
+
+[tasks."cf:login"]
+description = "Authenticate wrangler with Cloudflare (opens browser)"
+depends     = ["install"]
+run         = "bun x wrangler login"
+
+[tasks."cf:logout"]
+description = "Clear stored Cloudflare credentials"
+depends     = ["install"]
+run         = "bun x wrangler logout"
 
 [tasks."cf:whoami"]
 description = "Show current Cloudflare auth info"
+depends     = ["install"]
 run         = "bun x wrangler whoami"
 
 [tasks."cf:secret:list"]
 description = "List secrets set on the worker"
+depends     = ["install"]
 run         = "bun x wrangler secret list"
 
 [tasks."cf:types"]
 description = "Generate TypeScript types from wrangler bindings (worker-configuration.d.ts)"
+depends     = ["install"]
 run         = "bun x wrangler types"
 
 # ── cf:d1: database ──────────────────────────────────────────────────────────
 
 [tasks."cf:d1:list"]
 description = "List D1 databases"
+depends     = ["install"]
 run         = "bun x wrangler d1 list"
+
+[tasks."cf:d1:list:json"]
+description = "List D1 databases as JSON (machine-readable; used by cf:d1:ensure)"
+depends     = ["install"]
+run         = "bun x wrangler d1 list --json"
 
 [tasks."cf:d1:create"]
 description = "Create the project D1 database"
+depends     = ["install"]
 run         = "bun x wrangler d1 create {{env.CF_D1_NAME}}"
 
 [tasks."cf:d1:tables"]
 description = "List tables in local D1"
+depends     = ["install"]
 run         = "bun x wrangler d1 execute {{env.CF_D1_NAME}} --local --command \"SELECT name FROM sqlite_master WHERE type='table' ORDER BY name\""
 
 [tasks."cf:d1:tables:remote"]
 description = "List tables in remote D1"
+depends     = ["install"]
 run         = "bun x wrangler d1 execute {{env.CF_D1_NAME}} --remote --command \"SELECT name FROM sqlite_master WHERE type='table' ORDER BY name\""
 
 [tasks."cf:d1:migrations:create"]
 description = "Create a new D1 migration (set NAME env var)"
+depends     = ["install"]
 run         = "bun x wrangler d1 migrations create {{env.CF_D1_NAME}} \"$NAME\""
 
 [tasks."cf:d1:migrations:apply"]
 description = "Apply D1 migrations locally (idempotent)"
+depends     = ["install"]
 run         = "bun x wrangler d1 migrations apply {{env.CF_D1_NAME}} --local"
 
 [tasks."cf:d1:migrations:apply:remote"]
 description = "Apply D1 migrations to remote (idempotent)"
+depends     = ["install"]
 run         = "bun x wrangler d1 migrations apply {{env.CF_D1_NAME}} --remote"
 
 # ── cf:r2: storage ───────────────────────────────────────────────────────────
 
 [tasks."cf:r2:list"]
 description = "List R2 buckets"
+depends     = ["install"]
 run         = "bun x wrangler r2 bucket list"
 
 [tasks."cf:r2:create"]
 description = "Create the project R2 bucket"
+depends     = ["install"]
 run         = "bun x wrangler r2 bucket create {{env.CF_R2_NAME}}"
 
 [tasks."cf:r2:objects"]
 description = "List objects in the R2 bucket"
+depends     = ["install"]
 run         = "bun x wrangler r2 object list {{env.CF_R2_NAME}}"
 
 # ── Web app (src/web/) ──────────────────────────────────────────────────────
 
 [tasks."web:dev"]
 description = "Run the web app via Vite dev server (port 5175, HMR)"
+depends     = ["install"]
 run         = "bun x vite --config src/web/vite.config.ts"
 
 [tasks."web:build"]
 description = "Production build → dist/web/"
+depends     = ["install"]
+# Declared so the build actually skips when nothing changed, per the AGENTS.md
+# idempotency convention. This matters most for Tauri: tauri.conf.json runs
+# `mise run web:build` itself via beforeDevCommand/beforeBuildCommand, so
+# without these the SPA was rebuilt twice on every `mise run tauri:build`.
+sources     = ["src/web/**/*", "package.json", "bun.lock"]
+outputs     = ["dist/web/index.html"]
 run         = "bun x vite build --config src/web/vite.config.ts"
 
 [tasks."web:typecheck"]
 description = "TypeScript type-check src/web/ (no emit)"
+depends     = ["install"]
 run         = "bun x tsc -p src/web/tsconfig.json --noEmit"
 
 [tasks."web:deploy"]
-description = "Build and deploy the web app to Cloudflare Pages (project: remy-sport-design)"
+description = "LEGACY — deploy SPA to Pages (superseded: cf:deploy now ships it same-origin)"
 depends     = ["web:build"]
 run         = "bun x wrangler pages deploy dist/web --project-name=remy-sport-design --branch=main --commit-dirty=true"
+
+# ── Tauri (Desktop + iOS) ───────────────────────────────────────────────────
+# The Tauri CLI is pinned in package.json (npm package), like wrangler and vite.
+# Desktop dev loads the SPA from the running Worker at localhost:8787/app, so
+# the same relative /api/* calls work as on the web.
+
+# tauri.conf.json already runs `mise run web:build` via
+# beforeDevCommand/beforeBuildCommand, so web:build is deliberately NOT in
+# depends here — listing it too rebuilt the SPA twice per invocation.
+[tasks."tauri:dev"]
+description = "Run the Tauri desktop app against the local Worker (needs `mise run dev`)"
+depends     = ["install"]
+# devUrl in tauri.conf.json is http://localhost:8787/app, so the Worker has to
+# be serving already. Without this check Tauri opens a blank window with a
+# webview network error, which says nothing about the actual cause.
+run = """
+if ! curl -sf -o /dev/null {{env.DEV_URL}}/api/health; then
+  echo "tauri:dev: no Worker on {{env.DEV_URL}} — start one first with 'mise run dev' (or 'mise run dev:seed')" >&2
+  exit 1
+fi
+bun x tauri dev
+"""
+
+# tauri.conf.json already runs `mise run web:build` via
+# beforeDevCommand/beforeBuildCommand, so web:build is deliberately NOT in
+# depends here — listing it too rebuilt the SPA twice per invocation.
+[tasks."tauri:build"]
+description = "Build the signed-less Tauri desktop bundle (.app + .dmg)"
+depends     = ["install"]
+run         = "bun x tauri build"
+
+[tasks."tauri:info"]
+description = "Show Tauri environment diagnosis (toolchain, versions, config)"
+depends     = ["install"]
+run         = "bun x tauri info"
+
+[tasks."tauri:ios:init"]
+description = "Scaffold the iOS Xcode project (one-off; needs Xcode)"
+depends     = ["install"]
+run         = "bun x tauri ios init"
+
+# tauri.conf.json already runs `mise run web:build` via
+# beforeDevCommand/beforeBuildCommand, so web:build is deliberately NOT in
+# depends here — listing it too rebuilt the SPA twice per invocation.
+[tasks."tauri:ios:dev"]
+description = "Run the iOS app in the Simulator against the local Worker"
+depends     = ["install"]
+# Two preconditions that otherwise fail deep inside the Tauri/Xcode toolchain
+# with errors that do not name the missing step.
+run = """
+if [ ! -d src-tauri/gen/apple ]; then
+  echo "tauri:ios:dev: iOS project not scaffolded — run 'mise run tauri:ios:init' first" >&2
+  exit 1
+fi
+if ! curl -sf -o /dev/null {{env.DEV_URL}}/api/health; then
+  echo "tauri:ios:dev: no Worker on {{env.DEV_URL}} — start one first with 'mise run dev'" >&2
+  exit 1
+fi
+bun x tauri ios dev
+"""
+
+# ── Tunnel ──────────────────────────────────────────────────────────────────
+# Emulators reach localhost directly and need no tunnel. A tunnel is only
+# required for Apple Universal Links: Apple's CDN fetches
+# /.well-known/apple-app-site-association from the public internet, so it can
+# never see localhost. A *named* tunnel is required — a random trycloudflare
+# hostname is useless because Apple caches the file against the domain.
+
+[tasks."tunnel:login"]
+description = "Authenticate cloudflared with Cloudflare (one-off, opens browser)"
+run         = "cloudflared tunnel login"
+
+[tasks."tunnel:quick"]
+description = "Expose local Worker on a random trycloudflare URL (real-device testing)"
+# Fine for loading the app on a phone off your LAN. NOT usable for Universal
+# Links — the hostname changes every run and Apple caches the AASA per domain.
+run         = "cloudflared tunnel --url {{env.DEV_URL}}"
+
+[tasks."tunnel:named"]
+description = "Expose local Worker on a stable hostname (required for Universal Links)"
+# Requires a one-off: `mise run tunnel:login`, then
+#   cloudflared tunnel create remy-sport-dev
+#   cloudflared tunnel route dns remy-sport-dev {{env.TUNNEL_HOSTNAME}}
+run = "cloudflared tunnel run --url {{env.DEV_URL}} {{env.TUNNEL_NAME}}"

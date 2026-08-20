@@ -3,11 +3,32 @@ main = "src/index.ts"
 compatibility_date = "2025-09-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Custom domain. Required for Apple universal links — workers.dev cannot serve
+# an Associated Domains file. Wrangler creates the DNS record on deploy.
+# NOTE: this is a development host. Apple bakes the domain into the app
+# entitlement, so moving to the real brand domain later requires an app update.
+[[routes]]
+pattern       = "remy.ubuntusoftware.net"
+custom_domain = true
+
+# Static assets — the Vite SPA (src/web) served from this same Worker, so the
+# GUI and the API share one origin. No CORS, no cross-site cookies.
+# run_worker_first: the Worker's own routes (/, /login, /dashboard, /api/*)
+# take priority; anything unmatched falls through to the asset store.
+[assets]
+directory        = "./dist/web"
+binding          = "ASSETS"
+run_worker_first = true
+# Serve files at their literal path. The default ("auto-trailing-slash") 307s
+# /index.html to /, which the Worker already owns (server-rendered home page).
+html_handling      = "none"
+not_found_handling = "none"
+
 # D1 Database
 [[d1_databases]]
 binding = "DB"
 database_name = "remy-sport-db"
-database_id = "3bf4aa25-3250-491e-83e7-ba8dbf5562f5"
+database_id = "a95ca62b-63be-4245-9ee4-e39e60ebfdab"
 migrations_dir = "src/db/migrations"
 
 # R2 Storage
@@ -20,7 +41,7 @@ enabled            = true
 head_sampling_rate = 1
 
 [vars]
-BETTER_AUTH_URL = "https://remy-sport.gedw99.workers.dev"
+BETTER_AUTH_URL = "https://remy.ubuntusoftware.net"
 
 # BETTER_AUTH_SECRET is set via `wrangler secret` — not stored in config
 # For local dev, .dev.vars provides the secret
