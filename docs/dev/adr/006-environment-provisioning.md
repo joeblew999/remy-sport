@@ -344,3 +344,23 @@ CLOUDFLARE_API_TOKEN=... mise run cf:audit
 Without one it prints the exact steps to mint it (Account | Account Settings | Read). It tries both the v1 `/audit_logs` and v2 `/logs/audit` endpoints, and reports deletes plus anything naming the project — a rename or account transfer would explain the disappearance equally well. Worth running soon: audit retention is finite and the window is already five months back.
 
 The practical consequence is unchanged: `cf:env:bootstrap` plus `deploy` rebuilds the environment in two commands, so a recurrence costs minutes rather than a day.
+
+### Scoping wrangler state to the project
+
+The reason the actor is unknowable is not that Cloudflare kept no record locally — it is that wrangler's record is **global**. Logs go to `~/Library/Preferences/.wrangler/logs`, shared by every project on the machine: 369 files belonging to ~40 projects, under global retention that had already aged out 2026-03 through 2026-08.
+
+`mise.toml` now redirects that state into the repo:
+
+```toml
+WRANGLER_LOG_PATH     = "{{config_root}}/.wrangler/logs"
+WRANGLER_CACHE_DIR    = "{{config_root}}/.wrangler/cache"
+CLOUDFLARE_ACCOUNT_ID = "7384af54e33b8a54ff240371ea368440"
+```
+
+`.wrangler/` is already gitignored, so the trail stays local but project-only and complete. A future incident is `grep .wrangler/logs`, not an archaeology exercise across other projects' logs.
+
+Pinning `CLOUDFLARE_ACCOUNT_ID` means no command can act against a different account, whatever the ambient credential is authorised for.
+
+**Scoping has a hard limit, and it is worth stating plainly.** Cloudflare resources live in one flat account namespace; mise is a local tool with no authority over what exists in Cloudflare. No configuration here prevents a credential with delete rights from removing `remy-sport-db` — it only makes the removal attributable. The actual control is a least-privilege API token scoped to this project's resources, which is a Cloudflare-side decision; mise can hold it (`CLOUDFLARE_API_TOKEN`) but cannot enforce it.
+
+Two related global installs remain outside mise: the cargo `tauri-cli` and Homebrew `cocoapods` that `tauri:ios:deps` installs. Both are resolvable as mise tools (`ubi:tauri-apps/tauri`, `gem:cocoapods`), but `gem:` requires a mise-managed Ruby, which would tax every developer's `mise install` for a toolchain only iOS work needs. Per-task `tools = {}` would have scoped it precisely, but is silently ignored on mise 2026.8.9 — verified: a task pinning `jq = "1.8.1"` still resolved the system 1.7.1.

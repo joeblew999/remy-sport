@@ -167,6 +167,20 @@ mise run cf:env:bootstrap   # provision D1 + R2 + BETTER_AUTH_SECRET (idempotent
 mise run deploy
 ```
 
+### Project-scoped Cloudflare state
+
+`mise.toml` redirects wrangler's global state into this repo:
+
+| Var | Effect |
+|---|---|
+| `WRANGLER_LOG_PATH` | logs land in `.wrangler/logs/`, not `~/Library/Preferences/.wrangler/logs` |
+| `WRANGLER_CACHE_DIR` | cache in `.wrangler/cache/` |
+| `CLOUDFLARE_ACCOUNT_ID` | pins the account, whatever the ambient credential allows |
+
+This matters for more than tidiness. When the original worker, D1 and R2 were deleted, the trail sat in 369 global logs belonging to ~40 other projects, under global retention that had already aged out the months in question — which is why the ADR 006 postscript can prove *what* happened but not *who*. With logs scoped here, that investigation is `grep .wrangler/logs`.
+
+**What scoping cannot do:** Cloudflare resources live in one flat account namespace. mise is a local tool with no authority over what exists in Cloudflare, so no config here prevents a credential with delete rights from removing `remy-sport-db`. The control for that is a least-privilege API token (Cloudflare-side); mise can hold it via `CLOUDFLARE_API_TOKEN`, but cannot enforce it.
+
 Notes worth knowing before debugging a deploy:
 
 - **`wrangler dev` simulates the custom domain.** With a `[[routes]]` block present, local requests reach the Worker as `http://remy.ubuntusoftware.net`, not `http://localhost:8787` — `c.req.url`, `Host`, `Origin` and `Referer` are all rewritten, keeping the **http** scheme. `src/auth.ts` therefore derives `trustedOrigins` from the request instead of hardcoding a host; don't replace that with a fixed list.

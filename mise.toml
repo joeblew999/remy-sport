@@ -7,6 +7,22 @@ node = "24.14.1"
 "aqua:cloudflare/cloudflared" = "2026.8.2"
 
 [env]
+# ── Project-scoped Cloudflare state ─────────────────────────────────────────
+# Wrangler defaults to global state under ~/Library/Preferences/.wrangler,
+# shared by every project on the machine. That is what made the loss of the
+# original worker/D1/R2 unattributable: the trail sat in 369 logs belonging to
+# 40-odd other projects, under global retention that had already aged out the
+# months when the deletion happened (see the ADR 006 postscript).
+#
+# Redirected into .wrangler/ here, so the trail is project-only, complete, and
+# lives beside the code. .wrangler/ is gitignored.
+WRANGLER_LOG_PATH  = "{{config_root}}/.wrangler/logs"
+WRANGLER_CACHE_DIR = "{{config_root}}/.wrangler/cache"
+
+# Pin the account so no command can act against a different one, whatever the
+# ambient credential happens to be authorised for.
+CLOUDFLARE_ACCOUNT_ID = "7384af54e33b8a54ff240371ea368440"
+
 CF_WORKER_NAME  = "remy-sport"
 CF_SUBDOMAIN    = "gedw99"
 CF_DEPLOY_URL   = "https://remy.ubuntusoftware.net"
