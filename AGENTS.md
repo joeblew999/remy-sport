@@ -186,9 +186,9 @@ mise run tauri:ios:dev    # Simulator, against the local Worker
 
 `tauri.conf.json` already runs `mise run web:build` via `beforeDevCommand`/`beforeBuildCommand`, so the Tauri tasks deliberately do **not** list `web:build` in `depends` — doing both rebuilt the SPA twice per invocation.
 
-**`tauri:ios:init` needs CocoaPods.** Tauri looks for the Homebrew keg and otherwise falls back to `gem install`, which requires sudo and fails unattended. Install it with `brew install cocoapods`. The generated `src-tauri/gen/apple` project is committed; `gen/schemas` is not.
+`tauri:ios:init` installs CocoaPods itself via `tauri:ios:deps` (Tauri otherwise falls back to `gem install`, which needs sudo and fails unattended), and skips once the project exists. The generated `src-tauri/gen/apple` project is committed; `gen/schemas` is not.
 
-`tauri info` reports `@tauri-apps/plugin-log: not installed!`. That is expected — the log plugin is Rust-side only and used in debug builds; the SPA calls no Tauri JS APIs, so adding the JS package would only add an unused dependency.
+`tauri info` should report only two notices, both upstream: `wry` and `tao` show as outdated because `tauri` 2.11.5 — the latest release — pins them. Nothing else should be flagged; if `@tauri-apps/plugin-log` reports "not installed", the SPA's log forwarding in `src/web/main.tsx` has lost its dependency.
 
 ## Seed Users (dev/test only)
 | Role | Email | Password |

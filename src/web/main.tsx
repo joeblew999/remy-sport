@@ -94,6 +94,20 @@ function App() {
   );
 }
 
+// Forward webview console output to the Rust logger when running inside Tauri.
+// src-tauri/src/lib.rs registers tauri-plugin-log for debug builds, but only
+// the Rust half was installed — so `tauri dev` and `tauri ios dev` showed
+// nothing the SPA logged, and `tauri info` reported the JS half missing.
+//
+// Guarded and dynamically imported so a plain browser never loads it.
+if (typeof window !== "undefined" && "__TAURI_INTERNALS__" in window) {
+  import("@tauri-apps/plugin-log")
+    .then(({ attachConsole }) => attachConsole())
+    .catch(() => {
+      /* logging is best-effort; never block the app from mounting */
+    });
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App/>

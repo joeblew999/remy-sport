@@ -151,6 +151,46 @@ curl -sf -X POST {{env.DEV_URL}}/api/seed | jq . || true
 wait $SERVER_PID
 """
 
+[tasks."dev:ensure"]
+description = "Ensure a Worker is serving on DEV_URL, starting one in the background if not"
+depends     = ["setup"]
+# Makes "a Worker must be running" expressible as a dependency instead of an
+# error telling you to go and start one. Idempotent: no-op when something is
+# already serving, which is also why it composes with `mise run dev` in another
+# terminal and with Playwright's reuseExistingServer.
+#
+# The server is detached on purpose — it has to outlive this task so whatever
+# depends on it (tauri:dev, tauri:ios:dev) can use it. Logs land in .wrangler/,
+# which is gitignored. Stop it with `mise run dev:stop`.
+run = """
+if curl -sf -o /dev/null {{env.DEV_URL}}/api/health; then
+  echo "dev:ensure: Worker already serving on {{env.DEV_URL}}"
+  exit 0
+fi
+mkdir -p .wrangler
+echo "dev:ensure: starting a Worker on {{env.DEV_URL}}..."
+nohup bun x wrangler dev >.wrangler/dev.log 2>&1 &
+for i in $(seq 1 40); do
+  if curl -sf -o /dev/null {{env.DEV_URL}}/api/health; then
+    echo "dev:ensure: Worker is serving on {{env.DEV_URL}}"
+    exit 0
+  fi
+  sleep 1
+done
+echo "dev:ensure: Worker did not become ready — see .wrangler/dev.log" >&2
+exit 1
+"""
+
+[tasks."dev:stop"]
+description = "Stop a Worker started by dev:ensure (idempotent)"
+run = """
+if pkill -f "wrangler dev" 2>/dev/null; then
+  echo "dev:stop: stopped"
+else
+  echo "dev:stop: nothing running"
+fi
+"""
+
 [tasks.seed]
 description = "Seed local D1 with dev users (requires running dev server)"
 # See the pipefail note on seed:remote.
@@ -236,20 +276,41 @@ mise run cf:secret:set
 """
 
 [tasks."cf:wait"]
-description = "Wait until the deployed URL actually serves traffic"
-# A freshly bound custom domain is not immediately usable: wrangler creates the
-# DNS record and requests an edge certificate, but propagation and issuance take
-# minutes. The first deploy failed here with `getaddrinfo ENOTFOUND` because
-# migrations, seeding and test:deployed all ran the instant cf:deploy returned.
+description = "Wait until the origin is serving the build that was just deployed"
+depends     = ["install"]
+# Two distinct problems, both of which broke a deploy:
+#
+# 1. A freshly bound custom domain is not immediately usable — wrangler creates
+#    the DNS record and requests an edge certificate, but propagation and
+#    issuance take minutes. The first deploy died with `getaddrinfo ENOTFOUND`.
+#
+# 2. `wrangler deploy` returns before the new version has propagated. Polling
+#    /api/health cannot detect that, because the OLD worker answers it happily
+#    — so test:deployed ran against stale code and every organization test 404'd
+#    on a route the new build had only just added.
+#
+# So this compares the build stamp the origin reports against the one in the
+# local versions.json (written by `mise run versions` earlier in the pipeline).
+# `_generated` rather than the git commit: the commit only changes when you
+# commit, so deploying uncommitted work would report a match against stale code.
 run = """
+set -o pipefail
+WANT=$(python3 -c "import json; d=json.load(open('versions.json')); print(d.get('current',d).get('_generated',''))")
+if [ -z "$WANT" ]; then
+  echo "cf:wait: no _generated stamp in versions.json — run 'mise run versions' first" >&2
+  exit 1
+fi
 for i in $(seq 1 60); do
-  if curl -sf -o /dev/null {{env.CF_DEPLOY_URL}}/api/health; then
-    echo "cf:wait: {{env.CF_DEPLOY_URL}} is serving"
+  GOT=$(curl -sf --max-time 10 {{env.CF_DEPLOY_URL}}/api/versions 2>/dev/null \
+        | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('current',d).get('_generated',''))" 2>/dev/null || echo "")
+  if [ "$GOT" = "$WANT" ]; then
+    echo "cf:wait: {{env.CF_DEPLOY_URL}} is serving $WANT"
     exit 0
   fi
+  [ -n "$GOT" ] && echo "cf:wait: origin still serving $GOT, want $WANT"
   sleep 5
 done
-echo "cf:wait: {{env.CF_DEPLOY_URL}} did not respond within 5 minutes" >&2
+echo "cf:wait: {{env.CF_DEPLOY_URL}} never reported $WANT within 5 minutes" >&2
 exit 1
 """
 
@@ -458,18 +519,9 @@ run         = "bun x wrangler pages deploy dist/web --project-name=remy-sport-de
 # beforeDevCommand/beforeBuildCommand, so web:build is deliberately NOT in
 # depends here — listing it too rebuilt the SPA twice per invocation.
 [tasks."tauri:dev"]
-description = "Run the Tauri desktop app against the local Worker (needs `mise run dev`)"
-depends     = ["install"]
-# devUrl in tauri.conf.json is http://localhost:8787/app, so the Worker has to
-# be serving already. Without this check Tauri opens a blank window with a
-# webview network error, which says nothing about the actual cause.
-run = """
-if ! curl -sf -o /dev/null {{env.DEV_URL}}/api/health; then
-  echo "tauri:dev: no Worker on {{env.DEV_URL}} — start one first with 'mise run dev' (or 'mise run dev:seed')" >&2
-  exit 1
-fi
-bun x tauri dev
-"""
+description = "Run the Tauri desktop app against the local Worker"
+depends     = ["install", "dev:ensure"]
+run         = "bun x tauri dev"
 
 # tauri.conf.json already runs `mise run web:build` via
 # beforeDevCommand/beforeBuildCommand, so web:build is deliberately NOT in
@@ -484,9 +536,26 @@ description = "Show Tauri environment diagnosis (toolchain, versions, config)"
 depends     = ["install"]
 run         = "bun x tauri info"
 
+[tasks."tauri:ios:deps"]
+description = "Install the iOS toolchain prerequisites (CocoaPods) if missing"
+# `tauri ios init` looks for a CocoaPods Homebrew keg and otherwise falls back
+# to `gem install`, which needs sudo and dies unattended. Installing it here
+# means tauri:ios:init can be depended on rather than explained in a README.
+run = """
+if command -v pod >/dev/null 2>&1; then
+  echo "tauri:ios:deps: cocoapods already installed"
+  exit 0
+fi
+echo "tauri:ios:deps: installing cocoapods..."
+brew install cocoapods
+"""
+
 [tasks."tauri:ios:init"]
-description = "Scaffold the iOS Xcode project (one-off; needs Xcode)"
-depends     = ["install"]
+description = "Scaffold the iOS Xcode project (idempotent)"
+depends     = ["install", "tauri:ios:deps"]
+# Skips once the project exists and neither the Tauri config nor the crate
+# manifest has changed, so tauri:ios:dev can depend on it unconditionally.
+sources     = ["src-tauri/tauri.conf.json", "src-tauri/Cargo.toml"]
 run         = "bun x tauri ios init"
 
 # tauri.conf.json already runs `mise run web:build` via
@@ -494,20 +563,8 @@ run         = "bun x tauri ios init"
 # depends here — listing it too rebuilt the SPA twice per invocation.
 [tasks."tauri:ios:dev"]
 description = "Run the iOS app in the Simulator against the local Worker"
-depends     = ["install"]
-# Two preconditions that otherwise fail deep inside the Tauri/Xcode toolchain
-# with errors that do not name the missing step.
-run = """
-if [ ! -d src-tauri/gen/apple ]; then
-  echo "tauri:ios:dev: iOS project not scaffolded — run 'mise run tauri:ios:init' first" >&2
-  exit 1
-fi
-if ! curl -sf -o /dev/null {{env.DEV_URL}}/api/health; then
-  echo "tauri:ios:dev: no Worker on {{env.DEV_URL}} — start one first with 'mise run dev'" >&2
-  exit 1
-fi
-bun x tauri ios dev
-"""
+depends     = ["install", "dev:ensure", "tauri:ios:init"]
+run         = "bun x tauri ios dev"
 
 # ── Tunnel ──────────────────────────────────────────────────────────────────
 # Emulators reach localhost directly and need no tunnel. A tunnel is only

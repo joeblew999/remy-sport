@@ -157,7 +157,11 @@ The check is gated on `headers.has("cookie")` (see `validateOrigin` in better-au
 
 **Decision:** derive the trusted origin from the request rather than hardcoding a list — `new URL(c.req.url).origin`. The Worker serves the GUI from its own `[assets]` binding, so a same-origin request is first-party by definition, which is exactly what the check protects. This works unchanged on localhost, on the simulated custom domain, on workers.dev, and in production.
 
-**A first deploy is not immediately reachable.** Wrangler creates the DNS record and requests an edge certificate, but propagation and issuance take minutes; the first `mise run deploy` died at `test:deployed` with `getaddrinfo ENOTFOUND`. Hence `cf:wait` in §9, which polls `/api/health` before anything downstream touches the origin. Note that a machine that queried the name while it did not exist may hold a **negative DNS cache** entry well after the record goes live.
+**A first deploy is not immediately reachable.** Wrangler creates the DNS record and requests an edge certificate, but propagation and issuance take minutes; the first `mise run deploy` died at `test:deployed` with `getaddrinfo ENOTFOUND`. Hence `cf:wait` in §9, which gates everything downstream of `cf:deploy`. Note that a machine that queried the name while it did not exist may hold a **negative DNS cache** entry well after the record goes live.
+
+**`cf:wait` must check the *version*, not reachability.** Its first implementation polled `/api/health`, which is not sufficient: `wrangler deploy` returns before the new version has propagated, and the **old** worker answers `/api/health` perfectly well. The ADR 007 deploy passed `cf:wait` instantly and then ran `test:deployed` against stale code — every organization test 404'd on routes the new build had just added, and survived retries because it was not flaky at all.
+
+`cf:wait` now polls `/api/versions` and compares the `_generated` stamp against the local `versions.json` written by `mise run versions` earlier in the same pipeline. `_generated` rather than the git commit, because the commit only changes when you commit — deploying uncommitted work would otherwise match against stale code.
 
 ### 9b. `seed:remote` masked its own failure
 

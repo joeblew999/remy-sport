@@ -16,6 +16,7 @@
     "@better-auth/cli": "1.4.22",
     "@playwright/test": "^1.62.1",
     "@tauri-apps/cli": "^2.11.4",
+    "@tauri-apps/plugin-log": "^2.9.0",
     "@types/node": "^25.9.5",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
