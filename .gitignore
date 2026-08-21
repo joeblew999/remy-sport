@@ -4,3 +4,5 @@ dist/
 .dev.vars
 test-results/
 playwright-report/
+.playwright/
+.gem/

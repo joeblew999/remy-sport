@@ -6,6 +6,21 @@ node = "24.14.1"
 # (The Tauri CLI is an npm package — pinned in package.json alongside wrangler.)
 "aqua:cloudflare/cloudflared" = "2026.8.2"
 
+# iOS toolchain. `tauri ios init` shells out to `pod`, and previously that came
+# from a global `brew install cocoapods`. Managed here instead so nothing this
+# project needs lives outside mise.
+#
+# Ruby is not optional alongside it: the gem backend builds against whichever
+# Ruby is *activated*, and with none declared it falls back to macOS's system
+# Ruby 2.6, which cocoapods 1.17 cannot run on ("cannot load such file --
+# random/formatter"). Declaring it here is also why `mise exec` alone was not
+# enough — the gem must be installed against the managed Ruby, not merely run
+# beside it.
+#
+# Cost, stated plainly: `mise install` now builds Ruby, which is minutes on a
+# clean machine, for a toolchain only iOS work touches.
+ruby = "3.4.9"
+
 [env]
 # ── Project-scoped Cloudflare state ─────────────────────────────────────────
 # Wrangler defaults to global state under ~/Library/Preferences/.wrangler,
@@ -22,6 +37,31 @@ WRANGLER_CACHE_DIR = "{{config_root}}/.wrangler/cache"
 # Pin the account so no command can act against a different one, whatever the
 # ambient credential happens to be authorised for.
 CLOUDFLARE_ACCOUNT_ID = "7384af54e33b8a54ff240371ea368440"
+
+# Playwright otherwise caches browsers globally, and at a different path per OS
+# (~/.cache on Linux, ~/Library/Caches on macOS) — which is why the install task
+# needed an OS branch whose skip check never matched on macOS. One project-local
+# path makes it uniform and self-contained.
+PLAYWRIGHT_BROWSERS_PATH = "{{config_root}}/.playwright"
+
+# CocoaPods lives in the project, not in Homebrew. GEM_HOME keeps the gems here
+# and _.path puts their binaries on PATH for tasks.
+#
+# mise's `gem:` backend cannot do this on 2026.8.9: it builds against whichever
+# Ruby is on PATH, and `mise exec ruby@X -- sh -c 'command -v ruby'` still
+# resolves /usr/bin/ruby, so the install fell back to macOS Ruby 2.6 and failed
+# ("ffi requires Ruby version >= 3.0"). Declaring ruby in [tools] and installing
+# the gem into GEM_HOME sidesteps the backend entirely.
+GEM_HOME     = "{{config_root}}/.gem"
+COCOAPODS_VERSION = "1.17.0"
+# mise lists ruby as current but does not place it on PATH for tasks on
+# 2026.8.9 — inside a task `command -v ruby` still returns /usr/bin/ruby (2.6),
+# which cocoapods cannot run on. The install dir is deterministic given the
+# pinned version above, so put it on PATH explicitly.
+# mise appends _.path entries AFTER /usr/bin, so they cannot shadow a system
+# binary — the iOS tasks prepend RUBY_BIN themselves for exactly that reason.
+RUBY_BIN = "{{env.HOME}}/.local/share/mise/installs/ruby/3.4.9/bin"
+_.path   = ["{{config_root}}/.gem/bin"]
 
 CF_WORKER_NAME  = "remy-sport"
 CF_SUBDOMAIN    = "gedw99"
@@ -99,18 +139,22 @@ BROWSERS_JSON="node_modules/playwright-core/browsers.json"
 CHROMIUM_VERSION=$(node -e "const b=require('./$BROWSERS_JSON'); const c=b.browsers.find(x=>x.name==='chromium'); console.log(c.browserVersion)")
 CHROMIUM_REV=$(node -e "const b=require('./$BROWSERS_JSON'); const c=b.browsers.find(x=>x.name==='chromium'); console.log(c.revision)")
 
-# macOS: the curl path below is linux64-only, and Playwright reads
-# ~/Library/Caches/ms-playwright (not ~/.cache). Use Playwright's own
-# installer, which is idempotent and picks the right arch.
-if [ "$(uname -s)" = "Darwin" ]; then
-  bun x playwright install chromium
+# PLAYWRIGHT_BROWSERS_PATH (mise [env]) puts browsers in .playwright/ on every
+# OS. Previously this read $HOME/.cache/ms-playwright, which is the Linux path —
+# on macOS Playwright uses ~/Library/Caches, so the skip check below never
+# matched and the linux64 binaries it fetched could not run.
+PW_DIR="$PLAYWRIGHT_BROWSERS_PATH"
+
+if [ -d "$PW_DIR/chromium-$CHROMIUM_REV" ] && [ -d "$PW_DIR/chromium_headless_shell-$CHROMIUM_REV" ]; then
+  echo "Playwright chromium v$CHROMIUM_REV already installed, skipping"
   exit 0
 fi
 
-PW_DIR="$HOME/.cache/ms-playwright"
-
-if [ -d "$PW_DIR/chromium-$CHROMIUM_REV/chrome-linux64" ] && [ -d "$PW_DIR/chromium_headless_shell-$CHROMIUM_REV/chrome-headless-shell-linux64" ]; then
-  echo "Playwright chromium v$CHROMIUM_REV already installed, skipping"
+# The curl path below fetches linux64 builds. On macOS use Playwright's own
+# installer, which is idempotent and picks the right arch; it honours
+# PLAYWRIGHT_BROWSERS_PATH too, so both land in the same project directory.
+if [ "$(uname -s)" = "Darwin" ]; then
+  bun x playwright install chromium
   exit 0
 fi
 
@@ -562,17 +606,18 @@ depends     = ["install"]
 run         = "bun x tauri info"
 
 [tasks."tauri:ios:deps"]
-description = "Install the iOS toolchain prerequisites (CocoaPods) if missing"
-# `tauri ios init` looks for a CocoaPods Homebrew keg and otherwise falls back
-# to `gem install`, which needs sudo and dies unattended. Installing it here
-# means tauri:ios:init can be depended on rather than explained in a README.
+description = "Install CocoaPods into the project GEM_HOME (idempotent)"
+# RUBY_BIN must be prepended: mise places its own tool paths after /usr/bin, so
+# without this `ruby` is macOS's 2.6 and cocoapods 1.17 will not run on it
+# ("ffi requires Ruby version >= 3.0"). Gems land in .gem/, not in Homebrew.
 run = """
-if command -v pod >/dev/null 2>&1; then
-  echo "tauri:ios:deps: cocoapods already installed"
+export PATH="$RUBY_BIN:$PATH"
+if pod --version >/dev/null 2>&1; then
+  echo "tauri:ios:deps: cocoapods $(pod --version) already installed"
   exit 0
 fi
-echo "tauri:ios:deps: installing cocoapods..."
-brew install cocoapods
+echo "tauri:ios:deps: installing cocoapods $COCOAPODS_VERSION into $GEM_HOME"
+gem install cocoapods -v "$COCOAPODS_VERSION" --no-document
 """
 
 [tasks."tauri:ios:init"]
@@ -581,7 +626,15 @@ depends     = ["install", "tauri:ios:deps"]
 # Skips once the project exists and neither the Tauri config nor the crate
 # manifest has changed, so tauri:ios:dev can depend on it unconditionally.
 sources     = ["src-tauri/tauri.conf.json", "src-tauri/Cargo.toml"]
-run         = "bun x tauri ios init"
+# CocoaPods comes from mise, on demand, rather than a global `brew install`.
+# `tauri ios init` shells out to `pod`, so it must be on PATH for the child
+# process — hence wrapping the whole command in `mise exec` rather than
+# provisioning in a separate task. Per-task `tools = {}` would express this
+# directly but is silently ignored on mise 2026.8.9.
+run = """
+export PATH="$RUBY_BIN:$PATH"
+bun x tauri ios init
+"""
 
 # tauri.conf.json already runs `mise run web:build` via
 # beforeDevCommand/beforeBuildCommand, so web:build is deliberately NOT in
@@ -589,7 +642,10 @@ run         = "bun x tauri ios init"
 [tasks."tauri:ios:dev"]
 description = "Run the iOS app in the Simulator against the local Worker"
 depends     = ["install", "dev:ensure", "tauri:ios:init"]
-run         = "bun x tauri ios dev"
+run = """
+export PATH="$RUBY_BIN:$PATH"
+bun x tauri ios dev
+"""
 
 # ── Tunnel ──────────────────────────────────────────────────────────────────
 # Emulators reach localhost directly and need no tunnel. A tunnel is only

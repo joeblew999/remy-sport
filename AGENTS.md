@@ -176,6 +176,16 @@ mise run deploy
 | `WRANGLER_LOG_PATH` | logs land in `.wrangler/logs/`, not `~/Library/Preferences/.wrangler/logs` |
 | `WRANGLER_CACHE_DIR` | cache in `.wrangler/cache/` |
 | `CLOUDFLARE_ACCOUNT_ID` | pins the account, whatever the ambient credential allows |
+| `PLAYWRIGHT_BROWSERS_PATH` | browsers in `.playwright/`, same path on every OS |
+| `GEM_HOME` + `RUBY_BIN` | CocoaPods in `.gem/`, on mise's Ruby — nothing in Homebrew |
+
+Nothing this project needs is installed globally any more. `.wrangler/`, `.playwright/` and `.gem/` are all gitignored.
+
+Two mise limitations worth knowing, both verified on 2026.8.9, because they look like config mistakes:
+
+- **`_.path` entries are appended after `/usr/bin`**, so they cannot shadow a system binary. The iOS tasks prepend `$RUBY_BIN` themselves; without it `ruby` is macOS's 2.6 and CocoaPods 1.17 refuses to run (`ffi requires Ruby version >= 3.0`).
+- **The `gem:` backend builds against whatever Ruby is on PATH**, not the one in `[tools]` — `mise exec ruby@3.4.9 -- sh -c 'command -v ruby'` still returns `/usr/bin/ruby`. So `gem:cocoapods` cannot be a `[tools]` entry; `tauri:ios:deps` installs into `GEM_HOME` instead.
+- Per-task `tools = {}` is silently ignored, so tools cannot be scoped to a single task.
 
 This matters for more than tidiness. When the original worker, D1 and R2 were deleted, the trail sat in 369 global logs belonging to ~40 other projects, under global retention that had already aged out the months in question — which is why the ADR 006 postscript can prove *what* happened but not *who*. With logs scoped here, that investigation is `grep .wrangler/logs`.
 
