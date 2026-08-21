@@ -178,7 +178,11 @@ echo "Playwright chromium v$CHROMIUM_REV installed successfully"
 [tasks.dev]
 description = "Start local dev server (port 8787)"
 depends     = ["setup"]
-run         = "bun x wrangler dev"
+# --host localhost stops wrangler simulating the [[routes]] custom domain
+# locally. Without it c.req.url, Host, Origin and Referer all arrive as
+# http://remy.ubuntusoftware.net, so scripting against the local API needs
+# insider knowledge of a hostname that is not the one you are talking to.
+run         = "bun x wrangler dev --host localhost"
 
 [tasks.check]
 description = "TypeScript type check"
@@ -199,7 +203,7 @@ run         = "bun scripts/versions.ts"
 description = "Start dev server, wait for readiness, seed, then keep server running"
 depends     = ["setup"]
 run         = """
-bun x wrangler dev &
+bun x wrangler dev --host localhost &
 SERVER_PID=$!
 for i in $(seq 1 30); do
   if curl -sf http://localhost:8787/ >/dev/null 2>&1; then
@@ -229,7 +233,7 @@ if curl -sf -o /dev/null {{env.DEV_URL}}/api/health; then
 fi
 mkdir -p .wrangler
 echo "dev:ensure: starting a Worker on {{env.DEV_URL}}..."
-nohup bun x wrangler dev >.wrangler/dev.log 2>&1 &
+nohup bun x wrangler dev --host localhost >.wrangler/dev.log 2>&1 &
 for i in $(seq 1 40); do
   if curl -sf -o /dev/null {{env.DEV_URL}}/api/health; then
     echo "dev:ensure: Worker is serving on {{env.DEV_URL}}"
@@ -289,7 +293,7 @@ mise run test:deployed
 
 [tasks."dev:remote"]
 description = "Dev server against remote Cloudflare resources"
-run         = "bun x wrangler dev --remote"
+run         = "bun x wrangler dev --remote --host localhost"
 
 [tasks."test:deployed"]
 description = "Run Playwright tests against deployed worker"
@@ -422,16 +426,6 @@ description = "Deploy worker (API + SPA) to Cloudflare"
 depends     = ["install", "web:build"]
 sources     = ["src/**/*.ts", "src/web/**/*", "wrangler.toml", "package.json", "versions.json"]
 run         = "bun x wrangler deploy"
-
-[tasks."cf:deploy:staging"]
-description = "Deploy to staging environment"
-depends     = ["install"]
-run         = "bun x wrangler deploy --env staging"
-
-[tasks."cf:deploy:production"]
-description = "Deploy to production environment"
-depends     = ["install"]
-run         = "bun x wrangler deploy --env production"
 
 [tasks."cf:versions:list"]
 description = "List deployed versions"

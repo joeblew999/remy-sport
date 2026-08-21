@@ -30,7 +30,10 @@ export default defineConfig({
   ],
   ...(isLocal && {
     webServer: {
-      command: "bunx wrangler dev",
+      // --host localhost matches the mise dev tasks: without it wrangler
+      // simulates the [[routes]] custom domain and every request reaches the
+      // Worker as http://remy.ubuntusoftware.net rather than localhost.
+      command: "bunx wrangler dev --host localhost",
       url: "http://localhost:8787/api/health",
       reuseExistingServer: !process.env.CI,
       timeout: 15000,
