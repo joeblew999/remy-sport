@@ -298,5 +298,30 @@ If this ADR is rejected, these should be reverted.
 
 **Explicitly out of scope**
 
-- Why the original resources disappeared. Unknown at time of writing, and worth establishing before rebuilding, since a deliberate teardown implies a different decision than an accidental one.
 - Backup and restore of D1 data.
+
+## Postscript: what happened to the original resources
+
+This ADR originally listed the disappearance as unknown. Investigated 2026-08-21. The actor is still unidentified, but the shape is now established.
+
+**The originals were real.** `versions.json` at commit `21406a5` (2026-02-23) records **seven genuine Cloudflare Worker version IDs** against `https://remy-sport.gedw99.workers.dev`. This was a working, repeatedly-deployed environment, not a config that never ran.
+
+**They were deleted, not expired.** Surviving resources bracket them on both sides, so no age-based sweep can explain it:
+
+| Resource | Oldest survivor on the account | remy-sport's original |
+|---|---|---|
+| D1 | `test-hono-db`, 2026-02-06 | ~2026-02-23 — gone |
+| Worker | `truck-cad`, 2026-02-28 | ~2026-02-23 — gone |
+| R2 | `ubuntu-website-assets`, 2025-12-24 | ~2026-02-23 — gone |
+
+A database 17 days older and a worker 5 days newer both survive. Only this project's resources are missing.
+
+**Everything now on the account is new.** The `remy-sport` worker reports `created_on: 2026-08-20`; `remy-sport-db` likewise; `remy-sport-storage` was created at 05:27 on 2026-08-20 (a `POST /r2/buckets` in `wrangler-2026-08-20_05-27-02_066.log`) — the name was recreated, not recovered.
+
+**Deletion window: after 2026-03-30, before 2026-08-20 05:25.** The later bound is the audit in this ADR's Context; the earlier is the last commit touching the deployed environment.
+
+**Not deleted from this machine via wrangler, at least since 2026-08-06.** 369 local wrangler logs contain exactly one `wrangler delete` — `irgo-sse-probe`, a different project. Local logs do not reach back past 2026-08-06, so this only clears the final two weeks.
+
+**Unresolved: who.** Cloudflare's audit log is the only authoritative record, and the wrangler OAuth token lacks the scope — `accounts/…/audit_logs`, `user/audit_logs` and `accounts/…/logs/audit` all return `Authentication error (10000)`. Shell history is 1003 lines with no matching command. To close this, read the audit log in the dashboard (Manage Account → Audit Log) filtered to 2026-03-30 → 2026-08-20 for delete actions; do it promptly, since audit retention is finite.
+
+The practical consequence is unchanged: `cf:env:bootstrap` plus `deploy` rebuilds the environment in two commands, so a recurrence costs minutes rather than a day.
