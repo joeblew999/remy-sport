@@ -408,6 +408,15 @@ description = "Clear stored Cloudflare credentials"
 depends     = ["install"]
 run         = "bun x wrangler logout"
 
+[tasks."cf:audit"]
+description = "Query the Cloudflare audit log for delete actions (needs CLOUDFLARE_API_TOKEN)"
+depends     = ["install"]
+# Closes the one open question in the ADR 006 postscript: who removed the
+# original worker, D1 and R2. The wrangler OAuth token cannot answer it —
+# `wrangler login --scopes-list` has no audit scope at all — so this needs a
+# dashboard-created API token, passed in the environment and never stored.
+run         = "bun scripts/cf-audit.ts"
+
 [tasks."cf:whoami"]
 description = "Show current Cloudflare auth info"
 depends     = ["install"]

@@ -322,6 +322,25 @@ A database 17 days older and a worker 5 days newer both survive. Only this proje
 
 **Not deleted from this machine via wrangler, at least since 2026-08-06.** 369 local wrangler logs contain exactly one `wrangler delete` — `irgo-sse-probe`, a different project. Local logs do not reach back past 2026-08-06, so this only clears the final two weeks.
 
-**Unresolved: who.** Cloudflare's audit log is the only authoritative record, and the wrangler OAuth token lacks the scope — `accounts/…/audit_logs`, `user/audit_logs` and `accounts/…/logs/audit` all return `Authentication error (10000)`. Shell history is 1003 lines with no matching command. To close this, read the audit log in the dashboard (Manage Account → Audit Log) filtered to 2026-03-30 → 2026-08-20 for delete actions; do it promptly, since audit retention is finite.
+**Unresolved: who.** Every local avenue is exhausted:
+
+| Source | Result |
+|---|---|
+| wrangler logs (369, from 2026-08-06) | one `wrangler delete` — `irgo-sse-probe`, unrelated |
+| shell history | 1003 lines, no matching command |
+| agent transcripts for this repo | only 2026-08-20 onward |
+| Wayback Machine | no snapshots of the workers.dev host |
+| Cloudflare audit API | `Authentication error (10000)` on all three endpoints |
+| other CF credentials on the machine | none — no env token, no doppler, no cloudflared cert |
+
+The blocker is structural, not a missing step: **`wrangler login --scopes-list` contains no audit scope at all**, so re-authenticating wrangler — even interactively — can never grant this. It requires a dashboard-created API token.
+
+`mise run cf:audit` does the query; run it with a token and it prints the actor:
+
+```bash
+CLOUDFLARE_API_TOKEN=... mise run cf:audit
+```
+
+Without one it prints the exact steps to mint it (Account | Account Settings | Read). It tries both the v1 `/audit_logs` and v2 `/logs/audit` endpoints, and reports deletes plus anything naming the project — a rename or account transfer would explain the disappearance equally well. Worth running soon: audit retention is finite and the window is already five months back.
 
 The practical consequence is unchanged: `cf:env:bootstrap` plus `deploy` rebuilds the environment in two commands, so a recurrence costs minutes rather than a day.
