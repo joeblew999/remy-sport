@@ -52,6 +52,8 @@ organization({ ac, roles })
 
 Organization membership roles are Better Auth's own (`owner`, `admin`, `member`) and are **distinct from** the six domain roles. A user has exactly one platform role (biz: "Each user has exactly one role") and may additionally be a member of organizations. Passing `ac`/`roles` lets org-scoped permission checks use the same statements.
 
+> **Correction (2026-08-23, [ADR 009](009-full-organization-adoption.md)):** the paragraph above states the right intent, and the line of code above it did the opposite. Passing the platform `ac`/`roles` to `organization()` *replaces* `owner`/`admin`/`member` with the six domain roles, so the two were not distinct at all. `createOrganization` writes `member.role = "owner"` (its `creatorRole` default), and `"owner"` matched nothing in the domain role map — so every org-scoped permission check for the user who created the organization denied. It stayed invisible because nothing performed an org-scoped check until team writes landed. The plugin now receives its own `orgAc`/`orgRoles` from [org-access-control.ts](../../../src/auth/org-access-control.ts), which is what this section always meant.
+
 This ADR only lands the tables and plugin. Attaching events to organizations is follow-on work and deliberately out of scope — see Consequences.
 
 ### 3. Replace the raw SQL with a database hook
