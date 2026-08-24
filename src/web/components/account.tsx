@@ -44,6 +44,9 @@ export function Account({ goto }: { goto: (r: Route) => void }) {
             (ADR 009), and this is the one that decides what you may do. */}
         {user.role && <div className="account-role" data-testid="topbar-role">{user.role}</div>}
       </div>
+      <button className="btn" data-testid="topbar-devices" onClick={() => goto({ page: "devices" })}>
+        Devices
+      </button>
       <button className="btn" data-testid="topbar-sign-out" onClick={() => void signOut()}>
         Sign out
       </button>

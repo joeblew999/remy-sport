@@ -138,7 +138,21 @@ export function createAuth(c: Context<AppEnv>) {
     // cannot find them it logs "Falling back to regular query" and silently
     // works anyway, so enabling the flag proves nothing on its own. Verified
     // engaged, and measured, in ADR 006 §9f.
-    advanced: { database: { joins: true } },
+    advanced: {
+      database: { joins: true },
+      // Cloudflare puts the real client IP in CF-Connecting-IP. Better Auth's
+      // default list does not include it, so every session row recorded an
+      // empty ipAddress — which matters now that ADR 014 shows those rows to
+      // users as "your devices": an entry with no location and no address is
+      // not something anyone can act on.
+      //
+      // CF-Connecting-IP first because Cloudflare sets it and strips any
+      // client-supplied copy; x-forwarded-for is kept after it for local dev
+      // and any non-Cloudflare path.
+      ipAddress: {
+        ipAddressHeaders: ["cf-connecting-ip", "x-forwarded-for", "x-real-ip"],
+      },
+    },
     secret: c.env.BETTER_AUTH_SECRET,
     baseURL: c.env.BETTER_AUTH_URL,
     // baseURL's own origin is added automatically by Better Auth.

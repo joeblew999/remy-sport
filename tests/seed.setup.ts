@@ -30,6 +30,12 @@ setup("seed actors and ensure a public event exists", async ({ request }) => {
   // provisioned remote D1 the table is empty and both tests failed.
   //
   // Guaranteeing the fixture here removes the dependency on leftover state.
+  // Sessions accumulate one per sign-in and nothing expires them locally. Past
+  // ~100 rows for a user, list-sessions stops returning the newest one and the
+  // devices page cannot identify the current session (ADR 014). 404s in
+  // production, where this endpoint does not exist.
+  await request.post("/api/dev/prune-sessions").catch(() => undefined)
+
   const list = await request.get("/api/events")
   expect(list.ok()).toBeTruthy()
   if ((await list.json()).events.length > 0) return

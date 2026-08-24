@@ -127,6 +127,12 @@ Build links in emails from `BETTER_AUTH_URL`, never from the request origin: an 
 
 Sending to people outside the account needs the Workers **Paid** plan *and* the sending domain onboarded to Email Service. Neither is checkable from the repo.
 
+## Sessions and devices
+
+See [ADR 014](docs/dev/adr/014-session-and-device-management.md). Device management is Better Auth **core** — `/list-sessions`, `/revoke-session`, `/revoke-other-sessions` — not the `multiSession` plugin, which is account *switching* and answers a different question.
+
+Sessions last 30 days (ADR 012), so being able to end one matters. `/api/dev/prune-sessions` keeps local session counts sane; without it they accumulate one per sign-in, and past ~100 rows `list-sessions` stops returning the newest — which breaks anything that needs to identify the *current* session.
+
 ## Web GUIs — there are two, deliberately
 
 `src/views/` is the **admin console** (ADR 013), not a demo harness: account list, role assignment, ban, and impersonation via the admin plugin. Impersonation — not the dev "sign in as" row — is the right way to view the platform as someone else; it keeps your admin identity and records `session.impersonated_by`.

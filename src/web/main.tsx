@@ -13,6 +13,7 @@ import { TeamPage } from "./pages/team";
 import { ProfilePage } from "./pages/profile";
 import { AcceptInvitationPage } from "./pages/accept-invitation";
 import { LoginPage } from "./pages/login";
+import { DevicesPage } from "./pages/devices";
 import { SessionProvider } from "./lib/session";
 import { StandingsTable } from "./pages/event";
 
@@ -82,6 +83,7 @@ function App() {
             {route.page === "profile" && <ProfilePage goto={goto}/>}
             {route.page === "accept-invitation" && <AcceptInvitationPage id={route.id} goto={goto}/>}
             {route.page === "login" && <LoginPage goto={goto}/>}
+            {route.page === "devices" && <DevicesPage goto={goto}/>}
             {route.page === "standings" && (
               <>
                 <div className="page-header">
