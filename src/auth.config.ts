@@ -4,6 +4,7 @@ import { organization } from "better-auth/plugins/organization"
 import { emailOTP } from "better-auth/plugins/email-otp"
 import { ac, roles } from "./auth/access-control"
 import { orgAc, orgRoles } from "./auth/org-access-control"
+import { adminAc, adminRoles } from "./auth/admin-access-control"
 
 /**
  * Per-request collaborators the options need but the CLI cannot supply.
@@ -153,11 +154,19 @@ export function buildAuthOptions(deps: AuthDeps = {}) {
         storeOTP: "hashed",
         allowedAttempts: 3,
       }),
-      // ac/roles must be passed, or the plugin runs its own default admin/user
-      // model and knows nothing about organizer, coach, player, spectator or
-      // referee — leaving Better Auth and require-permission.ts disagreeing
-      // about the same question.
-      admin({ ac, roles, defaultRole: "spectator", adminRoles: ["admin"] }),
+      // adminAc/adminRoles, NOT the platform ac/roles — same correction ADR 009
+      // made for organization(), for the same reason. Handing the plugin the
+      // domain roles replaced its own, so the seeded admin had none of its
+      // permissions and every admin endpoint answered "You are not allowed to
+      // list users". The domain roles are still enforced, by
+      // require-permission.ts, against the domain statements; this is a
+      // separate vocabulary (see admin-access-control.ts).
+      admin({
+        ac: adminAc,
+        roles: adminRoles,
+        defaultRole: "spectator",
+        adminRoles: ["admin"],
+      }),
       // Organization membership roles (owner/admin/member) are Better Auth's own
       // and are distinct from the six domain roles: a user has exactly one
       // platform role and may additionally belong to organizations.

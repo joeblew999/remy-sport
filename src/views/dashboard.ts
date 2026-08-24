@@ -1,4 +1,5 @@
 type User = { id: string; name: string | null; email: string; role?: string | null }
+type AdminUser = { id: string; email: string; name: string | null; role?: string | null; banned?: boolean | null }
 type Event = { id: string; name: string; type: string; description: string | null; createdBy: string; createdAt: string }
 
 const ROLE_BADGES: Record<string, string> = {
@@ -21,7 +22,12 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
   user: ["read"],
 }
 
-export function dashboardPage(user: User, events: Event[]): string {
+export function dashboardPage(
+  user: User,
+  events: Event[],
+  accounts: AdminUser[] | null = null,
+  impersonatedBy: string | null = null,
+): string {
   const role = user.role || "user"
   const badge = ROLE_BADGES[role] || "badge-ghost"
   const perms = ROLE_PERMISSIONS[role] || ["read"]
@@ -43,8 +49,65 @@ export function dashboardPage(user: User, events: Event[]): string {
           </td>
         </tr>`).join("")
 
+  const impersonationBanner = impersonatedBy
+    ? `<div class="alert alert-warning mb-6" data-testid="impersonation-banner">
+         <span>You are viewing the platform as <strong>${user.email}</strong>. Your own admin session is intact.</span>
+         <button onclick="stopImpersonating()" class="btn btn-sm" data-testid="stop-impersonating">Stop impersonating</button>
+       </div>`
+    : ""
+
+  // Only rendered for an admin who is not already impersonating. Nesting an
+  // impersonation inside another is not something Better Auth models, and the
+  // way out is the banner above.
+  const adminConsole = accounts && !impersonatedBy
+    ? `
+    <div class="card bg-base-100 shadow mb-6" data-testid="admin-console">
+      <div class="card-body">
+        <h2 class="card-title">Accounts</h2>
+        <p class="text-sm text-base-content/50">
+          Platform administration, via Better Auth's admin plugin. Impersonation
+          keeps your admin identity — the session records who is behind it.
+        </p>
+        <div class="alert alert-error text-sm hidden" id="adminError"></div>
+        <div class="overflow-x-auto">
+          <table class="table table-sm" data-testid="accounts-table">
+            <thead><tr><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              ${accounts.map((a) => `
+                <tr data-testid="account-row-${a.email}">
+                  <td class="text-sm">${a.name || a.email}<div class="text-xs text-base-content/40">${a.email}</div></td>
+                  <td>
+                    <select class="select select-bordered select-xs" data-testid="role-select-${a.email}"
+                            onchange="setRole('${a.id}', this.value)">
+                      ${["admin", "organizer", "coach", "player", "spectator", "referee"]
+                        .map((r) => `<option value="${r}" ${a.role === r ? "selected" : ""}>${r}</option>`)
+                        .join("")}
+                    </select>
+                  </td>
+                  <td>
+                    ${a.banned
+                      ? `<span class="badge badge-error badge-sm" data-testid="banned-${a.email}">banned</span>`
+                      : `<span class="badge badge-ghost badge-sm">active</span>`}
+                  </td>
+                  <td class="flex gap-1">
+                    ${a.id === user.id
+                      ? `<span class="text-xs text-base-content/30">you</span>`
+                      : `<button class="btn btn-xs" data-testid="impersonate-${a.email}"
+                                 onclick="impersonate('${a.id}')">Impersonate</button>
+                         <button class="btn btn-xs btn-ghost" data-testid="ban-${a.email}"
+                                 onclick="toggleBan('${a.id}', ${a.banned ? "true" : "false"})">${a.banned ? "Unban" : "Ban"}</button>`}
+                  </td>
+                </tr>`).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>`
+    : ""
+
   return `
   <div class="w-full max-w-4xl px-4 py-8">
+    ${impersonationBanner}
     <div class="flex items-center justify-between mb-6">
       <div>
         <h1 class="text-3xl font-bold">Dashboard</h1>
@@ -123,10 +186,16 @@ export function dashboardPage(user: User, events: Event[]): string {
       </div>
     </div>`}
 
+    ${adminConsole}
+
     <!-- Quick role switch (dev only) -->
     <div class="card bg-base-100 shadow">
       <div class="card-body py-4">
-        <h2 class="card-title text-sm uppercase tracking-wider text-base-content/40">Switch Role (Dev, local only)</h2>
+        <h2 class="card-title text-sm uppercase tracking-wider text-base-content/40">Sign in as (Dev, local only)</h2>
+        <p class="text-xs text-base-content/40">
+          Signs in as that account outright. Prefer Impersonate above when you
+          are an admin — it keeps your identity and is recorded on the session.
+        </p>
         <p class="text-xs text-base-content/50" id="switchStatus" data-testid="switch-status"></p>
         <div class="flex gap-2 flex-wrap" data-testid="role-switcher">
           <button onclick="switchRole('admin@remy.dev')" class="btn btn-xs ${role === 'admin' ? 'btn-error' : 'btn-ghost'}">Admin</button>
@@ -193,6 +262,52 @@ export function dashboardPage(user: User, events: Event[]): string {
       } catch (err) {
         say('Network error.')
       }
+    }
+
+    function adminError(msg) {
+      const el = document.getElementById('adminError')
+      if (!el) return
+      el.textContent = msg
+      el.classList.remove('hidden')
+    }
+
+    async function adminPost(path, body) {
+      const res = await fetch('/api/auth/admin/' + path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        adminError(data.message || 'That action was refused.')
+        return false
+      }
+      return true
+    }
+
+    // Real impersonation, not a re-login. The admin session survives underneath
+    // and session.impersonated_by records who is behind the view, which is why
+    // this replaced the old switch-by-signing-in approach (ADR 013).
+    async function impersonate(userId) {
+      if (await adminPost('impersonate-user', { userId })) window.location.reload()
+    }
+
+    async function stopImpersonating() {
+      const res = await fetch('/api/auth/admin/stop-impersonating', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+      })
+      if (res.ok) window.location.reload()
+    }
+
+    async function setRole(userId, role) {
+      if (await adminPost('set-role', { userId, role })) window.location.reload()
+    }
+
+    async function toggleBan(userId, banned) {
+      const ok = banned
+        ? await adminPost('unban-user', { userId })
+        : await adminPost('ban-user', { userId })
+      if (ok) window.location.reload()
     }
 
     async function deleteEvent(id) {

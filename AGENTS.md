@@ -93,11 +93,15 @@ mise run deps:update     # update within package.json semver ranges, then typech
 
 `deps:outdated` cannot see either of these — a rename looks like an abandoned package, and a required backfill looks like a normal minor bump.
 
-## Two kinds of role, and two tables called "team"
+## Three access-control scopes, and two tables called "team"
 
 See [ADR 009](docs/dev/adr/009-full-organization-adoption.md). Both pairs are easy to conflate and each conflation has already caused a bug.
 
-**Roles.** A user has exactly one *platform* role (organizer, coach, referee, player, spectator, admin — biz `actors.md`) and, separately, an *organization* role per org they belong to (owner, admin, member — Better Auth's own). They use different access controllers: [access-control.ts](src/auth/access-control.ts) and [org-access-control.ts](src/auth/org-access-control.ts). Never pass the platform `ac`/`roles` to `organization()` — that replaces owner/admin/member with the six domain roles, and `createOrganization` writes `"owner"`, which then resolves to nothing.
+**Roles.** Three scopes, three controllers — [access-control.ts](src/auth/access-control.ts) (domain: event, team, player), [org-access-control.ts](src/auth/org-access-control.ts) (organization, member, invitation) and [admin-access-control.ts](src/auth/admin-access-control.ts) (user, session).
+
+**Never pass the platform `ac`/`roles` to a Better Auth plugin.** Supplying custom roles *replaces* the plugin's own, and this has now broken twice: `organization()` made `"owner"` — the role `createOrganization` actually writes — resolve to nothing (ADR 009), and `admin()` left the seeded admin unable to call any admin endpoint (ADR 013). Both were invisible until something called those endpoints.
+
+**Do not merge the statement sets to "fix" it.** The admin plugin declares `user` and `session`, and both names are already taken by the domain model — where `session` means a *camp session*, not an auth session. Merging would make "may define a camp session" and "may revoke someone's login" the same permission.
 
 **Teams.** `team` is a roster of players (domain, migration 0006). `org_team` is a group of *users who log in* (the plugin, migration 0008). Rosters cannot move into `org_team_member` — its `user_id` is a non-null FK, and biz makes `players.user_id` nullable because minors usually have no account.
 
@@ -124,6 +128,8 @@ Build links in emails from `BETTER_AUTH_URL`, never from the request origin: an 
 Sending to people outside the account needs the Workers **Paid** plan *and* the sending domain onboarded to Email Service. Neither is checkable from the repo.
 
 ## Web GUIs — there are two, deliberately
+
+`src/views/` is the **admin console** (ADR 013), not a demo harness: account list, role assignment, ban, and impersonation via the admin plugin. Impersonation — not the dev "sign in as" row — is the right way to view the platform as someone else; it keeps your admin identity and records `session.impersonated_by`.
 
 See [ADR 008](docs/dev/adr/008-frontend-is-the-react-spa.md). Read it before
 adding any user-facing feature, so it lands in the right one.
