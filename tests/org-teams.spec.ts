@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test"
-import { signIn, ADMIN, ORGANIZER, COACH, SPECTATOR } from "./helpers/auth"
+import { signIn, deleteOrg, ADMIN, ORGANIZER, COACH, SPECTATOR } from "./helpers/auth"
 
 // ADR 009. Team writes are the first endpoints in this repo where "may you do
 // this?" needs two answers: a platform-wide one (is this actor type allowed to
@@ -148,6 +148,8 @@ test.describe("Organization roles resolve", () => {
     })
     expect(res.ok(), "has-permission should not error").toBeTruthy()
     expect((await res.json()).success, "an owner may update their own org").toBe(true)
+
+    await deleteOrg(request, org.id)
   })
 })
 

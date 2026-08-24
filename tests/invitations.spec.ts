@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test"
-import { signIn, ORGANIZER } from "./helpers/auth"
+import { signIn, deleteOrg, ORGANIZER } from "./helpers/auth"
 
 // The outbox transport, and therefore /api/dev/outbox, exists only locally:
 // production runs MAIL_TRANSPORT=cloudflare and the route 404s there by design.
@@ -42,7 +42,7 @@ async function inviteTo(request: APIRequestContext, baseURL: string, invitee: st
     headers,
   })
   expect(invited.ok(), "invite should succeed").toBeTruthy()
-  return { invitation: await invited.json(), org }
+  return { invitation: await invited.json(), org, cleanup: () => deleteOrg(request, org.id) }
 }
 
 async function outboxFor(request: APIRequestContext, to: string): Promise<OutboxMessage[]> {
@@ -55,7 +55,7 @@ test.describe("Organization invitations send mail", () => {
   test.skip(!LOCAL_ONLY, "mail capture is local-only (ADR 010)")
   test("an invitation produces an email addressed to the invitee", async ({ request, baseURL }) => {
     const invitee = `coach-${Date.now()}@example.com`
-    await inviteTo(request, baseURL!, invitee)
+    const { cleanup } = await inviteTo(request, baseURL!, invitee)
 
     const messages = await outboxFor(request, invitee)
     expect(messages.length, "exactly one message for this invitee").toBe(1)
@@ -63,21 +63,23 @@ test.describe("Organization invitations send mail", () => {
     expect(messages[0]!.subject).toContain("Invite Test Org")
     // The inviter is named, so the recipient can tell a real invite from spam.
     expect(messages[0]!.subject).toContain("Organizer")
+    await cleanup()
   })
 
   test("the accept link carries the invitation id, not a guessable one", async ({ request, baseURL }) => {
     const invitee = `link-${Date.now()}@example.com`
-    const { invitation } = await inviteTo(request, baseURL!, invitee)
+    const { invitation, cleanup } = await inviteTo(request, baseURL!, invitee)
 
     const [message] = await outboxFor(request, invitee)
     // The whole point of the mail: without the right id the link is useless.
     expect(message!.body).toContain(invitation.id)
     expect(message!.body).toContain(`/app#/accept-invitation/${invitation.id}`)
+    await cleanup()
   })
 
   test("the link uses the canonical URL, not the request origin", async ({ request, baseURL }) => {
     const invitee = `canon-${Date.now()}@example.com`
-    await inviteTo(request, baseURL!, invitee)
+    const { cleanup } = await inviteTo(request, baseURL!, invitee)
 
     const [message] = await outboxFor(request, invitee)
     // An email outlives the request that sent it. Building the link from the
@@ -85,13 +87,16 @@ test.describe("Organization invitations send mail", () => {
     // rewrites to locally — into someone's inbox.
     expect(message!.body).toContain("https://remy.ubuntusoftware.net/app#/accept-invitation/")
     expect(message!.body).not.toContain("localhost")
+    await cleanup()
   })
 
   test("inviting does not leak mail for other recipients", async ({ request, baseURL }) => {
     const mine = `mine-${Date.now()}@example.com`
-    await inviteTo(request, baseURL!, mine)
+    const { cleanup } = await inviteTo(request, baseURL!, mine)
 
     const others = await outboxFor(request, "nobody-was-invited@example.com")
     expect(others).toHaveLength(0)
+
+    await cleanup()
   })
 })

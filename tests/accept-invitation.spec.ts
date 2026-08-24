@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test"
-import { signInViaPage as signIn, ORGANIZER, COACH, REFEREE, SPECTATOR } from "./helpers/auth"
+import { signInViaPage as signIn, deleteOrgViaPage, ORGANIZER, COACH, REFEREE, SPECTATOR } from "./helpers/auth"
 
 // ADR 011. The invitation email sent in ADR 010 pointed at a route that did not
 // exist. These cover the landing page and the accept round-trip.
@@ -31,8 +31,23 @@ async function createInvitation(page: Page, invitee: string) {
 }
 
 test.describe("Accept invitation page", () => {
+  // Each test creates an organization; without this they accumulate until
+  // organization/list stops returning the newest one and an unrelated spec
+  // fails. See tests/helpers/auth.ts.
+  const created: string[] = []
+  test.afterEach(async ({ page }) => {
+    if (!created.length) return
+    // Sign back in as the owner first. These tests clear cookies or sign in as
+    // the invitee, so the context that reaches teardown usually cannot delete
+    // anything — which is why an earlier best-effort version silently deleted
+    // nothing at all and the orgs kept accumulating.
+    await signIn(page, ORGANIZER)
+    while (created.length) await deleteOrgViaPage(page, created.pop()!)
+  })
+
   test("a signed-out visitor is asked to sign in, not told the invite is dead", async ({ page }) => {
-    const { invitationId } = await createInvitation(page, "referee@remy.dev")
+    const { orgId, invitationId } = await createInvitation(page, "referee@remy.dev")
+    created.push(orgId)
 
     // Clear the session — this is the real case: someone clicking a link in
     // their inbox. get-invitation 401s for them, and an earlier version of this
@@ -52,6 +67,7 @@ test.describe("Accept invitation page", () => {
 
   test("the invitee sees the organisation and can accept", async ({ page }) => {
     const { orgId, invitationId } = await createInvitation(page, "referee@remy.dev")
+    created.push(orgId)
 
     await page.context().clearCookies()
     await signIn(page, REFEREE)
@@ -74,7 +90,8 @@ test.describe("Accept invitation page", () => {
   })
 
   test("signed in as the wrong person, the page says so", async ({ page }) => {
-    const { invitationId } = await createInvitation(page, "player@remy.dev")
+    const { orgId, invitationId } = await createInvitation(page, "player@remy.dev")
+    created.push(orgId)
 
     await page.context().clearCookies()
     await signIn(page, COACH)

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test"
-import { signInViaPage, ORGANIZER } from "./helpers/auth"
+import { signInViaPage, deleteOrgViaPage, ORGANIZER } from "./helpers/auth"
 
 /**
  * Organizations, wired access control and database hooks (ADR 007).
@@ -63,6 +63,8 @@ test.describe("Organizations", () => {
     // Membership roles are Better Auth's own (owner/admin/member) and are
     // distinct from the six domain roles — the creator is the owner.
     expect(created.body?.members?.[0]?.role).toBe("owner")
+
+    await deleteOrgViaPage(page, created.body!.id as string)
   })
 
   test("an organization is listed for the member who created it", async ({ page }) => {
@@ -71,12 +73,14 @@ test.describe("Organizations", () => {
     await signInViaPage(page, ORGANIZER)
 
     const slug = `club-${unique()}`
-    await json(page, "/api/auth/organization/create", { name: "Listed Club", slug })
+    const created = await json(page, "/api/auth/organization/create", { name: "Listed Club", slug })
 
     const list = await json(page, "/api/auth/organization/list")
     expect(list.status).toBe(200)
     expect(Array.isArray(list.body)).toBe(true)
     expect((list.body as { slug: string }[]).some((o) => o.slug === slug)).toBe(true)
+
+    await deleteOrgViaPage(page, (created.body as { id: string }).id)
   })
 
   test("an anonymous visitor cannot create an organization", async ({ page }) => {
