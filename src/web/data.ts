@@ -1,6 +1,12 @@
-// Mock data for Remy Sport.
-// Production swap: replace each export with a react-query hook against the
-// Workers API. Call-sites in lib/data.tsx already abstract the access pattern.
+// Fixtures for Remy Sport, and the types the pages render against.
+//
+// Events and teams are NO LONGER here — they come from the Workers API via
+// lib/api.ts (ADR 008). Their `Event` and `Team` interfaces stay, because they
+// are the shape the pages consume and what `toEvent()`/`toTeam()` map onto.
+//
+// Everything still exported as data (BRACKET, LIVE_GAME, ROSTER, STANDINGS,
+// FEED) has no backing table yet. Each one leaves this file the way EVENTS and
+// TEAMS did — an endpoint lands, lib/data.tsx fetches it, the constant goes.
 
 export type Crest = "a" | "b";
 export type EventType = "tournament" | "league" | "camp" | "showcase";
@@ -13,7 +19,15 @@ export interface Team {
   short: string;
   crest: Crest;
   city: string;
+  /** Absent until a games table exists — see lib/api.ts. */
   record?: string;
+  /** The org the team belongs to (canonical `teams.org_id`). */
+  orgName: string;
+  orgNameTh?: string;
+  ageGroupCode: string;
+  genderCode: "M" | "F" | "COED";
+  /** Display form of genderCode — "Boys" / "Girls" / "Mixed". */
+  genderLabel: string;
 }
 
 export interface Event {
@@ -120,26 +134,7 @@ export interface FeedItem {
   dot?: "live" | "on" | "muted";
 }
 
-export const TEAMS: Team[] = [
-  { id: "t1", name: "Bangkok Christian", nameTh: "กรุงเทพคริสเตียน", short: "BKC", crest: "a", city: "Bangkok", record: "4–0" },
-  { id: "t2", name: "Saint Gabriel's", nameTh: "เซนต์คาเบรียล", short: "SGS", crest: "b", city: "Bangkok", record: "3–1" },
-  { id: "t3", name: "Assumption College", nameTh: "อัสสัมชัญ", short: "ASC", crest: "a", city: "Bangkok", record: "3–1" },
-  { id: "t4", name: "Ruamrudee Intl.", nameTh: "ร่วมฤดี", short: "RIS", crest: "b", city: "Bangkok", record: "2–2" },
-  { id: "t5", name: "Triam Udom", nameTh: "เตรียมอุดมศึกษา", short: "TUS", crest: "a", city: "Bangkok", record: "2–2" },
-  { id: "t6", name: "Mater Dei", nameTh: "มาแตร์เดอี", short: "MDS", crest: "b", city: "Bangkok", record: "1–3" },
-  { id: "t7", name: "Suankularb", nameTh: "สวนกุหลาบ", short: "SKL", crest: "a", city: "Bangkok", record: "1–3" },
-  { id: "t8", name: "Sarasas Witaed", nameTh: "สารสาสน์วิเทศ", short: "SAR", crest: "b", city: "Nonthaburi", record: "0–4" },
-];
 
-export const EVENTS: Event[] = [
-  { id: "e1", type: "tournament", title: "Bangkok Cup 2026 — U16 Boys", titleTh: "บางกอกคัพ 2026 รุ่น U16 ชาย", div: "U16 · Boys", loc: "Hua Mark Indoor Stadium", city: "Bangkok", day: 12, mo: "MAY", date: "May 12–14, 2026", status: "live", statusLabel: "Live now", teams: 16, courts: 3, games: 24, gamesPlayed: 18, organizer: "Bangkok Schools Athletic Assoc." },
-  { id: "e2", type: "league", title: "Bangkok Schools League — Spring", titleTh: "ลีกโรงเรียนกรุงเทพฯ ฤดูใบไม้ผลิ", div: "U18 · Boys", loc: "Multiple courts", city: "Bangkok", day: 4, mo: "MAY", date: "May 4 – Jul 27, 2026", status: "live", statusLabel: "Round 6 of 14", teams: 12, courts: 6, games: 78, gamesPlayed: 42, organizer: "BSL Committee" },
-  { id: "e3", type: "showcase", title: "Thailand HS Showcase", titleTh: "ไทยแลนด์ ไฮสกูล โชว์เคส", div: "U18 · Mixed", loc: "True Arena Hua Hin", city: "Hua Hin", day: 20, mo: "JUN", date: "Jun 20–22, 2026", status: "open", statusLabel: "Registration open", teams: 24, courts: 4, games: 0, gamesPlayed: 0, organizer: "Thai Basketball Federation" },
-  { id: "e4", type: "camp", title: "Summer Skills Camp — Shooting", titleTh: "แคมป์ทักษะการยิงประตู", div: "U12–U15", loc: "Patana School", city: "Bangkok", day: 28, mo: "JUN", date: "Jun 28 – Jul 2, 2026", status: "open", statusLabel: "34/40 spots", teams: 0, courts: 1, games: 0, gamesPlayed: 0, organizer: "Coach Sukasem" },
-  { id: "e5", type: "tournament", title: "Chiang Mai Open", titleTh: "เชียงใหม่ โอเพ่น", div: "U14 · Girls", loc: "Chiang Mai University", city: "Chiang Mai", day: 5, mo: "JUL", date: "Jul 5–7, 2026", status: "upcoming", statusLabel: "Starts in 67 days", teams: 12, courts: 2, games: 22, gamesPlayed: 0, organizer: "Northern Schools Athletics" },
-  { id: "e6", type: "tournament", title: "Phuket Coastal Classic", titleTh: "ภูเก็ตโคสตัลคลาสสิก", div: "U16 · Boys", loc: "Phuket Wittayalai School", city: "Phuket", day: 26, mo: "JUL", date: "Jul 26–28, 2026", status: "upcoming", statusLabel: "Reg. opens May 15", teams: 16, courts: 2, games: 24, gamesPlayed: 0, organizer: "Phuket Schools Sport" },
-  { id: "e7", type: "league", title: "ASB Junior League", titleTh: "เอเอสบี จูเนียร์ลีก", div: "U14 · Mixed", loc: "ASB Sports Hub", city: "Bangkok", day: 2, mo: "MAR", date: "Closed Mar 2–Apr 18, 2026", status: "closed", statusLabel: "Final standings", teams: 10, courts: 3, games: 45, gamesPlayed: 45, organizer: "ASB" },
-];
 
 export const BRACKET: Bracket = {
   rounds: [

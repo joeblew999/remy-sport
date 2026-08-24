@@ -17,7 +17,8 @@ export function DiscoverPage({ goto, lang, spoiler }: DiscoverProps) {
   const [tab, setTab] = useState<Tab>("all");
   const [filterCity, setFilterCity] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<EventType | null>(null);
-  const allEvents = useEvents();
+  const { data, loading, error } = useEvents();
+  const allEvents = data ?? [];
 
   let events = allEvents;
   if (tab !== "all") events = events.filter(e => e.status === (tab as EventStatus));
@@ -82,7 +83,7 @@ export function DiscoverPage({ goto, lang, spoiler }: DiscoverProps) {
         {events.map(e => (
           <button key={e.id} className="event-row" onClick={() => goto({ page: "event", id: e.id })}>
             <div className="date">
-              <span className="day">{String(e.day).padStart(2, "0")}</span>
+              <span className="day">{e.day ? String(e.day).padStart(2, "0") : "--"}</span>
               <span className="mo">{e.mo}</span>
             </div>
             <div className="title">
@@ -99,7 +100,13 @@ export function DiscoverPage({ goto, lang, spoiler }: DiscoverProps) {
             <div className="arrow"><Icon name="arrow"/></div>
           </button>
         ))}
-        {events.length === 0 && <div className="empty">No events match your filters.</div>}
+        {loading && <div className="empty">Loading events…</div>}
+        {error && <div className="empty">Could not load events. Check your connection and retry.</div>}
+        {!loading && !error && events.length === 0 && (
+          <div className="empty">
+            {allEvents.length === 0 ? "No events yet." : "No events match your filters."}
+          </div>
+        )}
       </div>
     </>
   );

@@ -1,6 +1,16 @@
 # ADR 004: Datastar + Lit UI Layer
 
-**Status:** Proposed
+**Status:** Superseded by [ADR 008](008-frontend-is-the-react-spa.md) (2026-08-21) — never implemented
+
+> **Superseded.** This ADR proposed reactivity "without a heavy client framework
+> (no React/Vue/Svelte bundle)". The Product Owner subsequently accepted
+> [biz decision-003](https://github.com/joeblew999/remy-sport-biz/blob/main/decisions/decision-003-frontend-targets.md)
+> (2026-04-29): a **single React codebase** for Web + Tauri Desktop + Tauri
+> Mobile. That React SPA now exists in [src/web/](../../../src/web/).
+>
+> This ADR never left Proposed and no Datastar or Lit code was written — neither
+> library is in `package.json`. It is kept for the record, not as guidance.
+> Nothing below should be built. See [ADR 008](008-frontend-is-the-react-spa.md).
 
 ## Context
 

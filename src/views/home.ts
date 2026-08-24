@@ -10,12 +10,13 @@ export function homePage(user: User): string {
          </div>
        </div>
        <div class="flex gap-4 justify-center">
-         <a href="/dashboard" class="btn btn-primary">Dashboard</a>
+         <a href="/app" class="btn btn-primary">Open App</a>
+         <a href="/dashboard" class="btn btn-outline">Dashboard</a>
          <a href="/api/auth/sign-out" class="btn btn-outline">Sign Out</a>
        </div>`
     : `<div class="flex gap-4 justify-center">
-         <a href="/login" class="btn btn-primary">Sign In</a>
-         <a href="/login?mode=signup" class="btn btn-outline">Create Account</a>
+         <a href="/app" class="btn btn-primary">Open App</a>
+         <a href="/login" class="btn btn-outline">Sign In</a>
        </div>`
 
   return `

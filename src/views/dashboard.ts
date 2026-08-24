@@ -54,6 +54,8 @@ export function dashboardPage(user: User, events: Event[]): string {
         <p class="font-semibold">${user.name || user.email}</p>
         <span class="badge ${badge}" data-testid="role-badge">${role}</span>
         <div class="mt-1">
+          <a href="/app" class="link text-sm text-base-content/40">App</a>
+          <span class="mx-1 text-base-content/20">|</span>
           <a href="/" class="link text-sm text-base-content/40">Home</a>
           <span class="mx-1 text-base-content/20">|</span>
           <a href="/api/auth/sign-out" class="link text-sm text-base-content/40">Sign Out</a>
@@ -124,30 +126,73 @@ export function dashboardPage(user: User, events: Event[]): string {
     <!-- Quick role switch (dev only) -->
     <div class="card bg-base-100 shadow">
       <div class="card-body py-4">
-        <h2 class="card-title text-sm uppercase tracking-wider text-base-content/40">Switch Role (Dev)</h2>
+        <h2 class="card-title text-sm uppercase tracking-wider text-base-content/40">Switch Role (Dev, local only)</h2>
+        <p class="text-xs text-base-content/50" id="switchStatus" data-testid="switch-status"></p>
         <div class="flex gap-2 flex-wrap" data-testid="role-switcher">
-          <button onclick="switchRole('admin@remy.dev','admin1234!')" class="btn btn-xs ${role === 'admin' ? 'btn-error' : 'btn-ghost'}">Admin</button>
-          <button onclick="switchRole('organizer@remy.dev','organizer1!')" class="btn btn-xs ${role === 'organizer' ? 'btn-primary' : 'btn-ghost'}">Organizer</button>
-          <button onclick="switchRole('coach@remy.dev','coach12345!')" class="btn btn-xs ${role === 'coach' ? 'btn-secondary' : 'btn-ghost'}">Coach</button>
-          <button onclick="switchRole('player@remy.dev','player1234!')" class="btn btn-xs ${role === 'player' ? 'btn-accent' : 'btn-ghost'}">Player</button>
-          <button onclick="switchRole('spectator@remy.dev','spectator1!')" class="btn btn-xs ${role === 'spectator' ? 'btn-ghost btn-active' : 'btn-ghost'}">Spectator</button>
-          <button onclick="switchRole('referee@remy.dev','referee1234!')" class="btn btn-xs ${role === 'referee' ? 'btn-warning' : 'btn-ghost'}">Referee</button>
+          <button onclick="switchRole('admin@remy.dev')" class="btn btn-xs ${role === 'admin' ? 'btn-error' : 'btn-ghost'}">Admin</button>
+          <button onclick="switchRole('organizer@remy.dev')" class="btn btn-xs ${role === 'organizer' ? 'btn-primary' : 'btn-ghost'}">Organizer</button>
+          <button onclick="switchRole('coach@remy.dev')" class="btn btn-xs ${role === 'coach' ? 'btn-secondary' : 'btn-ghost'}">Coach</button>
+          <button onclick="switchRole('player@remy.dev')" class="btn btn-xs ${role === 'player' ? 'btn-accent' : 'btn-ghost'}">Player</button>
+          <button onclick="switchRole('spectator@remy.dev')" class="btn btn-xs ${role === 'spectator' ? 'btn-ghost btn-active' : 'btn-ghost'}">Spectator</button>
+          <button onclick="switchRole('referee@remy.dev')" class="btn btn-xs ${role === 'referee' ? 'btn-warning' : 'btn-ghost'}">Referee</button>
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    async function switchRole(email, password) {
-      // Sign out first
-      await fetch('/api/auth/sign-out', { method: 'POST' })
-      // Sign in as new role
-      const res = await fetch('/api/auth/sign-in/email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
-      if (res.ok) window.location.reload()
+    // Dev-only, and honestly labelled. There are no passwords any more
+    // (ADR 012), so switching role means completing a real sign-in: request a
+    // code, read it back out of the dev outbox, redeem it.
+    //
+    // The outbox only exists under MAIL_TRANSPORT=outbox, so this cannot work
+    // against production — which is correct. A control that silently signs you
+    // in as an admin would be a hole, not a convenience.
+    //
+    // Note this is a stand-in for admin impersonation, which Better Auth
+    // provides properly (/admin/impersonate-user, and the impersonated_by
+    // column already in our schema). See ADR 012's follow-ups.
+    async function switchRole(email) {
+      const sw = document.getElementById('switchStatus')
+      const say = (m) => { if (sw) sw.textContent = m }
+      try {
+        say('Signing out…')
+        await fetch('/api/auth/sign-out', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+        })
+
+        say('Requesting a code…')
+        const sent = await fetch('/api/auth/email-otp/send-verification-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, type: 'sign-in' }),
+        })
+        if (!sent.ok) { say('Could not request a code.'); return }
+
+        const outbox = await fetch('/api/dev/outbox?to=' + encodeURIComponent(email))
+        if (!outbox.ok) {
+          say('Role switching is local-only — no dev outbox on this deployment.')
+          return
+        }
+        const { messages } = await outbox.json()
+        // \\d, not \d: this whole <script> is inside a TypeScript template
+        // literal, so a single backslash is consumed as a JS escape and the
+        // browser would receive /Your code is (d{6})/ — a regex that never
+        // matches. Any backslash added below needs the same doubling.
+        const match = (messages[0] && messages[0].body || '').match(/Your code is (\\d{6})/)
+        if (!match) { say('No code arrived.'); return }
+
+        say('Signing in…')
+        const res = await fetch('/api/auth/sign-in/email-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, otp: match[1] }),
+        })
+        if (res.ok) window.location.reload()
+        else say('Sign-in failed.')
+      } catch (err) {
+        say('Network error.')
+      }
     }
 
     async function deleteEvent(id) {

@@ -2,7 +2,7 @@ import { useEvents, useFeed } from "../lib/data";
 import type { Route } from "../lib/router";
 
 export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
-  const events = useEvents({ limit: 4 });
+  const { data: events = [], loading: eventsLoading } = useEvents({ limit: 4 });
   const feed = useFeed();
   const quickActions: [string, string, string][] = [
     ["+", "Create event", "Tournament, league, camp or showcase"],
@@ -72,6 +72,8 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
                   </div>
                 </button>
               ))}
+              {eventsLoading && <div className="empty">Loading…</div>}
+              {!eventsLoading && events.length === 0 && <div className="empty">No events yet.</div>}
             </div>
 
             <div className="section-h"><h2>Quick actions</h2></div>

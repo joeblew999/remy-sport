@@ -15,9 +15,27 @@ interface EventProps {
 }
 
 export function EventPage({ id, goto, lang }: EventProps) {
-  const allEvents = useEvents();
-  const e = useEvent(id) ?? allEvents[0];
+  const { data: event, loading: eventLoading } = useEvent(id);
+  const { data: allEvents, loading: listLoading } = useEvents();
   const [tab, setTab] = useState<EventTab>("overview");
+
+  // `#/event` with no id shows whichever event sorts first, as it always has.
+  const e = id ? event : allEvents?.[0];
+
+  // Both accessors are async now, so the page has render states it did not
+  // have when the data was a module-level constant. Hooks above run
+  // unconditionally; only the output below is short-circuited.
+  if (id ? eventLoading : listLoading) {
+    return <div className="empty">Loading event…</div>;
+  }
+  if (!e) {
+    return (
+      <div className="empty">
+        <p>That event does not exist.</p>
+        <button onClick={() => goto({ page: "discover" })}>← Back to discover</button>
+      </div>
+    );
+  }
 
   return (
     <>

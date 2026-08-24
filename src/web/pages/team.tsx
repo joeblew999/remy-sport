@@ -1,5 +1,5 @@
 import { Icon } from "../components/icon";
-import { useRoster } from "../lib/data";
+import { useRoster, useTeam, useTeams } from "../lib/data";
 import type { Route } from "../lib/router";
 import type { Lang } from "../lib/i18n";
 
@@ -13,8 +13,27 @@ interface ScheduleRow {
   type: string;
 }
 
-export function TeamPage({ goto: _goto, lang: _lang }: { goto: (r: Route) => void; lang?: Lang }) {
+export function TeamPage({ id, goto, lang }: { id?: string; goto: (r: Route) => void; lang?: Lang }) {
+  // The sidebar's "My team" links to #/team with no id. Until the SPA knows who
+  // is signed in (ADR 008 step 4) there is no "my", so it falls back to the
+  // first team — the same fallback #/event uses.
+  const { data: team, loading: teamLoading } = useTeam(id);
+  const { data: allTeams, loading: listLoading } = useTeams();
   const roster = useRoster();
+
+  const t = id ? team : allTeams?.[0];
+
+  if (id ? teamLoading : listLoading) {
+    return <div className="empty">Loading team…</div>;
+  }
+  if (!t) {
+    return (
+      <div className="empty">
+        <p>That team does not exist.</p>
+        <button onClick={() => goto({ page: "discover" })}>← Back to discover</button>
+      </div>
+    );
+  }
   const schedule: ScheduleRow[] = [
     { date: "May 4", vs: "Triam Udom", sa: 71, sb: 64, w: true, type: "BSL" },
     { date: "May 7", vs: "Mater Dei", sa: 82, sb: 51, w: true, type: "BSL" },
@@ -27,32 +46,37 @@ export function TeamPage({ goto: _goto, lang: _lang }: { goto: (r: Route) => voi
   return (
     <>
       <div className="team-hero">
-        <div className="crest"></div>
+        <div className={`crest ${t.crest}`}></div>
         <div>
-          <h1>Saint Gabriel's College</h1>
-          <div className="meta thai" style={{ fontFamily: "Noto Sans Thai, sans-serif", fontSize: 16, color: "var(--ink-2)", marginTop: 4 }}>เซนต์คาเบรียล · บางกอก</div>
-          <div className="meta">U16 Boys · Roster of 12 · Coach Sukasem · Founded 1920</div>
+          <h1 data-testid="team-name">{lang === "TH" && t.nameTh ? t.nameTh : t.name}</h1>
+          <div className="meta thai" style={{ fontFamily: "Noto Sans Thai, sans-serif", fontSize: 16, color: "var(--ink-2)", marginTop: 4 }}>
+            {[lang === "TH" && t.orgNameTh ? t.orgNameTh : t.orgName, t.city].filter(x => x && x !== "—").join(" · ")}
+          </div>
+          <div className="meta">{t.ageGroupCode} {t.genderLabel} · {t.short}</div>
           <div className="event-actions" style={{ marginTop: 16 }}>
-            <button className="btn primary"><Icon name="follow"/>Following</button>
+            <button className="btn primary"><Icon name="follow"/>Follow</button>
             <button className="btn">Roster</button>
             <button className="btn">Stats</button>
             <button className="btn">Schedule</button>
           </div>
         </div>
+        {/* RECORD and RANK need played games and a standings table. Both are
+            roadmap Phase 3 (ADR 008) — showing "4–0 · #2" against a real team
+            would read as fact rather than as the placeholder it is. */}
         <div style={{ display: "flex", gap: 32, alignItems: "baseline" }}>
           <div style={{ textAlign: "right" }}>
             <div style={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.14em", textTransform: "uppercase" }}>RECORD</div>
-            <div style={{ fontFamily: "Space Grotesk, sans-serif", fontWeight: 600, fontSize: 32, letterSpacing: "-0.02em" }}>4–0</div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.14em", textTransform: "uppercase" }}>RANK</div>
-            <div style={{ fontFamily: "Space Grotesk, sans-serif", fontWeight: 600, fontSize: 32, letterSpacing: "-0.02em", color: "var(--accent)" }}>#2</div>
+            <div style={{ fontFamily: "Space Grotesk, sans-serif", fontWeight: 600, fontSize: 32, letterSpacing: "-0.02em", color: "var(--ink-3)" }}>{t.record ?? "—"}</div>
           </div>
         </div>
       </div>
 
       <div className="page-inner">
-        <div className="section-h"><h2>Roster</h2><a className="more">EXPORT CSV →</a></div>
+        {/* Roster and schedule are still fixtures — `players`/`player_teams`
+            and a games table are ADR 008 Phase 2/3. Marked, because the team
+            above them is now real and unlabelled sample data next to real data
+            gets read as real. */}
+        <div className="section-h"><h2>Roster</h2><a className="more">SAMPLE DATA</a></div>
         <div className="roster-grid">
           {roster.map(p => (
             <div key={p.num} className="player-card">
@@ -71,7 +95,7 @@ export function TeamPage({ goto: _goto, lang: _lang }: { goto: (r: Route) => voi
           ))}
         </div>
 
-        <div className="section-h" style={{ marginTop: 48 }}><h2>Schedule · Spring 2026</h2><a className="more">FULL SEASON →</a></div>
+        <div className="section-h" style={{ marginTop: 48 }}><h2>Schedule · Spring 2026</h2><a className="more">SAMPLE DATA</a></div>
         <div className="dash-card">
           {schedule.map((g, i) => (
             <div key={i} style={{ display: "grid", gridTemplateColumns: "90px 1fr 80px 100px 80px", padding: "14px 18px", borderBottom: "1px solid var(--rule)", alignItems: "center", background: g.live ? "var(--accent-soft)" : "transparent" }}>
