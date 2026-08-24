@@ -10,6 +10,7 @@ import loginRoutes from "./routes/login"
 import seedRoutes from "./routes/seed"
 import eventsRoutes from "./routes/events"
 import teamsRoutes from "./routes/teams"
+import referenceRoutes from "./routes/reference"
 import devMailRoutes from "./routes/dev-mail"
 import devSessionRoutes from "./routes/dev-sessions"
 import dashboardRoutes from "./routes/dashboard"
@@ -47,6 +48,7 @@ app.use("*", sessionMiddleware)
 app.route("/", seedRoutes)
 app.route("/", eventsRoutes)
 app.route("/", teamsRoutes)
+app.route("/", referenceRoutes)
 // Dev-only: 404s unless the outbox mail transport is active (ADR 010).
 app.route("/", devMailRoutes)
 app.route("/", devSessionRoutes)

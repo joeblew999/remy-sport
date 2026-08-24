@@ -127,6 +127,14 @@ Build links in emails from `BETTER_AUTH_URL`, never from the request origin: an 
 
 Sending to people outside the account needs the Workers **Paid** plan *and* the sending domain onboarded to Email Service. Neither is checkable from the repo.
 
+## Controlled vocabularies
+
+See [ADR 015](docs/dev/adr/015-reference-vocabularies.md). Age groups, genders, org types, event types/formats and provinces are **tables** (`age_group`, `gender`, …), seeded from `remy-sport-biz/data/seed/*.jsonl` and served at `/api/reference` with Thai names. `team.age_group_code` and `gender_code` are foreign keys — the database rejects an unknown code, not just the API.
+
+Route files still declare `z.enum([...])`, because a TEXT column cannot express a vocabulary to the type system and bad input should fail at the boundary. That copy is checked by `tests/reference.spec.ts`, so a change upstream fails a test rather than drifting.
+
+Do not use `drizzle-zod` to derive the domain route schemas: `createInsertSchema` on a TEXT column yields `z.string()` and would accept `"U99"`. It is used for `/api/reference`, where the response genuinely is the table.
+
 ## Sessions and devices
 
 See [ADR 014](docs/dev/adr/014-session-and-device-management.md). Device management is Better Auth **core** — `/list-sessions`, `/revoke-session`, `/revoke-other-sessions` — not the `multiSession` plugin, which is account *switching* and answers a different question.

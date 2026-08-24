@@ -1,4 +1,17 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core"
+
+/**
+ * Controlled vocabularies (ADR 015), copied from remy-sport-biz/data/seed.
+ *
+ * These were Zod enums hand-written in src/routes/*.ts and nothing else. The
+ * database accepted anything, so a bad code could arrive from the seed route, a
+ * migration, or any future writer that did not go through those routes — and
+ * the enum itself was an unchecked fork of the PO's data.
+ *
+ * Now they are tables with foreign keys, and `mise run test` asserts the API
+ * enums still match their rows. Seeded in the migration rather than /api/seed,
+ * because the foreign keys have to be satisfiable the moment they exist.
+ */
 import { user, organization } from "./auth-schema"
 
 /**
@@ -52,8 +65,60 @@ export const team = sqliteTable("team", {
   orgId: text("org_id")
     .notNull()
     .references(() => organization.id),
-  ageGroupCode: text("age_group_code").notNull(), // U10 … SENIOR
-  genderCode: text("gender_code").notNull(), // M | F | COED
+  // Foreign keys as of migration 0009 — the database rejects a code outside the
+  // vocabulary, which it previously accepted from any writer.
+  ageGroupCode: text("age_group_code")
+    .notNull()
+    .references(() => ageGroup.code),
+  genderCode: text("gender_code")
+    .notNull()
+    .references(() => gender.code),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+})
+
+/** U10 … SENIOR. `sort` exists because age order is not code order. */
+export const ageGroup = sqliteTable("age_group", {
+  code: text("code").primaryKey(),
+  nameEn: text("name_en").notNull(),
+  nameTh: text("name_th").notNull(),
+  minAge: integer("min_age"),
+  maxAge: integer("max_age"),
+  sort: integer("sort").notNull(),
+})
+
+export const gender = sqliteTable("gender", {
+  code: text("code").primaryKey(),
+  nameEn: text("name_en").notNull(),
+  nameTh: text("name_th").notNull(),
+  sort: integer("sort").notNull(),
+})
+
+export const orgType = sqliteTable("org_type", {
+  code: text("code").primaryKey(),
+  nameEn: text("name_en").notNull(),
+  nameTh: text("name_th").notNull(),
+  sort: integer("sort").notNull(),
+})
+
+/** Lowercase, unlike the biz fixtures — see migration 0005 and 0009. */
+export const eventType = sqliteTable("event_type", {
+  code: text("code").primaryKey(),
+  nameEn: text("name_en").notNull(),
+  nameTh: text("name_th").notNull(),
+  sort: integer("sort").notNull(),
+})
+
+export const eventFormat = sqliteTable("event_format", {
+  code: text("code").primaryKey(),
+  nameEn: text("name_en").notNull(),
+  nameTh: text("name_th").notNull(),
+  sort: integer("sort").notNull(),
+})
+
+/** The PO's 15-province starter set, not all 77. */
+export const province = sqliteTable("province", {
+  code: text("code").primaryKey(),
+  nameEn: text("name_en").notNull(),
+  nameTh: text("name_th").notNull(),
 })
