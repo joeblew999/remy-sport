@@ -40,8 +40,24 @@ bucket_name = "remy-sport-storage"
 enabled            = true
 head_sampling_rate = 1
 
+# Cloudflare Email Service — outbound transactional mail (org invitations).
+#
+# No restriction attribute, so the binding may send to any verified destination
+# address in the account, and to any recipient at all once the sending domain is
+# onboarded to Email Service. Invitations go to people who are not in the
+# account yet, so that onboarding plus the Workers **Paid** plan are both
+# prerequisites — outbound sending is not available on the Free plan. See
+# ADR 010.
+[[send_email]]
+name = "EMAIL"
+
 [vars]
 BETTER_AUTH_URL = "https://remy.ubuntusoftware.net"
+# Production sends for real. Local dev and tests override this to "outbox" via
+# .dev.vars (written by `mise run dev:vars`), which takes precedence over
+# [vars] — so nothing here can cause a test run to attempt delivery.
+MAIL_TRANSPORT  = "cloudflare"
+EMAIL_FROM      = "noreply@remy.ubuntusoftware.net"
 
 # BETTER_AUTH_SECRET is set via `wrangler secret` — not stored in config
 # For local dev, .dev.vars provides the secret
