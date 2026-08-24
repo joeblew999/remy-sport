@@ -87,7 +87,11 @@ depends     = ["install"]
 #
 # The CLI needs a module-level `auth` export, which src/auth.cli.ts provides;
 # the runtime instance takes a Hono Context and cannot be imported here.
-run         = "bun x @better-auth/cli generate --config src/auth.cli.ts --output src/db/auth-schema.ts -y"
+#
+# `auth`, not `@better-auth/cli`: the CLI was renamed at 1.5 and the old package
+# is frozen at 1.4.22, so it cannot read a 1.7 config. The new one ships both an
+# `auth` and a `better-auth` binary; `auth` is what the upstream docs use.
+run         = "bun x auth generate --config src/auth.cli.ts --output src/db/auth-schema.ts -y"
 
 [tasks."auth:schema:check"]
 description = "Fail if src/db/auth-schema.ts is stale relative to src/auth.config.ts"
@@ -97,7 +101,7 @@ depends     = ["install"]
 run = """
 set -e
 TMP=$(mktemp -d)
-bun x @better-auth/cli generate --config src/auth.cli.ts --output "$TMP/auth-schema.ts" -y >/dev/null 2>&1
+bun x auth generate --config src/auth.cli.ts --output "$TMP/auth-schema.ts" -y >/dev/null 2>&1
 if ! diff -q "$TMP/auth-schema.ts" src/db/auth-schema.ts >/dev/null; then
   echo "auth:schema:check: src/db/auth-schema.ts is stale — run 'mise run auth:schema:generate'" >&2
   diff "$TMP/auth-schema.ts" src/db/auth-schema.ts || true
@@ -126,10 +130,17 @@ mise run check
 """
 
 [tasks.setup]
-description = "Install deps, write .dev.vars, apply local D1 migrations, and install Playwright"
-# These four are genuinely independent, so running them in parallel is correct
+description = "Install deps, build the SPA, write .dev.vars, apply local D1 migrations, and install Playwright"
+# These five are genuinely independent, so running them in parallel is correct
 # here — unlike the deploy pipeline, which needs explicit ordering (ADR 006 §8).
-depends     = ["install", "dev:vars", "cf:d1:migrations:apply", "playwright:install"]
+#
+# web:build belongs here, not just in cf:deploy. dist/web is gitignored and the
+# [assets] binding points at it, so on a fresh clone `wrangler dev` refuses to
+# start at all: "The directory specified by the assets.directory field in your
+# configuration file does not exist". Everything local runs through setup —
+# dev, dev:seed, dev:ensure, test — so building here fixes all of them at once.
+# web:build declares sources/outputs, so it is a no-op once dist/web is current.
+depends     = ["install", "web:build", "dev:vars", "cf:d1:migrations:apply", "playwright:install"]
 
 [tasks."playwright:install"]
 description = "Install Playwright browsers (proxy-safe, idempotent)"
@@ -273,6 +284,14 @@ description = "Full deploy pipeline"
 # Chaining the tasks through depends was rejected: it would couple them, so
 # `mise run seed:remote` would trigger a full deploy as a side effect. Ordering
 # is a property of this pipeline, not of the individual tasks.
+#
+# Migrations run BEFORE cf:deploy, and after cf:env:bootstrap creates the D1
+# database they need. They used to run after the deploy, which was survivable
+# only while every migration was additive — old code simply ignored the new
+# columns. Migration 0007 broke that assumption: better-auth 1.7 matches
+# sign-in against account.issuer, so a Worker deployed ahead of it queries a
+# column that does not exist yet and every sign-in fails until the migration
+# lands. Migrate first, then deploy code that depends on the migration.
 depends     = ["setup"]
 run = """
 set -e
@@ -281,10 +300,10 @@ mise run auth:schema:check
 mise run test
 mise run versions
 mise run cf:env:bootstrap
+mise run cf:d1:migrations:apply:remote
 mise run cf:deploy
 mise run cf:secret:set
 mise run cf:wait
-mise run cf:d1:migrations:apply:remote
 mise run seed:remote
 mise run test:deployed
 """
@@ -293,6 +312,9 @@ mise run test:deployed
 
 [tasks."dev:remote"]
 description = "Dev server against remote Cloudflare resources"
+# Not setup: the local D1 migrations and Playwright browsers are irrelevant
+# here. web:build is not — the [assets] directory must exist either way.
+depends     = ["install", "web:build"]
 run         = "bun x wrangler dev --remote --host localhost"
 
 [tasks."test:deployed"]
@@ -548,7 +570,17 @@ run         = "bun x wrangler r2 object list {{env.CF_R2_NAME}}"
 # ── Web app (src/web/) ──────────────────────────────────────────────────────
 
 [tasks."web:dev"]
-description = "Run the web app via Vite dev server (port 5175, HMR)"
+description = "SPA only, with HMR (port 5175) — REQUIRES `mise run dev` alongside it"
+# NOT the normal way to run this project. Vite serves the SPA and nothing else,
+# so /api/* has no backend here — the vite.config.ts proxy forwards it to the
+# Worker on :8787, which you have to start yourself in another terminal.
+#
+# Without that Worker the SPA loads and then fails at everything: no session,
+# sign-in 404s, every page empty. It looks like the SPA is broken when it simply
+# has no API.
+#
+# Use `mise run dev:seed` (one server, http://localhost:8787/app) unless you
+# specifically want hot reload while editing components.
 depends     = ["install"]
 run         = "bun x vite --config src/web/vite.config.ts"
 
