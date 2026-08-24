@@ -1,22 +1,20 @@
 import { test, expect } from "@playwright/test"
+import { signIn, signInThroughLoginForm } from "./helpers/auth"
 
 // All 6 actors from the access matrix (docs/user/matrix.md)
-const ADMIN =     { email: "admin@remy.dev",     password: "admin1234!",   role: "admin" }
-const ORGANIZER = { email: "organizer@remy.dev", password: "organizer1!",  role: "organizer" }
-const COACH =     { email: "coach@remy.dev",     password: "coach12345!",  role: "coach" }
-const PLAYER =    { email: "player@remy.dev",    password: "player1234!",  role: "player" }
-const SPECTATOR = { email: "spectator@remy.dev", password: "spectator1!",  role: "spectator" }
-const REFEREE =   { email: "referee@remy.dev",   password: "referee1234!", role: "referee" }
+const ADMIN =     { email: "admin@remy.dev", role: "admin" }
+const ORGANIZER = { email: "organizer@remy.dev", role: "organizer" }
+const COACH =     { email: "coach@remy.dev", role: "coach" }
+const PLAYER =    { email: "player@remy.dev", role: "player" }
+const SPECTATOR = { email: "spectator@remy.dev", role: "spectator" }
+const REFEREE =   { email: "referee@remy.dev", role: "referee" }
 
 const ALL_ACTORS = [ADMIN, ORGANIZER, COACH, PLAYER, SPECTATOR, REFEREE]
 const WRITERS = [ADMIN, ORGANIZER]  // can create/update/delete events
 const READERS = [COACH, PLAYER, SPECTATOR, REFEREE]  // read-only for events
 
-async function signIn(request: any, user: { email: string; password: string }) {
-  const res = await request.post("/api/auth/sign-in/email", { data: user })
-  expect(res.ok()).toBeTruthy()
-  return res
-}
+// Sign-in lives in tests/helpers/auth.ts now — there are no passwords to post
+// (ADR 012), and the code has to be fetched from the dev outbox first.
 
 // ── Seed ────────────────────────────────────────────────────────────────────
 
@@ -35,12 +33,10 @@ test.describe.serial("Seed — all 6 actors", () => {
 
   for (const actor of ALL_ACTORS) {
     test(`${actor.role} can sign in`, async ({ request }) => {
-      const res = await request.post("/api/auth/sign-in/email", {
-        data: { email: actor.email, password: actor.password },
-      })
-      expect(res.ok()).toBeTruthy()
-      const body = await res.json()
-      expect(body.user.email).toBe(actor.email)
+      // Passwordless now: request a code, then present it (ADR 012).
+      await signIn(request, actor.email)
+      const session = await (await request.get("/api/auth/get-session")).json()
+      expect(session.user.email).toBe(actor.email)
     })
   }
 })
@@ -50,7 +46,7 @@ test.describe.serial("Seed — all 6 actors", () => {
 test.describe.serial("Layer 1 — event:create by role", () => {
   for (const actor of WRITERS) {
     test(`${actor.role} CAN create events`, async ({ request }) => {
-      await signIn(request, actor)
+      await signIn(request, actor.email)
       const res = await request.post("/api/events", {
         data: { name: `${actor.role}'s event`, type: "tournament" },
       })
@@ -60,7 +56,7 @@ test.describe.serial("Layer 1 — event:create by role", () => {
 
   for (const actor of READERS) {
     test(`${actor.role} CANNOT create events (403)`, async ({ request }) => {
-      await signIn(request, actor)
+      await signIn(request, actor.email)
       const res = await request.post("/api/events", {
         data: { name: `${actor.role} attempt`, type: "tournament" },
       })
@@ -107,7 +103,7 @@ test.describe.serial("Layer 2 — ownership on update/delete", () => {
   let adminEventId: string
 
   test("organizer creates event", async ({ request }) => {
-    await signIn(request, ORGANIZER)
+    await signIn(request, ORGANIZER.email)
     const res = await request.post("/api/events", {
       data: { name: "Organizer Owned", type: "showcase" },
     })
@@ -115,7 +111,7 @@ test.describe.serial("Layer 2 — ownership on update/delete", () => {
   })
 
   test("admin creates event", async ({ request }) => {
-    await signIn(request, ADMIN)
+    await signIn(request, ADMIN.email)
     const res = await request.post("/api/events", {
       data: { name: "Admin Owned", type: "league" },
     })
@@ -123,7 +119,7 @@ test.describe.serial("Layer 2 — ownership on update/delete", () => {
   })
 
   test("organizer can update own event", async ({ request }) => {
-    await signIn(request, ORGANIZER)
+    await signIn(request, ORGANIZER.email)
     const res = await request.put(`/api/events/${organizerEventId}`, {
       data: { name: "Updated by Owner" },
     })
@@ -132,7 +128,7 @@ test.describe.serial("Layer 2 — ownership on update/delete", () => {
   })
 
   test("organizer CANNOT update admin's event (ownership denied)", async ({ request }) => {
-    await signIn(request, ORGANIZER)
+    await signIn(request, ORGANIZER.email)
     const res = await request.put(`/api/events/${adminEventId}`, {
       data: { name: "Hijacked!" },
     })
@@ -140,7 +136,7 @@ test.describe.serial("Layer 2 — ownership on update/delete", () => {
   })
 
   test("admin CAN update organizer's event (admin bypass)", async ({ request }) => {
-    await signIn(request, ADMIN)
+    await signIn(request, ADMIN.email)
     const res = await request.put(`/api/events/${organizerEventId}`, {
       data: { description: "Admin override" },
     })
@@ -149,7 +145,7 @@ test.describe.serial("Layer 2 — ownership on update/delete", () => {
   })
 
   test("organizer can delete own event", async ({ request }) => {
-    await signIn(request, ORGANIZER)
+    await signIn(request, ORGANIZER.email)
     const create = await request.post("/api/events", {
       data: { name: "Throwaway", type: "camp" },
     })
@@ -159,14 +155,14 @@ test.describe.serial("Layer 2 — ownership on update/delete", () => {
   })
 
   test("organizer CANNOT delete admin's event (ownership denied)", async ({ request }) => {
-    await signIn(request, ORGANIZER)
+    await signIn(request, ORGANIZER.email)
     const res = await request.delete(`/api/events/${adminEventId}`)
     expect(res.status()).toBe(403)
   })
 
   for (const actor of READERS) {
     test(`${actor.role} CANNOT delete any event (no permission)`, async ({ request }) => {
-      await signIn(request, actor)
+      await signIn(request, actor.email)
       const list = await request.get("/api/events")
       const { events } = await list.json()
       const res = await request.delete(`/api/events/${events[0].id}`)
@@ -176,7 +172,7 @@ test.describe.serial("Layer 2 — ownership on update/delete", () => {
 
   for (const actor of READERS) {
     test(`${actor.role} CANNOT update any event (no permission)`, async ({ request }) => {
-      await signIn(request, actor)
+      await signIn(request, actor.email)
       const list = await request.get("/api/events")
       const { events } = await list.json()
       const res = await request.put(`/api/events/${events[0].id}`, {
@@ -191,7 +187,7 @@ test.describe.serial("Layer 2 — ownership on update/delete", () => {
 
 test.describe.serial("Layer 3 — event types", () => {
   test("all 4 event types can be created", async ({ request }) => {
-    await signIn(request, ORGANIZER)
+    await signIn(request, ORGANIZER.email)
     for (const type of ["tournament", "league", "camp", "showcase"]) {
       const res = await request.post("/api/events", {
         data: { name: `Type test: ${type}`, type },
@@ -250,11 +246,7 @@ test.describe.serial("Dashboard GUI — per-actor rendering", () => {
 
   for (const actor of WRITERS) {
     test(`${actor.role} sees create form and write permissions`, async ({ page }) => {
-      await page.goto("/login")
-      await page.fill('input[type="email"]', actor.email)
-      await page.fill('input[type="password"]', actor.password)
-      await page.click('button[type="submit"]')
-      await page.waitForURL("**/")
+      await signInThroughLoginForm(page, actor.email)
 
       await page.goto("/dashboard")
       await expect(page.getByTestId("role-badge")).toHaveText(actor.role)
@@ -267,11 +259,7 @@ test.describe.serial("Dashboard GUI — per-actor rendering", () => {
 
   for (const actor of READERS) {
     test(`${actor.role} sees denied form and read-only permissions`, async ({ page }) => {
-      await page.goto("/login")
-      await page.fill('input[type="email"]', actor.email)
-      await page.fill('input[type="password"]', actor.password)
-      await page.click('button[type="submit"]')
-      await page.waitForURL("**/")
+      await signInThroughLoginForm(page, actor.email)
 
       await page.goto("/dashboard")
       await expect(page.getByTestId("role-badge")).toHaveText(actor.role)
@@ -281,12 +269,20 @@ test.describe.serial("Dashboard GUI — per-actor rendering", () => {
     })
   }
 
+  test("the role switcher actually switches role, not just renders buttons", async ({ page }) => {
+    // This is why it broke silently: the old test asserted the six buttons were
+    // visible and never clicked one, so the switcher kept posting passwords
+    // long after password sign-in was removed (ADR 012).
+    await signInThroughLoginForm(page, ADMIN.email)
+    await page.goto("/dashboard")
+    await expect(page.getByTestId("role-badge")).toHaveText("admin")
+
+    await page.getByTestId("role-switcher").getByRole("button", { name: "Coach" }).click()
+    await expect(page.getByTestId("role-badge")).toHaveText("coach", { timeout: 15000 })
+  })
+
   test("role switcher shows all 6 actors", async ({ page }) => {
-    await page.goto("/login")
-    await page.fill('input[type="email"]', ADMIN.email)
-    await page.fill('input[type="password"]', ADMIN.password)
-    await page.click('button[type="submit"]')
-    await page.waitForURL("**/")
+    await signInThroughLoginForm(page, ADMIN.email)
 
     await page.goto("/dashboard")
     const switcher = page.getByTestId("role-switcher")
@@ -295,11 +291,7 @@ test.describe.serial("Dashboard GUI — per-actor rendering", () => {
   })
 
   test("events table shows created events", async ({ page }) => {
-    await page.goto("/login")
-    await page.fill('input[type="email"]', ORGANIZER.email)
-    await page.fill('input[type="password"]', ORGANIZER.password)
-    await page.click('button[type="submit"]')
-    await page.waitForURL("**/")
+    await signInThroughLoginForm(page, ORGANIZER.email)
 
     await page.goto("/dashboard")
     const table = page.getByTestId("events-table")

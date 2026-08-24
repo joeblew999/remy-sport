@@ -12,10 +12,12 @@ test.describe("Home page", () => {
     await expect(signIn).toBeVisible()
   })
 
-  test("has create account link", async ({ page }) => {
+  test("offers no separate create-account route", async ({ page }) => {
     await page.goto("/")
-    const signUp = page.locator('a[href="/login?mode=signup"]')
-    await expect(signUp).toBeVisible()
+    // Passwordless sign-in creates the account, so a second call to action
+    // would send people down a path that no longer differs (ADR 012).
+    await expect(page.locator('a[href="/login?mode=signup"]')).toHaveCount(0)
+    await expect(page.locator('a[href="/login"]')).toBeVisible()
   })
 })
 

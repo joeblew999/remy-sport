@@ -15,7 +15,20 @@ export default defineConfig({
   // deterministic: the same commit failed 2/68 then passed 68/68 unchanged.
   // Local runs keep 0 so genuine failures stay loud and fast.
   retries: process.env.CI || !isLocal ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // One worker, everywhere — not just CI.
+  //
+  // Sign-in codes are single-use and the six seeded actors are shared, so two
+  // tests authenticating as the same actor race by construction: whichever
+  // redeems first consumes the verification record, and the other gets
+  // INVALID_OTP. That is not flakiness to retry away, it is two tests using one
+  // credential. A fixed code does not help, because the *record* is consumed,
+  // not the value.
+  //
+  // The alternative was a throwaway account per test, but roles are assigned by
+  // the admin-only createUser, so a test cannot provision its own organizer.
+  // Serialising costs a few seconds on a suite this size and removes the whole
+  // class of failure. Revisit if the suite grows enough for that to hurt.
+  workers: 1,
   reporter: "html",
   use: {
     baseURL,

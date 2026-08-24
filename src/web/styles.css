@@ -180,6 +180,47 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 }
 .topbar .install-btn:hover { background: var(--ink-2);}
 
+/* ---------- Account (topbar sign-in / signed-in identity) ---------- */
+/* The SPA had no auth affordance at all before ADR 012 — a login route with
+   nothing linking to it. This is that entry point. */
+.account-slot {
+  display: flex; align-items: center; gap: 10px;
+  /* Reserve the row while the session resolves, so the topbar does not jump
+     when "Sign in" is replaced by a name. */
+  min-height: 36px;
+  flex-shrink: 0;
+}
+.account-ava {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--accent-soft); color: var(--accent-deep);
+  font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 12px;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+.account-meta { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.account-name {
+  font-size: 13px; font-weight: 500; color: var(--ink);
+  max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.account-role {
+  font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3);
+}
+.account-slot .btn {
+  padding: 7px 14px; font-size: 13px;
+  border: 1px solid var(--rule); border-radius: 100px;
+  color: var(--ink-2); background: transparent;
+}
+.account-slot .btn:hover { background: var(--paper-2); color: var(--ink); }
+.topbar > .btn.primary {
+  padding: 8px 18px; border-radius: 100px;
+  background: var(--accent); color: #fff;
+  font-size: 13px; font-weight: 500;
+  flex-shrink: 0;
+}
+.topbar > .btn.primary:hover { background: var(--accent-deep); }
+
 /* ---------- Page ---------- */
 .page {
   flex: 1;
@@ -839,6 +880,8 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   .event-stats .stat-cell:nth-child(4),
   .event-stats .stat-cell:nth-child(5) { border-top: 1px solid var(--rule); padding-top: 14px; margin-top: 6px; }
   .topbar .install-btn { display: none; }
+  /* Keep the avatar and the sign-out control; the name is the expendable part. */
+  .account-meta { display: none; }
 }
 
 /* ─── Mobile: ≤ 768px ─── */
@@ -951,3 +994,15 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
     min-height: 40px;
   }
 }
+
+/* ---------- Dev account shortcuts on the SPA login ---------- */
+/* Mirrors the harness login's quick-fill row. Rendered only when the dev
+   outbox responds, so it cannot appear in production (ADR 012). */
+.dev-account-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.dev-account-row .btn {
+  padding: 6px 14px; font-size: 12px;
+  border: 1px solid var(--rule); border-radius: 100px;
+  color: var(--ink-2); background: transparent;
+  font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.04em;
+}
+.dev-account-row .btn:hover { background: var(--paper-2); color: var(--ink); }

@@ -10,6 +10,21 @@ export type Bindings = {
   APPLE_BUNDLE_ID?: string
   ANDROID_PACKAGE_NAME?: string
   ANDROID_CERT_FINGERPRINT?: string
+  // Cloudflare Email Service. Optional because local dev and tests run the
+  // `outbox` transport instead and never touch the binding (ADR 010).
+  EMAIL?: SendEmail
+  // "cloudflare" | "outbox". Absent means outbox — see mail/mailer.ts for why
+  // the default is the safe one rather than the production one.
+  MAIL_TRANSPORT?: string
+  // Sender address; must belong to a domain onboarded to Email Service.
+  EMAIL_FROM?: string
+  /**
+   * Fixed sign-in code for the seeded @remy.dev demo accounts, so the
+   * Playwright suite can authenticate against a deployed Worker where no dev
+   * outbox exists (ADR 012). A secret, never a [vars] entry. Unset it before
+   * the platform has real users.
+   */
+  TEST_OTP?: string
 }
 
 export type Variables = {
@@ -28,6 +43,10 @@ export type Variables = {
     userId: string
     expiresAt: Date
   } | null
+  // Set by requireOrgMember once membership is established, so a handler can
+  // branch on owner/admin/member without re-querying. Absent on routes that
+  // never ran that middleware.
+  orgRole?: string
 }
 
 export type AppEnv = {

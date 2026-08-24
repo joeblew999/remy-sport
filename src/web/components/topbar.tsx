@@ -1,5 +1,7 @@
 import { Icon } from "./icon";
+import { Account } from "./account";
 import type { Lang } from "../lib/i18n";
+import type { Route } from "../lib/router";
 
 interface Props {
   lang: Lang;
@@ -7,9 +9,10 @@ interface Props {
   spoiler: boolean;
   setSpoiler: (fn: boolean | ((prev: boolean) => boolean)) => void;
   onMenu?: () => void;
+  goto: (r: Route) => void;
 }
 
-export function Topbar({ lang, setLang, spoiler, setSpoiler, onMenu }: Props) {
+export function Topbar({ lang, setLang, spoiler, setSpoiler, onMenu, goto }: Props) {
   return (
     <header className="topbar">
       {onMenu && (
@@ -31,6 +34,7 @@ export function Topbar({ lang, setLang, spoiler, setSpoiler, onMenu }: Props) {
       </button>
       <button className="icon-btn"><Icon name="bell" /><span className="badge"></span></button>
       <button className="install-btn"><Icon name="download"/>Install app</button>
+      <Account goto={goto}/>
     </header>
   );
 }

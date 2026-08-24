@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test"
+import { signInViaPage, ORGANIZER } from "./helpers/auth"
 
 /**
  * Organizations, wired access control and database hooks (ADR 007).
@@ -32,15 +33,11 @@ test.describe("Default role — database hook", () => {
   test("a brand new account defaults to spectator, not Better Auth's generic user", async ({
     page,
   }) => {
-    await page.goto("/login")
+    // There is no sign-up endpoint any more (ADR 012). A first-time address
+    // that proves it can receive a code gets an account, so this exercises
+    // auto-provisioning and the default-role hook in one go.
     const email = `hook-${unique()}@remy.dev`
-
-    const signUp = await json(page, "/api/auth/sign-up/email", {
-      email,
-      password: "hooktest123!",
-      name: "Hook Test",
-    })
-    expect(signUp.status).toBe(200)
+    await signInViaPage(page, email)
 
     // Before ADR 007 this was "user", which matches no role in
     // access-control.ts — so require-permission.ts denied everything.
@@ -53,11 +50,7 @@ test.describe("Organizations", () => {
   test("an organizer can create an organization and becomes its owner", async ({ page }) => {
     await page.goto("/login")
 
-    const signIn = await json(page, "/api/auth/sign-in/email", {
-      email: "organizer@remy.dev",
-      password: "organizer1!",
-    })
-    expect(signIn.status).toBe(200)
+    await signInViaPage(page, ORGANIZER)
 
     const slug = `club-${unique()}`
     const created = await json(page, "/api/auth/organization/create", {
@@ -75,10 +68,7 @@ test.describe("Organizations", () => {
   test("an organization is listed for the member who created it", async ({ page }) => {
     await page.goto("/login")
 
-    await json(page, "/api/auth/sign-in/email", {
-      email: "organizer@remy.dev",
-      password: "organizer1!",
-    })
+    await signInViaPage(page, ORGANIZER)
 
     const slug = `club-${unique()}`
     await json(page, "/api/auth/organization/create", { name: "Listed Club", slug })

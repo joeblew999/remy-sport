@@ -1,5 +1,5 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core"
-import { user } from "./auth-schema"
+import { user, organization } from "./auth-schema"
 
 /**
  * Application tables — hand-written, and the only schema file that is.
@@ -9,14 +9,51 @@ import { user } from "./auth-schema"
  * two apart is what makes regeneration safe: it can never clobber app tables,
  * and app tables can never silently drift from what Better Auth expects.
  */
+/**
+ * Columns follow the canonical `events` definition in
+ * remy-sport-biz/data/seed/schema.md. Migration 0005 explains the two names
+ * that deliberately differ (`name` for `name_en`, `created_by` for
+ * `organizer_user_id`) and why `org_id` is absent.
+ */
 export const event = sqliteTable("event", {
   id: text("id").primaryKey(),
-  name: text("name").notNull(),
+  name: text("name").notNull(), // canonical: name_en
+  nameTh: text("name_th"),
   type: text("type").notNull(), // tournament, league, camp, showcase
+  format: text("format").notNull().default("5x5"), // 5x5 | 3x3
   description: text("description"),
-  createdBy: text("created_by")
+  // ISO 8601 date strings (YYYY-MM-DD), per the biz schema's date convention.
+  // Nullable because rows predating migration 0005 have no value; the API
+  // defaults them on create.
+  startDate: text("start_date"),
+  endDate: text("end_date"),
+  city: text("city"),
+  provinceCode: text("province_code"), // canonical: 3-letter code, e.g. BKK
+  isFibaCertified: integer("is_fiba_certified", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  createdBy: text("created_by") // canonical: organizer_user_id
     .notNull()
     .references(() => user.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+})
+
+/**
+ * Team profiles, following canonical `teams` in
+ * remy-sport-biz/data/seed/schema.md. Migration 0006 explains why `org_id`
+ * points at Better Auth's `organization` rather than a second orgs table, and
+ * why the two `_code` columns are plain text validated at the API boundary.
+ */
+export const team = sqliteTable("team", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(), // canonical: name_en
+  nameTh: text("name_th"),
+  orgId: text("org_id")
+    .notNull()
+    .references(() => organization.id),
+  ageGroupCode: text("age_group_code").notNull(), // U10 … SENIOR
+  genderCode: text("gender_code").notNull(), // M | F | COED
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 })

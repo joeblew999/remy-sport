@@ -20,14 +20,25 @@ curl https://mise.run | sh
 export PATH="$HOME/.local/bin:$PATH"
 eval "$(mise activate bash)"
 
-# 2. Trust config and set up everything (deps, migrations, Playwright)
+# 2. Trust config and set up everything (deps, SPA build, migrations, Playwright)
 mise trust && mise install && mise run setup
 
 # 3. Start dev server with seeded test data
 mise run dev:seed
 ```
 
-That's it. The server runs on http://localhost:8787 with two seeded users (see Seed Users below).
+That's it. The server runs on **http://localhost:8787** — the SPA is at **/app**, the auth harness at `/`, `/login` and `/dashboard`.
+
+### Which dev server?
+
+There are two, and only one of them is the normal choice.
+
+| | Command | Open | Use when |
+|---|---|---|---|
+| **Worker** (normal) | `mise run dev:seed` | **localhost:8787/app** | Everything works: one origin serves the API and the SPA. |
+| Vite (HMR only) | `mise run dev` **and** `mise run web:dev` | localhost:5175 | Editing components and you want instant reload. |
+
+**`mise run web:dev` on its own does not work.** Vite serves the SPA and nothing else, so `/api/*` has no backend: the session never resolves, sign-in 404s, and every page renders empty — which looks like a broken SPA rather than a missing API. `src/web/vite.config.ts` proxies `/api` to `localhost:8787`, so the Worker still has to be running in another terminal.
 
 ### AI agent sessions
 
@@ -38,6 +49,7 @@ The SessionStart hook (`.claude/hooks/session-start.sh`) automatically runs step
 - Run `mise run test` to verify all tests pass (starts its own server, no need for `mise run dev`)
 - `mise run seed` can be run separately against an already-running dev server
 - Playwright is installed via curl (proxy-safe) with version auto-detected from `node_modules/playwright-core/browsers.json`
+- `setup` owns `web:build`. `dist/web` is gitignored and the `[assets]` binding points at it, so without a build `wrangler dev` refuses to start ("the directory specified by the `assets.directory` field ... does not exist"). Every local task routes through `setup`, and `web:build` declares `sources`/`outputs`, so it is a no-op once `dist/web` is current.
 
 ## Stack
 
@@ -48,11 +60,11 @@ The SessionStart hook (`.claude/hooks/session-start.sh`) automatically runs step
 - **MCP** — model context protocol
 - **Better Auth** — authentication (with plugins for 2FA, organizations, roles, etc.)
 - **Drizzle ORM** — database ORM for D1
-- **Datastar** — server-driven reactivity via SSE + `data-*` attributes (proposed, see ADR 004)
-- **Lit** — Web Components for reusable UI widgets (proposed, see ADR 004)
-- **DaisyUI v5** — UI components via CDN (no build step)
-- **Tailwind CSS 4** — utility CSS via CDN
+- **React 19 + Vite** — the product frontend (`src/web/`), see [ADR 008](docs/dev/adr/008-frontend-is-the-react-spa.md)
+- **DaisyUI v5** — UI components via CDN (no build step), used by the auth harness only
+- **Tailwind CSS 4** — utility CSS via CDN, used by the auth harness only
 - **Playwright** — end-to-end testing
+- ~~**Datastar** / **Lit**~~ — proposed in ADR 004, **superseded** by ADR 008. Never implemented; do not add either.
 
 ### Runtime & Infrastructure
 - **Cloudflare Workers** — serverless compute
@@ -73,12 +85,89 @@ mise run deps:update     # update within package.json semver ranges, then typech
 
 `deps:update` only moves within existing ranges, so it cannot silently cross a major boundary — widening a range is a deliberate edit. Always follow with `mise run test`.
 
-**`better-auth` is deliberately pinned to `~1.4.18`, not `^`.** Two independent reasons:
+**`better-auth` is on 1.7.1.** It was pinned to `~1.4.18` for a while over two blockers, both now resolved — the note is kept because the way it was resolved is not guessable:
 
-1. 1.7.x changes `sign-in/email` to match `account.issuer === createLocalAccountIssuer("credential")`, a column our schema has no way to produce — every sign-in fails with `User not found` while `/api/seed` still reports the users as existing.
-2. **`@better-auth/cli` only publishes up to 1.4.22.** It bundles its own `@better-auth/core`, so installing it alongside `better-auth@1.7.1` hoists `@better-auth/core@1.4.22` against `better-auth@1.7.1`, which expects `1.7.1` — a silently broken tree. Until the CLI ships 1.7.x we cannot generate a 1.7 schema, and generating the schema is the whole point (below).
+**The CLI was renamed.** `@better-auth/cli` is frozen at 1.4.22 and always will be; the package moved to plain **`auth`**, which versions in lockstep with core. The old blocker was that `@better-auth/cli` bundles its own `@better-auth/core`, so installing it beside `better-auth@1.7.1` hoisted core 1.4.22 against a 1.7.1 runtime. Checking `@better-auth/cli` versions makes the upgrade look permanently blocked — it is the wrong package to check. Verify the tree with `bun pm why @better-auth/core`: there must be exactly one, matching `better-auth`.
 
-Re-check with `bun pm view @better-auth/cli versions` before attempting the upgrade.
+**`account.issuer` needed a backfill.** 1.7 matches `sign-in/email` on `account.issuer === createLocalAccountIssuer("credential")`, so before [migration 0007](src/db/migrations/0007_account_issuer.sql) every sign-in failed with `User not found` while `/api/seed` still reported the users as existing. All rows here are credential rows and take `local:credential`; a social provider would need its own issuer branch added to that migration.
+
+`deps:outdated` cannot see either of these — a rename looks like an abandoned package, and a required backfill looks like a normal minor bump.
+
+## Two kinds of role, and two tables called "team"
+
+See [ADR 009](docs/dev/adr/009-full-organization-adoption.md). Both pairs are easy to conflate and each conflation has already caused a bug.
+
+**Roles.** A user has exactly one *platform* role (organizer, coach, referee, player, spectator, admin — biz `actors.md`) and, separately, an *organization* role per org they belong to (owner, admin, member — Better Auth's own). They use different access controllers: [access-control.ts](src/auth/access-control.ts) and [org-access-control.ts](src/auth/org-access-control.ts). Never pass the platform `ac`/`roles` to `organization()` — that replaces owner/admin/member with the six domain roles, and `createOrganization` writes `"owner"`, which then resolves to nothing.
+
+**Teams.** `team` is a roster of players (domain, migration 0006). `org_team` is a group of *users who log in* (the plugin, migration 0008). Rosters cannot move into `org_team_member` — its `user_id` is a non-null FK, and biz makes `players.user_id` nullable because minors usually have no account.
+
+**Authorizing a write needs both questions.** `requirePermission` asks whether this actor type may do this at all; `requireOrgMember` asks whether they stand in the right relation to *this* object. See `src/routes/teams.ts` for the composition. Check the biz access matrix before adding either — it is the source of truth for who may do what, and it is what makes team delete platform-admin-only.
+
+## Sign-in is passwordless
+
+See [ADR 012](docs/dev/adr/012-passwordless-email-otp.md). Email OTP is the **only** way in — `emailAndPassword` is off, `POST /api/auth/sign-in/email` 400s, and there are no passwords in the seed. Sign-up is not a separate act: an address that receives a code gets an account, defaulted to `spectator`.
+
+Both GUIs run the same two steps against the same endpoints — `email-otp/send-verification-otp`, then `sign-in/email-otp`. The SPA has session state ([lib/session.tsx](src/web/lib/session.tsx)) and its own login screen; it no longer hands users to the harness.
+
+**Tests never post a password.** Use [tests/helpers/auth.ts](tests/helpers/auth.ts). The six seeded `@remy.dev` actors sign in with a fixed code (`TEST_OTP`); everyone else gets a real emailed one read from the dev outbox. Codes are single-use, so the suite runs `workers: 1` — two parallel tests signing in as the same actor consume each other's code.
+
+`TEST_OTP` must be unset in production before the platform has real users.
+
+## Email
+
+See [ADR 010](docs/dev/adr/010-outbound-email.md). Cloudflare Email Service via the `[[send_email]]` binding, behind a `Mailer` seam in [mail/mailer.ts](src/mail/mailer.ts).
+
+`MAIL_TRANSPORT` picks the transport and **defaults to `outbox`**, which captures messages in the Worker isolate instead of sending. Production sets `cloudflare` in `wrangler.toml`; `.dev.vars` overrides it back to `outbox` locally. Tests assert on real message content through `/api/dev/outbox`, which 404s whenever the real transport is active — mail bodies carry invitation links and password-reset tokens, so that route must never exist in production. Mail specs skip themselves when `BASE_URL` is set, because `test:deployed` reruns the suite against production where that route is gone.
+
+Build links in emails from `BETTER_AUTH_URL`, never from the request origin: an email outlives its request, and the origin can be localhost or a preview host. This is the one place that rule is inverted relative to `trustedOrigins`.
+
+Sending to people outside the account needs the Workers **Paid** plan *and* the sending domain onboarded to Email Service. Neither is checkable from the repo.
+
+## Web GUIs — there are two, deliberately
+
+See [ADR 008](docs/dev/adr/008-frontend-is-the-react-spa.md). Read it before
+adding any user-facing feature, so it lands in the right one.
+
+| | `src/web/` — **the product** | `src/views/` — **auth harness** |
+|---|---|---|
+| Stack | React 19 + Vite, hash routing, EN/TH | Hono template literals, DaisyUI/Tailwind via CDN |
+| Served at | `/app` (Worker `[assets]` binding) | `/`, `/login`, `/dashboard` |
+| Pages | discover, event, team, bracket, live, profile | home, login, dashboard, versions |
+| Data | events + teams from the API; brackets/live/rosters/standings/feed still fixtures (`src/web/data.ts`) | real D1, real Better Auth sessions |
+| Also ships as | Tauri desktop + iOS | — |
+| New features? | **yes, here** | no — harness only |
+
+`src/views/` stays because it is the only place authorization is exercised
+end to end against real data, and `tests/authz.spec.ts` drives it for all six
+roles. It is not the product UI.
+
+`src/web/` is the product per [biz decision-003](https://github.com/joeblew999/remy-sport-biz/blob/main/decisions/decision-003-frontend-targets.md).
+Events and teams are wired to the API; the other five accessors in
+[`src/web/lib/data.tsx`](src/web/lib/data.tsx) still return fixtures because no
+endpoint backs them. Adding one? Follow the pattern events and teams set —
+endpoint, then a fetch in `lib/api.ts`, then delete the fixture. ADR 008 tracks
+what is left and in what order.
+
+Two rules that came out of doing the first two:
+
+- **Never invent a value for a field with no table.** Render a placeholder
+  (`—`, "Venue TBC") and note it in ADR 008. Where a fixture-backed section sits
+  next to real data, label it `SAMPLE DATA` — unlabelled placeholder numbers
+  beside real ones get read as real.
+- **Derive, don't store, anything that is a function of other columns.** Event
+  status/day/month come from the date window in `lib/api.ts`; a stored `status`
+  would be wrong the moment an event started.
+
+**Schema changes go through biz first.** The canonical model lives in
+[remy-sport-biz/data/seed/schema.md](https://github.com/joeblew999/remy-sport-biz/blob/main/data/seed/schema.md)
+with fixtures in `data/seed/*.jsonl`. `event` follows it as of migration 0005
+and `team` as of 0006; match it rather than inventing a shape.
+
+**The organising body is Better Auth's `organization` table**, not a separate
+`orgs` table — biz's `orgs` and Better Auth's organizations are the same noun.
+Its canonical columns (`name_th`, `org_type_code`, `city`, `province_code`) are
+declared as `additionalFields` in `src/auth.config.ts` so the generated schema
+carries them. Adding such a column in SQL alone recreates the 0003 drift bug.
 
 ## Database schema
 

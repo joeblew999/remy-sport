@@ -34,10 +34,7 @@ setup("seed actors and ensure a public event exists", async ({ request }) => {
   expect(list.ok()).toBeTruthy()
   if ((await list.json()).events.length > 0) return
 
-  const signedIn = await request.post("/api/auth/sign-in/email", {
-    data: { email: "admin@remy.dev", password: "admin1234!" },
-  })
-  expect(signedIn.ok()).toBeTruthy()
+  await signIn(request, ADMIN)
 
   const created = await request.post("/api/events", {
     data: { name: "Seed event", type: "tournament" },

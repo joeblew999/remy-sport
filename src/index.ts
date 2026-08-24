@@ -9,6 +9,8 @@ import homeRoutes from "./routes/home"
 import loginRoutes from "./routes/login"
 import seedRoutes from "./routes/seed"
 import eventsRoutes from "./routes/events"
+import teamsRoutes from "./routes/teams"
+import devMailRoutes from "./routes/dev-mail"
 import dashboardRoutes from "./routes/dashboard"
 import wellKnownRoutes from "./routes/well-known"
 import type { AppEnv } from "./types"
@@ -43,6 +45,9 @@ app.use("*", sessionMiddleware)
 // API routes registered before CSRF — called via curl/scripts/tests
 app.route("/", seedRoutes)
 app.route("/", eventsRoutes)
+app.route("/", teamsRoutes)
+// Dev-only: 404s unless the outbox mail transport is active (ADR 010).
+app.route("/", devMailRoutes)
 
 // Apple/Android deep-link association files. Must be before CSRF — they are
 // fetched by Apple's and Google's crawlers, not by a browser session.

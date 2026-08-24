@@ -11,6 +11,9 @@ import { EventPage } from "./pages/event";
 import { LivePage } from "./pages/live";
 import { TeamPage } from "./pages/team";
 import { ProfilePage } from "./pages/profile";
+import { AcceptInvitationPage } from "./pages/accept-invitation";
+import { LoginPage } from "./pages/login";
+import { SessionProvider } from "./lib/session";
 import { StandingsTable } from "./pages/event";
 
 interface TweakDefaults {
@@ -69,14 +72,16 @@ function App() {
         <Sidebar page={sidebarPage} setPage={setPageAndCloseDrawer}/>
         {navOpen && <div className="nav-backdrop" onClick={() => setNavOpen(false)}/>}
         <div className="main">
-          <Topbar lang={lang} setLang={setLang} spoiler={spoiler} setSpoiler={handleSpoilerSet} onMenu={() => setNavOpen(o => !o)}/>
+          <Topbar lang={lang} setLang={setLang} spoiler={spoiler} setSpoiler={handleSpoilerSet} onMenu={() => setNavOpen(o => !o)} goto={goto}/>
           <div className="page">
             {route.page === "discover" && <DiscoverPage goto={goto} lang={lang} spoiler={spoiler}/>}
             {route.page === "events" && <DiscoverPage goto={goto} lang={lang} spoiler={spoiler}/>}
             {route.page === "event" && <EventPage id={route.id} goto={goto} lang={lang}/>}
             {route.page === "live" && <LivePage goto={goto} lang={lang} spoiler={spoiler} setSpoiler={handleSpoilerSet}/>}
-            {route.page === "team" && <TeamPage goto={goto} lang={lang}/>}
+            {route.page === "team" && <TeamPage id={route.id} goto={goto} lang={lang}/>}
             {route.page === "profile" && <ProfilePage goto={goto}/>}
+            {route.page === "accept-invitation" && <AcceptInvitationPage id={route.id} goto={goto}/>}
+            {route.page === "login" && <LoginPage goto={goto}/>}
             {route.page === "standings" && (
               <>
                 <div className="page-header">
@@ -110,6 +115,10 @@ if (typeof window !== "undefined" && "__TAURI_INTERNALS__" in window) {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <App/>
+    {/* Session state wraps the whole app so any page can ask who is signed in
+        — ADR 008 step 4, and what makes the SPA and the harness comparable. */}
+    <SessionProvider>
+      <App/>
+    </SessionProvider>
   </StrictMode>,
 );
