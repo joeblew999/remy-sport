@@ -43,7 +43,7 @@ setup("seed actors and ensure a public event exists", async ({ request }) => {
   await signIn(request, ADMIN)
 
   const created = await request.post("/api/events", {
-    data: { name: "Seed event", type: "tournament" },
+    data: { names: { en: "Seed event" }, type: "tournament" },
   })
   expect(created.status()).toBe(201)
 })

@@ -1,0 +1,40 @@
+# Secrets this repo consumes. Names only — no values.
+#
+# fnox merges this with the global config at ~/.config/fnox/config.toml, so
+# declaring a secret here does not shadow or replace anything global; it states
+# what *this* project needs. The values live in the OS keychain and are written
+# once per machine:
+#
+#   mise exec -- fnox set --global -p keychain <NAME>
+#
+# Check what is present without printing anything:
+#
+#   mise exec -- fnox check --all
+#
+# The provider is repeated from the global config on purpose. Resolution does
+# inherit it, so this block is redundant on a machine that has already run
+# `fnox init` — but without it the file silently depends on a config outside the
+# repo, and the failure on a fresh machine would point at the wrong place.
+[providers.keychain]
+type    = "keychain"
+service = "fnox"
+
+[secrets]
+
+# Read by biz:sync to clone/fast-forward ../remy-sport-biz, which is private.
+# A fine-grained PAT scoped to joeblew999/remy-sport-biz, Contents: Read-only.
+# See README, "Companion repo (local checkout)".
+#
+# Deliberately left to error when missing: biz:sync is the only consumer and it
+# already fails with instructions, so a warning here would just be noise.
+GITHUB_BIZ_REPO_TOKEN = { provider = "keychain", value = "GITHUB_BIZ_REPO_TOKEN", description = "fine-grained PAT, Contents:Read on remy-sport-biz — used by biz:sync" }
+
+# Read from the environment by scripts/cf-audit.ts. Not needed for anything
+# else: every other Cloudflare task authenticates through `wrangler login`, and
+# the account id is a plain (non-secret) value in mise.toml's [env].
+#
+# `if_missing = "ignore"` because cf:audit is an occasional forensic tool, not
+# part of dev or deploy — a machine that never runs it is correctly configured
+# without this, and should not be warned about it. ADR 006 §, and cf-audit.ts
+# itself, explain why the wrangler OAuth token cannot substitute for it.
+CLOUDFLARE_API_TOKEN = { provider = "keychain", value = "CLOUDFLARE_API_TOKEN", if_missing = "ignore", description = "Account Settings:Read token — used by cf:audit only" }

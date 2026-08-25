@@ -201,10 +201,17 @@ export function buildAuthOptions(deps: AuthDeps = {}) {
         schema: {
           organization: {
             additionalFields: {
-              nameTh: { type: "string", required: false },
+              // No `nameTh`. `name` is the English pivot; every other language
+              // is a `translation` row keyed ('organization', id, 'name',
+              // locale) — see migration 0010. A per-language column here would
+              // mean an ALTER TABLE and a Better Auth schema regeneration every
+              // time the product ships a language.
+              //
               // Canonical org_types: SCHOOL, CLUB, FEDERATION, GRASSROOTS.
               orgTypeCode: { type: "string", required: false },
-              city: { type: "string", required: false },
+              // Canonical city code, e.g. BANGKOK — not a display name, so it
+              // renders in the reader's language via the `city` vocabulary.
+              cityCode: { type: "string", required: false },
               // Canonical: 3-letter province code, e.g. BKK, CMI.
               provinceCode: { type: "string", required: false },
             },

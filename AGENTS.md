@@ -129,7 +129,7 @@ Sending to people outside the account needs the Workers **Paid** plan *and* the 
 
 ## Controlled vocabularies
 
-See [ADR 015](docs/dev/adr/015-reference-vocabularies.md). Age groups, genders, org types, event types/formats and provinces are **tables** (`age_group`, `gender`, …), seeded from `remy-sport-biz/data/seed/*.jsonl` and served at `/api/reference` with Thai names. `team.age_group_code` and `gender_code` are foreign keys — the database rejects an unknown code, not just the API.
+See [ADR 015](docs/dev/adr/015-reference-vocabularies.md). Age groups, genders, org types, event types/formats and provinces are **tables** (`age_group`, `gender`, …), seeded from the `remy-sport-biz` fixtures and served at `/api/reference` with a locale-keyed `names` map — one entry per language the fixtures declare, never a `nameTh` column. `team.age_group_code` and `gender_code` are foreign keys — the database rejects an unknown code, not just the API.
 
 Route files still declare `z.enum([...])`, because a TEXT column cannot express a vocabulary to the type system and bad input should fail at the boundary. That copy is checked by `tests/reference.spec.ts`, so a change upstream fails a test rather than drifting.
 
@@ -180,8 +180,33 @@ Two rules that came out of doing the first two:
 
 **Schema changes go through biz first.** The canonical model lives in
 [remy-sport-biz/data/seed/schema.md](https://github.com/joeblew999/remy-sport-biz/blob/main/data/seed/schema.md)
-with fixtures in `data/seed/*.jsonl`. `event` follows it as of migration 0005
-and `team` as of 0006; match it rather than inventing a shape.
+with fixtures under `data/seed/`, grouped by kind — `reference/` (keyed by
+`code`, translated), `entities/` (keyed by `id`, names in `entity_names.jsonl`),
+`relationships/`, `authorization/`, `localization/`. The folder states how a
+file is localized; `mise run data:check` upstream enforces it. `event` follows
+the canonical model as of migration 0005 and `team` as of 0006; match it rather
+than inventing a shape.
+
+**Languages are rows, not columns — everywhere.** There is one rule for every
+display string, whether it belongs to a vocabulary or to a row someone created:
+the English value is a NOT NULL pivot on the row (`name_en` / `name`), and every
+language including English is a row in `translation`, keyed
+(table_name, record_key, field_name, locale_code). Migrations 0009 and 0010.
+
+- Backend: never touch `translation` directly — use `src/domain/localized.ts`
+  (`readNames` / `writeNames` / `deleteNames` / `pivot`).
+- API: requests and responses speak `names`, a locale-keyed map. There is no
+  `nameTh` field anywhere and there should never be one again.
+- SPA: `src/web/lib/locale.tsx` resolves names and vocabulary codes into the
+  reader's language; the API mappers take a `Localizer` so a language switch
+  re-derives every view model. `src/web/lib/i18n.tsx` is for UI copy only.
+- City is a code (`city_code` -> the `city` vocabulary), matching biz, so it
+  renders in the reader's language instead of always reading "Bangkok".
+
+Shipping a third language is: add it to the biz fixtures, `mise run
+domain:generate`, `mise run cf:d1:reset`. No `ALTER TABLE`, no type change, no
+route or component edit. `tests/reference.spec.ts` fails if a per-language field
+reappears on a vocabulary row.
 
 **The organising body is Better Auth's `organization` table**, not a separate
 `orgs` table — biz's `orgs` and Better Auth's organizations are the same noun.

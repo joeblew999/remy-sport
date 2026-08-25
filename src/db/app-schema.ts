@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core"
+import { sqliteTable, text, integer, primaryKey } from "drizzle-orm/sqlite-core"
 
 /**
  * Controlled vocabularies (ADR 015), copied from remy-sport-biz/data/seed.
@@ -30,8 +30,9 @@ import { user, organization } from "./auth-schema"
  */
 export const event = sqliteTable("event", {
   id: text("id").primaryKey(),
+  // The English pivot. Other languages are `translation` rows keyed
+  // ('event', id, 'name', locale) — see migration 0010 and domain/localized.ts.
   name: text("name").notNull(), // canonical: name_en
-  nameTh: text("name_th"),
   type: text("type").notNull(), // tournament, league, camp, showcase
   format: text("format").notNull().default("5x5"), // 5x5 | 3x3
   description: text("description"),
@@ -40,7 +41,7 @@ export const event = sqliteTable("event", {
   // defaults them on create.
   startDate: text("start_date"),
   endDate: text("end_date"),
-  city: text("city"),
+  cityCode: text("city_code"), // canonical city code, e.g. BANGKOK
   provinceCode: text("province_code"), // canonical: 3-letter code, e.g. BKK
   isFibaCertified: integer("is_fiba_certified", { mode: "boolean" })
     .notNull()
@@ -60,8 +61,9 @@ export const event = sqliteTable("event", {
  */
 export const team = sqliteTable("team", {
   id: text("id").primaryKey(),
+  // The English pivot. Other languages are `translation` rows keyed
+  // ('team', id, 'name', locale) — see migration 0010 and domain/localized.ts.
   name: text("name").notNull(), // canonical: name_en
-  nameTh: text("name_th"),
   orgId: text("org_id")
     .notNull()
     .references(() => organization.id),
@@ -81,7 +83,6 @@ export const team = sqliteTable("team", {
 export const ageGroup = sqliteTable("age_group", {
   code: text("code").primaryKey(),
   nameEn: text("name_en").notNull(),
-  nameTh: text("name_th").notNull(),
   minAge: integer("min_age"),
   maxAge: integer("max_age"),
   sort: integer("sort").notNull(),
@@ -90,14 +91,12 @@ export const ageGroup = sqliteTable("age_group", {
 export const gender = sqliteTable("gender", {
   code: text("code").primaryKey(),
   nameEn: text("name_en").notNull(),
-  nameTh: text("name_th").notNull(),
   sort: integer("sort").notNull(),
 })
 
 export const orgType = sqliteTable("org_type", {
   code: text("code").primaryKey(),
   nameEn: text("name_en").notNull(),
-  nameTh: text("name_th").notNull(),
   sort: integer("sort").notNull(),
 })
 
@@ -105,14 +104,12 @@ export const orgType = sqliteTable("org_type", {
 export const eventType = sqliteTable("event_type", {
   code: text("code").primaryKey(),
   nameEn: text("name_en").notNull(),
-  nameTh: text("name_th").notNull(),
   sort: integer("sort").notNull(),
 })
 
 export const eventFormat = sqliteTable("event_format", {
   code: text("code").primaryKey(),
   nameEn: text("name_en").notNull(),
-  nameTh: text("name_th").notNull(),
   sort: integer("sort").notNull(),
 })
 
@@ -120,5 +117,45 @@ export const eventFormat = sqliteTable("event_format", {
 export const province = sqliteTable("province", {
   code: text("code").primaryKey(),
   nameEn: text("name_en").notNull(),
-  nameTh: text("name_th").notNull(),
 })
+
+/** Cities, keyed by code. A city belongs to exactly one province. */
+export const city = sqliteTable("city", {
+  code: text("code").primaryKey(),
+  nameEn: text("name_en").notNull(),
+  provinceCode: text("province_code")
+    .notNull()
+    .references(() => province.code),
+})
+
+/**
+ * The languages the product ships in, from the PO's locales fixture.
+ *
+ * A language is a row here and rows in `translation` — never a column
+ * anywhere. See migration 0009.
+ */
+export const locale = sqliteTable("locale", {
+  code: text("code").primaryKey(),
+  nameEn: text("name_en").notNull(),
+})
+
+/**
+ * Display strings for the controlled vocabularies, one row per term per locale.
+ *
+ * Keyed exactly as the PO's translations fixture is, except that `recordKey`
+ * holds this repo's code — event types are lowercase here. Every language
+ * including English has a row, so rendering in a locale is one uniform join.
+ */
+export const translation = sqliteTable(
+  "translation",
+  {
+    tableName: text("table_name").notNull(),
+    recordKey: text("record_key").notNull(),
+    fieldName: text("field_name").notNull(),
+    localeCode: text("locale_code")
+      .notNull()
+      .references(() => locale.code),
+    value: text("value").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.tableName, t.recordKey, t.fieldName, t.localeCode] })],
+)

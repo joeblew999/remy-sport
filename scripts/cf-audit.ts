@@ -10,7 +10,9 @@
  * re-authenticating wrangler — even interactively — can never grant this.
  *
  * Env:
- *   CLOUDFLARE_API_TOKEN — token with Account Settings: Read (or Audit Logs Read)
+ *   CLOUDFLARE_API_TOKEN — token with Account Settings: Read (or Audit Logs Read).
+ *                          The cf:audit task fills this from fnox when it is
+ *                          not already set, so a stored token needs no prefix.
  *   CF_ACCOUNT_ID        — optional; resolved from wrangler config when absent
  *   SINCE / BEFORE       — optional ISO dates bounding the search
  */
@@ -29,11 +31,17 @@ permission, so this needs a token created in the dashboard:
      (include "Audit Logs | Read" if your account offers it separately)
   3. Account Resources: include the account you want to inspect
 
-Then:
+Then store it once, so later runs need no prefix:
+
+  mise exec -- fnox set --global -p keychain CLOUDFLARE_API_TOKEN
+  mise run cf:audit
+
+Or pass it for a single run, which takes precedence over the stored one:
 
   CLOUDFLARE_API_TOKEN=... mise run cf:audit
 
-The token is read from the environment and never written to disk.`,
+Either way the token is read from the environment of this process and never
+written to disk.`,
   )
   process.exit(1)
 }

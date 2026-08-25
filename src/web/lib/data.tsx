@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchEvent, fetchEvents, fetchTeam, fetchTeams } from "./api";
+import { useLocalizer } from "./locale";
 import {
   BRACKET, LIVE_GAME, ROSTER, STANDINGS, FEED,
   type Team, type Event, type EventStatus, type EventType,
@@ -28,6 +29,7 @@ export interface Async<T> {
 }
 
 export function useEvents(filters: EventFilters = {}): Async<Event[]> {
+  const loc = useLocalizer();
   const [state, setState] = useState<Async<Event[]>>({
     data: undefined, loading: true, error: undefined,
   });
@@ -39,7 +41,7 @@ export function useEvents(filters: EventFilters = {}): Async<Event[]> {
   useEffect(() => {
     let live = true;
     setState(s => ({ ...s, loading: true }));
-    fetchEvents()
+    fetchEvents(loc)
       .then(events => {
         if (!live) return;
         let r = events;
@@ -55,12 +57,13 @@ export function useEvents(filters: EventFilters = {}): Async<Event[]> {
     // Ignore a response that arrives after the inputs changed or the component
     // unmounted — otherwise a slow first request overwrites a fast second one.
     return () => { live = false; };
-  }, [status, type, city, limit]);
+  }, [status, type, city, limit, loc]);
 
   return state;
 }
 
 export function useEvent(id: string | undefined): Async<Event | undefined> {
+  const loc = useLocalizer();
   const [state, setState] = useState<Async<Event | undefined>>({
     data: undefined, loading: id !== undefined, error: undefined,
   });
@@ -72,30 +75,32 @@ export function useEvent(id: string | undefined): Async<Event | undefined> {
     }
     let live = true;
     setState(s => ({ ...s, loading: true }));
-    fetchEvent(id)
+    fetchEvent(id, loc)
       .then(event => { if (live) setState({ data: event, loading: false, error: undefined }); })
       .catch(error => { if (live) setState({ data: undefined, loading: false, error }); });
     return () => { live = false; };
-  }, [id]);
+  }, [id, loc]);
 
   return state;
 }
 
 export function useTeams(): Async<Team[]> {
+  const loc = useLocalizer();
   const [state, setState] = useState<Async<Team[]>>({
     data: undefined, loading: true, error: undefined,
   });
   useEffect(() => {
     let live = true;
-    fetchTeams()
+    fetchTeams(loc)
       .then(teams => { if (live) setState({ data: teams, loading: false, error: undefined }); })
       .catch(error => { if (live) setState({ data: undefined, loading: false, error }); });
     return () => { live = false; };
-  }, []);
+  }, [loc]);
   return state;
 }
 
 export function useTeam(id: string | undefined): Async<Team | undefined> {
+  const loc = useLocalizer();
   const [state, setState] = useState<Async<Team | undefined>>({
     data: undefined, loading: id !== undefined, error: undefined,
   });
@@ -106,11 +111,11 @@ export function useTeam(id: string | undefined): Async<Team | undefined> {
     }
     let live = true;
     setState(s => ({ ...s, loading: true }));
-    fetchTeam(id)
+    fetchTeam(id, loc)
       .then(team => { if (live) setState({ data: team, loading: false, error: undefined }); })
       .catch(error => { if (live) setState({ data: undefined, loading: false, error }); });
     return () => { live = false; };
-  }, [id]);
+  }, [id, loc]);
   return state;
 }
 

@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/d1"
 import { and, eq } from "drizzle-orm"
 import { createAuth } from "../auth"
 import * as schema from "../db/schema"
+import { pivot, writeNames } from "../domain/localized"
 import type { AppEnv } from "../types"
 
 // Passwords are gone (ADR 012). These used to be committed here — real,
@@ -33,49 +34,45 @@ const SEED_USERS = [
 const SEED_EVENTS = [
   {
     id: "evt_001",
-    name: "Sponsor Thailand Basketball League 2026 — Bangkok Round",
-    nameTh: "การแข่งขัน Sponsor Thailand Basketball League 2026 รอบกรุงเทพ",
+    names: { en: "Sponsor Thailand Basketball League 2026 — Bangkok Round", th: "การแข่งขัน Sponsor Thailand Basketball League 2026 รอบกรุงเทพ" },
     type: "tournament",
     format: "5x5",
     startDate: "2026-06-10",
     endDate: "2026-06-15",
-    city: "Bangkok",
+    cityCode: "BANGKOK",
     provinceCode: "BKK",
     isFibaCertified: false,
   },
   {
     id: "evt_002",
-    name: "Bangkok Schools Basketball League 2026",
-    nameTh: "ลีกบาสเกตบอลโรงเรียนกรุงเทพ ฤดูกาล 2026",
+    names: { en: "Bangkok Schools Basketball League 2026", th: "ลีกบาสเกตบอลโรงเรียนกรุงเทพ ฤดูกาล 2026" },
     type: "league",
     format: "5x5",
     startDate: "2026-05-01",
     endDate: "2026-09-30",
-    city: "Bangkok",
+    cityCode: "BANGKOK",
     provinceCode: "BKK",
     isFibaCertified: false,
   },
   {
     id: "evt_003",
-    name: "Chiang Mai Summer Basketball Camp 2026",
-    nameTh: "ค่ายฝึกบาสเกตบอลภาคฤดูร้อน เชียงใหม่ 2026",
+    names: { en: "Chiang Mai Summer Basketball Camp 2026", th: "ค่ายฝึกบาสเกตบอลภาคฤดูร้อน เชียงใหม่ 2026" },
     type: "camp",
     format: "5x5",
     startDate: "2026-04-15",
     endDate: "2026-04-19",
-    city: "Chiang Mai",
+    cityCode: "CHIANG_MAI",
     provinceCode: "CMI",
     isFibaCertified: false,
   },
   {
     id: "evt_004",
-    name: "Thailand Basketball Showcase 2026",
-    nameTh: "การโชว์ผู้เล่นบาสเกตบอลประเทศไทย 2026",
+    names: { en: "Thailand Basketball Showcase 2026", th: "การโชว์ผู้เล่นบาสเกตบอลประเทศไทย 2026" },
     type: "showcase",
     format: "5x5",
     startDate: "2026-08-01",
     endDate: "2026-08-02",
-    city: "Bangkok",
+    cityCode: "BANGKOK",
     provinceCode: "BKK",
     isFibaCertified: true,
   },
@@ -91,11 +88,11 @@ const SEED_EVENTS = [
  */
 const SEED_ORGS = [
   // biz org_001
-  { name: "Assumption College", nameTh: "โรงเรียนอัสสัมชัญ", slug: "assumption-college", orgTypeCode: "SCHOOL", city: "Bangkok", provinceCode: "BKK" },
+  { names: { en: "Assumption College", th: "โรงเรียนอัสสัมชัญ" }, slug: "assumption-college", orgTypeCode: "SCHOOL", cityCode: "BANGKOK", provinceCode: "BKK" },
   // biz org_002
-  { name: "Triam Udom Suksa School", nameTh: "โรงเรียนเตรียมอุดมศึกษา", slug: "triam-udom-suksa", orgTypeCode: "SCHOOL", city: "Bangkok", provinceCode: "BKK" },
+  { names: { en: "Triam Udom Suksa School", th: "โรงเรียนเตรียมอุดมศึกษา" }, slug: "triam-udom-suksa", orgTypeCode: "SCHOOL", cityCode: "BANGKOK", provinceCode: "BKK" },
   // biz org_003
-  { name: "Montfort College", nameTh: "โรงเรียนมงฟอร์ตวิทยาลัย", slug: "montfort-college", orgTypeCode: "SCHOOL", city: "Chiang Mai", provinceCode: "CMI" },
+  { names: { en: "Montfort College", th: "โรงเรียนมงฟอร์ตวิทยาลัย" }, slug: "montfort-college", orgTypeCode: "SCHOOL", cityCode: "CHIANG_MAI", provinceCode: "CMI" },
 ] as const
 
 /**
@@ -107,10 +104,10 @@ const SEED_ORGS = [
  * stable, and the one field both sides agree on, so it is the join key here.
  */
 const SEED_TEAMS = [
-  { id: "team_001", name: "Assumption College U16 Boys", nameTh: "ทีมบาสเกตบอลอัสสัมชัญ U16 ชาย", orgSlug: "assumption-college", ageGroupCode: "U16", genderCode: "M" },
-  { id: "team_002", name: "Triam Udom U18 Girls", nameTh: "ทีมบาสเกตบอลเตรียมอุดมศึกษา U18 หญิง", orgSlug: "triam-udom-suksa", ageGroupCode: "U18", genderCode: "F" },
-  { id: "team_003", name: "Montfort U16 Boys", nameTh: "ทีมบาสเกตบอลมงฟอร์ต U16 ชาย", orgSlug: "montfort-college", ageGroupCode: "U16", genderCode: "M" },
-  { id: "team_004", name: "Assumption College U18 Boys", nameTh: "ทีมบาสเกตบอลอัสสัมชัญ U18 ชาย", orgSlug: "assumption-college", ageGroupCode: "U18", genderCode: "M" },
+  { id: "team_001", names: { en: "Assumption College U16 Boys", th: "ทีมบาสเกตบอลอัสสัมชัญ U16 ชาย" }, orgSlug: "assumption-college", ageGroupCode: "U16", genderCode: "M" },
+  { id: "team_002", names: { en: "Triam Udom U18 Girls", th: "ทีมบาสเกตบอลเตรียมอุดมศึกษา U18 หญิง" }, orgSlug: "triam-udom-suksa", ageGroupCode: "U18", genderCode: "F" },
+  { id: "team_003", names: { en: "Montfort U16 Boys", th: "ทีมบาสเกตบอลมงฟอร์ต U16 ชาย" }, orgSlug: "montfort-college", ageGroupCode: "U16", genderCode: "M" },
+  { id: "team_004", names: { en: "Assumption College U18 Boys", th: "ทีมบาสเกตบอลอัสสัมชัญ U18 ชาย" }, orgSlug: "assumption-college", ageGroupCode: "U18", genderCode: "M" },
 ] as const
 
 const seed = new Hono<AppEnv>()
@@ -177,15 +174,22 @@ seed.post("/api/seed", async (c) => {
       try {
         await auth.api.createOrganization({
           body: {
-            name: o.name,
+            name: pivot(o.names)!,
             slug: o.slug,
             userId: admin.id,
-            nameTh: o.nameTh,
             orgTypeCode: o.orgTypeCode,
-            city: o.city,
+            cityCode: o.cityCode,
             provinceCode: o.provinceCode,
           },
         })
+        // Better Auth generates the id, so the names are written against the
+        // row it just created rather than one chosen here.
+        const created = await db
+          .select({ id: schema.organization.id })
+          .from(schema.organization)
+          .where(eq(schema.organization.slug, o.slug))
+          .get()
+        if (created) await writeNames(db, "organization", created.id, o.names)
         orgs.push({ slug: o.slug, status: "created" })
       } catch {
         orgs.push({ slug: o.slug, status: "failed" })
@@ -256,11 +260,21 @@ seed.post("/api/seed", async (c) => {
       teams.push({ id: t.id, status: "skipped: org missing" })
       continue
     }
-    const { orgSlug: _orgSlug, ...cols } = t
+    const { orgSlug: _orgSlug, names, ...cols } = t
     const res = await db
       .insert(schema.team)
-      .values({ ...cols, orgId: org.id, createdAt: teamNow, updatedAt: teamNow })
+      .values({
+        ...cols,
+        name: pivot(names)!,
+        orgId: org.id,
+        createdAt: teamNow,
+        updatedAt: teamNow,
+      })
       .onConflictDoNothing()
+    // Written unconditionally, not only on insert: re-seeding after the
+    // fixtures gain a language should backfill the new one, and writeNames is
+    // idempotent.
+    await writeNames(db, "team", t.id, names)
     teams.push({ id: t.id, status: res.meta.changes > 0 ? "created" : "exists" })
   }
 
@@ -270,10 +284,19 @@ seed.post("/api/seed", async (c) => {
     for (const e of SEED_EVENTS) {
       // onConflictDoNothing keeps /api/seed idempotent, matching the user loop
       // above — re-seeding must not duplicate or clobber edited rows.
+      const { names, ...cols } = e
       const res = await db
         .insert(schema.event)
-        .values({ ...e, description: null, createdBy: organizer.id, createdAt: now, updatedAt: now })
+        .values({
+          ...cols,
+          name: pivot(names)!,
+          description: null,
+          createdBy: organizer.id,
+          createdAt: now,
+          updatedAt: now,
+        })
         .onConflictDoNothing()
+      await writeNames(db, "event", e.id, names)
       events.push({ id: e.id, status: res.meta.changes > 0 ? "created" : "exists" })
     }
   }

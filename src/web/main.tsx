@@ -4,7 +4,7 @@ import { createRoot } from "react-dom/client";
 import { Sidebar } from "./components/sidebar";
 import { Topbar } from "./components/topbar";
 import { useRouter } from "./lib/router";
-import type { Lang } from "./lib/i18n";
+import { LocaleProvider, type Locale } from "./lib/locale";
 
 import { DiscoverPage } from "./pages/discover";
 import { EventPage } from "./pages/event";
@@ -21,7 +21,7 @@ interface TweakDefaults {
   accentColor?: string;
   showTauriChrome?: boolean;
   spoilerMode?: boolean;
-  language?: Lang;
+  language?: Locale;
 }
 
 declare global {
@@ -34,13 +34,12 @@ const DEFAULTS: Required<TweakDefaults> = {
   accentColor: "#D17246",
   showTauriChrome: true,
   spoilerMode: false,
-  language: "EN",
+  language: "en",
 };
 
 function App() {
   const tweaks = { ...DEFAULTS, ...(window.TWEAK_DEFAULTS ?? {}) } as Required<TweakDefaults>;
   const { route, goto } = useRouter();
-  const [lang, setLang] = useState<Lang>(tweaks.language);
   const [spoiler, setSpoiler] = useState<boolean>(tweaks.spoilerMode);
   // Mobile sidebar drawer state
   const [navOpen, setNavOpen] = useState(false);
@@ -73,13 +72,13 @@ function App() {
         <Sidebar page={sidebarPage} setPage={setPageAndCloseDrawer}/>
         {navOpen && <div className="nav-backdrop" onClick={() => setNavOpen(false)}/>}
         <div className="main">
-          <Topbar lang={lang} setLang={setLang} spoiler={spoiler} setSpoiler={handleSpoilerSet} onMenu={() => setNavOpen(o => !o)} goto={goto}/>
+          <Topbar spoiler={spoiler} setSpoiler={handleSpoilerSet} onMenu={() => setNavOpen(o => !o)} goto={goto}/>
           <div className="page">
-            {route.page === "discover" && <DiscoverPage goto={goto} lang={lang} spoiler={spoiler}/>}
-            {route.page === "events" && <DiscoverPage goto={goto} lang={lang} spoiler={spoiler}/>}
-            {route.page === "event" && <EventPage id={route.id} goto={goto} lang={lang}/>}
-            {route.page === "live" && <LivePage goto={goto} lang={lang} spoiler={spoiler} setSpoiler={handleSpoilerSet}/>}
-            {route.page === "team" && <TeamPage id={route.id} goto={goto} lang={lang}/>}
+            {route.page === "discover" && <DiscoverPage goto={goto} spoiler={spoiler}/>}
+            {route.page === "events" && <DiscoverPage goto={goto} spoiler={spoiler}/>}
+            {route.page === "event" && <EventPage id={route.id} goto={goto}/>}
+            {route.page === "live" && <LivePage goto={goto} spoiler={spoiler} setSpoiler={handleSpoilerSet}/>}
+            {route.page === "team" && <TeamPage id={route.id} goto={goto}/>}
             {route.page === "profile" && <ProfilePage goto={goto}/>}
             {route.page === "accept-invitation" && <AcceptInvitationPage id={route.id} goto={goto}/>}
             {route.page === "login" && <LoginPage goto={goto}/>}
@@ -120,7 +119,11 @@ createRoot(document.getElementById("root")!).render(
     {/* Session state wraps the whole app so any page can ask who is signed in
         — ADR 008 step 4, and what makes the SPA and the harness comparable. */}
     <SessionProvider>
-      <App/>
+      {/* Locale wraps the app for the same reason: every page renders names,
+          and the API mappers resolve them against the current locale. */}
+      <LocaleProvider>
+        <App/>
+      </LocaleProvider>
     </SessionProvider>
   </StrictMode>,
 );

@@ -3,8 +3,7 @@ import { drizzle } from "drizzle-orm/d1"
 import { eq } from "drizzle-orm"
 import type { AppEnv } from "../types"
 import * as schema from "../db/schema"
-
-type EventType = "tournament" | "league" | "camp" | "showcase"
+import type { EventTypeCode as EventType } from "../domain/vocabularies"
 
 /**
  * Layer 3: Event type scoping.

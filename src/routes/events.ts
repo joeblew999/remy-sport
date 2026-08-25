@@ -5,27 +5,44 @@ import type { AppEnv } from "../types"
 import * as schema from "../db/schema"
 import { requirePermission } from "../middleware/require-permission"
 import { ownedBy } from "../middleware/owned-by"
+import { EVENT_TYPE_CODES, EVENT_FORMAT_CODES, CITY_CODES } from "../domain/vocabularies"
+import { deleteNames, pivot, readNames, writeNames, type Names } from "../domain/localized"
 
-const EventTypeSchema = z.enum(["tournament", "league", "camp", "showcase"])
+// Canonical vocabularies from remy-sport-biz/data/seed/, via the generated
+// domain module. Event type codes are lowercase there — a deliberate delta from
+// the fixtures, applied by the generator rather than by hand, so this enum and
+// the published OpenAPI spec cannot drift apart.
+const EventTypeSchema = z.enum(EVENT_TYPE_CODES)
 type EventType = z.infer<typeof EventTypeSchema>
 
-// Canonical vocabulary from remy-sport-biz/data/seed/event_formats.jsonl.
-const EventFormatSchema = z.enum(["5x5", "3x3"])
+const EventFormatSchema = z.enum(EVENT_FORMAT_CODES)
 type EventFormat = z.infer<typeof EventFormatSchema>
 
 // The biz schema stores dates as ISO 8601 day strings, not timestamps.
 const DateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected YYYY-MM-DD")
 
+/**
+ * Display names keyed by locale — the same shape /api/reference and /api/teams
+ * return. Never a `nameTh` field: see src/domain/localized.ts.
+ */
+const NamesSchema = z.record(z.string(), z.string()).openapi({
+  description: "Display names keyed by locale code",
+  example: { en: "Bangkok Schools League 2026", th: "ลีกบาสเกตบอลโรงเรียนกรุงเทพ 2026" },
+})
+
 const EventSchema = z.object({
   id: z.string(),
+  /** The English pivot stored on the row: a guaranteed non-empty fallback. */
   name: z.string(),
-  nameTh: z.string().nullable(),
+  names: NamesSchema,
   type: EventTypeSchema,
   format: EventFormatSchema,
   description: z.string().nullable(),
   startDate: z.string().nullable(),
   endDate: z.string().nullable(),
-  city: z.string().nullable(),
+  // A code, not a display name — so the SPA can render it in the reader's
+  // language via /api/reference rather than showing "Bangkok" to everyone.
+  cityCode: z.string().nullable(),
   provinceCode: z.string().nullable(),
   isFibaCertified: z.boolean(),
   createdBy: z.string(),
@@ -40,14 +57,15 @@ const EventSchema = z.object({
 // Only `name` and `type` are required, so every existing caller — the dashboard
 // form, tests/authz.spec.ts, curl scripts — keeps working unchanged (ADR 008).
 const CreateEventSchema = z.object({
-  name: z.string().min(1),
-  nameTh: z.string().optional(),
+  names: NamesSchema.refine((n) => Object.values(n).some((v) => v?.trim()), {
+    message: "at least one locale must carry a name",
+  }),
   type: EventTypeSchema,
   format: EventFormatSchema.optional(),
   description: z.string().optional(),
   startDate: DateSchema.optional(),
   endDate: DateSchema.optional(),
-  city: z.string().optional(),
+  cityCode: z.enum(CITY_CODES).optional(),
   provinceCode: z.string().optional(),
   isFibaCertified: z.boolean().optional(),
 })
@@ -59,17 +77,20 @@ const ErrorSchema = z.object({ error: z.string() })
 function serializeEvent(
   row: typeof schema.event.$inferSelect,
   organizerName: string | null = null,
+  names: Names = {},
 ) {
   return {
     id: row.id,
     name: row.name,
-    nameTh: row.nameTh,
+    // The pivot is always a valid name, so an event with no catalogue rows
+    // still serialises to something renderable rather than to `{}`.
+    names: Object.keys(names).length ? names : { en: row.name },
     type: row.type as EventType,
     format: row.format as EventFormat,
     description: row.description,
     startDate: row.startDate,
     endDate: row.endDate,
-    city: row.city,
+    cityCode: row.cityCode,
     provinceCode: row.provinceCode,
     isFibaCertified: row.isFibaCertified,
     createdBy: row.createdBy,
@@ -109,7 +130,11 @@ events.openapi(listEventsRoute, async (c) => {
     .leftJoin(schema.user, eq(schema.event.createdBy, schema.user.id))
     .orderBy(sql`${schema.event.startDate} IS NULL`, schema.event.startDate)
     .all()
-  return c.json({ events: rows.map((r) => serializeEvent(r.event, r.organizerName)) })
+  // One batched lookup for the page, not one per event.
+  const names = await readNames(db, "event", rows.map((r) => r.event.id))
+  return c.json({
+    events: rows.map((r) => serializeEvent(r.event, r.organizerName, names.get(r.event.id) ?? {})),
+  })
 })
 
 // ── GET /api/events/:id — public, get single event ─────────────────────────
@@ -139,7 +164,8 @@ events.openapi(getEventRoute, async (c) => {
     .where(eq(schema.event.id, id))
     .get()
   if (!row) return c.json({ error: "Not found" }, 404)
-  return c.json(serializeEvent(row.event, row.organizerName), 200)
+  const names = await readNames(db, "event", [row.event.id])
+  return c.json(serializeEvent(row.event, row.organizerName, names.get(row.event.id) ?? {}), 200)
 })
 
 // ── POST /api/events — requires event:create ────────────────────────────────
@@ -180,15 +206,14 @@ events.openapi(createEventRoute, async (c) => {
 
   const row = {
     id: crypto.randomUUID(),
-    name: body.name,
-    nameTh: body.nameTh ?? null,
+    name: pivot(body.names)!, // the refine above guarantees one
     type: body.type,
     format: body.format ?? "5x5",
     description: body.description ?? null,
     // A single-day event needs only startDate; end defaults to the same day.
     startDate: body.startDate ?? null,
     endDate: body.endDate ?? body.startDate ?? null,
-    city: body.city ?? null,
+    cityCode: body.cityCode ?? null,
     provinceCode: body.provinceCode ?? null,
     isFibaCertified: body.isFibaCertified ?? false,
     createdBy: user.id,
@@ -197,9 +222,10 @@ events.openapi(createEventRoute, async (c) => {
   }
 
   await db.insert(schema.event).values(row)
+  await writeNames(db, "event", row.id, body.names)
 
   // The creator is the organizer, so the display name needs no round trip.
-  return c.json(serializeEvent(row, user.name ?? null), 201)
+  return c.json(serializeEvent(row, user.name ?? null, body.names), 201)
 })
 
 // ── PUT /api/events/:id — requires event:update + ownership ─────────────────
@@ -245,10 +271,14 @@ events.openapi(updateEventRoute, async (c) => {
     return c.json({ error: "endDate must be on or after startDate" }, 400)
   }
 
+  const { names, ...columns } = body
+  // The pivot moves with the names, so `name` never goes stale against the
+  // catalogue — it is derived, not separately editable.
   await db
     .update(schema.event)
-    .set({ ...body, updatedAt: now })
+    .set({ ...columns, ...(names ? { name: pivot(names) } : {}), updatedAt: now })
     .where(eq(schema.event.id, id))
+  if (names) await writeNames(db, "event", id, names)
 
   const updated = await db
     .select({ event: schema.event, organizerName: schema.user.name })
@@ -257,7 +287,8 @@ events.openapi(updateEventRoute, async (c) => {
     .where(eq(schema.event.id, id))
     .get()
   if (!updated) return c.json({ error: "Not found" }, 404)
-  return c.json(serializeEvent(updated.event, updated.organizerName), 200)
+  const stored = await readNames(db, "event", [id])
+  return c.json(serializeEvent(updated.event, updated.organizerName, stored.get(id) ?? {}), 200)
 })
 
 // ── DELETE /api/events/:id — requires event:delete + ownership ──────────────
@@ -285,6 +316,9 @@ events.openapi(deleteEventRoute, async (c) => {
   const { id } = c.req.valid("param" as never) as { id: string }
   const db = drizzle(c.env.DB, { schema })
   await db.delete(schema.event).where(eq(schema.event.id, id))
+  // The catalogue is polymorphic and cannot FK to the row it describes, so its
+  // rows would otherwise outlive the event and resurface under a reused id.
+  await deleteNames(db, "event", id)
   return c.json({ deleted: true })
 })
 

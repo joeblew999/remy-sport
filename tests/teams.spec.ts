@@ -18,7 +18,7 @@ test.describe("Teams API", () => {
 
     // The join is the point: a team page shows the school, not an org id.
     expect(t.orgName).toBe("Triam Udom Suksa School")
-    expect(t.orgCity).toBe("Bangkok")
+    expect(t.orgCityCode).toBe("BANGKOK")
     expect(t.orgProvinceCode).toBe("BKK")
   })
 
@@ -28,8 +28,8 @@ test.describe("Teams API", () => {
     // These four columns only exist because src/auth.config.ts declares them on
     // the organization plugin — if that declaration is dropped, the generated
     // schema loses them and this returns undefined rather than failing loudly.
-    expect(t.orgNameTh).toBe("โรงเรียนมงฟอร์ตวิทยาลัย")
-    expect(t.orgCity).toBe("Chiang Mai")
+    expect(t.orgNames.th).toBe("โรงเรียนมงฟอร์ตวิทยาลัย")
+    expect(t.orgCityCode).toBe("CHIANG_MAI")
     expect(t.orgProvinceCode).toBe("CMI")
   })
 

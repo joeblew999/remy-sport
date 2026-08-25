@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test"
 import { signIn, signInThroughLoginForm } from "./helpers/auth"
+import { EVENT_TYPE_CODES } from "../src/domain/vocabularies"
 
 // All 6 actors from the access matrix (docs/user/matrix.md)
 const ADMIN =     { email: "admin@remy.dev", role: "admin" }
@@ -48,7 +49,7 @@ test.describe.serial("Layer 1 — event:create by role", () => {
     test(`${actor.role} CAN create events`, async ({ request }) => {
       await signIn(request, actor.email)
       const res = await request.post("/api/events", {
-        data: { name: `${actor.role}'s event`, type: "tournament" },
+        data: { names: { en: `${actor.role}'s event` }, type: "tournament" },
       })
       expect(res.status()).toBe(201)
     })
@@ -58,7 +59,7 @@ test.describe.serial("Layer 1 — event:create by role", () => {
     test(`${actor.role} CANNOT create events (403)`, async ({ request }) => {
       await signIn(request, actor.email)
       const res = await request.post("/api/events", {
-        data: { name: `${actor.role} attempt`, type: "tournament" },
+        data: { names: { en: `${actor.role} attempt` }, type: "tournament" },
       })
       expect(res.status()).toBe(403)
     })
@@ -66,7 +67,7 @@ test.describe.serial("Layer 1 — event:create by role", () => {
 
   test("unauthenticated user gets 401", async ({ request }) => {
     const res = await request.post("/api/events", {
-      data: { name: "Unauth", type: "tournament" },
+      data: { names: { en: "Unauth" }, type: "tournament" },
     })
     expect(res.status()).toBe(401)
   })
@@ -105,7 +106,7 @@ test.describe.serial("Layer 2 — ownership on update/delete", () => {
   test("organizer creates event", async ({ request }) => {
     await signIn(request, ORGANIZER.email)
     const res = await request.post("/api/events", {
-      data: { name: "Organizer Owned", type: "showcase" },
+      data: { names: { en: "Organizer Owned" }, type: "showcase" },
     })
     organizerEventId = (await res.json()).id
   })
@@ -113,7 +114,7 @@ test.describe.serial("Layer 2 — ownership on update/delete", () => {
   test("admin creates event", async ({ request }) => {
     await signIn(request, ADMIN.email)
     const res = await request.post("/api/events", {
-      data: { name: "Admin Owned", type: "league" },
+      data: { names: { en: "Admin Owned" }, type: "league" },
     })
     adminEventId = (await res.json()).id
   })
@@ -121,7 +122,7 @@ test.describe.serial("Layer 2 — ownership on update/delete", () => {
   test("organizer can update own event", async ({ request }) => {
     await signIn(request, ORGANIZER.email)
     const res = await request.put(`/api/events/${organizerEventId}`, {
-      data: { name: "Updated by Owner" },
+      data: { names: { en: "Updated by Owner" } },
     })
     expect(res.ok()).toBeTruthy()
     expect((await res.json()).name).toBe("Updated by Owner")
@@ -130,7 +131,7 @@ test.describe.serial("Layer 2 — ownership on update/delete", () => {
   test("organizer CANNOT update admin's event (ownership denied)", async ({ request }) => {
     await signIn(request, ORGANIZER.email)
     const res = await request.put(`/api/events/${adminEventId}`, {
-      data: { name: "Hijacked!" },
+      data: { names: { en: "Hijacked!" } },
     })
     expect(res.status()).toBe(403)
   })
@@ -147,7 +148,7 @@ test.describe.serial("Layer 2 — ownership on update/delete", () => {
   test("organizer can delete own event", async ({ request }) => {
     await signIn(request, ORGANIZER.email)
     const create = await request.post("/api/events", {
-      data: { name: "Throwaway", type: "camp" },
+      data: { names: { en: "Throwaway" }, type: "camp" },
     })
     const id = (await create.json()).id
     const del = await request.delete(`/api/events/${id}`)
@@ -176,7 +177,7 @@ test.describe.serial("Layer 2 — ownership on update/delete", () => {
       const list = await request.get("/api/events")
       const { events } = await list.json()
       const res = await request.put(`/api/events/${events[0].id}`, {
-        data: { name: "Nope" },
+        data: { names: { en: "Nope" } },
       })
       expect(res.status()).toBe(403)
     })
@@ -186,11 +187,13 @@ test.describe.serial("Layer 2 — ownership on update/delete", () => {
 // ── Layer 3: Event type scoping ─────────────────────────────────────────────
 
 test.describe.serial("Layer 3 — event types", () => {
-  test("all 4 event types can be created", async ({ request }) => {
+  test("every event type can be created", async ({ request }) => {
     await signIn(request, ORGANIZER.email)
-    for (const type of ["tournament", "league", "camp", "showcase"]) {
+    // Driven by the generated vocabulary, so a type added upstream is covered
+    // here without anyone remembering to extend this list.
+    for (const type of EVENT_TYPE_CODES) {
       const res = await request.post("/api/events", {
-        data: { name: `Type test: ${type}`, type },
+        data: { names: { en: `Type test: ${type}` }, type },
       })
       expect(res.status(), `should create ${type}`).toBe(201)
       expect((await res.json()).type).toBe(type)

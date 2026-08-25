@@ -1,7 +1,6 @@
 import { Icon } from "../components/icon";
 import { useRoster, useTeam, useTeams } from "../lib/data";
 import type { Route } from "../lib/router";
-import type { Lang } from "../lib/i18n";
 
 interface ScheduleRow {
   date: string;
@@ -13,7 +12,7 @@ interface ScheduleRow {
   type: string;
 }
 
-export function TeamPage({ id, goto, lang }: { id?: string; goto: (r: Route) => void; lang?: Lang }) {
+export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }) {
   // The sidebar's "My team" links to #/team with no id. Until the SPA knows who
   // is signed in (ADR 008 step 4) there is no "my", so it falls back to the
   // first team — the same fallback #/event uses.
@@ -48,9 +47,9 @@ export function TeamPage({ id, goto, lang }: { id?: string; goto: (r: Route) => 
       <div className="team-hero">
         <div className={`crest ${t.crest}`}></div>
         <div>
-          <h1 data-testid="team-name">{lang === "TH" && t.nameTh ? t.nameTh : t.name}</h1>
+          <h1 data-testid="team-name">{t.name}</h1>
           <div className="meta thai" style={{ fontFamily: "Noto Sans Thai, sans-serif", fontSize: 16, color: "var(--ink-2)", marginTop: 4 }}>
-            {[lang === "TH" && t.orgNameTh ? t.orgNameTh : t.orgName, t.city].filter(x => x && x !== "—").join(" · ")}
+            {[t.orgName, t.city].filter(x => x && x !== "—").join(" · ")}
           </div>
           <div className="meta">{t.ageGroupCode} {t.genderLabel} · {t.short}</div>
           <div className="event-actions" style={{ marginTop: 16 }}>

@@ -1,13 +1,24 @@
-// i18n hook + helpers. Hardcoded MESSAGES dict today; production may swap to
-// react-intl or i18next without changing call-sites.
+// UI copy — buttons, headings, helper text.
+//
+// Distinct from lib/locale.tsx, which resolves *data* names (an event's title,
+// a gender's label). This file owns strings the product writes about itself;
+// biz's localization-rules.md draws the same line and keeps UI copy out of the
+// seed fixtures deliberately.
+//
+// Keyed by the locales the fixtures declare, so a language added upstream shows
+// up here as a missing-key warning rather than as a type error nobody sees.
 
-export type Lang = "EN" | "TH";
+import { LOCALES, type Locale } from "./localizer";
+import { useLocale } from "./locale";
 
 interface MessageDict {
   [key: string]: MessageDict | string;
 }
 
-export const MESSAGES: Record<"en" | "th", MessageDict> = {
+/** English is the fallback for every key, so only it must be complete. */
+const FALLBACK: Locale = "en";
+
+export const MESSAGES: Partial<Record<Locale, MessageDict>> = {
   en: {
     discover: {
       heading: "What's on the court",
@@ -22,7 +33,8 @@ export const MESSAGES: Record<"en" | "th", MessageDict> = {
   },
 };
 
-function get(obj: MessageDict, path: string): string | undefined {
+function get(obj: MessageDict | undefined, path: string): string | undefined {
+  if (!obj) return undefined;
   const result = path.split(".").reduce<MessageDict | string | undefined>(
     (acc, k) => (acc && typeof acc === "object" ? acc[k] : undefined),
     obj,
@@ -32,20 +44,24 @@ function get(obj: MessageDict, path: string): string | undefined {
 
 export type TFn = (key: string, vars?: Record<string, string | number>) => string;
 
-export function useT(lang: Lang | string | undefined): TFn {
-  const code = (lang || "EN").toLowerCase() as "en" | "th";
-  const dict = MESSAGES[code] ?? MESSAGES.en;
+/** Translate UI copy in the reader's language. */
+export function useT(): TFn {
+  const { locale } = useLocale();
+  return translator(locale);
+}
+
+/** The non-hook form, for code outside a component. */
+export function translator(locale: Locale): TFn {
   return (key, vars) => {
-    let v = get(dict, key);
-    if (v == null) v = get(MESSAGES.en, key);
+    let v = get(MESSAGES[locale], key) ?? get(MESSAGES[FALLBACK], key);
     if (v == null) {
       // eslint-disable-next-line no-console
       console.warn(`[i18n] missing key: ${key}`);
       return key;
     }
     if (vars) {
-      return Object.entries(vars).reduce(
-        (s, [k, val]) => s.replace(new RegExp(`\\{${k}\\}`, "g"), String(val)),
+      v = Object.entries(vars).reduce(
+        (acc, [k, val]) => acc.replace(new RegExp(`\\{${k}\\}`, "g"), String(val)),
         v,
       );
     }
@@ -53,15 +69,5 @@ export function useT(lang: Lang | string | undefined): TFn {
   };
 }
 
-// Pick the right field on a data item based on current language.
-// Falls back to the base field if the Th variant is missing.
-export function tLocal<T extends Record<string, unknown>>(
-  item: T | undefined | null,
-  base: keyof T & string,
-  lang: Lang | string | undefined,
-): string {
-  if (!item) return "";
-  const thKey = (base + "Th") as keyof T;
-  if (lang === "TH" && item[thKey]) return String(item[thKey]);
-  return String(item[base] ?? "");
-}
+/** Every locale the product declares — the switcher and tests read this. */
+export { LOCALES, type Locale };

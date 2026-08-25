@@ -1,18 +1,17 @@
 import { Icon } from "./icon";
 import { Account } from "./account";
-import type { Lang } from "../lib/i18n";
 import type { Route } from "../lib/router";
+import { useLocale } from "../lib/locale";
 
 interface Props {
-  lang: Lang;
-  setLang: (l: Lang) => void;
   spoiler: boolean;
   setSpoiler: (fn: boolean | ((prev: boolean) => boolean)) => void;
   onMenu?: () => void;
   goto: (r: Route) => void;
 }
 
-export function Topbar({ lang, setLang, spoiler, setSpoiler, onMenu, goto }: Props) {
+export function Topbar({ spoiler, setSpoiler, onMenu, goto }: Props) {
+  const { locale, setLocale, available } = useLocale();
   return (
     <header className="topbar">
       {onMenu && (
@@ -25,9 +24,19 @@ export function Topbar({ lang, setLang, spoiler, setSpoiler, onMenu, goto }: Pro
         <input placeholder="Search events, teams, players…"/>
         <span className="kbd">⌘K</span>
       </div>
+      {/* One button per declared locale. A third language appears here by
+          being in the fixtures — there is nothing to add. */}
       <div className="lang-switch">
-        <button className={lang === "EN" ? "active" : ""} onClick={() => setLang("EN")}>EN</button>
-        <button className={lang === "TH" ? "active" : ""} onClick={() => setLang("TH")}>TH</button>
+        {available.map(l => (
+          <button
+            key={l.code}
+            className={locale === l.code ? "active" : ""}
+            title={l.nameEn}
+            onClick={() => setLocale(l.code)}
+          >
+            {l.code.toUpperCase()}
+          </button>
+        ))}
       </div>
       <button className="icon-btn" title="Spoiler mode" onClick={() => setSpoiler(s => !s)}>
         <Icon name={spoiler ? "eyeoff" : "eye"} />

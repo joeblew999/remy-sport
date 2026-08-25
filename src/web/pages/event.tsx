@@ -3,7 +3,6 @@ import { Icon } from "../components/icon";
 import { useEvent, useEvents, useLiveGame, useStandings } from "../lib/data";
 import type { Event } from "../data";
 import type { Route } from "../lib/router";
-import type { Lang } from "../lib/i18n";
 import { BracketView } from "./bracket";
 
 type EventTab = "overview" | "bracket" | "schedule" | "standings" | "teams" | "venues" | "rules";
@@ -11,10 +10,9 @@ type EventTab = "overview" | "bracket" | "schedule" | "standings" | "teams" | "v
 interface EventProps {
   id: string | undefined;
   goto: (r: Route) => void;
-  lang: Lang;
 }
 
-export function EventPage({ id, goto, lang }: EventProps) {
+export function EventPage({ id, goto }: EventProps) {
   const { data: event, loading: eventLoading } = useEvent(id);
   const { data: allEvents, loading: listLoading } = useEvents();
   const [tab, setTab] = useState<EventTab>("overview");
@@ -62,9 +60,10 @@ export function EventPage({ id, goto, lang }: EventProps) {
           </span>
         </div>
         <h1>
-          {lang === "TH" && e.titleTh ? e.titleTh : (
-            <>{e.title.split(" — ")[0]} <em>— {e.title.split(" — ")[1] || e.div}</em></>
-          )}
+          {/* `title` is already in the reader's language. The em-dash split is
+              a typographic flourish on the English form; a title without one
+              simply renders whole. */}
+          <>{e.title.split(" — ")[0]}{e.title.includes(" — ") && <em>— {e.title.split(" — ")[1]}</em>}</>
         </h1>
         <div className="tagline">{e.date} · {e.loc} · {e.city} · {e.div}</div>
         <div className="tagline thai" style={{ fontSize: 14 }}>จัดโดย {e.organizer}</div>

@@ -8,14 +8,20 @@
 // FEED) has no backing table yet. Each one leaves this file the way EVENTS and
 // TEAMS did — an endpoint lands, lib/data.tsx fetches it, the constant goes.
 
+// Type-only import of the generated vocabulary. Erased at build time, so this
+// adds nothing to the bundle and pulls no Node APIs into the webview — the one
+// constraint src/web/ has to respect. Imported as well as re-exported because
+// the type is used below in this file, and a bare re-export does not bind it.
+import type { EventTypeCode as EventType } from "../domain/vocabularies";
+
 export type Crest = "a" | "b";
-export type EventType = "tournament" | "league" | "camp" | "showcase";
+export type { EventType };
 export type EventStatus = "live" | "open" | "upcoming" | "closed";
 
 export interface Team {
   id: string;
+  /** Already in the reader's language — resolved in lib/api.ts. */
   name: string;
-  nameTh?: string;
   short: string;
   crest: Crest;
   city: string;
@@ -23,18 +29,17 @@ export interface Team {
   record?: string;
   /** The org the team belongs to (canonical `teams.org_id`). */
   orgName: string;
-  orgNameTh?: string;
   ageGroupCode: string;
   genderCode: "M" | "F" | "COED";
-  /** Display form of genderCode — "Boys" / "Girls" / "Mixed". */
+  /** Display form of genderCode, from /api/reference in the reader's language. */
   genderLabel: string;
 }
 
 export interface Event {
   id: string;
   type: EventType;
+  /** Already in the reader's language — resolved in lib/api.ts. */
   title: string;
-  titleTh?: string;
   div: string;
   loc: string;
   city: string;
@@ -80,7 +85,6 @@ export interface Bracket {
 export interface LiveGameTeam {
   id: string;
   name: string;
-  nameTh?: string;
   short: string;
   crest: Crest;
   seed: number;
@@ -182,8 +186,8 @@ export const LIVE_GAME: LiveGame = {
   event: "BANGKOK CUP · QUARTERFINAL 2",
   quarter: "Q3",
   clock: "06:42",
-  teamA: { id: "t2", name: "Saint Gabriel's", nameTh: "เซนต์คาเบรียล", short: "SGS", crest: "a", seed: 5, record: "4–0" },
-  teamB: { id: "t3", name: "Assumption College", nameTh: "อัสสัมชัญ", short: "ASC", crest: "b", seed: 4, record: "3–1" },
+  teamA: { id: "t2", name: "Saint Gabriel's", short: "SGS", crest: "a", seed: 5, record: "4–0" },
+  teamB: { id: "t3", name: "Assumption College", short: "ASC", crest: "b", seed: 4, record: "3–1" },
   quarters: { a: [14, 18, 22, null], total: 54, b: [12, 21, 16, null] },
   watching: 412,
   pbp: [

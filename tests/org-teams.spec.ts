@@ -29,7 +29,7 @@ test.describe.serial("Team writes — platform permission AND org membership", (
     const orgId = await orgIdForTeam(request, "team_001")
 
     const res = await request.post("/api/teams", {
-      data: { name: "Assumption U14 Boys", orgId, ageGroupCode: "U14", genderCode: "M" },
+      data: { names: { en: "Assumption U14 Boys" }, orgId, ageGroupCode: "U14", genderCode: "M" },
     })
     expect(res.status()).toBe(201)
     const team = await res.json()
@@ -57,7 +57,7 @@ test.describe("Team writes — refusals", () => {
     const otherOrg = await orgIdForTeam(request, "team_003")
 
     const res = await request.post("/api/teams", {
-      data: { name: "Should Not Exist", orgId: otherOrg, ageGroupCode: "U14", genderCode: "M" },
+      data: { names: { en: "Should Not Exist" }, orgId: otherOrg, ageGroupCode: "U14", genderCode: "M" },
     })
     // The case that was inexpressible before ADR 009: same role, same action,
     // different object — and it has to be refused.
@@ -69,7 +69,7 @@ test.describe("Team writes — refusals", () => {
     await signIn(request, SPECTATOR)
     const orgId = await orgIdForTeam(request, "team_001")
     const res = await request.post("/api/teams", {
-      data: { name: "Nope", orgId, ageGroupCode: "U14", genderCode: "M" },
+      data: { names: { en: "Nope" }, orgId, ageGroupCode: "U14", genderCode: "M" },
     })
     // Platform permission runs first: a spectator holds no team:create at all,
     // so membership never gets asked about.
@@ -79,27 +79,27 @@ test.describe("Team writes — refusals", () => {
   test("an anonymous caller gets 401, not 403", async ({ request }) => {
     const orgId = await orgIdForTeam(request, "team_001")
     const res = await request.post("/api/teams", {
-      data: { name: "Nope", orgId, ageGroupCode: "U14", genderCode: "M" },
+      data: { names: { en: "Nope" }, orgId, ageGroupCode: "U14", genderCode: "M" },
     })
     expect(res.status()).toBe(401)
   })
 
   test("a coach can update their own school's team", async ({ request }) => {
     await signIn(request, COACH)
-    const res = await request.put("/api/teams/team_001", { data: { nameTh: "ทีมทดสอบ" } })
+    const res = await request.put("/api/teams/team_001", { data: { names: { en: "Test Team", th: "ทีมทดสอบ" } } })
     expect(res.status()).toBe(200)
-    expect((await res.json()).nameTh).toBe("ทีมทดสอบ")
+    expect((await res.json()).names.th).toBe("ทีมทดสอบ")
   })
 
   test("a coach cannot update another school's team", async ({ request }) => {
     await signIn(request, COACH)
-    const res = await request.put("/api/teams/team_003", { data: { nameTh: "hack" } })
+    const res = await request.put("/api/teams/team_003", { data: { names: { en: "hack" } } })
     expect(res.status()).toBe(403)
   })
 
   test("an unknown team id is 404, not 403 — it must not leak which ids exist", async ({ request }) => {
     await signIn(request, COACH)
-    const res = await request.put("/api/teams/team_definitely_not_real", { data: { nameTh: "x" } })
+    const res = await request.put("/api/teams/team_definitely_not_real", { data: { names: { en: "x" } } })
     expect(res.status()).toBe(404)
   })
 

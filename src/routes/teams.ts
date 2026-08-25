@@ -5,6 +5,8 @@ import type { AppEnv } from "../types"
 import * as schema from "../db/schema"
 import { requirePermission } from "../middleware/require-permission"
 import { requireOrgMember } from "../middleware/require-org-member"
+import { AGE_GROUP_CODES, GENDER_CODES } from "../domain/vocabularies"
+import { deleteNames, pivot, readNames, writeNames, type Names } from "../domain/localized"
 
 /**
  * Reads are public; writes need two things to line up.
@@ -22,21 +24,41 @@ import { requireOrgMember } from "../middleware/require-org-member"
  */
 
 // Controlled vocabularies from remy-sport-biz/data/seed/. Canonical keeps these
-// in reference tables; validating them here is the same trade `event.type` makes.
-const AgeGroupSchema = z.enum(["U10", "U12", "U14", "U16", "U18", "U21", "OPEN", "SENIOR"])
-const GenderSchema = z.enum(["M", "F", "COED"])
+// in reference tables; validating them here is the same trade `event.type`
+// makes — a TEXT column cannot express a vocabulary to the type system, and the
+// API should reject bad input at the boundary rather than surfacing a foreign
+// key error.
+//
+// The codes are no longer written out here. They come from the generated
+// vocabularies, so this enum and the rows migration 0009 seeds are the same
+// list by construction rather than by a test noticing they disagree.
+const AgeGroupSchema = z.enum(AGE_GROUP_CODES)
+const GenderSchema = z.enum(GENDER_CODES)
+
+/**
+ * Display names keyed by locale — the same shape /api/reference returns.
+ *
+ * There is no `nameTh` here and there never should be again: a per-language
+ * field means every new language edits this schema, the table, and every
+ * consumer. See src/domain/localized.ts.
+ */
+const NamesSchema = z.record(z.string(), z.string()).openapi({
+  description: "Display names keyed by locale code",
+  example: { en: "Assumption College U16 Boys", th: "ทีมบาสเกตบอลอัสสัมชัญ U16 ชาย" },
+})
 
 const TeamSchema = z.object({
   id: z.string(),
+  /** The English pivot stored on the row: a guaranteed non-empty fallback. */
   name: z.string(),
-  nameTh: z.string().nullable(),
+  names: NamesSchema,
   ageGroupCode: AgeGroupSchema,
   genderCode: GenderSchema,
   orgId: z.string(),
   // Joined from `organization` — the team page shows the school, not an id.
   orgName: z.string().nullable(),
-  orgNameTh: z.string().nullable(),
-  orgCity: z.string().nullable(),
+  orgNames: NamesSchema,
+  orgCityCode: z.string().nullable(),
   orgProvinceCode: z.string().nullable(),
 })
 
@@ -44,27 +66,33 @@ const ErrorSchema = z.object({ error: z.string() })
 
 type OrgColumns = {
   orgName: string | null
-  orgNameTh: string | null
-  orgCity: string | null
+  orgCityCode: string | null
   orgProvinceCode: string | null
 }
 
-function serializeTeam(row: typeof schema.team.$inferSelect, org: OrgColumns) {
+function serializeTeam(
+  row: typeof schema.team.$inferSelect,
+  org: OrgColumns,
+  names: Names,
+  orgNames: Names,
+) {
   return {
     id: row.id,
     name: row.name,
-    nameTh: row.nameTh,
+    // The pivot is always a valid name, so a record with no catalogue rows
+    // still serialises to something renderable rather than to `{}`.
+    names: Object.keys(names).length ? names : { en: row.name },
     ageGroupCode: row.ageGroupCode as z.infer<typeof AgeGroupSchema>,
     genderCode: row.genderCode as z.infer<typeof GenderSchema>,
     orgId: row.orgId,
     ...org,
+    orgNames: Object.keys(orgNames).length ? orgNames : org.orgName ? { en: org.orgName } : {},
   }
 }
 
 const orgColumns = {
   orgName: schema.organization.name,
-  orgNameTh: schema.organization.nameTh,
-  orgCity: schema.organization.city,
+  orgCityCode: schema.organization.cityCode,
   orgProvinceCode: schema.organization.provinceCode,
 }
 
@@ -93,7 +121,21 @@ teams.openapi(listTeamsRoute, async (c) => {
     .leftJoin(schema.organization, eq(schema.team.orgId, schema.organization.id))
     .orderBy(schema.team.name)
     .all()
-  return c.json({ teams: rows.map(({ team, ...org }) => serializeTeam(team, org)) })
+
+  // Two batched lookups for the whole page rather than one per row: resolving
+  // names inside the map would be an N+1 the moment the list grows.
+  const teamNames = await readNames(db, "team", rows.map((r) => r.team.id))
+  const orgNames = await readNames(
+    db,
+    "organization",
+    rows.flatMap((r) => (r.team.orgId ? [r.team.orgId] : [])),
+  )
+
+  return c.json({
+    teams: rows.map(({ team, ...org }) =>
+      serializeTeam(team, org, teamNames.get(team.id) ?? {}, orgNames.get(team.orgId) ?? {}),
+    ),
+  })
 })
 
 // ── GET /api/teams/:id — public ────────────────────────────────────────────
@@ -119,14 +161,25 @@ teams.openapi(getTeamRoute, async (c) => {
     .get()
   if (!row) return c.json({ error: "Not found" }, 404)
   const { team, ...org } = row
-  return c.json(serializeTeam(team, org), 200)
+  const [names, orgNames] = await Promise.all([
+    readNames(db, "team", [team.id]),
+    readNames(db, "organization", [team.orgId]),
+  ])
+  return c.json(
+    serializeTeam(team, org, names.get(team.id) ?? {}, orgNames.get(team.orgId) ?? {}),
+    200,
+  )
 })
 
 // ── Writes ─────────────────────────────────────────────────────────────────
 
 const CreateTeamSchema = z.object({
-  name: z.string().min(1),
-  nameTh: z.string().nullable().optional(),
+  // A map, not `name` + `nameTh`. Requiring at least one entry rather than
+  // requiring English keeps a Thai-only submission valid — the pivot falls back
+  // to whatever language was supplied. See `pivot()`.
+  names: NamesSchema.refine((n) => Object.values(n).some((v) => v?.trim()), {
+    message: "at least one locale must carry a name",
+  }),
   orgId: z.string().min(1),
   ageGroupCode: AgeGroupSchema,
   genderCode: GenderSchema,
@@ -201,8 +254,7 @@ teams.openapi(createTeamRoute, async (c) => {
   const id = `team_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`
   const row = {
     id,
-    name: body.name,
-    nameTh: body.nameTh ?? null,
+    name: pivot(body.names)!, // the refine above guarantees one
     orgId: body.orgId,
     ageGroupCode: body.ageGroupCode,
     genderCode: body.genderCode,
@@ -210,7 +262,10 @@ teams.openapi(createTeamRoute, async (c) => {
     updatedAt: now,
   }
   await db.insert(schema.team).values(row)
-  return c.json(serializeTeam(row, org), 201)
+  await writeNames(db, "team", id, body.names)
+
+  const orgNames = await readNames(db, "organization", [body.orgId])
+  return c.json(serializeTeam(row, org, body.names, orgNames.get(body.orgId) ?? {}), 201)
 })
 
 const updateTeamRoute = createRoute({
@@ -238,10 +293,18 @@ teams.openapi(updateTeamRoute, async (c) => {
   const body = c.req.valid("json")
   const db = drizzle(c.env.DB, { schema })
 
+  const { names, ...columns } = body
+  // The pivot moves with the names, so `name` never goes stale against the
+  // catalogue — it is derived, not separately editable.
   await db
     .update(schema.team)
-    .set({ ...body, updatedAt: new Date() })
+    .set({
+      ...columns,
+      ...(names ? { name: pivot(names) } : {}),
+      updatedAt: new Date(),
+    })
     .where(eq(schema.team.id, id))
+  if (names) await writeNames(db, "team", id, names)
 
   const row = await db
     .select({ team: schema.team, ...orgColumns })
@@ -251,7 +314,14 @@ teams.openapi(updateTeamRoute, async (c) => {
     .get()
   if (!row) return c.json({ error: "Not found" }, 404)
   const { team, ...org } = row
-  return c.json(serializeTeam(team, org), 200)
+  const [teamNames, orgNames] = await Promise.all([
+    readNames(db, "team", [team.id]),
+    readNames(db, "organization", [team.orgId]),
+  ])
+  return c.json(
+    serializeTeam(team, org, teamNames.get(team.id) ?? {}, orgNames.get(team.orgId) ?? {}),
+    200,
+  )
 })
 
 const deleteTeamRoute = createRoute({
@@ -282,6 +352,9 @@ teams.openapi(deleteTeamRoute, async (c) => {
   // 404 rather than a cheerful 200 for an id that was never there — the other
   // write routes get this from requireOrgMember, which this one does not run.
   if (res.meta.changes === 0) return c.json({ error: "Not found" }, 404)
+  // Names are not FK'd to the row they describe (the catalogue is polymorphic),
+  // so deleting the team would otherwise leave them behind for a future id.
+  await deleteNames(db, "team", id)
   return c.json({ deleted: id }, 200)
 })
 

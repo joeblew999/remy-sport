@@ -3,18 +3,20 @@
 // needs (biz decision-003: "asset paths must stay relative").
 
 import type { Crest, Event, EventStatus, EventType, Team } from "../data";
+import type { Localizer, Names } from "./localizer";
 
 /** One event as `GET /api/events` returns it — see src/routes/events.ts. */
 export interface ApiEvent {
   id: string;
+  /** English pivot. Prefer `names` — this is the fallback, not the label. */
   name: string;
-  nameTh: string | null;
+  names: Names;
   type: EventType;
   format: "5x5" | "3x3";
   description: string | null;
   startDate: string | null;
   endDate: string | null;
-  city: string | null;
+  cityCode: string | null;
   provinceCode: string | null;
   isFibaCertified: boolean;
   createdBy: string;
@@ -98,17 +100,18 @@ function statusLabel(status: EventStatus, start: string | null, today: Date): st
  * (canonical `venues`/`event_venues`), and the `teams`/`courts`/`games`/
  * `gamesPlayed` counts. ADR 008 tracks them to roadmap Phase 2/3.
  */
-export function toEvent(e: ApiEvent, today: Date = new Date()): Event {
+export function toEvent(e: ApiEvent, loc: Localizer, today: Date = new Date()): Event {
   const status = deriveStatus(e.startDate, e.endDate, today);
   const start = e.startDate ? parseDay(e.startDate) : null;
   return {
     id: e.id,
     type: e.type,
-    title: e.name,
-    titleTh: e.nameTh ?? undefined,
+    // Already in the reader's language: pages render `title`, they do not
+    // choose between a pair of fields.
+    title: loc.name(e.names, e.name),
     div: "—",
     loc: "Venue TBC",
-    city: e.city ?? "—",
+    city: loc.label("cities", e.cityCode) || "—",
     day: start ? start.getDate() : 0,
     mo: start ? MONTHS[start.getMonth()] : "TBC",
     date: formatRange(e.startDate, e.endDate),
@@ -127,14 +130,15 @@ export function toEvent(e: ApiEvent, today: Date = new Date()): Event {
 /** One team as `GET /api/teams` returns it — see src/routes/teams.ts. */
 export interface ApiTeam {
   id: string;
+  /** English pivot. Prefer `names` — this is the fallback, not the label. */
   name: string;
-  nameTh: string | null;
+  names: Names;
   ageGroupCode: string;
   genderCode: "M" | "F" | "COED";
   orgId: string;
   orgName: string | null;
-  orgNameTh: string | null;
-  orgCity: string | null;
+  orgNames: Names;
+  orgCityCode: string | null;
   orgProvinceCode: string | null;
 }
 
@@ -161,28 +165,25 @@ function crestFor(id: string): Crest {
   return sum % 2 === 0 ? "a" : "b";
 }
 
-const GENDER_LABEL: Record<ApiTeam["genderCode"], string> = {
-  M: "Boys",
-  F: "Girls",
-  COED: "Mixed",
-};
-
-export function toTeam(t: ApiTeam): Team {
+export function toTeam(t: ApiTeam, loc: Localizer): Team {
+  const orgName = loc.name(t.orgNames, t.orgName ?? "");
   return {
     id: t.id,
-    name: t.name,
-    nameTh: t.nameTh ?? undefined,
+    name: loc.name(t.names, t.name),
+    // Initials come off the English pivot on purpose: a crest reading "ทบอ"
+    // beside a Latin-script league table is worse than a stable "ACB".
     short: shortCode(t.orgName ?? t.name),
     crest: crestFor(t.id),
-    city: t.orgCity ?? "—",
+    city: loc.label("cities", t.orgCityCode) || "—",
     // `record` needs played games. No games table exists yet (ADR 008), and a
     // fabricated "4–0" on a real team reads as fact — so leave it absent.
     record: undefined,
-    orgName: t.orgName ?? "—",
-    orgNameTh: t.orgNameTh ?? undefined,
+    orgName: orgName || "—",
     ageGroupCode: t.ageGroupCode,
     genderCode: t.genderCode,
-    genderLabel: GENDER_LABEL[t.genderCode] ?? t.genderCode,
+    // From /api/reference, not a map written out here. The hardcoded one said
+    // "Mixed" where the PO says "Co-ed" — the exact drift ADR 015 was about.
+    genderLabel: loc.label("genders", t.genderCode),
   };
 }
 
@@ -192,14 +193,18 @@ async function get<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export async function fetchEvents(): Promise<Event[]> {
+// The fetchers take a Localizer because the view models carry resolved strings.
+// Switching language re-runs these, which is what makes the whole page follow
+// the switch rather than only the parts a component happens to re-read.
+
+export async function fetchEvents(loc: Localizer): Promise<Event[]> {
   const { events } = await get<{ events: ApiEvent[] }>("/api/events");
-  return events.map((e) => toEvent(e));
+  return events.map((e) => toEvent(e, loc));
 }
 
-export async function fetchEvent(id: string): Promise<Event | undefined> {
+export async function fetchEvent(id: string, loc: Localizer): Promise<Event | undefined> {
   try {
-    return toEvent(await get<ApiEvent>(`/api/events/${encodeURIComponent(id)}`));
+    return toEvent(await get<ApiEvent>(`/api/events/${encodeURIComponent(id)}`), loc);
   } catch {
     // A missing event is a normal outcome for a hash deep-link to a deleted or
     // mistyped id — the page renders its own "not found", so don't throw.
@@ -207,14 +212,14 @@ export async function fetchEvent(id: string): Promise<Event | undefined> {
   }
 }
 
-export async function fetchTeams(): Promise<Team[]> {
+export async function fetchTeams(loc: Localizer): Promise<Team[]> {
   const { teams } = await get<{ teams: ApiTeam[] }>("/api/teams");
-  return teams.map(toTeam);
+  return teams.map((t) => toTeam(t, loc));
 }
 
-export async function fetchTeam(id: string): Promise<Team | undefined> {
+export async function fetchTeam(id: string, loc: Localizer): Promise<Team | undefined> {
   try {
-    return toTeam(await get<ApiTeam>(`/api/teams/${encodeURIComponent(id)}`));
+    return toTeam(await get<ApiTeam>(`/api/teams/${encodeURIComponent(id)}`), loc);
   } catch {
     return undefined;
   }

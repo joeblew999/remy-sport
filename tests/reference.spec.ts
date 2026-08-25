@@ -1,5 +1,13 @@
 import { test, expect, type APIRequestContext } from "@playwright/test"
 import { signIn, COACH, BASE } from "./helpers/auth"
+import {
+  AGE_GROUP_CODES,
+  GENDER_CODES,
+  ORG_TYPE_CODES,
+  EVENT_TYPE_CODES,
+  EVENT_FORMAT_CODES,
+  LOCALES,
+} from "../src/domain/vocabularies"
 
 // ADR 015. The controlled vocabularies were Zod enums hand-copied from
 // remy-sport-biz into route files, with nothing checking the copy. They are now
@@ -16,12 +24,15 @@ const codes = (rows: { code: string }[]) => rows.map((r) => r.code)
 test.describe("Controlled vocabularies", () => {
   test("the API serves the Product Owner's vocabularies verbatim", async ({ request }) => {
     const ref = await reference(request)
-    // Copied from remy-sport-biz/data/seed/*.jsonl. If the PO changes a
-    // vocabulary, this is what should fail.
-    expect(codes(ref.ageGroups)).toEqual(["U10", "U12", "U14", "U16", "U18", "U21", "OPEN", "SENIOR"])
-    expect(codes(ref.genders)).toEqual(["M", "F", "COED"])
-    expect(codes(ref.orgTypes)).toEqual(["SCHOOL", "CLUB", "FEDERATION", "GRASSROOTS"])
-    expect(codes(ref.eventFormats)).toEqual(["5x5", "3x3"])
+    // Compared against the generated vocabularies, not against a list retyped
+    // here. The retyped version passed happily while migration 0009 disagreed
+    // with the PO on three rows — OPEN's names, SENIOR's min_age, and the Thai
+    // for GRASSROOTS — because the test only ever checked the API against its
+    // own copy. This asserts against what the fixtures actually say.
+    expect(codes(ref.ageGroups)).toEqual([...AGE_GROUP_CODES])
+    expect(codes(ref.genders)).toEqual([...GENDER_CODES])
+    expect(codes(ref.orgTypes)).toEqual([...ORG_TYPE_CODES])
+    expect(codes(ref.eventFormats)).toEqual([...EVENT_FORMAT_CODES])
   })
 
   test("age groups come back in age order, not alphabetical order", async ({ request }) => {
@@ -32,11 +43,45 @@ test.describe("Controlled vocabularies", () => {
     expect(codes(ref.ageGroups).at(-1)).toBe("SENIOR")
   })
 
-  test("every vocabulary carries Thai names — the product is bilingual", async ({ request }) => {
+  const VOCABULARIES = [
+    "ageGroups",
+    "genders",
+    "orgTypes",
+    "eventTypes",
+    "eventFormats",
+    "provinces",
+  ] as const
+
+  test("every vocabulary is named in every supported locale", async ({ request }) => {
     const ref = await reference(request)
-    for (const [name, rows] of Object.entries(ref) as [string, { nameTh: string }[]][]) {
-      for (const row of rows) {
-        expect(row.nameTh, `${name} row missing a Thai name`).toBeTruthy()
+
+    // Driven by the locales the API itself declares, not by a pair written out
+    // here. Shipping a third language widens this assertion automatically; the
+    // old version only ever checked that `nameTh` was truthy, so a new language
+    // would have gone entirely unasserted.
+    const locales = (ref.locales as { code: string }[]).map((l) => l.code)
+    expect(locales).toEqual([...LOCALES])
+
+    for (const name of VOCABULARIES) {
+      for (const row of ref[name] as { code: string; names: Record<string, string> }[]) {
+        for (const locale of locales) {
+          expect(row.names?.[locale], `${name}.${row.code} has no '${locale}' name`).toBeTruthy()
+        }
+      }
+    }
+  })
+
+  test("names are rows, not columns — no per-language fields come back", async ({ request }) => {
+    const ref = await reference(request)
+
+    // The regression this guards: `name_th` used to be a column on every
+    // vocabulary table, so a third language meant a migration and an edit to
+    // every consumer. If a `nameTh`/`nameJa`-shaped field reappears on a
+    // vocabulary row, that design has crept back in.
+    for (const name of VOCABULARIES) {
+      for (const row of ref[name] as Record<string, unknown>[]) {
+        const perLanguage = Object.keys(row).filter((k) => /^name[A-Z]/.test(k) && k !== "nameEn")
+        expect(perLanguage, `${name}.${row.code} carries per-language field(s)`).toEqual([])
       }
     }
   })
@@ -46,7 +91,8 @@ test.describe("Controlled vocabularies", () => {
     // A deliberate delta from the biz fixtures, recorded in migration 0005:
     // this repo's public API already used lowercase, and changing it would
     // break clients for no gain.
-    expect(codes(ref.eventTypes)).toEqual(["tournament", "league", "camp", "showcase"])
+    expect(codes(ref.eventTypes)).toEqual([...EVENT_TYPE_CODES])
+    expect(codes(ref.eventTypes).every((c) => c === c.toLowerCase())).toBe(true)
   })
 
   test("the API's team enums have not drifted from the tables", async ({ request }) => {
@@ -77,7 +123,7 @@ test.describe("The database enforces the vocabulary, not just the API", () => {
 
     // Rejected at the API boundary by the Zod enum…
     const viaApi = await request.post("/api/teams", {
-      data: { name: "Bad Age", orgId, ageGroupCode: "U99", genderCode: "M" },
+      data: { names: { en: "Bad Age" }, orgId, ageGroupCode: "U99", genderCode: "M" },
       headers: { Origin: baseURL! },
     })
     expect(viaApi.ok()).toBeFalsy()

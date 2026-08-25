@@ -114,9 +114,8 @@ export const organization = sqliteTable("organization", {
   logo: text("logo"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   metadata: text("metadata"),
-  nameTh: text("name_th"),
   orgTypeCode: text("org_type_code"),
-  city: text("city"),
+  cityCode: text("city_code"),
   provinceCode: text("province_code"),
 });
 

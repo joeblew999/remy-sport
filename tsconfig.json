@@ -14,6 +14,12 @@
     "jsxImportSource": "hono/jsx",
     "types": ["@types/node"]
   },
-  "include": ["src/**/*.ts", "worker-configuration.d.ts"],
-  "exclude": ["node_modules"]
+  // src/web is excluded because it is React: it has its own tsconfig with
+  // `jsxImportSource: react`, while this one is Hono JSX for the Worker. One
+  // config cannot serve both. `.tsx` is included here so a Worker-side
+  // component is still typechecked — before this, `src/**/*.ts` silently
+  // skipped every .tsx file in the repo, which is how a page kept rendering a
+  // field that no longer existed.
+  "include": ["src/**/*.ts", "src/**/*.tsx", "worker-configuration.d.ts"],
+  "exclude": ["node_modules", "src/web"]
 }

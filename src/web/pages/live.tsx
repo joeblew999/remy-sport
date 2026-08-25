@@ -1,11 +1,9 @@
 import { Icon } from "../components/icon";
 import { useLiveGame } from "../lib/data";
 import type { Route } from "../lib/router";
-import type { Lang } from "../lib/i18n";
 
 interface LiveProps {
   goto: (r: Route) => void;
-  lang?: Lang;
   spoiler: boolean;
   setSpoiler: (fn: boolean | ((prev: boolean) => boolean)) => void;
 }
@@ -51,7 +49,6 @@ export function LivePage({ goto, spoiler, setSpoiler }: LiveProps) {
         <div className="score-team">
           <div className="crest a"></div>
           <div className="name">{G.teamA.name}</div>
-          <div className="name-th">{G.teamA.nameTh}</div>
           <div className="meta">SEED {G.teamA.seed} · {G.teamA.record}</div>
         </div>
         {!spoiler ? (
@@ -70,7 +67,6 @@ export function LivePage({ goto, spoiler, setSpoiler }: LiveProps) {
         <div className="score-team r">
           <div className="crest b"></div>
           <div className="name">{G.teamB.name}</div>
-          <div className="name-th">{G.teamB.nameTh}</div>
           <div className="meta">SEED {G.teamB.seed} · {G.teamB.record}</div>
         </div>
       </div>

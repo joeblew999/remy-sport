@@ -2,18 +2,20 @@ import { useState } from "react";
 import { Icon } from "../components/icon";
 import { useEvents, useLiveGame } from "../lib/data";
 import type { Route } from "../lib/router";
-import type { Lang } from "../lib/i18n";
+import { useT } from "../lib/i18n";
+import { useLocale } from "../lib/locale";
 import type { EventStatus, EventType } from "../data";
 
 interface DiscoverProps {
   goto: (r: Route) => void;
-  lang: Lang;
   spoiler: boolean;
 }
 
 type Tab = "all" | "live" | "open" | "upcoming" | "closed";
 
-export function DiscoverPage({ goto, lang, spoiler }: DiscoverProps) {
+export function DiscoverPage({ goto, spoiler }: DiscoverProps) {
+  const t = useT();
+  const { locale } = useLocale();
   const [tab, setTab] = useState<Tab>("all");
   const [filterCity, setFilterCity] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<EventType | null>(null);
@@ -44,12 +46,8 @@ export function DiscoverPage({ goto, lang, spoiler }: DiscoverProps) {
     <>
       <div className="page-header">
         <div className="crumbs"><span>HOME</span><span className="sep">/</span><span>DISCOVER</span></div>
-        <h1>{lang === "TH" ? "ค้นหาการแข่งขัน" : "What's on the court"}</h1>
-        <div className={`sub ${lang === "TH" ? "thai" : ""}`}>
-          {lang === "TH"
-            ? "ทัวร์นาเมนต์ ลีก แคมป์ และโชว์เคสในประเทศไทย"
-            : "Tournaments, leagues, camps & showcases across Thailand schools."}
-        </div>
+        <h1>{t("discover.heading")}</h1>
+        <div className={`sub ${locale === "th" ? "thai" : ""}`}>{t("discover.sub")}</div>
       </div>
 
       <LiveBanner goto={goto} spoiler={spoiler}/>
@@ -87,7 +85,7 @@ export function DiscoverPage({ goto, lang, spoiler }: DiscoverProps) {
               <span className="mo">{e.mo}</span>
             </div>
             <div className="title">
-              <div className="name">{lang === "TH" && e.titleTh ? e.titleTh : e.title}</div>
+              <div className="name">{e.title}</div>
               <div className="meta">{e.organizer.toUpperCase()}</div>
             </div>
             <div><span className={`type ${e.type}`}>{e.type}</span></div>
