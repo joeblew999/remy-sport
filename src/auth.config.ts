@@ -91,6 +91,21 @@ export function buildAuthOptions(deps: AuthDeps = {}) {
       updateAge: 60 * 60 * 24,
     },
 
+    /**
+     * `bizId` bridges to the Product Owner's fixtures.
+     *
+     * Better Auth generates its own user ids, so a fixture row naming
+     * `usr_coach_001` has nothing to join against once seeded. Carrying the
+     * fixture id lets the seeder — and every relationship row that names a
+     * user — resolve one to the other. Same job `slug` does for organisations,
+     * and null for anyone who signs up for real.
+     */
+    user: {
+      additionalFields: {
+        bizId: { type: "string", required: false },
+      },
+    },
+
     databaseHooks: {
       session: {
         create: {
@@ -201,12 +216,13 @@ export function buildAuthOptions(deps: AuthDeps = {}) {
         schema: {
           organization: {
             additionalFields: {
-              // No `nameTh`. `name` is the English pivot; every other language
-              // is a `translation` row keyed ('organization', id, 'name',
-              // locale) — see migration 0010. A per-language column here would
-              // mean an ALTER TABLE and a Better Auth schema regeneration every
-              // time the product ships a language.
-              //
+              // Display names keyed by locale, stored as JSON. Not `nameTh`:
+              // a per-language column would mean an ALTER TABLE and a Better
+              // Auth schema regeneration every time the product ships a
+              // language. Typed `string` because additionalFields has no JSON
+              // type — src/api/teams.ts parses it at the boundary, the one
+              // place that reads it.
+              names: { type: "string", required: false },
               // Canonical org_types: SCHOOL, CLUB, FEDERATION, GRASSROOTS.
               orgTypeCode: { type: "string", required: false },
               // Canonical city code, e.g. BANGKOK — not a display name, so it

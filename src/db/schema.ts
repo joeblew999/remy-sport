@@ -12,3 +12,6 @@
  */
 export * from "./auth-schema"
 export * from "./app-schema"
+// The Product Owner's domain model: players, divisions, venues and every join
+// table between them. GENERATED — see scripts/domain-generate.ts.
+export * from "./fixtures-schema"

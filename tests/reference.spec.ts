@@ -86,13 +86,15 @@ test.describe("Controlled vocabularies", () => {
     }
   })
 
-  test("event types stay lowercase, matching the published OpenAPI enum", async ({ request }) => {
+  test("codes are the Product Owner's codes, with no per-repo delta", async ({ request }) => {
     const ref = await reference(request)
-    // A deliberate delta from the biz fixtures, recorded in migration 0005:
-    // this repo's public API already used lowercase, and changing it would
-    // break clients for no gain.
+    // This repo used to lowercase event types — migrations 0005 and 0009 gave
+    // the reason as "the published OpenAPI enum is lowercase and changing it
+    // would break existing clients". There were no clients, so the delta was
+    // deleted along with the three generator functions that applied it. Any
+    // reintroduction shows up here.
     expect(codes(ref.eventTypes)).toEqual([...EVENT_TYPE_CODES])
-    expect(codes(ref.eventTypes).every((c) => c === c.toLowerCase())).toBe(true)
+    expect(codes(ref.eventTypes).every((c) => c === c.toUpperCase())).toBe(true)
   })
 
   test("the API's team enums have not drifted from the tables", async ({ request }) => {

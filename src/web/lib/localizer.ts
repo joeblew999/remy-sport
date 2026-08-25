@@ -6,6 +6,8 @@
 //
 // The React side — the provider, the hooks, the switcher — lives in locale.tsx.
 
+import type { ContractRouterClient } from "@orpc/contract";
+import type { Contract } from "../../domain/contract";
 import { LOCALES, type Locale } from "../../domain/vocabularies";
 
 export { LOCALES, type Locale };
@@ -13,42 +15,26 @@ export { LOCALES, type Locale };
 /** Display names keyed by locale, as every API endpoint returns them. */
 export type Names = Record<string, string>;
 
-/** A vocabulary served by /api/reference. */
-export type Vocabulary =
-  | "ageGroups"
-  | "genders"
-  | "orgTypes"
-  | "eventTypes"
-  | "eventFormats"
-  | "provinces"
-  | "cities";
+/**
+ * A vocabulary served by /api/reference — derived, not listed.
+ *
+ * There were seven names written out here; there are twenty upstream now. The
+ * key set comes from the contract, so it cannot fall behind again.
+ */
+export type Vocabulary = keyof Reference
 
-export interface Term {
-  code: string;
-  names: Names;
-}
+/**
+ * The reference payload, inferred from the contract.
+ *
+ * Written out as an interface once — seven arrays of `{code, names}` — which
+ * meant the SPA restated a shape the contract already declared, and nothing
+ * checked the two agreed. Adding `cities` upstream silently left this behind.
+ */
+export type Reference = Awaited<ReturnType<ContractRouterClient<Contract>["reference"]["list"]>>
 
-/** The /api/reference payload. */
-export interface Reference {
-  locales: { code: string; nameEn: string }[];
-  ageGroups: Term[];
-  genders: Term[];
-  orgTypes: Term[];
-  eventTypes: Term[];
-  eventFormats: Term[];
-  provinces: Term[];
-  cities: Term[];
-}
+export type Term = { code: string; names: Names }
 
-export const VOCABULARIES = [
-  "ageGroups",
-  "genders",
-  "orgTypes",
-  "eventTypes",
-  "eventFormats",
-  "provinces",
-  "cities",
-] as const satisfies readonly Vocabulary[];
+
 
 /**
  * Resolving a name or a code into the current language.

@@ -62,7 +62,11 @@ test.describe("Team writes — refusals", () => {
     // The case that was inexpressible before ADR 009: same role, same action,
     // different object — and it has to be refused.
     expect(res.status()).toBe(403)
-    expect((await res.json()).error).toContain("Not a member")
+    // oRPC's error shape: a machine-readable `code` beside the message, rather
+    // than the bare `{error}` the hand-written routes returned.
+    const body = await res.json()
+    expect(body.code).toBe("FORBIDDEN")
+    expect(body.message).toContain("Not a member")
   })
 
   test("a spectator is refused before membership is even considered", async ({ request }) => {

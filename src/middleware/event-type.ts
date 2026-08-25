@@ -24,7 +24,7 @@ export function requireEventType(...types: EventType[]) {
       .limit(1)
 
     if (!event) return c.json({ error: "Event not found" }, 404)
-    if (!types.includes(event.type as EventType)) {
+    if (!types.includes(event.typeCode as EventType)) {
       return c.json({ error: "Not applicable for this event type" }, 422)
     }
 

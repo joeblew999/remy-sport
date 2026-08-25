@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
+import { SEED_ENTITIES } from "./db/seed-data"
 import { drizzle } from "drizzle-orm/d1"
 import { eq } from "drizzle-orm"
 import type { Context } from "hono"
@@ -7,6 +8,11 @@ import type { AppEnv } from "./types"
 import { buildAuthOptions } from "./auth.config"
 import { mailerFor } from "./mail/mailer"
 import * as schema from "./db/schema"
+
+/** The fixtures' people. Sign-in codes are fixed only for these addresses. */
+const SEEDED_EMAILS: ReadonlySet<string> = new Set<string>(
+  SEED_ENTITIES.users.map((u) => u.email),
+)
 
 export function createAuth(c: Context<AppEnv>) {
   const db = drizzle(c.env.DB, { schema })
@@ -100,15 +106,17 @@ export function createAuth(c: Context<AppEnv>) {
       // read production mail — both worse.
       //
       // Scope is the mitigation: TEST_OTP must be set explicitly, and it only
-      // ever applies to @remy.dev, the seeded demo domain. Real addresses
-      // always get a random code. Note this is strictly narrower than what it
+      // ever applies to addresses the fixtures seed. Real addresses always get
+      // a random code. Keyed on the seeded set rather than a domain, because
+      // the PO's people are at their own schools and federations — there is no
+      // one demo domain to match on any more. Note this is strictly narrower than what it
       // replaces — seed.ts previously committed working passwords for these
       // same accounts to the repo. Unset TEST_OTP before the platform has real
       // users; ADR 012 records that as a launch gate.
       ...(c.env.TEST_OTP
         ? {
             generateOTP: ({ email }: { email: string }) =>
-              email.endsWith("@remy.dev")
+              SEEDED_EMAILS.has(email)
                 ? c.env.TEST_OTP!
                 : String(crypto.getRandomValues(new Uint32Array(1))[0]! % 1_000_000).padStart(6, "0"),
           }

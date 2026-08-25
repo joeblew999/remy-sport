@@ -9,15 +9,17 @@
 // Now there is one source: the locales the fixtures declare, generated into
 // `LOCALES` and served by /api/reference. A language is data all the way down.
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { orpc } from "./orpc";
 import type { ReactNode } from "react";
 import {
   LOCALES,
-  VOCABULARIES,
   type Locale,
   type Localizer,
   type Names,
   type Reference,
+  type Term,
 } from "./localizer";
 
 export * from "./localizer";
@@ -25,7 +27,7 @@ export * from "./localizer";
 interface LocaleContextValue extends Localizer {
   setLocale(locale: Locale): void;
   /** The languages the API declares. The switcher renders from this. */
-  available: { code: Locale; nameEn: string }[];
+  available: Locale[];
   reference: Reference | undefined;
 }
 
@@ -60,30 +62,20 @@ function initialLocale(): Locale {
 
 export function LocaleProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(initialLocale);
-  const [reference, setReference] = useState<Reference | undefined>();
 
-  useEffect(() => {
-    let live = true;
-    fetch("api/reference")
-      .then((r) => (r.ok ? (r.json() as Promise<Reference>) : Promise.reject(new Error(String(r.status)))))
-      .then((data) => {
-        if (live) setReference(data);
-      })
-      .catch(() => {
-        // Reference data is decoration, not function: without it `label()`
-        // renders codes, which is worse-looking but still navigable. Failing
-        // the whole SPA over a vocabulary fetch would be the wrong trade.
-      });
-    return () => {
-      live = false;
-    };
-  }, []);
+  // The vocabularies, through the same contract-typed query as everything else
+  // — no bespoke fetch, no useEffect, no race guard. Reference data is
+  // decoration rather than function: without it `label()` renders codes, which
+  // is worse-looking but still navigable, so a failure must not blank the app.
+  const { data: reference } = useQuery(orpc.reference.list.queryOptions());
 
   const value = useMemo<LocaleContextValue>(() => {
     const index = new Map<string, Names>();
     if (reference) {
-      for (const vocabulary of VOCABULARIES) {
-        for (const term of reference[vocabulary]) index.set(`${vocabulary}|${term.code}`, term.names);
+      // Every vocabulary in the payload, whatever they are — the endpoint is
+      // generated from the fixtures, so listing them here would fall behind.
+      for (const [vocabulary, terms] of Object.entries(reference)) {
+        for (const term of terms as Term[]) index.set(`${vocabulary}|${term.code}`, term.names);
       }
     }
 
@@ -102,9 +94,13 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
       },
       name,
       label: (vocabulary, code) => (code ? name(index.get(`${vocabulary}|${code}`), code) : ""),
-      available: reference
-        ? reference.locales.filter((l): l is { code: Locale; nameEn: string } => isLocale(l.code))
-        : LOCALES.map((code) => ({ code, nameEn: code.toUpperCase() })),
+      // Falls back to the generated list so the switcher renders before the
+      // vocabularies land, and still renders if they never do.
+      // The fixtures define `locales` like any other vocabulary, so the
+      // switcher renders from the same payload as every label.
+      available: (reference?.locales.map((l) => l.code) ?? LOCALES).filter((l): l is Locale =>
+        isLocale(l),
+      ),
       reference,
     };
   }, [locale, reference]);

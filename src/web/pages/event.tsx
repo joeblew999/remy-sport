@@ -4,6 +4,7 @@ import { useEvent, useEvents, useLiveGame, useStandings } from "../lib/data";
 import type { Event } from "../data";
 import type { Route } from "../lib/router";
 import { BracketView } from "./bracket";
+import { useLocale } from "../lib/locale";
 
 type EventTab = "overview" | "bracket" | "schedule" | "standings" | "teams" | "venues" | "rules";
 
@@ -13,6 +14,7 @@ interface EventProps {
 }
 
 export function EventPage({ id, goto }: EventProps) {
+  const { reference, name } = useLocale();
   const { data: event, loading: eventLoading } = useEvent(id);
   const { data: allEvents, loading: listLoading } = useEvents();
   const [tab, setTab] = useState<EventTab>("overview");
@@ -40,14 +42,14 @@ export function EventPage({ id, goto }: EventProps) {
       <div className="event-hero">
         <div className="meta-bar">
           <button onClick={() => goto({ page: "discover" })} className="crumbs" style={{ background: "transparent", border: "none", padding: 0, fontFamily: "IBM Plex Mono, monospace", fontSize: 11, color: "var(--ink-3)", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer" }}>← DISCOVER</button>
-          <span className={`type ${e.type}`} style={{
+          <span className={`type ${e.type.toLowerCase()}`} style={{
             display: "inline-flex", padding: "3px 8px",
             fontFamily: "IBM Plex Mono, monospace", fontSize: 10, letterSpacing: "0.1em",
             border: "1px solid var(--ink)", textTransform: "uppercase",
-            background: e.type === "tournament" ? "var(--ink)" : "transparent",
-            color: e.type === "tournament" ? "var(--paper)" : "var(--ink)",
-            borderColor: e.type === "showcase" ? "var(--accent)" : "var(--ink)",
-          }}>{e.type}</span>
+            background: e.type === "TOURNAMENT" ? "var(--ink)" : "transparent",
+            color: e.type === "TOURNAMENT" ? "var(--paper)" : "var(--ink)",
+            borderColor: e.type === "SHOWCASE" ? "var(--accent)" : "var(--ink)",
+          }}>{name(reference?.eventTypes.find((t) => t.code === e.type)?.names, e.type)}</span>
           <span className={`status ${e.status}`} style={{
             fontFamily: "IBM Plex Mono, monospace", fontSize: 11,
             letterSpacing: "0.06em", textTransform: "uppercase",

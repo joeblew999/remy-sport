@@ -1,4 +1,5 @@
 import { test as setup, expect } from "@playwright/test"
+import { SEED_ENTITIES } from "../src/db/seed-data"
 
 /**
  * Seed the target database before any test project runs.
@@ -21,7 +22,9 @@ setup("seed actors and ensure a public event exists", async ({ request }) => {
   expect(res.ok()).toBeTruthy()
 
   const body = await res.json()
-  expect(body.seeded).toHaveLength(6)
+  // Against the fixtures, not a number typed here: the seeded actors are the
+  // PO's people, and there are as many of them as the fixtures say.
+  expect(body.seeded).toHaveLength(SEED_ENTITIES.users.length)
 
   // The "event:read is public" tests assert that at least one event exists, but
   // nothing guarantees an event-creating test has run first — they live in a
@@ -43,7 +46,7 @@ setup("seed actors and ensure a public event exists", async ({ request }) => {
   await signIn(request, ADMIN)
 
   const created = await request.post("/api/events", {
-    data: { names: { en: "Seed event" }, type: "tournament" },
+    data: { names: { en: "Seed event" }, typeCode: "TOURNAMENT" },
   })
   expect(created.status()).toBe(201)
 })

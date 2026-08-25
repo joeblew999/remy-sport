@@ -60,12 +60,16 @@ test.describe("SPA events come from the API", () => {
     const calls: string[] = []
     page.on("request", (r) => {
       const u = new URL(r.url())
-      if (u.pathname.startsWith("/api/")) calls.push(u.pathname)
+      if (u.pathname.startsWith("/api/") || u.pathname.startsWith("/rpc")) calls.push(u.pathname)
     })
 
     await page.goto("/app")
     await expect(page.locator(".event-row").first()).toBeVisible()
-    expect(calls).toContain("/api/events")
+    // The SPA talks oRPC at /rpc, not REST at /api. Both are the same router:
+    // /api is the documented REST surface for external clients, /rpc is the
+    // typed one our own client uses. What matters here is that the page got its
+    // events from the server rather than from a fixture.
+    expect(calls.some((u) => u.includes("/rpc"))).toBe(true)
 
     // The seeded fixtures come from remy-sport-biz/data/seed/events.jsonl and
     // never existed in the old mock data, so seeing one proves the source swap.

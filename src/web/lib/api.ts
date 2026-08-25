@@ -3,27 +3,16 @@
 // needs (biz decision-003: "asset paths must stay relative").
 
 import type { Crest, Event, EventStatus, EventType, Team } from "../data";
+import type { ContractRouterClient } from "@orpc/contract";
+import type { Contract } from "../../domain/contract";
 import type { Localizer, Names } from "./localizer";
 
-/** One event as `GET /api/events` returns it — see src/routes/events.ts. */
-export interface ApiEvent {
-  id: string;
-  /** English pivot. Prefer `names` — this is the fallback, not the label. */
-  name: string;
-  names: Names;
-  type: EventType;
-  format: "5x5" | "3x3";
-  description: string | null;
-  startDate: string | null;
-  endDate: string | null;
-  cityCode: string | null;
-  provinceCode: string | null;
-  isFibaCertified: boolean;
-  createdBy: string;
-  organizerName: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+/**
+ * One event, as the contract declares it. Inferred, never written out — the
+ * previous hand-written interface duplicated 15 fields and nothing checked it.
+ */
+export type ApiEvent = ContractRouterClient<Contract>["events"]["get"] extends
+  (...a: never[]) => Promise<infer R> ? R : never
 
 const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
@@ -105,7 +94,7 @@ export function toEvent(e: ApiEvent, loc: Localizer, today: Date = new Date()): 
   const start = e.startDate ? parseDay(e.startDate) : null;
   return {
     id: e.id,
-    type: e.type,
+    type: e.typeCode,
     // Already in the reader's language: pages render `title`, they do not
     // choose between a pair of fields.
     title: loc.name(e.names, e.name),
@@ -127,20 +116,9 @@ export function toEvent(e: ApiEvent, loc: Localizer, today: Date = new Date()): 
 
 // ── Teams ──────────────────────────────────────────────────────────────────
 
-/** One team as `GET /api/teams` returns it — see src/routes/teams.ts. */
-export interface ApiTeam {
-  id: string;
-  /** English pivot. Prefer `names` — this is the fallback, not the label. */
-  name: string;
-  names: Names;
-  ageGroupCode: string;
-  genderCode: "M" | "F" | "COED";
-  orgId: string;
-  orgName: string | null;
-  orgNames: Names;
-  orgCityCode: string | null;
-  orgProvinceCode: string | null;
-}
+/** One team, as the contract declares it. Inferred, never written out. */
+export type ApiTeam = ContractRouterClient<Contract>["teams"]["get"] extends
+  (...a: never[]) => Promise<infer R> ? R : never
 
 /**
  * Short code shown on crests and in tables.
@@ -185,42 +163,4 @@ export function toTeam(t: ApiTeam, loc: Localizer): Team {
     // "Mixed" where the PO says "Co-ed" — the exact drift ADR 015 was about.
     genderLabel: loc.label("genders", t.genderCode),
   };
-}
-
-async function get<T>(path: string): Promise<T> {
-  const res = await fetch(path, { headers: { accept: "application/json" } });
-  if (!res.ok) throw new Error(`${path} → ${res.status}`);
-  return res.json() as Promise<T>;
-}
-
-// The fetchers take a Localizer because the view models carry resolved strings.
-// Switching language re-runs these, which is what makes the whole page follow
-// the switch rather than only the parts a component happens to re-read.
-
-export async function fetchEvents(loc: Localizer): Promise<Event[]> {
-  const { events } = await get<{ events: ApiEvent[] }>("/api/events");
-  return events.map((e) => toEvent(e, loc));
-}
-
-export async function fetchEvent(id: string, loc: Localizer): Promise<Event | undefined> {
-  try {
-    return toEvent(await get<ApiEvent>(`/api/events/${encodeURIComponent(id)}`), loc);
-  } catch {
-    // A missing event is a normal outcome for a hash deep-link to a deleted or
-    // mistyped id — the page renders its own "not found", so don't throw.
-    return undefined;
-  }
-}
-
-export async function fetchTeams(loc: Localizer): Promise<Team[]> {
-  const { teams } = await get<{ teams: ApiTeam[] }>("/api/teams");
-  return teams.map((t) => toTeam(t, loc));
-}
-
-export async function fetchTeam(id: string, loc: Localizer): Promise<Team | undefined> {
-  try {
-    return toTeam(await get<ApiTeam>(`/api/teams/${encodeURIComponent(id)}`), loc);
-  } catch {
-    return undefined;
-  }
 }

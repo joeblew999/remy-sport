@@ -28,7 +28,7 @@ import * as schema from "../db/schema"
 const ORG_ROLE_RANK = ["owner", "admin", "member"] as const
 export type OrgRole = (typeof ORG_ROLE_RANK)[number]
 
-function rankOf(role: string): number {
+export function rankOf(role: string): number {
   const i = ORG_ROLE_RANK.indexOf(role as OrgRole)
   // An unknown role ranks below every known one rather than above: a role the
   // code does not recognise must never satisfy a minimum-role check.

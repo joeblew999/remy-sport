@@ -1,0 +1,127 @@
+/**
+ * The wire contract. One definition per shape, for the whole stack.
+ *
+ * Response schemas are DERIVED from the drizzle tables with drizzle-zod, so a
+ * column added to `event` cannot be silently missing from the API. Request
+ * schemas are hand-written on purpose: `createInsertSchema` on a TEXT column
+ * yields `z.string()`, which would happily accept `"U99"` as an age group. The
+ * database validates codes with foreign keys; the boundary validates them with
+ * enums generated from the PO's fixtures. Derive what is safe to derive.
+ *
+ * These schemas are what oRPC publishes as OpenAPI and what the client infers
+ * its types from, so there is no hand-written client interface anywhere.
+ */
+
+import { createSelectSchema } from "drizzle-zod"
+import { z } from "zod"
+import * as schema from "../db/schema"
+import { VOCABULARY_SCHEMAS } from "../db/vocabularies-schema"
+import {
+  AGE_GROUP_CODES,
+  CITY_CODES,
+  EVENT_FORMAT_CODES,
+  EVENT_TYPE_CODES,
+  GENDER_CODES,
+  LOCALES,
+} from "./vocabularies"
+
+/**
+ * Display names keyed by locale.
+ *
+ * A record rather than `nameEn`/`nameTh` fields, so shipping a language adds a
+ * key to an object instead of a column to a table, a field to a type, and a
+ * case to every consumer.
+ */
+export const NamesSchema = z
+  // partialRecord, not record: with an enum key `z.record` demands EVERY
+  // locale be present, which would make an English-only name invalid.
+  .partialRecord(z.enum(LOCALES), z.string())
+  .meta({ description: "Display names keyed by locale code", examples: [{ en: "Boys", th: "ชาย" }] })
+
+/** At least one language must carry a name; which one is the caller's choice. */
+export const NamesInput = NamesSchema.refine((n) => Object.values(n).some((v) => v?.trim()), {
+  message: "at least one locale must carry a name",
+})
+
+// ── Reference vocabularies ────────────────────────────────────────────────
+
+/**
+ * Every vocabulary, with no list of them here.
+ *
+ * `VOCABULARY_SCHEMAS` is generated from the fixtures, one derived schema per
+ * table, so a vocabulary added upstream appears on this endpoint — typed,
+ * translated, and in the OpenAPI document — with nothing edited here. `locales`
+ * is among them: the fixtures define it like any other vocabulary.
+ */
+export const ReferenceSchema = z.object(VOCABULARY_SCHEMAS)
+
+// ── Events ────────────────────────────────────────────────────────────────
+
+const EventTypeSchema = z.enum(EVENT_TYPE_CODES)
+const EventFormatSchema = z.enum(EVENT_FORMAT_CODES)
+
+/** The biz schema stores dates as ISO 8601 day strings, not timestamps. */
+const DaySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected YYYY-MM-DD")
+
+export const EventSchema = createSelectSchema(schema.event)
+  .omit({ createdAt: true, updatedAt: true })
+  .extend({
+    typeCode: EventTypeSchema,
+    formatCode: EventFormatSchema,
+    createdAt: z.string(),
+    updatedAt: z.string(),
+    /**
+     * Display label for "organised by". Canonical resolves this as
+     * COALESCE(org.name, user.name); with no `orgs` table here it is the
+     * organizer's user name, joined from created_by. Null if the user is gone.
+     */
+    organizerName: z.string().nullable(),
+  })
+
+export const CreateEventInput = z.object({
+  names: NamesInput,
+  typeCode: EventTypeSchema,
+  formatCode: EventFormatSchema.optional(),
+  description: z.string().optional(),
+  startDate: DaySchema.optional(),
+  endDate: DaySchema.optional(),
+  cityCode: z.enum(CITY_CODES).optional(),
+  provinceCode: z.string().optional(),
+  isFibaCertified: z.boolean().optional(),
+})
+
+export const UpdateEventInput = CreateEventInput.partial()
+
+// ── Teams ─────────────────────────────────────────────────────────────────
+
+export const TeamSchema = createSelectSchema(schema.team)
+  .omit({ createdAt: true, updatedAt: true })
+  .extend({
+    ageGroupCode: z.enum(AGE_GROUP_CODES),
+    genderCode: z.enum(GENDER_CODES),
+    // Joined from `organization` — the team page shows the school, not an id.
+    orgName: z.string().nullable(),
+    orgNames: NamesSchema,
+    orgCityCode: z.string().nullable(),
+    orgProvinceCode: z.string().nullable(),
+  })
+
+export const CreateTeamInput = z.object({
+  names: NamesInput,
+  orgId: z.string().min(1),
+  ageGroupCode: z.enum(AGE_GROUP_CODES),
+  genderCode: z.enum(GENDER_CODES),
+})
+
+/**
+ * Everything optional, but orgId is excluded entirely: moving a team between
+ * schools is a transfer, not an edit, and would need membership of *both* orgs
+ * to be checked. Out of scope until a transfer flow exists.
+ */
+export const UpdateTeamInput = CreateTeamInput.omit({ orgId: true }).partial()
+
+// ── Inferred types — what the client and the handlers both speak ──────────
+
+export type ApiEvent = z.infer<typeof EventSchema>
+export type ApiTeam = z.infer<typeof TeamSchema>
+export type ApiReference = z.infer<typeof ReferenceSchema>

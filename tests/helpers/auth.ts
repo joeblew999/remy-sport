@@ -1,4 +1,5 @@
 import { expect, type APIRequestContext, type Page } from "@playwright/test"
+import { SEED_ENTITIES } from "../../src/db/seed-data"
 
 /**
  * Signing in, now that there are no passwords (ADR 012).
@@ -23,12 +24,53 @@ export const BASE = process.env.BASE_URL || "http://localhost:8787"
 export const IS_LOCAL = !process.env.BASE_URL
 
 /** The six seeded actors. No passwords — an address is the whole credential. */
-export const ADMIN = "admin@remy.dev"
-export const ORGANIZER = "organizer@remy.dev"
-export const COACH = "coach@remy.dev"
-export const PLAYER = "player@remy.dev"
-export const SPECTATOR = "spectator@remy.dev"
-export const REFEREE = "referee@remy.dev"
+/**
+ * The seeded actors, from the Product Owner's fixtures.
+ *
+ * These were six invented addresses. Resolving them from the fixtures means a
+ * spec cannot sign in as an account the seed route never created — which is
+ * what these constants silently became every time the seed data moved.
+ *
+ * `first` rather than a hardcoded pick: the fixtures list three coaches at
+ * three schools, and the tests want a stable one, not a particular one.
+ */
+const first = (role: string) => {
+  const user = SEED_ENTITIES.users.find((u) => u.roleCode === role)
+  if (!user) throw new Error(`no seeded user with role ${role}`)
+  return user.email
+}
+
+export const ADMIN = first("ADMIN")
+export const ORGANIZER = first("ORGANIZER")
+export const COACH = first("COACH")
+export const PLAYER = first("PLAYER")
+export const SPECTATOR = first("SPECTATOR")
+export const REFEREE = first("REFEREE")
+
+/** The six seeded actors, by role, for specs that want them keyed. */
+export const ACTORS = { ADMIN, ORGANIZER, COACH, PLAYER, SPECTATOR, REFEREE } as const
+
+/**
+ * What each seeded actor is called, in English.
+ *
+ * Specs used to assert "Admin" and "Coach" — the names of accounts this repo
+ * invented. They are the PO's people now, so the expected name comes from the
+ * same fixtures the seed route reads.
+ */
+const nameOf = (role: string) => {
+  const user = SEED_ENTITIES.users.find((u) => u.roleCode === role)
+  if (!user) throw new Error(`no seeded user with role ${role}`)
+  return user.names.en
+}
+
+export const ACTOR_NAMES = {
+  ADMIN: nameOf("ADMIN"),
+  ORGANIZER: nameOf("ORGANIZER"),
+  COACH: nameOf("COACH"),
+  PLAYER: nameOf("PLAYER"),
+  SPECTATOR: nameOf("SPECTATOR"),
+  REFEREE: nameOf("REFEREE"),
+} as const
 
 export const ALL_ACTORS = [ADMIN, ORGANIZER, COACH, PLAYER, SPECTATOR, REFEREE]
 
@@ -44,11 +86,18 @@ const CODE_RE = /Your code is (\d{6})/
  * genuine path — generate, mail, read back, redeem — is still covered by
  * otp.spec.ts using addresses nothing else touches.
  */
-const SEEDED_DOMAIN = "@remy.dev"
+/**
+ * Matches src/auth.ts: the fixed code applies to the addresses the fixtures
+ * seed, not to a domain. The PO's people are at their own schools and
+ * federations, so there is no single demo domain left to match on.
+ */
+const SEEDED_EMAILS: ReadonlySet<string> = new Set<string>(
+  SEED_ENTITIES.users.map((u) => u.email),
+)
 const LOCAL_TEST_OTP = "424242"
 
 function fixedCodeFor(email: string): string | null {
-  if (!email.endsWith(SEEDED_DOMAIN)) return null
+  if (!SEEDED_EMAILS.has(email)) return null
   return IS_LOCAL ? LOCAL_TEST_OTP : requireTestOtp()
 }
 

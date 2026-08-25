@@ -19,7 +19,7 @@ export type Bindings = {
   // Sender address; must belong to a domain onboarded to Email Service.
   EMAIL_FROM?: string
   /**
-   * Fixed sign-in code for the seeded @remy.dev demo accounts, so the
+   * Fixed sign-in code for the addresses the fixtures seed, so the
    * Playwright suite can authenticate against a deployed Worker where no dev
    * outbox exists (ADR 012). A secret, never a [vars] entry. Unset it before
    * the platform has real users.

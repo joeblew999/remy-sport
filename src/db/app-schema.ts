@@ -1,4 +1,20 @@
-import { sqliteTable, text, integer, primaryKey } from "drizzle-orm/sqlite-core"
+import { relations } from "drizzle-orm"
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core"
+import type { Names } from "../domain/names"
+
+/**
+ * Display names, keyed by locale: {"en":"Boys","th":"ชาย"}.
+ *
+ * One column, not one per language and not a join table. A name is a property
+ * of the row, and keeping it one is what lets it cross the whole stack with no
+ * mapping code: drizzle types it here, drizzle-zod derives the response schema
+ * from this table, oRPC publishes that schema, and the client infers it.
+ * Adding a language edits a value.
+ *
+ * Every table that has this also keeps a NOT NULL `name`/`name_en` pivot
+ * beside it — the guaranteed fallback, and what SQL sorts by.
+ */
+const localeNames = () => text("names", { mode: "json" }).$type<Names>().notNull()
 
 /**
  * Controlled vocabularies (ADR 015), copied from remy-sport-biz/data/seed.
@@ -30,11 +46,10 @@ import { user, organization } from "./auth-schema"
  */
 export const event = sqliteTable("event", {
   id: text("id").primaryKey(),
-  // The English pivot. Other languages are `translation` rows keyed
-  // ('event', id, 'name', locale) — see migration 0010 and domain/localized.ts.
-  name: text("name").notNull(), // canonical: name_en
-  type: text("type").notNull(), // tournament, league, camp, showcase
-  format: text("format").notNull().default("5x5"), // 5x5 | 3x3
+  name: text("name").notNull(), // canonical: name_en — the pivot
+  names: localeNames(),
+  typeCode: text("type_code").notNull(), // references event_type.code
+  formatCode: text("format_code").notNull().default("5x5"), // references event_format.code
   description: text("description"),
   // ISO 8601 date strings (YYYY-MM-DD), per the biz schema's date convention.
   // Nullable because rows predating migration 0005 have no value; the API
@@ -61,9 +76,8 @@ export const event = sqliteTable("event", {
  */
 export const team = sqliteTable("team", {
   id: text("id").primaryKey(),
-  // The English pivot. Other languages are `translation` rows keyed
-  // ('team', id, 'name', locale) — see migration 0010 and domain/localized.ts.
-  name: text("name").notNull(), // canonical: name_en
+  name: text("name").notNull(), // canonical: name_en — the pivot
+  names: localeNames(),
   orgId: text("org_id")
     .notNull()
     .references(() => organization.id),
@@ -79,83 +93,42 @@ export const team = sqliteTable("team", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 })
 
+
 /** U10 … SENIOR. `sort` exists because age order is not code order. */
-export const ageGroup = sqliteTable("age_group", {
-  code: text("code").primaryKey(),
-  nameEn: text("name_en").notNull(),
-  minAge: integer("min_age"),
-  maxAge: integer("max_age"),
-  sort: integer("sort").notNull(),
-})
+/**
+ * The controlled vocabularies are GENERATED from the PO's fixtures.
+ *
+ * There were eight of them written out here by hand, which meant every new
+ * vocabulary upstream needed a table typed out again, in step, by someone who
+ * remembered to. There are twenty now and none of them are written here — see
+ * scripts/domain-generate.ts and `mise run domain:check`.
+ */
+export * from "./vocabularies-schema"
 
-export const gender = sqliteTable("gender", {
-  code: text("code").primaryKey(),
-  nameEn: text("name_en").notNull(),
-  sort: integer("sort").notNull(),
-})
+// Imported as well as re-exported: `export *` publishes them but does not bind
+// them here, and the relations and foreign keys below need the bindings.
+import { ageGroup, city, gender, province } from "./vocabularies-schema"
 
-export const orgType = sqliteTable("org_type", {
-  code: text("code").primaryKey(),
-  nameEn: text("name_en").notNull(),
-  sort: integer("sort").notNull(),
-})
-
-/** Lowercase, unlike the biz fixtures — see migration 0005 and 0009. */
-export const eventType = sqliteTable("event_type", {
-  code: text("code").primaryKey(),
-  nameEn: text("name_en").notNull(),
-  sort: integer("sort").notNull(),
-})
-
-export const eventFormat = sqliteTable("event_format", {
-  code: text("code").primaryKey(),
-  nameEn: text("name_en").notNull(),
-  sort: integer("sort").notNull(),
-})
-
-/** The PO's 15-province starter set, not all 77. */
-export const province = sqliteTable("province", {
-  code: text("code").primaryKey(),
-  nameEn: text("name_en").notNull(),
-})
-
-/** Cities, keyed by code. A city belongs to exactly one province. */
-export const city = sqliteTable("city", {
-  code: text("code").primaryKey(),
-  nameEn: text("name_en").notNull(),
-  provinceCode: text("province_code")
-    .notNull()
-    .references(() => province.code),
-})
 
 /**
- * The languages the product ships in, from the PO's locales fixture.
+ * Relations, so reads are declarative.
  *
- * A language is a row here and rows in `translation` — never a column
- * anywhere. See migration 0009.
+ * `drizzle(c.env.DB, { schema })` already passes the schema, so `db.query`
+ * works the moment these exist — the routes were writing manual `leftJoin`s
+ * and hand-picking columns only because nothing here declared the shape.
  */
-export const locale = sqliteTable("locale", {
-  code: text("code").primaryKey(),
-  nameEn: text("name_en").notNull(),
-})
+export const teamRelations = relations(team, ({ one }) => ({
+  organization: one(organization, { fields: [team.orgId], references: [organization.id] }),
+  ageGroup: one(ageGroup, { fields: [team.ageGroupCode], references: [ageGroup.code] }),
+  gender: one(gender, { fields: [team.genderCode], references: [gender.code] }),
+}))
 
-/**
- * Display strings for the controlled vocabularies, one row per term per locale.
- *
- * Keyed exactly as the PO's translations fixture is, except that `recordKey`
- * holds this repo's code — event types are lowercase here. Every language
- * including English has a row, so rendering in a locale is one uniform join.
- */
-export const translation = sqliteTable(
-  "translation",
-  {
-    tableName: text("table_name").notNull(),
-    recordKey: text("record_key").notNull(),
-    fieldName: text("field_name").notNull(),
-    localeCode: text("locale_code")
-      .notNull()
-      .references(() => locale.code),
-    value: text("value").notNull(),
-  },
-  (t) => [primaryKey({ columns: [t.tableName, t.recordKey, t.fieldName, t.localeCode] })],
-)
+export const eventRelations = relations(event, ({ one }) => ({
+  organizer: one(user, { fields: [event.createdBy], references: [user.id] }),
+  city: one(city, { fields: [event.cityCode], references: [city.code] }),
+  province: one(province, { fields: [event.provinceCode], references: [province.code] }),
+}))
+
+export const cityRelations = relations(city, ({ one }) => ({
+  province: one(province, { fields: [city.provinceCode], references: [province.code] }),
+}))

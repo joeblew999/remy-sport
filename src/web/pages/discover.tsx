@@ -15,7 +15,7 @@ type Tab = "all" | "live" | "open" | "upcoming" | "closed";
 
 export function DiscoverPage({ goto, spoiler }: DiscoverProps) {
   const t = useT();
-  const { locale } = useLocale();
+  const { locale, reference, name } = useLocale();
   const [tab, setTab] = useState<Tab>("all");
   const [filterCity, setFilterCity] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<EventType | null>(null);
@@ -35,12 +35,17 @@ export function DiscoverPage({ goto, spoiler }: DiscoverProps) {
     closed: allEvents.filter(e => e.status === "closed").length,
   };
 
-  const TYPES: { label: string; key: EventType }[] = [
-    { label: "Tournament", key: "tournament" },
-    { label: "League", key: "league" },
-    { label: "Camp", key: "camp" },
-    { label: "Showcase", key: "showcase" },
-  ];
+  // From /api/reference, in the reader's language. This was four hardcoded
+  // English labels — the kind of second copy of the PO's vocabulary that ADR
+  // 015 exists to stop, and one a Thai reader could never see translated.
+  /** A type's name in the reader's language, falling back to its code. */
+  const typeLabel = (code: string) =>
+    name(reference?.eventTypes.find((t) => t.code === code)?.names, code);
+
+  const TYPES = (reference?.eventTypes ?? []).map((t) => ({
+    label: name(t.names, t.nameEn),
+    key: t.code as EventType,
+  }));
 
   return (
     <>
@@ -88,7 +93,7 @@ export function DiscoverPage({ goto, spoiler }: DiscoverProps) {
               <div className="name">{e.title}</div>
               <div className="meta">{e.organizer.toUpperCase()}</div>
             </div>
-            <div><span className={`type ${e.type}`}>{e.type}</span></div>
+            <div><span className={`type ${e.type.toLowerCase()}`}>{typeLabel(e.type)}</span></div>
             <div className="loc">
               <div>{e.loc}</div>
               <span className="city">{e.city}</span>

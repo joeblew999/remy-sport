@@ -77,19 +77,18 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
   // outbox exists — i.e. never in production, where MAIL_TRANSPORT=cloudflare
   // and the endpoint 404s. Checked rather than assumed from a build flag, so
   // the two cannot drift apart.
-  const [devAccounts, setDevAccounts] = useState<string[] | null>(null);
+  const [devAccounts, setDevAccounts] = useState<
+    { role: string; email: string; name: string }[] | null
+  >(null);
   useEffect(() => {
     let live = true;
-    fetch("/api/dev/outbox")
-      .then((r) => {
-        if (!live) return;
-        setDevAccounts(
-          r.ok
-            ? ["admin", "organizer", "coach", "player", "spectator", "referee"].map(
-                (r2) => `${r2}@remy.dev`,
-              )
-            : null,
-        );
+    // Asked for, not guessed at. This used to build `${role}@remy.dev` from a
+    // list typed here; the accounts are the PO's people now, with their own
+    // addresses, so a guess would sign nobody in.
+    fetch("/api/dev/accounts")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => {
+        if (live) setDevAccounts(body?.accounts ?? null);
       })
       .catch(() => undefined);
     return () => {
@@ -217,14 +216,17 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
             <a className="more">LOCAL ONLY</a>
           </div>
           <div className="dev-account-row">
-            {devAccounts.map((address) => (
+            {devAccounts.map((account) => (
               <button
-                key={address}
+                key={account.role}
                 className="btn"
-                data-testid={`spa-dev-${address.split("@")[0]}`}
-                onClick={() => void fillDev(address)}
+                // Keyed by role, not by the address: the address is a person's
+                // now, and a test that wants "the referee" means the role.
+                data-testid={`spa-dev-${account.role}`}
+                title={`${account.name} — ${account.email}`}
+                onClick={() => void fillDev(account.email)}
               >
-                {address.split("@")[0]}
+                {account.role}
               </button>
             ))}
           </div>

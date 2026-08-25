@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test"
-import { signIn, deleteOrg, ORGANIZER } from "./helpers/auth"
+import { ACTOR_NAMES, signIn, deleteOrg, ORGANIZER } from "./helpers/auth"
 
 // The outbox transport, and therefore /api/dev/outbox, exists only locally:
 // production runs MAIL_TRANSPORT=cloudflare and the route 404s there by design.
@@ -62,7 +62,7 @@ test.describe("Organization invitations send mail", () => {
     expect(messages[0]!.to).toBe(invitee)
     expect(messages[0]!.subject).toContain("Invite Test Org")
     // The inviter is named, so the recipient can tell a real invite from spam.
-    expect(messages[0]!.subject).toContain("Organizer")
+    expect(messages[0]!.subject).toContain(ACTOR_NAMES.ORGANIZER)
     await cleanup()
   })
 

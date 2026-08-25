@@ -1,14 +1,17 @@
 import { test, expect } from "@playwright/test"
-import { signIn, signInThroughLoginForm } from "./helpers/auth"
+import { ACTORS, signIn, signInThroughLoginForm } from "./helpers/auth"
 import { EVENT_TYPE_CODES } from "../src/domain/vocabularies"
+import { SEED_ENTITIES } from "../src/db/seed-data"
 
-// All 6 actors from the access matrix (docs/user/matrix.md)
-const ADMIN =     { email: "admin@remy.dev", role: "admin" }
-const ORGANIZER = { email: "organizer@remy.dev", role: "organizer" }
-const COACH =     { email: "coach@remy.dev", role: "coach" }
-const PLAYER =    { email: "player@remy.dev", role: "player" }
-const SPECTATOR = { email: "spectator@remy.dev", role: "spectator" }
-const REFEREE =   { email: "referee@remy.dev", role: "referee" }
+// All 6 actors from the access matrix (docs/user/matrix.md), resolved from the
+// Product Owner's fixtures via the helpers. This file used to keep its own copy
+// of the six addresses — a second list that nothing checked against the seed.
+const ADMIN =     { email: ACTORS.ADMIN, role: "admin" }
+const ORGANIZER = { email: ACTORS.ORGANIZER, role: "organizer" }
+const COACH =     { email: ACTORS.COACH, role: "coach" }
+const PLAYER =    { email: ACTORS.PLAYER, role: "player" }
+const SPECTATOR = { email: ACTORS.SPECTATOR, role: "spectator" }
+const REFEREE =   { email: ACTORS.REFEREE, role: "referee" }
 
 const ALL_ACTORS = [ADMIN, ORGANIZER, COACH, PLAYER, SPECTATOR, REFEREE]
 const WRITERS = [ADMIN, ORGANIZER]  // can create/update/delete events
@@ -24,7 +27,9 @@ test.describe.serial("Seed — all 6 actors", () => {
     const res = await request.post("/api/seed")
     expect(res.ok()).toBeTruthy()
     const body = await res.json()
-    expect(body.seeded).toHaveLength(6)
+    // As many as the fixtures define. The seeded actors are the PO's people,
+    // and there are twelve of them across the six roles, not one each.
+    expect(body.seeded).toHaveLength(SEED_ENTITIES.users.length)
     for (const actor of ALL_ACTORS) {
       const seeded = body.seeded.find((s: any) => s.email === actor.email)
       expect(seeded).toBeTruthy()
@@ -49,7 +54,7 @@ test.describe.serial("Layer 1 — event:create by role", () => {
     test(`${actor.role} CAN create events`, async ({ request }) => {
       await signIn(request, actor.email)
       const res = await request.post("/api/events", {
-        data: { names: { en: `${actor.role}'s event` }, type: "tournament" },
+        data: { names: { en: `${actor.role}'s event` }, typeCode: "TOURNAMENT" },
       })
       expect(res.status()).toBe(201)
     })
@@ -59,7 +64,7 @@ test.describe.serial("Layer 1 — event:create by role", () => {
     test(`${actor.role} CANNOT create events (403)`, async ({ request }) => {
       await signIn(request, actor.email)
       const res = await request.post("/api/events", {
-        data: { names: { en: `${actor.role} attempt` }, type: "tournament" },
+        data: { names: { en: `${actor.role} attempt` }, typeCode: "TOURNAMENT" },
       })
       expect(res.status()).toBe(403)
     })
@@ -67,7 +72,7 @@ test.describe.serial("Layer 1 — event:create by role", () => {
 
   test("unauthenticated user gets 401", async ({ request }) => {
     const res = await request.post("/api/events", {
-      data: { names: { en: "Unauth" }, type: "tournament" },
+      data: { names: { en: "Unauth" }, typeCode: "TOURNAMENT" },
     })
     expect(res.status()).toBe(401)
   })
@@ -106,7 +111,7 @@ test.describe.serial("Layer 2 — ownership on update/delete", () => {
   test("organizer creates event", async ({ request }) => {
     await signIn(request, ORGANIZER.email)
     const res = await request.post("/api/events", {
-      data: { names: { en: "Organizer Owned" }, type: "showcase" },
+      data: { names: { en: "Organizer Owned" }, typeCode: "SHOWCASE" },
     })
     organizerEventId = (await res.json()).id
   })
@@ -114,7 +119,7 @@ test.describe.serial("Layer 2 — ownership on update/delete", () => {
   test("admin creates event", async ({ request }) => {
     await signIn(request, ADMIN.email)
     const res = await request.post("/api/events", {
-      data: { names: { en: "Admin Owned" }, type: "league" },
+      data: { names: { en: "Admin Owned" }, typeCode: "LEAGUE" },
     })
     adminEventId = (await res.json()).id
   })
@@ -148,7 +153,7 @@ test.describe.serial("Layer 2 — ownership on update/delete", () => {
   test("organizer can delete own event", async ({ request }) => {
     await signIn(request, ORGANIZER.email)
     const create = await request.post("/api/events", {
-      data: { names: { en: "Throwaway" }, type: "camp" },
+      data: { names: { en: "Throwaway" }, typeCode: "CAMP" },
     })
     const id = (await create.json()).id
     const del = await request.delete(`/api/events/${id}`)
@@ -193,21 +198,20 @@ test.describe.serial("Layer 3 — event types", () => {
     // here without anyone remembering to extend this list.
     for (const type of EVENT_TYPE_CODES) {
       const res = await request.post("/api/events", {
-        data: { names: { en: `Type test: ${type}` }, type },
+        data: { names: { en: `Type test: ${type}` }, typeCode: type },
       })
       expect(res.status(), `should create ${type}`).toBe(201)
-      expect((await res.json()).type).toBe(type)
+      expect((await res.json()).typeCode).toBe(type)
     }
   })
 
   test("events are stored with correct types", async ({ request }) => {
     const res = await request.get("/api/events")
     const { events } = await res.json()
-    const types = new Set(events.map((e: any) => e.type))
-    expect(types).toContain("tournament")
-    expect(types).toContain("league")
-    expect(types).toContain("camp")
-    expect(types).toContain("showcase")
+    // Against the generated vocabulary, so a type added upstream is covered
+    // here without anyone remembering to extend the list.
+    const types = new Set(events.map((e: { typeCode: string }) => e.typeCode))
+    for (const code of EVENT_TYPE_CODES) expect(types).toContain(code)
   })
 })
 

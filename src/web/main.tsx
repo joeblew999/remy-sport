@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { Sidebar } from "./components/sidebar";
 import { Topbar } from "./components/topbar";
 import { useRouter } from "./lib/router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LocaleProvider, type Locale } from "./lib/locale";
 
 import { DiscoverPage } from "./pages/discover";
@@ -114,16 +115,41 @@ if (typeof window !== "undefined" && "__TAURI_INTERNALS__" in window) {
     });
 }
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Reference data and events change on human timescales, not per-navigation.
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+      /**
+       * A 404 is an answer, not a failure.
+       *
+       * Retrying one keeps the query `pending` through three round trips, so a
+       * deep link to a deleted id renders "Loading…" instead of "does not
+       * exist". Only retry what could plausibly succeed next time.
+       */
+      retry: (count, error) => {
+        const status = (error as { status?: number } | null)?.status
+        if (typeof status === "number" && status >= 400 && status < 500) return false
+        return count < 2
+      },
+    },
+  },
+});
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     {/* Session state wraps the whole app so any page can ask who is signed in
         — ADR 008 step 4, and what makes the SPA and the harness comparable. */}
-    <SessionProvider>
-      {/* Locale wraps the app for the same reason: every page renders names,
-          and the API mappers resolve them against the current locale. */}
-      <LocaleProvider>
-        <App/>
-      </LocaleProvider>
-    </SessionProvider>
+    {/* Query owns fetch state, caching and dedup for every resource. */}
+    <QueryClientProvider client={queryClient}>
+      <SessionProvider>
+        {/* Locale wraps the app for the same reason: every page renders names,
+            and the view models resolve them against the current locale. */}
+        <LocaleProvider>
+          <App/>
+        </LocaleProvider>
+      </SessionProvider>
+    </QueryClientProvider>
   </StrictMode>,
 );

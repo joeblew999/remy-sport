@@ -127,6 +127,61 @@ Build links in emails from `BETTER_AUTH_URL`, never from the request origin: an 
 
 Sending to people outside the account needs the Workers **Paid** plan *and* the sending domain onboarded to Email Service. Neither is checkable from the repo.
 
+## Where the data comes from
+
+The Product Owner's fixtures live in `remy-sport-biz`. Nothing in this repo
+reads them at runtime — the path is a **build-time generator**, and its output
+is committed, so an ordinary build and every deploy work without the biz repo
+or a token.
+
+```
+remy-sport-biz/data/seed/
+  reference/       20 controlled vocabularies, keyed by `code`
+  entities/         7 domain objects, keyed by `id`
+  relationships/   10 join tables
+  localization/    translations.jsonl + entity_names.jsonl
+        |
+        |   mise run domain:generate     scripts/domain-generate.ts
+        v
+  src/db/vocabularies-schema.ts   20 drizzle tables, FKs resolved, + a registry
+  src/domain/vocabularies.ts      typed constants and `*_CODES` unions
+  src/db/migrations/0009_*.sql    the DDL and every row
+  src/db/seed-data.ts             entities + relationships, for /api/seed
+        |
+        |   drizzle-zod derives response schemas from those tables
+        v
+  src/domain/contract.ts          one definition per endpoint
+        |
+        +--> src/api/*.ts         oRPC handlers (handlers only — the contract
+        |                         owns method, path, input and output)
+        +--> /openapi.json        generated from that same contract
+        +--> the SPA              types inferred; nothing hand-written
+```
+
+**Three commands are the whole interface.**
+
+```sh
+mise run biz:sync          # pull the PO's latest fixtures
+mise run domain:generate   # regenerate the four files above
+mise run cf:d1:reset       # replay migrations so the database picks it up
+```
+
+`mise run domain:check` fails when the committed files are stale against the
+fixtures. It is deliberately **not** in `mise run check` or the deploy pipeline:
+wiring it in would make every build depend on a private repo and a token.
+
+**What this buys.** Adding a vocabulary upstream is a file in `reference/` plus
+`domain:generate` — a table, a migration, typed constants, an API field and a
+client type all appear, with no code edited here. Adding a language is values in
+cells in `translations.jsonl`. Neither is ever an `ALTER TABLE`.
+
+**What it does not cover.** Better Auth owns `user` and `organization` — it
+generates their schema from `src/auth.config.ts` and their ids at runtime, so
+the fixtures seed them rather than define them. `event` and `team` carry columns
+the fixtures do not model (`created_by`, `description`, and the deliberate
+absence of `org_id` that migration 0005 recorded). Those four are the hand-
+mapped seam; everything else is generated.
+
 ## Controlled vocabularies
 
 See [ADR 015](docs/dev/adr/015-reference-vocabularies.md). Age groups, genders, org types, event types/formats and provinces are **tables** (`age_group`, `gender`, …), seeded from the `remy-sport-biz` fixtures and served at `/api/reference` with a locale-keyed `names` map — one entry per language the fixtures declare, never a `nameTh` column. `team.age_group_code` and `gender_code` are foreign keys — the database rejects an unknown code, not just the API.

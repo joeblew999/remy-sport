@@ -1,6 +1,39 @@
+import { SEED_ENTITIES } from "../db/seed-data"
+/**
+ * One switchable account per role, from the Product Owner's fixtures.
+ *
+ * Six invented addresses were typed out here. They are the fixtures' people
+ * now, so switching to "Coach" lands you on a coach who belongs to a school —
+ * which is what makes the org-scoped write path reachable by clicking rather
+ * than only by a test.
+ *
+ * The button colours stay hand-assigned: they are presentation, and the
+ * fixtures have no opinion about them.
+ */
+const ROLE_STYLE: Record<string, string> = {
+  admin: "btn-error",
+  organizer: "btn-primary",
+  coach: "btn-secondary",
+  player: "btn-accent",
+  spectator: "btn-ghost btn-active",
+  referee: "btn-warning",
+}
+
+const ROLE_SWITCHER = SEED_ENTITIES.users
+  .filter((u, i, all) => all.findIndex((o) => o.roleCode === u.roleCode) === i)
+  .map((u) => {
+    const roleName = u.roleCode.toLowerCase()
+    return {
+      email: u.email,
+      role: roleName,
+      label: u.roleCode.charAt(0) + roleName.slice(1),
+      active: ROLE_STYLE[roleName] ?? "btn-ghost",
+    }
+  })
+
 type User = { id: string; name: string | null; email: string; role?: string | null }
 type AdminUser = { id: string; email: string; name: string | null; role?: string | null; banned?: boolean | null }
-type Event = { id: string; name: string; type: string; description: string | null; createdBy: string; createdAt: string }
+type Event = { id: string; name: string; typeCode: string; description: string | null; createdBy: string; createdAt: string }
 
 const ROLE_BADGES: Record<string, string> = {
   admin: "badge-error",
@@ -39,7 +72,7 @@ export function dashboardPage(
     : events.map((e) => `
         <tr>
           <td>${e.name}</td>
-          <td><span class="badge badge-sm badge-outline">${e.type}</span></td>
+          <td><span class="badge badge-sm badge-outline">${e.typeCode}</span></td>
           <td class="text-sm text-base-content/60">${e.description || "—"}</td>
           <td class="text-sm text-base-content/40">${new Date(e.createdAt).toLocaleDateString()}</td>
           <td>
@@ -198,12 +231,10 @@ export function dashboardPage(
         </p>
         <p class="text-xs text-base-content/50" id="switchStatus" data-testid="switch-status"></p>
         <div class="flex gap-2 flex-wrap" data-testid="role-switcher">
-          <button onclick="switchRole('admin@remy.dev')" class="btn btn-xs ${role === 'admin' ? 'btn-error' : 'btn-ghost'}">Admin</button>
-          <button onclick="switchRole('organizer@remy.dev')" class="btn btn-xs ${role === 'organizer' ? 'btn-primary' : 'btn-ghost'}">Organizer</button>
-          <button onclick="switchRole('coach@remy.dev')" class="btn btn-xs ${role === 'coach' ? 'btn-secondary' : 'btn-ghost'}">Coach</button>
-          <button onclick="switchRole('player@remy.dev')" class="btn btn-xs ${role === 'player' ? 'btn-accent' : 'btn-ghost'}">Player</button>
-          <button onclick="switchRole('spectator@remy.dev')" class="btn btn-xs ${role === 'spectator' ? 'btn-ghost btn-active' : 'btn-ghost'}">Spectator</button>
-          <button onclick="switchRole('referee@remy.dev')" class="btn btn-xs ${role === 'referee' ? 'btn-warning' : 'btn-ghost'}">Referee</button>
+${ROLE_SWITCHER.map(
+            (a) =>
+              `<button onclick="switchRole('${a.email}')" class="btn btn-xs ${role === a.role ? a.active : "btn-ghost"}" title="${a.email}">${a.label}</button>`,
+          ).join("\n          ")}
         </div>
       </div>
     </div>

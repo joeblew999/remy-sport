@@ -1,3 +1,19 @@
+import { SEED_ENTITIES } from "../db/seed-data"
+/**
+ * One dev account per role, from the Product Owner's fixtures.
+ *
+ * These were six invented addresses typed out here. They are the fixtures'
+ * people now, so the button says "Coach" and signs you in as Wichai Srisuk of
+ * Assumption College — a coach who actually belongs to an organisation, which
+ * is what makes the org-scoped write path reachable by clicking.
+ */
+const DEV_ACCOUNTS = SEED_ENTITIES.users
+  .filter((u, i, all) => all.findIndex((o) => o.roleCode === u.roleCode) === i)
+  .map((u) => ({
+    email: u.email,
+    label: u.roleCode.charAt(0) + u.roleCode.slice(1).toLowerCase(),
+  }))
+
 /**
  * Passwordless sign-in for the auth harness (ADR 012).
  *
@@ -43,12 +59,10 @@ export function loginPage(): string {
       <a href="/" class="link text-center mt-4 text-sm text-base-content/40">Back to home</a>
       <div class="divider text-xs text-base-content/40">Dev accounts</div>
       <div class="flex gap-2 flex-wrap justify-center">
-        <button onclick="fillDev('admin@remy.dev')" class="btn btn-ghost btn-xs">Admin</button>
-        <button onclick="fillDev('organizer@remy.dev')" class="btn btn-ghost btn-xs">Organizer</button>
-        <button onclick="fillDev('coach@remy.dev')" class="btn btn-ghost btn-xs">Coach</button>
-        <button onclick="fillDev('player@remy.dev')" class="btn btn-ghost btn-xs">Player</button>
-        <button onclick="fillDev('spectator@remy.dev')" class="btn btn-ghost btn-xs">Spectator</button>
-        <button onclick="fillDev('referee@remy.dev')" class="btn btn-ghost btn-xs">Referee</button>
+${DEV_ACCOUNTS.map(
+          (a) =>
+            `<button onclick="fillDev('${a.email}')" class="btn btn-ghost btn-xs" title="${a.email}">${a.label}</button>`,
+        ).join("\n        ")}
       </div>
     </div>
   </div>

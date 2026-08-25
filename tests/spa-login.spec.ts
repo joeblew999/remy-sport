@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test"
-import { ADMIN, COACH, IS_LOCAL } from "./helpers/auth"
+import { ACTOR_NAMES, ADMIN, COACH, IS_LOCAL } from "./helpers/auth"
 
 // ADR 012 + ADR 008 step 4. The SPA had no authentication at all: it never
 // learned who was viewing, which is why the accept-invitation page had to hand
@@ -75,7 +75,7 @@ test.describe("SPA sign-in", () => {
     await page.getByTestId("spa-verify-code").click()
 
     await expect(page.getByTestId("topbar-account")).toBeVisible()
-    await expect(page.getByTestId("topbar-user")).toContainText("Coach")
+    await expect(page.getByTestId("topbar-user")).toContainText(ACTOR_NAMES.COACH)
     // The platform role, which is what decides permissions (ADR 009).
     await expect(page.getByTestId("topbar-role")).toHaveText("coach")
 

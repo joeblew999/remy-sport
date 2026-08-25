@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test"
 import { signInViaPage as signIn, deleteOrgViaPage, ORGANIZER, COACH, REFEREE, SPECTATOR } from "./helpers/auth"
+import { ACTORS } from "./helpers/auth"
 
 // ADR 011. The invitation email sent in ADR 010 pointed at a route that did not
 // exist. These cover the landing page and the accept round-trip.
@@ -46,7 +47,7 @@ test.describe("Accept invitation page", () => {
   })
 
   test("a signed-out visitor is asked to sign in, not told the invite is dead", async ({ page }) => {
-    const { orgId, invitationId } = await createInvitation(page, "referee@remy.dev")
+    const { orgId, invitationId } = await createInvitation(page, ACTORS.REFEREE)
     created.push(orgId)
 
     // Clear the session — this is the real case: someone clicking a link in
@@ -66,7 +67,7 @@ test.describe("Accept invitation page", () => {
   })
 
   test("the invitee sees the organisation and can accept", async ({ page }) => {
-    const { orgId, invitationId } = await createInvitation(page, "referee@remy.dev")
+    const { orgId, invitationId } = await createInvitation(page, ACTORS.REFEREE)
     created.push(orgId)
 
     await page.context().clearCookies()
@@ -78,19 +79,22 @@ test.describe("Accept invitation page", () => {
     await expect(page.getByTestId("invitation-accepted")).toBeVisible()
 
     // Accepting must actually create membership, not just change the screen.
-    const isMember = await page.evaluate(async (id) => {
-      const r = await fetch(`/api/auth/organization/get-full-organization?organizationId=${id}`)
-      if (!r.ok) return false
-      const org = await r.json()
-      return (org.members ?? []).some(
-        (m: { user?: { email?: string } }) => m.user?.email === "referee@remy.dev",
-      )
-    }, orgId)
+    // The invitee's address is passed in: `page.evaluate` runs in the browser,
+    // where a Node-scope constant does not exist.
+    const isMember = await page.evaluate(
+      async ({ id, email }) => {
+        const r = await fetch(`/api/auth/organization/get-full-organization?organizationId=${id}`)
+        if (!r.ok) return false
+        const org = await r.json()
+        return (org.members ?? []).some((m: { user?: { email?: string } }) => m.user?.email === email)
+      },
+      { id: orgId, email: ACTORS.REFEREE },
+    )
     expect(isMember, "the invitee should now be a member").toBe(true)
   })
 
   test("signed in as the wrong person, the page says so", async ({ page }) => {
-    const { orgId, invitationId } = await createInvitation(page, "player@remy.dev")
+    const { orgId, invitationId } = await createInvitation(page, ACTORS.PLAYER)
     created.push(orgId)
 
     await page.context().clearCookies()

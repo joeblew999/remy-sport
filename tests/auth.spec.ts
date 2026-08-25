@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test"
-import { signIn, ADMIN, SPECTATOR } from "./helpers/auth"
+import { ACTOR_NAMES, signIn, ADMIN, SPECTATOR } from "./helpers/auth"
+import { SEED_ENTITIES } from "../src/db/seed-data"
 
 // Passwordless sign-in (ADR 012). The seeded actors have no passwords at all
 // now — an address that can receive a code is the whole credential.
@@ -9,7 +10,8 @@ test.describe.serial("Auth flow", () => {
     const res = await request.post("/api/seed")
     expect(res.ok()).toBeTruthy()
     const body = await res.json()
-    expect(body.seeded).toHaveLength(6)
+    // As many as the fixtures define, not a number typed here.
+    expect(body.seeded).toHaveLength(SEED_ENTITIES.users.length)
     for (const u of body.seeded) {
       expect(["created", "exists"]).toContain(u.status)
     }
@@ -19,7 +21,7 @@ test.describe.serial("Auth flow", () => {
     await signIn(request, ADMIN)
     const session = await (await request.get("/api/auth/get-session")).json()
     expect(session.user.email).toBe(ADMIN)
-    expect(session.user.name).toBe("Admin")
+    expect(session.user.name).toBe(ACTOR_NAMES.ADMIN)
     expect(session.session.token).toBeTruthy()
   })
 
@@ -27,7 +29,7 @@ test.describe.serial("Auth flow", () => {
     await signIn(request, SPECTATOR)
     const session = await (await request.get("/api/auth/get-session")).json()
     expect(session.user.email).toBe(SPECTATOR)
-    expect(session.user.name).toBe("Spectator")
+    expect(session.user.name).toBe(ACTOR_NAMES.SPECTATOR)
   })
 
   test("a wrong code is rejected", async ({ request, baseURL }) => {

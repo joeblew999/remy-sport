@@ -27,14 +27,13 @@ export function Topbar({ spoiler, setSpoiler, onMenu, goto }: Props) {
       {/* One button per declared locale. A third language appears here by
           being in the fixtures — there is nothing to add. */}
       <div className="lang-switch">
-        {available.map(l => (
+        {available.map(code => (
           <button
-            key={l.code}
-            className={locale === l.code ? "active" : ""}
-            title={l.nameEn}
-            onClick={() => setLocale(l.code)}
+            key={code}
+            className={locale === code ? "active" : ""}
+            onClick={() => setLocale(code)}
           >
-            {l.code.toUpperCase()}
+            {code.toUpperCase()}
           </button>
         ))}
       </div>

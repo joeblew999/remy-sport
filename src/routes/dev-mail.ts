@@ -1,6 +1,7 @@
 import { Hono } from "hono"
 import type { AppEnv } from "../types"
 import { readOutbox, clearOutbox, usesOutbox } from "../mail/mailer"
+import { SEED_ENTITIES } from "../db/seed-data"
 
 /**
  * Read back mail captured by the `outbox` transport (ADR 010).
@@ -33,3 +34,30 @@ devMail.delete("/api/dev/outbox", (c) => {
 })
 
 export default devMail
+
+/**
+ * The seeded demo accounts, one per role.
+ *
+ * The login screens used to build `${role}@remy.dev` and hope the seed route
+ * had created it. The accounts are the Product Owner's people now, with their
+ * own addresses at their own schools, so the screens ask rather than guess —
+ * and a role that stops being seeded stops appearing, instead of rendering a
+ * button that signs nobody in.
+ *
+ * Guarded by the same transport check as the outbox: these are only useful
+ * where the fixed sign-in code applies, which is exactly where mail is
+ * captured rather than sent.
+ */
+devMail.get("/api/dev/accounts", (c) => {
+  if (!usesOutbox(c.env)) return c.json({ error: "Not found" }, 404)
+  const byRole = SEED_ENTITIES.users.filter(
+    (u, i, all) => all.findIndex((o) => o.roleCode === u.roleCode) === i,
+  )
+  return c.json({
+    accounts: byRole.map((u) => ({
+      role: u.roleCode.toLowerCase(),
+      email: u.email,
+      name: u.names.en,
+    })),
+  })
+})
