@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Route } from "../lib/router";
-import { useSession, useSignOut, useRefreshSession } from "../lib/session";
-import { useAcceptInvitation } from "../lib/auth";
+import { useSession, useSignOut } from "../lib/session";
+import { useAcceptInvitation, useInvitation } from "../lib/auth";
 import { m } from "../lib/i18n";
 
 /**
@@ -40,96 +40,44 @@ type Phase = "loading" | "ready" | "accepted" | "error" | "wrong-account";
 
 export function AcceptInvitationPage({ id, goto }: { id?: string; goto: (r: Route) => void }) {
   const { user, loading: sessionLoading } = useSession();
-  const refresh = useRefreshSession();
   const signOut = useSignOut();
   const signedInAs = user?.email ?? null;
-  const [phase, setPhase] = useState<Phase>("loading");
-  const [invitation, setInvitation] = useState<Invitation | null>(null);
-  const [message, setMessage] = useState<string>("");
+  const [accepted, setAccepted] = useState(false);
 
-  useEffect(() => {
-    if (!id) {
-      setPhase("error");
-      setMessage("This link is missing its invitation id.");
-      return;
-    }
-    // Wait for the shared session before deciding anything: a 401 means
-    // "not signed in", and answering that before the session resolves would
-    // show the sign-in prompt to someone who is already signed in.
-    if (sessionLoading) return;
-    let live = true;
-    (async () => {
-      try {
-        const inviteRes = await fetch(
-          `/api/auth/organization/get-invitation?id=${encodeURIComponent(id)}`,
-          { credentials: "include" },
-        );
-        if (!live) return;
+  // One query, one mutation. This was three `useState`s, a `useEffect` with a
+  // `live` race guard and an inline async IIFE, and a hand-rolled try/catch —
+  // ~60 lines whose only job was what `useQuery` does.
+  const q = useInvitation(id, !sessionLoading);
+  const acceptMutation = useAcceptInvitation();
 
-        if (inviteRes.status === 401) {
-          // `get-invitation` requires a session, and a person clicking a link
-          // in their inbox usually has none — this is the common path, not an
-          // error. Treating a 401 as "invalid invitation" told every genuine
-          // invitee their invitation was dead.
-          //
-          // Nothing about the invitation can be shown yet, which is correct:
-          // its details are not public.
-          setInvitation(null);
-          setPhase("ready");
-          return;
-        }
-        if (inviteRes.status === 403) {
-          // Signed in as somebody other than the invitee. Safe to say so: the
-          // caller is authenticated and Better Auth discloses this itself.
-          setPhase("wrong-account");
-          return;
-        }
-        if (!inviteRes.ok) {
-          // Signed in, but the invitation is expired, cancelled, already used,
-          // or never existed. Better Auth does not distinguish and neither
-          // should this page — an invitation id is a bearer token, so a precise
-          // error message is an oracle.
-          setPhase("error");
-          setMessage("This invitation is no longer valid. Ask for a new one.");
-          return;
-        }
-        setInvitation(await inviteRes.json());
-        setPhase("ready");
-      } catch {
-        if (!live) return;
-        setPhase("error");
-        setMessage("Could not load this invitation.");
-      }
-    })();
-    return () => {
-      live = false;
-    };
-  }, [id, sessionLoading]);
+  const result = q.data;
+  const invitation = result?.state === "ok" ? result.invitation : null;
 
-  async function accept() {
-    setPhase("loading");
-    try {
-      const res = await fetch("/api/auth/organization/accept-invitation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ invitationId: id }),
-      });
-      if (!res.ok) {
-        setPhase("error");
-        const body = await res.json().catch(() => null);
-        setMessage(body?.message ?? "Could not accept this invitation.");
-        return;
-      }
-      // Joining sets the active organization on the session, so the rest of the
-      // app must not keep rendering the pre-join answer.
-      await refresh();
-      setPhase("accepted");
-    } catch {
-      setPhase("error");
-      setMessage("Could not accept this invitation.");
-    }
-  }
+  const phase: Phase = !id
+    ? "error"
+    : accepted
+      ? "accepted"
+      : sessionLoading || q.isPending
+        ? "loading"
+        : result?.state === "wrong-account"
+          ? "wrong-account"
+          : result?.state === "invalid" || q.error
+            ? "error"
+            : "ready";
+
+  const message = !id
+    ? "This link is missing its invitation id."
+    : acceptMutation.error?.message ??
+      (result?.state === "invalid" || q.error
+        ? "This invitation is no longer valid. Ask for a new one."
+        : "");
+
+
+  // Joining sets the active organization on the session; the mutation
+  // invalidates it, so the rest of the app stops rendering the pre-join answer.
+  const accept = () =>
+    acceptMutation.mutate(id!, { onSuccess: () => setAccepted(true) });
+
 
   if (phase === "loading") return <div className="empty">{m.loading_invitation()}</div>;
 

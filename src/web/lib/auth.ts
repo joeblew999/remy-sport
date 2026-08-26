@@ -135,3 +135,78 @@ export function useRevokeDevice() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["devices"] }),
   });
 }
+
+// ── Invitations ────────────────────────────────────────────────────────────
+
+/**
+ * Look up an invitation, where the HTTP status *is* the answer.
+ *
+ * This one cannot use `call()`: 401 and 403 are not failures here, they are
+ * distinct states the page renders differently, and throwing would collapse
+ * them into one. Returned as a discriminated result instead.
+ *
+ * - `needs-signin` (401) — `get-invitation` requires a session and someone
+ *   clicking a link in their inbox usually has none. This is the common path,
+ *   not an error; treating it as "invalid invitation" told every genuine
+ *   invitee their invitation was dead.
+ * - `wrong-account` (403) — signed in as somebody else. Safe to say so: the
+ *   caller is authenticated and Better Auth discloses it itself.
+ * - `invalid` — expired, cancelled, used, or never existed. Better Auth does
+ *   not distinguish and neither should the page: an invitation id is a bearer
+ *   token, so a precise message is an oracle.
+ */
+export type InvitationResult =
+  | { state: "ok"; invitation: { id: string; email: string; organizationName?: string } }
+  | { state: "needs-signin" }
+  | { state: "wrong-account" }
+  | { state: "invalid" };
+
+export function useInvitation(id: string | undefined, ready: boolean) {
+  return useQuery({
+    queryKey: ["invitation", id],
+    // Waits for the session: answering "not signed in" before it resolves shows
+    // the sign-in prompt to someone who is already signed in.
+    enabled: Boolean(id) && ready,
+    retry: false,
+    queryFn: async (): Promise<InvitationResult> => {
+      const res = await fetch(
+        `/api/auth/organization/get-invitation?id=${encodeURIComponent(id!)}`,
+        { credentials: "include" },
+      );
+      if (res.status === 401) return { state: "needs-signin" };
+      if (res.status === 403) return { state: "wrong-account" };
+      if (!res.ok) return { state: "invalid" };
+      return { state: "ok", invitation: await res.json() };
+    },
+  });
+}
+
+/**
+ * The account list, from Better Auth's admin plugin.
+ *
+ * Through `auth.api` rather than reading the `user` table, so the plugin's own
+ * permission check decides whether it answers — reading the table directly
+ * would be a second answer to "may you see this", which is the drift ADR 007
+ * objected to.
+ */
+export interface Account {
+  id: string;
+  email: string;
+  name: string | null;
+  role?: string | null;
+  banned?: boolean | null;
+}
+
+export const useAccounts = (enabled: boolean) =>
+  useQuery({
+    queryKey: ["admin", "accounts"],
+    enabled,
+    queryFn: async (): Promise<Account[]> => {
+      const res = await fetch(
+        "/api/auth/admin/list-users?limit=50&sortBy=createdAt&sortDirection=asc",
+        { credentials: "include" },
+      );
+      if (!res.ok) return [];
+      return ((await res.json()) as { users?: Account[] }).users ?? [];
+    },
+  });

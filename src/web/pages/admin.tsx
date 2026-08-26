@@ -23,7 +23,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, orpc } from "../lib/orpc";
-import { useAdminAction, useDevAccounts, useRequestCode, useVerifyCode, codeFromOutbox } from "../lib/auth";
+import { useAccounts, useAdminAction, useDevAccounts, useRequestCode, useVerifyCode, codeFromOutbox } from "../lib/auth";
 import { useSession } from "../lib/session";
 import type { Route } from "../lib/router";
 
@@ -46,14 +46,6 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
   referee: ["read"],
   user: ["read"],
 };
-
-interface Account {
-  id: string;
-  email: string;
-  name: string | null;
-  role?: string | null;
-  banned?: boolean | null;
-}
 
 export function AdminPage({ goto }: { goto: (r: Route) => void }) {
   const { user, impersonatedBy, loading } = useSession();
@@ -80,19 +72,8 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
    * directly would be a second answer to "may you see this" — the drift ADR 007
    * objected to.
    */
-  const accounts = useQuery({
-    queryKey: ["admin", "accounts"],
-    enabled: isAdmin && !impersonatedBy,
-    queryFn: async (): Promise<Account[]> => {
-      const res = await fetch(
-        "/api/auth/admin/list-users?limit=50&sortBy=createdAt&sortDirection=asc",
-        { credentials: "include" },
-      );
-      if (!res.ok) return [];
-      const body = (await res.json()) as { users?: Account[] };
-      return body.users ?? [];
-    },
-  });
+  const accounts = useAccounts(isAdmin && !impersonatedBy);
+
 
   // One definition, in lib/auth.ts, shared with every other admin write.
   // Invalidating the session and the account list is its job, not this page's —

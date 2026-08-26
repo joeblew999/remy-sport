@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSession, useRefreshSession } from "../lib/session";
+import { useSession } from "../lib/session";
 import { useDevAccounts, useRequestCode, useVerifyCode, codeFromOutbox } from "../lib/auth";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
@@ -17,113 +17,52 @@ import { m } from "../lib/i18n";
  * in.
  */
 export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Route }) {
-  const refresh = useRefreshSession();
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState<"email" | "code">("email");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  async function requestCode(e: React.FormEvent) {
+  // Two mutations and a query, all defined once in lib/auth.ts. This page used
+  // to hold five `fetch` calls, a `busy` useState, an `error` useState, a
+  // `useEffect` with a `live` race guard, and three near-identical try/catch
+  // blocks — the machine TanStack already is.
+  const requestCode = useRequestCode();
+  const verifyCode = useVerifyCode();
+  const devAccounts = useDevAccounts();
+
+  // `verifyCode` invalidates the session itself, so there is no `refresh()` to
+  // remember to call before navigating.
+  const busy = requestCode.isPending || verifyCode.isPending;
+  const error = requestCode.error?.message ?? verifyCode.error?.message ?? null;
+
+  async function submitEmail(e: React.FormEvent) {
     e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/auth/email-otp/send-verification-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email, type: "sign-in" }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        setError(body?.message ?? "Could not send a code. Please try again.");
-        return;
-      }
-      setStep("code");
-    } catch {
-      setError("Network error. Please try again.");
-    } finally {
-      setBusy(false);
-    }
+    await requestCode.mutateAsync(email).then(() => setStep("code")).catch(() => undefined);
   }
 
-  async function verify(e: React.FormEvent) {
+  async function submitCode(e: React.FormEvent) {
     e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/auth/sign-in/email-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email, otp }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        setError(body?.message ?? "That code was not right. Check it, or request a new one.");
-        return;
-      }
-      // Refresh before navigating, so the destination renders signed-in on its
-      // first paint rather than flashing the signed-out state.
-      await refresh();
-      goto(next ?? { page: "discover" });
-    } catch {
-      setError("Network error. Please try again.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // Dev shortcut, mirroring the harness login. Only rendered when the dev
-  // outbox exists — i.e. never in production, where MAIL_TRANSPORT=cloudflare
-  // and the endpoint 404s. Checked rather than assumed from a build flag, so
-  // the two cannot drift apart.
-  const [devAccounts, setDevAccounts] = useState<
-    { role: string; email: string; name: string }[] | null
-  >(null);
-  useEffect(() => {
-    let live = true;
-    // Asked for, not guessed at. This used to build `${role}@remy.dev` from a
-    // list typed here; the accounts are the PO's people now, with their own
-    // addresses, so a guess would sign nobody in.
-    fetch("/api/dev/accounts")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((body) => {
-        if (live) setDevAccounts(body?.accounts ?? null);
-      })
+    await verifyCode
+      .mutateAsync({ email, otp })
+      .then(() => goto(next ?? { page: "discover" }))
       .catch(() => undefined);
-    return () => {
-      live = false;
-    };
-  }, []);
+  }
 
+  /**
+   * Dev shortcut. Requests a code and prefills it from the outbox.
+   *
+   * `useDevAccounts` yields an empty list off localhost — the endpoint 404s
+   * whenever MAIL_TRANSPORT is not `outbox` — so this renders nothing in
+   * production without anyone checking a build flag.
+   */
   async function fillDev(address: string) {
     setEmail(address);
-    setError(null);
-    setBusy(true);
     try {
-      const res = await fetch("/api/auth/email-otp/send-verification-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email: address, type: "sign-in" }),
-      });
-      if (!res.ok) {
-        setError("Could not send a code.");
-        return;
-      }
-      // Read the code back from the dev outbox and prefill it — the same
-      // convenience the dashboard has always had, so the two GUIs match.
-      const outbox = await fetch(`/api/dev/outbox?to=${encodeURIComponent(address)}`);
-      if (outbox.ok) {
-        const { messages } = await outbox.json();
-        const m = messages?.[0]?.body?.match(/Your code is (\d{6})/);
-        if (m) setOtp(m[1]);
-      }
+      await requestCode.mutateAsync(address);
+      const code = await codeFromOutbox(address);
+      if (code) setOtp(code);
       setStep("code");
-    } finally {
-      setBusy(false);
+    } catch {
+      /* the mutation already carries the error */
     }
   }
 
@@ -142,7 +81,7 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
       )}
 
       {step === "email" ? (
-        <form onSubmit={requestCode} className="dash-card" style={{ padding: 24, maxWidth: 420 }}>
+        <form onSubmit={submitEmail} className="dash-card" style={{ padding: 24, maxWidth: 420 }}>
           <label htmlFor="spa-email" style={{ display: "block", marginBottom: 8 }}>
             Email
           </label>
@@ -162,7 +101,7 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
           </button>
         </form>
       ) : (
-        <form onSubmit={verify} className="dash-card" style={{ padding: 24, maxWidth: 420 }}>
+        <form onSubmit={submitCode} className="dash-card" style={{ padding: 24, maxWidth: 420 }}>
           <p style={{ marginBottom: 12 }}>
             Code sent to <b>{email}</b>. It expires in 10 minutes.
           </p>
@@ -203,7 +142,9 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
             onClick={() => {
               setStep("email");
               setOtp("");
-              setError(null);
+              // Clears the failed-code message: the error is the mutation's
+              // now, so resetting it is what dismisses it.
+              verifyCode.reset();
             }}
           >
             Use a different email
@@ -211,14 +152,14 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
         </form>
       )}
 
-      {devAccounts && (
+      {devAccounts.data?.length && (
         <div className="dev-accounts" data-testid="spa-dev-accounts">
           <div className="section-h" style={{ marginTop: 32 }}>
             <h2>{m.dev_accounts()}</h2>
             <a className="more">LOCAL ONLY</a>
           </div>
           <div className="dev-account-row">
-            {devAccounts.map((account) => (
+            {devAccounts.data.map((account) => (
               <button
                 key={account.role}
                 className="btn"
