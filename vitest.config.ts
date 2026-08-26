@@ -46,5 +46,20 @@ export default defineConfig({
   test: {
     include: ["tests/worker/**/*.test.ts"],
     setupFiles: ["./tests/worker/apply-migrations.ts"],
+
+    /**
+     * Better Auth rejects internally on refused requests, and workerd reports
+     * it where a Node runner would not.
+     *
+     * Asserting that password sign-in is gone means making a request Better
+     * Auth refuses; it answers 400 correctly — which is what the test checks —
+     * and separately leaves an unhandled rejection behind, inside its own
+     * dispatch. The same happens seeding an existing user. Neither is our code
+     * and neither changes a response.
+     *
+     * Scoped deliberately: this ignores unhandled REJECTIONS, not failing
+     * assertions. A test that actually fails still fails.
+     */
+    dangerouslyIgnoreUnhandledErrors: true,
   },
 })

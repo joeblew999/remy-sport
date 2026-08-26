@@ -3,7 +3,12 @@ import { ACTORS, signIn, signInThroughLoginForm } from "./helpers/auth"
 import { EVENT_TYPE_CODES } from "../src/domain/vocabularies"
 import { SEED_ENTITIES } from "../src/db/seed-data"
 
-// All 6 actors from the access matrix (docs/user/matrix.md), resolved from the
+// What is LEFT here after ADR 020: only the tests that genuinely drive a
+// browser. The request-level six-role matrix — 20 tests that never opened one —
+// moved to tests/worker/authz.test.ts, where the Worker runs in workerd and
+// they finish in milliseconds instead of taking a slice of a 1.6-minute suite.
+//
+// All 6 actors from the access matrix, resolved from the
 // Product Owner's fixtures via the helpers. This file used to keep its own copy
 // of the six addresses — a second list that nothing checked against the seed.
 const ADMIN =     { email: ACTORS.ADMIN, role: "admin" }
@@ -21,64 +26,6 @@ const READERS = [COACH, PLAYER, SPECTATOR, REFEREE]  // read-only for events
 // (ADR 012), and the code has to be fetched from the dev outbox first.
 
 // ── Seed ────────────────────────────────────────────────────────────────────
-
-test.describe.serial("Seed — all 6 actors", () => {
-  test("seed creates all actor accounts with correct roles", async ({ request }) => {
-    const res = await request.post("/api/seed")
-    expect(res.ok()).toBeTruthy()
-    const body = await res.json()
-    // As many as the fixtures define. The seeded actors are the PO's people,
-    // and there are twelve of them across the six roles, not one each.
-    expect(body.seeded).toHaveLength(SEED_ENTITIES.users.length)
-    for (const actor of ALL_ACTORS) {
-      const seeded = body.seeded.find((s: any) => s.email === actor.email)
-      expect(seeded).toBeTruthy()
-      expect(seeded.role).toBe(actor.role)
-    }
-  })
-
-  for (const actor of ALL_ACTORS) {
-    test(`${actor.role} can sign in`, async ({ request }) => {
-      // Passwordless now: request a code, then present it (ADR 012).
-      await signIn(request, actor.email)
-      const session = await (await request.get("/api/auth/get-session")).json()
-      expect(session.user.email).toBe(actor.email)
-    })
-  }
-})
-
-// ── Layer 1: Role permission — event:create ─────────────────────────────────
-
-test.describe.serial("Layer 1 — event:create by role", () => {
-  for (const actor of WRITERS) {
-    test(`${actor.role} CAN create events`, async ({ request }) => {
-      await signIn(request, actor.email)
-      const res = await request.post("/api/events", {
-        data: { names: { en: `${actor.role}'s event` }, typeCode: "TOURNAMENT" },
-      })
-      expect(res.status()).toBe(201)
-    })
-  }
-
-  for (const actor of READERS) {
-    test(`${actor.role} CANNOT create events (403)`, async ({ request }) => {
-      await signIn(request, actor.email)
-      const res = await request.post("/api/events", {
-        data: { names: { en: `${actor.role} attempt` }, typeCode: "TOURNAMENT" },
-      })
-      expect(res.status()).toBe(403)
-    })
-  }
-
-  test("unauthenticated user gets 401", async ({ request }) => {
-    const res = await request.post("/api/events", {
-      data: { names: { en: "Unauth" }, typeCode: "TOURNAMENT" },
-    })
-    expect(res.status()).toBe(401)
-  })
-})
-
-// ── Layer 1: Role permission — event:read (public) ──────────────────────────
 
 test.describe("Layer 1 — event:read is public", () => {
   test("unauthenticated user can list events", async ({ request }) => {
@@ -103,119 +50,6 @@ test.describe("Layer 1 — event:read is public", () => {
 })
 
 // ── Layer 2: Ownership — update/delete ──────────────────────────────────────
-
-test.describe.serial("Layer 2 — ownership on update/delete", () => {
-  let organizerEventId: string
-  let adminEventId: string
-
-  test("organizer creates event", async ({ request }) => {
-    await signIn(request, ORGANIZER.email)
-    const res = await request.post("/api/events", {
-      data: { names: { en: "Organizer Owned" }, typeCode: "SHOWCASE" },
-    })
-    organizerEventId = (await res.json()).id
-  })
-
-  test("admin creates event", async ({ request }) => {
-    await signIn(request, ADMIN.email)
-    const res = await request.post("/api/events", {
-      data: { names: { en: "Admin Owned" }, typeCode: "LEAGUE" },
-    })
-    adminEventId = (await res.json()).id
-  })
-
-  test("organizer can update own event", async ({ request }) => {
-    await signIn(request, ORGANIZER.email)
-    const res = await request.put(`/api/events/${organizerEventId}`, {
-      data: { names: { en: "Updated by Owner" } },
-    })
-    expect(res.ok()).toBeTruthy()
-    expect((await res.json()).name).toBe("Updated by Owner")
-  })
-
-  test("organizer CANNOT update admin's event (ownership denied)", async ({ request }) => {
-    await signIn(request, ORGANIZER.email)
-    const res = await request.put(`/api/events/${adminEventId}`, {
-      data: { names: { en: "Hijacked!" } },
-    })
-    expect(res.status()).toBe(403)
-  })
-
-  test("admin CAN update organizer's event (admin bypass)", async ({ request }) => {
-    await signIn(request, ADMIN.email)
-    const res = await request.put(`/api/events/${organizerEventId}`, {
-      data: { description: "Admin override" },
-    })
-    expect(res.ok()).toBeTruthy()
-    expect((await res.json()).description).toBe("Admin override")
-  })
-
-  test("organizer can delete own event", async ({ request }) => {
-    await signIn(request, ORGANIZER.email)
-    const create = await request.post("/api/events", {
-      data: { names: { en: "Throwaway" }, typeCode: "CAMP" },
-    })
-    const id = (await create.json()).id
-    const del = await request.delete(`/api/events/${id}`)
-    expect(del.ok()).toBeTruthy()
-  })
-
-  test("organizer CANNOT delete admin's event (ownership denied)", async ({ request }) => {
-    await signIn(request, ORGANIZER.email)
-    const res = await request.delete(`/api/events/${adminEventId}`)
-    expect(res.status()).toBe(403)
-  })
-
-  for (const actor of READERS) {
-    test(`${actor.role} CANNOT delete any event (no permission)`, async ({ request }) => {
-      await signIn(request, actor.email)
-      const list = await request.get("/api/events")
-      const { events } = await list.json()
-      const res = await request.delete(`/api/events/${events[0].id}`)
-      expect(res.status()).toBe(403)
-    })
-  }
-
-  for (const actor of READERS) {
-    test(`${actor.role} CANNOT update any event (no permission)`, async ({ request }) => {
-      await signIn(request, actor.email)
-      const list = await request.get("/api/events")
-      const { events } = await list.json()
-      const res = await request.put(`/api/events/${events[0].id}`, {
-        data: { names: { en: "Nope" } },
-      })
-      expect(res.status()).toBe(403)
-    })
-  }
-})
-
-// ── Layer 3: Event type scoping ─────────────────────────────────────────────
-
-test.describe.serial("Layer 3 — event types", () => {
-  test("every event type can be created", async ({ request }) => {
-    await signIn(request, ORGANIZER.email)
-    // Driven by the generated vocabulary, so a type added upstream is covered
-    // here without anyone remembering to extend this list.
-    for (const type of EVENT_TYPE_CODES) {
-      const res = await request.post("/api/events", {
-        data: { names: { en: `Type test: ${type}` }, typeCode: type },
-      })
-      expect(res.status(), `should create ${type}`).toBe(201)
-      expect((await res.json()).typeCode).toBe(type)
-    }
-  })
-
-  test("events are stored with correct types", async ({ request }) => {
-    const res = await request.get("/api/events")
-    const { events } = await res.json()
-    // Against the generated vocabulary, so a type added upstream is covered
-    // here without anyone remembering to extend the list.
-    const types = new Set(events.map((e: { typeCode: string }) => e.typeCode))
-    for (const code of EVENT_TYPE_CODES) expect(types).toContain(code)
-  })
-})
-
-// ── OpenAPI spec ────────────────────────────────────────────────────────────
 
 test.describe("OpenAPI security documentation", () => {
   test("protected routes declare security schemes", async ({ request }) => {
@@ -297,9 +131,17 @@ test.describe.serial("Dashboard GUI — per-actor rendering", () => {
     await expect(switcher.locator("button")).toHaveCount(6)
   })
 
-  test("events table shows created events", async ({ page }) => {
-    await signInThroughLoginForm(page, ORGANIZER.email)
+  test("events table shows created events", async ({ page, request }) => {
+    // Creates its own row rather than relying on one existing. The tests that
+    // used to leave events behind moved to tests/worker/authz.test.ts, where
+    // each file gets its own isolated D1 — so nothing seeds this one by
+    // side effect any more.
+    await signIn(request, ORGANIZER.email)
+    await request.post("/api/events", {
+      data: { names: { en: "Visible in the table" }, typeCode: "TOURNAMENT" },
+    })
 
+    await signInThroughLoginForm(page, ORGANIZER.email)
     await page.goto("/#/admin")
     const table = page.getByTestId("events-table")
     await expect(table).toBeVisible()

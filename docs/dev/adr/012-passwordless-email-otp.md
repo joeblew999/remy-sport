@@ -48,7 +48,7 @@ Scope is the mitigation: `TEST_OTP` must be set explicitly, and only ever applie
 
 ### 5. The genuine path stays covered
 
-A fixed code for the shared actors would hide a broken mail path entirely, so [otp.spec.ts](../../../tests/otp.spec.ts) exercises the real thing against addresses nothing else touches: a random code generated, mailed, read back out of the outbox and redeemed; a code that cannot be used twice; a re-request invalidating its predecessor; a wrong code refused.
+A fixed code for the shared actors would hide a broken mail path entirely, so [tests/worker/auth.test.ts](../../../tests/worker/auth.test.ts) exercises the real thing against addresses nothing else touches: a random code generated, mailed, read back out of the outbox and redeemed; a code that cannot be used twice; a re-request invalidating its predecessor; a wrong code refused.
 
 ## Consequences
 

@@ -1,6 +1,6 @@
 import { SELF } from "cloudflare:test"
 import { beforeAll, describe, expect, it } from "vitest"
-import { SEED_ENTITIES } from "../../src/db/seed-data"
+import { ORIGIN, actorFor, post, seed, signIn } from "./helpers"
 
 /**
  * The six-role permission matrix, in workerd.
@@ -20,44 +20,10 @@ import { SEED_ENTITIES } from "../../src/db/seed-data"
  * two workers.
  */
 
-const ORIGIN = "https://remy.test"
-const OTP = "424242"
-
-const post = (path: string, body: unknown, cookie?: string) =>
-  SELF.fetch(`${ORIGIN}${path}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Origin: ORIGIN,
-      ...(cookie ? { Cookie: cookie } : {}),
-    },
-    body: JSON.stringify(body),
-  })
-
-/** Sign in and return the session cookie, the way a browser would hold it. */
-async function signIn(email: string): Promise<string> {
-  const sent = await post("/api/auth/email-otp/send-verification-otp", { email, type: "sign-in" })
-  expect(sent.status, `requesting a code for ${email}`).toBe(200)
-
-  const res = await post("/api/auth/sign-in/email-otp", { email, otp: OTP })
-  expect(res.status, `signing in as ${email}`).toBe(200)
-
-  const cookie = res.headers.get("set-cookie")
-  expect(cookie, `no session cookie for ${email}`).toBeTruthy()
-  return cookie!.split(";")[0]!
-}
-
-/** One seeded actor per role, from the PO's fixtures rather than typed here. */
-const actorFor = (roleCode: string) =>
-  SEED_ENTITIES.users.find((u) => u.roleCode === roleCode)!.email
-
 const WRITERS = ["ADMIN", "ORGANIZER"]
 const READERS = ["COACH", "PLAYER", "SPECTATOR", "REFEREE"]
 
-beforeAll(async () => {
-  const res = await SELF.fetch(`${ORIGIN}/api/seed`, { method: "POST" })
-  expect(res.status, "seeding").toBe(200)
-})
+beforeAll(seed)
 
 describe("event:create — who may, by role", () => {
   for (const role of WRITERS) {
@@ -65,7 +31,7 @@ describe("event:create — who may, by role", () => {
       const cookie = await signIn(actorFor(role))
       const res = await post(
         "/api/events",
-        { names: { en: `${role} event` }, typeCode: "tournament" },
+        { names: { en: `${role} event` }, typeCode: "TOURNAMENT" },
         cookie,
       )
       expect(res.status).toBe(201)
@@ -77,7 +43,7 @@ describe("event:create — who may, by role", () => {
       const cookie = await signIn(actorFor(role))
       const res = await post(
         "/api/events",
-        { names: { en: `${role} event` }, typeCode: "tournament" },
+        { names: { en: `${role} event` }, typeCode: "TOURNAMENT" },
         cookie,
       )
       expect(res.status).toBe(403)
@@ -87,7 +53,7 @@ describe("event:create — who may, by role", () => {
   it("an anonymous caller gets 401, not 403", async () => {
     // The distinction matters: 403 would tell an anonymous caller the endpoint
     // exists and they are merely not permitted.
-    const res = await post("/api/events", { names: { en: "x" }, typeCode: "tournament" })
+    const res = await post("/api/events", { names: { en: "x" }, typeCode: "TOURNAMENT" })
     expect(res.status).toBe(401)
   })
 })
@@ -111,7 +77,7 @@ describe("ownership — layer 2", () => {
     const admin = await signIn(actorFor("ADMIN"))
     const created = await post(
       "/api/events",
-      { names: { en: "Admin's event" }, typeCode: "tournament" },
+      { names: { en: "Admin's event" }, typeCode: "TOURNAMENT" },
       admin,
     )
     const { id } = (await created.json()) as { id: string }
