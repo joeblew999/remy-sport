@@ -32,7 +32,15 @@ Update it when you finish something; delete the line when it is done.
    school, because biz `data/seed/relationships/` models rosters, guardians and
    follows but not org membership. It belongs upstream; when biz grows a
    membership file, read it.
-3. **Several specs still sign in when they only need to *be* someone** —
+3. **`mise run deploy` cannot finish green.** Its last step, `test:deployed`,
+   runs the suite against the deployed Worker, which needs `TEST_OTP` both as
+   a local env var and as a Worker secret — and no task provisions either, so
+   the pipeline always ends red even when the deploy itself succeeded. Setting
+   it puts a fixed sign-in code for the seeded addresses on a public site, so
+   it is a deliberate pre-launch trade-off, not something to wire in silently.
+   Decide: provision it while there are no real users, or drop `test:deployed`
+   from the pipeline and verify another way.
+4. **Several specs still sign in when they only need to *be* someone** —
    `accept-invitation`, `organization`, `invitations`. Each live sign-in is a
    chance to collide with another spec on the same address (see the trap
    below). They should load `stateFor(...)` like the two that now do.
