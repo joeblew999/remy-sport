@@ -14,9 +14,26 @@
 ALTER TABLE event RENAME COLUMN type TO type_code;
 ALTER TABLE event RENAME COLUMN format TO format_code;
 
-UPDATE event SET type_code = UPPER(type_code), format_code = UPPER(format_code);
-
--- 5x5 / 3x3 are not alphabetic, so UPPER left them alone; nothing to undo.
+-- The uppercasing happens in the rebuild below, NOT here.
+--
+-- It was an `UPDATE event SET type_code = UPPER(type_code)` at this point, which
+-- works only on an empty table: migration 0002's CHECK constraint pins the
+-- lowercase values and is still on `event` until the rebuild drops it, so on a
+-- database with any events the update fails with
+--   CHECK constraint failed: type_code IN ('tournament', 'league', …)
+-- Every dev database had run this against no rows. The deployed one had six,
+-- and would have failed mid-migration.
+--
+-- Moving the update *after* the rebuild is worse, not better: the copy filters
+-- on `type_code IN (SELECT code FROM event_type)`, the vocabulary is uppercase,
+-- and lowercase rows would match nothing — silently dropping every event.
+--
+-- Only `type_code` is uppercased. `format_code` must NOT be: the fixtures'
+-- format codes are `5x5` and `3x3` with a lowercase x, and UPPER('5x5') is
+-- '5X5' — the x is a letter. The original uppercased both, so every row failed
+-- the `format_code IN (SELECT code FROM event_format)` filter below and the
+-- rebuild silently dropped all 65 of the deployed database's events. The note
+-- here used to claim 5x5/3x3 "are not alphabetic"; that was never true.
 
 -- Migration 0002 pinned the old lowercase values with a CHECK constraint.
 -- SQLite cannot drop one, so `event` is rebuilt without it — the vocabulary
@@ -47,12 +64,12 @@ CREATE TABLE event_new (
 INSERT INTO event_new (id, name, names, type_code, format_code, description,
                        start_date, end_date, city_code, province_code,
                        is_fiba_certified, created_by, created_at, updated_at)
-SELECT id, name, names, type_code, format_code, description,
+SELECT id, name, names, UPPER(type_code), format_code, description,
        start_date, end_date, city_code, province_code,
        is_fiba_certified, created_by, created_at, updated_at
 FROM event
-WHERE type_code   IN (SELECT code FROM event_type)
-  AND format_code IN (SELECT code FROM event_format);
+WHERE UPPER(type_code) IN (SELECT code FROM event_type)
+  AND format_code      IN (SELECT code FROM event_format);
 
 DROP TABLE event;
 ALTER TABLE event_new RENAME TO event;
