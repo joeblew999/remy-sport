@@ -2,6 +2,7 @@ import { Icon } from "./icon";
 import { Account } from "./account";
 import type { Route } from "../lib/router";
 import { useLocale } from "../lib/locale";
+import { m } from "../lib/i18n";
 
 interface Props {
   spoiler: boolean;
@@ -15,13 +16,13 @@ export function Topbar({ spoiler, setSpoiler, onMenu, goto }: Props) {
   return (
     <header className="topbar">
       {onMenu && (
-        <button className="menu-btn" aria-label="Menu" onClick={onMenu}>
+        <button className="menu-btn" aria-label={m.menu()} onClick={onMenu}>
           <span></span><span></span><span></span>
         </button>
       )}
       <div className="search">
         <span style={{ color: "var(--ink-3)" }}><Icon name="search"/></span>
-        <input placeholder="Search events, teams, players…"/>
+        <input placeholder={m.search_placeholder()}/>
         <span className="kbd">⌘K</span>
       </div>
       {/* One button per declared locale. A third language appears here by
@@ -37,11 +38,11 @@ export function Topbar({ spoiler, setSpoiler, onMenu, goto }: Props) {
           </button>
         ))}
       </div>
-      <button className="icon-btn" title="Spoiler mode" onClick={() => setSpoiler(s => !s)}>
+      <button className="icon-btn" title={m.spoiler_mode()} onClick={() => setSpoiler(s => !s)}>
         <Icon name={spoiler ? "eyeoff" : "eye"} />
       </button>
       <button className="icon-btn"><Icon name="bell" /><span className="badge"></span></button>
-      <button className="install-btn"><Icon name="download"/>Install app</button>
+      <button className="install-btn"><Icon name="download"/>{m.install_app()}</button>
       <Account goto={goto}/>
     </header>
   );

@@ -34,6 +34,7 @@ const OUT_SCHEMA = resolve(import.meta.dir, "../src/db/vocabularies-schema.ts")
 const MIGRATION = resolve(import.meta.dir, "../src/db/migrations/0009_reference_vocabularies.sql")
 const OUT_SEED = resolve(import.meta.dir, "../src/db/seed-data.ts")
 const OUT_FIXTURES = resolve(import.meta.dir, "../src/db/fixtures-schema.ts")
+const OUT_INLANG = resolve(import.meta.dir, "../project.inlang/settings.json")
 const MIGRATION_MODEL = resolve(import.meta.dir, "../src/db/migrations/0013_domain_model.sql")
 const check = process.argv.includes("--check")
 
@@ -90,7 +91,28 @@ const readJsonl = <T = Json>(path: string): T[] =>
  * is exactly the drift this file exists to prevent. English being the fallback
  * is stated once, in domain/names.ts, rather than implied by position.
  */
-const LOCALES: string[] = readJsonl<{ code: string }>(findSeed("locales.jsonl")).map((l) => l.code)
+interface LocaleRow {
+  code: string
+  name_en: string
+  /** `released` must be complete; `draft` is work in progress. */
+  status?: string
+}
+
+const LOCALE_ROWS = readJsonl<LocaleRow>(findSeed("locales.jsonl"))
+const LOCALES: string[] = LOCALE_ROWS.map((l) => l.code)
+
+/**
+ * Languages the product actually offers a reader.
+ *
+ * A draft locale is declared and partially translated — that is the point of
+ * declaring it, since demanding all 272 strings up front meant a language could
+ * never be started. Its values are compiled in so it can be exercised, but the
+ * switcher offers only released ones: half a translation shown to a reader is
+ * worse than English.
+ */
+const RELEASED_LOCALES: string[] = LOCALE_ROWS.filter(
+  (l) => (l.status ?? "released") === "released",
+).map((l) => l.code)
 
 /** Non-English strings, keyed `table|record|field|locale`. */
 const TRANSLATIONS = new Map<string, string>(
@@ -186,11 +208,16 @@ function readVocabularies(): Vocab[] {
                 ? (row[key] as string)
                 : TRANSLATIONS.get(`${source}|${code}|${field}|${locale}`)
             if (value === undefined) {
-              fail(
-                `domain-generate: no '${locale}' ${field} for ${source}.${code}.\n` +
-                  `  Upstream guarantees a translation for every declared locale —\n` +
-                  `  run 'mise run data:check' in remy-sport-biz to see what is missing.`,
-              )
+              // A draft locale is incomplete by design; the row simply carries
+              // no value for it and `pick()` falls back to English at runtime.
+              if (RELEASED_LOCALES.includes(locale)) {
+                fail(
+                  `domain-generate: no '${locale}' ${field} for ${source}.${code}.\n` +
+                    `  '${locale}' is released, so upstream guarantees every string —\n` +
+                    `  run 'mise run data:check' in remy-sport-biz to see what is missing.`,
+                )
+              }
+              continue
             }
             values[locale] = value
           }
@@ -559,11 +586,36 @@ const outputs: Array<[string, string]> = [
     OUT_TS,
     `${header("Typed constants", "//")}
 /** Every language the fixtures declare, in the PO's order. */
-export const LOCALES = [${LOCALES.map((l) => json(l)).join(", ")}] as const
+export const ALL_LOCALES = [${LOCALES.map((l) => json(l)).join(", ")}] as const
 
-export type Locale = (typeof LOCALES)[number]
+/**
+ * The languages a reader is offered.
+ *
+ * Drafts are declared and compiled in so they can be exercised, but showing a
+ * reader a half-translated interface is worse than showing them English. A
+ * language moves here by one word changing in the PO's locales.jsonl.
+ */
+export const LOCALES = [${RELEASED_LOCALES.map((l) => json(l)).join(", ")}] as const
 
-${VOCABULARIES.map(emitConstants).join("\n")}`,
+export type Locale = (typeof ALL_LOCALES)[number]
+
+/** A language actually on offer. Narrower than \`Locale\`. */
+export type ReleasedLocale = (typeof LOCALES)[number]
+
+${VOCABULARIES.map(emitConstants).join("\n")}
+/**
+ * Every vocabulary, keyed as /api/reference returns it.
+ *
+ * The browser resolves labels from this immediately, rather than waiting for
+ * the endpoint: a page that renders \`CHIANG_MAI\` for the time one fetch takes
+ * is a page that renders a database code to a reader. The endpoint is still the
+ * source at runtime — this is the same data, compiled in, so the first paint is
+ * already right and a Tauri build has labels with no network at all.
+ */
+export const VOCABULARY = {
+${VOCABULARIES.map((v) => `  ${camel(v.source)}: ${v.table.toUpperCase()},`).join("\n")}
+} as const
+`,
   ],
   [
     OUT_SCHEMA,
@@ -608,13 +660,51 @@ ${VOCABULARIES.map((v) => `  ${camel(v.source)}: ${camel(v.table)}.${v.columns.s
     OUT_FIXTURES,
     `${header("Drizzle tables for the domain model", "//")}
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core"
+import { createSelectSchema } from "drizzle-zod"
 import type { Names } from "../domain/names"
 import { user, organization } from "./auth-schema"
 import { event, team } from "./app-schema"
 ${VOCABULARIES.map((v) => `import { ${camel(v.table)} } from "./vocabularies-schema"`).join("\n")}
 
 ${GENERATED_ENTITIES.map(([source, rows]) => emitFixtureTable(source, rows, ENTITY_TABLE)).join("\n")}
-${Object.entries(RELATIONSHIPS).map(([source, rows]) => emitFixtureTable(source, rows, ENTITY_TABLE)).join("\n")}`,
+${Object.entries(RELATIONSHIPS).map(([source, rows]) => emitFixtureTable(source, rows, ENTITY_TABLE)).join("\n")}
+/**
+ * Every domain table, and its derived row schema.
+ *
+ * This is what lets a resource cost one line to expose instead of a route
+ * block, a handler, a serialiser and a client type. src/domain/contract.ts
+ * names which of these the API serves and at what access level — that part is
+ * deliberately hand-written, because who may read a table is a decision, not a
+ * mechanical consequence of the table existing.
+ */
+export const FIXTURE_TABLES = {
+${[...GENERATED_ENTITIES.map(([s]) => s), ...Object.keys(RELATIONSHIPS)].map((source) => `  ${camel(source)}: ${camel(singular(source))},`).join("\n")}
+} as const
+
+export const FIXTURE_SCHEMAS = {
+${[...GENERATED_ENTITIES.map(([s]) => s), ...Object.keys(RELATIONSHIPS)].map((source) => `  ${camel(source)}: createSelectSchema(${camel(singular(source))}),`).join("\n")}
+} as const`,
+  ],
+  [
+    OUT_INLANG,
+    // Paraglide's project settings. Generated, so the languages the UI can be
+    // written in are the languages the fixtures declare — one locale list for
+    // the whole product, not a second one in a config file that drifts.
+    `${JSON.stringify(
+      {
+        $schema: "https://inlang.com/schema/project-settings",
+        baseLocale: "en",
+        locales: LOCALES, // every declared language, drafts included
+        modules: [
+          "https://cdn.jsdelivr.net/npm/@inlang/plugin-message-format@latest/dist/index.js",
+        ],
+        "plugin.inlang.messageFormat": {
+          pathPattern: "./messages/{locale}.json",
+        },
+      },
+      null,
+      2,
+    )}\n`,
   ],
   [
     MIGRATION_MODEL,

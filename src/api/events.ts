@@ -16,7 +16,11 @@ import { eq } from "drizzle-orm"
 import * as schema from "../db/schema"
 import type { ApiEvent } from "../domain/api"
 import { clean, pivot } from "../domain/names"
-import { authed, pub, requireOwner, requirePermission, type Db } from "./base"
+import { z } from "zod"
+import { CreateEventInput, EventSchema, UpdateEventInput } from "../domain/api"
+import { authed, authedRoute, pub, requireOwner, requirePermission, type Db } from "./base"
+
+const IdInput = z.object({ id: z.string() })
 
 function load(db: Db) {
   return db.query.event.findMany({
@@ -39,19 +43,26 @@ function serialize(row: typeof schema.event.$inferSelect & {
   const { organizer, createdAt, updatedAt, typeCode, formatCode, ...rest } = row
   return {
     ...rest,
-    typeCode: typeCode as ApiEvent["typeCode"],
-    formatCode: formatCode as ApiEvent["formatCode"],
+    typeCode,
+    formatCode,
     organizerName: organizer?.name ?? null,
     createdAt: createdAt.toISOString(),
     updatedAt: updatedAt.toISOString(),
   }
 }
 
-export const list = pub.events.list.handler(async ({ context }) => ({
+export const list = pub
+  .route({ method: "GET", path: "/events", summary: "List all events" })
+  .output(z.object({ events: z.array(EventSchema) }))
+  .handler(async ({ context }) => ({
   events: (await load(context.db)).map(serialize),
 }))
 
-export const get = pub.events.get.handler(async ({ context, input }) => {
+export const get = pub
+  .route({ method: "GET", path: "/events/{id}", summary: "Get one event" })
+  .input(IdInput)
+  .output(EventSchema)
+  .handler(async ({ context, input }) => {
     const row = await context.db.query.event.findFirst({
       where: (event, { eq: is }) => is(event.id, input.id),
       with: { organizer: { columns: { name: true } } },
@@ -67,7 +78,10 @@ function assertDateOrder(start?: string | null, end?: string | null) {
   }
 }
 
-export const create = authed.events.create
+export const create = authed
+  .route({ method: "POST", path: "/events", summary: "Create an event", successStatus: 201, ...authedRoute })
+  .input(CreateEventInput)
+  .output(EventSchema)
   .use(requirePermission("event", "create"))
   .handler(async ({ context, input }) => {
     assertDateOrder(input.startDate, input.endDate)
@@ -95,7 +109,10 @@ export const create = authed.events.create
     return serialize({ ...row, organizer: context.user.name ? { name: context.user.name } : null })
   })
 
-export const update = authed.events.update
+export const update = authed
+  .route({ method: "PUT", path: "/events/{id}", summary: "Update an event", ...authedRoute })
+  .input(IdInput.extend(UpdateEventInput.shape))
+  .output(EventSchema)
   .use(requirePermission("event", "update"))
   .use(requireOwner())
   .handler(async ({ context, input }) => {
@@ -130,7 +147,10 @@ export const update = authed.events.update
     return serialize(row)
   })
 
-export const remove = authed.events.delete
+export const remove = authed
+  .route({ method: "DELETE", path: "/events/{id}", summary: "Delete an event", ...authedRoute })
+  .input(IdInput)
+  .output(z.object({ deleted: z.boolean() }))
   .use(requirePermission("event", "delete"))
   .use(requireOwner())
   .handler(async ({ context, input }) => {

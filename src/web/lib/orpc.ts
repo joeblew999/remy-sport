@@ -2,18 +2,18 @@
 //
 // Types come from the shared contract by inference — not from a hand-written
 // interface, not from generated code, not from a spec parsed at build time.
-// Change a field in src/domain/contract.ts and both the handler and this
+// Change a procedure in src/api/ and both the handler and this
 // file's callers stop compiling, which is the entire point: the previous
 // version duplicated every response shape as an interface nothing checked.
 //
-// The contract, not the server router: importing the router would drag the
-// Worker's bindings into the browser's typecheck.
+// The router type is imported directly. src/types.ts imports its Cloudflare
+// types explicitly, so no Worker global leaks into the browser typecheck.
 
 import { createORPCClient } from "@orpc/client";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 import { RPCLink } from "@orpc/client/fetch";
-import type { ContractRouterClient } from "@orpc/contract";
-import type { Contract } from "../../domain/contract";
+import type { RouterClient } from "@orpc/server";
+import type { Router } from "../../api/index";
 
 /**
  * Relative URL, deliberately.
@@ -29,7 +29,7 @@ const link = new RPCLink({
   fetch: (request, init) => globalThis.fetch(request, { ...init, credentials: "include" }),
 });
 
-export const api: ContractRouterClient<Contract> = createORPCClient(link);
+export const api: RouterClient<Router> = createORPCClient(link);
 
 /**
  * Query options and keys, generated per procedure.

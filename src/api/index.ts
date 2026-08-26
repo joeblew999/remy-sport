@@ -11,6 +11,7 @@ import * as events from "./events"
 import * as teams from "./teams"
 import * as reference from "./reference"
 import * as health from "./health"
+import * as domain from "./domain"
 
 export const router = {
   events: {
@@ -29,6 +30,17 @@ export const router = {
   },
   reference: { list: reference.list },
   health: { get: health.get },
+
+  // The Product Owner's domain model. One generic implementation serves all of
+  // them — see src/api/domain.ts for why, and the contract for which.
+  divisions: domain.divisions,
+  venues: domain.venues,
+  eventTeams: domain.eventTeams,
+  eventVenues: domain.eventVenues,
+  players: domain.players,
+  playerTeams: domain.playerTeams,
+  teamCoaches: domain.teamCoaches,
+  eventPlayers: domain.eventPlayers,
 }
 
 export type Router = typeof router

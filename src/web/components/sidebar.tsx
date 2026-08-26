@@ -1,4 +1,5 @@
 import { Icon } from "./icon";
+import { m } from "../lib/i18n";
 
 interface NavItem {
   id: string;
@@ -23,7 +24,7 @@ export function Sidebar({ page, setPage }: { page: string; setPage: (p: string) 
         <div className="brand-name">Remy Sport<span className="sub">เรมีสปอร์ต</span></div>
       </div>
       <div className="nav-group">
-        <div className="label">Browse</div>
+        <div className="label">{m.browse()}</div>
         {NAV_ITEMS.slice(0, 4).map(it => (
           <button key={it.id} className={`nav-item ${page === it.id ? "active" : ""}`} onClick={() => setPage(it.id)}>
             <span className="ico"><Icon name={it.id === "team" ? "teams" : it.id} /></span>
@@ -43,7 +44,7 @@ export function Sidebar({ page, setPage }: { page: string; setPage: (p: string) 
         ))}
       </div>
       <div className="nav-group">
-        <div className="label">Following</div>
+        <div className="label">{m.following()}</div>
         <button className="nav-item">
           <span className="ico" style={{ background: "var(--accent)", borderRadius: "50%" }}></span>
           <span>Saint Gabriel's</span>

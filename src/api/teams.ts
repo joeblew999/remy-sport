@@ -15,7 +15,11 @@ import * as schema from "../db/schema"
 import type { ApiTeam } from "../domain/api"
 import type { Names } from "../domain/names"
 import { clean, pivot } from "../domain/names"
-import { authed, orgOfTeam, pub, requireOrgMember, requirePermission, type Db } from "./base"
+import { z } from "zod"
+import { CreateTeamInput, TeamSchema, UpdateTeamInput } from "../domain/api"
+import { authed, authedRoute, orgOfTeam, pub, requireOrgMember, requirePermission, type Db } from "./base"
+
+const IdInput = z.object({ id: z.string() })
 
 const withOrg = {
   organization: { columns: { name: true, names: true, cityCode: true, provinceCode: true } },
@@ -48,10 +52,8 @@ function serialize(
   const { organization, createdAt, updatedAt, ageGroupCode, genderCode, ...rest } = row
   return {
     ...rest,
-    // The database cannot express a vocabulary to the type system, so the enum
-    // lives at the boundary; the FKs added in 0009 hold the line underneath.
-    ageGroupCode: ageGroupCode as ApiTeam["ageGroupCode"],
-    genderCode: genderCode as ApiTeam["genderCode"],
+    ageGroupCode,
+    genderCode,
     orgName: organization?.name ?? null,
     orgNames: orgNames(organization?.names),
     orgCityCode: organization?.cityCode ?? null,
@@ -59,7 +61,10 @@ function serialize(
   }
 }
 
-export const list = pub.teams.list.handler(async ({ context }) => ({
+export const list = pub
+  .route({ method: "GET", path: "/teams", summary: "List all teams" })
+  .output(z.object({ teams: z.array(TeamSchema) }))
+  .handler(async ({ context }) => ({
     teams: (
       await context.db.query.team.findMany({ with: withOrg, orderBy: (t, { asc }) => [asc(t.name)] })
     ).map(serialize),
@@ -68,13 +73,20 @@ export const list = pub.teams.list.handler(async ({ context }) => ({
 const byId = (db: Db, id: string) =>
   db.query.team.findFirst({ where: (t, { eq: is }) => is(t.id, id), with: withOrg })
 
-export const get = pub.teams.get.handler(async ({ context, input }) => {
+export const get = pub
+  .route({ method: "GET", path: "/teams/{id}", summary: "Get one team" })
+  .input(IdInput)
+  .output(TeamSchema)
+  .handler(async ({ context, input }) => {
     const row = await byId(context.db, input.id)
     if (!row) throw new ORPCError("NOT_FOUND", { message: "Not found" })
     return serialize(row)
   })
 
-export const create = authed.teams.create
+export const create = authed
+  .route({ method: "POST", path: "/teams", summary: "Create a team", successStatus: 201, ...authedRoute })
+  .input(CreateTeamInput)
+  .output(TeamSchema)
   .use(requirePermission("team", "create"))
   .use(requireOrgMember((input: { orgId: string }) => input.orgId))
   .handler(async ({ context, input }) => {
@@ -104,7 +116,10 @@ export const create = authed.teams.create
     return serialize({ ...row, organization: org })
   })
 
-export const update = authed.teams.update
+export const update = authed
+  .route({ method: "PUT", path: "/teams/{id}", summary: "Update a team", ...authedRoute })
+  .input(IdInput.extend(UpdateTeamInput.shape))
+  .output(TeamSchema)
   .use(requirePermission("team", "update"))
   .use(requireOrgMember(orgOfTeam))
   .handler(async ({ context, input }) => {
@@ -125,7 +140,10 @@ export const update = authed.teams.update
     return serialize(row)
   })
 
-export const remove = authed.teams.delete
+export const remove = authed
+  .route({ method: "DELETE", path: "/teams/{id}", summary: "Delete a team", ...authedRoute })
+  .input(IdInput)
+  .output(z.object({ deleted: z.string() }))
   // No requireOrgMember here, deliberately. biz data/access/matrix.md grants
   // DELETE_TEAM to PLATFORM_ADMIN and to nobody else, and access-control.ts
   // matches — only the platform `admin` role holds `team:delete`. Platform

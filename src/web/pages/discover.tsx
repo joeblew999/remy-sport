@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Icon } from "../components/icon";
 import { useEvents, useLiveGame } from "../lib/data";
 import type { Route } from "../lib/router";
-import { useT } from "../lib/i18n";
+import { m } from "../lib/i18n";
 import { useLocale } from "../lib/locale";
 import type { EventStatus, EventType } from "../data";
 
@@ -14,7 +14,6 @@ interface DiscoverProps {
 type Tab = "all" | "live" | "open" | "upcoming" | "closed";
 
 export function DiscoverPage({ goto, spoiler }: DiscoverProps) {
-  const t = useT();
   const { locale, reference, name } = useLocale();
   const [tab, setTab] = useState<Tab>("all");
   const [filterCity, setFilterCity] = useState<string | null>(null);
@@ -42,6 +41,11 @@ export function DiscoverPage({ goto, spoiler }: DiscoverProps) {
   const typeLabel = (code: string) =>
     name(reference?.eventTypes.find((t) => t.code === code)?.names, code);
 
+  const CITIES = (reference?.cities ?? []).map((c) => ({
+    code: c.code,
+    label: name(c.names, c.nameEn),
+  }));
+
   const TYPES = (reference?.eventTypes ?? []).map((t) => ({
     label: name(t.names, t.nameEn),
     key: t.code as EventType,
@@ -50,9 +54,9 @@ export function DiscoverPage({ goto, spoiler }: DiscoverProps) {
   return (
     <>
       <div className="page-header">
-        <div className="crumbs"><span>HOME</span><span className="sep">/</span><span>DISCOVER</span></div>
-        <h1>{t("discover.heading")}</h1>
-        <div className={`sub ${locale === "th" ? "thai" : ""}`}>{t("discover.sub")}</div>
+        <div className="crumbs"><span>{m.nav_home()}</span><span className="sep">/</span><span>{m.nav_discover()}</span></div>
+        <h1>{m.discover_heading()}</h1>
+        <div className={`sub ${locale === "th" ? "thai" : ""}`}>{m.discover_sub()}</div>
       </div>
 
       <LiveBanner goto={goto} spoiler={spoiler}/>
@@ -72,16 +76,20 @@ export function DiscoverPage({ goto, spoiler }: DiscoverProps) {
               onClick={() => setFilterType(filterType === t.key ? null : t.key)}>{t.label}</button>
           ))}
           <span style={{ width: 8 }} />
-          {["Bangkok", "Chiang Mai", "Phuket", "Hua Hin", "Nonthaburi"].map(c => (
-            <button key={c} className={`chip ${filterCity === c ? "active" : ""}`}
-              onClick={() => setFilterCity(filterCity === c ? null : c)}>{c}</button>
+          {/* From /api/reference, in the reader's language. This was five city
+              names typed here, three of which — Phuket, Hua Hin, Nonthaburi —
+              the PO has never defined, so filtering by them could only ever
+              return nothing. */}
+          {CITIES.map(c => (
+            <button key={c.code} className={`chip ${filterCity === c.label ? "active" : ""}`}
+              onClick={() => setFilterCity(filterCity === c.label ? null : c.label)}>{c.label}</button>
           ))}
         </div>
       </div>
 
       <div className="event-list">
         <div className="event-list-header">
-          <span>Date</span><span>Event</span><span>Type</span><span>Venue</span><span>Division</span><span>Status</span><span></span>
+          <span>{m.date()}</span><span>{m.event()}</span><span>{m.type()}</span><span>{m.venue()}</span><span>{m.division()}</span><span>{m.status()}</span><span></span>
         </div>
         {events.map(e => (
           <button key={e.id} className="event-row" onClick={() => goto({ page: "event", id: e.id })}>
@@ -103,7 +111,7 @@ export function DiscoverPage({ goto, spoiler }: DiscoverProps) {
             <div className="arrow"><Icon name="arrow"/></div>
           </button>
         ))}
-        {loading && <div className="empty">Loading events…</div>}
+        {loading && <div className="empty">{m.loading_events()}</div>}
         {error && <div className="empty">Could not load events. Check your connection and retry.</div>}
         {!loading && !error && events.length === 0 && (
           <div className="empty">
@@ -140,7 +148,7 @@ function LiveBanner({ goto, spoiler }: { goto: (r: Route) => void; spoiler: bool
         <div><b>{G.quarter}</b></div>
         <div style={{ marginTop: 4 }}>{G.clock}</div>
       </div>
-      <button className="open-btn" onClick={() => goto({ page: "live" })}>Open game →</button>
+      <button className="open-btn" onClick={() => goto({ page: "live" })}>{m.open_game()}</button>
     </div>
   );
 }

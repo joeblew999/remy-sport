@@ -5,6 +5,7 @@ import type { Event } from "../data";
 import type { Route } from "../lib/router";
 import { BracketView } from "./bracket";
 import { useLocale } from "../lib/locale";
+import { m } from "../lib/i18n";
 
 type EventTab = "overview" | "bracket" | "schedule" | "standings" | "teams" | "venues" | "rules";
 
@@ -26,12 +27,12 @@ export function EventPage({ id, goto }: EventProps) {
   // have when the data was a module-level constant. Hooks above run
   // unconditionally; only the output below is short-circuited.
   if (id ? eventLoading : listLoading) {
-    return <div className="empty">Loading event…</div>;
+    return <div className="empty">{m.loading_event()}</div>;
   }
   if (!e) {
     return (
       <div className="empty">
-        <p>That event does not exist.</p>
+        <p>{m.not_found_event()}</p>
         <button onClick={() => goto({ page: "discover" })}>← Back to discover</button>
       </div>
     );
@@ -72,37 +73,37 @@ export function EventPage({ id, goto }: EventProps) {
 
         <div className="event-stats">
           <div className="stat-cell">
-            <div className="label">Teams</div>
+            <div className="label">{m.teams()}</div>
             <div className="value">{e.teams || "—"}</div>
           </div>
           <div className="stat-cell">
-            <div className="label">Courts</div>
+            <div className="label">{m.courts()}</div>
             <div className="value">{e.courts || "—"}</div>
           </div>
           <div className="stat-cell">
-            <div className="label">Games</div>
+            <div className="label">{m.games()}</div>
             <div className="value">
               {e.gamesPlayed > 0 ? <><em>{e.gamesPlayed}</em> / {e.games}</> : (e.games || "—")}
             </div>
             {e.gamesPlayed > 0 && <div className="sub">{e.games - e.gamesPlayed} remaining</div>}
           </div>
           <div className="stat-cell">
-            <div className="label">Format</div>
+            <div className="label">{m.format()}</div>
             <div className="value" style={{ fontSize: 18 }}>Single-elim</div>
             <div className="sub">+ 3rd-place game</div>
           </div>
           <div className="stat-cell">
-            <div className="label">Following</div>
+            <div className="label">{m.following()}</div>
             <div className="value" style={{ fontSize: 18 }}>284</div>
             <div className="sub">parents, coaches, scouts</div>
           </div>
         </div>
 
         <div className="event-actions">
-          {e.status === "open" && <button className="btn accent">Register team</button>}
-          <button className="btn primary"><Icon name="follow"/>Follow event</button>
-          <button className="btn">Add to calendar</button>
-          <button className="btn"><Icon name="share"/>Share</button>
+          {e.status === "open" && <button className="btn accent">{m.register_team()}</button>}
+          <button className="btn primary"><Icon name="follow"/>{m.follow_event()}</button>
+          <button className="btn">{m.add_to_calendar()}</button>
+          <button className="btn"><Icon name="share"/>{m.share()}</button>
         </div>
       </div>
 
@@ -152,7 +153,7 @@ function EventOverview({ e: _e, goto }: OverviewProps) {
     <div className="page-inner">
       <div className="dash-grid">
         <div>
-          <div className="section-h"><h2>Live & next up</h2><a className="more">VIEW SCHEDULE →</a></div>
+          <div className="section-h"><h2>{m.live_and_next()}</h2><a className="more">VIEW SCHEDULE →</a></div>
           <div className="dash-card" style={{ borderColor: "var(--live)", borderWidth: 1.5 }}>
             <div className="head" style={{ color: "var(--live)" }}>
               <span><span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--live)", marginRight: 6, animation: "pulse 1.4s infinite" }}/>LIVE · {G.quarter} {G.clock} · COURT B</span>
@@ -194,7 +195,7 @@ function EventOverview({ e: _e, goto }: OverviewProps) {
             </div>
           </div>
 
-          <div className="section-h"><h2>Top performers · today</h2><a className="more">ALL STATS →</a></div>
+          <div className="section-h"><h2>{m.top_performers_today()}</h2><a className="more">ALL STATS →</a></div>
           <div className="dash-card">
             {performers.map((p, i) => (
               <div key={i} style={{ display: "grid", gridTemplateColumns: "32px 1fr auto", gap: 12, padding: "12px 18px", borderBottom: "1px solid var(--rule)", alignItems: "center" }}>
@@ -210,10 +211,10 @@ function EventOverview({ e: _e, goto }: OverviewProps) {
         </div>
 
         <div>
-          <div className="section-h"><h2>Standings</h2><a className="more">FULL TABLE →</a></div>
+          <div className="section-h"><h2>{m.standings()}</h2><a className="more">FULL TABLE →</a></div>
           <div className="dash-card">
             <div className="standing-row head">
-              <span></span><span>Team</span><span>W</span><span>L</span><span></span><span>PTS</span>
+              <span></span><span>{m.team()}</span><span>W</span><span>L</span><span></span><span>PTS</span>
             </div>
             {standings.slice(0, 6).map(s => (
               <div key={s.rank} className={`standing-row ${s.you ? "you" : ""}`}>
@@ -227,7 +228,7 @@ function EventOverview({ e: _e, goto }: OverviewProps) {
             ))}
           </div>
 
-          <div className="section-h"><h2>Recent results</h2></div>
+          <div className="section-h"><h2>{m.recent_results()}</h2></div>
           <div className="dash-card">
             {recents.map((r, i) => (
               <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 50px 50px", padding: "12px 18px", borderBottom: "1px solid var(--rule)", alignItems: "center" }}>
@@ -252,7 +253,7 @@ export function StandingsTable() {
     <div className="page-inner">
       <div className="dash-card">
         <div className="standing-row head" style={{ gridTemplateColumns: "40px 1fr 50px 50px 70px 70px 70px 60px" }}>
-          <span></span><span>Team</span><span>W</span><span>L</span><span>PF</span><span>PA</span><span>±</span><span>PTS</span>
+          <span></span><span>{m.team()}</span><span>W</span><span>L</span><span>PF</span><span>PA</span><span>±</span><span>PTS</span>
         </div>
         {S.map(s => (
           <div key={s.rank} className={`standing-row ${s.you ? "you" : ""}`} style={{ gridTemplateColumns: "40px 1fr 50px 50px 70px 70px 70px 60px" }}>
@@ -297,7 +298,7 @@ function SchedulePlaceholder() {
     <div className="page-inner">
       <div className="dash-card">
         <div style={{ display: "grid", gridTemplateColumns: "80px 60px 1fr 80px 1fr 80px 60px", padding: "10px 18px", borderBottom: "1px solid var(--rule)", fontFamily: "IBM Plex Mono, monospace", fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
-          <span>Time</span><span>Court</span><span>Home</span><span>Score</span><span>Away</span><span></span><span>Status</span>
+          <span>{m.time()}</span><span>{m.court()}</span><span>{m.home_team()}</span><span>{m.score()}</span><span>{m.away()}</span><span></span><span>{m.status()}</span>
         </div>
         {games.map((g, i) => (
           <div key={i} style={{ display: "grid", gridTemplateColumns: "80px 60px 1fr 80px 1fr 80px 60px", padding: "14px 18px", borderBottom: "1px solid var(--rule)", alignItems: "center", background: g.live ? "var(--accent-soft)" : "transparent" }}>

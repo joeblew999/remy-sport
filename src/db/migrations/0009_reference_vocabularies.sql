@@ -207,11 +207,13 @@ CREATE TABLE IF NOT EXISTS locale (
   code               TEXT PRIMARY KEY,
   name_en            TEXT NOT NULL,
   names              TEXT NOT NULL,
+  status             TEXT NOT NULL,
   sort               INTEGER NOT NULL
 );
-INSERT OR IGNORE INTO locale (code, name_en, names, sort) VALUES
-  ('th', 'Thai', '{"th":"ไทย","en":"Thai"}', 1),
-  ('en', 'English', '{"th":"อังกฤษ","en":"English"}', 2);
+INSERT OR IGNORE INTO locale (code, name_en, names, status, sort) VALUES
+  ('th', 'Thai', '{"th":"ไทย","en":"Thai"}', 'released', 1),
+  ('en', 'English', '{"th":"อังกฤษ","en":"English"}', 'released', 2),
+  ('ja', 'Japanese', '{"th":"ญี่ปุ่น","en":"Japanese"}', 'draft', 3);
 
 CREATE TABLE IF NOT EXISTS notification_category (
   code               TEXT PRIMARY KEY,

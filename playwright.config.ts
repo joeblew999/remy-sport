@@ -5,6 +5,11 @@ const isLocal = !process.env.BASE_URL
 
 export default defineConfig({
   testDir: "./tests",
+  // Playwright's default testMatch is **/*.@(spec|test).*, so it collects
+  // tests/unit/*.test.ts too and dies on their `bun:test` imports. The two
+  // suites answer different questions and must not collect each other:
+  // `mise run test:unit` is pure logic in ~20ms, this is 157 E2E specs in 3.4
+  // minutes against a real Worker.
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   // Remote runs (test:deployed) retry as well as CI. Against the deployed
@@ -39,7 +44,7 @@ export default defineConfig({
   // guarantee on its own — see tests/seed.setup.ts.
   projects: [
     { name: "setup", testMatch: /.*\.setup\.ts/ },
-    { name: "e2e", testIgnore: /.*\.setup\.ts/, dependencies: ["setup"] },
+    { name: "e2e", testIgnore: [/.*\.setup\.ts/, /tests\/unit\//], dependencies: ["setup"] },
   ],
   ...(isLocal && {
     webServer: {

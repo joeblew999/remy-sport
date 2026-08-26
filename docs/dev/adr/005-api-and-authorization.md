@@ -1,10 +1,10 @@
 # ADR 005: API & Authorization
 
-**Status:** Partially implemented — see [Implementation status](#implementation-status)
+**Status:** Partially implemented — see [Implementation status](#implementation-status) — and **the mechanism is obsolete as of 2026-08-25.** The three-layer model (role → ownership → event type) still holds and is still enforced. *How* is entirely different: `c4d326a` replaced the Hono routes with oRPC procedures, and the middleware files this ADR describes — `require-permission.ts`, `owned-by.ts`, `event-type.ts` — were deleted in [ADR 020](020-keeping-the-map-honest.md) after the same logic was reimplemented in [`src/api/base.ts`](../../../src/api/base.ts). Read the code blocks below as intent, not as a map of the tree; the Implementation status table already warns that `src/app.ts` never existed. **Do not cite this ADR as evidence about the current transport** — a draft of ADR 016 §2 did, and was wrong.
 
 ## Context
 
-The platform has six actor types (Organizer, Coach, Player, Spectator, Referee, Admin) and four event types (Tournament, League, Camp/Clinic, Showcase). The full access matrix is defined in [docs/user/matrix.md](../../user/matrix.md).
+The platform has six actor types (Organizer, Coach, Player, Spectator, Referee, Admin) and four event types (Tournament, League, Camp/Clinic, Showcase). The full access matrix is defined in [remy-sport-biz `data/access/matrix.md`](https://github.com/joeblew999/remy-sport-biz/blob/main/data/access/matrix.md). It was cited here as `docs/user/matrix.md`, which never existed in this repo — the matrix has always been the Product Owner's, and is generated upstream from `data/seed/`.
 
 API generation and authorization are combined in this ADR because in this stack they are inseparable. `createRoute()` from `@hono/zod-openapi` is the single declaration point for:
 

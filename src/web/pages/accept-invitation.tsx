@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Route } from "../lib/router";
 import { useSession } from "../lib/session";
+import { m } from "../lib/i18n";
 
 /**
  * Landing page for the link in an invitation email (ADR 010, ADR 011).
@@ -127,7 +128,7 @@ export function AcceptInvitationPage({ id, goto }: { id?: string; goto: (r: Rout
     }
   }
 
-  if (phase === "loading") return <div className="empty">Loading invitation…</div>;
+  if (phase === "loading") return <div className="empty">{m.loading_invitation()}</div>;
 
   if (phase === "error") {
     return (
@@ -157,7 +158,7 @@ export function AcceptInvitationPage({ id, goto }: { id?: string; goto: (r: Rout
     return (
       <div className="empty" data-testid="invitation-accepted">
         <p>You have joined {invitation?.organizationName ?? "the organisation"}.</p>
-        <button onClick={() => goto({ page: "discover" })}>Continue →</button>
+        <button onClick={() => goto({ page: "discover" })}>{m.continue()}</button>
       </div>
     );
   }

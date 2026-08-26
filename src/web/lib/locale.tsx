@@ -11,6 +11,8 @@
 
 import { createContext, useContext, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { overwriteGetLocale } from "../paraglide/runtime.js";
+import { VOCABULARY } from "../../domain/vocabularies";
 import { orpc } from "./orpc";
 import type { ReactNode } from "react";
 import {
@@ -60,8 +62,18 @@ function initialLocale(): Locale {
   return FALLBACK;
 }
 
+/**
+ * Paraglide reads the locale from here rather than keeping a cookie of its own.
+ *
+ * Two stores for "which language is the reader in" is the bug this whole day
+ * was spent removing; `overwriteGetLocale` is the supported way to have one.
+ * Set before first render so the very first message call is already correct.
+ */
+let currentLocale: Locale = initialLocale();
+overwriteGetLocale(() => currentLocale);
+
 export function LocaleProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(initialLocale);
+  const [locale, setLocaleState] = useState<Locale>(currentLocale);
 
   // The vocabularies, through the same contract-typed query as everything else
   // — no bespoke fetch, no useEffect, no race guard. Reference data is
@@ -70,7 +82,17 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   const { data: reference } = useQuery(orpc.reference.list.queryOptions());
 
   const value = useMemo<LocaleContextValue>(() => {
+    // Seeded from the compiled vocabularies so the first paint is already
+    // right. Without this a page renders `CHIANG_MAI` — a database code — for
+    // however long the reference fetch takes, which under load is long enough
+    // to see. The endpoint still wins once it arrives; this is the same data,
+    // generated from the same fixtures, so the two cannot disagree.
     const index = new Map<string, Names>();
+    for (const [vocabulary, terms] of Object.entries(VOCABULARY)) {
+      for (const term of terms as readonly Term[]) {
+        index.set(`${vocabulary}|${term.code}`, term.names);
+      }
+    }
     if (reference) {
       // Every vocabulary in the payload, whatever they are — the endpoint is
       // generated from the fixtures, so listing them here would fall behind.
@@ -85,7 +107,9 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     return {
       locale,
       setLocale(next: Locale) {
+        currentLocale = next;
         setLocaleState(next);
+        document.documentElement.lang = next;
         try {
           localStorage.setItem(STORAGE_KEY, next);
         } catch {

@@ -14,8 +14,8 @@
  * lets a spectator who belongs to the org edit it.
  */
 
-import { ORPCError, implement, os } from "@orpc/server"
-import { contract } from "../domain/contract"
+import { ORPCError, os } from "@orpc/server"
+import type { OpenAPIV3_1 } from "openapi-types"
 import { drizzle } from "drizzle-orm/d1"
 import { eq } from "drizzle-orm"
 import * as schema from "../db/schema"
@@ -31,16 +31,30 @@ export interface ApiContext {
 export type Db = ReturnType<typeof database>
 export const database = (env: Bindings) => drizzle(env.DB, { schema })
 
-/**
- * Procedures are built by IMPLEMENTING the contract, not by redeclaring it.
- * `implement` binds each handler to the contract's route, input and output, so
- * a path or a schema cannot be stated twice and cannot disagree.
- */
-const impl = implement(contract).$context<ApiContext>()
 const base = os.$context<ApiContext>()
 
+/**
+ * Marks an operation as requiring a session, in the published document.
+ *
+ * Security schemes are declared once on the document (src/index.ts); this says
+ * which operations demand them. Written as a route option rather than
+ * remembered per handler, so a protected operation cannot be documented as
+ * public — which is what an integrator reads before calling it.
+ */
+export const authedRoute = {
+  spec: (operation: OpenAPIV3_1.OperationObject): OpenAPIV3_1.OperationObject => ({
+    ...operation,
+    security: [{ Session: [] }, { ApiKey: [] }],
+    responses: {
+      ...operation.responses,
+      401: { description: "Not signed in" },
+      403: { description: "Signed in, but not permitted" },
+    },
+  }),
+}
+
 /** Adds `db` so no handler repeats `drizzle(c.env.DB, { schema })`. */
-export const pub = impl.use(async ({ context, next }) =>
+export const pub = base.use(async ({ context, next }) =>
   next({ context: { ...context, db: database(context.env) } }),
 )
 

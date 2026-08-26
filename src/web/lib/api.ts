@@ -3,15 +3,15 @@
 // needs (biz decision-003: "asset paths must stay relative").
 
 import type { Crest, Event, EventStatus, EventType, Team } from "../data";
-import type { ContractRouterClient } from "@orpc/contract";
-import type { Contract } from "../../domain/contract";
+import type { RouterClient } from "@orpc/server";
+import type { Router } from "../../api/index";
 import type { Localizer, Names } from "./localizer";
 
 /**
  * One event, as the contract declares it. Inferred, never written out — the
  * previous hand-written interface duplicated 15 fields and nothing checked it.
  */
-export type ApiEvent = ContractRouterClient<Contract>["events"]["get"] extends
+export type ApiEvent = RouterClient<Router>["events"]["get"] extends
   (...a: never[]) => Promise<infer R> ? R : never
 
 const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
@@ -117,7 +117,7 @@ export function toEvent(e: ApiEvent, loc: Localizer, today: Date = new Date()): 
 // ── Teams ──────────────────────────────────────────────────────────────────
 
 /** One team, as the contract declares it. Inferred, never written out. */
-export type ApiTeam = ContractRouterClient<Contract>["teams"]["get"] extends
+export type ApiTeam = RouterClient<Router>["teams"]["get"] extends
   (...a: never[]) => Promise<infer R> ? R : never
 
 /**

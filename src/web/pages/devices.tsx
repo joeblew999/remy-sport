@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useSession } from "../lib/session";
 import { toDevices, formatWhen, type Device, type RawSession } from "../lib/devices";
 import type { Route } from "../lib/router";
+import { m } from "../lib/i18n";
 
 /**
  * "Where am I signed in?" — ADR 014.
@@ -82,7 +83,7 @@ export function DevicesPage({ goto }: { goto: (r: Route) => void }) {
     }
   }
 
-  if (sessionLoading) return <div className="empty">Loading…</div>;
+  if (sessionLoading) return <div className="empty">{m.loading()}</div>;
 
   if (!user) {
     return (
@@ -101,7 +102,7 @@ export function DevicesPage({ goto }: { goto: (r: Route) => void }) {
     <div className="page-inner" data-testid="devices-page">
       <div className="page-header">
         <div className="crumbs">SECURITY</div>
-        <h1>Where you're signed in</h1>
+        <h1>{m.signed_in_devices()}</h1>
         <div className="sub">
           Sessions last 30 days. Sign out anything you don't recognise.
         </div>
@@ -114,7 +115,7 @@ export function DevicesPage({ goto }: { goto: (r: Route) => void }) {
       )}
 
       {devices === null ? (
-        <div className="empty">Loading sessions…</div>
+        <div className="empty">{m.loading_sessions()}</div>
       ) : (
         <>
           <div className="dash-card" data-testid="devices-list">

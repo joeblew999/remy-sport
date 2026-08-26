@@ -1,6 +1,27 @@
 import { relations } from "drizzle-orm"
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core"
 import type { Names } from "../domain/names"
+/**
+ * The vocabularies are declared ON the columns, not restated at the boundary.
+ *
+ * `text("type_code")` yields `string`, so `createInsertSchema` would accept
+ * "U99" and every read needed a cast back to the union. `{ enum }` narrows
+ * `$inferSelect` to the literal codes and makes drizzle-zod derive a real
+ * `z.enum`, so the vocabulary is enforced by the type system as well as by the
+ * foreign keys. These constants are GENERATED from the PO's fixtures, so a code
+ * added upstream appears here with nothing edited.
+ *
+ * TypeScript-level only: the emitted SQL is unchanged and no migration is
+ * needed. It does not constrain SQLite — `event.type_code` still has no foreign
+ * key, so a writer bypassing the API can still store nonsense.
+ */
+import {
+  AGE_GROUP_CODES,
+  CITY_CODES,
+  EVENT_FORMAT_CODES,
+  EVENT_TYPE_CODES,
+  GENDER_CODES,
+} from "../domain/vocabularies"
 
 /**
  * Display names, keyed by locale: {"en":"Boys","th":"ชาย"}.
@@ -48,15 +69,15 @@ export const event = sqliteTable("event", {
   id: text("id").primaryKey(),
   name: text("name").notNull(), // canonical: name_en — the pivot
   names: localeNames(),
-  typeCode: text("type_code").notNull(), // references event_type.code
-  formatCode: text("format_code").notNull().default("5x5"), // references event_format.code
+  typeCode: text("type_code", { enum: EVENT_TYPE_CODES }).notNull(),
+  formatCode: text("format_code", { enum: EVENT_FORMAT_CODES }).notNull().default("5x5"),
   description: text("description"),
   // ISO 8601 date strings (YYYY-MM-DD), per the biz schema's date convention.
   // Nullable because rows predating migration 0005 have no value; the API
   // defaults them on create.
   startDate: text("start_date"),
   endDate: text("end_date"),
-  cityCode: text("city_code"), // canonical city code, e.g. BANGKOK
+  cityCode: text("city_code", { enum: CITY_CODES }),
   provinceCode: text("province_code"), // canonical: 3-letter code, e.g. BKK
   isFibaCertified: integer("is_fiba_certified", { mode: "boolean" })
     .notNull()
@@ -83,10 +104,10 @@ export const team = sqliteTable("team", {
     .references(() => organization.id),
   // Foreign keys as of migration 0009 — the database rejects a code outside the
   // vocabulary, which it previously accepted from any writer.
-  ageGroupCode: text("age_group_code")
+  ageGroupCode: text("age_group_code", { enum: AGE_GROUP_CODES })
     .notNull()
     .references(() => ageGroup.code),
-  genderCode: text("gender_code")
+  genderCode: text("gender_code", { enum: GENDER_CODES })
     .notNull()
     .references(() => gender.code),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),

@@ -91,6 +91,7 @@ export const locale = sqliteTable("locale", {
   code: text("code").primaryKey(),
   nameEn: text("name_en").notNull(),
   names: text("names", { mode: "json" }).$type<Names>().notNull(),
+  status: text("status").notNull(),
   sort: integer("sort").notNull(),
 })
 

@@ -1,6 +1,6 @@
 # ADR 008: The React SPA is the frontend; the server-rendered views are an auth harness
 
-**Status:** Accepted (2026-08-21) — step 1 done, step 2 and 3 in progress (events + teams wired); see [Path to wiring](#path-to-wiring)
+**Status:** Accepted (2026-08-21) — step 1 done, step 2 and 3 in progress (events + teams wired); see [Path to wiring](#path-to-wiring). **Its central decision is being superseded in part:** "there are two GUIs, deliberately" is on the way out — `src/views/` goes once the SPA absorbs the admin console. That `src/web/` is the product frontend, which is this ADR's actual thesis, stands. Two mechanical details also aged out in `c4d326a`: the route files named below are now oRPC procedures under `src/api/`, and the hand-rolled fetch hooks are TanStack Query.
 
 ## Context
 
@@ -14,7 +14,7 @@ one was the product, so all three read as live options.
 
 `home`, `login`, `dashboard`, `versions`. DaisyUI v5 + Tailwind 4 from a CDN, no
 build step. Everything here is real: Better Auth sessions, real D1 `event` rows,
-real permission enforcement via [require-permission.ts](../../../src/middleware/require-permission.ts),
+real permission enforcement via `require-permission.ts` (deleted in ADR 020; now [`src/api/base.ts`](../../../src/api/base.ts)), <!-- docs-check-ignore -->
 and a dev role-switcher covering all six actors.
 
 It is a demo harness for ADR 005/007 — it proves auth and authorization work
@@ -37,7 +37,7 @@ Every page reads hardcoded fixtures from [src/web/data.ts](../../../src/web/data
 — `TEAMS`, `EVENTS`, `BRACKET`, `LIVE_GAME`, `ROSTER`, `STANDINGS`, `FEED`. There
 is no auth in it either; it never learns who the viewer is.
 
-### GUI 3 — [ADR 004](004-datastar-lit-ui.md), Datastar + Lit (Proposed, never built)
+### GUI 3 — Datastar + Lit (proposed once, never built)
 
 Argued for reactivity "without a heavy client framework (no React/Vue/Svelte
 bundle)" and mapped Datastar/Lit onto the same roadmap phases GUI 2 already
@@ -58,8 +58,9 @@ Mobile", **Accepted 2026-04-29**) settles it:
 > react-query against the Workers API**.
 
 [AGENTS.md](../../../AGENTS.md)'s conflict rule is "biz wins unless there's an
-ADR in this repo". ADR 004 never got past *Proposed*, so it never overrode
-anything. It is now marked Superseded.
+ADR in this repo". That proposal never got past *Proposed*, so it never overrode
+anything. Its ADR was deleted in ADR 020 — it described a UI that never existed,
+which in an agent-read repo is a liability with no upside.
 
 Consequences for each GUI:
 
@@ -76,7 +77,7 @@ Consequences for each GUI:
 Naming the SPA as the frontend does not make it a frontend. It is a design
 mockup, and the backend cannot currently feed it.
 
-**The API has exactly one resource.** [src/routes/events.ts](../../../src/routes/events.ts)
+**The API has exactly one resource.** [src/api/events.ts](../../../src/api/events.ts) (this was `src/routes/events.ts` when the ADR was written; the link tracks the file, the sentence records the state at the time)
 serves `GET/POST /api/events`, `GET/PUT/DELETE /api/events/{id}`. That is the
 whole application surface — plus Better Auth's routes.
 

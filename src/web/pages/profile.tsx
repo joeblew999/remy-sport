@@ -1,5 +1,6 @@
 import { useEvents, useFeed } from "../lib/data";
 import type { Route } from "../lib/router";
+import { m } from "../lib/i18n";
 
 export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
   const { data: events = [], loading: eventsLoading } = useEvents({ limit: 4 });
@@ -21,7 +22,7 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
       <div className="page-inner">
         <div className="dash-grid">
           <div>
-            <div className="section-h"><h2>Your live game</h2><a className="more" onClick={() => goto({ page: "live" })} style={{ cursor: "pointer" }}>OPEN COURT VIEW →</a></div>
+            <div className="section-h"><h2>{m.your_live_game()}</h2><a className="more" onClick={() => goto({ page: "live" })} style={{ cursor: "pointer" }}>OPEN COURT VIEW →</a></div>
             <div className="dash-card" style={{ borderColor: "var(--live)", borderWidth: 1.5 }}>
               <div className="head" style={{ color: "var(--live)" }}>
                 <span><span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--live)", marginRight: 6, animation: "pulse 1.4s infinite" }}/>LIVE · Q3 06:42 · COURT B · BANGKOK CUP QF</span>
@@ -42,7 +43,7 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
               </div>
             </div>
 
-            <div className="section-h"><h2>Activity</h2><a className="more">ALL →</a></div>
+            <div className="section-h"><h2>{m.activity()}</h2><a className="more">ALL →</a></div>
             <div className="dash-card feed-list">
               {feed.map((f, i) => (
                 <div key={i} className="feed-item">
@@ -57,7 +58,7 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
           </div>
 
           <div>
-            <div className="section-h"><h2>Your events</h2><a className="more">+ NEW</a></div>
+            <div className="section-h"><h2>{m.your_events()}</h2><a className="more">+ NEW</a></div>
             <div className="dash-card">
               {events.map(e => (
                 <button key={e.id} onClick={() => goto({ page: "event", id: e.id })} style={{
@@ -72,11 +73,11 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
                   </div>
                 </button>
               ))}
-              {eventsLoading && <div className="empty">Loading…</div>}
-              {!eventsLoading && events.length === 0 && <div className="empty">No events yet.</div>}
+              {eventsLoading && <div className="empty">{m.loading()}</div>}
+              {!eventsLoading && events.length === 0 && <div className="empty">{m.no_events_yet()}</div>}
             </div>
 
-            <div className="section-h"><h2>Quick actions</h2></div>
+            <div className="section-h"><h2>{m.quick_actions()}</h2></div>
             <div className="dash-card">
               {quickActions.map((a, i) => (
                 <button key={i} style={{

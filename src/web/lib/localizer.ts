@@ -6,8 +6,8 @@
 //
 // The React side — the provider, the hooks, the switcher — lives in locale.tsx.
 
-import type { ContractRouterClient } from "@orpc/contract";
-import type { Contract } from "../../domain/contract";
+import type { RouterClient } from "@orpc/server";
+import type { Router } from "../../api/index";
 import { LOCALES, type Locale } from "../../domain/vocabularies";
 
 export { LOCALES, type Locale };
@@ -30,7 +30,7 @@ export type Vocabulary = keyof Reference
  * meant the SPA restated a shape the contract already declared, and nothing
  * checked the two agreed. Adding `cities` upstream silently left this behind.
  */
-export type Reference = Awaited<ReturnType<ContractRouterClient<Contract>["reference"]["list"]>>
+export type Reference = Awaited<ReturnType<RouterClient<Router>["reference"]["list"]>>
 
 export type Term = { code: string; names: Names }
 

@@ -5,7 +5,7 @@ import { Sidebar } from "./components/sidebar";
 import { Topbar } from "./components/topbar";
 import { useRouter } from "./lib/router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { LocaleProvider, type Locale } from "./lib/locale";
+import { LocaleProvider, useLocale, type Locale } from "./lib/locale";
 
 import { DiscoverPage } from "./pages/discover";
 import { EventPage } from "./pages/event";
@@ -17,6 +17,7 @@ import { LoginPage } from "./pages/login";
 import { DevicesPage } from "./pages/devices";
 import { SessionProvider } from "./lib/session";
 import { StandingsTable } from "./pages/event";
+import { m } from "./lib/i18n";
 
 interface TweakDefaults {
   accentColor?: string;
@@ -37,6 +38,20 @@ const DEFAULTS: Required<TweakDefaults> = {
   spoilerMode: false,
   language: "en",
 };
+
+/**
+ * Re-renders the whole tree when the language changes.
+ *
+ * Paraglide's messages are plain functions, not hooks — nothing subscribes to
+ * them, so a locale switch would leave already-rendered copy in the old
+ * language. Keying the subtree is the documented way to force re-evaluation,
+ * and it is cheap: the page is remounted, and the API data it needs is already
+ * in the query cache, keyed independently of locale.
+ */
+function LocalisedApp() {
+  const { locale } = useLocale();
+  return <App key={locale}/>;
+}
 
 function App() {
   const tweaks = { ...DEFAULTS, ...(window.TWEAK_DEFAULTS ?? {}) } as Required<TweakDefaults>;
@@ -125,7 +140,7 @@ const queryClient = new QueryClient({
        * A 404 is an answer, not a failure.
        *
        * Retrying one keeps the query `pending` through three round trips, so a
-       * deep link to a deleted id renders "Loading…" instead of "does not
+       * deep link to a deleted id renders {m.loading()} instead of "does not
        * exist". Only retry what could plausibly succeed next time.
        */
       retry: (count, error) => {
@@ -147,7 +162,7 @@ createRoot(document.getElementById("root")!).render(
         {/* Locale wraps the app for the same reason: every page renders names,
             and the view models resolve them against the current locale. */}
         <LocaleProvider>
-          <App/>
+          <LocalisedApp/>
         </LocaleProvider>
       </SessionProvider>
     </QueryClientProvider>

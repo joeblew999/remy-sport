@@ -11,9 +11,21 @@
 //
 
 /** Every language the fixtures declare, in the PO's order. */
+export const ALL_LOCALES = ["th", "en", "ja"] as const
+
+/**
+ * The languages a reader is offered.
+ *
+ * Drafts are declared and compiled in so they can be exercised, but showing a
+ * reader a half-translated interface is worse than showing them English. A
+ * language moves here by one word changing in the PO's locales.jsonl.
+ */
 export const LOCALES = ["th", "en"] as const
 
-export type Locale = (typeof LOCALES)[number]
+export type Locale = (typeof ALL_LOCALES)[number]
+
+/** A language actually on offer. Narrower than `Locale`. */
+export type ReleasedLocale = (typeof LOCALES)[number]
 
 /** 6 rows, from object_types.jsonl. */
 export const OBJECT_TYPE = [
@@ -320,15 +332,17 @@ export const GENDER_CODES = GENDER.map((t) => t.code) as unknown as [
 
 export type GenderCode = (typeof GENDER_CODES)[number]
 
-/** 2 rows, from locales.jsonl. */
+/** 3 rows, from locales.jsonl. */
 export const LOCALE = [
-  { code: "th", names: {"th":"ไทย","en":"Thai"} },
-  { code: "en", names: {"th":"อังกฤษ","en":"English"} },
+  { code: "th", status: "released", names: {"th":"ไทย","en":"Thai"} },
+  { code: "en", status: "released", names: {"th":"อังกฤษ","en":"English"} },
+  { code: "ja", status: "draft", names: {"th":"ญี่ปุ่น","en":"Japanese"} },
 ] as const
 
 export const LOCALE_CODES = LOCALE.map((t) => t.code) as unknown as [
   "th",
   "en",
+  "ja",
 ]
 
 export type LocaleCode = (typeof LOCALE_CODES)[number]
@@ -562,3 +576,35 @@ export const USER_STATUS_CODES = USER_STATUS.map((t) => t.code) as unknown as [
 ]
 
 export type UserStatusCode = (typeof USER_STATUS_CODES)[number]
+
+/**
+ * Every vocabulary, keyed as /api/reference returns it.
+ *
+ * The browser resolves labels from this immediately, rather than waiting for
+ * the endpoint: a page that renders `CHIANG_MAI` for the time one fetch takes
+ * is a page that renders a database code to a reader. The endpoint is still the
+ * source at runtime — this is the same data, compiled in, so the first paint is
+ * already right and a Tauri build has labels with no network at all.
+ */
+export const VOCABULARY = {
+  objectTypes: OBJECT_TYPE,
+  actions: ACTION,
+  ageGroups: AGE_GROUP,
+  provinces: PROVINCE,
+  cities: CITY,
+  coachRoles: COACH_ROLE,
+  eventFormats: EVENT_FORMAT,
+  eventTypes: EVENT_TYPE,
+  genders: GENDER,
+  locales: LOCALE,
+  notificationCategories: NOTIFICATION_CATEGORY,
+  notificationChannels: NOTIFICATION_CHANNEL,
+  notificationTypes: NOTIFICATION_TYPE,
+  orgTypes: ORG_TYPE,
+  positions: POSITION,
+  relations: RELATION,
+  relationships: RELATIONSHIP,
+  roles: ROLE,
+  skillTiers: SKILL_TIER,
+  userStatuses: USER_STATUS,
+} as const

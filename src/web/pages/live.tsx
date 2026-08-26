@@ -1,6 +1,7 @@
 import { Icon } from "../components/icon";
 import { useLiveGame } from "../lib/data";
 import type { Route } from "../lib/router";
+import { m } from "../lib/i18n";
 
 interface LiveProps {
   goto: (r: Route) => void;
@@ -17,7 +18,7 @@ export function LivePage({ goto, spoiler, setSpoiler }: LiveProps) {
   return (
     <div className="live-page">
       <div className="crumbs" style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: "IBM Plex Mono, monospace", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12, color: "oklch(0.6 0.01 270)" }}>
-        <button onClick={() => goto({ page: "discover" })} style={{ background: "transparent", border: "none", padding: 0, color: "inherit", cursor: "pointer", fontFamily: "inherit", fontSize: "inherit", letterSpacing: "inherit" }}>DISCOVER</button>
+        <button onClick={() => goto({ page: "discover" })} style={{ background: "transparent", border: "none", padding: 0, color: "inherit", cursor: "pointer", fontFamily: "inherit", fontSize: "inherit", letterSpacing: "inherit" }}>{m.nav_discover()}</button>
         <span style={{ opacity: 0.5 }}>/</span>
         <button onClick={() => goto({ page: "event", id: "e1" })} style={{ background: "transparent", border: "none", padding: 0, color: "inherit", cursor: "pointer", fontFamily: "inherit", fontSize: "inherit", letterSpacing: "inherit" }}>BANGKOK CUP</button>
         <span style={{ opacity: 0.5 }}>/</span>
@@ -78,13 +79,13 @@ export function LivePage({ goto, spoiler, setSpoiler }: LiveProps) {
 
       <div className="quarters-table">
         <div className="row" style={{ display: "contents" }}>
-          <div className="cell head label">Team</div>
+          <div className="cell head label">{m.team()}</div>
           <div className="cell head">Q1</div>
           <div className="cell head">Q2</div>
           <div className="cell head">Q3</div>
           <div className="cell head">Q4</div>
           <div className="cell head"></div>
-          <div className="cell head">Total</div>
+          <div className="cell head">{m.total()}</div>
         </div>
         <div className="row" style={{ display: "contents" }}>
           <div className="cell team-name">{G.teamA.short} · {G.teamA.name}</div>
@@ -121,14 +122,14 @@ export function LivePage({ goto, spoiler, setSpoiler }: LiveProps) {
           <button className="live-action-btn primary">
             <div>
               <div className="label">QUICK ACTION</div>
-              <div className="val">Ask AI assistant</div>
+              <div className="val">{m.ask_ai()}</div>
             </div>
             <span className="icon">⌘K</span>
           </button>
           <button className="live-action-btn">
             <div>
               <div className="label">BOX SCORE</div>
-              <div className="val">Player stats →</div>
+              <div className="val">{m.player_stats()}</div>
             </div>
           </button>
           <button className="live-action-btn">

@@ -231,9 +231,16 @@ fi
 # React. Neither was checking .tsx at all until now — `include` was
 # `src/**/*.ts`, so every component in the repo went untypechecked and a page
 # kept rendering a field that had been deleted from its type.
+# UI copy is compiled, so it has to exist before anything typechecks it. The
+# Vite plugin does this during a build; this task is for everything else.
+[tasks."i18n:generate"]
+description = "Compile messages/*.json into typed message functions (Paraglide). The locale list comes from project.inlang/settings.json, which domain:generate writes from the PO's locales."
+depends     = ["install"]
+run         = "bun x paraglide-js compile --project ./project.inlang --outdir ./src/web/paraglide"
+
 [tasks."typecheck"]
 description = "Typecheck the Worker and the SPA. Both, because they use different JSX runtimes and so need separate tsconfigs."
-depends     = ["install"]
+depends     = ["install", "i18n:generate"]
 run = """
 bun x tsc --noEmit
 bun x tsc --noEmit -p src/web/tsconfig.json
@@ -348,10 +355,110 @@ depends     = ["setup"]
 run         = "bun x wrangler dev --host localhost"
 
 [tasks.check]
-description = "TypeScript type check"
+description = "Type check, dead code, and documented paths — the three things that rot quietly"
 depends     = ["cf:types"]
-sources     = ["src/**/*.ts", "tsconfig.json"]
-run         = "bun x tsc --noEmit"
+# No `sources`/`outputs`: dead-code and docs drift depend on files this task
+# does not read as inputs (a deleted importer, an edited .md), so caching this
+# would skip exactly the run that would have caught the drift.
+run = """
+bun x tsc --noEmit
+mise run test:unit
+mise run check:dead
+mise run check:docs
+mise run check:conventions
+"""
+
+[tasks."test:unit"]
+description = "Pure-logic tests — no server, no database, no browser (~20ms)"
+depends     = ["install"]
+# The fast oracle, and the thing this repo went without for too long. Every
+# test was a Playwright spec: 157 of them, 3.4 minutes, requiring wrangler dev,
+# a migrated D1 and seeded fixtures. That is a fine way to check a page renders
+# and a hopeless way to check that a Thai-only name keeps its pivot, or that an
+# event is still "live" on its final day.
+#
+# It matters most for agent-driven work. At 3.4 minutes the loop is "make
+# fifteen edits, test once, and guess which one broke it". At 20ms it is per
+# change. bun's runner, so no new dependency.
+#
+# `.test.ts` under tests/unit/, deliberately: Playwright owns `.spec.ts`, so the
+# two suites cannot collect each other's files.
+run = "bun test tests/unit/"
+
+[tasks."check:dead"]
+description = "Fail on unreachable files and on imports missing from package.json"
+depends     = ["install"]
+# Scope is deliberate. `files` catches orphans — the oRPC migration left four,
+# and they were found by hand-grepping, badly: a grep for `views/versions`
+# missed `from "./versions"` and wrongly called a live file dead. `unlisted`
+# catches an import that resolves only as somebody else's transitive
+# dependency, which breaks the day that parent drops it.
+#
+# Unused *exports* are NOT enforced. That report is ~35 entries here, most of
+# them deliberate — access-control roles declared as a set, drizzle relations,
+# schemas kept beside the ones in use. A check that is mostly false positives
+# gets ignored, and then the real finding is ignored with it. Run the full
+# report by hand when you want it:  bun x knip
+run = "bun x knip --include files,unlisted --no-config-hints"
+
+[tasks."check:docs"]
+description = "Fail when the documentation names a file that does not exist"
+# The companion to check:dead, and the one that matters more: AGENTS.md is read
+# at the start of every session, so a wrong path there becomes wrong work. See
+# ADR 020 for the failure that prompted it.
+#
+# It cannot catch prose that is wrong while every path in it resolves. Nothing
+# can. That is what the AGENTS.md convention is for.
+run = "bun scripts/docs-check.ts"
+
+[tasks."check:conventions"]
+description = "Fail when the code stops obeying a rule AGENTS.md states"
+# The third leg, and the one that exists because this repo is agent-built.
+# An agent reads AGENTS.md every session and believes it — it has no memory to
+# contradict a stale rule with, so it builds on it. This makes the load-bearing
+# claims executable instead of merely written.
+#
+# A failure means the code regressed OR the rule changed. Both need a human, and
+# neither is resolved by deleting the check: change AGENTS.md and the rule
+# together, in one commit.
+run = "bun scripts/check-conventions.ts"
+
+[tasks.probe]
+description = "Typecheck a throwaway snippet against the real project (PROBE=path, or stdin)"
+depends     = ["install"]
+# Measure instead of asserting. Every wrong belief corrected in the ADR-020
+# session was killed by exactly this: write a file, typecheck it, delete it.
+# Four beliefs, about a minute each — cheaper than being wrong in a document.
+#
+#   echo 'import type { Router } from "./src/api/index"; export type P = Router' | mise run probe
+#
+# Writes to .probe.ts at the repo root and always removes it, so a failed probe
+# cannot leave a file that breaks the next `mise run check`.
+# WEB=1 probes the SPA instead of the Worker. The two have different tsconfigs
+# (react vs hono JSX, and only the Worker's includes worker-configuration.d.ts),
+# and which one you probe is usually the question — that difference is exactly
+# what ADR 016 §1 turned out to hinge on.
+#
+# The file lands INSIDE src/ so the project tsconfig governs it; a root-level
+# file is outside `include`, and tsc then resolves node_modules differently and
+# reports phantom "Cannot find module '@orpc/server'" errors.
+run = """
+if [ -n "${WEB:-}" ]; then TARGET=src/web/__probe.ts; CFG="-p src/web/tsconfig.json"
+else TARGET=src/__probe.ts; CFG=""; fi
+trap 'rm -f "$TARGET"' EXIT
+if [ -n "${PROBE:-}" ]; then cp "$PROBE" "$TARGET"; else cat > "$TARGET"; fi
+echo "--- probing ${TARGET} ---"
+bun x tsc --noEmit $CFG || true
+echo "--- done (nothing above = it typechecks) ---"
+"""
+
+[tasks.followups]
+description = "List every outstanding follow-up recorded across the ADRs, in one place"
+# Not part of `check` — an open follow-up is a decision to do something later,
+# not a failure. This is a report you ask for, and it prints rather than
+# generating a file, so there is no follow-ups.md to fall out of sync with the
+# ADRs it summarises. Close an item by deleting its bullet from its ADR.
+run = "bun scripts/followups.ts"
 
 [tasks.test]
 description = "Run Playwright tests locally"

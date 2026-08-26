@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
@@ -9,7 +10,23 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   root: __dirname,
-  plugins: [react()],
+  plugins: [
+    react(),
+    // UI copy is compiled, not looked up at runtime: a missing key is a build
+    // error and unused messages are tree-shaken out. The locale list in
+    // project.inlang/settings.json is GENERATED from the PO's locales.jsonl,
+    // so the languages the interface can be written in are the languages the
+    // data is available in — one list, not two.
+    paraglideVitePlugin({
+      project: resolve(__dirname, "../../project.inlang"),
+      outdir: resolve(__dirname, "paraglide"),
+      // We own the locale (lib/locale.tsx: localStorage, then the browser's
+      // preference). Paraglide reads it through overwriteGetLocale rather than
+      // keeping a cookie of its own, so there is one source of truth for which
+      // language the reader is in.
+      strategy: ["globalVariable", "baseLocale"],
+    }),
+  ],
   base: "./",
   build: {
     outDir: resolve(__dirname, "../../dist/web"),
@@ -31,6 +48,11 @@ export default defineConfig({
     // trade than one extra terminal, and the ports differ so both can run.
     proxy: {
       "/api": {
+        target: "http://localhost:8787",
+        changeOrigin: false,
+      },
+      // The SPA's own client speaks oRPC here; /api stays the REST surface.
+      "/rpc": {
         target: "http://localhost:8787",
         changeOrigin: false,
       },

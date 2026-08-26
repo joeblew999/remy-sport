@@ -17,7 +17,14 @@ import { ReferenceSchema } from "../domain/api"
 import { VOCABULARY_ORDER, VOCABULARY_TABLES } from "../db/vocabularies-schema"
 import { pub } from "./base"
 
-export const list = pub.reference.list.handler(async ({ context: { db } }) => {
+export const list = pub
+  .route({
+    method: "GET",
+    path: "/reference",
+    summary: "Controlled vocabularies, as the Product Owner defines them",
+  })
+  .output(ReferenceSchema)
+  .handler(async ({ context: { db } }) => {
   // Ordered by `sort` where the fixture has one, so the PO controls dropdown
   // order by ordering the JSONL — sorting by code gives OPEN, SENIOR, U10, U12…
   // Provinces and cities have no curated order and go by name.

@@ -16,7 +16,7 @@ The biz repo is the source of truth for domain definitions and wins unless an AD
 
 But [src/auth.config.ts](../../../src/auth.config.ts) registers the admin plugin as bare `admin()` — no `ac`, no `roles`. Better Auth therefore runs its **default** admin/user role model and knows nothing about organizers or coaches.
 
-The application compensates in [src/middleware/require-permission.ts](../../../src/middleware/require-permission.ts), which imports `roles` directly and calls `roleDef.authorize(...)` itself. Authorization works, but Better Auth is not the thing enforcing it — so anything that goes through Better Auth's own APIs (`auth.api.userHasPermission`, admin endpoints, org-scoped checks) sees a different, weaker model. Two sources of truth for the same question.
+The application compensates in `src/middleware/require-permission.ts` (deleted in ADR 020; the same logic now lives in [`src/api/base.ts`](../../../src/api/base.ts) as oRPC middleware), which imports `roles` directly <!-- docs-check-ignore --> and calls `roleDef.authorize(...)` itself. Authorization works, but Better Auth is not the thing enforcing it — so anything that goes through Better Auth's own APIs (`auth.api.userHasPermission`, admin endpoints, org-scoped checks) sees a different, weaker model. Two sources of truth for the same question.
 
 ### 2. No organization plugin
 

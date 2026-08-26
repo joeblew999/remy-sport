@@ -119,7 +119,7 @@ The core of the platform — every competitor has this.
 | MCP proxy/bridge | — | Remote MCP without agent restart |
 | AI-assisted tournament ops | — | Create events, manage brackets via chat |
 
-**ADR:** [003](adr/003-mcp-server.md) (proposed, needs research)
+**ADR:** none. A proposal existed and was deleted (ADR 020) — its premise was a Hono + zod-openapi API, and the API is oRPC. Needs writing fresh.
 
 ---
 

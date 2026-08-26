@@ -52,15 +52,20 @@ test.describe("Controlled vocabularies", () => {
     "provinces",
   ] as const
 
-  test("every vocabulary is named in every supported locale", async ({ request }) => {
+  test("every vocabulary is named in every locale on offer", async ({ request }) => {
     const ref = await reference(request)
 
     // Driven by the locales the API itself declares, not by a pair written out
-    // here. Shipping a third language widens this assertion automatically; the
-    // old version only ever checked that `nameTh` was truthy, so a new language
-    // would have gone entirely unasserted.
-    const locales = (ref.locales as { code: string }[]).map((l) => l.code)
-    expect(locales).toEqual([...LOCALES])
+    // here — shipping another language widens this assertion automatically.
+    //
+    // Released only. A draft locale is declared and partially translated on
+    // purpose: demanding completeness of one would mean nobody could ever start
+    // a language, which is the whole reason the status exists. The endpoint
+    // returns drafts too, because they are real rows and a translator needs to
+    // see them; a reader is never offered one.
+    const declared = ref.locales as { code: string; status: string }[]
+    const locales = declared.filter((l) => l.status === "released").map((l) => l.code)
+    expect(locales.sort()).toEqual([...LOCALES].sort())
 
     for (const name of VOCABULARIES) {
       for (const row of ref[name] as { code: string; names: Record<string, string> }[]) {

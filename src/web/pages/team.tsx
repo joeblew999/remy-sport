@@ -1,6 +1,7 @@
 import { Icon } from "../components/icon";
 import { useRoster, useTeam, useTeams } from "../lib/data";
 import type { Route } from "../lib/router";
+import { m } from "../lib/i18n";
 
 interface ScheduleRow {
   date: string;
@@ -23,12 +24,12 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
   const t = id ? team : allTeams?.[0];
 
   if (id ? teamLoading : listLoading) {
-    return <div className="empty">Loading team…</div>;
+    return <div className="empty">{m.loading_team()}</div>;
   }
   if (!t) {
     return (
       <div className="empty">
-        <p>That team does not exist.</p>
+        <p>{m.not_found_team()}</p>
         <button onClick={() => goto({ page: "discover" })}>← Back to discover</button>
       </div>
     );
@@ -53,10 +54,10 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
           </div>
           <div className="meta">{t.ageGroupCode} {t.genderLabel} · {t.short}</div>
           <div className="event-actions" style={{ marginTop: 16 }}>
-            <button className="btn primary"><Icon name="follow"/>Follow</button>
-            <button className="btn">Roster</button>
-            <button className="btn">Stats</button>
-            <button className="btn">Schedule</button>
+            <button className="btn primary"><Icon name="follow"/>{m.follow()}</button>
+            <button className="btn">{m.roster()}</button>
+            <button className="btn">{m.stats()}</button>
+            <button className="btn">{m.schedule()}</button>
           </div>
         </div>
         {/* RECORD and RANK need played games and a standings table. Both are
@@ -75,7 +76,7 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
             and a games table are ADR 008 Phase 2/3. Marked, because the team
             above them is now real and unlabelled sample data next to real data
             gets read as real. */}
-        <div className="section-h"><h2>Roster</h2><a className="more">SAMPLE DATA</a></div>
+        <div className="section-h"><h2>{m.roster()}</h2><a className="more">SAMPLE DATA</a></div>
         <div className="roster-grid">
           {roster.map(p => (
             <div key={p.num} className="player-card">

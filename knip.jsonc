@@ -1,0 +1,48 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+
+  // Dead-code detection (ADR 020).
+  //
+  // This exists because the oRPC migration in c4d326a left orphaned files
+  // behind — three Hono middlewares reimplemented as oRPC middleware, plus a
+  // Crest component that styles.css had already replaced with CSS. All were
+  // found by hand-grepping, which is slow and misses things.
+  //
+  // .jsonc, not .json: knip validates keys strictly and rejects "//" comment
+  // keys, and a config whose reasoning lives elsewhere is one nobody maintains.
+  //
+  // `mise run check` runs this with --include files,unlisted. That scope is
+  // deliberate — see the task in mise.toml for why unused *exports* are
+  // reported but not enforced.
+
+  // Three entry points, because this repo has three: the Worker, the SPA, and
+  // the scripts mise runs. Specs count — a helper used only by tests is live.
+  // vite.config.ts is an entry too: it is passed to `vite --config`, so nothing
+  // imports it and it is not dead.
+  "entry": [
+    "src/web/main.tsx",
+    "src/web/vite.config.ts",
+    "src/auth.cli.ts",
+    "scripts/*.ts",
+    "tests/**/*.spec.ts",
+    "tests/*.setup.ts"
+  ],
+
+  "project": ["src/**/*.{ts,tsx}", "scripts/**/*.ts", "tests/**/*.ts"],
+
+  // GENERATED (mise run auth:schema:generate / domain:generate). They export
+  // their source's full surface on purpose, so partial use is correct, not
+  // dead — and deleting an "unused" export is undone by the next regeneration.
+  "ignore": [
+    "src/db/auth-schema.ts",
+    "src/db/fixtures-schema.ts",
+    "src/domain/vocabularies.ts"
+  ],
+
+  // Invoked as binaries by mise tasks, never imported. `auth` is the Better
+  // Auth CLI — see AGENTS.md on why it versions in lockstep with core.
+  "ignoreDependencies": ["auth", "vite", "wrangler", "@tauri-apps/cli"],
+
+  // mise is the task runner itself; scripts/cf-ensure.ts shells out to it.
+  "ignoreBinaries": ["mise"]
+}

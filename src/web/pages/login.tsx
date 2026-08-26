@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSession } from "../lib/session";
 import type { Route } from "../lib/router";
+import { m } from "../lib/i18n";
 
 /**
  * Passwordless sign-in for the SPA (ADR 012).
@@ -129,7 +130,7 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
     <div className="page-inner" data-testid="spa-login">
       <div className="page-header">
         <div className="crumbs">SIGN IN</div>
-        <h1>Welcome to Remy Sport</h1>
+        <h1>{m.welcome()}</h1>
         <div className="sub">We'll email you a code — no password needed</div>
       </div>
 
@@ -212,7 +213,7 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
       {devAccounts && (
         <div className="dev-accounts" data-testid="spa-dev-accounts">
           <div className="section-h" style={{ marginTop: 32 }}>
-            <h2>Dev accounts</h2>
+            <h2>{m.dev_accounts()}</h2>
             <a className="more">LOCAL ONLY</a>
           </div>
           <div className="dev-account-row">

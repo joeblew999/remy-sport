@@ -1,164 +1,136 @@
 # Project Context
 
-<!-- This is the main agent context file (AGENTS.md, the open standard). CLAUDE.md and GEMINI.md are aliases that point here. CONTEXT.md was the previous name and has been removed. -->
+<!-- The main agent context file (AGENTS.md, the open standard). CLAUDE.md and GEMINI.md are aliases. -->
+
+**This file is the only document that must describe the repo as it is now.** Everything else is either
+history (ADRs), or lives next to the code it explains. It is kept short on purpose: it loads into every
+session, so a stale paragraph here does not merely mislead a reader — it becomes wrong work. It has
+already done so twice (see [ADR 020](docs/dev/adr/020-keeping-the-map-honest.md)).
+
+If something here can be derived from the code in ten seconds, it should not be here. What belongs is
+the set of traps that have already cost a real bug.
 
 ## Companion repo
 
-[remy-sport-biz](https://github.com/joeblew999/remy-sport-biz) is the Product Owner's source-of-truth for *what* to build (actors, event types, access matrix, roadmap, epics, stories, decisions). Cloned locally at `../remy-sport-biz/`.
+[remy-sport-biz](https://github.com/joeblew999/remy-sport-biz) is the Product Owner's source of truth for
+*what* to build. Cloned at `../remy-sport-biz/`.
 
-**Conflict rule: biz wins unless there's an ADR in this repo.**
+**Conflict rule: biz wins unless there's an ADR in this repo.** Check biz before touching
+`src/db/schema.ts` or `src/web/data.ts`. **Schema changes go through biz first** — the canonical model is
+[data/seed/schema.md](https://github.com/joeblew999/remy-sport-biz/blob/main/data/seed/schema.md) there.
 
-Check biz first for canonical domain definitions before touching `src/db/schema.ts` or `src/web/data.ts`.
-
-## Getting Started
-
-### Quick start (new developer)
+## Getting started
 
 ```bash
-# 1. Install mise (if not already installed)
-curl https://mise.run | sh
-export PATH="$HOME/.local/bin:$PATH"
-eval "$(mise activate bash)"
-
-# 2. Trust config and set up everything (deps, SPA build, migrations, Playwright)
 mise trust && mise install && mise run setup
-
-# 3. Start dev server with seeded test data
-mise run dev:seed
+mise run dev:seed            # http://localhost:8787 — SPA at /app, auth harness at /
 ```
 
-That's it. The server runs on **http://localhost:8787** — the SPA is at **/app**, the auth harness at `/`, `/login` and `/dashboard`.
+**`mise run web:dev` on its own does not work.** Vite serves the SPA and nothing else, so `/api/*` has no
+backend: the session never resolves, sign-in 404s, every page renders empty — which looks like a broken
+SPA rather than a missing API. It needs `mise run dev` in another terminal.
 
-### Which dev server?
-
-There are two, and only one of them is the normal choice.
-
-| | Command | Open | Use when |
-|---|---|---|---|
-| **Worker** (normal) | `mise run dev:seed` | **localhost:8787/app** | Everything works: one origin serves the API and the SPA. |
-| Vite (HMR only) | `mise run dev` **and** `mise run web:dev` | localhost:5175 | Editing components and you want instant reload. |
-
-**`mise run web:dev` on its own does not work.** Vite serves the SPA and nothing else, so `/api/*` has no backend: the session never resolves, sign-in 404s, and every page renders empty — which looks like a broken SPA rather than a missing API. `src/web/vite.config.ts` proxies `/api` to `localhost:8787`, so the Worker still has to be running in another terminal.
-
-### AI agent sessions
-
-The SessionStart hook (`.claude/hooks/session-start.sh`) automatically runs steps 1-2 above. After that, run `mise run dev:seed` when you need the server, or `mise run dev` if seeding is not needed.
-
-### Notes
-- If `jq` install fails due to GitHub API rate limits, retry with `GITHUB_TOKEN="" mise install jq`
-- Run `mise run test` to verify all tests pass (starts its own server, no need for `mise run dev`)
-- `mise run seed` can be run separately against an already-running dev server
-- Playwright is installed via curl (proxy-safe) with version auto-detected from `node_modules/playwright-core/browsers.json`
-- `setup` owns `web:build`. `dist/web` is gitignored and the `[assets]` binding points at it, so without a build `wrangler dev` refuses to start ("the directory specified by the `assets.directory` field ... does not exist"). Every local task routes through `setup`, and `web:build` declares `sources`/`outputs`, so it is a no-op once `dist/web` is current.
+`mise run test` starts its own server. If `jq` install fails on a rate limit, retry with
+`GITHUB_TOKEN="" mise install jq`.
 
 ## Stack
 
-### Frameworks & Libraries
-- **Hono** — web framework (ultrafast, Web Standards based)
-- **Zod** — schema validation
-- **OpenAPI** — API specification via `@hono/zod-openapi`
-- **MCP** — model context protocol
-- **Better Auth** — authentication (with plugins for 2FA, organizations, roles, etc.)
-- **Drizzle ORM** — database ORM for D1
-- **React 19 + Vite** — the product frontend (`src/web/`), see [ADR 008](docs/dev/adr/008-frontend-is-the-react-spa.md)
-- **DaisyUI v5** — UI components via CDN (no build step), used by the auth harness only
-- **Tailwind CSS 4** — utility CSS via CDN, used by the auth harness only
-- **Playwright** — end-to-end testing
-- ~~**Datastar** / **Lit**~~ — proposed in ADR 004, **superseded** by ADR 008. Never implemented; do not add either.
+Cloudflare Workers + D1 + R2. Hono as the outer shell; **oRPC** for all domain logic, mounted twice over
+one router — `/api` speaks REST and generates `/openapi.json`, `/rpc` serves the SPA. Better Auth,
+Drizzle, Zod 4. React 19 + Vite for the product frontend. Playwright for tests. bun + mise for tooling.
 
-### Runtime & Infrastructure
-- **Cloudflare Workers** — serverless compute
-- **Cloudflare D1** — SQL database
-- **Cloudflare R2** — object storage
-- **Browser** — client-side runtime
-
-### Tooling
-- **bun** — package manager and runtime
-- **mise** — task runner and tool version manager
+~~Datastar / Lit~~ — proposed once, superseded by the React SPA, never implemented. Do not add either.
 
 ### Dependencies
 
-```bash
-mise run deps:outdated   # show what is behind
-mise run deps:update     # update within package.json semver ranges, then typecheck
-```
+`mise run deps:update` only moves within existing ranges, so it cannot cross a major silently. Follow with
+`mise run test`.
 
-`deps:update` only moves within existing ranges, so it cannot silently cross a major boundary — widening a range is a deliberate edit. Always follow with `mise run test`.
+**`better-auth` is on 1.7.1, and two things about it are not guessable:**
 
-**`better-auth` is on 1.7.1.** It was pinned to `~1.4.18` for a while over two blockers, both now resolved — the note is kept because the way it was resolved is not guessable:
+- **The CLI was renamed.** `@better-auth/cli` is frozen at 1.4.22 forever; the package moved to plain
+  **`auth`**, which versions in lockstep with core. Checking `@better-auth/cli` makes upgrades look
+  permanently blocked — it is the wrong package to check. Verify with `bun pm why @better-auth/core`:
+  exactly one, matching `better-auth`.
+- **`account.issuer` needed a backfill.** 1.7 matches `sign-in/email` on
+  `createLocalAccountIssuer("credential")`, so before
+  [migration 0007](src/db/migrations/0007_account_issuer.sql) every sign-in failed with `User not found`
+  while `/api/seed` still reported the users as existing.
 
-**The CLI was renamed.** `@better-auth/cli` is frozen at 1.4.22 and always will be; the package moved to plain **`auth`**, which versions in lockstep with core. The old blocker was that `@better-auth/cli` bundles its own `@better-auth/core`, so installing it beside `better-auth@1.7.1` hoisted core 1.4.22 against a 1.7.1 runtime. Checking `@better-auth/cli` versions makes the upgrade look permanently blocked — it is the wrong package to check. Verify the tree with `bun pm why @better-auth/core`: there must be exactly one, matching `better-auth`.
-
-**`account.issuer` needed a backfill.** 1.7 matches `sign-in/email` on `account.issuer === createLocalAccountIssuer("credential")`, so before [migration 0007](src/db/migrations/0007_account_issuer.sql) every sign-in failed with `User not found` while `/api/seed` still reported the users as existing. All rows here are credential rows and take `local:credential`; a social provider would need its own issuer branch added to that migration.
-
-`deps:outdated` cannot see either of these — a rename looks like an abandoned package, and a required backfill looks like a normal minor bump.
+`deps:outdated` sees neither — a rename looks like abandonment, a required backfill like a normal minor.
 
 ## Three access-control scopes, and two tables called "team"
 
-See [ADR 009](docs/dev/adr/009-full-organization-adoption.md). Both pairs are easy to conflate and each conflation has already caused a bug.
+See [ADR 009](docs/dev/adr/009-full-organization-adoption.md). Both pairs are easy to conflate and each
+conflation has already caused a bug.
 
-**Roles.** Three scopes, three controllers — [access-control.ts](src/auth/access-control.ts) (domain: event, team, player), [org-access-control.ts](src/auth/org-access-control.ts) (organization, member, invitation) and [admin-access-control.ts](src/auth/admin-access-control.ts) (user, session).
+**Roles.** Three scopes, three controllers — [access-control.ts](src/auth/access-control.ts) (event, team,
+player), [org-access-control.ts](src/auth/org-access-control.ts) (organization, member, invitation),
+[admin-access-control.ts](src/auth/admin-access-control.ts) (user, session).
 
-**Never pass the platform `ac`/`roles` to a Better Auth plugin.** Supplying custom roles *replaces* the plugin's own, and this has now broken twice: `organization()` made `"owner"` — the role `createOrganization` actually writes — resolve to nothing (ADR 009), and `admin()` left the seeded admin unable to call any admin endpoint (ADR 013). Both were invisible until something called those endpoints.
+**Never pass the platform `ac`/`roles` to a Better Auth plugin.** Supplying custom roles *replaces* the
+plugin's own. This has broken twice: `organization()` made `"owner"` resolve to nothing (ADR 009), and
+`admin()` left the seeded admin unable to call any admin endpoint (ADR 013). Both were invisible until
+something called those endpoints.
 
-**Do not merge the statement sets to "fix" it.** The admin plugin declares `user` and `session`, and both names are already taken by the domain model — where `session` means a *camp session*, not an auth session. Merging would make "may define a camp session" and "may revoke someone's login" the same permission.
+**Do not merge the statement sets to "fix" it.** The admin plugin declares `user` and `session`, and both
+names are taken by the domain model — where `session` means a *camp session*. Merging would make "may
+define a camp session" and "may revoke someone's login" the same permission.
 
-**Teams.** `team` is a roster of players (domain, migration 0006). `org_team` is a group of *users who log in* (the plugin, migration 0008). Rosters cannot move into `org_team_member` — its `user_id` is a non-null FK, and biz makes `players.user_id` nullable because minors usually have no account.
+**Teams.** `team` is a roster of players (migration 0006). `org_team` is a group of *users who log in*
+(migration 0008). Rosters cannot move into `org_team_member` — its `user_id` is a non-null FK, and biz
+makes `players.user_id` nullable because minors usually have no account.
 
-**Authorizing a write needs both questions.** `requirePermission` asks whether this actor type may do this at all; `requireOrgMember` asks whether they stand in the right relation to *this* object. See `src/routes/teams.ts` for the composition. Check the biz access matrix before adding either — it is the source of truth for who may do what, and it is what makes team delete platform-admin-only.
+**Authorizing a write needs both questions.** `requirePermission` asks whether this actor type may do this
+at all; `requireOrgMember` asks whether they stand in the right relation to *this* object. Both live in
+[src/api/base.ts](src/api/base.ts); [src/api/teams.ts](src/api/teams.ts) shows the composition. Check the
+biz access matrix before adding either.
 
 ## Sign-in is passwordless
 
-See [ADR 012](docs/dev/adr/012-passwordless-email-otp.md). Email OTP is the **only** way in — `emailAndPassword` is off, `POST /api/auth/sign-in/email` 400s, and there are no passwords in the seed. Sign-up is not a separate act: an address that receives a code gets an account, defaulted to `spectator`.
+See [ADR 012](docs/dev/adr/012-passwordless-email-otp.md). Email OTP is the **only** way in —
+`emailAndPassword` is off, `POST /api/auth/sign-in/email` 400s, and **there are no passwords anywhere,
+including the seed.** An address that receives a code gets an account, defaulted to `spectator`.
 
-Both GUIs run the same two steps against the same endpoints — `email-otp/send-verification-otp`, then `sign-in/email-otp`. The SPA has session state ([lib/session.tsx](src/web/lib/session.tsx)) and its own login screen; it no longer hands users to the harness.
-
-**Tests never post a password.** Use [tests/helpers/auth.ts](tests/helpers/auth.ts). The six seeded `@remy.dev` actors sign in with a fixed code (`TEST_OTP`); everyone else gets a real emailed one read from the dev outbox. Codes are single-use, so the suite runs `workers: 1` — two parallel tests signing in as the same actor consume each other's code.
+**Tests never post a password.** Use [tests/helpers/auth.ts](tests/helpers/auth.ts). The six seeded
+`@remy.dev` actors sign in with a fixed `TEST_OTP`; everyone else gets a real emailed code from the dev
+outbox. Codes are single-use, so the suite runs `workers: 1`.
 
 `TEST_OTP` must be unset in production before the platform has real users.
 
 ## Email
 
-See [ADR 010](docs/dev/adr/010-outbound-email.md). Cloudflare Email Service via the `[[send_email]]` binding, behind a `Mailer` seam in [mail/mailer.ts](src/mail/mailer.ts).
+See [ADR 010](docs/dev/adr/010-outbound-email.md). Cloudflare Email Service behind a `Mailer` seam in
+[mail/mailer.ts](src/mail/mailer.ts).
 
-`MAIL_TRANSPORT` picks the transport and **defaults to `outbox`**, which captures messages in the Worker isolate instead of sending. Production sets `cloudflare` in `wrangler.toml`; `.dev.vars` overrides it back to `outbox` locally. Tests assert on real message content through `/api/dev/outbox`, which 404s whenever the real transport is active — mail bodies carry invitation links and password-reset tokens, so that route must never exist in production. Mail specs skip themselves when `BASE_URL` is set, because `test:deployed` reruns the suite against production where that route is gone.
+`MAIL_TRANSPORT` **defaults to `outbox`**, which captures messages in the isolate instead of sending.
+Production sets `cloudflare`; `.dev.vars` overrides back to `outbox` locally. `/api/dev/outbox` 404s
+whenever the real transport is active — mail bodies carry invitation links, so that route must never exist
+in production.
 
-Build links in emails from `BETTER_AUTH_URL`, never from the request origin: an email outlives its request, and the origin can be localhost or a preview host. This is the one place that rule is inverted relative to `trustedOrigins`.
+**Build links from `BETTER_AUTH_URL`, never from the request origin** — an email outlives its request. This
+is the one place that rule is inverted relative to `trustedOrigins`.
 
-Sending to people outside the account needs the Workers **Paid** plan *and* the sending domain onboarded to Email Service. Neither is checkable from the repo.
+Sending to people outside the account needs the Workers **Paid** plan *and* the sending domain onboarded.
+Neither is checkable from the repo.
 
 ## Where the data comes from
 
-The Product Owner's fixtures live in `remy-sport-biz`. Nothing in this repo
-reads them at runtime — the path is a **build-time generator**, and its output
-is committed, so an ordinary build and every deploy work without the biz repo
-or a token.
+The PO's fixtures live in `remy-sport-biz`. Nothing reads them at runtime — the path is a **build-time
+generator** whose output is committed, so builds and deploys work without the biz repo or a token.
 
 ```
-remy-sport-biz/data/seed/
-  reference/       20 controlled vocabularies, keyed by `code`
-  entities/         7 domain objects, keyed by `id`
-  relationships/   10 join tables
-  localization/    translations.jsonl + entity_names.jsonl
-        |
-        |   mise run domain:generate     scripts/domain-generate.ts
+remy-sport-biz/data/seed/{reference,entities,relationships,localization}
+        |   mise run domain:generate
         v
-  src/db/vocabularies-schema.ts   20 drizzle tables, FKs resolved, + a registry
-  src/domain/vocabularies.ts      typed constants and `*_CODES` unions
-  src/db/migrations/0009_*.sql    the DDL and every row
-  src/db/seed-data.ts             entities + relationships, for /api/seed
-        |
+  src/db/vocabularies-schema.ts    20 drizzle tables + a registry
+  src/domain/vocabularies.ts       typed constants and *_CODES unions
+  src/db/migrations/0009_*.sql     the DDL and every row
+  src/db/seed-data.ts              entities + relationships, for /api/seed
         |   drizzle-zod derives response schemas from those tables
         v
-  src/domain/contract.ts          one definition per endpoint
-        |
-        +--> src/api/*.ts         oRPC handlers (handlers only — the contract
-        |                         owns method, path, input and output)
-        +--> /openapi.json        generated from that same contract
-        +--> the SPA              types inferred; nothing hand-written
+  src/api/*.ts  -->  /openapi.json  -->  the SPA (types inferred, nothing hand-written)
 ```
-
-**Three commands are the whole interface.**
 
 ```sh
 mise run biz:sync          # pull the PO's latest fixtures
@@ -166,274 +138,189 @@ mise run domain:generate   # regenerate the four files above
 mise run cf:d1:reset       # replay migrations so the database picks it up
 ```
 
-`mise run domain:check` fails when the committed files are stale against the
-fixtures. It is deliberately **not** in `mise run check` or the deploy pipeline:
-wiring it in would make every build depend on a private repo and a token.
+`mise run domain:check` fails when those files are stale. Deliberately **not** in `mise run check` or the
+deploy pipeline — wiring it in would make every build depend on a private repo and a token.
 
-**What this buys.** Adding a vocabulary upstream is a file in `reference/` plus
-`domain:generate` — a table, a migration, typed constants, an API field and a
-client type all appear, with no code edited here. Adding a language is values in
-cells in `translations.jsonl`. Neither is ever an `ALTER TABLE`.
+Adding a vocabulary upstream is a file in `reference/` plus `domain:generate`: a table, a migration, typed
+constants, an API field and a client type all appear with nothing edited here. Never an `ALTER TABLE`.
 
-**What it does not cover.** Better Auth owns `user` and `organization` — it
-generates their schema from `src/auth.config.ts` and their ids at runtime, so
-the fixtures seed them rather than define them. `event` and `team` carry columns
-the fixtures do not model (`created_by`, `description`, and the deliberate
-absence of `org_id` that migration 0005 recorded). Those four are the hand-
-mapped seam; everything else is generated.
+**Languages have a status.** `LOCALES` is what a reader is offered; `ALL_LOCALES` is everything declared,
+drafts included. A draft is compiled so it can be exercised, but never appears in the switcher — half a
+translation is worse than English. Promotion is one word in the PO's `locales.jsonl`.
 
-## Controlled vocabularies
+**What it does not cover.** Better Auth owns `user` and `organization` — it generates their schema from
+`src/auth.config.ts` and their ids at runtime, so the fixtures seed rather than define them. `event` and
+`team` carry columns the fixtures do not model. Those four are the hand-mapped seam.
 
-See [ADR 015](docs/dev/adr/015-reference-vocabularies.md). Age groups, genders, org types, event types/formats and provinces are **tables** (`age_group`, `gender`, …), seeded from the `remy-sport-biz` fixtures and served at `/api/reference` with a locale-keyed `names` map — one entry per language the fixtures declare, never a `nameTh` column. `team.age_group_code` and `gender_code` are foreign keys — the database rejects an unknown code, not just the API.
+## Languages are rows, not columns — everywhere
 
-Route files still declare `z.enum([...])`, because a TEXT column cannot express a vocabulary to the type system and bad input should fail at the boundary. That copy is checked by `tests/reference.spec.ts`, so a change upstream fails a test rather than drifting.
+One rule for every display string: the English value is a NOT NULL pivot on the row (`name` / `name_en`),
+and every language including English is a key in a `names` JSON column beside it — `{"th":"…","en":"…"}`.
+Migrations 0009 and 0010.
 
-Do not use `drizzle-zod` to derive the domain route schemas: `createInsertSchema` on a TEXT column yields `z.string()` and would accept `"U99"`. It is used for `/api/reference`, where the response genuinely is the table.
+**There is no `translation` table.** One was specified and then deliberately not built, so a search finds
+nothing and a plan that assumes it is wrong.
+[Migration 0010](src/db/migrations/0010_localised_entity_names.sql) states why: a name is a property of its
+row, so keeping it *on* the row lets it travel the whole stack unaided — drizzle types the column,
+drizzle-zod derives the schema, oRPC publishes it, the client infers it.
 
-## Sessions and devices
+- Backend: [src/domain/names.ts](src/domain/names.ts) — `pick`, `pivot`, `clean`. There is no catalogue to
+  read or write.
+- API: requests and responses speak `names`. There is no `nameTh` field and there should never be one.
+- SPA: [lib/locale.tsx](src/web/lib/locale.tsx) resolves names and codes into the reader's language;
+  [lib/i18n.tsx](src/web/lib/i18n.tsx) is for UI copy only.
+- City is a code (`city_code` → the `city` vocabulary), so it renders in the reader's language.
 
-See [ADR 014](docs/dev/adr/014-session-and-device-management.md). Device management is Better Auth **core** — `/list-sessions`, `/revoke-session`, `/revoke-other-sessions` — not the `multiSession` plugin, which is account *switching* and answers a different question.
+Shipping a language is fixtures + `domain:generate` + `cf:d1:reset`.
+[tests/reference.spec.ts](tests/reference.spec.ts) fails if a per-language field reappears.
 
-Sessions last 30 days (ADR 012), so being able to end one matters. `/api/dev/prune-sessions` keeps local session counts sane; without it they accumulate one per sign-in, and past ~100 rows `list-sessions` stops returning the newest — which breaks anything that needs to identify the *current* session.
-
-## Web GUIs — there are two, deliberately
-
-`src/views/` is the **admin console** (ADR 013), not a demo harness: account list, role assignment, ban, and impersonation via the admin plugin. Impersonation — not the dev "sign in as" row — is the right way to view the platform as someone else; it keeps your admin identity and records `session.impersonated_by`.
-
-See [ADR 008](docs/dev/adr/008-frontend-is-the-react-spa.md). Read it before
-adding any user-facing feature, so it lands in the right one.
-
-| | `src/web/` — **the product** | `src/views/` — **auth harness** |
-|---|---|---|
-| Stack | React 19 + Vite, hash routing, EN/TH | Hono template literals, DaisyUI/Tailwind via CDN |
-| Served at | `/app` (Worker `[assets]` binding) | `/`, `/login`, `/dashboard` |
-| Pages | discover, event, team, bracket, live, profile | home, login, dashboard, versions |
-| Data | events + teams from the API; brackets/live/rosters/standings/feed still fixtures (`src/web/data.ts`) | real D1, real Better Auth sessions |
-| Also ships as | Tauri desktop + iOS | — |
-| New features? | **yes, here** | no — harness only |
-
-`src/views/` stays because it is the only place authorization is exercised
-end to end against real data, and `tests/authz.spec.ts` drives it for all six
-roles. It is not the product UI.
-
-`src/web/` is the product per [biz decision-003](https://github.com/joeblew999/remy-sport-biz/blob/main/decisions/decision-003-frontend-targets.md).
-Events and teams are wired to the API; the other five accessors in
-[`src/web/lib/data.tsx`](src/web/lib/data.tsx) still return fixtures because no
-endpoint backs them. Adding one? Follow the pattern events and teams set —
-endpoint, then a fetch in `lib/api.ts`, then delete the fixture. ADR 008 tracks
-what is left and in what order.
-
-Two rules that came out of doing the first two:
-
-- **Never invent a value for a field with no table.** Render a placeholder
-  (`—`, "Venue TBC") and note it in ADR 008. Where a fixture-backed section sits
-  next to real data, label it `SAMPLE DATA` — unlabelled placeholder numbers
-  beside real ones get read as real.
-- **Derive, don't store, anything that is a function of other columns.** Event
-  status/day/month come from the date window in `lib/api.ts`; a stored `status`
-  would be wrong the moment an event started.
-
-**Schema changes go through biz first.** The canonical model lives in
-[remy-sport-biz/data/seed/schema.md](https://github.com/joeblew999/remy-sport-biz/blob/main/data/seed/schema.md)
-with fixtures under `data/seed/`, grouped by kind — `reference/` (keyed by
-`code`, translated), `entities/` (keyed by `id`, names in `entity_names.jsonl`),
-`relationships/`, `authorization/`, `localization/`. The folder states how a
-file is localized; `mise run data:check` upstream enforces it. `event` follows
-the canonical model as of migration 0005 and `team` as of 0006; match it rather
-than inventing a shape.
-
-**Languages are rows, not columns — everywhere.** There is one rule for every
-display string, whether it belongs to a vocabulary or to a row someone created:
-the English value is a NOT NULL pivot on the row (`name_en` / `name`), and every
-language including English is a row in `translation`, keyed
-(table_name, record_key, field_name, locale_code). Migrations 0009 and 0010.
-
-- Backend: never touch `translation` directly — use `src/domain/localized.ts`
-  (`readNames` / `writeNames` / `deleteNames` / `pivot`).
-- API: requests and responses speak `names`, a locale-keyed map. There is no
-  `nameTh` field anywhere and there should never be one again.
-- SPA: `src/web/lib/locale.tsx` resolves names and vocabulary codes into the
-  reader's language; the API mappers take a `Localizer` so a language switch
-  re-derives every view model. `src/web/lib/i18n.tsx` is for UI copy only.
-- City is a code (`city_code` -> the `city` vocabulary), matching biz, so it
-  renders in the reader's language instead of always reading "Bangkok".
-
-Shipping a third language is: add it to the biz fixtures, `mise run
-domain:generate`, `mise run cf:d1:reset`. No `ALTER TABLE`, no type change, no
-route or component edit. `tests/reference.spec.ts` fails if a per-language field
-reappears on a vocabulary row.
-
-**The organising body is Better Auth's `organization` table**, not a separate
-`orgs` table — biz's `orgs` and Better Auth's organizations are the same noun.
-Its canonical columns (`name_th`, `org_type_code`, `city`, `province_code`) are
-declared as `additionalFields` in `src/auth.config.ts` so the generated schema
-carries them. Adding such a column in SQL alone recreates the 0003 drift bug.
+**The organising body is Better Auth's `organization` table**, not a separate `orgs` table. Its canonical
+columns (`names`, `org_type_code`, `city_code`, `province_code`) are `additionalFields` in
+`src/auth.config.ts` so the generated schema carries them. Adding one in SQL alone recreates the 0003
+drift bug.
 
 ## Database schema
 
-**`src/db/auth-schema.ts` is generated. Never edit it.**
+**`src/db/auth-schema.ts` is generated. Never edit it.** `mise run auth:schema:generate` regenerates from
+`src/auth.config.ts`; `auth:schema:check` fails on staleness and runs in the deploy pipeline.
 
-```bash
-mise run auth:schema:generate   # regenerate from src/auth.config.ts
-mise run auth:schema:check      # fail if it is stale (runs in the deploy pipeline)
-```
+`app-schema.ts` is hand-written (`event`, `team`), `fixtures-schema.ts` is generated, `schema.ts` re-exports
+all three and is the only import site.
 
-| File | Owner |
-|---|---|
-| `src/db/auth-schema.ts` | **generated** by the Better Auth CLI |
-| `src/db/app-schema.ts` | hand-written application tables (`event`) |
-| `src/db/schema.ts` | re-exports both; the only import site |
-| `src/auth.config.ts` | schema-shaping auth options, read by both runtime and CLI |
+This split exists because the hand-maintained schema drifted: the admin plugin's `session.impersonated_by`
+was never declared or migrated. Nothing failed while schema and database were wrong in the *same* way — the
+moment the schema became correct, every sign-in 500'd.
 
-Adding a Better Auth plugin or an extra user field changes the schema. Regenerate, then create a migration for the delta with `mise run cf:d1:migrations:create`.
+## Two GUIs, for now
 
-This split exists because the hand-maintained schema drifted: the admin plugin's `session.impersonated_by` column was never declared or migrated. Nothing failed while schema and database were wrong in the *same* way — the moment the schema became correct, every sign-in 500'd with `table session has no column named impersonated_by`. Migration `0003` fixes it; `auth:schema:check` in the deploy pipeline stops it recurring.
+[src/web/](src/web/) is **the product** — React 19 + Vite, hash routing, EN/TH, also shipping as Tauri
+desktop and iOS. New features go here. [src/views/](src/views/) is the admin console (ADR 013): account
+list, role assignment, ban, impersonation.
 
-### Key Details
-- MCP server runs on Cloudflare
-- Better Auth handles all authentication and authorisation, backed by D1 via Drizzle adapter
-- Better Auth uses email+password (no domain/email service needed for dev)
-- Hono serves both browser and Cloudflare targets
-- Versioned deployments to Cloudflare (Workers Versions & Gradual Rollouts)
+They are being merged: `src/views/` goes once the SPA absorbs the console. Until then, both exist.
 
-### Better Auth Plugins (available)
-- 2FA — two-factor authentication
-- Admin — admin management
-- Anonymous — anonymous users
-- API Key — API key auth
-- Bearer Token — token-based API auth
-- Captcha — captcha verification
-- Email OTP — one-time password via email
-- Generic OAuth — any OAuth provider
-- Have I Been Pwned — compromised password checks
-- JWT — JWT token auth
-- Magic Link — passwordless auth
-- MCP — model context protocol provider
-- Multi Session — concurrent sessions
-- OAuth 2.1 Provider — act as OAuth provider
-- OIDC Provider — OpenID Connect provider
-- One Tap — one-tap sign in
-- One-Time Token — single-use tokens
-- Organization — org/team management
-- Passkey — passkey auth
-- Phone Number — phone-based auth
-- SSO — enterprise single sign-on
-- Username — username-based auth
-- Stripe / Polar / Dodo / Creem / Autumn — payment integrations
-- SCIM — cross-domain identity management
-- SIWE — Sign In With Ethereum
+Two rules from wiring the first pages:
 
-## ADRs (Architectural Decision Records)
-- All ADRs live in `docs/dev/adr/` with the naming convention `NNN-short-title.md` (e.g. `001-deployment-versioning.md`)
-- ADRs document **plans before implementation** — write the ADR first, get approval, then implement
-- ADR format: **Status** (proposed/accepted/implemented), **Context** (why), **Decision** (what), **Implementation** (how, with concrete steps and file paths), **Consequences** (trade-offs)
-- ADRs **must include mise task definitions** — every feature needs tasks for running, seeding, testing, deploying, etc. If a feature adds new workflows, the ADR must specify the exact task names and what they do
-- Reference ADRs from AGENTS.md when they affect conventions or architecture
+- **Never invent a value for a field with no table.** Render `—` or "Venue TBC", and label a
+  fixture-backed section beside real data as `SAMPLE DATA`.
+- **Derive, don't store, anything that is a function of other columns.** Event status comes from the date
+  window; a stored `status` is wrong the moment an event starts.
+
+Five accessors in [lib/data.tsx](src/web/lib/data.tsx) still return fixtures because no endpoint backs
+them.
+
+## ADRs
+
+**An ADR is a dated record of what someone believed, not a measurement of what is true.** Read it for
+*intent*. Never cite it as evidence about the current tree — `c4d326a` alone invalidated the transport
+mechanism in ADRs 003, 005, 008 and 015 in one commit.
+
+This has caused real harm. ADRs 016–019 were drafted citing ADR 003 ("the MCP server needs the REST
+surface" — it is *Proposed*, with zero code) and ADR 005 ("this specified the API" — *Partially
+implemented*, describing middleware since deleted). Both conclusions had to be rewritten.
+
+Before writing a "because X" into an ADR:
+
+- **Measure X this session.** A probe file, a `bun x` one-liner, a grep you checked twice. Prefer a failing
+  command to a confident sentence.
+- **If you cannot measure it, write "unverified".** That is legitimate; a plausible assertion is not.
+- **Check the Status line of anything you lean on.** *Proposed* means nobody built it.
+- **When a grep says a file is unused, run `mise run check:dead` before believing it.** A grep for
+  `views/versions` misses `from "./versions"`. That mistake reached an ADR here.
+
+When an ADR is overtaken, **do not rewrite it** — update its **Status** to point forward, in the style of
+[ADR 015](docs/dev/adr/015-reference-vocabularies.md).
+
+- `docs/dev/adr/NNN-short-title.md`. Format: Status, Context, Decision, Implementation, Consequences. <!-- docs-check-ignore -->
+- Write **one** ADR and surface it before starting the next. Four in a burst meant three needed correcting.
+- ADRs that add a workflow **must define the mise tasks** by name.
+- Prefer not writing one. A decision inside a single file is a code comment; a decision you can test is a
+  test. An ADR is for a decision spanning many files that needs review before code exists.
 
 ## Conventions
-- All plan and architectural decision files go in `docs/dev/adr/`
-- Always use `mise run` commands to run things (e.g. `mise run dev`, `mise run test`, `mise run deploy`) — both AI agents and humans use the same mise tasks so we dogfood our own tooling
-- Never run raw `bun`, `bunx wrangler`, or other commands directly when a mise task exists for it
-- Mise tasks must be **idempotent** where possible — tasks should skip when inputs haven't changed
-- Mise tasks must work **without requiring user args** — use env vars with defaults or auto-detection instead of positional args
-- Continuously refactor mise tasks, code, and this AGENTS.md as you work — keep everything clean and up to date
-- Always use well-known `autocomplete` attributes on form fields (`email`, `name`, `current-password`, `new-password`, etc.) so browser autofill and password managers work correctly
-- Run `mise run test` after changes to verify everything still works
+
+- **If you change your mind while building, re-read this file's section on it before you commit.** No tool
+  enforces this and it is the rule that has already failed. Commit `21213e6` planned a `translation` table,
+  changed to a JSON column during implementation, shipped the better design — and left this file describing
+  the table. It was wrong on the day it was written, and a task brief written from it later asked for code
+  that had never existed. `mise run check` catches a path that no longer resolves; it cannot catch a
+  paragraph whose every path resolves and whose meaning is wrong.
+- `mise run check` — types + dead code + documented paths + **the rules in this file**. Run it before
+  committing, not just `tsc`. [scripts/check-conventions.ts](scripts/check-conventions.ts) asserts eight
+  load-bearing claims from this document against the tree, so a rule here cannot quietly stop being true.
+  If one fails, the code regressed *or* the rule changed — fix both together, in one commit. Never delete
+  the check to make it pass.
+- **`mise run probe` — measure instead of asserting.** Pipe a snippet in; it is typechecked against the
+  real project and deleted. `WEB=1` probes the SPA instead of the Worker, which is usually the question.
+
+  ```sh
+  echo 'import type { Router } from "../api/index"
+        export type P = Router' | WEB=1 mise run probe
+  ```
+
+  Every wrong belief corrected in the [ADR 020](docs/dev/adr/020-keeping-the-map-honest.md) session died to
+  exactly this, in about a minute each. Cheaper than being wrong in a document that another session reads.
+- `mise run followups` — every outstanding follow-up across all ADRs, in one list.
+- Always use `mise run`; never raw `bun`/`bunx wrangler` when a task exists. Tasks must be idempotent and
+  work with no user args.
+- Use well-known `autocomplete` attributes on form fields so password managers work.
+- Run `mise run test` after changes.
 
 ## Deployment
 
-Deployed at **https://remy.ubuntusoftware.net** (custom domain, bound via `[[routes]] custom_domain = true` in `wrangler.toml`). See [ADR 006](docs/dev/adr/006-environment-provisioning.md).
+**https://remy.ubuntusoftware.net** — custom domain, see [ADR 006](docs/dev/adr/006-environment-provisioning.md).
 
 ```bash
 mise run deploy             # check → test → bootstrap → deploy → wait → migrate → seed → test:deployed
+mise run cf:env:bootstrap   # provision D1 + R2 + secret, if rebuilding from nothing
 ```
 
-Rebuilding a wiped environment:
+- **There is one environment.** `--env staging` once existed while `wrangler.toml` declared no such
+  environment; wrangler only *warns*, so it would have deployed a second worker bound to the
+  **production** D1 and R2. A real staging environment needs its own database, secrets and migrations —
+  give it an ADR, not a flag.
+- **The dev tasks pass `--host localhost` and must keep doing so.** With a `[[routes]]` block, plain
+  `wrangler dev` simulates that route and `c.req.url`, `Host`, `Origin` and `Referer` all arrive as
+  `remy.ubuntusoftware.net`. The flag is on `dev`, `dev:seed`, `dev:ensure`, `dev:remote` and the
+  Playwright `webServer`.
+- **`src/auth.ts` derives `trustedOrigins` from the request.** That is what makes auth correct on
+  localhost, workers.dev and production. Do not replace it with a fixed list.
+- **`database_id` is written by `cf:d1:ensure`**, never by hand. If `wrangler.toml` changes after a
+  bootstrap, review and commit it.
+- **A first deploy is not instantly reachable** — DNS and certificate issuance take minutes, which is what
+  `cf:wait` covers.
 
-```bash
-mise run cf:login           # only if not authenticated
-mise run cf:env:bootstrap   # provision D1 + R2 + BETTER_AUTH_SECRET (idempotent)
-mise run deploy
-```
+`mise.toml` scopes wrangler/Playwright/gem state into `.wrangler/`, `.playwright/` and `.gem/` rather than
+`$HOME`. Nothing is installed globally. Two mise limitations that look like config mistakes: `_.path` is
+appended after `/usr/bin` so it cannot shadow a system binary (the iOS tasks prepend `$RUBY_BIN`
+themselves), and per-task `tools = {}` is silently ignored.
 
-### Project-scoped Cloudflare state
-
-`mise.toml` redirects wrangler's global state into this repo:
-
-| Var | Effect |
-|---|---|
-| `WRANGLER_LOG_PATH` | logs land in `.wrangler/logs/`, not `~/Library/Preferences/.wrangler/logs` |
-| `WRANGLER_CACHE_DIR` | cache in `.wrangler/cache/` |
-| `CLOUDFLARE_ACCOUNT_ID` | pins the account, whatever the ambient credential allows |
-| `PLAYWRIGHT_BROWSERS_PATH` | browsers in `.playwright/`, same path on every OS |
-| `GEM_HOME` + `RUBY_BIN` | CocoaPods in `.gem/`, on mise's Ruby — nothing in Homebrew |
-
-Nothing this project needs is installed globally any more. `.wrangler/`, `.playwright/` and `.gem/` are all gitignored.
-
-Two mise limitations worth knowing, both verified on 2026.8.9, because they look like config mistakes:
-
-- **`_.path` entries are appended after `/usr/bin`**, so they cannot shadow a system binary. The iOS tasks prepend `$RUBY_BIN` themselves; without it `ruby` is macOS's 2.6 and CocoaPods 1.17 refuses to run (`ffi requires Ruby version >= 3.0`).
-- **The `gem:` backend builds against whatever Ruby is on PATH**, not the one in `[tools]` — `mise exec ruby@3.4.9 -- sh -c 'command -v ruby'` still returns `/usr/bin/ruby`. So `gem:cocoapods` cannot be a `[tools]` entry; `tauri:ios:deps` installs into `GEM_HOME` instead.
-- Per-task `tools = {}` is silently ignored, so tools cannot be scoped to a single task.
-
-This matters for more than tidiness. When the original worker, D1 and R2 were deleted, the trail sat in 369 global logs belonging to ~40 other projects, under global retention that had already aged out the months in question — which is why the ADR 006 postscript can prove *what* happened but not *who*. With logs scoped here, that investigation is `grep .wrangler/logs`.
-
-**What scoping cannot do:** Cloudflare resources live in one flat account namespace. mise is a local tool with no authority over what exists in Cloudflare, so no config here prevents a credential with delete rights from removing `remy-sport-db`. The control for that is a least-privilege API token (Cloudflare-side); mise can hold it via `CLOUDFLARE_API_TOKEN`, but cannot enforce it.
-
-Notes worth knowing before debugging a deploy:
-
-- **The dev tasks pass `--host localhost`, and must keep doing so.** With a `[[routes]]` block present, plain `wrangler dev` *simulates* that route: `c.req.url`, `Host`, `Origin` and `Referer` all arrive as `http://remy.ubuntusoftware.net` rather than localhost. Browsers cope (wrangler rewrites request and Origin consistently), but anything scripted against the local API then needs to send a hostname it is not actually talking to. The flag is on `dev`, `dev:seed`, `dev:ensure`, `dev:remote` and the Playwright `webServer` — drop it from one and only that path behaves differently.
-- **`src/auth.ts` derives `trustedOrigins` from the request** rather than hardcoding a host. That is what makes auth correct on localhost, on workers.dev and in production, and it is independent of the flag above — don't replace it with a fixed list.
-- **There is one environment.** `cf:deploy:staging` and `cf:deploy:production` used to exist, passing `--env staging` / `--env production` to wrangler while `wrangler.toml` declared no such environments. Wrangler only *warns* about that and proceeds, so they would have deployed a second worker (`remy-sport-staging`) bound to the **production** D1 and R2. Both tasks are deleted. A real staging environment needs its own database, secrets and migrations — give it an ADR, not a flag.
-- **A first deploy is not instantly reachable.** DNS propagation and edge-certificate issuance take minutes, which is what `cf:wait` covers. A machine that queried the hostname before it existed may hold a negative DNS cache entry for several minutes longer.
-- **`database_id` is written by `cf:d1:ensure`**, never by hand. If `wrangler.toml` changes after a bootstrap, that is expected — review and commit it.
+Scoping cannot protect Cloudflare resources — they live in one flat account namespace, and the only control
+is a least-privilege API token.
 
 ## Tauri (desktop + iOS)
 
 ```bash
-mise run tauri:build      # macOS .app + .dmg
-mise run dev              # in one terminal — the desktop/iOS shells need it
-mise run tauri:dev        # desktop, against the local Worker
-mise run tauri:ios:dev    # Simulator, against the local Worker
+mise run dev                # in one terminal — the shells need it
+mise run tauri:dev          # desktop      mise run tauri:ios:dev   # Simulator
+mise run tauri:build        # macOS .app + .dmg
 ```
 
-`tauri.conf.json` points `devUrl` at `http://localhost:8787/app`, so the shells load the SPA from the running Worker and the same relative `/api/*` calls work as on the web. `tauri:dev` and `tauri:ios:dev` check for that Worker and say so plainly instead of opening a blank window.
+`tauri.conf.json` points `devUrl` at `http://localhost:8787/app`, so the shells load the SPA from the
+running Worker and the same relative `/api/*` calls work. It already runs `mise run web:build` via
+`beforeDevCommand`, so the Tauri tasks deliberately omit `web:build` from `depends`.
 
-`tauri.conf.json` already runs `mise run web:build` via `beforeDevCommand`/`beforeBuildCommand`, so the Tauri tasks deliberately do **not** list `web:build` in `depends` — doing both rebuilt the SPA twice per invocation.
+`src-tauri/gen/apple` is committed; `gen/schemas` is not. If `tauri info` says `@tauri-apps/plugin-log` is
+not installed, the SPA's log forwarding in `src/web/main.tsx` has lost its dependency.
 
-`tauri:ios:init` installs CocoaPods itself via `tauri:ios:deps` (Tauri otherwise falls back to `gem install`, which needs sudo and fails unattended), and skips once the project exists. The generated `src-tauri/gen/apple` project is committed; `gen/schemas` is not.
+## Seed actors (dev/test only)
 
-`tauri info` should report only two notices, both upstream: `wry` and `tao` show as outdated because `tauri` 2.11.5 — the latest release — pins them. Nothing else should be flagged; if `@tauri-apps/plugin-log` reports "not installed", the SPA's log forwarding in `src/web/main.tsx` has lost its dependency.
+`admin@`, `organizer@`, `coach@`, `player@`, `spectator@`, `referee@` — all `@remy.dev`, all signing in with
+`TEST_OTP`. **No passwords.** Seeded via `mise run seed` / `seed:remote`. See ADR 002.
 
-## Seed Users (dev/test only)
-| Role | Email | Password |
-|---|---|---|
-| Admin | `admin@remy.dev` | `admin1234!` |
-| Organizer | `organizer@remy.dev` | `organizer1!` |
-| Coach | `coach@remy.dev` | `coach12345!` |
-| Player | `player@remy.dev` | `player1234!` |
-| Spectator | `spectator@remy.dev` | `spectator1!` |
-| Referee | `referee@remy.dev` | `referee1234!` |
+## Further reading
 
-Seeded via `mise run seed` (local) or `mise run seed:remote` (deployed). See ADR 002.
-
-## Dev Docs (`docs/dev/`)
-- [docs/dev/README.md](docs/dev/README.md) — entry point for all dev docs
-- [docs/dev/roadmap.md](docs/dev/roadmap.md) — phased feature roadmap with provenance from competitor research
-- [docs/dev/sites.md](docs/dev/sites.md) — competitive research (feature extraction from 5 basketball/sports platforms)
-- [docs/dev/adr/](docs/dev/adr/) — architectural decision records
-
-## User Docs (in the biz repo)
-
-Moved out of this repo by commit `a7222e4` — they live in [remy-sport-biz](https://github.com/joeblew999/remy-sport-biz), which is the source of truth for domain definitions. Cloned locally at `../remy-sport-biz/`.
-
-- [README.md](https://github.com/joeblew999/remy-sport-biz/blob/main/README.md) — entry point for the biz repo
-- [data/access/matrix.md](https://github.com/joeblew999/remy-sport-biz/blob/main/data/access/matrix.md) — **primary reference**: full Actor × Feature × Event Type access matrix (W/R)
-- [process/roadmap/roadmap.md](https://github.com/joeblew999/remy-sport-biz/blob/main/process/roadmap/roadmap.md) — user-facing feature roadmap
-- [domain/actors.md](https://github.com/joeblew999/remy-sport-biz/blob/main/domain/actors.md) — actor/user type definitions
-- [domain/event-types.md](https://github.com/joeblew999/remy-sport-biz/blob/main/domain/event-types.md) — event type definitions (Tournament, League, Camp/Clinic, Showcase)
-
-## References
-- https://hono.dev/llms.txt
-- https://www.better-auth.com/llms.txt
-- https://hono.dev/examples/better-auth-on-cloudflare
+- [docs/dev/README.md](docs/dev/README.md) — dev docs index, including all ADRs
+- biz: [data/access/matrix.md](https://github.com/joeblew999/remy-sport-biz/blob/main/data/access/matrix.md)
+  is the primary reference for who may do what
+- https://hono.dev/llms.txt · https://www.better-auth.com/llms.txt

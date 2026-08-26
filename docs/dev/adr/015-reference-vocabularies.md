@@ -1,6 +1,6 @@
 # ADR 015: Controlled vocabularies become tables, and Zod 4 arrives with them
 
-**Status:** Accepted (2026-08-24)
+**Status:** Accepted (2026-08-24) — **§3 and §4 overtaken.** The route files this ADR names (`src/routes/teams.ts`, `src/routes/*.ts`) became oRPC procedures under `src/api/` in `c4d326a`. More substantively, §4's conclusion — that the enums must stay hand-written at the boundary because `createInsertSchema` on a `TEXT` column yields `z.string()` — is true of the columns *as they were declared*, not of drizzle-zod. The columns now declare `text(…, { enum: … })` against the generated code tuples, which narrows `$inferSelect` to the literal union and makes `createInsertSchema` produce a real enum — so the vocabulary is enforced by the type system, and the four casts this ADR's approach required are gone. The *request* schemas in `src/domain/api.ts` are still hand-written, because `names` and the date regex are refinements no column expresses. §1, §2 and §5 stand unchanged; §2's foreign keys are still the only thing constraining the database itself.
 
 ## Context
 
