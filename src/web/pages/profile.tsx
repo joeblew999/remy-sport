@@ -3,7 +3,7 @@ import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
 
 export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
-  const { data: events = [], loading: eventsLoading } = useEvents({ limit: 4 });
+  const { data: events = [], isPending: eventsLoading } = useEvents({ limit: 4 });
   const feed = useFeed();
   const quickActions: [string, string, string][] = [
     ["+", "Create event", "Tournament, league, camp or showcase"],

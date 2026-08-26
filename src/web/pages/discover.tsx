@@ -18,7 +18,7 @@ export function DiscoverPage({ goto, spoiler }: DiscoverProps) {
   const [tab, setTab] = useState<Tab>("all");
   const [filterCity, setFilterCity] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<EventType | null>(null);
-  const { data, loading, error } = useEvents();
+  const { data, isPending, error } = useEvents();
   const allEvents = data ?? [];
 
   let events = allEvents;
@@ -111,9 +111,9 @@ export function DiscoverPage({ goto, spoiler }: DiscoverProps) {
             <div className="arrow"><Icon name="arrow"/></div>
           </button>
         ))}
-        {loading && <div className="empty">{m.loading_events()}</div>}
+        {isPending && <div className="empty">{m.loading_events()}</div>}
         {error && <div className="empty">Could not load events. Check your connection and retry.</div>}
-        {!loading && !error && events.length === 0 && (
+        {!isPending && !error && events.length === 0 && (
           <div className="empty">
             {allEvents.length === 0 ? "No events yet." : "No events match your filters."}
           </div>

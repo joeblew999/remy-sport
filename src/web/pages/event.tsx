@@ -16,8 +16,8 @@ interface EventProps {
 
 export function EventPage({ id, goto }: EventProps) {
   const { reference, name } = useLocale();
-  const { data: event, loading: eventLoading } = useEvent(id);
-  const { data: allEvents, loading: listLoading } = useEvents();
+  const { data: event, isPending: eventLoading } = useEvent(id);
+  const { data: allEvents, isPending: listLoading } = useEvents();
   const [tab, setTab] = useState<EventTab>("overview");
 
   // `#/event` with no id shows whichever event sorts first, as it always has.

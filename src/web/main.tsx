@@ -16,7 +16,6 @@ import { AcceptInvitationPage } from "./pages/accept-invitation";
 import { LoginPage } from "./pages/login";
 import { DevicesPage } from "./pages/devices";
 import { AdminPage } from "./pages/admin";
-import { SessionProvider } from "./lib/session";
 import { StandingsTable } from "./pages/event";
 import { m } from "./lib/i18n";
 
@@ -182,17 +181,15 @@ for (const { queryKey, data } of window.__QUERY_SEED__ ?? []) {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    {/* Session state wraps the whole app so any page can ask who is signed in
-        — ADR 008 step 4, and what makes the SPA and the harness comparable. */}
-    {/* Query owns fetch state, caching and dedup for every resource. */}
+    {/* One provider. Query owns fetch state, caching and dedup for every
+        resource — including who is signed in, which used to need a
+        SessionProvider of its own. */}
     <QueryClientProvider client={queryClient}>
-      <SessionProvider>
-        {/* Locale wraps the app for the same reason: every page renders names,
-            and the view models resolve them against the current locale. */}
-        <LocaleProvider>
-          <LocalisedApp/>
-        </LocaleProvider>
-      </SessionProvider>
+      {/* Locale wraps the app because every page renders names, and the view
+          models resolve them against the current locale. */}
+      <LocaleProvider>
+        <LocalisedApp/>
+      </LocaleProvider>
     </QueryClientProvider>
   </StrictMode>,
 );

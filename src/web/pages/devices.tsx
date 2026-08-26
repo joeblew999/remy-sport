@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "../lib/session";
+import { useDevices, useRevokeDevice } from "../lib/auth";
 import { toDevices, formatWhen, type Device, type RawSession } from "../lib/devices";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
@@ -17,71 +18,18 @@ import { m } from "../lib/i18n";
  */
 export function DevicesPage({ goto }: { goto: (r: Route) => void }) {
   const { user, loading: sessionLoading } = useSession();
-  const [devices, setDevices] = useState<Device[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
+  // One query, two mutations. This was ~60 lines: a `useState` for the list, a
+  // `useState` for the error, a `useState` for which row is busy, a `load`
+  // callback, a `useEffect` to call it, and each write re-running `load()` by
+  // hand. Invalidation does that now, from lib/auth.ts.
+  const q = useDevices();
+  const revokeDevice = useRevokeDevice();
+  const devices = q.data ? toDevices(q.data.sessions as RawSession[], q.data.currentToken) : null;
+  const error = q.error?.message ?? revokeDevice.error?.message ?? null;
+  const busy = revokeDevice.isPending ? (revokeDevice.variables ?? null) : null;
+  const revoke = (token: string) => revokeDevice.mutate(token);
+  const revokeOthers = () => revokeDevice.mutate("others");
 
-  const load = useCallback(async () => {
-    try {
-      const [listRes, currentRes] = await Promise.all([
-        fetch("/api/auth/list-sessions", { credentials: "include" }),
-        fetch("/api/auth/get-session", { credentials: "include" }),
-      ]);
-      if (!listRes.ok) {
-        setError("Could not load your sessions.");
-        return;
-      }
-      const sessions = (await listRes.json()) as RawSession[];
-      const current = currentRes.ok ? await currentRes.json() : null;
-      setDevices(toDevices(sessions, current?.session?.token ?? null));
-      setError(null);
-    } catch {
-      setError("Could not load your sessions.");
-    }
-  }, []);
-
-  useEffect(() => {
-    if (sessionLoading || !user) return;
-    void load();
-  }, [sessionLoading, user, load]);
-
-  async function revoke(token: string) {
-    setBusy(token);
-    try {
-      const res = await fetch("/api/auth/revoke-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ token }),
-      });
-      if (!res.ok) {
-        setError("Could not sign that device out.");
-        return;
-      }
-      await load();
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function revokeOthers() {
-    setBusy("others");
-    try {
-      const res = await fetch("/api/auth/revoke-other-sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: "{}",
-      });
-      if (!res.ok) {
-        setError("Could not sign the other devices out.");
-        return;
-      }
-      await load();
-    } finally {
-      setBusy(null);
-    }
-  }
 
   if (sessionLoading) return <div className="empty">{m.loading()}</div>;
 

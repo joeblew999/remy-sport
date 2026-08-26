@@ -17,8 +17,8 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
   // The sidebar's "My team" links to #/team with no id. Until the SPA knows who
   // is signed in (ADR 008 step 4) there is no "my", so it falls back to the
   // first team — the same fallback #/event uses.
-  const { data: team, loading: teamLoading } = useTeam(id);
-  const { data: allTeams, loading: listLoading } = useTeams();
+  const { data: team, isPending: teamLoading } = useTeam(id);
+  const { data: allTeams, isPending: listLoading } = useTeams();
   const roster = useRoster();
 
   const t = id ? team : allTeams?.[0];

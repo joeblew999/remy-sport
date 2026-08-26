@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useSession } from "../lib/session";
+import { useSession, useRefreshSession } from "../lib/session";
+import { useDevAccounts, useRequestCode, useVerifyCode, codeFromOutbox } from "../lib/auth";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
 
@@ -16,7 +17,7 @@ import { m } from "../lib/i18n";
  * in.
  */
 export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Route }) {
-  const { refresh } = useSession();
+  const refresh = useRefreshSession();
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState<"email" | "code">("email");

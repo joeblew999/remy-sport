@@ -1,4 +1,4 @@
-import { useSession } from "../lib/session";
+import { useSession, useSignOut } from "../lib/session";
 import type { Route } from "../lib/router";
 
 /**
@@ -13,7 +13,8 @@ import type { Route } from "../lib/router";
  * harness too — the two GUIs should not disagree about where "sign out" is.
  */
 export function Account({ goto }: { goto: (r: Route) => void }) {
-  const { user, loading, signOut } = useSession();
+  const { user, loading } = useSession();
+  const signOut = useSignOut();
 
   // Render nothing rather than a flash of "Sign in" that turns into a name a
   // moment later.
@@ -47,7 +48,7 @@ export function Account({ goto }: { goto: (r: Route) => void }) {
       <button className="btn" data-testid="topbar-devices" onClick={() => goto({ page: "devices" })}>
         Devices
       </button>
-      <button className="btn" data-testid="topbar-sign-out" onClick={() => void signOut()}>
+      <button className="btn" data-testid="topbar-sign-out" onClick={() => signOut.mutate()}>
         Sign out
       </button>
     </div>

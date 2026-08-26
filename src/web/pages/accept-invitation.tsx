@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Route } from "../lib/router";
-import { useSession } from "../lib/session";
+import { useSession, useSignOut, useRefreshSession } from "../lib/session";
+import { useAcceptInvitation } from "../lib/auth";
 import { m } from "../lib/i18n";
 
 /**
@@ -38,7 +39,9 @@ interface Invitation {
 type Phase = "loading" | "ready" | "accepted" | "error" | "wrong-account";
 
 export function AcceptInvitationPage({ id, goto }: { id?: string; goto: (r: Route) => void }) {
-  const { user, loading: sessionLoading, refresh, signOut } = useSession();
+  const { user, loading: sessionLoading } = useSession();
+  const refresh = useRefreshSession();
+  const signOut = useSignOut();
   const signedInAs = user?.email ?? null;
   const [phase, setPhase] = useState<Phase>("loading");
   const [invitation, setInvitation] = useState<Invitation | null>(null);
@@ -147,7 +150,7 @@ export function AcceptInvitationPage({ id, goto }: { id?: string; goto: (r: Rout
           {signedInAs ? `, and you are signed in as ${signedInAs}` : ""}. Sign in with the invited
           address to accept it.
         </p>
-        <button className="btn" data-testid="invitation-sign-out" onClick={signOut}>
+        <button className="btn" data-testid="invitation-sign-out" onClick={() => signOut.mutate()}>
           Sign out
         </button>
       </div>

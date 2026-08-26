@@ -23,6 +23,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, orpc } from "../lib/orpc";
+import { useAdminAction, useDevAccounts, useRequestCode, useVerifyCode, codeFromOutbox } from "../lib/auth";
 import { useSession } from "../lib/session";
 import type { Route } from "../lib/router";
 
@@ -53,13 +54,6 @@ interface Account {
   role?: string | null;
   banned?: boolean | null;
 }
-
-const json = (body: unknown) => ({
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  credentials: "include" as const,
-  body: JSON.stringify(body),
-});
 
 export function AdminPage({ goto }: { goto: (r: Route) => void }) {
   const { user, impersonatedBy, loading } = useSession();
@@ -100,21 +94,11 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
     },
   });
 
-  /** Every admin write reloads the session and the list; none of them navigate. */
-  const adminAction = useMutation({
-    mutationFn: async ({ path, body }: { path: string; body: unknown }) => {
-      const res = await fetch(`/api/auth/admin/${path}`, json(body));
-      if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { message?: string };
-        throw new Error(data.message || "That action was refused.");
-      }
-    },
-    onSuccess: () => {
-      setError(null);
-      window.location.reload();
-    },
-    onError: (e: Error) => setError(e.message),
-  });
+  // One definition, in lib/auth.ts, shared with every other admin write.
+  // Invalidating the session and the account list is its job, not this page's —
+  // so nothing here calls window.location.reload().
+  const adminAction = useAdminAction();
+  if (adminAction.error && !error) setError(adminAction.error.message);
 
   const deleteEvent = useMutation({
     mutationFn: (id: string) => api.events.delete({ id }),
@@ -384,45 +368,28 @@ function CreateEvent({ onError }: { onError: (m: string | null) => void }) {
  */
 function RoleSwitcher({ current }: { current: string }) {
   const [status, setStatus] = useState("");
-  const [actors, setActors] = useState<{ email: string; role: string; label: string }[]>([]);
-
-  useEffect(() => {
-    fetch("/api/dev/accounts")
-      .then((r) => (r.ok ? r.json() : { accounts: [] }))
-      .then((b: { accounts?: { email: string; role: string }[] }) =>
-        setActors(
-          (b.accounts ?? []).map((a) => ({
-            ...a,
-            label: a.role.charAt(0).toUpperCase() + a.role.slice(1),
-          })),
-        ),
-      )
-      .catch(() => setActors([]));
-  }, []);
+  const requestCode = useRequestCode();
+  const verifyCode = useVerifyCode();
+  // `useDevAccounts` 404s to an empty list off localhost, so this renders
+  // nothing there rather than branching on the environment.
+  const actors = (useDevAccounts().data ?? []).map((a) => ({
+    ...a,
+    label: a.role.charAt(0).toUpperCase() + a.role.slice(1),
+  }));
 
   const switchTo = async (email: string) => {
     try {
-      setStatus("Signing out…");
-      await fetch("/api/auth/sign-out", json({}));
       setStatus("Requesting a code…");
-      const sent = await fetch(
-        "/api/auth/email-otp/send-verification-otp",
-        json({ email, type: "sign-in" }),
-      );
-      if (!sent.ok) return setStatus("Could not request a code.");
+      await requestCode.mutateAsync(email);
 
-      const outbox = await fetch(`/api/dev/outbox?to=${encodeURIComponent(email)}`);
-      if (!outbox.ok) return setStatus("Local-only — no dev outbox on this deployment.");
-      const { messages } = (await outbox.json()) as { messages: { body: string }[] };
-      const code = (messages[0]?.body || "").match(/Your code is (\d{6})/);
-      if (!code) return setStatus("No code arrived.");
+      const otp = await codeFromOutbox(email);
+      if (!otp) return setStatus("Local-only — no dev outbox on this deployment.");
 
       setStatus("Signing in…");
-      const res = await fetch("/api/auth/sign-in/email-otp", json({ email, otp: code[1] }));
-      if (res.ok) window.location.reload();
-      else setStatus("Sign-in failed.");
-    } catch {
-      setStatus("Network error.");
+      await verifyCode.mutateAsync({ email, otp });
+      setStatus("");
+    } catch (e) {
+      setStatus((e as Error).message);
     }
   };
 
