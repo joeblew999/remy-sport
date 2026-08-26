@@ -2,7 +2,7 @@
 
 ## How to read this
 
-Each phase is a cohesive milestone. Features link back to the competitor sites that inspired them (provenance from [sites.md](sites.md)). When we're ready to build a phase, each major feature gets its own ADR.
+Each phase is a cohesive milestone. Features link back to the competitor sites that inspired them (provenance from sites.md). When we're ready to build a phase, each major feature gets its own ADR.
 
 **Site key:**
 - **EE** — [Exposure Events](https://basketball.exposureevents.com/youth-basketball-events)
@@ -18,8 +18,8 @@ Each phase is a cohesive milestone. Features link back to the competitor sites t
 | Feature | Status | ADR |
 |---|---|---|
 | Auth (email/password) | done | — |
-| Deploy pipeline with versioning | done | [001](adr/001-deployment-versioning.md) |
-| Seed users (admin + user) | done | [002](adr/002-seed-users.md) |
+| Deploy pipeline with versioning | done | 001 |
+| Seed users (admin + user) | done | 002 |
 | OpenAPI docs | done | — |
 | View layer (layout, home, login, versions) | done | — |
 
@@ -39,7 +39,6 @@ The core of the platform — every competitor has this.
 | Registration | EE, SS, BAS | Sign up teams/players for a tournament |
 
 **DB tables:** tournament, tournament_division, registration
-**ADR needed:** 004-tournaments
 
 ---
 
@@ -53,7 +52,6 @@ The core of the platform — every competitor has this.
 | Team finding | EE | Browse/search for teams seeking players |
 
 **DB tables:** team, player, team_player (join)
-**ADR needed:** 005-teams-players
 
 ---
 
@@ -66,7 +64,6 @@ The core of the platform — every competitor has this.
 | Court management | SS, BAS | Define courts, assign matches, track availability |
 | Consolation/back draw | SS | Losers bracket option |
 
-**ADR needed:** 006-scheduling-brackets
 
 ---
 
@@ -80,7 +77,6 @@ The core of the platform — every competitor has this.
 | Hide scores toggle | FIBA | Spoiler avoidance |
 | Historical results | SS, FIBA | Past tournament archive |
 
-**ADR needed:** 007-scoring-results
 
 ---
 
@@ -93,7 +89,6 @@ The core of the platform — every competitor has this.
 | Historical snapshots | FIBA | Rankings over time |
 | Player stats tracking | SS | Per-game and cumulative stats |
 
-**ADR needed:** 008-rankings
 
 ---
 
@@ -107,7 +102,6 @@ The core of the platform — every competitor has this.
 | Live streaming links | SS, BAS | YouTube/external stream embeds |
 | Court status board | SS | Which games are on which courts now |
 
-**ADR needed:** 009-live-realtime
 
 ---
 
@@ -119,7 +113,6 @@ The core of the platform — every competitor has this.
 | MCP proxy/bridge | — | Remote MCP without agent restart |
 | AI-assisted tournament ops | — | Create events, manage brackets via chat |
 
-**ADR:** none. A proposal existed and was deleted (ADR 020) — its premise was a Hono + zod-openapi API, and the API is oRPC. Needs writing fresh.
 
 ---
 

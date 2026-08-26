@@ -5,8 +5,7 @@
 **Only the traps live here.** Anything you can get from `mise tasks`, from the
 code, or from a ten-second grep has been deleted — prose rots and nothing checks
 it, and this file loads into every session, so a stale line here becomes wrong
-work rather than a confused reader. It has done exactly that twice
-([ADR 020](docs/dev/adr/020-keeping-the-map-honest.md)).
+work rather than a confused reader. It has done exactly that twice.
 
 What is left is the set of things that have already cost a real bug.
 
@@ -14,21 +13,24 @@ What is left is the set of things that have already cost a real bug.
 mise tasks                what you can run, and what each does
 mise run check            types + unit + worker + dead code + docs + these rules
 mise run test:tiers       where the tests are, and which are in the wrong tier
+mise run test:render      rendering tests, no Worker, no database
 mise run probe            typecheck a snippet against the real project (WEB=1 for the SPA)
-mise run followups        every open follow-up across the ADRs
 ```
 
-> **Unfinished: the test migration.** 71 Playwright tests, target ~23. The
+> **Unfinished: the test migration.** 47 Playwright tests left, ~1.1m. The
 > per-file plan is [docs/dev/test-migration.md](docs/dev/test-migration.md);
 > progress is `mise run test:tiers`. Do not optimise the runner — that was tried
-> for a whole session and stopped dead at 1.6m. The population is the problem.
+> for a whole session and stopped dead. The population is the problem: a test
+> asserting what the API returns belongs in `tests/worker/`, one asserting what
+> the UI renders belongs in `*-render.spec.ts` with the cache seeded, and only a
+> real round trip belongs in e2e.
 
 ## Companion repo
 
 [remy-sport-biz](https://github.com/joeblew999/remy-sport-biz) is the Product
 Owner's source of truth, cloned at `../remy-sport-biz/`.
 
-**biz wins unless there's an ADR here.** Schema changes go through biz first —
+**biz wins unless the code here says otherwise, with the reason in the commit.** Schema changes go through biz first —
 the canonical model is
 [data/seed/schema.md](https://github.com/joeblew999/remy-sport-biz/blob/main/data/seed/schema.md).
 
@@ -88,7 +90,7 @@ inverted relative to `trustedOrigins`.
 **There is one environment.** `--env staging` once existed while `wrangler.toml`
 declared no such environment; wrangler only *warns*, so it would have deployed a
 second worker bound to the **production** D1 and R2. A real staging environment
-needs its own database, secrets and migrations — give it an ADR, not a flag.
+needs its own database, secrets and migrations, not a flag.
 
 **The dev tasks pass `--host localhost` and must keep doing so.** With a
 `[[routes]]` block, plain `wrangler dev` simulates that route and every request
@@ -101,21 +103,25 @@ version drifted once and every sign-in 500'd the moment the schema became correc
 `useSession` does not refetch, so a page renders against whoever was signed in
 before. Any test that changes identity uses `gotoFresh()`.
 
-## ADRs
+## Don't write documents
 
-An ADR is a dated record of what someone believed, **not a measurement of what is
-true.** Read it for intent; never cite it as evidence about the tree. One commit
-invalidated the transport mechanism in four of them at once.
+The ADRs are deleted. Fourteen of them, ~2,500 lines, and by the end four
+described a transport that one commit had replaced, two described things that
+were never built, and the newest had gone stale within a day of being written
+about staleness. Git has them if anyone wants the archaeology.
 
-Before writing a "because X": **measure X this session** — `mise run probe` takes
-two seconds — or write "unverified". Check the **Status** line of anything you
-lean on; *Proposed* means nobody built it. When a grep says a file is unused, run
-`mise run check:dead` first.
+A decision inside one file is a **code comment** — it moves in the same diff and
+gets reviewed with it. A decision you can test is a **test** — it fails when it
+stops being true. A decision about how to run something is a **mise task**.
+Nothing else earns a file.
 
-Write **one** ADR and surface it before starting the next. Better still, don't: a
-decision inside one file is a code comment, and a decision you can test is a test.
+If you must record something that fits none of those, put it in the commit
+message: dated, immutable, attached to the diff it describes, and incapable of
+drifting from it.
 
-When an ADR is overtaken, update its **Status** to point forward. Do not rewrite it.
+Before writing "because X" anywhere: **measure X this session** — `mise run
+probe` takes two seconds — or write "unverified". When a grep says a file is
+unused, run `mise run check:dead` first.
 
 ## Conventions
 
@@ -133,7 +139,9 @@ When an ADR is overtaken, update its **Status** to point forward. Do not rewrite
 
 ## Further reading
 
-- [docs/dev/README.md](docs/dev/README.md) — ADR index
+There is almost none, on purpose.
+
 - [docs/dev/test-migration.md](docs/dev/test-migration.md) — the unfinished work
+- [docs/dev/roadmap.md](docs/dev/roadmap.md) — what is being built, in what order
 - biz [data/access/matrix.md](https://github.com/joeblew999/remy-sport-biz/blob/main/data/access/matrix.md)
   — who may do what
