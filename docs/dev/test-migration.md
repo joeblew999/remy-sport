@@ -74,29 +74,30 @@ to near zero.
   hand-written lines and the admin console added ~60 more. This is the remaining
   "not using it properly" and nothing has been done about it.
 
-## The worker tier's remaining cost, measured
+## Measured, so nobody repeats it
 
-`mise run test:worker` is ~5s for 56 tests that themselves take 1.6s. The gap is
-**~3s of workerd and Miniflare startup per test FILE** — measured directly with a
-file containing one `expect(1).toBe(1)`. Six files, ~18s.
+A worker test FILE costs **~3s of workerd and Miniflare startup** before a single
+assertion — measured with a file containing one `expect(1).toBe(1)`. That is the
+whole gap between `test:worker`'s 6s and its 1.4s of actual tests.
 
-Two things were tried and did not help, so do not repeat them:
+What worked:
 
-- **`isolatedStorage: false`** — no faster, and it loses per-file database
-  isolation. Reverted.
-- **Skipping the migration batch when the schema already exists** — no faster,
-  because the cost is not SQL. Reverted.
+- **Batching the 163 migration statements** into one `env.DB.batch()` instead of
+  `applyD1Migrations`'s sequential walk. Setup 43s → 19s.
+- **Merging six worker files into two.** Setup 19s → 7.5s. The first attempt
+  looked like it lost half the suite; it had not — the merged file failed to
+  *parse*, because three sources each declared `const ADMIN = actorFor("ADMIN")`,
+  and vitest reported only the file that loaded. Hoist shared consts, and check
+  `Tests N passed` after every merge.
 
-Batching the 163 migration statements into one `env.DB.batch()` instead of
-`applyD1Migrations`'s sequential walk **did** help: setup 43s → 19s.
+What did not, so do not try again:
 
-**The only remaining lever is fewer files.** Merging six into two took setup to
-7.3s — but the merge silently lost half the tests (52 `it()` in the files, 26
-reported by vitest) and was reverted rather than shipped. Redo it carefully, one
-file at a time, checking `Tests N passed` after each move.
+- **`isolatedStorage: false`** — no faster, and it loses per-file isolation.
+- **Guarding the migration batch** on the schema already existing — no faster,
+  because the cost is not SQL.
+- **A committed `snapshot.sql`** of the seeded database — `/api/seed` costs 99ms,
+  so it solved nothing, and a generated dump is exactly the drifting artifact
+  this repo keeps deleting.
 
-## And the render tier
-
-15s, for 15 tests that make no network call at all. Almost all of it is `vite
-preview` starting. A prebuilt static server reused across runs, or Playwright's
-`reuseExistingServer` with a long-lived preview, would take this to near zero.
+The render tier's 18s is nearly all `vite preview` starting. A long-lived preview
+with `reuseExistingServer` would take it near zero. That is the next lever.
