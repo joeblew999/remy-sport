@@ -28,15 +28,16 @@ Update it when you finish something; delete the line when it is done.
    largest remaining source of per-page boilerplate and nothing has been done
    about it.
 2. **Org-as-tenant: this repo built what biz rejected. Resolve it before
-   building more on either.** Decision 17 in biz `data/seed/schema.md` rejected
+   building more on either.** Decision 17 in biz [data/seed/schema.md](https://github.com/joeblew999/remy-sport-biz/blob/main/data/seed/schema.md) rejected
    first-class org-as-tenant — "no `ORG_ADMIN`/`ORG_MEMBER` relations" — and
-   `data/access/matrix.md` has no org relation at all; every write is scoped
+   [data/access/matrix.md](https://github.com/joeblew999/remy-sport-biz/blob/main/data/access/matrix.md)
+   has no org relation at all; every write is scoped
    user↔event (`events.organizer_user_id`, `event_co_organizers`) or user↔team
    (`team_coaches`). This repo shipped the organization plugin, a `member`
    table, org roles and a working invitation flow, and gates team writes on
    `requireOrgMember`. Three concrete divergences follow:
 
-   | Action | matrix.md grants | [`src/api/teams.ts`](src/api/teams.ts) requires |
+   | Action | the matrix grants | [`src/api/teams.ts`](src/api/teams.ts) requires |
    |---|---|---|
    | `CREATE_TEAM` | `PLATFORM_ADMIN`, `ANY_COACH` | + org membership |
    | `EDIT_TEAM_PROFILE` | `HEAD_COACH`, `TEAM_MANAGER` *of that team* | any org member |
