@@ -32,15 +32,7 @@ Update it when you finish something; delete the line when it is done.
    school, because biz `data/seed/relationships/` models rosters, guardians and
    follows but not org membership. It belongs upstream; when biz grows a
    membership file, read it.
-3. **`mise run deploy` cannot finish green.** Its last step, `test:deployed`,
-   runs the suite against the deployed Worker, which needs `TEST_OTP` both as
-   a local env var and as a Worker secret — and no task provisions either, so
-   the pipeline always ends red even when the deploy itself succeeded. Setting
-   it puts a fixed sign-in code for the seeded addresses on a public site, so
-   it is a deliberate pre-launch trade-off, not something to wire in silently.
-   Decide: provision it while there are no real users, or drop `test:deployed`
-   from the pipeline and verify another way.
-4. **Several specs still sign in when they only need to *be* someone** —
+3. **Several specs still sign in when they only need to *be* someone** —
    `accept-invitation`, `organization`, `invitations`. Each live sign-in is a
    chance to collide with another spec on the same address (see the trap
    below). They should load `stateFor(...)` like the two that now do.
@@ -73,6 +65,12 @@ the canonical model is
 [data/seed/schema.md](https://github.com/joeblew999/remy-sport-biz/blob/main/data/seed/schema.md).
 
 ## Traps
+
+**Never set `TEST_OTP` on a deployed Worker.** It makes `generateOTP` return a
+constant for every address the fixtures seed, so the admin account's sign-in
+code becomes public knowledge. It is a local-dev value. `mise run deploy` ends
+with [`cf:smoke`](scripts/smoke.ts), which verifies a deployment without one;
+`test:deployed` needs it and is deliberately out of the pipeline.
 
 **Never pass the platform `ac`/`roles` to a Better Auth plugin.** Custom roles
 *replace* the plugin's own. Broken twice: `organization()` made `"owner"` — the

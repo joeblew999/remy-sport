@@ -26,14 +26,21 @@ const DEFAULTS: Record<string, () => string> = {
   // the Playwright suite capture mail into the mail_outbox table instead of
   // handing it to Cloudflare — see src/mail/mailer.ts.
   MAIL_TRANSPORT: () => "outbox",
-  // Fixed sign-in code for the seeded @remy.dev actors (ADR 012).
+  // Fixed sign-in code for the addresses the fixtures seed.
   //
-  // Not a convenience: the Playwright suite is fullyParallel and the actors are
-  // shared, so two tests requesting a code for coach@remy.dev race — Better
-  // Auth rotates the code on each request, so the first test's code is dead
-  // before it is used. A fixed code for those six accounts removes the race
-  // entirely. Real addresses still get random codes, and one spec still proves
-  // the genuine emailed-code path end to end.
+  // It does NOT make parallel sign-in safe, whatever this comment used to say.
+  // The code value stops rotating, but Better Auth still writes and consumes a
+  // verification row per request, so two tests signing in as the same person
+  // still invalidate each other and the loser gets INVALID_OTP. That cost 4
+  // failed runs in 5 until authz.spec.ts stopped signing in at all.
+  //
+  // What it actually buys is not needing to read the outbox for every sign-in.
+  // Specs that only need to *be* someone must load `stateFor(...)` — see the
+  // trap in AGENTS.md.
+  //
+  // Local only. Setting it on a deployed Worker makes the admin account's
+  // sign-in code a constant on a public site; that is why cf:smoke, not
+  // test:deployed, verifies a deploy.
   TEST_OTP: () => "424242",
 }
 

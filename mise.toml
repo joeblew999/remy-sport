@@ -642,7 +642,7 @@ mise run cf:deploy
 mise run cf:secret:set
 mise run cf:wait
 mise run seed:remote
-mise run test:deployed
+mise run cf:smoke
 """
 
 # ── Remote / test variants ───────────────────────────────────────────────────
@@ -654,10 +654,22 @@ description = "Dev server against remote Cloudflare resources"
 depends     = ["install", "web:build"]
 run         = "bun x wrangler dev --remote --host localhost"
 
+[tasks."cf:smoke"]
+description = "Verify the deployed Worker — read-only, plus one write that must be a no-op"
+depends     = ["install"]
+# What `deploy` ends with, instead of test:deployed. See scripts/smoke.ts for
+# why pointing the whole suite at production was both unrunnable and a bad idea.
+run = "bun scripts/smoke.ts"
+
 [tasks."test:deployed"]
-description = "Run Playwright tests against deployed worker"
+description = "Run the Playwright suite against the deployed Worker (needs TEST_OTP; NOT part of deploy)"
 env         = { BASE_URL = "{{env.CF_DEPLOY_URL}}" }
-run         = "bun x playwright test"
+# Deliberately not in the deploy pipeline. It requires TEST_OTP as a Worker
+# secret, which makes the sign-in code for every seeded address a constant on a
+# public site, and it writes as it runs — the `hook-*@remy.dev` accounts in the
+# deployed database came from previous runs of this. `mise run cf:smoke` is what
+# verifies a deploy. Keep this for deliberate, pre-launch use only.
+run = "bun x playwright test"
 
 [tasks."test:grep"]
 description = "Run only tests whose title matches GREP (unset GREP runs everything)"
