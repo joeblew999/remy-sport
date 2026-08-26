@@ -20,13 +20,17 @@ import { drizzle } from "drizzle-orm/d1"
 import { eq } from "drizzle-orm"
 import * as schema from "../db/schema"
 import { roles } from "../auth/access-control"
+import { createAuth } from "../auth"
 import { orgRoleFor, rankOf, type OrgRole } from "../middleware/require-org-member"
 import type { Bindings } from "../types"
 
 export interface ApiContext {
   env: Bindings
-  user: { id: string; name?: string | null; role?: string | null } | null
+  /** The raw request. `authed` resolves the session from its headers. */
+  request: Request
 }
+
+export type SessionUser = { id: string; name?: string | null; role?: string | null }
 
 export type Db = ReturnType<typeof database>
 export const database = (env: Bindings) => drizzle(env.DB, { schema })
@@ -58,15 +62,31 @@ export const pub = base.use(async ({ context, next }) =>
   next({ context: { ...context, db: database(context.env) } }),
 )
 
-/** Signed in. 401 rather than 403: the caller may simply not have logged in. */
+/**
+ * Signed in — and this is where the session is actually resolved.
+ *
+ * `auth.api.getSession({ headers })` is called here rather than in a Hono
+ * middleware mounted on `*`. That old arrangement asked D1 for a session on
+ * every request the Worker saw, including each hashed JS and CSS bundle falling
+ * through to the asset store. Resolving it inside the one base builder that
+ * needs it means a public read costs nothing, and `session.cookieCache`
+ * (auth.config.ts) collapses the repeats within a page load.
+ *
+ * 401 rather than 403: the caller may simply not have logged in.
+ */
 export const authed = pub.use(async ({ context, next }) => {
-  if (!context.user) throw new ORPCError("UNAUTHORIZED", { message: "Unauthorized" })
-  return next({ context: { ...context, user: context.user } })
+  const auth = createAuth({ env: context.env, req: { url: context.request.url } })
+  const session = await auth.api.getSession({ headers: context.request.headers })
+  const user = session?.user as SessionUser | undefined
+  if (!user) throw new ORPCError("UNAUTHORIZED", { message: "Unauthorized" })
+  return next({ context: { ...context, user } })
 })
 
 /** Platform-wide: may this actor type touch this resource at all? */
 export function requirePermission(resource: string, action: string) {
-  return base.middleware(async ({ context, next }) => {
+  return base
+    .$context<ApiContext & { user: SessionUser }>()
+    .middleware(async ({ context, next }) => {
     const role = (context.user?.role || "user") as keyof typeof roles
     const definition = roles[role]
     if (!definition) throw new ORPCError("FORBIDDEN", { message: "Forbidden" })
@@ -90,7 +110,9 @@ export function requireOrgMember<TInput>(
   orgIdFrom: (input: TInput, db: Db) => Promise<string | null> | string | null,
   minRole: OrgRole = "member",
 ) {
-  return base.middleware(async ({ context, next }, input: unknown) => {
+  return base
+    .$context<ApiContext & { user: SessionUser }>()
+    .middleware(async ({ context, next }, input: unknown) => {
     const db = database(context.env)
     const orgId = await orgIdFrom(input as TInput, db)
     if (!orgId) throw new ORPCError("NOT_FOUND", { message: "Not found" })
@@ -119,7 +141,9 @@ export const orgOfTeam = async (input: { id: string }, db: Db) => {
 
 /** Ownership of an event, by its creator. */
 export function requireOwner() {
-  return base.middleware(async ({ context, next }, input: unknown) => {
+  return base
+    .$context<ApiContext & { user: SessionUser }>()
+    .middleware(async ({ context, next }, input: unknown) => {
     const { id } = input as { id: string }
     const db = database(context.env)
     const row = await db

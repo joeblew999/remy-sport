@@ -1,23 +1,28 @@
 import { test, expect } from "@playwright/test"
 
-test.describe("Home page", () => {
-  test("renders home page with title", async ({ page }) => {
+test.describe("The root serves the one GUI", () => {
+  // These replace three tests against the server-rendered home page that ADR
+  // 020 deleted. The interesting assertion is no longer "does the marketing
+  // copy render" but "does `/` serve the SPA at all" — `not_found_handling` is
+  // "none" in wrangler.toml, so a missing route here is a 404, not a fallback.
+  test("/ serves the SPA document", async ({ page }) => {
     await page.goto("/")
-    await expect(page.locator("h1")).toHaveText("Remy Sport")
+    await expect(page.locator("#root")).toBeAttached()
   })
 
-  test("has sign in link", async ({ page }) => {
-    await page.goto("/")
-    const signIn = page.locator('a[href="/login"]')
-    await expect(signIn).toBeVisible()
+  test("the deleted harness paths are gone, not redirected", async ({ page }) => {
+    // No aliases for /app, /login or /dashboard. There are no users, so nothing
+    // holds a link to them, and a redirect kept "just in case" is how two URLs
+    // for one page become permanent.
+    for (const path of ["/app", "/dashboard"]) {
+      const res = await page.goto(path)
+      expect(res?.status(), `${path} should not resolve`).toBe(404)
+    }
   })
 
-  test("offers no separate create-account route", async ({ page }) => {
-    await page.goto("/")
-    // Passwordless sign-in creates the account, so a second call to action
-    // would send people down a path that no longer differs (ADR 012).
-    await expect(page.locator('a[href="/login?mode=signup"]')).toHaveCount(0)
-    await expect(page.locator('a[href="/login"]')).toBeVisible()
+  test("a deep link resolves client-side rather than 404ing", async ({ page }) => {
+    await page.goto("/#/admin")
+    await expect(page.locator("#root")).toBeAttached()
   })
 })
 

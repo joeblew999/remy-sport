@@ -59,13 +59,13 @@ test.describe("Localisation", () => {
   })
 
   test("the switcher renders one button per declared locale", async ({ page }) => {
-    await page.goto("/app")
+    await page.goto("/")
     const buttons = page.locator(".lang-switch button")
     await expect(buttons).toHaveCount(LOCALES.length)
   })
 
   test("switching to Thai translates the chrome AND the data together", async ({ page }) => {
-    await page.goto("/app")
+    await page.goto("/")
     await expect(page.locator(".page-header h1")).toHaveText(m.discover_heading({}, { locale: "en" }))
 
     await page.locator(".lang-switch button", { hasText: "TH" }).click()
@@ -85,7 +85,7 @@ test.describe("Localisation", () => {
   })
 
   test("the choice survives a reload", async ({ page }) => {
-    await page.goto("/app")
+    await page.goto("/")
     await page.locator(".lang-switch button", { hasText: "TH" }).click()
     await expect(page.locator(".page-header h1")).toHaveText(
       m.discover_heading({}, { locale: "th" }),
@@ -103,7 +103,7 @@ test.describe("Localisation", () => {
     // The label index is seeded from the compiled vocabularies so the first
     // paint is already right. Before that, a page rendered `CHIANG_MAI` for as
     // long as /api/reference took — a database code, shown to a reader.
-    await page.goto("/app")
+    await page.goto("/")
     await expect(page.locator(".event-row").first()).toBeVisible()
     const body = (await page.locator(".main").textContent()) ?? ""
     // Codes that could not be mistaken for prose: BANGKOK collides with the

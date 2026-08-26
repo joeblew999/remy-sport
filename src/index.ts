@@ -3,10 +3,7 @@ import { swaggerUI } from "@hono/swagger-ui"
 import { cors } from "hono/cors"
 import { logger } from "hono/logger"
 import { csrf } from "hono/csrf"
-import { sessionMiddleware } from "./middleware/session"
 import authRoutes from "./routes/auth"
-import homeRoutes from "./routes/home"
-import loginRoutes from "./routes/login"
 import seedRoutes from "./routes/seed"
 import { RPCHandler } from "@orpc/server/fetch"
 import { OpenAPIHandler } from "@orpc/openapi/fetch"
@@ -15,7 +12,6 @@ import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4"
 import { router } from "./api"
 import devMailRoutes from "./routes/dev-mail"
 import devSessionRoutes from "./routes/dev-sessions"
-import dashboardRoutes from "./routes/dashboard"
 import wellKnownRoutes from "./routes/well-known"
 import type { AppEnv } from "./types"
 
@@ -30,8 +26,10 @@ app.use(logger())
 // [assets] block in wrangler.toml) and therefore needs no CORS at all.
 app.use("/api/*", cors({ origin: "*" }))
 
-// Session middleware — resolves session before all routes
-app.use("*", sessionMiddleware)
+// No global session middleware. It used to be mounted on "*", so every request
+// the Worker saw — including each hashed JS and CSS bundle falling through to
+// the asset store — cost a D1 session lookup. `authed` in src/api/base.ts
+// resolves the session where it is actually needed.
 
 // API routes registered before CSRF — called via curl/scripts/tests
 app.route("/", seedRoutes)
@@ -49,9 +47,9 @@ const rpc = new RPCHandler(router)
 app.use("/api/*", async (c, next) => {
   const { matched, response } = await api.handle(c.req.raw, {
     prefix: "/api",
-    // The session middleware has already resolved the user; oRPC middleware
-    // reads it from here (see src/api/base.ts).
-    context: { env: c.env, user: c.get("user") ?? null },
+    // Headers, not a resolved user: `authed` in src/api/base.ts asks Better
+    // Auth for the session, so a public read never touches D1 for one.
+    context: { env: c.env, request: c.req.raw },
   })
   return matched ? response : next()
 })
@@ -59,7 +57,7 @@ app.use("/api/*", async (c, next) => {
 app.use("/rpc/*", async (c, next) => {
   const { matched, response } = await rpc.handle(c.req.raw, {
     prefix: "/rpc",
-    context: { env: c.env, user: c.get("user") ?? null },
+    context: { env: c.env, request: c.req.raw },
   })
   return matched ? response : next()
 })
@@ -76,9 +74,17 @@ app.use(csrf())
 
 // Browser routes (CSRF protected)
 app.route("/", authRoutes)
-app.route("/", homeRoutes)
-app.route("/", loginRoutes)
-app.route("/", dashboardRoutes)
+
+// Version metadata, read by the SPA. Lived in routes/home.ts until ADR 020
+// deleted the server-rendered harness around it.
+app.get("/api/versions", async (c) => {
+  try {
+    const versions = await import("../versions.json")
+    return c.json(versions.default ?? versions)
+  } catch {
+    return c.json({ error: "versions.json not found — run: mise run versions" }, 404)
+  }
+})
 
 // OpenAPI spec at /openapi.json, generated from the same router that serves
 // the requests — the document cannot describe an endpoint that does not exist.
@@ -124,13 +130,23 @@ app.get("/openapi.json", async (c) =>
 // Swagger UI at /doc
 app.get("/doc", swaggerUI({ url: "/openapi.json" }))
 
-// ── SPA (src/web) ───────────────────────────────────────────────────────────
-// Served from this Worker at /app so the GUI and API share one origin.
-// The SPA uses hash routing (#/event/e1), so every deep link resolves to
-// /app itself — no server-side rewrite table needed.
-app.get("/app", (c) =>
-  c.env.ASSETS.fetch(new Request(new URL("/index.html", c.req.url), c.req.raw)),
-)
+// ── The GUI (src/web) ───────────────────────────────────────────────────────
+// One GUI, served at the root (ADR 020). It used to live at /app while `/`,
+// /login and /dashboard were a second, server-rendered one; that harness is
+// gone and there is no reason for the product to sit on a sub-path.
+//
+// No aliases for the old paths. There are no users, so nothing is holding a
+// link to /app or /dashboard, and a redirect kept "just in case" is how two
+// URLs for one page become permanent.
+//
+// Hash routing (#/event/e1) means every deep link resolves to this document,
+// so no server-side rewrite table is needed. `not_found_handling = "none"` in
+// wrangler.toml is why `/` must be handled here rather than falling through to
+// the asset store.
+const spa = (c: { env: { ASSETS: Fetcher }; req: { url: string; raw: Request } }) =>
+  c.env.ASSETS.fetch(new Request(new URL("/index.html", c.req.url), c.req.raw))
+
+app.get("/", spa)
 
 // Hashed JS/CSS bundles and any other static file.
 app.all("*", (c) => c.env.ASSETS.fetch(c.req.raw))

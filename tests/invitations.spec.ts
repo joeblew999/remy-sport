@@ -73,7 +73,7 @@ test.describe("Organization invitations send mail", () => {
     const [message] = await outboxFor(request, invitee)
     // The whole point of the mail: without the right id the link is useless.
     expect(message!.body).toContain(invitation.id)
-    expect(message!.body).toContain(`/app#/accept-invitation/${invitation.id}`)
+    expect(message!.body).toContain(`/#/accept-invitation/${invitation.id}`)
     await cleanup()
   })
 
@@ -85,7 +85,7 @@ test.describe("Organization invitations send mail", () => {
     // An email outlives the request that sent it. Building the link from the
     // request origin would bake localhost — or the http:// host wrangler
     // rewrites to locally — into someone's inbox.
-    expect(message!.body).toContain("https://remy.ubuntusoftware.net/app#/accept-invitation/")
+    expect(message!.body).toContain("https://remy.ubuntusoftware.net/#/accept-invitation/")
     expect(message!.body).not.toContain("localhost")
     await cleanup()
   })

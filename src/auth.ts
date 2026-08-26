@@ -4,7 +4,7 @@ import { SEED_ENTITIES } from "./db/seed-data"
 import { drizzle } from "drizzle-orm/d1"
 import { eq } from "drizzle-orm"
 import type { Context } from "hono"
-import type { AppEnv } from "./types"
+import type { AppEnv, Bindings } from "./types"
 import { buildAuthOptions } from "./auth.config"
 import { mailerFor } from "./mail/mailer"
 import * as schema from "./db/schema"
@@ -14,7 +14,17 @@ const SEEDED_EMAILS: ReadonlySet<string> = new Set<string>(
   SEED_ENTITIES.users.map((u) => u.email),
 )
 
-export function createAuth(c: Context<AppEnv>) {
+/**
+ * Structurally typed, not `Context<AppEnv>`.
+ *
+ * It only ever reads `env` and `req.url` (verified against the body below), and
+ * oRPC procedures have no Hono context to hand it — `authed` in
+ * src/api/base.ts resolves the session from the raw Request. Narrowing the
+ * parameter to what is actually used lets both callers pass what they have.
+ */
+export type AuthHost = { env: Bindings; req: { url: string } }
+
+export function createAuth(c: AuthHost) {
   const db = drizzle(c.env.DB, { schema })
 
   // Trust the origin the request actually arrived on, rather than a hardcoded
@@ -55,7 +65,7 @@ export function createAuth(c: Context<AppEnv>) {
         // into someone's inbox. The canonical URL is the only safe choice here,
         // which is the opposite of the right answer for trustedOrigins below.
         const base = c.env.BETTER_AUTH_URL ?? requestOrigin
-        const url = `${base}/app#/accept-invitation/${id}`
+        const url = `${base}/#/accept-invitation/${id}`
         const invitedBy = inviter.user.name || inviter.user.email
         await mailer.send({
           to: email,

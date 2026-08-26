@@ -49,39 +49,39 @@ test.describe("Teams API", () => {
 
 test.describe("SPA team page", () => {
   test("reads the team id from its own route", async ({ page }) => {
-    await page.goto("/app#/team/team_002")
+    await page.goto("/#/team/team_002")
     await expect(page.getByTestId("team-name")).toHaveText("Triam Udom U18 Girls")
     await expect(page.locator(".team-hero")).toContainText("Triam Udom Suksa School")
     await expect(page.locator(".team-hero")).toContainText("U18 Girls")
   })
 
   test("a different id renders a different team", async ({ page }) => {
-    await page.goto("/app#/team/team_003")
+    await page.goto("/#/team/team_003")
     await expect(page.getByTestId("team-name")).toHaveText("Montfort U16 Boys")
     await expect(page.locator(".team-hero")).toContainText("Chiang Mai")
   })
 
   test("no id falls back to the first team rather than a hardcoded one", async ({ page }) => {
-    await page.goto("/app#/team")
+    await page.goto("/#/team")
     // The old page always said "Saint Gabriel's College", which was never in D1.
     await expect(page.getByTestId("team-name")).not.toHaveText("Saint Gabriel's College")
     await expect(page.getByTestId("team-name")).toContainText("Assumption College")
   })
 
   test("a deep-link to a missing team says so", async ({ page }) => {
-    await page.goto("/app#/team/team_does_not_exist")
+    await page.goto("/#/team/team_does_not_exist")
     await expect(page.locator(".empty")).toContainText("does not exist")
   })
 
   test("record shows a placeholder, not an invented win-loss", async ({ page }) => {
-    await page.goto("/app#/team/team_002")
+    await page.goto("/#/team/team_002")
     // No games table exists yet, so "4–0" must not reappear as if it were real.
     await expect(page.locator(".team-hero")).toContainText("RECORD")
     await expect(page.locator(".team-hero")).not.toContainText("4–0")
   })
 
   test("fixture-backed sections are labelled as sample data", async ({ page }) => {
-    await page.goto("/app#/team/team_002")
+    await page.goto("/#/team/team_002")
     // Roster and schedule still come from src/web/data.ts. Sitting under a real
     // team, they need to say so.
     await expect(page.locator(".section-h", { hasText: "Roster" })).toContainText("SAMPLE DATA")

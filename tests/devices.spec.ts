@@ -10,13 +10,13 @@ test.describe("Devices — where you're signed in", () => {
   test.skip(!IS_LOCAL, "signing in needs the fixed dev code")
 
   test("signed out, the page asks you to sign in rather than erroring", async ({ page }) => {
-    await page.goto("/app#/devices")
+    await page.goto("/#/devices")
     await expect(page.getByTestId("devices-signed-out")).toBeVisible()
   })
 
   test("the current session is listed and marked, and cannot be revoked by accident", async ({ page }) => {
     await signInThroughLoginForm(page, COACH)
-    await page.goto("/app#/devices")
+    await page.goto("/#/devices")
     await expect(page.getByTestId("devices-list")).toBeVisible()
     await expect(page.getByTestId("device-current")).toBeVisible()
 
@@ -38,7 +38,7 @@ test.describe("Devices — where you're signed in", () => {
     expect(before.length).toBeGreaterThan(0)
 
     await signInThroughLoginForm(page, REFEREE)
-    await page.goto("/app#/devices")
+    await page.goto("/#/devices")
     await expect(page.getByTestId("devices-list")).toBeVisible()
 
     const revokeButtons = page.locator('[data-testid^="revoke-"]')
@@ -54,7 +54,7 @@ test.describe("Devices — where you're signed in", () => {
   test("sign out all other devices leaves exactly the current one", async ({ page, request }) => {
     await signIn(request, COACH)
     await signInThroughLoginForm(page, COACH)
-    await page.goto("/app#/devices")
+    await page.goto("/#/devices")
     await expect(page.getByTestId("devices-list")).toBeVisible()
 
     const others = page.getByTestId("revoke-others")
@@ -67,7 +67,7 @@ test.describe("Devices — where you're signed in", () => {
 
   test("the topbar links to it — a security screen nobody can find is not a feature", async ({ page }) => {
     await signInThroughLoginForm(page, COACH)
-    await page.goto("/app")
+    await page.goto("/")
     await page.getByTestId("topbar-devices").click()
     await expect(page.getByTestId("devices-page")).toBeVisible()
   })

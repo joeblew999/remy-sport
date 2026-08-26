@@ -11,7 +11,7 @@ test.describe.serial("Admin console", () => {
     // Before ADR 013 this endpoint answered "You are not allowed to list users"
     // for the one account that is supposed to be allowed.
     await signInThroughLoginForm(page, ADMIN)
-    await page.goto("/dashboard")
+    await page.goto("/#/admin")
     await expect(page.getByTestId("admin-console")).toBeVisible()
     await expect(page.getByTestId(`account-row-${COACH}`)).toBeVisible()
     await expect(page.getByTestId(`account-row-${ORGANIZER}`)).toBeVisible()
@@ -19,14 +19,14 @@ test.describe.serial("Admin console", () => {
 
   test("a non-admin sees no console at all", async ({ page }) => {
     await signInThroughLoginForm(page, COACH)
-    await page.goto("/dashboard")
+    await page.goto("/#/admin")
     await expect(page.getByTestId("role-badge")).toHaveText("coach")
     await expect(page.getByTestId("admin-console")).toHaveCount(0)
   })
 
   test("impersonation keeps the admin identity underneath", async ({ page }) => {
     await signInThroughLoginForm(page, ADMIN)
-    await page.goto("/dashboard")
+    await page.goto("/#/admin")
     await page.getByTestId(`impersonate-${COACH}`).click()
 
     // Now viewing as the coach…
@@ -49,7 +49,7 @@ test.describe.serial("Admin console", () => {
     // Self-contained: the `page` fixture is per-test even inside describe.serial,
     // so this cannot lean on the impersonation the previous test started.
     await signInThroughLoginForm(page, ADMIN)
-    await page.goto("/dashboard")
+    await page.goto("/#/admin")
     await page.getByTestId(`impersonate-${COACH}`).click()
     await expect(page.getByTestId("impersonation-banner")).toBeVisible()
     await page.getByTestId("stop-impersonating").click()
@@ -59,7 +59,7 @@ test.describe.serial("Admin console", () => {
 
   test("an admin can change someone's role, and it sticks", async ({ page }) => {
     await signInThroughLoginForm(page, ADMIN)
-    await page.goto("/dashboard")
+    await page.goto("/#/admin")
     await page.getByTestId(`role-select-${PLAYER}`).selectOption("referee")
     await expect(page.getByTestId(`role-select-${PLAYER}`)).toHaveValue("referee", { timeout: 15000 })
 
@@ -71,7 +71,7 @@ test.describe.serial("Admin console", () => {
 
   test("banning is reflected in the list, and reversible", async ({ page }) => {
     await signInThroughLoginForm(page, ADMIN)
-    await page.goto("/dashboard")
+    await page.goto("/#/admin")
     await page.getByTestId(`ban-${PLAYER}`).click()
     await expect(page.getByTestId(`banned-${PLAYER}`)).toBeVisible({ timeout: 15000 })
 

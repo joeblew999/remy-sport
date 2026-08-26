@@ -15,6 +15,7 @@ import { ProfilePage } from "./pages/profile";
 import { AcceptInvitationPage } from "./pages/accept-invitation";
 import { LoginPage } from "./pages/login";
 import { DevicesPage } from "./pages/devices";
+import { AdminPage } from "./pages/admin";
 import { SessionProvider } from "./lib/session";
 import { StandingsTable } from "./pages/event";
 import { m } from "./lib/i18n";
@@ -99,6 +100,7 @@ function App() {
             {route.page === "accept-invitation" && <AcceptInvitationPage id={route.id} goto={goto}/>}
             {route.page === "login" && <LoginPage goto={goto}/>}
             {route.page === "devices" && <DevicesPage goto={goto}/>}
+            {route.page === "admin" && <AdminPage goto={goto}/>}
             {route.page === "standings" && (
               <>
                 <div className="page-header">

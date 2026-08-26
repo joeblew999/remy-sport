@@ -65,29 +65,3 @@ export async function orgRoleFor(
  * plain member. Platform admins bypass the check — they are the break-glass
  * role and are not members of every school.
  */
-export function requireOrgMember(
-  orgIdFrom: (c: Parameters<Parameters<typeof createMiddleware<AppEnv>>[0]>[0]) => Promise<string | null> | string | null,
-  minRole: OrgRole = "member",
-) {
-  return createMiddleware<AppEnv>(async (c, next) => {
-    const user = c.get("user")
-    if (!user) return c.json({ error: "Unauthorized" }, 401)
-
-    const orgId = await orgIdFrom(c)
-    // A null org id means the target object does not exist. 404 rather than
-    // 403: saying "forbidden" for a missing id tells an anonymous caller which
-    // ids are real.
-    if (!orgId) return c.json({ error: "Not found" }, 404)
-
-    if ((user as { role?: string }).role === "admin") return next()
-
-    const role = await orgRoleFor(c.env, user.id, orgId)
-    if (!role) return c.json({ error: "Not a member of this organization" }, 403)
-    if (rankOf(role) > rankOf(minRole)) {
-      return c.json({ error: `Requires ${minRole} in this organization` }, 403)
-    }
-
-    c.set("orgRole", role)
-    await next()
-  })
-}

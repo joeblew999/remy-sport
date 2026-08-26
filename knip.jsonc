@@ -41,7 +41,9 @@
 
   // Invoked as binaries by mise tasks, never imported. `auth` is the Better
   // Auth CLI — see AGENTS.md on why it versions in lockstep with core.
-  "ignoreDependencies": ["auth", "vite", "wrangler", "@tauri-apps/cli"],
+  // `cloudflare:test` is a virtual module the workers pool injects at runtime,
+  // not a package — knip sees the `cloudflare` specifier and calls it unlisted.
+  "ignoreDependencies": ["auth", "vite", "wrangler", "@tauri-apps/cli", "cloudflare"],
 
   // mise is the task runner itself; scripts/cf-ensure.ts shells out to it.
   "ignoreBinaries": ["mise"]

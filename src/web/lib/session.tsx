@@ -23,6 +23,15 @@ export interface SessionUser {
 interface SessionState {
   user: SessionUser | null;
   activeOrganizationId: string | null;
+  /**
+   * Set only while an admin is viewing the platform as someone else.
+   *
+   * Better Auth's impersonation keeps the admin's own session underneath and
+   * records who is behind the view on `session.impersonated_by` (ADR 013). The
+   * admin page needs it to render the banner and to hide the console — nesting
+   * an impersonation inside another is not something Better Auth models.
+   */
+  impersonatedBy: string | null;
   loading: boolean;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -33,6 +42,7 @@ const SessionContext = createContext<SessionState | null>(null);
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [activeOrganizationId, setActiveOrganizationId] = useState<string | null>(null);
+  const [impersonatedBy, setImpersonatedBy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
@@ -43,9 +53,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const body = res.ok ? await res.json() : null;
       setUser(body?.user ?? null);
       setActiveOrganizationId(body?.session?.activeOrganizationId ?? null);
+      setImpersonatedBy(body?.session?.impersonatedBy ?? null);
     } catch {
       setUser(null);
       setActiveOrganizationId(null);
+      setImpersonatedBy(null);
     } finally {
       setLoading(false);
     }
@@ -68,7 +80,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   return (
-    <SessionContext.Provider value={{ user, activeOrganizationId, loading, refresh, signOut }}>
+    <SessionContext.Provider value={{ user, activeOrganizationId, impersonatedBy, loading, refresh, signOut }}>
       {children}
     </SessionContext.Provider>
   );

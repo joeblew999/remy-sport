@@ -2,11 +2,11 @@ import { test, expect } from "@playwright/test"
 
 // The Vite SPA (src/web) is served by the Worker itself from the [assets]
 // binding, so the GUI and the API share one origin. These tests guard that
-// wiring — if the assets binding or the /app route regresses, they fail.
+// wiring — if the assets binding or the root route regresses, they fail.
 
 test.describe("SPA served from the Worker", () => {
-  test("/app returns the SPA shell, not the server-rendered home page", async ({ request }) => {
-    const res = await request.get("/app")
+  test("/ returns the SPA shell — there is nothing else served here now", async ({ request }) => {
+    const res = await request.get("/")
     expect(res.status()).toBe(200)
     const body = await res.text()
     expect(body).toContain('<div id="root">')
@@ -14,7 +14,7 @@ test.describe("SPA served from the Worker", () => {
   })
 
   test("hashed JS bundle is served with the correct content type", async ({ request }) => {
-    const shell = await (await request.get("/app")).text()
+    const shell = await (await request.get("/")).text()
     const src = shell.match(/src="\.\/(assets\/[^"]+\.js)"/)?.[1]
     expect(src, "SPA shell should reference a hashed JS bundle").toBeTruthy()
 
@@ -24,27 +24,27 @@ test.describe("SPA served from the Worker", () => {
   })
 
   test("React mounts and renders into #root", async ({ page }) => {
-    await page.goto("/app")
+    await page.goto("/")
     // Router defaults to the discover page when no hash is present.
     await expect(page.locator("#root")).not.toBeEmpty()
     await expect(page.locator("#root *").first()).toBeVisible()
   })
 
   test("hash deep-link resolves client-side without a server round trip", async ({ page }) => {
-    await page.goto("/app#/live")
+    await page.goto("/#/live")
     await expect(page.locator("#root")).not.toBeEmpty()
     expect(page.url()).toContain("#/live")
   })
 
   // The SPA was served but unreachable: no server-rendered page linked to it,
-  // so /app existed only for anyone who knew to type it.
+  // so the SPA is simply what the root serves now.
   test("the home page links to the SPA", async ({ page }) => {
     await page.goto("/")
-    await expect(page.locator('a[href="/app"]')).toBeVisible()
+    await expect(page.locator("#root")).toBeAttached()
   })
 
   test("the API is reachable from the SPA origin (no CORS needed)", async ({ page }) => {
-    await page.goto("/app")
+    await page.goto("/")
     const status = await page.evaluate(async () => {
       const r = await fetch("/api/events")
       return r.status
@@ -63,7 +63,7 @@ test.describe("SPA events come from the API", () => {
       if (u.pathname.startsWith("/api/") || u.pathname.startsWith("/rpc")) calls.push(u.pathname)
     })
 
-    await page.goto("/app")
+    await page.goto("/")
     await expect(page.locator(".event-row").first()).toBeVisible()
     // The SPA talks oRPC at /rpc, not REST at /api. Both are the same router:
     // /api is the documented REST surface for external clients, /rpc is the
@@ -81,7 +81,7 @@ test.describe("SPA events come from the API", () => {
   })
 
   test("status and date are derived from the stored date window", async ({ page }) => {
-    await page.goto("/app")
+    await page.goto("/")
     const row = page.locator(".event-row", {
       hasText: "Chiang Mai Summer Basketball Camp 2026",
     })
@@ -94,14 +94,14 @@ test.describe("SPA events come from the API", () => {
   })
 
   test("an event deep-link loads that event from the API", async ({ page }) => {
-    await page.goto("/app#/event/evt_002")
+    await page.goto("/#/event/evt_002")
     await expect(page.locator(".event-hero")).toContainText(
       "Bangkok Schools Basketball League 2026",
     )
   })
 
   test("a deep-link to a missing event says so instead of showing another one", async ({ page }) => {
-    await page.goto("/app#/event/evt_does_not_exist")
+    await page.goto("/#/event/evt_does_not_exist")
     await expect(page.locator(".empty")).toContainText("does not exist")
   })
 })

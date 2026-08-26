@@ -46,9 +46,9 @@ test.describe("Default role — database hook", () => {
   })
 })
 
-test.describe("Organizations", () => {
+test.describe.serial("Organizations", () => {
   test("an organizer can create an organization and becomes its owner", async ({ page }) => {
-    await page.goto("/login")
+    await page.goto("/")
 
     await signInViaPage(page, ORGANIZER)
 
@@ -68,7 +68,7 @@ test.describe("Organizations", () => {
   })
 
   test("an organization is listed for the member who created it", async ({ page }) => {
-    await page.goto("/login")
+    await page.goto("/")
 
     await signInViaPage(page, ORGANIZER)
 
@@ -84,7 +84,7 @@ test.describe("Organizations", () => {
   })
 
   test("an anonymous visitor cannot create an organization", async ({ page }) => {
-    await page.goto("/login")
+    await page.goto("/")
 
     const created = await json(page, "/api/auth/organization/create", {
       name: "Nope",

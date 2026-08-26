@@ -5,7 +5,7 @@
   "identifier": "net.ubuntusoftware.remysport",
   "build": {
     "frontendDist": "../dist/web",
-    "devUrl": "http://localhost:8787/app",
+    "devUrl": "http://localhost:8787",
     "beforeDevCommand": "mise run web:build",
     "beforeBuildCommand": "mise run web:build"
   },

@@ -74,6 +74,17 @@ export const ACTOR_NAMES = {
 
 export const ALL_ACTORS = [ADMIN, ORGANIZER, COACH, PLAYER, SPECTATOR, REFEREE]
 
+/**
+ * Where auth.setup.ts parks each actor's cookies, and how a spec asks for one.
+ *
+ * `.playwright/` is already the project-scoped, gitignored home for Playwright
+ * state (AGENTS.md), so the sessions land beside the browsers rather than in a
+ * new top-level directory.
+ */
+export const AUTH_STATE_DIR = ".playwright/auth"
+export const stateFor = (email: string) =>
+  `${AUTH_STATE_DIR}/${email.replace(/[@.]/g, "_")}.json`
+
 const CODE_RE = /Your code is (\d{6})/
 
 /**
@@ -134,9 +145,26 @@ export async function signIn(request: APIRequestContext, email: string): Promise
   expect(res.ok(), `sign-in for ${email} should succeed`).toBeTruthy()
 }
 
+/**
+ * Navigate so the SPA definitely remounts.
+ *
+ * One GUI at `/` means `goto("/#/x")` from `/` is a *same-document* hash change:
+ * React does not remount, `useSession` does not refetch, and a page renders
+ * against whoever was signed in before. That never bit while a server-rendered
+ * harness sat on `/login` and the SPA on `/app`, because every identity switch
+ * crossed a document boundary.
+ *
+ * Any spec that changes identity — signs in, signs out, clears cookies — must
+ * use this rather than `page.goto`.
+ */
+export async function gotoFresh(page: Page, path: string): Promise<void> {
+  await page.goto(path)
+  await page.reload()
+}
+
 /** Same flow driven from a page, for specs that need browser cookies. */
 export async function signInViaPage(page: Page, email: string): Promise<void> {
-  await page.goto("/login")
+  await page.goto("/")
   const status = await page.evaluate(async (address) => {
     const send = await fetch("/api/auth/email-otp/send-verification-otp", {
       method: "POST",
@@ -162,6 +190,16 @@ export async function signInViaPage(page: Page, email: string): Promise<void> {
     { address: email, code: otp },
   )
   expect(signInStatus, `sign-in for ${email} should succeed`).toBe(200)
+
+  // Force a document load so the SPA picks the session up.
+  //
+  // Necessary since ADR 020 collapsed the two GUIs. Sign-in used to happen on
+  // the server-rendered /login, so the next `goto("/app#/…")` was a real
+  // cross-document navigation and React mounted fresh. Now everything is one
+  // document at `/`, so `goto("/#/…")` is a same-document hash change: React
+  // never remounts, `useSession` never refetches, and the page renders for a
+  // signed-out visitor even though the cookie is set.
+  await page.reload()
 }
 
 /**
@@ -173,17 +211,22 @@ export async function signInViaPage(page: Page, email: string): Promise<void> {
  * home page. Bypassing the form would leave the login UI untested.
  */
 export async function signInThroughLoginForm(page: Page, email: string): Promise<void> {
-  await page.goto("/login")
-  await page.getByTestId("email-input").fill(email)
-  await page.getByTestId("send-code").click()
+  // The SPA's login screen, which is the only one now — ADR 020 deleted the
+  // server-rendered harness this used to drive at /login. Same two steps, same
+  // endpoints; the testids carry the `spa-` prefix they always had.
+  await page.goto("/#/login")
+  await page.getByTestId("spa-email-input").fill(email)
+  await page.getByTestId("spa-send-code").click()
 
-  const otpField = page.getByTestId("otp-input")
+  const otpField = page.getByTestId("spa-otp-input")
   await otpField.waitFor({ state: "visible" })
 
   const otp = fixedCodeFor(email) ?? (await codeFromOutboxViaPage(page, email))
   await otpField.fill(otp)
-  await page.getByTestId("verify-code").click()
-  await page.waitForURL("**/")
+  await page.getByTestId("spa-verify-code").click()
+  // Hash routing: the SPA stays on one document, so there is no navigation to
+  // wait for. Wait for the identity to appear instead.
+  await page.getByTestId("topbar-user").waitFor({ state: "visible", timeout: 20000 })
 }
 
 async function codeFromOutboxViaPage(page: Page, email: string): Promise<string> {

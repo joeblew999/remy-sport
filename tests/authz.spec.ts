@@ -247,15 +247,15 @@ test.describe("OpenAPI security documentation", () => {
 
 test.describe.serial("Dashboard GUI — per-actor rendering", () => {
   test("redirects to login when not signed in", async ({ page }) => {
-    await page.goto("/dashboard")
-    await page.waitForURL("**/login")
+    await page.goto("/#/admin")
+    await page.waitForURL("**/#/login")
   })
 
   for (const actor of WRITERS) {
     test(`${actor.role} sees create form and write permissions`, async ({ page }) => {
       await signInThroughLoginForm(page, actor.email)
 
-      await page.goto("/dashboard")
+      await page.goto("/#/admin")
       await expect(page.getByTestId("role-badge")).toHaveText(actor.role)
       await expect(page.getByTestId("create-event-form")).toBeVisible()
       await expect(page.getByTestId("perm-create")).toHaveClass(/badge-success/)
@@ -268,7 +268,7 @@ test.describe.serial("Dashboard GUI — per-actor rendering", () => {
     test(`${actor.role} sees denied form and read-only permissions`, async ({ page }) => {
       await signInThroughLoginForm(page, actor.email)
 
-      await page.goto("/dashboard")
+      await page.goto("/#/admin")
       await expect(page.getByTestId("role-badge")).toHaveText(actor.role)
       await expect(page.getByTestId("create-event-denied")).toBeVisible()
       await expect(page.getByTestId("perm-create")).not.toHaveClass(/badge-success/)
@@ -281,7 +281,7 @@ test.describe.serial("Dashboard GUI — per-actor rendering", () => {
     // visible and never clicked one, so the switcher kept posting passwords
     // long after password sign-in was removed (ADR 012).
     await signInThroughLoginForm(page, ADMIN.email)
-    await page.goto("/dashboard")
+    await page.goto("/#/admin")
     await expect(page.getByTestId("role-badge")).toHaveText("admin")
 
     await page.getByTestId("role-switcher").getByRole("button", { name: "Coach" }).click()
@@ -291,7 +291,7 @@ test.describe.serial("Dashboard GUI — per-actor rendering", () => {
   test("role switcher shows all 6 actors", async ({ page }) => {
     await signInThroughLoginForm(page, ADMIN.email)
 
-    await page.goto("/dashboard")
+    await page.goto("/#/admin")
     const switcher = page.getByTestId("role-switcher")
     await expect(switcher).toBeVisible()
     await expect(switcher.locator("button")).toHaveCount(6)
@@ -300,7 +300,7 @@ test.describe.serial("Dashboard GUI — per-actor rendering", () => {
   test("events table shows created events", async ({ page }) => {
     await signInThroughLoginForm(page, ORGANIZER.email)
 
-    await page.goto("/dashboard")
+    await page.goto("/#/admin")
     const table = page.getByTestId("events-table")
     await expect(table).toBeVisible()
     await expect(table.locator("tbody tr")).not.toHaveCount(0)

@@ -50,7 +50,7 @@ test.describe.serial("Team writes — platform permission AND org membership", (
   })
 })
 
-test.describe("Team writes — refusals", () => {
+test.describe.serial("Team writes — refusals", () => {
   test("a coach CANNOT create a team in a school they do not belong to", async ({ request }) => {
     await signIn(request, COACH)
     // team_003 is Montfort College; the coach belongs to Assumption only.

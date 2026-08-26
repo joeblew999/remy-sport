@@ -191,13 +191,16 @@ This split exists because the hand-maintained schema drifted: the admin plugin's
 was never declared or migrated. Nothing failed while schema and database were wrong in the *same* way — the
 moment the schema became correct, every sign-in 500'd.
 
-## Two GUIs, for now
+## One GUI
 
-[src/web/](src/web/) is **the product** — React 19 + Vite, hash routing, EN/TH, also shipping as Tauri
-desktop and iOS. New features go here. [src/views/](src/views/) is the admin console (ADR 013): account
-list, role assignment, ban, impersonation.
+[src/web/](src/web/) — React 19 + Vite, hash routing, EN/TH, served at `/`, also shipping as Tauri
+desktop and iOS. Everything goes here, including the admin console
+([pages/admin.tsx](src/web/pages/admin.tsx)): account list, role assignment, ban, impersonation.
 
-They are being merged: `src/views/` goes once the SPA absorbs the console. Until then, both exist.
+There were two until ADR 020. A server-rendered harness at `/`, `/login` and `/dashboard` was kept on
+the grounds that it was "the only place authorization is exercised end to end against real data" — which
+was measurably untrue: 20 of `tests/authz.spec.ts`'s 26 tests never open a browser. It is deleted, and
+`/app`, `/login` and `/dashboard` all serve the SPA so old links keep working.
 
 Two rules from wiring the first pages:
 

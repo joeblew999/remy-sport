@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test"
-import { signInViaPage as signIn, deleteOrgViaPage, ORGANIZER, COACH, REFEREE, SPECTATOR } from "./helpers/auth"
+import { signInViaPage as signIn, gotoFresh, deleteOrgViaPage, ORGANIZER, COACH, REFEREE, SPECTATOR } from "./helpers/auth"
 import { ACTORS } from "./helpers/auth"
 
 // ADR 011. The invitation email sent in ADR 010 pointed at a route that did not
@@ -31,7 +31,7 @@ async function createInvitation(page: Page, invitee: string) {
   }, invitee)
 }
 
-test.describe("Accept invitation page", () => {
+test.describe.serial("Accept invitation page", () => {
   // Each test creates an organization; without this they accumulate until
   // organization/list stops returning the newest one and an unrelated spec
   // fails. See tests/helpers/auth.ts.
@@ -54,7 +54,7 @@ test.describe("Accept invitation page", () => {
     // their inbox. get-invitation 401s for them, and an earlier version of this
     // page reported that as "no longer valid".
     await page.context().clearCookies()
-    await page.goto(`/app#/accept-invitation/${invitationId}`)
+    await gotoFresh(page, `/#/accept-invitation/${invitationId}`)
 
     await expect(page.getByTestId("invitation-needs-signin")).toBeVisible()
     await expect(page.getByTestId("invitation-error")).toHaveCount(0)
@@ -62,7 +62,7 @@ test.describe("Accept invitation page", () => {
 
   test("a bad invitation id is reported as invalid to a signed-in user", async ({ page }) => {
     await signIn(page, ORGANIZER)
-    await page.goto("/app#/accept-invitation/not-a-real-invitation")
+    await gotoFresh(page, "/#/accept-invitation/not-a-real-invitation")
     await expect(page.getByTestId("invitation-error")).toBeVisible()
   })
 
@@ -73,7 +73,7 @@ test.describe("Accept invitation page", () => {
     await page.context().clearCookies()
     await signIn(page, REFEREE)
 
-    await page.goto(`/app#/accept-invitation/${invitationId}`)
+    await gotoFresh(page, `/#/accept-invitation/${invitationId}`)
     await expect(page.getByTestId("invitation-ready")).toBeVisible()
     await page.getByTestId("invitation-accept").click()
     await expect(page.getByTestId("invitation-accepted")).toBeVisible()
@@ -100,7 +100,7 @@ test.describe("Accept invitation page", () => {
     await page.context().clearCookies()
     await signIn(page, COACH)
 
-    await page.goto(`/app#/accept-invitation/${invitationId}`)
+    await gotoFresh(page, `/#/accept-invitation/${invitationId}`)
     await expect(page.getByTestId("invitation-wrong-account")).toBeVisible()
     // The accept button must not be offered to the wrong account.
     await expect(page.getByTestId("invitation-accept")).toHaveCount(0)

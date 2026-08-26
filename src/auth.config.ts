@@ -89,6 +89,25 @@ export function buildAuthOptions(deps: AuthDeps = {}) {
       // keeps someone signed in indefinitely without rewriting the row on every
       // request.
       updateAge: 60 * 60 * 24,
+
+      /**
+       * Signed session data in the cookie, so a page load costs one D1 lookup
+       * instead of one per procedure it calls.
+       *
+       * 15 minutes, not the "hours" a longer window would allow, because of
+       * what this platform does with roles: ADR 013 gives admins ban and
+       * impersonation, and `tests/authz.spec.ts` drives a six-role matrix.
+       * better-auth 1.7.1 revokes the cache on the admin paths that change a
+       * permission or ban a user, so those take effect immediately — but the
+       * window still bounds anything changed by a route NOT on that list, and
+       * that is where the next such bug comes from.
+       *
+       * Requires the exact pin in package.json: 1.6.x fixed `getCookieCache`
+       * returning stale data for an expired cache cookie, and made admin
+       * changes take effect immediately with the cache on. A floating range
+       * could drift under a cache whose invalidation semantics it defines.
+       */
+      cookieCache: { enabled: true, maxAge: 60 * 15 },
     },
 
     /**

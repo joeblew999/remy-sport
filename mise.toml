@@ -363,6 +363,7 @@ depends     = ["cf:types"]
 run = """
 bun x tsc --noEmit
 mise run test:unit
+mise run test:worker
 mise run check:dead
 mise run check:docs
 mise run check:conventions
@@ -410,6 +411,20 @@ description = "Fail when the documentation names a file that does not exist"
 # It cannot catch prose that is wrong while every path in it resolves. Nothing
 # can. That is what the AGENTS.md convention is for.
 run = "bun scripts/docs-check.ts"
+
+[tasks."test:worker"]
+description = "Worker tests in workerd — real D1, no wrangler dev, no browser"
+depends     = ["install"]
+# The tier this repo was missing. 61 of the 151 Playwright specs never opened a
+# browser: they were HTTP calls against the Worker, paying for a wrangler dev
+# server and a Playwright runner to make them. Here the Worker is loaded into
+# the test process and SELF.fetch() calls its handler directly, against real
+# Miniflare D1 with the real migrations applied.
+#
+#   test:unit    pure logic, no runtime      ~20ms
+#   test:worker  the Worker, in workerd      this
+#   test         a real browser, and only that
+run = "bun x vitest run --config vitest.config.ts"
 
 [tasks."check:conventions"]
 description = "Fail when the code stops obeying a rule AGENTS.md states"

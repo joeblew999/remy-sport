@@ -18,7 +18,7 @@ Documentation for developers and AI agents working on the platform.
 | [adr/010-outbound-email.md](adr/010-outbound-email.md) | Outbound mail via Cloudflare Email Service, behind a `Mailer` seam |
 | [adr/011-completing-better-auth.md](adr/011-completing-better-auth.md) | Accept invitations, reset, verification, active organization |
 | [adr/012-passwordless-email-otp.md](adr/012-passwordless-email-otp.md) | Email OTP as the only way in; passwords removed |
-| [adr/013-admin-console.md](adr/013-admin-console.md) | `src/views/` becomes an admin console — roles, bans, impersonation |
+| [adr/013-admin-console.md](adr/013-admin-console.md) | The admin console — roles, bans, impersonation (moved into the SPA by ADR 020) |
 | [adr/014-session-and-device-management.md](adr/014-session-and-device-management.md) | Device management via Better Auth core, not the `multiSession` plugin |
 | [adr/015-reference-vocabularies.md](adr/015-reference-vocabularies.md) | Controlled vocabularies become tables; the Zod 4 move |
 | [adr/020-keeping-the-map-honest.md](adr/020-keeping-the-map-honest.md) | Dead-code and documentation checks wired into `mise run check` |

@@ -5,11 +5,13 @@ const isLocal = !process.env.BASE_URL
 
 export default defineConfig({
   testDir: "./tests",
-  // Playwright's default testMatch is **/*.@(spec|test).*, so it collects
-  // tests/unit/*.test.ts too and dies on their `bun:test` imports. The two
-  // suites answer different questions and must not collect each other:
-  // `mise run test:unit` is pure logic in ~20ms, this is 157 E2E specs in 3.4
-  // minutes against a real Worker.
+  // Playwright's default testMatch is **/*.@(spec|test).*, so it collects the
+  // other two suites' *.test.ts files and dies on their `bun:test` and
+  // `cloudflare:test` imports. Three tiers, three runners, and none of them
+  // may collect another's files:
+  //   tests/unit/    bun test   pure logic, no runtime   ~20ms
+  //   tests/worker/  vitest     the Worker in workerd    ~4s
+  //   tests/*.spec   playwright a real browser           ~1.6m
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   // Remote runs (test:deployed) retry as well as CI. Against the deployed
@@ -33,7 +35,11 @@ export default defineConfig({
   // the admin-only createUser, so a test cannot provision its own organizer.
   // Serialising costs a few seconds on a suite this size and removes the whole
   // class of failure. Revisit if the suite grows enough for that to hurt.
-  workers: 1,
+  // 4, not 1. It was serialised because sign-in codes are consumed on use and
+  // parallel tests ate each other's — auth.setup.ts now signs everyone in once
+  // up front, so nothing races for a code. 2.8min -> ~50s. Blocks that share
+  // created orgs or teams are marked describe.serial individually.
+  workers: 2,
   reporter: "html",
   use: {
     baseURL,
@@ -43,8 +49,20 @@ export default defineConfig({
   // before its dependents start, which fullyParallel + describe.serial cannot
   // guarantee on its own — see tests/seed.setup.ts.
   projects: [
-    { name: "setup", testMatch: /.*\.setup\.ts/ },
-    { name: "e2e", testIgnore: [/.*\.setup\.ts/, /tests\/unit\//], dependencies: ["setup"] },
+    { name: "seed", testMatch: /seed\.setup\.ts/ },
+    // Signs in once per actor and saves cookies; every spec that merely needs
+    // to BE someone loads that state instead of signing in for itself.
+    { name: "auth", testMatch: /auth\.setup\.ts/, dependencies: ["seed"] },
+    {
+      name: "e2e",
+      testIgnore: [/.*\.setup\.ts/, /tests\/unit\//, /tests\/worker\//, /devices\.spec\.ts/],
+      dependencies: ["auth"],
+    },
+    // Last, and alone. Session state is global per user, so "sign out all other
+    // devices" revokes the very cookies auth.setup.ts saved for that actor —
+    // which any concurrently-running file is relying on. Running it after
+    // everything else makes that harmless instead of a coin flip.
+    { name: "devices", testMatch: /devices\.spec\.ts/, dependencies: ["e2e"] },
   ],
   ...(isLocal && {
     webServer: {

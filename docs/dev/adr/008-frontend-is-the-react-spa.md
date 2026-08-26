@@ -10,7 +10,7 @@ under [Path to wiring](#path-to-wiring) landed.*
 The repo contained two web GUIs and a proposal for a third. Nothing said which
 one was the product, so all three read as live options.
 
-### GUI 1 — server-rendered Hono views ([src/views/](../../../src/views/), ~400 lines)
+### GUI 1 — server-rendered Hono views (`src/views/`, ~400 lines; deleted in ADR 020) <!-- docs-check-ignore -->
 
 `home`, `login`, `dashboard`, `versions`. DaisyUI v5 + Tailwind 4 from a CDN, no
 build step. Everything here is real: Better Auth sessions, real D1 `event` rows,
