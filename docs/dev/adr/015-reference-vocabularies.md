@@ -41,7 +41,7 @@ It is deliberately not used for the domain routes. `/api/teams` returns joined o
 
 ### 4. The enums stay, and are now checked
 
-`src/routes/teams.ts` still declares `z.enum([...])`, because a `TEXT` column cannot express a vocabulary to the type system and the API should reject bad input at the boundary rather than surfacing a foreign-key error. The difference is that the copy is now checked: [reference.spec.ts](../../../tests/reference.spec.ts) asserts the served vocabularies match the PO's lists exactly, so a change upstream fails a test instead of drifting silently.
+`src/routes/teams.ts` still declares `z.enum([...])`, because a `TEXT` column cannot express a vocabulary to the type system and the API should reject bad input at the boundary rather than surfacing a foreign-key error. The difference is that the copy is now checked: [reference.test.ts](../../../tests/worker/reference.test.ts) asserts the served vocabularies match the PO's lists exactly, so a change upstream fails a test instead of drifting silently.
 
 ### 5. Zod 4
 

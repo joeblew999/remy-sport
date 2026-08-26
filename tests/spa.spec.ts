@@ -5,24 +5,6 @@ import { test, expect } from "@playwright/test"
 // wiring — if the assets binding or the root route regresses, they fail.
 
 test.describe("SPA served from the Worker", () => {
-  test("/ returns the SPA shell — there is nothing else served here now", async ({ request }) => {
-    const res = await request.get("/")
-    expect(res.status()).toBe(200)
-    const body = await res.text()
-    expect(body).toContain('<div id="root">')
-    expect(body).toContain("TWEAK_DEFAULTS")
-  })
-
-  test("hashed JS bundle is served with the correct content type", async ({ request }) => {
-    const shell = await (await request.get("/")).text()
-    const src = shell.match(/src="\.\/(assets\/[^"]+\.js)"/)?.[1]
-    expect(src, "SPA shell should reference a hashed JS bundle").toBeTruthy()
-
-    const res = await request.get(`/${src}`)
-    expect(res.status()).toBe(200)
-    expect(res.headers()["content-type"]).toContain("javascript")
-  })
-
   test("React mounts and renders into #root", async ({ page }) => {
     await page.goto("/")
     // Router defaults to the discover page when no hash is present.

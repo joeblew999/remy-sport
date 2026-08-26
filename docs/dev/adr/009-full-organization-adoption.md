@@ -29,7 +29,7 @@ middleware: [
 ]
 ```
 
-Either alone is wrong. Permission alone lets any coach edit any school's roster. Membership alone lets a spectator who happens to belong to the org edit it. The refusal that was previously inexpressible — *same role, same action, different object* — is now [a test](../../../tests/org-teams.spec.ts).
+Either alone is wrong. Permission alone lets any coach edit any school's roster. Membership alone lets a spectator who happens to belong to the org edit it. The refusal that was previously inexpressible — *same role, same action, different object* — is now [a test](../../../tests/worker/org-teams.test.ts).
 
 `member` rows are written by Better Auth's own `createOrganization`/`addMember`, so this reads the source of truth the auth layer already maintains rather than a parallel copy (ADR 007 §3's principle, applied to reads).
 

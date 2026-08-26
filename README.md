@@ -54,7 +54,7 @@ mise run cf:d1:reset      # replay migrations — wrangler will not re-run 0009 
 as its pivot; every language including English is a row in `translation`, and
 `/api/reference` returns a locale-keyed `names` map. Shipping a third language
 is fixtures upstream plus a regeneration — never an `ALTER TABLE`, a new type
-field, or an edit to a consumer. `tests/reference.spec.ts` fails if a
+field, or an edit to a consumer. `tests/worker/reference.test.ts` fails if a
 per-language field reappears on a vocabulary row.
 
 Same shape as `auth:schema:generate` / `auth:schema:check`, for the same reason — a file generated from a source of truth, committed, with a check mode that catches drift. See [ADR 015](docs/dev/adr/015-reference-vocabularies.md).

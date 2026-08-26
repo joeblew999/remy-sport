@@ -76,19 +76,4 @@ test.describe("Devices — where you're signed in", () => {
 test.describe("Session listing is per-user", () => {
   test.skip(!IS_LOCAL, "signing in needs the fixed dev code")
 
-  test("you only ever see your own sessions", async ({ request }) => {
-    await signIn(request, COACH)
-    const sessions = await (await request.get("/api/auth/list-sessions", {
-      headers: { Origin: BASE },
-    })).json()
-    const userIds = new Set((sessions as { userId: string }[]).map((s) => s.userId))
-    expect(userIds.size, "sessions from more than one user would be a leak").toBe(1)
-  })
-
-  test("an anonymous caller gets nothing", async ({ request }) => {
-    const res = await request.get("/api/auth/list-sessions", { headers: { Origin: BASE } })
-    // Better Auth answers 401 rather than an empty list, which is the right
-    // shape: "who is asking" is unanswerable, not "nobody is signed in".
-    expect(res.ok()).toBeFalsy()
-  })
 })

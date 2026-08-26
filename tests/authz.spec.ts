@@ -28,58 +28,6 @@ const READERS = [COACH, PLAYER, SPECTATOR, REFEREE]  // read-only for events
 // ── Seed ────────────────────────────────────────────────────────────────────
 
 test.describe("Layer 1 — event:read is public", () => {
-  test("unauthenticated user can list events", async ({ request }) => {
-    const res = await request.get("/api/events")
-    expect(res.ok()).toBeTruthy()
-    const body = await res.json()
-    expect(body.events.length).toBeGreaterThan(0)
-  })
-
-  test("unauthenticated user can get single event", async ({ request }) => {
-    const list = await request.get("/api/events")
-    const { events } = await list.json()
-    const res = await request.get(`/api/events/${events[0].id}`)
-    expect(res.ok()).toBeTruthy()
-    expect((await res.json()).id).toBe(events[0].id)
-  })
-
-  test("returns 404 for nonexistent event", async ({ request }) => {
-    const res = await request.get("/api/events/nonexistent-id")
-    expect(res.status()).toBe(404)
-  })
-})
-
-// ── Layer 2: Ownership — update/delete ──────────────────────────────────────
-
-test.describe("OpenAPI security documentation", () => {
-  test("protected routes declare security schemes", async ({ request }) => {
-    const res = await request.get("/openapi.json")
-    const spec = await res.json()
-
-    // POST /api/events requires auth
-    const postEvents = spec.paths["/api/events"]?.post
-    expect(postEvents.security).toContainEqual({ Session: [] })
-    expect(postEvents.security).toContainEqual({ ApiKey: [] })
-    expect(postEvents.responses["401"]).toBeTruthy()
-    expect(postEvents.responses["403"]).toBeTruthy()
-
-    // PUT and DELETE also require auth
-    const putEvent = spec.paths["/api/events/{id}"]?.put
-    expect(putEvent.security).toContainEqual({ Session: [] })
-    const deleteEvent = spec.paths["/api/events/{id}"]?.delete
-    expect(deleteEvent.security).toContainEqual({ Session: [] })
-
-    // GET is public (no security)
-    const getEvents = spec.paths["/api/events"]?.get
-    expect(getEvents.security).toBeFalsy()
-    const getEvent = spec.paths["/api/events/{id}"]?.get
-    expect(getEvent.security).toBeFalsy()
-  })
-})
-
-// ── Dashboard GUI — all actors ──────────────────────────────────────────────
-
-test.describe.serial("Dashboard GUI — per-actor rendering", () => {
   test("redirects to login when not signed in", async ({ page }) => {
     await page.goto("/#/admin")
     await page.waitForURL("**/#/login")
