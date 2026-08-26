@@ -467,6 +467,13 @@ bun x tsc --noEmit $CFG || true
 echo "--- done (nothing above = it typechecks) ---"
 """
 
+[tasks."test:tiers"]
+description = "How many tests are in each tier, and how many are still in the wrong one"
+# Makes the migration in docs/dev/test-migration.md measurable rather than a
+# claim. Optimising the runner bought 2.8m -> 1.6m and then stopped; the number
+# that matters is how many browser tests exist at all.
+run = "bun scripts/test-tiers.ts"
+
 [tasks.followups]
 description = "List every outstanding follow-up recorded across the ADRs, in one place"
 # Not part of `check` — an open follow-up is a decision to do something later,

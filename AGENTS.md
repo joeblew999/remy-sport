@@ -2,6 +2,22 @@
 
 <!-- The main agent context file (AGENTS.md, the open standard). CLAUDE.md and GEMINI.md are aliases. -->
 
+> ## ⚠️ UNFINISHED WORK — READ THIS FIRST
+>
+> **The test suite is mid-migration and the job is not done.** 1.6 minutes for
+> 107 Playwright tests, and ~89 of them are in the wrong tier. Three tiers exist
+> and work; the helpers are written; ~89 specs still need reclassifying.
+>
+> **[docs/dev/test-migration.md](docs/dev/test-migration.md) has the per-file
+> classification, counted not estimated, and the rule for deciding each one.**
+> Start with `org-teams.spec.ts` (11) and `reference.spec.ts` (7) — pure
+> mechanical conversions, no judgement needed.
+>
+> Do not optimise the runner. That was tried across a whole session — storage
+> state, worker counts, project ordering — and bought 2.8m → 1.6m before
+> stopping dead. 107 browser page-loads against a real Worker is the floor for
+> that count. **The population is the problem.** Target is ~23 E2E tests.
+
 **This file is the only document that must describe the repo as it is now.** Everything else is either
 history (ADRs), or lives next to the code it explains. It is kept short on purpose: it loads into every
 session, so a stale paragraph here does not merely mislead a reader — it becomes wrong work. It has
@@ -23,7 +39,7 @@ the set of traps that have already cost a real bug.
 
 ```bash
 mise trust && mise install && mise run setup
-mise run dev:seed            # http://localhost:8787 — SPA at /app, auth harness at /
+mise run dev:seed            # http://localhost:8787 — the GUI is served at /
 ```
 
 **`mise run web:dev` on its own does not work.** Vite serves the SPA and nothing else, so `/api/*` has no
@@ -94,7 +110,8 @@ including the seed.** An address that receives a code gets an account, defaulted
 
 **Tests never post a password.** Use [tests/helpers/auth.ts](tests/helpers/auth.ts). The six seeded
 `@remy.dev` actors sign in with a fixed `TEST_OTP`; everyone else gets a real emailed code from the dev
-outbox. Codes are single-use, so the suite runs `workers: 1`.
+outbox. `tests/auth.setup.ts` signs everyone in once and saves storageState, so no spec signs in
+for itself and nothing races for a code; Playwright runs `workers: 2` (four races on shared D1 rows).
 
 `TEST_OTP` must be unset in production before the platform has real users.
 
@@ -264,9 +281,22 @@ When an ADR is overtaken, **do not rewrite it** — update its **Status** to poi
   Every wrong belief corrected in the [ADR 020](docs/dev/adr/020-keeping-the-map-honest.md) session died to
   exactly this, in about a minute each. Cheaper than being wrong in a document that another session reads.
 - `mise run followups` — every outstanding follow-up across all ADRs, in one list.
+- `mise run test:tiers` — how many tests are in each tier, and how many still sit in the wrong one.
 - Always use `mise run`; never raw `bun`/`bunx wrangler` when a task exists. Tasks must be idempotent and
   work with no user args.
 - Use well-known `autocomplete` attributes on form fields so password managers work.
+- **Four test tiers. Put a test in the right one** — see
+  [docs/dev/test-migration.md](docs/dev/test-migration.md):
+
+  | Command | Asserts | Cost |
+  |---|---|---|
+  | `mise run test:unit` | pure functions | 20ms |
+  | `mise run test:worker` | what the **API returns** (workerd, real D1) | ~650ms |
+  | `bun x playwright test --project=render` | what the **UI renders** given data (no backend) | seconds |
+  | `mise run test` | a real round trip: sign in → act → persist | 1.6m |
+
+  If a test signs in only so a page will render, it does not need to sign in —
+  seed the query cache with `tests/helpers/seed-cache.ts` instead.
 - Run `mise run test` after changes.
 
 ## Deployment
