@@ -77,3 +77,20 @@ test.describe("Team page renders what the API returned", () => {
     await expect(page.locator(".team-hero")).not.toContainText("4–0")
   })
 })
+
+test.describe("Team page, the rest", () => {
+  test("a deep-link to a missing team says so", async ({ page }) => {
+    // Nothing seeded for this id, so the query runs and 404s — "the API said
+    // no" is the subject here, which is why this one still reaches the Worker.
+    await page.goto("/#/team/team_does_not_exist")
+    await expect(page.locator(".empty")).toContainText("does not exist")
+  })
+
+  test("fixture-backed sections are labelled as sample data", async ({ page }) => {
+    // Roster and schedule still come from src/web/data.ts. Sitting under a real
+    // team, they have to say so (AGENTS.md).
+    await seedCache(page, [entry(orpc.teams.get, { id: "team_002" }, team())])
+    await page.goto("/#/team/team_002")
+    await expect(page.locator(".section-h", { hasText: "Roster" })).toContainText("SAMPLE DATA")
+  })
+})

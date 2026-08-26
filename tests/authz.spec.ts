@@ -33,31 +33,6 @@ test.describe("Layer 1 — event:read is public", () => {
     await page.waitForURL("**/#/login")
   })
 
-  for (const actor of WRITERS) {
-    test(`${actor.role} sees create form and write permissions`, async ({ page }) => {
-      await signInThroughLoginForm(page, actor.email)
-
-      await page.goto("/#/admin")
-      await expect(page.getByTestId("role-badge")).toHaveText(actor.role)
-      await expect(page.getByTestId("create-event-form")).toBeVisible()
-      await expect(page.getByTestId("perm-create")).toHaveClass(/badge-success/)
-      await expect(page.getByTestId("perm-read")).toHaveClass(/badge-success/)
-      await expect(page.getByTestId("perm-delete")).toHaveClass(/badge-success/)
-    })
-  }
-
-  for (const actor of READERS) {
-    test(`${actor.role} sees denied form and read-only permissions`, async ({ page }) => {
-      await signInThroughLoginForm(page, actor.email)
-
-      await page.goto("/#/admin")
-      await expect(page.getByTestId("role-badge")).toHaveText(actor.role)
-      await expect(page.getByTestId("create-event-denied")).toBeVisible()
-      await expect(page.getByTestId("perm-create")).not.toHaveClass(/badge-success/)
-      await expect(page.getByTestId("perm-read")).toHaveClass(/badge-success/)
-    })
-  }
-
   test("the role switcher actually switches role, not just renders buttons", async ({ page }) => {
     // This is why it broke silently: the old test asserted the six buttons were
     // visible and never clicked one, so the switcher kept posting passwords

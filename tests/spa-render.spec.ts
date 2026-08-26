@@ -1,0 +1,79 @@
+import { test, expect } from "@playwright/test"
+import { seedCache, entry, orpc } from "./helpers/seed-cache"
+
+/**
+ * The shell and the derived view models, with the cache handed its data.
+ *
+ * Split out of spa.spec.ts. What stayed there is the pair that genuinely proves
+ * the wiring — that the page's data came from the server over /rpc, and that the
+ * API is same-origin. Everything below asserts what the UI does with data it was
+ * given, which needs no server at all.
+ *
+ * The date-window test is the sharpest example. It guards the AGENTS.md rule
+ * "derive, don't store, anything that is a function of other columns": there is
+ * no `status` column and there must never be one. Asserting that used to require
+ * a seeded row whose dates happened to be in the past — so the test depended on
+ * the fixture staying stale. Here the window is an argument.
+ */
+
+const EVENT = {
+  id: "evt_002",
+  name: "Bangkok Schools Basketball League 2026",
+  names: { en: "Bangkok Schools Basketball League 2026" },
+  typeCode: "LEAGUE",
+  formatCode: "5x5",
+  description: null,
+  startDate: "2026-04-15",
+  endDate: "2026-04-19",
+  cityCode: "BANGKOK",
+  provinceCode: "BKK",
+  isFibaCertified: false,
+  createdBy: "u1",
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-01-01T00:00:00.000Z",
+  organizerName: "Bangkok Schools League",
+} as never
+
+test.describe("The SPA shell", () => {
+  test("React mounts and renders into #root", async ({ page }) => {
+    // Router defaults to discover when there is no hash.
+    await seedCache(page, [entry(orpc.events.list, undefined, { events: [] } as never)])
+    await page.goto("/")
+    await expect(page.locator("#root")).not.toBeEmpty()
+    await expect(page.locator("#root *").first()).toBeVisible()
+  })
+
+  test("a hash deep-link resolves client-side, with no server round trip", async ({ page }) => {
+    await page.goto("/#/live")
+    await expect(page.locator("#root")).not.toBeEmpty()
+    expect(page.url()).toContain("#/live")
+  })
+})
+
+test.describe("Event view models are derived, not stored", () => {
+  test("status and date come from the stored date window", async ({ page }) => {
+    // No status column exists in D1; the SPA computes it. An event whose window
+    // has passed must read as finished.
+    await seedCache(page, [entry(orpc.events.list, undefined, { events: [EVENT] } as never)])
+    await page.goto("/")
+
+    const row = page.locator(".event-row", { hasText: "Bangkok Schools Basketball League 2026" })
+    await expect(row).toBeVisible()
+    await expect(row.locator(".date .day")).toHaveText("15")
+    await expect(row.locator(".date .mo")).toHaveText("APR")
+    await expect(row.locator(".status")).toHaveText("Finished")
+  })
+
+  test("an event deep-link renders that event", async ({ page }) => {
+    await seedCache(page, [entry(orpc.events.get, { id: "evt_002" }, EVENT)])
+    await page.goto("/#/event/evt_002")
+    await expect(page.locator(".event-hero")).toContainText("Bangkok Schools Basketball League 2026")
+  })
+
+  test("a deep-link to a missing event says so, rather than showing another one", async ({ page }) => {
+    // Nothing seeded for this id, so the query runs and 404s — the one case here
+    // that still touches the Worker, because "the API said no" is the subject.
+    await page.goto("/#/event/evt_does_not_exist")
+    await expect(page.locator(".empty")).toContainText("does not exist")
+  })
+})

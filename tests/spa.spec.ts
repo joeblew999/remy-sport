@@ -5,26 +5,6 @@ import { test, expect } from "@playwright/test"
 // wiring — if the assets binding or the root route regresses, they fail.
 
 test.describe("SPA served from the Worker", () => {
-  test("React mounts and renders into #root", async ({ page }) => {
-    await page.goto("/")
-    // Router defaults to the discover page when no hash is present.
-    await expect(page.locator("#root")).not.toBeEmpty()
-    await expect(page.locator("#root *").first()).toBeVisible()
-  })
-
-  test("hash deep-link resolves client-side without a server round trip", async ({ page }) => {
-    await page.goto("/#/live")
-    await expect(page.locator("#root")).not.toBeEmpty()
-    expect(page.url()).toContain("#/live")
-  })
-
-  // The SPA was served but unreachable: no server-rendered page linked to it,
-  // so the SPA is simply what the root serves now.
-  test("the home page links to the SPA", async ({ page }) => {
-    await page.goto("/")
-    await expect(page.locator("#root")).toBeAttached()
-  })
-
   test("the API is reachable from the SPA origin (no CORS needed)", async ({ page }) => {
     await page.goto("/")
     const status = await page.evaluate(async () => {
@@ -62,28 +42,4 @@ test.describe("SPA events come from the API", () => {
     expect(titles).not.toContain("Bangkok Cup 2026 — U16 Boys")
   })
 
-  test("status and date are derived from the stored date window", async ({ page }) => {
-    await page.goto("/")
-    const row = page.locator(".event-row", {
-      hasText: "Chiang Mai Summer Basketball Camp 2026",
-    })
-    await expect(row).toBeVisible()
-    // Seeded 2026-04-15 → 2026-04-19. No status column exists in D1; the SPA
-    // computes it, so an event whose window has passed must read as finished.
-    await expect(row.locator(".date .day")).toHaveText("15")
-    await expect(row.locator(".date .mo")).toHaveText("APR")
-    await expect(row.locator(".status")).toHaveText("Finished")
-  })
-
-  test("an event deep-link loads that event from the API", async ({ page }) => {
-    await page.goto("/#/event/evt_002")
-    await expect(page.locator(".event-hero")).toContainText(
-      "Bangkok Schools Basketball League 2026",
-    )
-  })
-
-  test("a deep-link to a missing event says so instead of showing another one", async ({ page }) => {
-    await page.goto("/#/event/evt_does_not_exist")
-    await expect(page.locator(".empty")).toContainText("does not exist")
-  })
 })
