@@ -495,14 +495,6 @@ description = "How many tests are in each tier, and how many are still in the wr
 # that matters is how many browser tests exist at all.
 run = "bun scripts/test-tiers.ts"
 
-[tasks.followups]
-description = "List every outstanding follow-up recorded across the ADRs, in one place"
-# Not part of `check` — an open follow-up is a decision to do something later,
-# not a failure. This is a report you ask for, and it prints rather than
-# generating a file, so there is no follow-ups.md to fall out of sync with the
-# ADRs it summarises. Close an item by deleting its bullet from its ADR.
-run = "bun scripts/followups.ts"
-
 [tasks.test]
 description = "Run Playwright tests locally"
 depends     = ["setup"]

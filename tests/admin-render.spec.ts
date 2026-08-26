@@ -63,4 +63,65 @@ test.describe("The permission grid reflects the viewer's role", () => {
     await expect(page.getByTestId("role-badge")).toHaveText("coach")
     await expect(page.getByTestId("admin-console")).toHaveCount(0)
   })
+
+  test("the role switcher offers all six actors", async ({ page }) => {
+    await seedCache(page, [
+      as("admin"),
+      entry(orpc.events.list, undefined, { events: [] } as never),
+      {
+        // `useDevAccounts` — the dev-only list the switcher renders. It 404s to
+        // an empty array off localhost, so seeding it is also what makes this
+        // test independent of MAIL_TRANSPORT.
+        queryKey: ["dev", "accounts"] as readonly unknown[],
+        data: ["admin", "organizer", "coach", "player", "spectator", "referee"].map((role) => ({
+          role,
+          email: `${role}@remy.test`,
+          name: role,
+        })),
+      },
+    ])
+    await page.goto("/#/admin")
+    const switcher = page.getByTestId("role-switcher")
+    await expect(switcher).toBeVisible()
+    await expect(switcher.locator("button")).toHaveCount(6)
+  })
+
+  test("the events table renders the events it was given", async ({ page }) => {
+    await seedCache(page, [
+      as("organizer"),
+      entry(orpc.events.list, undefined, {
+        events: [
+          {
+            id: "e1",
+            name: "Visible in the table",
+            names: { en: "Visible in the table" },
+            typeCode: "TOURNAMENT",
+            formatCode: "5x5",
+            description: null,
+            startDate: "2026-06-10",
+            endDate: "2026-06-14",
+            cityCode: "BANGKOK",
+            provinceCode: "BKK",
+            isFibaCertified: false,
+            createdBy: "u_organizer",
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:00:00.000Z",
+            organizerName: "Someone",
+          },
+        ],
+      } as never),
+    ])
+    await page.goto("/#/admin")
+    const table = page.getByTestId("events-table")
+    await expect(table).toBeVisible()
+    await expect(table.locator("tbody tr")).not.toHaveCount(0)
+  })
+
+  test("a signed-out visitor is sent to the login screen", async ({ page }) => {
+    // Seeded as nobody: `useSession` resolves to a null user without a request,
+    // so the redirect happens on first paint rather than after a round trip.
+    await seedCache(page, [{ queryKey: sessionKey as unknown as readonly unknown[], data: null }])
+    await page.goto("/#/admin")
+    await page.waitForURL("**/#/login")
+  })
 })

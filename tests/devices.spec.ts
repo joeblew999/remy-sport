@@ -9,25 +9,6 @@ import { signInThroughLoginForm, signIn, COACH, REFEREE, BASE, IS_LOCAL } from "
 test.describe("Devices — where you're signed in", () => {
   test.skip(!IS_LOCAL, "signing in needs the fixed dev code")
 
-  test("signed out, the page asks you to sign in rather than erroring", async ({ page }) => {
-    await page.goto("/#/devices")
-    await expect(page.getByTestId("devices-signed-out")).toBeVisible()
-  })
-
-  test("the current session is listed and marked, and cannot be revoked by accident", async ({ page }) => {
-    await signInThroughLoginForm(page, COACH)
-    await page.goto("/#/devices")
-    await expect(page.getByTestId("devices-list")).toBeVisible()
-    await expect(page.getByTestId("device-current")).toBeVisible()
-
-    // No "Sign out" button on the row you are using — ending your own session
-    // from a device screen is a surprise, not a feature.
-    const currentRow = page.locator('[data-testid^="device-"]').filter({
-      has: page.getByTestId("device-current"),
-    })
-    await expect(currentRow.locator('[data-testid^="revoke-"]')).toHaveCount(0)
-  })
-
   test("a session signed in elsewhere shows up, and revoking it actually ends it", async ({ page, request }) => {
     // Second session for the same user, from a different context. This is the
     // case the feature exists for: something you did not start.
@@ -65,12 +46,6 @@ test.describe("Devices — where you're signed in", () => {
     await expect(page.getByTestId("device-current")).toBeVisible()
   })
 
-  test("the topbar links to it — a security screen nobody can find is not a feature", async ({ page }) => {
-    await signInThroughLoginForm(page, COACH)
-    await page.goto("/")
-    await page.getByTestId("topbar-devices").click()
-    await expect(page.getByTestId("devices-page")).toBeVisible()
-  })
 })
 
 test.describe("Session listing is per-user", () => {

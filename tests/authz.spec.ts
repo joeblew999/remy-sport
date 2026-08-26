@@ -28,11 +28,6 @@ const READERS = [COACH, PLAYER, SPECTATOR, REFEREE]  // read-only for events
 // ── Seed ────────────────────────────────────────────────────────────────────
 
 test.describe("Layer 1 — event:read is public", () => {
-  test("redirects to login when not signed in", async ({ page }) => {
-    await page.goto("/#/admin")
-    await page.waitForURL("**/#/login")
-  })
-
   test("the role switcher actually switches role, not just renders buttons", async ({ page }) => {
     // This is why it broke silently: the old test asserted the six buttons were
     // visible and never clicked one, so the switcher kept posting passwords
@@ -45,29 +40,4 @@ test.describe("Layer 1 — event:read is public", () => {
     await expect(page.getByTestId("role-badge")).toHaveText("coach", { timeout: 15000 })
   })
 
-  test("role switcher shows all 6 actors", async ({ page }) => {
-    await signInThroughLoginForm(page, ADMIN.email)
-
-    await page.goto("/#/admin")
-    const switcher = page.getByTestId("role-switcher")
-    await expect(switcher).toBeVisible()
-    await expect(switcher.locator("button")).toHaveCount(6)
-  })
-
-  test("events table shows created events", async ({ page, request }) => {
-    // Creates its own row rather than relying on one existing. The tests that
-    // used to leave events behind moved to tests/worker/authz.test.ts, where
-    // each file gets its own isolated D1 — so nothing seeds this one by
-    // side effect any more.
-    await signIn(request, ORGANIZER.email)
-    await request.post("/api/events", {
-      data: { names: { en: "Visible in the table" }, typeCode: "TOURNAMENT" },
-    })
-
-    await signInThroughLoginForm(page, ORGANIZER.email)
-    await page.goto("/#/admin")
-    const table = page.getByTestId("events-table")
-    await expect(table).toBeVisible()
-    await expect(table.locator("tbody tr")).not.toHaveCount(0)
-  })
 })

@@ -18,13 +18,39 @@ mise run test:render      rendering tests, no Worker, no database
 mise run probe            typecheck a snippet against the real project (WEB=1 for the SPA)
 ```
 
-> **Unfinished: the test migration.** 47 Playwright tests left, ~65s. The
-> per-file plan is [docs/dev/test-migration.md](docs/dev/test-migration.md);
-> progress is `mise run test:tiers`. Do not optimise the runner — that was tried
-> for a whole session and stopped dead. The population is the problem: a test
-> asserting what the API returns belongs in `tests/worker/`, one asserting what
-> the UI renders belongs in `*-render.spec.ts` with the cache seeded, and only a
-> real round trip belongs in e2e.
+## Next
+
+Kept here because this file is the one thing read at the start of every session.
+Update it when you finish something; delete the line when it is done.
+
+1. **shadcn/ui + Tailwind are still not installed.** `src/web/styles.css` is
+   ~1000 hand-written lines and the admin console added ~60 more. This is the
+   largest remaining source of per-page boilerplate and nothing has been done
+   about it.
+2. **The render tier costs 18s for 26 tests that make no network call** —
+   nearly all of it `vite preview` starting. A long-lived preview with
+   `reuseExistingServer` would take it near zero.
+3. **`admin-console` and `authz` flake under parallel e2e runs** and pass in
+   isolation: shared rows, not logic. Playwright is held to `workers: 2` for
+   that reason.
+
+The test classification is **done**. `mise run test:all` for the numbers; the
+38 left in e2e are genuine round trips and belong there. Do not "optimise the
+runner" — a whole session went into storageState, worker counts and project
+ordering and it stopped dead. What worked was moving tests to the right tier and
+merging worker files (~3s of workerd startup per file, measured).
+
+> Four tiers, and the rule for choosing one:
+>
+> | Asserts | Goes in |
+> |---|---|
+> | a pure function | `tests/unit/*.test.ts` — `mise run test:unit` |
+> | what the **API returns** | `tests/worker/*.test.ts` — `mise run test:worker` |
+> | what the **UI renders** given data | `*-render.spec.ts` — `mise run test:render` |
+> | a **real round trip** | `tests/*.spec.ts` — `mise run test` |
+>
+> If a test signs in only so a page will render, seed the cache instead
+> (`tests/helpers/seed-cache.ts`). Plan: [docs/dev/test-migration.md](docs/dev/test-migration.md).
 
 ## Companion repo
 

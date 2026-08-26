@@ -48,6 +48,13 @@ test.describe("The SPA shell", () => {
     await expect(page.locator("#root")).not.toBeEmpty()
     expect(page.url()).toContain("#/live")
   })
+
+  test("a deep link renders rather than 404ing", async ({ page }) => {
+    // Hash routing means every deep link resolves to the same document; there
+    // is no server-side rewrite table and there must not need to be one.
+    await page.goto("/#/admin")
+    await expect(page.locator("#root")).toBeAttached()
+  })
 })
 
 test.describe("Event view models are derived, not stored", () => {

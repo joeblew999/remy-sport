@@ -1,14 +1,14 @@
 # Test migration — what is done, and what is left
 
-**Measured 2026-08-26, end of session.** Run `mise run test:all` for current
-numbers and `mise run test:tiers` for the split.
+**Measured 2026-08-26.** `mise run test:all` for current numbers,
+`mise run test:tiers` for the split.
 
     test:unit      0s   35 tests   pure logic, no runtime
-    test:worker    5s   56 tests   the Worker in workerd, real Miniflare D1
-    test:render   15s   15 tests   a browser, no backend at all
-    test          65s   47 tests   a browser + a real Worker
+    test:worker    6s   58 tests   the Worker in workerd, real Miniflare D1
+    test:render   18s   26 tests   a browser, no backend at all
+    test          53s   38 tests   a browser + a real Worker
 
-Started at 151 Playwright tests / 2.8 minutes. 104 have moved.
+Started at 151 Playwright tests / 2.8 minutes.
 
 ## The rule
 
@@ -17,33 +17,37 @@ Started at 151 Playwright tests / 2.8 minutes. 104 have moved.
 > Asserts a **real round trip** — sign in, act, the change persists? → e2e
 
 If a test signs in only so a page will render, it does not need to sign in: seed
-the cache instead. `useSession` is a query, so its key is seedable like any
-other — that is how the six-role permission grid stopped needing six sign-ins.
+the cache. `useSession` is a query, so its key is seedable like any other — that
+is how the six-role permission grid stopped needing six sign-ins.
 
-Helpers, both already written:
+Helpers, both written:
 
 - [`tests/worker/helpers.ts`](../../tests/worker/helpers.ts) — `seed()`,
-  `signIn()`, `post()`, `actorFor()`. A worker test is ~5 lines of setup.
+  `signIn()`, `post()`, `actorFor()`.
 - [`tests/helpers/seed-cache.ts`](../../tests/helpers/seed-cache.ts) —
   `seedCache()`, `entry()`, typed against the procedure's real return type.
 
-Copy from [`tests/worker/authz.test.ts`](../../tests/worker/authz.test.ts) (API,
+Copy from [`tests/worker/write.test.ts`](../../tests/worker/write.test.ts) (API,
 real auth) or [`tests/admin-render.spec.ts`](../../tests/admin-render.spec.ts)
 (rendering, seeded session, zero backend).
 
-## What is still misplaced — about 10 tests
+## What is left in e2e — 38 tests, and most of them belong there
 
-- `home.spec.ts` (3) — status codes and 404s. These are worker tests.
-- `devices.spec.ts`, `authz.spec.ts` — a few that could seed the session rather
-  than signing in.
+- `spa-login` (9) — the subject *is* the sign-in flow
+- `admin-console` (6) — impersonation, ban, role changes that must persist
+- `accept-invitation` (6) — real invitation round trips
+- `organization` (4) — real org creation
+- `devices` (2) — revoking a session and watching it actually end
+- `authz` (1) — the role switcher completing a real sign-in
+- the rest: 404 paths and the two wiring proofs in `spa.spec.ts`
 
-The other ~37 are genuine round trips and should stay: `spa-login` (9, the
-subject *is* the sign-in flow), `admin-console` (6, impersonation/ban/role
-changes that must persist), `accept-invitation` (6), `organization` (4),
-`devices` (5, real session revocation).
+**These are genuine round trips.** The remaining minute is not a classification
+problem any more; it is 38 browser page-loads against a real Worker, which is
+what that costs.
 
-**So the honest target is ~37, not 23.** Past that, the remaining minute is not
-a classification problem.
+The next real lever is the **render tier's 18s**, nearly all of it `vite
+preview` starting. A long-lived preview with `reuseExistingServer` would take it
+to near zero.
 
 ## Non-negotiables, learned the hard way
 
