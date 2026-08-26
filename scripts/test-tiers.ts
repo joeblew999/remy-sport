@@ -22,11 +22,11 @@ const files = (dir: string, m: RegExp) => {
 const count = (paths: string[], re: RegExp) =>
   paths.reduce((n, p) => n + (read(p).match(re)?.length ?? 0), 0)
 
+// One directory per tier — no filename convention to keep in step.
 const unit = files("tests/unit", /\.test\.ts$/)
 const worker = files("tests/worker", /\.test\.ts$/)
-const specs = files("tests", /\.spec\.ts$/)
-const render = specs.filter((f) => f.includes("-render."))
-const e2e = specs.filter((f) => !f.includes("-render."))
+const render = files("tests/render", /\.spec\.ts$/)
+const e2e = files("tests/e2e", /\.spec\.ts$/)
 
 const TEST = /^\s*(it|test)\(/gm
 const row = (label: string, n: number, note = "") =>
@@ -45,6 +45,6 @@ const browserless = e2e
 
 if (browserless.length) {
   console.log("\nstill browserless in the e2e tier — convert these first:\n")
-  for (const [f, n] of browserless) row(f.replace("tests/", ""), n)
+  for (const [f, n] of browserless) row(f.replace("tests/e2e/", ""), n)
 }
 console.log("\nplan: docs/dev/test-migration.md\n")

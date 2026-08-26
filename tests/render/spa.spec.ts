@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test"
-import { seedCache, entry, orpc } from "./helpers/seed-cache"
+import { seedCache, entry, orpc } from "../helpers/seed-cache"
 
 /**
  * The shell and the derived view models, with the cache handed its data.

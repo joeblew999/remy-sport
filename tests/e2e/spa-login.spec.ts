@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test"
-import { ACTOR_NAMES, ADMIN, COACH, IS_LOCAL } from "./helpers/auth"
+import { ACTOR_NAMES, ADMIN, COACH, IS_LOCAL } from "../helpers/auth"
 
 // ADR 012 + ADR 008 step 4. The SPA had no authentication at all: it never
 // learned who was viewing, which is why the accept-invitation page had to hand

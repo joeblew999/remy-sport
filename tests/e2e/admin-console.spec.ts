@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test"
-import { signInThroughLoginForm, ADMIN, COACH, ORGANIZER, PLAYER } from "./helpers/auth"
+import { signInThroughLoginForm, ADMIN, COACH, ORGANIZER, PLAYER } from "../helpers/auth"
 
 // ADR 013. The dashboard stops being a demo harness and becomes a real admin
 // surface, using the plugin endpoints that were configured in ADR 007 and had
@@ -84,7 +84,7 @@ test.describe("Admin endpoints refuse non-admins", () => {
   test("a coach cannot list users, however they ask", async ({ request, baseURL }) => {
     // The UI hides the console, but hiding is not enforcement — the endpoint
     // has to refuse on its own.
-    const { signIn } = await import("./helpers/auth")
+    const { signIn } = await import("../helpers/auth")
     await signIn(request, COACH)
     const res = await request.get("/api/auth/admin/list-users?limit=5", {
       headers: { Origin: baseURL! },
@@ -93,7 +93,7 @@ test.describe("Admin endpoints refuse non-admins", () => {
   })
 
   test("a coach cannot impersonate anyone", async ({ request, baseURL }) => {
-    const { signIn } = await import("./helpers/auth")
+    const { signIn } = await import("../helpers/auth")
     await signIn(request, COACH)
     const users = await request.get("/api/teams")
     expect(users.ok()).toBeTruthy()

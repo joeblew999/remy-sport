@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test"
-import { seedCache, entry, orpc } from "./helpers/seed-cache"
+import { seedCache, entry, orpc } from "../helpers/seed-cache"
 
 /**
  * Rendering, with the cache handed its data instead of the network.

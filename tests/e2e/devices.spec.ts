@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test"
-import { signInThroughLoginForm, signIn, COACH, REFEREE, BASE, IS_LOCAL } from "./helpers/auth"
+import { signInThroughLoginForm, signIn, COACH, REFEREE, BASE, IS_LOCAL } from "../helpers/auth"
 
 // ADR 014. Better Auth core has exposed /list-sessions and /revoke-session all
 // along and nothing used them. It matters more since ADR 012 made sessions last

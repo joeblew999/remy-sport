@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test"
-import { ACTORS, signIn, signInThroughLoginForm } from "./helpers/auth"
-import { EVENT_TYPE_CODES } from "../src/domain/vocabularies"
-import { SEED_ENTITIES } from "../src/db/seed-data"
+import { ACTORS, signIn, signInThroughLoginForm } from "../helpers/auth"
+import { EVENT_TYPE_CODES } from "../../src/domain/vocabularies"
+import { SEED_ENTITIES } from "../../src/db/seed-data"
 
 // What is LEFT here after ADR 020: only the tests that genuinely drive a
 // browser. The request-level six-role matrix — 20 tests that never opened one —

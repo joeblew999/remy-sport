@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test"
-import { seedCache } from "./helpers/seed-cache"
-import { sessionKey } from "../src/web/lib/session"
+import { seedCache } from "../helpers/seed-cache"
+import { sessionKey } from "../../src/web/lib/session"
 
 /**
  * The devices screen, rendered — with the session and the device list seeded.

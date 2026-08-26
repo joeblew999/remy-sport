@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test"
-import { seedCache, entry, orpc } from "./helpers/seed-cache"
-import { m } from "../src/web/lib/i18n"
-import { VOCABULARY, LOCALES } from "../src/domain/vocabularies"
-import { VOCABULARY as REF } from "../src/domain/vocabularies"
+import { seedCache, entry, orpc } from "../helpers/seed-cache"
+import { m } from "../../src/web/lib/i18n"
+import { VOCABULARY, LOCALES } from "../../src/domain/vocabularies"
+import { VOCABULARY as REF } from "../../src/domain/vocabularies"
 
 /**
  * The bilingual chrome, rendered — with the events handed straight to the cache.

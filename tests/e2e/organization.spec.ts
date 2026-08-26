@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test"
-import { signInViaPage, deleteOrgViaPage, ORGANIZER } from "./helpers/auth"
+import { signInViaPage, deleteOrgViaPage, ORGANIZER } from "../helpers/auth"
 
 /**
  * Organizations, wired access control and database hooks (ADR 007).

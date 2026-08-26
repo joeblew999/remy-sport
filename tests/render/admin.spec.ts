@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test"
-import { seedCache, entry, orpc } from "./helpers/seed-cache"
-import { sessionKey } from "../src/web/lib/session"
+import { seedCache, entry, orpc } from "../helpers/seed-cache"
+import { sessionKey } from "../../src/web/lib/session"
 
 /**
  * The six-role permission grid, rendered — with the session seeded.

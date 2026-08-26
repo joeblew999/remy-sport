@@ -15,8 +15,7 @@ import { defineConfig, devices } from "@playwright/test"
  * which is the constraint that holds the E2E tier to two.
  */
 export default defineConfig({
-  testDir: "./tests",
-  testMatch: /.*-render\.spec\.ts/,
+  testDir: "./tests/render",
   fullyParallel: true,
   reporter: process.env.CI ? "line" : "list",
   use: {

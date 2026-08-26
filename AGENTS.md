@@ -44,10 +44,10 @@ merging worker files (~3s of workerd startup per file, measured).
 >
 > | Asserts | Goes in |
 > |---|---|
-> | a pure function | `tests/unit/*.test.ts` — `mise run test:unit` |
-> | what the **API returns** | `tests/worker/*.test.ts` — `mise run test:worker` |
-> | what the **UI renders** given data | `*-render.spec.ts` — `mise run test:render` |
-> | a **real round trip** | `tests/*.spec.ts` — `mise run test` |
+> | a pure function | `tests/unit/` — `mise run test:unit` |
+> | what the **API returns** | `tests/worker/` — `mise run test:worker` |
+> | what the **UI renders** given data | `tests/render/` — `mise run test:render` |
+> | a **real round trip** | `tests/e2e/` — `mise run test` |
 >
 > If a test signs in only so a page will render, seed the cache instead
 > (`tests/helpers/seed-cache.ts`). Plan: [docs/dev/test-migration.md](docs/dev/test-migration.md).

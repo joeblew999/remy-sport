@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test"
-import { ACTOR_NAMES, signIn, deleteOrg, ORGANIZER } from "./helpers/auth"
+import { ACTOR_NAMES, signIn, deleteOrg, ORGANIZER } from "../helpers/auth"
 
 // The outbox transport, and therefore /api/dev/outbox, exists only locally:
 // production runs MAIL_TRANSPORT=cloudflare and the route 404s there by design.

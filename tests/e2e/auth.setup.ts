@@ -1,6 +1,6 @@
 import { test as setup } from "@playwright/test"
 import { mkdirSync } from "node:fs"
-import { ALL_ACTORS, signIn, stateFor, AUTH_STATE_DIR } from "./helpers/auth"
+import { ALL_ACTORS, signIn, stateFor, AUTH_STATE_DIR } from "../helpers/auth"
 
 /**
  * Sign in once per actor and save the cookies to disk.

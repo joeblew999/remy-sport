@@ -1,5 +1,5 @@
 import { test as setup, expect } from "@playwright/test"
-import { SEED_ENTITIES } from "../src/db/seed-data"
+import { SEED_ENTITIES } from "../../src/db/seed-data"
 
 /**
  * Seed the target database before any test project runs.

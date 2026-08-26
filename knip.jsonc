@@ -25,7 +25,8 @@
     "src/auth.cli.ts",
     "scripts/*.ts",
     "tests/**/*.spec.ts",
-    "tests/*.setup.ts"
+    "tests/**/*.test.ts",
+    "tests/**/*.setup.ts"
   ],
 
   "project": ["src/**/*.{ts,tsx}", "scripts/**/*.ts", "tests/**/*.ts"],

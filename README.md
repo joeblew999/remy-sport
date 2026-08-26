@@ -31,9 +31,10 @@ src/api/        oRPC procedures — the whole domain API
 src/web/        the GUI: React 19 + Vite, served at /, also Tauri desktop + iOS
 src/db/         Drizzle schema and migrations (auth-schema.ts is generated)
 src/auth*       Better Auth: passwordless email OTP, orgs, admin
-tests/unit/     pure logic          (bun test)
-tests/worker/   the API in workerd  (vitest)
-tests/*.spec.ts a real browser      (playwright)
+tests/unit/     pure logic             (bun test)
+tests/worker/   the API in workerd     (vitest)
+tests/render/   a browser, no backend  (playwright)
+tests/e2e/      a browser + real Worker (playwright)
 ```
 
 ## Before you change anything

@@ -4,14 +4,13 @@ const baseURL = process.env.BASE_URL || "http://localhost:8787"
 const isLocal = !process.env.BASE_URL
 
 export default defineConfig({
-  testDir: "./tests",
-  // Playwright's default testMatch is **/*.@(spec|test).*, so it collects the
-  // other two suites' *.test.ts files and dies on their `bun:test` and
-  // `cloudflare:test` imports. Three tiers, three runners, and none of them
-  // may collect another's files:
-  //   tests/unit/    bun test   pure logic, no runtime   ~20ms
-  //   tests/worker/  vitest     the Worker in workerd    ~4s
-  //   tests/*.spec   playwright a real browser           ~1.6m
+  testDir: "./tests/e2e",
+  // One directory per tier, so nothing here needs a filename convention to tell
+  // the suites apart:
+  //   tests/unit/    bun test   pure logic
+  //   tests/worker/  vitest     the Worker in workerd
+  //   tests/render/  playwright a browser, no backend  (playwright.render.config.ts)
+  //   tests/e2e/     playwright a browser + real Worker (this file)
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   // Remote runs (test:deployed) retry as well as CI. Against the deployed
@@ -55,13 +54,7 @@ export default defineConfig({
     { name: "auth", testMatch: /auth\.setup\.ts/, dependencies: ["seed"] },
     {
       name: "e2e",
-      testIgnore: [
-        /.*\.setup\.ts/,
-        /tests\/unit\//,
-        /tests\/worker\//,
-        /.*-render\.spec\.ts/,   // own config: playwright.render.config.ts
-        /devices\.spec\.ts/,
-      ],
+      testIgnore: [/.*\.setup\.ts/, /devices\.spec\.ts/],
       dependencies: ["auth"],
     },
     // Last, and alone. Session state is global per user, so "sign out all other

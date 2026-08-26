@@ -12,8 +12,8 @@ Started at 151 Playwright tests / 2.8 minutes.
 
 ## The rule
 
-> Asserts what the **API returns**? → `tests/worker/*.test.ts`
-> Asserts what the **UI does with data it was given**? → `*-render.spec.ts`
+> Asserts what the **API returns**? → `tests/worker/`
+> Asserts what the **UI does with data it was given**? → `tests/render/`
 > Asserts a **real round trip** — sign in, act, the change persists? → e2e
 
 If a test signs in only so a page will render, it does not need to sign in: seed
@@ -28,7 +28,7 @@ Helpers, both written:
   `seedCache()`, `entry()`, typed against the procedure's real return type.
 
 Copy from [`tests/worker/write.test.ts`](../../tests/worker/write.test.ts) (API,
-real auth) or [`tests/admin-render.spec.ts`](../../tests/admin-render.spec.ts)
+real auth) or [`tests/render/admin.spec.ts`](../../tests/render/admin.spec.ts)
 (rendering, seeded session, zero backend).
 
 ## What is left in e2e — 38 tests, and most of them belong there

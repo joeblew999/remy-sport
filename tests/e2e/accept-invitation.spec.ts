@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test"
-import { signInViaPage as signIn, gotoFresh, deleteOrgViaPage, ORGANIZER, COACH, REFEREE, SPECTATOR } from "./helpers/auth"
-import { ACTORS } from "./helpers/auth"
+import { signInViaPage as signIn, gotoFresh, deleteOrgViaPage, ORGANIZER, COACH, REFEREE, SPECTATOR } from "../helpers/auth"
+import { ACTORS } from "../helpers/auth"
 
 // ADR 011. The invitation email sent in ADR 010 pointed at a route that did not
 // exist. These cover the landing page and the accept round-trip.
