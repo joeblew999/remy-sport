@@ -2,7 +2,6 @@ import type { BetterAuthOptions } from "better-auth"
 import { admin } from "better-auth/plugins/admin"
 import { organization } from "better-auth/plugins/organization"
 import { emailOTP } from "better-auth/plugins/email-otp"
-import { ac, roles } from "./auth/access-control"
 import { orgAc, orgRoles } from "./auth/org-access-control"
 import { adminAc, adminRoles } from "./auth/admin-access-control"
 

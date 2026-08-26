@@ -326,23 +326,31 @@ describe("Team writes need platform permission AND org membership", () => {
 })
 
 describe("Team writes — refusals", () => {
-  it("a coach CANNOT create a team in a school they do not belong to", async () => {
+  it("a coach creating a team becomes its head coach, and can then edit it", async () => {
     const coach = await signIn(COACH)
-    // team_003 is Montfort College; the coach belongs to Assumption only.
+    // team_003 is Montfort College; this coach is at Assumption. The PO grants
+    // CREATE_TEAM to ANY_COACH with no relation to an org — it is a PLATFORM
+    // action, because the team does not exist yet to be related to. This used to
+    // be refused by requireOrgMember, a relation the model does not define.
     const otherOrg = await orgIdForTeam("team_003")
 
     const res = await post(
       "/api/teams",
-      { names: { en: "Should Not Exist" }, orgId: otherOrg, ageGroupCode: "U14", genderCode: "M" },
+      { names: { en: "Created By A Visiting Coach" }, orgId: otherOrg, ageGroupCode: "U14", genderCode: "M" },
       coach,
     )
-    // The case that was inexpressible before ADR 009: same role, same action,
-    // different object — and it has to be refused.
-    expect(res.status).toBe(403)
-    const body = (await res.json()) as { code: string; message: string }
-    // oRPC's error shape: a machine-readable `code` beside the message.
-    expect(body.code).toBe("FORBIDDEN")
-    expect(body.message).toContain("Not a member")
+    expect(res.status).toBe(201)
+    const created = (await res.json()) as { id: string }
+
+    // And the loop closes: every later action on a team is scoped by
+    // team_coaches, so creating one has to make you its coach or you could not
+    // edit what you just made.
+    const edit = await put(
+      `/api/teams/${created.id}`,
+      { names: { en: "Renamed By Its Creator" } },
+      coach,
+    )
+    expect(edit.status, "the creator should hold HEAD_COACH on it").toBe(200)
   })
 
   it("a spectator is refused before membership is even considered", async () => {

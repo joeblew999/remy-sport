@@ -1,17 +1,16 @@
 /**
- * The oRPC base: one context, and the two access-control questions as
- * middleware.
+ * The oRPC base: one context, and authorisation as one middleware.
  *
- * Every procedure is built from `pub` (open) or `authed` (signed in). Access
- * control stays EXPLICIT per procedure — `.use(requirePermission(...))` reads
- * on the procedure that needs it, exactly as the Hono middleware did. The
- * factory removed the route scaffolding, not the security.
+ * Every procedure is built from `pub` (open) or `authed` (signed in), and a
+ * write adds `.use(requireAction(...))` — explicit on the procedure that needs
+ * it, so a protected operation cannot be quietly unprotected.
  *
- * ADR 009: authorising a write needs both questions. `requirePermission` asks
- * whether this actor type may do this at all; `requireOrgMember` asks whether
- * they stand in the right relation to *this* object. Either alone is wrong —
- * permission alone lets any coach edit any school's roster, membership alone
- * lets a spectator who belongs to the org edit it.
+ * This used to be two questions: `requirePermission` for the actor type and
+ * `requireOrgMember` / `requireOwner` for the object. That shape was right, but
+ * the answers were hand-written beside a machine-readable model of the same
+ * thing, and drifted from it. Now the PO's compiled grants name the relations
+ * that satisfy an action, and the relations resolve themselves — see
+ * ./relations.ts. Who may do what is an edit in remy-sport-biz, not here.
  */
 
 import { ORPCError, os } from "@orpc/server"
@@ -19,9 +18,9 @@ import type { OpenAPIV3_1 } from "openapi-types"
 import { drizzle } from "drizzle-orm/d1"
 import { eq } from "drizzle-orm"
 import * as schema from "../db/schema"
-import { roles } from "../auth/access-control"
+import { GRANTS } from "../domain/vocabularies"
+import { holds } from "./relations"
 import { createAuth } from "../auth"
-import { orgRoleFor, rankOf, type OrgRole } from "../middleware/require-org-member"
 import type { Bindings } from "../types"
 
 export interface ApiContext {
@@ -82,79 +81,84 @@ export const authed = pub.use(async ({ context, next }) => {
   return next({ context: { ...context, user } })
 })
 
-/** Platform-wide: may this actor type touch this resource at all? */
-export function requirePermission(resource: string, action: string) {
-  return base
-    .$context<ApiContext & { user: SessionUser }>()
-    .middleware(async ({ context, next }) => {
-    const role = (context.user?.role || "user") as keyof typeof roles
-    const definition = roles[role]
-    if (!definition) throw new ORPCError("FORBIDDEN", { message: "Forbidden" })
-
-    const result = (definition.authorize as (p: Record<string, string[]>) => { error?: unknown })({
-      [resource]: [action],
-    })
-    if (result.error) throw new ORPCError("FORBIDDEN", { message: "Forbidden" })
-    return next()
-  })
-}
-
 /**
- * Object-scoped: does this caller stand in the right relation to this object?
+ * May this user perform this action on this object?
  *
- * `orgIdFrom` returning null means the target does not exist. That is a 404,
- * not a 403 — saying "forbidden" for a missing id tells a caller which ids are
- * real.
+ * One middleware, replacing `requirePermission` + `requireOwner` /
+ * `requireOrgMember`. It reads the PO's compiled grants: the action names the
+ * relations that satisfy it, and the caller needs **any one** of them.
+ *
+ * Nothing here is a policy decision. `GRANTS` is generated from
+ * permissions.jsonl and the relations resolve themselves from their own
+ * structured derivation, so changing who may do what is an edit upstream, not a
+ * code change. That is the whole point: the previous arrangement restated a
+ * fraction of the same policy by hand, in a different shape, and drifted.
+ *
+ * `objectFrom` returning null is a 404, not a 403 — answering "forbidden" for an
+ * id that does not exist tells a caller which ids are real.
+ *
+ * Fails closed. An action with no grants forbids everyone.
  */
-export function requireOrgMember<TInput>(
-  orgIdFrom: (input: TInput, db: Db) => Promise<string | null> | string | null,
-  minRole: OrgRole = "member",
+export function requireAction<TInput>(
+  action: keyof typeof GRANTS,
+  objectFrom?: (input: TInput, db: Db) => Promise<string | null> | string | null,
 ) {
   return base
     .$context<ApiContext & { user: SessionUser }>()
     .middleware(async ({ context, next }, input: unknown) => {
-    const db = database(context.env)
-    const orgId = await orgIdFrom(input as TInput, db)
-    if (!orgId) throw new ORPCError("NOT_FOUND", { message: "Not found" })
+      const grants = GRANTS[action] as ReadonlyArray<{
+        relation: string
+        eventTypes: readonly string[]
+      }>
+      if (!grants?.length) throw new ORPCError("FORBIDDEN", { message: "Forbidden" })
 
-    // Platform admins are not members of every school and bypass by design.
-    if (context.user?.role === "admin") return next()
+      const db = database(context.env)
+      const user = context.user!
 
-    const role = await orgRoleFor(context.env, context.user!.id, orgId)
-    if (!role) throw new ORPCError("FORBIDDEN", { message: "Not a member of this organization" })
-    if (rankOf(role) > rankOf(minRole)) {
-      throw new ORPCError("FORBIDDEN", { message: `Requires ${minRole} in this organization` })
-    }
-    return next()
-  })
-}
+      // Platform relations first: a role comparison, no object and no query.
+      for (const g of grants) {
+        if (!g.eventTypes.length && (await holds(db, g.relation, user, null))) return next()
+      }
 
-/** The org that owns a team, for update/delete. */
-export const orgOfTeam = async (input: { id: string }, db: Db) => {
-  const row = await db
-    .select({ orgId: schema.team.orgId })
-    .from(schema.team)
-    .where(eq(schema.team.id, input.id))
-    .get()
-  return row?.orgId ?? null
-}
+      if (!objectFrom) throw new ORPCError("FORBIDDEN", { message: "Forbidden" })
+      const objectId = await objectFrom(input as TInput, db)
+      if (!objectId) throw new ORPCError("NOT_FOUND", { message: "Not found" })
 
-/** Ownership of an event, by its creator. */
-export function requireOwner() {
-  return base
-    .$context<ApiContext & { user: SessionUser }>()
-    .middleware(async ({ context, next }, input: unknown) => {
-    const { id } = input as { id: string }
-    const db = database(context.env)
-    const row = await db
-      .select({ createdBy: schema.event.createdBy })
-      .from(schema.event)
-      .where(eq(schema.event.id, id))
-      .get()
-    if (!row) throw new ORPCError("NOT_FOUND", { message: "Not found" })
-    if (context.user?.role !== "admin" && row.createdBy !== context.user!.id) {
+      // Some grants apply only to certain event subtypes — a camp has no
+      // brackets to generate. Resolve the subtype once, only if one asks.
+      let subtype: string | null | undefined
+      const needsSubtype = grants.some((g) => g.eventTypes.length)
+      if (needsSubtype) {
+        const row = await db
+          .select({ typeCode: schema.event.typeCode })
+          .from(schema.event)
+          .where(eq(schema.event.id, objectId))
+          .get()
+        subtype = row?.typeCode ?? null
+      }
+
+      for (const g of grants) {
+        if (g.eventTypes.length && !(subtype && g.eventTypes.includes(subtype))) continue
+        if (await holds(db, g.relation, user, objectId)) return next()
+      }
       throw new ORPCError("FORBIDDEN", { message: "Forbidden" })
-    }
-    return next()
-  })
+    })
 }
+
+
+
+/**
+ * The object a write targets, confirmed to exist.
+ *
+ * `requireAction` distinguishes "you may not" from "it is not there", and can
+ * only do that if the resolver says which. Passing `input.id` straight through
+ * looks equivalent and is not: a missing team then answers 403, which tells a
+ * caller the id is real.
+ */
+export const existingEvent = async (input: { id: string }, db: Db) =>
+  (await db.select({ id: schema.event.id }).from(schema.event).where(eq(schema.event.id, input.id)).get())?.id ?? null
+
+export const existingTeam = async (input: { id: string }, db: Db) =>
+  (await db.select({ id: schema.team.id }).from(schema.team).where(eq(schema.team.id, input.id)).get())?.id ?? null
+
+

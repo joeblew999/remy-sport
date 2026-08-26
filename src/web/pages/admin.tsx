@@ -159,7 +159,7 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
                   </td>
                   <td className="muted">{e.description || "—"}</td>
                   <td>
-                    {canDelete && (e.createdBy === user.id || isAdmin) && (
+                    {canDelete && (e.organizerUserId === user.id || isAdmin) && (
                       <button
                         className="danger"
                         onClick={() => deleteEvent.mutate(e.id)}

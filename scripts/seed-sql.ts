@@ -144,10 +144,10 @@ for (const t of SEED_ENTITIES.teams) {
   )
 }
 
-lines.push("", "-- Events. `created_by` is the organiser (canonical `organizer_user_id`).")
+lines.push("", "-- Events. `organizer_user_id` is the organiser, named as the fixtures name it.")
 for (const e of SEED_ENTITIES.events) {
   lines.push(
-    `INSERT OR IGNORE INTO event (id, name, names, type_code, format_code, start_date, end_date, city_code, province_code, is_fiba_certified, created_by, created_at, updated_at) VALUES ` +
+    `INSERT OR IGNORE INTO event (id, name, names, type_code, format_code, start_date, end_date, city_code, province_code, is_fiba_certified, organizer_user_id, created_at, updated_at) VALUES ` +
       `(${q(e.id)}, ${q(pivot(e.names))}, ${json(e.names)}, ${q(e.typeCode)}, ${q(e.formatCode)}, ${q(e.startDate)}, ${q(e.endDate)}, ${q(e.cityCode)}, ${q(e.provinceCode)}, ${e.isFibaCertified ? 1 : 0}, ${q(e.organizerUserId)}, ${AT}, ${AT});`,
   )
 }

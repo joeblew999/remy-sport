@@ -18,7 +18,7 @@ import type { ApiEvent } from "../domain/api"
 import { clean, pivot } from "../domain/names"
 import { z } from "zod"
 import { CreateEventInput, EventSchema, UpdateEventInput } from "../domain/api"
-import { authed, authedRoute, pub, requireOwner, requirePermission, type Db } from "./base"
+import { authed, authedRoute, existingEvent, pub, requireAction, type Db } from "./base"
 
 const IdInput = z.object({ id: z.string() })
 
@@ -82,7 +82,7 @@ export const create = authed
   .route({ method: "POST", path: "/events", summary: "Create an event", successStatus: 201, ...authedRoute })
   .input(CreateEventInput)
   .output(EventSchema)
-  .use(requirePermission("event", "create"))
+  .use(requireAction("CREATE_EVENT"))
   .handler(async ({ context, input }) => {
     assertDateOrder(input.startDate, input.endDate)
     const now = new Date()
@@ -100,7 +100,7 @@ export const create = authed
       cityCode: input.cityCode ?? null,
       provinceCode: input.provinceCode ?? null,
       isFibaCertified: input.isFibaCertified ?? false,
-      createdBy: context.user.id,
+      organizerUserId: context.user.id,
       createdAt: now,
       updatedAt: now,
     }
@@ -113,8 +113,7 @@ export const update = authed
   .route({ method: "PUT", path: "/events/{id}", summary: "Update an event", ...authedRoute })
   .input(IdInput.extend(UpdateEventInput.shape))
   .output(EventSchema)
-  .use(requirePermission("event", "update"))
-  .use(requireOwner())
+  .use(requireAction("EDIT_EVENT", existingEvent))
   .handler(async ({ context, input }) => {
     const { id, names, ...columns } = input
     const existing = await context.db
@@ -151,8 +150,7 @@ export const remove = authed
   .route({ method: "DELETE", path: "/events/{id}", summary: "Delete an event", ...authedRoute })
   .input(IdInput)
   .output(z.object({ deleted: z.boolean() }))
-  .use(requirePermission("event", "delete"))
-  .use(requireOwner())
+  .use(requireAction("DELETE_EVENT", existingEvent))
   .handler(async ({ context, input }) => {
     await context.db.delete(schema.event).where(eq(schema.event.id, input.id))
     return { deleted: true }

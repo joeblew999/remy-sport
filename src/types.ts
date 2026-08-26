@@ -43,10 +43,6 @@ export type Variables = {
     userId: string
     expiresAt: Date
   } | null
-  // Set by requireOrgMember once membership is established, so a handler can
-  // branch on owner/admin/member without re-querying. Absent on routes that
-  // never ran that middleware.
-  orgRole?: string
 }
 
 export type AppEnv = {

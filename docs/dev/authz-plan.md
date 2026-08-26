@@ -9,17 +9,22 @@ won.
 
 Everything else in this app is compiled from the PO's fixtures — vocabularies,
 entities, join tables, the Drizzle schema, migration DDL, the seed.
-**Authorization is the one place it is not.** `scripts/domain-generate.ts` has
-never read `permissions.jsonl`, so 186 machine-readable grants sit unused while
-[src/auth/access-control.ts](../../src/auth/access-control.ts) restates a
-fraction of them by hand.
+**Authorization was the one place it was not.** `scripts/domain-generate.ts` had
+never read `permissions.jsonl`, so 186 machine-readable grants sat unused while a
+hand-written access controller restated a fraction of them.
+
+**Phases 3, 4 and 5 are done.** The grants compile, the relations resolve
+themselves from their own structured derivation, and `requireAction` replaced
+`requirePermission` + `requireOwner` + `requireOrgMember`. `access-control.ts`
+and `require-org-member.ts` are deleted — 157 lines of hand-written policy for
+166 lines of one generic query builder that does not grow with the matrix.
 
 | | PO's model | This repo |
 |---|---|---|
-| Actions | 69 in `actions.jsonl` | 11 resources, hand-typed |
-| Relations | 19 in `relations.jsonl` | none — `requireOrgMember` invented instead |
-| Grants | 186 in `permissions.jsonl` | hand-written roles |
-| Wired | — | **6 of 69** |
+| Actions | 69 in `actions.jsonl` | compiled |
+| Relations | 19 in `relations.jsonl` | compiled, resolved from structured `derived_from` |
+| Grants | 186 in `permissions.jsonl` | compiled to 124 entries |
+| Wired | — | 6 of 69 — the rest cost one line each |
 
 At 6 of 69 that has already produced two over-permissions. The remaining 63 are
 the reason to fix it now: each one written by hand is another chance to invent a
@@ -170,7 +175,7 @@ Three details:
   `requirePermission` + `requireOwner` / `requireOrgMember`
 - **app** convert the 6 call sites in [src/api/events.ts](../../src/api/events.ts)
   and [src/api/teams.ts](../../src/api/teams.ts)
-- **app** delete `src/auth/access-control.ts`, the hand-written domain controller
+- ~~**app** delete the hand-written domain controller~~ **done** <!-- docs-check-ignore -->
 - **app** drop the dead `import { ac, roles }` from
   [src/auth.config.ts](../../src/auth.config.ts) — it imports both and uses
   neither, left over from the correction that stopped the platform controller

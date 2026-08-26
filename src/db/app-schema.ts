@@ -82,7 +82,7 @@ export const event = sqliteTable("event", {
   isFibaCertified: integer("is_fiba_certified", { mode: "boolean" })
     .notNull()
     .default(false),
-  createdBy: text("created_by") // canonical: organizer_user_id
+  organizerUserId: text("organizer_user_id")
     .notNull()
     .references(() => user.id),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
@@ -145,7 +145,7 @@ export const teamRelations = relations(team, ({ one }) => ({
 }))
 
 export const eventRelations = relations(event, ({ one }) => ({
-  organizer: one(user, { fields: [event.createdBy], references: [user.id] }),
+  organizer: one(user, { fields: [event.organizerUserId], references: [user.id] }),
   city: one(city, { fields: [event.cityCode], references: [city.code] }),
   province: one(province, { fields: [event.provinceCode], references: [province.code] }),
 }))

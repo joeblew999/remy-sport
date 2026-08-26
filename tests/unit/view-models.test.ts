@@ -35,7 +35,7 @@ const event = (over: Partial<ApiEvent> = {}): ApiEvent =>
     cityCode: null,
     provinceCode: null,
     isFibaCertified: false,
-    createdBy: "u1",
+    organizerUserId: "u1",
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     organizerName: "Bangkok Schools League",

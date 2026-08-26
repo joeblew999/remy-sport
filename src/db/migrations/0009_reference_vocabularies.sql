@@ -299,47 +299,6 @@ INSERT OR IGNORE INTO position (code, name_en, names, full_name_en, full_names, 
   ('PF', 'PF', '{"th":"พาวเวอร์ฟอร์เวิร์ด","en":"PF"}', 'Power Forward', '{"th":"พาวเวอร์ฟอร์เวิร์ด","en":"Power Forward"}', 4),
   ('C', 'C', '{"th":"เซ็นเตอร์","en":"C"}', 'Center', '{"th":"เซ็นเตอร์","en":"Center"}', 5);
 
-CREATE TABLE IF NOT EXISTS relation (
-  code               TEXT PRIMARY KEY,
-  object_type_code   TEXT NOT NULL REFERENCES object_type(code),
-  name_en            TEXT NOT NULL,
-  names              TEXT NOT NULL,
-  derived_from       TEXT NOT NULL,
-  sort               INTEGER NOT NULL
-);
-INSERT OR IGNORE INTO relation (code, object_type_code, name_en, names, derived_from, sort) VALUES
-  ('OWNER', 'EVENT', 'Owner', '{"th":"เจ้าของ","en":"Owner"}', 'events.organizer_user_id', 1),
-  ('CO_ORGANIZER', 'EVENT', 'Co-organizer', '{"th":"ผู้ร่วมจัด","en":"Co-organizer"}', 'event_co_organizers.user_id', 2),
-  ('HEAD_COACH', 'TEAM', 'Head Coach', '{"th":"หัวหน้าผู้ฝึกสอน","en":"Head Coach"}', 'team_coaches where coach_role_code=HEAD', 3),
-  ('ASSISTANT_COACH', 'TEAM', 'Assistant Coach', '{"th":"ผู้ช่วยผู้ฝึกสอน","en":"Assistant Coach"}', 'team_coaches where coach_role_code=ASSISTANT', 4),
-  ('TEAM_MANAGER', 'TEAM', 'Team Manager', '{"th":"ผู้จัดการทีม","en":"Team Manager"}', 'team_coaches where coach_role_code=MANAGER', 5),
-  ('TEAM_PLAYER', 'TEAM', 'Team Player', '{"th":"ผู้เล่นในทีม","en":"Team Player"}', 'player_teams (active rows where to_date is empty or future)', 6),
-  ('SELF', 'PLAYER', 'Self', '{"th":"ตัวเอง","en":"Self"}', 'players.user_id', 7),
-  ('GUARDIAN', 'PLAYER', 'Guardian', '{"th":"ผู้ปกครอง","en":"Guardian"}', 'guardians.user_id', 8),
-  ('FOLLOWER_PLAYER', 'PLAYER', 'Player Follower', '{"th":"ผู้ติดตาม (ผู้เล่น)","en":"Player Follower"}', 'subscriptions where object_type_code=PLAYER', 9),
-  ('FOLLOWER_TEAM', 'TEAM', 'Team Follower', '{"th":"ผู้ติดตาม (ทีม)","en":"Team Follower"}', 'subscriptions where object_type_code=TEAM', 10),
-  ('FOLLOWER_EVENT', 'EVENT', 'Event Follower', '{"th":"ผู้ติดตาม (อีเวนต์)","en":"Event Follower"}', 'subscriptions where object_type_code=EVENT', 11),
-  ('PLATFORM_ADMIN', 'PLATFORM', 'Platform Admin', '{"th":"ผู้ดูแลแพลตฟอร์ม","en":"Platform Admin"}', 'users where role_code=ADMIN', 12),
-  ('ANY_ORGANIZER', 'PLATFORM', 'Any Organizer', '{"th":"ผู้จัดการแข่งขันใดๆ","en":"Any Organizer"}', 'users where role_code=ORGANIZER', 13),
-  ('ANY_COACH', 'PLATFORM', 'Any Coach', '{"th":"โค้ชใดๆ","en":"Any Coach"}', 'users where role_code=COACH', 14),
-  ('ANY_PLAYER', 'PLATFORM', 'Any Player', '{"th":"ผู้เล่นใดๆ","en":"Any Player"}', 'users where role_code=PLAYER', 15),
-  ('ANY_REFEREE', 'PLATFORM', 'Any Referee', '{"th":"ผู้ตัดสินใดๆ","en":"Any Referee"}', 'users where role_code=REFEREE', 16),
-  ('ANY_SPECTATOR', 'PLATFORM', 'Any Spectator', '{"th":"ผู้ชมใดๆ","en":"Any Spectator"}', 'users where role_code=SPECTATOR', 17),
-  ('ANY_SIGNED_IN', 'PLATFORM', 'Any Signed-in User', '{"th":"ผู้ที่เข้าสู่ระบบใดๆ","en":"Any Signed-in User"}', 'Any user with an account', 18),
-  ('PUBLIC', 'PLATFORM', 'Public', '{"th":"สาธารณะ","en":"Public"}', 'Anyone including anonymous visitors', 19);
-
-CREATE TABLE IF NOT EXISTS relationship (
-  code               TEXT PRIMARY KEY,
-  name_en            TEXT NOT NULL,
-  names              TEXT NOT NULL,
-  sort               INTEGER NOT NULL
-);
-INSERT OR IGNORE INTO relationship (code, name_en, names, sort) VALUES
-  ('PARENT', 'Parent', '{"th":"ผู้ปกครอง","en":"Parent"}', 1),
-  ('GRANDPARENT', 'Grandparent', '{"th":"ปู่ย่าตายาย","en":"Grandparent"}', 2),
-  ('GUARDIAN', 'Legal Guardian', '{"th":"ผู้ดูแล","en":"Legal Guardian"}', 3),
-  ('OTHER', 'Other', '{"th":"อื่นๆ","en":"Other"}', 4);
-
 CREATE TABLE IF NOT EXISTS role (
   code               TEXT PRIMARY KEY,
   name_en            TEXT NOT NULL,
@@ -355,6 +314,56 @@ INSERT OR IGNORE INTO role (code, name_en, names, description_en, descriptions, 
   ('PLAYER', 'Player', '{"th":"ผู้เล่น","en":"Player"}', 'Individual athlete — own profile registrations stats', '{"th":"นักกีฬารายบุคคลที่จัดการโปรไฟล์ การลงทะเบียน และสถิติของตนเอง","en":"Individual athlete — own profile registrations stats"}', 4),
   ('SPECTATOR', 'Spectator', '{"th":"ผู้ชม","en":"Spectator"}', 'Read-only follower — parents fans casual viewers', '{"th":"ผู้ติดตามที่อ่านข้อมูลได้อย่างเดียว เช่น ผู้ปกครอง แฟนกีฬา และผู้ชมทั่วไป","en":"Read-only follower — parents fans casual viewers"}', 5),
   ('REFEREE', 'Referee', '{"th":"ผู้ตัดสิน","en":"Referee"}', 'Certified official — score entry match status', '{"th":"เจ้าหน้าที่ผู้ได้รับการรับรองที่บันทึกคะแนนและสถานะการแข่งขัน","en":"Certified official — score entry match status"}', 6);
+
+CREATE TABLE IF NOT EXISTS relation (
+  code               TEXT PRIMARY KEY,
+  object_type_code   TEXT NOT NULL REFERENCES object_type(code),
+  name_en            TEXT NOT NULL,
+  names              TEXT NOT NULL,
+  via                TEXT NOT NULL,
+  source_table       TEXT,
+  object_column      TEXT,
+  user_column        TEXT,
+  filter_column      TEXT,
+  filter_value       TEXT,
+  through_table      TEXT,
+  through_column     TEXT,
+  active_to_column   TEXT,
+  role_code          TEXT REFERENCES role(code),
+  sort               INTEGER NOT NULL
+);
+INSERT OR IGNORE INTO relation (code, object_type_code, name_en, names, via, source_table, object_column, user_column, filter_column, filter_value, through_table, through_column, active_to_column, role_code, sort) VALUES
+  ('OWNER', 'EVENT', 'Owner', '{"th":"เจ้าของ","en":"Owner"}', 'table', 'events', 'id', 'organizer_user_id', NULL, NULL, NULL, NULL, NULL, NULL, 1),
+  ('CO_ORGANIZER', 'EVENT', 'Co-organizer', '{"th":"ผู้ร่วมจัด","en":"Co-organizer"}', 'table', 'event_co_organizers', 'event_id', 'user_id', NULL, NULL, NULL, NULL, NULL, NULL, 2),
+  ('HEAD_COACH', 'TEAM', 'Head Coach', '{"th":"หัวหน้าผู้ฝึกสอน","en":"Head Coach"}', 'table', 'team_coaches', 'team_id', 'user_id', 'coach_role_code', 'HEAD', NULL, NULL, NULL, NULL, 3),
+  ('ASSISTANT_COACH', 'TEAM', 'Assistant Coach', '{"th":"ผู้ช่วยผู้ฝึกสอน","en":"Assistant Coach"}', 'table', 'team_coaches', 'team_id', 'user_id', 'coach_role_code', 'ASSISTANT', NULL, NULL, NULL, NULL, 4),
+  ('TEAM_MANAGER', 'TEAM', 'Team Manager', '{"th":"ผู้จัดการทีม","en":"Team Manager"}', 'table', 'team_coaches', 'team_id', 'user_id', 'coach_role_code', 'MANAGER', NULL, NULL, NULL, NULL, 5),
+  ('TEAM_PLAYER', 'TEAM', 'Team Player', '{"th":"ผู้เล่นในทีม","en":"Team Player"}', 'table', 'player_teams', 'team_id', 'user_id', NULL, NULL, 'players', 'player_id', 'to_date', NULL, 6),
+  ('SELF', 'PLAYER', 'Self', '{"th":"ตัวเอง","en":"Self"}', 'table', 'players', 'id', 'user_id', NULL, NULL, NULL, NULL, NULL, NULL, 7),
+  ('GUARDIAN', 'PLAYER', 'Guardian', '{"th":"ผู้ปกครอง","en":"Guardian"}', 'table', 'guardians', 'player_id', 'user_id', NULL, NULL, NULL, NULL, NULL, NULL, 8),
+  ('FOLLOWER_PLAYER', 'PLAYER', 'Player Follower', '{"th":"ผู้ติดตาม (ผู้เล่น)","en":"Player Follower"}', 'table', 'subscriptions', 'object_id', 'user_id', 'object_type_code', 'PLAYER', NULL, NULL, NULL, NULL, 9),
+  ('FOLLOWER_TEAM', 'TEAM', 'Team Follower', '{"th":"ผู้ติดตาม (ทีม)","en":"Team Follower"}', 'table', 'subscriptions', 'object_id', 'user_id', 'object_type_code', 'TEAM', NULL, NULL, NULL, NULL, 10),
+  ('FOLLOWER_EVENT', 'EVENT', 'Event Follower', '{"th":"ผู้ติดตาม (อีเวนต์)","en":"Event Follower"}', 'table', 'subscriptions', 'object_id', 'user_id', 'object_type_code', 'EVENT', NULL, NULL, NULL, NULL, 11),
+  ('PLATFORM_ADMIN', 'PLATFORM', 'Platform Admin', '{"th":"ผู้ดูแลแพลตฟอร์ม","en":"Platform Admin"}', 'role', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'ADMIN', 12),
+  ('ANY_ORGANIZER', 'PLATFORM', 'Any Organizer', '{"th":"ผู้จัดการแข่งขันใดๆ","en":"Any Organizer"}', 'role', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'ORGANIZER', 13),
+  ('ANY_COACH', 'PLATFORM', 'Any Coach', '{"th":"โค้ชใดๆ","en":"Any Coach"}', 'role', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'COACH', 14),
+  ('ANY_PLAYER', 'PLATFORM', 'Any Player', '{"th":"ผู้เล่นใดๆ","en":"Any Player"}', 'role', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'PLAYER', 15),
+  ('ANY_REFEREE', 'PLATFORM', 'Any Referee', '{"th":"ผู้ตัดสินใดๆ","en":"Any Referee"}', 'role', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'REFEREE', 16),
+  ('ANY_SPECTATOR', 'PLATFORM', 'Any Spectator', '{"th":"ผู้ชมใดๆ","en":"Any Spectator"}', 'role', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'SPECTATOR', 17),
+  ('ANY_SIGNED_IN', 'PLATFORM', 'Any Signed-in User', '{"th":"ผู้ที่เข้าสู่ระบบใดๆ","en":"Any Signed-in User"}', 'everyone', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 18),
+  ('PUBLIC', 'PLATFORM', 'Public', '{"th":"สาธารณะ","en":"Public"}', 'everyone', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 19);
+
+CREATE TABLE IF NOT EXISTS relationship (
+  code               TEXT PRIMARY KEY,
+  name_en            TEXT NOT NULL,
+  names              TEXT NOT NULL,
+  sort               INTEGER NOT NULL
+);
+INSERT OR IGNORE INTO relationship (code, name_en, names, sort) VALUES
+  ('PARENT', 'Parent', '{"th":"ผู้ปกครอง","en":"Parent"}', 1),
+  ('GRANDPARENT', 'Grandparent', '{"th":"ปู่ย่าตายาย","en":"Grandparent"}', 2),
+  ('GUARDIAN', 'Legal Guardian', '{"th":"ผู้ดูแล","en":"Legal Guardian"}', 3),
+  ('OTHER', 'Other', '{"th":"อื่นๆ","en":"Other"}', 4);
 
 CREATE TABLE IF NOT EXISTS skill_tier (
   code               TEXT PRIMARY KEY,

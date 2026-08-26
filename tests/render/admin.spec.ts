@@ -103,7 +103,7 @@ test.describe("The permission grid reflects the viewer's role", () => {
             cityCode: "BANGKOK",
             provinceCode: "BKK",
             isFibaCertified: false,
-            createdBy: "u_organizer",
+            organizerUserId: "u_organizer",
             createdAt: "2026-01-01T00:00:00.000Z",
             updatedAt: "2026-01-01T00:00:00.000Z",
             organizerName: "Someone",

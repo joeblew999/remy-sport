@@ -2,7 +2,8 @@
  * Teams.
  *
  * Reads are public; writes need both access-control questions to line up —
- * `requirePermission` for the actor type, `requireOrgMember` for the object.
+ * `requireAction`: the PO's grants name the relations that satisfy the action,
+ * and each relation resolves itself from the tables it is derived from.
  * ADR 009 and src/api/base.ts explain why either alone is wrong.
  *
  * The organisation join is a `with:` on the relation declared in app-schema,
@@ -17,7 +18,7 @@ import type { Names } from "../domain/names"
 import { clean, pivot } from "../domain/names"
 import { z } from "zod"
 import { CreateTeamInput, TeamSchema, UpdateTeamInput } from "../domain/api"
-import { authed, authedRoute, orgOfTeam, pub, requireOrgMember, requirePermission, type Db } from "./base"
+import { authed, authedRoute, existingTeam, pub, requireAction, type Db } from "./base"
 
 const IdInput = z.object({ id: z.string() })
 
@@ -87,12 +88,11 @@ export const create = authed
   .route({ method: "POST", path: "/teams", summary: "Create a team", successStatus: 201, ...authedRoute })
   .input(CreateTeamInput)
   .output(TeamSchema)
-  .use(requirePermission("team", "create"))
-  .use(requireOrgMember((input: { orgId: string }) => input.orgId))
+  .use(requireAction("CREATE_TEAM"))
   .handler(async ({ context, input }) => {
-    // requireOrgMember proved the caller belongs to this org, which for a real
-    // org id also proves it exists — but a member row can outlive its
-    // organization, so the FK target is confirmed rather than assumed.
+    // CREATE_TEAM is a PLATFORM action — the PO grants it to ANY_COACH and
+    // PLATFORM_ADMIN, with no relation to the org — so nothing upstream has
+    // confirmed this org exists. The FK would fail anyway; a 404 says why.
     const org = await context.db
       .select()
       .from(schema.organization)
@@ -113,6 +113,25 @@ export const create = authed
       updatedAt: now,
     }
     await context.db.insert(schema.team).values(row)
+
+    // The creator becomes its head coach, and this is not a nicety.
+    //
+    // CREATE_TEAM is granted to ANY_COACH with no relation to the object — a
+    // team does not exist yet, so there is nothing to relate to. But every
+    // action on a team afterwards is scoped by `team_coaches`
+    // (EDIT_TEAM_PROFILE, MANAGE_ROSTER), so without this the coach who just
+    // created a team could not edit it. Creating one is the act that makes you
+    // its coach.
+    //
+    // Not for platform admins: they hold PLATFORM_ADMIN on everything already,
+    // and writing them into a school's coaching staff would be a lie in the data.
+    if (context.user.role !== "admin") {
+      await context.db
+        .insert(schema.teamCoach)
+        .values({ teamId: row.id, userId: context.user.id, coachRoleCode: "HEAD" })
+        .onConflictDoNothing()
+    }
+
     return serialize({ ...row, organization: org })
   })
 
@@ -120,8 +139,7 @@ export const update = authed
   .route({ method: "PUT", path: "/teams/{id}", summary: "Update a team", ...authedRoute })
   .input(IdInput.extend(UpdateTeamInput.shape))
   .output(TeamSchema)
-  .use(requirePermission("team", "update"))
-  .use(requireOrgMember(orgOfTeam))
+  .use(requireAction("EDIT_TEAM_PROFILE", existingTeam))
   .handler(async ({ context, input }) => {
     const { id, names, ...columns } = input
     await context.db
@@ -144,17 +162,27 @@ export const remove = authed
   .route({ method: "DELETE", path: "/teams/{id}", summary: "Delete a team", ...authedRoute })
   .input(IdInput)
   .output(z.object({ deleted: z.string() }))
-  // No requireOrgMember here, deliberately. biz data/access/matrix.md grants
-  // DELETE_TEAM to PLATFORM_ADMIN and to nobody else, and access-control.ts
-  // matches — only the platform `admin` role holds `team:delete`. Platform
-  // admins are not members of every school and bypass org checks by design, so
-  // an org-membership tier could never fire. Adding one would be dead code that
-  // also implies org admins may delete teams, which the PO did not grant.
-  .use(requirePermission("team", "delete"))
+  // The PO grants DELETE_TEAM to PLATFORM_ADMIN and to nobody else — no relation
+  // to the team is required or accepted, so this is the one team write where
+  // holding a coaching role changes nothing.
+  .use(requireAction("DELETE_TEAM", existingTeam))
   .handler(async ({ context, input }) => {
+    // The rows that point at this team, first.
+    //
+    // Three tables carry a non-null FK to team.id, and none was declared
+    // ON DELETE CASCADE in migration 0013, so the delete fails at the database
+    // rather than orphaning anything. That was invisible while nothing wrote
+    // these rows during a test; `create` now records the creator as head coach,
+    // so every created team has a dependent row from birth.
+    await context.db.batch([
+      context.db.delete(schema.teamCoach).where(eq(schema.teamCoach.teamId, input.id)),
+      context.db.delete(schema.playerTeam).where(eq(schema.playerTeam.teamId, input.id)),
+      context.db.delete(schema.eventTeam).where(eq(schema.eventTeam.teamId, input.id)),
+    ])
+
     const res = await context.db.delete(schema.team).where(eq(schema.team.id, input.id))
-    // 404 rather than a cheerful 200 for an id that was never there — the other
-    // write routes get this from requireOrgMember, which this one does not run.
+    // `existingTeam` has already 404'd a missing id, so reaching zero changes
+    // here means it was deleted between the two — still a 404 to the caller.
     if (res.meta.changes === 0) throw new ORPCError("NOT_FOUND", { message: "Not found" })
     return { deleted: input.id }
   })

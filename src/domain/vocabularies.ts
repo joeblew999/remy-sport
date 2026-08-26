@@ -464,27 +464,48 @@ export const POSITION_CODES = POSITION.map((t) => t.code) as unknown as [
 
 export type PositionCode = (typeof POSITION_CODES)[number]
 
+/** 6 rows, from roles.jsonl. */
+export const ROLE = [
+  { code: "ADMIN", names: {"th":"ผู้ดูแลระบบ","en":"Admin"}, descriptions: {"th":"เจ้าหน้าที่ภายในที่ดูแลแพลตฟอร์มและมีสิทธิ์เขียนข้อมูลทั้งหมด","en":"Internal staff managing the platform — full write access across all data"} },
+  { code: "ORGANIZER", names: {"th":"ผู้จัดการแข่งขัน","en":"Organizer"}, descriptions: {"th":"สร้างและจัดทัวร์นาเมนต์ ลีก ค่ายฝึก และกิจกรรมแสดงผลงาน","en":"Creates and runs tournaments leagues camps showcases"} },
+  { code: "COACH", names: {"th":"โค้ช","en":"Coach"}, descriptions: {"th":"จัดการทีม การลงทะเบียนรายชื่อผู้เล่น และการบันทึกการเข้าร่วม","en":"Manages a team — roster registration attendance"} },
+  { code: "PLAYER", names: {"th":"ผู้เล่น","en":"Player"}, descriptions: {"th":"นักกีฬารายบุคคลที่จัดการโปรไฟล์ การลงทะเบียน และสถิติของตนเอง","en":"Individual athlete — own profile registrations stats"} },
+  { code: "SPECTATOR", names: {"th":"ผู้ชม","en":"Spectator"}, descriptions: {"th":"ผู้ติดตามที่อ่านข้อมูลได้อย่างเดียว เช่น ผู้ปกครอง แฟนกีฬา และผู้ชมทั่วไป","en":"Read-only follower — parents fans casual viewers"} },
+  { code: "REFEREE", names: {"th":"ผู้ตัดสิน","en":"Referee"}, descriptions: {"th":"เจ้าหน้าที่ผู้ได้รับการรับรองที่บันทึกคะแนนและสถานะการแข่งขัน","en":"Certified official — score entry match status"} },
+] as const
+
+export const ROLE_CODES = ROLE.map((t) => t.code) as unknown as [
+  "ADMIN",
+  "ORGANIZER",
+  "COACH",
+  "PLAYER",
+  "SPECTATOR",
+  "REFEREE",
+]
+
+export type RoleCode = (typeof ROLE_CODES)[number]
+
 /** 19 rows, from relations.jsonl. */
 export const RELATION = [
-  { code: "OWNER", objectTypeCode: "EVENT", derivedFrom: "events.organizer_user_id", names: {"th":"เจ้าของ","en":"Owner"} },
-  { code: "CO_ORGANIZER", objectTypeCode: "EVENT", derivedFrom: "event_co_organizers.user_id", names: {"th":"ผู้ร่วมจัด","en":"Co-organizer"} },
-  { code: "HEAD_COACH", objectTypeCode: "TEAM", derivedFrom: "team_coaches where coach_role_code=HEAD", names: {"th":"หัวหน้าผู้ฝึกสอน","en":"Head Coach"} },
-  { code: "ASSISTANT_COACH", objectTypeCode: "TEAM", derivedFrom: "team_coaches where coach_role_code=ASSISTANT", names: {"th":"ผู้ช่วยผู้ฝึกสอน","en":"Assistant Coach"} },
-  { code: "TEAM_MANAGER", objectTypeCode: "TEAM", derivedFrom: "team_coaches where coach_role_code=MANAGER", names: {"th":"ผู้จัดการทีม","en":"Team Manager"} },
-  { code: "TEAM_PLAYER", objectTypeCode: "TEAM", derivedFrom: "player_teams (active rows where to_date is empty or future)", names: {"th":"ผู้เล่นในทีม","en":"Team Player"} },
-  { code: "SELF", objectTypeCode: "PLAYER", derivedFrom: "players.user_id", names: {"th":"ตัวเอง","en":"Self"} },
-  { code: "GUARDIAN", objectTypeCode: "PLAYER", derivedFrom: "guardians.user_id", names: {"th":"ผู้ปกครอง","en":"Guardian"} },
-  { code: "FOLLOWER_PLAYER", objectTypeCode: "PLAYER", derivedFrom: "subscriptions where object_type_code=PLAYER", names: {"th":"ผู้ติดตาม (ผู้เล่น)","en":"Player Follower"} },
-  { code: "FOLLOWER_TEAM", objectTypeCode: "TEAM", derivedFrom: "subscriptions where object_type_code=TEAM", names: {"th":"ผู้ติดตาม (ทีม)","en":"Team Follower"} },
-  { code: "FOLLOWER_EVENT", objectTypeCode: "EVENT", derivedFrom: "subscriptions where object_type_code=EVENT", names: {"th":"ผู้ติดตาม (อีเวนต์)","en":"Event Follower"} },
-  { code: "PLATFORM_ADMIN", objectTypeCode: "PLATFORM", derivedFrom: "users where role_code=ADMIN", names: {"th":"ผู้ดูแลแพลตฟอร์ม","en":"Platform Admin"} },
-  { code: "ANY_ORGANIZER", objectTypeCode: "PLATFORM", derivedFrom: "users where role_code=ORGANIZER", names: {"th":"ผู้จัดการแข่งขันใดๆ","en":"Any Organizer"} },
-  { code: "ANY_COACH", objectTypeCode: "PLATFORM", derivedFrom: "users where role_code=COACH", names: {"th":"โค้ชใดๆ","en":"Any Coach"} },
-  { code: "ANY_PLAYER", objectTypeCode: "PLATFORM", derivedFrom: "users where role_code=PLAYER", names: {"th":"ผู้เล่นใดๆ","en":"Any Player"} },
-  { code: "ANY_REFEREE", objectTypeCode: "PLATFORM", derivedFrom: "users where role_code=REFEREE", names: {"th":"ผู้ตัดสินใดๆ","en":"Any Referee"} },
-  { code: "ANY_SPECTATOR", objectTypeCode: "PLATFORM", derivedFrom: "users where role_code=SPECTATOR", names: {"th":"ผู้ชมใดๆ","en":"Any Spectator"} },
-  { code: "ANY_SIGNED_IN", objectTypeCode: "PLATFORM", derivedFrom: "Any user with an account", names: {"th":"ผู้ที่เข้าสู่ระบบใดๆ","en":"Any Signed-in User"} },
-  { code: "PUBLIC", objectTypeCode: "PLATFORM", derivedFrom: "Anyone including anonymous visitors", names: {"th":"สาธารณะ","en":"Public"} },
+  { code: "OWNER", objectTypeCode: "EVENT", via: "table", sourceTable: "events", objectColumn: "id", userColumn: "organizer_user_id", filterColumn: null, filterValue: null, throughTable: null, throughColumn: null, activeToColumn: null, roleCode: null, names: {"th":"เจ้าของ","en":"Owner"} },
+  { code: "CO_ORGANIZER", objectTypeCode: "EVENT", via: "table", sourceTable: "event_co_organizers", objectColumn: "event_id", userColumn: "user_id", filterColumn: null, filterValue: null, throughTable: null, throughColumn: null, activeToColumn: null, roleCode: null, names: {"th":"ผู้ร่วมจัด","en":"Co-organizer"} },
+  { code: "HEAD_COACH", objectTypeCode: "TEAM", via: "table", sourceTable: "team_coaches", objectColumn: "team_id", userColumn: "user_id", filterColumn: "coach_role_code", filterValue: "HEAD", throughTable: null, throughColumn: null, activeToColumn: null, roleCode: null, names: {"th":"หัวหน้าผู้ฝึกสอน","en":"Head Coach"} },
+  { code: "ASSISTANT_COACH", objectTypeCode: "TEAM", via: "table", sourceTable: "team_coaches", objectColumn: "team_id", userColumn: "user_id", filterColumn: "coach_role_code", filterValue: "ASSISTANT", throughTable: null, throughColumn: null, activeToColumn: null, roleCode: null, names: {"th":"ผู้ช่วยผู้ฝึกสอน","en":"Assistant Coach"} },
+  { code: "TEAM_MANAGER", objectTypeCode: "TEAM", via: "table", sourceTable: "team_coaches", objectColumn: "team_id", userColumn: "user_id", filterColumn: "coach_role_code", filterValue: "MANAGER", throughTable: null, throughColumn: null, activeToColumn: null, roleCode: null, names: {"th":"ผู้จัดการทีม","en":"Team Manager"} },
+  { code: "TEAM_PLAYER", objectTypeCode: "TEAM", via: "table", sourceTable: "player_teams", objectColumn: "team_id", userColumn: "user_id", filterColumn: null, filterValue: null, throughTable: "players", throughColumn: "player_id", activeToColumn: "to_date", roleCode: null, names: {"th":"ผู้เล่นในทีม","en":"Team Player"} },
+  { code: "SELF", objectTypeCode: "PLAYER", via: "table", sourceTable: "players", objectColumn: "id", userColumn: "user_id", filterColumn: null, filterValue: null, throughTable: null, throughColumn: null, activeToColumn: null, roleCode: null, names: {"th":"ตัวเอง","en":"Self"} },
+  { code: "GUARDIAN", objectTypeCode: "PLAYER", via: "table", sourceTable: "guardians", objectColumn: "player_id", userColumn: "user_id", filterColumn: null, filterValue: null, throughTable: null, throughColumn: null, activeToColumn: null, roleCode: null, names: {"th":"ผู้ปกครอง","en":"Guardian"} },
+  { code: "FOLLOWER_PLAYER", objectTypeCode: "PLAYER", via: "table", sourceTable: "subscriptions", objectColumn: "object_id", userColumn: "user_id", filterColumn: "object_type_code", filterValue: "PLAYER", throughTable: null, throughColumn: null, activeToColumn: null, roleCode: null, names: {"th":"ผู้ติดตาม (ผู้เล่น)","en":"Player Follower"} },
+  { code: "FOLLOWER_TEAM", objectTypeCode: "TEAM", via: "table", sourceTable: "subscriptions", objectColumn: "object_id", userColumn: "user_id", filterColumn: "object_type_code", filterValue: "TEAM", throughTable: null, throughColumn: null, activeToColumn: null, roleCode: null, names: {"th":"ผู้ติดตาม (ทีม)","en":"Team Follower"} },
+  { code: "FOLLOWER_EVENT", objectTypeCode: "EVENT", via: "table", sourceTable: "subscriptions", objectColumn: "object_id", userColumn: "user_id", filterColumn: "object_type_code", filterValue: "EVENT", throughTable: null, throughColumn: null, activeToColumn: null, roleCode: null, names: {"th":"ผู้ติดตาม (อีเวนต์)","en":"Event Follower"} },
+  { code: "PLATFORM_ADMIN", objectTypeCode: "PLATFORM", via: "role", sourceTable: null, objectColumn: null, userColumn: null, filterColumn: null, filterValue: null, throughTable: null, throughColumn: null, activeToColumn: null, roleCode: "ADMIN", names: {"th":"ผู้ดูแลแพลตฟอร์ม","en":"Platform Admin"} },
+  { code: "ANY_ORGANIZER", objectTypeCode: "PLATFORM", via: "role", sourceTable: null, objectColumn: null, userColumn: null, filterColumn: null, filterValue: null, throughTable: null, throughColumn: null, activeToColumn: null, roleCode: "ORGANIZER", names: {"th":"ผู้จัดการแข่งขันใดๆ","en":"Any Organizer"} },
+  { code: "ANY_COACH", objectTypeCode: "PLATFORM", via: "role", sourceTable: null, objectColumn: null, userColumn: null, filterColumn: null, filterValue: null, throughTable: null, throughColumn: null, activeToColumn: null, roleCode: "COACH", names: {"th":"โค้ชใดๆ","en":"Any Coach"} },
+  { code: "ANY_PLAYER", objectTypeCode: "PLATFORM", via: "role", sourceTable: null, objectColumn: null, userColumn: null, filterColumn: null, filterValue: null, throughTable: null, throughColumn: null, activeToColumn: null, roleCode: "PLAYER", names: {"th":"ผู้เล่นใดๆ","en":"Any Player"} },
+  { code: "ANY_REFEREE", objectTypeCode: "PLATFORM", via: "role", sourceTable: null, objectColumn: null, userColumn: null, filterColumn: null, filterValue: null, throughTable: null, throughColumn: null, activeToColumn: null, roleCode: "REFEREE", names: {"th":"ผู้ตัดสินใดๆ","en":"Any Referee"} },
+  { code: "ANY_SPECTATOR", objectTypeCode: "PLATFORM", via: "role", sourceTable: null, objectColumn: null, userColumn: null, filterColumn: null, filterValue: null, throughTable: null, throughColumn: null, activeToColumn: null, roleCode: "SPECTATOR", names: {"th":"ผู้ชมใดๆ","en":"Any Spectator"} },
+  { code: "ANY_SIGNED_IN", objectTypeCode: "PLATFORM", via: "everyone", sourceTable: null, objectColumn: null, userColumn: null, filterColumn: null, filterValue: null, throughTable: null, throughColumn: null, activeToColumn: null, roleCode: null, names: {"th":"ผู้ที่เข้าสู่ระบบใดๆ","en":"Any Signed-in User"} },
+  { code: "PUBLIC", objectTypeCode: "PLATFORM", via: "everyone", sourceTable: null, objectColumn: null, userColumn: null, filterColumn: null, filterValue: null, throughTable: null, throughColumn: null, activeToColumn: null, roleCode: null, names: {"th":"สาธารณะ","en":"Public"} },
 ] as const
 
 export const RELATION_CODES = RELATION.map((t) => t.code) as unknown as [
@@ -527,27 +548,6 @@ export const RELATIONSHIP_CODES = RELATIONSHIP.map((t) => t.code) as unknown as 
 ]
 
 export type RelationshipCode = (typeof RELATIONSHIP_CODES)[number]
-
-/** 6 rows, from roles.jsonl. */
-export const ROLE = [
-  { code: "ADMIN", names: {"th":"ผู้ดูแลระบบ","en":"Admin"}, descriptions: {"th":"เจ้าหน้าที่ภายในที่ดูแลแพลตฟอร์มและมีสิทธิ์เขียนข้อมูลทั้งหมด","en":"Internal staff managing the platform — full write access across all data"} },
-  { code: "ORGANIZER", names: {"th":"ผู้จัดการแข่งขัน","en":"Organizer"}, descriptions: {"th":"สร้างและจัดทัวร์นาเมนต์ ลีก ค่ายฝึก และกิจกรรมแสดงผลงาน","en":"Creates and runs tournaments leagues camps showcases"} },
-  { code: "COACH", names: {"th":"โค้ช","en":"Coach"}, descriptions: {"th":"จัดการทีม การลงทะเบียนรายชื่อผู้เล่น และการบันทึกการเข้าร่วม","en":"Manages a team — roster registration attendance"} },
-  { code: "PLAYER", names: {"th":"ผู้เล่น","en":"Player"}, descriptions: {"th":"นักกีฬารายบุคคลที่จัดการโปรไฟล์ การลงทะเบียน และสถิติของตนเอง","en":"Individual athlete — own profile registrations stats"} },
-  { code: "SPECTATOR", names: {"th":"ผู้ชม","en":"Spectator"}, descriptions: {"th":"ผู้ติดตามที่อ่านข้อมูลได้อย่างเดียว เช่น ผู้ปกครอง แฟนกีฬา และผู้ชมทั่วไป","en":"Read-only follower — parents fans casual viewers"} },
-  { code: "REFEREE", names: {"th":"ผู้ตัดสิน","en":"Referee"}, descriptions: {"th":"เจ้าหน้าที่ผู้ได้รับการรับรองที่บันทึกคะแนนและสถานะการแข่งขัน","en":"Certified official — score entry match status"} },
-] as const
-
-export const ROLE_CODES = ROLE.map((t) => t.code) as unknown as [
-  "ADMIN",
-  "ORGANIZER",
-  "COACH",
-  "PLAYER",
-  "SPECTATOR",
-  "REFEREE",
-]
-
-export type RoleCode = (typeof ROLE_CODES)[number]
 
 /** 1 rows, from skill_tiers.jsonl. */
 export const SKILL_TIER = [
@@ -602,9 +602,9 @@ export const VOCABULARY = {
   notificationTypes: NOTIFICATION_TYPE,
   orgTypes: ORG_TYPE,
   positions: POSITION,
+  roles: ROLE,
   relations: RELATION,
   relationships: RELATIONSHIP,
-  roles: ROLE,
   skillTiers: SKILL_TIER,
   userStatuses: USER_STATUS,
 } as const

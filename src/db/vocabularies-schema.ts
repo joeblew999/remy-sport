@@ -138,12 +138,30 @@ export const position = sqliteTable("position", {
   sort: integer("sort").notNull(),
 })
 
+export const role = sqliteTable("role", {
+  code: text("code").primaryKey(),
+  nameEn: text("name_en").notNull(),
+  names: text("names", { mode: "json" }).$type<Names>().notNull(),
+  descriptionEn: text("description_en").notNull(),
+  descriptions: text("descriptions", { mode: "json" }).$type<Names>().notNull(),
+  sort: integer("sort").notNull(),
+})
+
 export const relation = sqliteTable("relation", {
   code: text("code").primaryKey(),
   objectTypeCode: text("object_type_code").notNull().references(() => objectType.code),
   nameEn: text("name_en").notNull(),
   names: text("names", { mode: "json" }).$type<Names>().notNull(),
-  derivedFrom: text("derived_from").notNull(),
+  via: text("via").notNull(),
+  sourceTable: text("source_table"),
+  objectColumn: text("object_column"),
+  userColumn: text("user_column"),
+  filterColumn: text("filter_column"),
+  filterValue: text("filter_value"),
+  throughTable: text("through_table"),
+  throughColumn: text("through_column"),
+  activeToColumn: text("active_to_column"),
+  roleCode: text("role_code").references(() => role.code),
   sort: integer("sort").notNull(),
 })
 
@@ -151,15 +169,6 @@ export const relationship = sqliteTable("relationship", {
   code: text("code").primaryKey(),
   nameEn: text("name_en").notNull(),
   names: text("names", { mode: "json" }).$type<Names>().notNull(),
-  sort: integer("sort").notNull(),
-})
-
-export const role = sqliteTable("role", {
-  code: text("code").primaryKey(),
-  nameEn: text("name_en").notNull(),
-  names: text("names", { mode: "json" }).$type<Names>().notNull(),
-  descriptionEn: text("description_en").notNull(),
-  descriptions: text("descriptions", { mode: "json" }).$type<Names>().notNull(),
   sort: integer("sort").notNull(),
 })
 
@@ -203,9 +212,9 @@ export const VOCABULARY_TABLES = {
   notificationTypes: notificationType,
   orgTypes: orgType,
   positions: position,
+  roles: role,
   relations: relation,
   relationships: relationship,
-  roles: role,
   skillTiers: skillTier,
   userStatuses: userStatus,
 } as const
@@ -233,9 +242,9 @@ export const VOCABULARY_SCHEMAS = {
   notificationTypes: z.array(createSelectSchema(notificationType)),
   orgTypes: z.array(createSelectSchema(orgType)),
   positions: z.array(createSelectSchema(position)),
+  roles: z.array(createSelectSchema(role)),
   relations: z.array(createSelectSchema(relation)),
   relationships: z.array(createSelectSchema(relationship)),
-  roles: z.array(createSelectSchema(role)),
   skillTiers: z.array(createSelectSchema(skillTier)),
   userStatuses: z.array(createSelectSchema(userStatus)),
 } as const
@@ -257,9 +266,9 @@ export const VOCABULARY_ORDER = {
   notificationTypes: notificationType.sort,
   orgTypes: orgType.sort,
   positions: position.sort,
+  roles: role.sort,
   relations: relation.sort,
   relationships: relationship.sort,
-  roles: role.sort,
   skillTiers: skillTier.sort,
   userStatuses: userStatus.sort,
 } as const
