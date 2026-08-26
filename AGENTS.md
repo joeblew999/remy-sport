@@ -12,12 +12,13 @@ What is left is the set of things that have already cost a real bug.
 ```
 mise tasks                what you can run, and what each does
 mise run check            types + unit + worker + dead code + docs + these rules
+mise run test:all         every tier, with the seconds each one costs
 mise run test:tiers       where the tests are, and which are in the wrong tier
 mise run test:render      rendering tests, no Worker, no database
 mise run probe            typecheck a snippet against the real project (WEB=1 for the SPA)
 ```
 
-> **Unfinished: the test migration.** 47 Playwright tests left, ~1.1m. The
+> **Unfinished: the test migration.** 47 Playwright tests left, ~65s. The
 > per-file plan is [docs/dev/test-migration.md](docs/dev/test-migration.md);
 > progress is `mise run test:tiers`. Do not optimise the runner — that was tried
 > for a whole session and stopped dead. The population is the problem: a test

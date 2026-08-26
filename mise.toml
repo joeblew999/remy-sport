@@ -467,6 +467,19 @@ bun x tsc --noEmit $CFG || true
 echo "--- done (nothing above = it typechecks) ---"
 """
 
+[tasks."test:all"]
+description = "Every tier, with the wall-clock time each one costs"
+# The number that matters is where the seconds go. Anything that grows here is
+# a test in the wrong tier — `mise run test:tiers` says which.
+run = """
+set -e
+for t in test:unit test:worker test:render test; do
+  start=$(date +%s)
+  mise run $t >/dev/null 2>&1 || { echo "  $t FAILED"; exit 1; }
+  printf "  %-14s %ss\n" "$t" "$(( $(date +%s) - start ))"
+done
+"""
+
 [tasks."test:render"]
 description = "Rendering tests against a static server — no Worker, no database, no sign-in"
 depends     = ["web:build"]
