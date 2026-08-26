@@ -32,22 +32,10 @@ Update it when you finish something; delete the line when it is done.
    school, because biz `data/seed/relationships/` models rosters, guardians and
    follows but not org membership. It belongs upstream; when biz grows a
    membership file, read it.
-3. **`authz.spec.ts` — the role switcher — still flakes**, roughly one run in
-   three, and passes in isolation. Root cause is understood and is *not* the
-   runner: every e2e spec shares one local D1 and the same seeded actors, and
-   Better Auth invalidates an OTP the moment a newer one is requested for the
-   same address, so two specs signing in as the same person make one fail. The
-   worker tier no longer has this because [`seed.sql`](src/db/seed.sql) gives
-   each file its own database; Playwright talks to a real Worker over HTTP and
-   cannot. The two real fixes are shrinking e2e toward zero, or a Worker + D1
-   per Playwright worker.
-
-   **Measured, so do not repeat:** chaining the org-creating specs into a
-   dependency order made it *worse* — running `organization` immediately
-   before `invitations` puts two org-creation flows for one organizer back to
-   back. They tolerate being interleaved, not being adjacent. Adding a
-   defensive sign-out inside `signIn`/`signInViaPage` also broke more than it
-   fixed.
+3. **Several specs still sign in when they only need to *be* someone** —
+   `accept-invitation`, `organization`, `invitations`. Each live sign-in is a
+   chance to collide with another spec on the same address (see the trap
+   below). They should load `stateFor(...)` like the two that now do.
 
 The test classification is **done**. `mise run test:all` for the numbers; the
 38 left in e2e are genuine round trips and belong there. Do not "optimise the
@@ -140,6 +128,17 @@ arrives as `remy.ubuntusoftware.net`. `mise run check` asserts it.
 
 **`src/db/auth-schema.ts` is generated. Never edit it.** The hand-maintained
 version drifted once and every sign-in 500'd the moment the schema became correct.
+
+**Two e2e specs must never sign in as the same person.** A fixed `TEST_OTP`
+does *not* make sign-in concurrency-safe: `generateOTP` returns a constant, but
+Better Auth still writes and consumes a verification row per request, so two
+in flight for one address invalidate each other and the loser gets
+`INVALID_OTP` — which surfaces as a 20s `topbar-user` timeout, not as an auth
+error. With `fullyParallel: true` this cost 4 failed runs in 5. If a spec only
+needs to *be* someone, use `test.use({ storageState: stateFor(ACTORS.X) })`;
+`auth.setup.ts` already saves one per actor. Sign in for real only where
+sign-in is the subject. Do not reach for worker counts or project ordering —
+a whole session went that way and stopped dead.
 
 **`/` → `/#/x` is a same-document navigation.** React does not remount and
 `useSession` does not refetch, so a page renders against whoever was signed in

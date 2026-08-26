@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test"
-import { signInThroughLoginForm, ADMIN, COACH, ORGANIZER, PLAYER } from "../helpers/auth"
+import { signInThroughLoginForm, stateFor, ADMIN, COACH, ORGANIZER, PLAYER } from "../helpers/auth"
 
 // ADR 013. The dashboard stops being a demo harness and becomes a real admin
 // surface, using the plugin endpoints that were configured in ADR 007 and had
@@ -80,12 +80,25 @@ test.describe.serial("Admin console", () => {
   })
 })
 
+/**
+ * These two only need to *be* a coach, so they load the cookies auth.setup.ts
+ * saved rather than signing in.
+ *
+ * They are not in the serial block above, so they used to run concurrently with
+ * each other, both requesting a sign-in code for the same address. `generateOTP`
+ * returns a fixed value under TEST_OTP, but Better Auth still writes and
+ * consumes a verification row per request, so two in flight invalidate each
+ * other and the loser gets "Invalid OTP". That is the same failure that made
+ * authz.spec.ts fail 4 runs in 5; here it had simply not fired yet.
+ *
+ * `storageState` covers the `request` fixture too, not just `page`.
+ */
 test.describe("Admin endpoints refuse non-admins", () => {
+  test.use({ storageState: stateFor(COACH) })
+
   test("a coach cannot list users, however they ask", async ({ request, baseURL }) => {
     // The UI hides the console, but hiding is not enforcement — the endpoint
     // has to refuse on its own.
-    const { signIn } = await import("../helpers/auth")
-    await signIn(request, COACH)
     const res = await request.get("/api/auth/admin/list-users?limit=5", {
       headers: { Origin: baseURL! },
     })
@@ -93,8 +106,6 @@ test.describe("Admin endpoints refuse non-admins", () => {
   })
 
   test("a coach cannot impersonate anyone", async ({ request, baseURL }) => {
-    const { signIn } = await import("../helpers/auth")
-    await signIn(request, COACH)
     const users = await request.get("/api/teams")
     expect(users.ok()).toBeTruthy()
     const res = await request.post("/api/auth/admin/impersonate-user", {
