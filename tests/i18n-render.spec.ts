@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test"
 import { seedCache, entry, orpc } from "./helpers/seed-cache"
 import { m } from "../src/web/lib/i18n"
 import { VOCABULARY, LOCALES } from "../src/domain/vocabularies"
+import { VOCABULARY as REF } from "../src/domain/vocabularies"
 
 /**
  * The bilingual chrome, rendered — with the events handed straight to the cache.
@@ -37,8 +38,19 @@ const event = {
   organizerName: "Someone",
 } as never
 
+/**
+ * Events AND the reference vocabularies.
+ *
+ * The event-type badge is a vocabulary label, so the Thai assertion needs the
+ * reference payload as well — that is the whole point of it: it proves the
+ * PO's data resolved in the reader's language, not that a hardcoded string
+ * changed. Seeding both is what lets the pair travel together without a server.
+ */
 const seeded = (page: Parameters<typeof seedCache>[0]) =>
-  seedCache(page, [entry(orpc.events.list, undefined, { events: [event] } as never)])
+  seedCache(page, [
+    entry(orpc.events.list, undefined, { events: [event] } as never),
+    entry(orpc.reference.list, undefined, REF as never),
+  ])
 
 test.describe("Localisation, rendered", () => {
   test("the switcher offers one button per released locale", async ({ page }) => {

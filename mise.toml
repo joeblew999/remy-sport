@@ -467,6 +467,14 @@ bun x tsc --noEmit $CFG || true
 echo "--- done (nothing above = it typechecks) ---"
 """
 
+[tasks."test:render"]
+description = "Rendering tests against a static server — no Worker, no database, no sign-in"
+depends     = ["web:build"]
+# Own config because Playwright's webServer is config-wide: these need `vite
+# preview` over dist/web, while the e2e tier needs wrangler, a migrated D1 and
+# six signed-in actors. They were paying for all of that to check a <div>.
+run = "bun x playwright test --config playwright.render.config.ts"
+
 [tasks."test:tiers"]
 description = "How many tests are in each tier, and how many are still in the wrong one"
 # Makes the migration in docs/dev/test-migration.md measurable rather than a

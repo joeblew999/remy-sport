@@ -49,14 +49,6 @@ export default defineConfig({
   // before its dependents start, which fullyParallel + describe.serial cannot
   // guarantee on its own — see tests/seed.setup.ts.
   projects: [
-    // Rendering tests, and nothing else in the pipeline.
-    //
-    // No `dependencies`: these hand the query cache their data through
-    // `seedCache`, so they need no seeded database, no signed-in actor and no
-    // network. Making them depend on `seed`/`auth` would put a D1 write and six
-    // sign-ins in front of an assertion about a <div>.
-    { name: "render", testMatch: /.*-render\.spec\.ts/ },
-
     { name: "seed", testMatch: /seed\.setup\.ts/ },
     // Signs in once per actor and saves cookies; every spec that merely needs
     // to BE someone loads that state instead of signing in for itself.
@@ -67,7 +59,7 @@ export default defineConfig({
         /.*\.setup\.ts/,
         /tests\/unit\//,
         /tests\/worker\//,
-        /.*-render\.spec\.ts/,
+        /.*-render\.spec\.ts/,   // own config: playwright.render.config.ts
         /devices\.spec\.ts/,
       ],
       dependencies: ["auth"],

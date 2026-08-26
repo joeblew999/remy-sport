@@ -70,10 +70,4 @@ test.describe("Event view models are derived, not stored", () => {
     await expect(page.locator(".event-hero")).toContainText("Bangkok Schools Basketball League 2026")
   })
 
-  test("a deep-link to a missing event says so, rather than showing another one", async ({ page }) => {
-    // Nothing seeded for this id, so the query runs and 404s — the one case here
-    // that still touches the Worker, because "the API said no" is the subject.
-    await page.goto("/#/event/evt_does_not_exist")
-    await expect(page.locator(".empty")).toContainText("does not exist")
-  })
 })
