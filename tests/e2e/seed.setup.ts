@@ -18,6 +18,14 @@ import { SEED_ENTITIES } from "../../src/db/seed-data"
  * and an already-seeded remote.
  */
 setup("seed actors and ensure a public event exists", async ({ request }) => {
+  // Prune first. Sessions accumulate one per sign-in and never expire inside a
+  // 30-day window, so a machine that has run the suite a few dozen times ends
+  // up with hundreds — and past roughly a hundred rows `list-sessions` stops
+  // returning the newest, which surfaces as "sign-in should succeed: false"
+  // in whichever spec happens to run next. The endpoint existed for exactly
+  // this; nothing called it.
+  await request.post("/api/dev/prune-sessions")
+
   const res = await request.post("/api/seed")
   expect(res.ok()).toBeTruthy()
 

@@ -81,6 +81,8 @@ export function useSignOut() {
         body: "{}",
       });
     },
+    // The whole cache, not just the session: everything in it was an answer
+    // given to the person who just left. See identityChanged() in lib/auth.ts.
     onSettled: () => qc.invalidateQueries({ queryKey: sessionKey }),
   });
 }

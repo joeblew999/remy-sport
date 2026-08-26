@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { sessionKey } from "./session";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 
 /**
  * Better Auth's endpoints, as TanStack mutations. One definition each.
@@ -26,6 +26,37 @@ const json = (body: unknown): RequestInit => ({
   body: JSON.stringify(body),
 });
 
+/**
+ * Identity changed — throw the whole cache away, do not merely refetch it.
+ *
+ * Every cached response was answered *for somebody*. After a sign-in, sign-out,
+ * impersonation or role change, each one is an answer to "what may that other
+ * person see", and invalidating only the session key leaves the rest on screen.
+ *
+ * Targeted, and `invalidateQueries` rather than `resetQueries`. Reset clears the cache outright,
+ * which blanks the session for a frame — and a page that gates on "is anyone
+ * signed in" then redirects to the login screen in the middle of a role
+ * switch. That is exactly what broke "the role switcher actually switches
+ * role": the switch worked, the page had already navigated away from it.
+ *
+ * Invalidate refetches every active query immediately and keeps the previous
+ * answer on screen only until the new one lands, which is a frame, not a state
+ * anything should branch on.
+ *
+ * Awaited, so a caller that navigates afterwards navigates into the new
+ * identity rather than racing it.
+ */
+async function identityChanged(qc: QueryClient): Promise<void> {
+  // The session, and the lists whose contents depend on who is asking.
+  //
+  // NOT `invalidateQueries()` with no filter, tempting as that is: every active
+  // query refetches at once, and against one local D1 that storm is enough to
+  // make a concurrently-running spec's sign-in fail. Measured — it cost five
+  // passing e2e tests.
+  await qc.invalidateQueries({ queryKey: sessionKey })
+  await qc.invalidateQueries({ queryKey: ["admin"] })
+}
+
 /** Better Auth answers a refusal with a body carrying the reason. */
 async function call(path: string, body: unknown): Promise<void> {
   const res = await fetch(path, json(body));
@@ -34,6 +65,24 @@ async function call(path: string, body: unknown): Promise<void> {
     throw new Error(data.message || "That did not work. Try again.");
   }
 }
+
+/**
+ * End the current session WITHOUT telling the cache.
+ *
+ * Only for switching from one actor to another, which Better Auth requires:
+ * it refuses a sign-in from a request that already carries a session cookie.
+ *
+ * The ordinary `useSignOut` invalidates, which is right for a person leaving —
+ * but here it fires an identity change mid-way through a compound operation.
+ * The session momentarily resolves to nobody, and any page gating on "is
+ * anyone signed in" redirects to the login screen before the sign-in lands.
+ * That is what broke the role switcher: the switch worked, the page had gone.
+ *
+ * One identity change per identity change. `useVerifyCode` does it, once, at
+ * the end.
+ */
+export const signOutSilently = () =>
+  fetch("/api/auth/sign-out", json({})).then(() => undefined)
 
 /** Step one of sign-in: ask for a code. */
 export const useRequestCode = () =>
@@ -48,7 +97,7 @@ export function useVerifyCode() {
   return useMutation({
     mutationFn: ({ email, otp }: { email: string; otp: string }) =>
       call("/api/auth/sign-in/email-otp", { email, otp }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: sessionKey }),
+    onSuccess: () => identityChanged(qc),
   });
 }
 
@@ -58,11 +107,8 @@ export function useAdminAction() {
   return useMutation({
     mutationFn: ({ path, body }: { path: string; body: unknown }) =>
       call(`/api/auth/admin/${path}`, body),
-    onSuccess: () => {
-      // Impersonation and bans change the viewer, not just a row.
-      void qc.invalidateQueries({ queryKey: sessionKey });
-      void qc.invalidateQueries({ queryKey: ["admin"] });
-    },
+    // Impersonation, bans and role changes change the viewer, not just a row.
+    onSuccess: () => identityChanged(qc),
   });
 }
 
@@ -71,7 +117,8 @@ export function useAcceptInvitation() {
   return useMutation({
     mutationFn: (invitationId: string) =>
       call("/api/auth/organization/accept-invitation", { invitationId }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: sessionKey }),
+    // Joining sets the active organization on the session.
+    onSuccess: () => identityChanged(qc),
   });
 }
 

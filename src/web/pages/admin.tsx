@@ -23,7 +23,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, orpc } from "../lib/orpc";
-import { useAccounts, useAdminAction, useDevAccounts, useRequestCode, useVerifyCode, codeFromOutbox } from "../lib/auth";
+import { useAccounts, useAdminAction, useDevAccounts, useRequestCode, useVerifyCode, codeFromOutbox, signOutSilently } from "../lib/auth";
 import { useSession } from "../lib/session";
 import type { Route } from "../lib/router";
 
@@ -360,6 +360,16 @@ function RoleSwitcher({ current }: { current: string }) {
 
   const switchTo = async (email: string) => {
     try {
+      // Sign out first, and this is not optional: Better Auth refuses a
+      // sign-in from a request that already carries a session cookie, so
+      // switching straight from one actor to another silently does nothing.
+      //
+      // Silently, because this is one step of a switch and not a sign-out.
+      // Invalidating here resolves the session to nobody for a moment, and
+      // this page redirects to /#/login when nobody is signed in.
+      setStatus("Signing out…");
+      await signOutSilently();
+
       setStatus("Requesting a code…");
       await requestCode.mutateAsync(email);
 

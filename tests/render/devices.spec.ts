@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test"
+import { test, expect } from "./fixture"
 import { seedCache } from "../helpers/seed-cache"
 import { sessionKey } from "../../src/web/lib/session"
 

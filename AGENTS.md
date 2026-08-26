@@ -30,9 +30,18 @@ Update it when you finish something; delete the line when it is done.
 2. **The render tier costs 18s for 26 tests that make no network call** —
    nearly all of it `vite preview` starting. A long-lived preview with
    `reuseExistingServer` would take it near zero.
-3. **`admin-console` and `authz` flake under parallel e2e runs** and pass in
-   isolation: shared rows, not logic. Playwright is held to `workers: 2` for
-   that reason.
+3. **One e2e spec flakes per run** — usually the role switcher or an
+   org-creating one, and it passes in isolation. Root cause is understood:
+   every e2e spec shares one local D1 and the same six seeded actors, so two
+   specs signing in as the organizer at once make Better Auth refuse the
+   second one's OTP with `INVALID_OTP`.
+
+   **Measured, so do not repeat:** chaining the org-creating specs into a
+   dependency order made it *worse* — running `organization` immediately
+   before `invitations` puts two org-creation flows for one organizer back to
+   back. They tolerate being interleaved, not being adjacent. Adding a
+   defensive sign-out inside `signIn`/`signInViaPage` also broke more than it
+   fixed. The real fix is a dedicated actor per spec, not more ordering.
 
 The test classification is **done**. `mise run test:all` for the numbers; the
 38 left in e2e are genuine round trips and belong there. Do not "optimise the

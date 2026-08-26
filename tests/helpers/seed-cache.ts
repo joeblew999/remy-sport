@@ -21,6 +21,27 @@ export async function seedCache(
   await page.addInitScript((seed) => {
     ;(window as unknown as { __QUERY_SEED__: unknown }).__QUERY_SEED__ = seed
   }, entries)
+
+  /**
+   * Anything NOT seeded fails instantly instead of hanging.
+   *
+   * These tests run against `vite preview`, which serves the bundle and has no
+   * `/rpc`. An unseeded query therefore hit a route that could not answer, and
+   * TanStack retried it twice with backoff — a uniform ~3s per test, which was
+   * the entire cost of this tier. (The retry policy in main.tsx skips 4xx; the
+   * failure had no status to skip on.)
+   *
+   * A real 404 gives it one, so an unseeded query now resolves in milliseconds
+   * and the page renders its empty state — which is the honest outcome for a
+   * test that did not provide the data.
+   */
+  await page.route("**/rpc/**", (route) =>
+    route.fulfill({
+      status: 404,
+      contentType: "application/json",
+      body: JSON.stringify({ code: "NOT_FOUND", message: "not seeded in this render test" }),
+    }),
+  )
 }
 
 /**
