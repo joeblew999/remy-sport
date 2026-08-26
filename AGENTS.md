@@ -27,11 +27,26 @@ Update it when you finish something; delete the line when it is done.
    ~1000 hand-written lines and the admin console added ~60 more. This is the
    largest remaining source of per-page boilerplate and nothing has been done
    about it.
-2. **Memberships are the one part of the seed that is not the PO's.**
-   [`scripts/seed-sql.ts`](scripts/seed-sql.ts) hardcodes who belongs to which
-   school, because biz `data/seed/relationships/` models rosters, guardians and
-   follows but not org membership. It belongs upstream; when biz grows a
-   membership file, read it.
+2. **Org-as-tenant: this repo built what biz rejected. Resolve it before
+   building more on either.** Decision 17 in biz `data/seed/schema.md` rejected
+   first-class org-as-tenant — "no `ORG_ADMIN`/`ORG_MEMBER` relations" — and
+   `data/access/matrix.md` has no org relation at all; every write is scoped
+   user↔event (`events.organizer_user_id`, `event_co_organizers`) or user↔team
+   (`team_coaches`). This repo shipped the organization plugin, a `member`
+   table, org roles and a working invitation flow, and gates team writes on
+   `requireOrgMember`. Three concrete divergences follow:
+
+   | Action | matrix.md grants | [`src/api/teams.ts`](src/api/teams.ts) requires |
+   |---|---|---|
+   | `CREATE_TEAM` | `PLATFORM_ADMIN`, `ANY_COACH` | + org membership |
+   | `EDIT_TEAM_PROFILE` | `HEAD_COACH`, `TEAM_MANAGER` *of that team* | any org member |
+   | `DELETE_TEAM` | `PLATFORM_ADMIN` only | org admins too |
+
+   Two of those are **too permissive**: an org member who coaches nothing may
+   edit any team in the org, and org admins may delete teams. Either biz adopts
+   org tenancy (and `MEMBERSHIPS` in [`scripts/seed-sql.ts`](scripts/seed-sql.ts)
+   becomes a real fixture upstream), or this repo scopes team writes by
+   `team_coaches` as specified. Do not pick one silently.
 
 The test classification is **done**. `mise run test:all` for the numbers; the
 38 left in e2e are genuine round trips and belong there. Do not "optimise the

@@ -78,9 +78,20 @@ const AT = 1_767_225_600_000 // 2026-01-01T00:00:00Z
  * Triam Udom as a plain `member`, giving the tests someone who *is* in an org
  * and must still be refused the delete.
  *
- * This is the one list here that is not the PO's: `data/seed/relationships/`
- * models rosters, guardians and follows but not org membership. It belongs
- * upstream, and when biz grows a membership file this should read it.
+ * **This list is the one thing here that is not the PO's, and that is not yet
+ * resolved.** `data/seed/relationships/` has no membership file because biz
+ * decision 17 rejected org-as-tenant outright — "no ORG_ADMIN/ORG_MEMBER
+ * relations" — and `data/access/matrix.md` scopes every write through user↔event
+ * (`events.organizer_user_id`, `event_co_organizers`) or user↔team
+ * (`team_coaches`). Organisations there are a controlled-vocab link on events,
+ * for browse and display.
+ *
+ * This repo built org-as-tenant anyway: Better Auth's organization plugin, a
+ * `member` table, org roles, and a working invitation flow. So these two rows
+ * cannot move upstream while the PO's model says the relation does not exist —
+ * and they cannot stay invented here forever either. See AGENTS.md `## Next`;
+ * the decision is which of the two repos is wrong, and it is not this file's to
+ * make.
  */
 const MEMBERSHIPS = [
   { userId: "usr_coach_001", orgId: "org_001", role: "admin" },
