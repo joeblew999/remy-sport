@@ -61,3 +61,11 @@ EMAIL_FROM      = "noreply@remy.ubuntusoftware.net"
 
 # BETTER_AUTH_SECRET is set via `wrangler secret` — not stored in config
 # For local dev, .dev.vars provides the secret
+
+# `import seedSql from "./seed.sql"` — the seed is data, and the Worker executes
+# the same bytes the tests do rather than reimplementing the inserts.
+# fallthrough keeps wrangler's own default rules (wasm, text, binary) active.
+[[rules]]
+type        = "Text"
+globs       = ["**/*.sql"]
+fallthrough = true

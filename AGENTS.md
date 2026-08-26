@@ -27,22 +27,20 @@ Update it when you finish something; delete the line when it is done.
    ~1000 hand-written lines and the admin console added ~60 more. This is the
    largest remaining source of per-page boilerplate and nothing has been done
    about it.
-2. **Memberships are written out twice** — [`src/routes/seed.ts`](src/routes/seed.ts)
-   and [`scripts/seed-sql.ts`](scripts/seed-sql.ts) each hardcode who belongs to
-   which school, and nothing checks they agree. It is a domain fact and belongs
-   in biz `data/seed/relationships/`, which has no membership file yet.
-3. **`/api/seed` reimplements `seed.sql`.** Both build the same state by
-   different routes. The end state is the route executing the SQL — one
-   definition, two callers.
-4. **One e2e spec flakes per run** — usually the role switcher or an
-   org-creating one, and it passes in isolation. Root cause is understood and
-   is *not* the runner: every e2e spec shares one local D1 and the same seeded
-   actors, and Better Auth invalidates an OTP the moment a newer one is
-   requested for the same address, so two specs signing in as the organizer at
-   once make one fail with `INVALID_OTP`. The worker tier no longer has this
-   because [`seed.sql`](src/db/seed.sql) gives each file its own database;
-   Playwright talks to a real Worker over HTTP and cannot. The two real fixes
-   are shrinking e2e toward zero, or a Worker + D1 per Playwright worker.
+2. **Memberships are the one part of the seed that is not the PO's.**
+   [`scripts/seed-sql.ts`](scripts/seed-sql.ts) hardcodes who belongs to which
+   school, because biz `data/seed/relationships/` models rosters, guardians and
+   follows but not org membership. It belongs upstream; when biz grows a
+   membership file, read it.
+3. **`authz.spec.ts` — the role switcher — still flakes**, roughly one run in
+   three, and passes in isolation. Root cause is understood and is *not* the
+   runner: every e2e spec shares one local D1 and the same seeded actors, and
+   Better Auth invalidates an OTP the moment a newer one is requested for the
+   same address, so two specs signing in as the same person make one fail. The
+   worker tier no longer has this because [`seed.sql`](src/db/seed.sql) gives
+   each file its own database; Playwright talks to a real Worker over HTTP and
+   cannot. The two real fixes are shrinking e2e toward zero, or a Worker + D1
+   per Playwright worker.
 
    **Measured, so do not repeat:** chaining the org-creating specs into a
    dependency order made it *worse* — running `organization` immediately

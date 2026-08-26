@@ -1,4 +1,5 @@
 import { env } from "cloudflare:test"
+import { SEED_STATEMENTS } from "../../src/db/seed"
 
 /**
  * Give every test file a migrated database, in one batch.
@@ -36,19 +37,11 @@ await env.DB.batch(
  *
  * `beforeAll(seed)` in each spec used to POST /api/seed — a full Better Auth
  * `createUser` round trip per user, through the Worker, into the same database
- * every other spec was using. Here it is 47 INSERTs into this file's own
+ * every other spec was using. Here it is a batch of INSERTs into this file's own
  * storage.
+ *
+ * The same `SEED_STATEMENTS` /api/seed executes, imported rather than passed in
+ * as a binding: one source, so a test cannot pass against a seed the Worker
+ * would not produce.
  */
-// Strip comment lines FIRST, then split. Splitting first leaves each block's
-// `-- header` glued to the statement under it, and dropping "chunks that start
-// with --" then silently drops that statement — which showed up as a foreign
-// key failure, because the first user, org and team went missing.
-const seedSql = (env as unknown as { TEST_SEED: string }).TEST_SEED
-  .split("\n")
-  .filter((line) => !line.trim().startsWith("--"))
-  .join("\n")
-  .split(";")
-  .map((q) => q.trim())
-  .filter(Boolean)
-
-await env.DB.batch(seedSql.map((q) => env.DB.prepare(q)))
+await env.DB.batch(SEED_STATEMENTS.map((q) => env.DB.prepare(q)))

@@ -367,6 +367,7 @@ mise run test:worker
 mise run check:dead
 mise run check:docs
 mise run check:conventions
+mise run check:seed
 """
 
 [tasks."test:unit"]
@@ -498,6 +499,24 @@ depends     = ["install"]
 sources = ["scripts/seed-sql.ts", "src/db/seed-data.ts"]
 outputs = ["src/db/seed.sql"]
 run     = "bun scripts/seed-sql.ts"
+
+[tasks."check:seed"]
+description = "Fail if src/db/seed.sql is stale against the fixtures"
+depends     = ["install"]
+# seed.sql is committed, because the Worker imports it and the worker tests
+# apply it. A committed generated file is a file that can go stale, and this one
+# decides what every tier believes the database contains — so regenerate into a
+# temp file and diff rather than trusting that whoever changed the fixtures also
+# ran the generator.
+run = """
+bun scripts/seed-sql.ts >/dev/null
+git diff --quiet -- src/db/seed.sql || {
+  echo "seed.sql is stale — run 'mise run seed:sql' and commit the result:"
+  git --no-pager diff --stat -- src/db/seed.sql
+  exit 1
+}
+echo "check-seed: seed.sql matches the fixtures"
+"""
 
 [tasks."fonts:vendor"]
 description = "Download the web fonts into src/web/fonts/ and regenerate fonts.css"

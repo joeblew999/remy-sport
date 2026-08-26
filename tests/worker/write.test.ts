@@ -58,12 +58,36 @@ const codeFrom = (body: string) => {
 
 
 describe("seeding", () => {
-  it("creates every actor the fixtures define, idempotently", async () => {
+  /**
+   * The database is already seeded — apply-migrations.ts applies the same
+   * statements before this file runs. So what is under test is that POSTing the
+   * route on top of that writes **nothing**: every statement is
+   * `INSERT OR IGNORE`, and re-seeding a live database must not duplicate rows
+   * or clobber edited ones.
+   *
+   * That is the property the old assertion could not make. It counted a
+   * per-user `created | exists` array the route built as it went, which reported
+   * "exists" for a user whose *account* row had failed — the shape that hid the
+   * missing `local:credential` issuer behind a green test.
+   */
+  it("is idempotent against an already-seeded database", async () => {
     const res = await SELF.fetch(`${ORIGIN}/api/seed`, { method: "POST" })
-    const body = (await res.json()) as { seeded: { status: string }[] }
-    // As many as the fixtures define, not a number typed here.
-    expect(body.seeded).toHaveLength(SEED_ENTITIES.users.length)
-    for (const u of body.seeded) expect(["created", "exists"]).toContain(u.status)
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { statements: number; written: number }
+    expect(body.statements).toBeGreaterThan(SEED_ENTITIES.users.length)
+    expect(body.written).toBe(0)
+  })
+
+  it("seeds every actor the fixtures define, signable-in", async () => {
+    // Not a count of a response array: the fixtures' users are in the database
+    // and can each authenticate, which is what "seeded" has to mean.
+    for (const u of SEED_ENTITIES.users) {
+      const cookie = await signIn(u.email)
+      const session = (await (await api("/api/auth/get-session", { cookie })).json()) as {
+        user: { email: string } | null
+      }
+      expect(session.user?.email, `${u.id} should be able to sign in`).toBe(u.email)
+    }
   })
 })
 

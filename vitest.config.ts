@@ -1,5 +1,4 @@
 import { defineConfig } from "vitest/config"
-import { readFileSync } from "node:fs"
 import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-pool-workers"
 
 /**
@@ -32,16 +31,6 @@ import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-pool-worker
  */
 const migrations = await readD1Migrations("./src/db/migrations")
 
-/**
- * The PO's people, schools and teams — as SQL, not an HTTP call.
- *
- * `POST /api/seed` goes through Better Auth's `createUser` per user, which
- * needs a running Worker and therefore a database every spec shares. As data it
- * applies to each test file's own storage in milliseconds. See
- * scripts/seed-sql.ts.
- */
-const seed = readFileSync("./src/db/seed.sql", "utf-8")
-
 export default defineConfig({
   plugins: [
     cloudflareTest({
@@ -54,7 +43,6 @@ export default defineConfig({
           MAIL_TRANSPORT: "outbox",
           TEST_OTP: "424242",
           TEST_MIGRATIONS: migrations,
-          TEST_SEED: seed,
         },
       },
     }),

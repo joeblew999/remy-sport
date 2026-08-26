@@ -14,47 +14,32 @@ import { SEED_ENTITIES } from "../../src/db/seed-data"
  * A setup project runs to completion before its dependents start, and unlike
  * `globalSetup` it runs *after* the webServer is up, so it can reach the API.
  *
- * The endpoint is idempotent, so this is safe against both a fresh local D1
- * and an already-seeded remote.
+ * The endpoint executes src/db/seed.sql — the same statements the worker tests
+ * apply — and every one is `INSERT OR IGNORE`, so this is safe against both a
+ * fresh local D1 and an already-seeded remote.
  */
-setup("seed actors and ensure a public event exists", async ({ request }) => {
+setup("seed actors and reference data", async ({ request }) => {
   // Prune first. Sessions accumulate one per sign-in and never expire inside a
   // 30-day window, so a machine that has run the suite a few dozen times ends
   // up with hundreds — and past roughly a hundred rows `list-sessions` stops
   // returning the newest, which surfaces as "sign-in should succeed: false"
   // in whichever spec happens to run next. The endpoint existed for exactly
-  // this; nothing called it.
-  await request.post("/api/dev/prune-sessions")
+  // this; nothing called it. 404s in production, where it does not exist.
+  await request.post("/api/dev/prune-sessions").catch(() => undefined)
 
   const res = await request.post("/api/seed")
   expect(res.ok()).toBeTruthy()
+  const body = (await res.json()) as { statements: number; written: number }
+  expect(body.statements).toBeGreaterThan(0)
 
-  const body = await res.json()
-  // Against the fixtures, not a number typed here: the seeded actors are the
-  // PO's people, and there are as many of them as the fixtures say.
-  expect(body.seeded).toHaveLength(SEED_ENTITIES.users.length)
-
-  // The "event:read is public" tests assert that at least one event exists, but
-  // nothing guarantees an event-creating test has run first — they live in a
-  // different describe block and run concurrently. Locally that passed only
-  // because the local D1 kept events from previous runs; against a freshly
-  // provisioned remote D1 the table is empty and both tests failed.
-  //
-  // Guaranteeing the fixture here removes the dependency on leftover state.
-  // Sessions accumulate one per sign-in and nothing expires them locally. Past
-  // ~100 rows for a user, list-sessions stops returning the newest one and the
-  // devices page cannot identify the current session (ADR 014). 404s in
-  // production, where this endpoint does not exist.
-  await request.post("/api/dev/prune-sessions").catch(() => undefined)
-
+  // Assert the database, not the response. The route used to return a per-user
+  // `created | exists` array built from its own bookkeeping, which reported
+  // success for a user whose account row had not been written.
   const list = await request.get("/api/events")
   expect(list.ok()).toBeTruthy()
-  if ((await list.json()).events.length > 0) return
-
-  await signIn(request, ADMIN)
-
-  const created = await request.post("/api/events", {
-    data: { names: { en: "Seed event" }, typeCode: "TOURNAMENT" },
-  })
-  expect(created.status()).toBe(201)
+  const { events } = (await list.json()) as { events: unknown[] }
+  expect(
+    events.length,
+    "seed.sql defines the PO's events; the read path should return them",
+  ).toBeGreaterThanOrEqual(SEED_ENTITIES.events.length)
 })
