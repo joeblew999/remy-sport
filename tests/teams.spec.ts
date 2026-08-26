@@ -47,21 +47,12 @@ test.describe("Teams API", () => {
   })
 })
 
+// Three rendering assertions moved to tests/team-render.spec.ts, where the
+// query cache is seeded directly and no backend runs at all. What is left here
+// needs the real API: a 404 path, and a fallback that depends on what the
+// database actually contains.
 test.describe("SPA team page", () => {
-  test("reads the team id from its own route", async ({ page }) => {
-    await page.goto("/#/team/team_002")
-    await expect(page.getByTestId("team-name")).toHaveText("Triam Udom U18 Girls")
-    await expect(page.locator(".team-hero")).toContainText("Triam Udom Suksa School")
-    await expect(page.locator(".team-hero")).toContainText("U18 Girls")
-  })
-
-  test("a different id renders a different team", async ({ page }) => {
-    await page.goto("/#/team/team_003")
-    await expect(page.getByTestId("team-name")).toHaveText("Montfort U16 Boys")
-    await expect(page.locator(".team-hero")).toContainText("Chiang Mai")
-  })
-
-  test("no id falls back to the first team rather than a hardcoded one", async ({ page }) => {
+      test("no id falls back to the first team rather than a hardcoded one", async ({ page }) => {
     await page.goto("/#/team")
     // The old page always said "Saint Gabriel's College", which was never in D1.
     await expect(page.getByTestId("team-name")).not.toHaveText("Saint Gabriel's College")
@@ -73,14 +64,7 @@ test.describe("SPA team page", () => {
     await expect(page.locator(".empty")).toContainText("does not exist")
   })
 
-  test("record shows a placeholder, not an invented win-loss", async ({ page }) => {
-    await page.goto("/#/team/team_002")
-    // No games table exists yet, so "4–0" must not reappear as if it were real.
-    await expect(page.locator(".team-hero")).toContainText("RECORD")
-    await expect(page.locator(".team-hero")).not.toContainText("4–0")
-  })
-
-  test("fixture-backed sections are labelled as sample data", async ({ page }) => {
+    test("fixture-backed sections are labelled as sample data", async ({ page }) => {
     await page.goto("/#/team/team_002")
     // Roster and schedule still come from src/web/data.ts. Sitting under a real
     // team, they need to say so.

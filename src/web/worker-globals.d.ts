@@ -15,7 +15,12 @@
  * tsconfig split exists to prevent. The SPA never touches these values; it only
  * needs the names to resolve.
  */
-type D1Database = unknown
-type R2Bucket = unknown
-type Fetcher = unknown
-type SendEmail = unknown
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// `any`, not `unknown`: server code the SPA reaches only for its TYPES still
+// calls methods on these (mailer.ts does `env.EMAIL.send(...)`). `unknown`
+// makes that a compile error in a file the browser never runs. The values are
+// never touched here — only the names have to resolve.
+type D1Database = any
+type R2Bucket = any
+type Fetcher = any
+type SendEmail = any

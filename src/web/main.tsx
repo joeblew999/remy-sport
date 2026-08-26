@@ -154,6 +154,32 @@ const queryClient = new QueryClient({
   },
 });
 
+/**
+ * Let a test hand the cache its data instead of the network.
+ *
+ * A rendering test — "the team page shows a placeholder", "sample data is
+ * labelled" — has nothing to say about the API. Driving one used to mean
+ * seeding D1, signing in, and waiting on a real round trip, so an assertion
+ * about a `<div>` cost a database.
+ *
+ * `page.addInitScript` sets this before any bundle runs; TanStack then reads
+ * the value synchronously on mount and never fetches. The keys come from
+ * `orpc.*.key()`, so a test seeds the same key the component subscribes to and
+ * a renamed procedure breaks the test at compile time.
+ *
+ * Guarded on the property existing, so nothing ships to a real browser: no
+ * test, no seed, ordinary fetching.
+ */
+declare global {
+  interface Window {
+    __QUERY_SEED__?: { queryKey: readonly unknown[]; data: unknown }[];
+  }
+}
+
+for (const { queryKey, data } of window.__QUERY_SEED__ ?? []) {
+  queryClient.setQueryData(queryKey, data);
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     {/* Session state wraps the whole app so any page can ask who is signed in
