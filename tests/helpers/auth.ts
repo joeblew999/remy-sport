@@ -1,4 +1,5 @@
-import { expect, type APIRequestContext, type Page } from "@playwright/test"
+import { expect, type APIRequestContext, type BrowserContext, type Page } from "@playwright/test"
+import { existsSync, readFileSync } from "node:fs"
 import { SEED_ENTITIES } from "../../src/db/seed-data"
 
 /**
@@ -117,6 +118,16 @@ export const ACTOR_NAMES = {
 export const ALL_ACTORS = [ADMIN, ORGANIZER, COACH, PLAYER, SPECTATOR, REFEREE]
 
 /**
+ * Every seeded address, so auth.setup.ts can save a session for each.
+ *
+ * Not just the six above. Specs that need an actor nobody else is using take an
+ * indexed one — `actor("ORGANIZER", 2)` — and those need a saved session just as
+ * much, or they are back to signing in for themselves and racing whoever else
+ * wants that address.
+ */
+export const EVERY_SEEDED_ACTOR = SEED_ENTITIES.users.map((u) => u.email)
+
+/**
  * Where auth.setup.ts parks each actor's cookies, and how a spec asks for one.
  *
  * `.playwright/` is already the project-scoped, gitignored home for Playwright
@@ -201,6 +212,44 @@ export async function signIn(request: APIRequestContext, email: string): Promise
  */
 export async function gotoFresh(page: Page, path: string): Promise<void> {
   await page.goto(path)
+  await page.reload()
+}
+
+/**
+ * Become a seeded actor without signing in.
+ *
+ * The reason to prefer this over `signInViaPage` everywhere identity is
+ * incidental: a sign-in is not concurrency-safe per address. `TEST_OTP` stops
+ * the *code* rotating, but Better Auth still writes and consumes a verification
+ * row per request, so two tests signing in as the same person invalidate each
+ * other and the loser fails with INVALID_OTP — which surfaces as a locator
+ * timeout, not an auth error. With `fullyParallel` that is any two tests in the
+ * same file naming the same actor.
+ *
+ * The cookies come from auth.setup.ts, which signs in once per seeded address
+ * before any spec runs. Adopting them costs no request at all.
+ *
+ * Use `signInViaPage`/`signInThroughLoginForm` only where signing in is the
+ * thing under test.
+ */
+export async function adoptSession(page: Page, email: string): Promise<void> {
+  const path = stateFor(email)
+  if (!existsSync(path)) {
+    throw new Error(
+      `no saved session for ${email} at ${path} — auth.setup.ts saves one per ` +
+        `seeded address; is this an address the fixtures do not define?`,
+    )
+  }
+  const { cookies } = JSON.parse(readFileSync(path, "utf8")) as {
+    cookies: Parameters<BrowserContext["addCookies"]>[0]
+  }
+  // Clear first: a test that adopts a second identity would otherwise keep the
+  // first one's cookie alongside it, and Better Auth resolves whichever it sees.
+  await page.context().clearCookies()
+  await page.context().addCookies(cookies)
+  // Same reason signInViaPage reloads — `/#/x` is a same-document navigation, so
+  // React never remounts and useSession never refetches. See AGENTS.md.
+  await page.goto("/")
   await page.reload()
 }
 

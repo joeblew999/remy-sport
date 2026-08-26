@@ -32,10 +32,6 @@ Update it when you finish something; delete the line when it is done.
    school, because biz `data/seed/relationships/` models rosters, guardians and
    follows but not org membership. It belongs upstream; when biz grows a
    membership file, read it.
-3. **Several specs still sign in when they only need to *be* someone** —
-   `accept-invitation`, `organization`, `invitations`. Each live sign-in is a
-   chance to collide with another spec on the same address (see the trap
-   below). They should load `stateFor(...)` like the two that now do.
 
 The test classification is **done**. `mise run test:all` for the numbers; the
 38 left in e2e are genuine round trips and belong there. Do not "optimise the
@@ -140,11 +136,18 @@ does *not* make sign-in concurrency-safe: `generateOTP` returns a constant, but
 Better Auth still writes and consumes a verification row per request, so two
 in flight for one address invalidate each other and the loser gets
 `INVALID_OTP` — which surfaces as a 20s `topbar-user` timeout, not as an auth
-error. With `fullyParallel: true` this cost 4 failed runs in 5. If a spec only
-needs to *be* someone, use `test.use({ storageState: stateFor(ACTORS.X) })`;
-`auth.setup.ts` already saves one per actor. Sign in for real only where
-sign-in is the subject. Do not reach for worker counts or project ordering —
-a whole session went that way and stopped dead.
+error. With `fullyParallel: true` this cost 4 failed runs in 5, and it bites
+*within* one file as much as across two. If a spec only needs to **be** someone,
+adopt a saved session — `adoptSession(page, X)`, or
+`test.use({ storageState: stateFor(X) })` when the subject is the `request`
+fixture. `auth.setup.ts` saves one per seeded address before anything runs.
+
+Sign in for real only where sign-in is the subject (`spa-login`), where the
+account did not exist beforehand (`organization`'s default-role test), or where
+the test needs two genuinely separate sessions (`devices`). `admin-console` is
+the other exception: impersonation mutates the session, so those tests cannot
+share one — they are `describe.serial` instead. Do not reach for worker counts
+or project ordering; a whole session went that way and stopped dead.
 
 **`/` → `/#/x` is a same-document navigation.** React does not remount and
 `useSession` does not refetch, so a page renders against whoever was signed in

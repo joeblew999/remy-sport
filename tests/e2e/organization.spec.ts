@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test"
-import { signInViaPage, deleteOrgViaPage, ORGANIZER } from "../helpers/auth"
+// signInViaPage stays for the default-role test below, which signs up a brand
+// new address — there is no saved session for someone who did not exist yet.
+import { signInViaPage, adoptSession, deleteOrgViaPage, ORGANIZER } from "../helpers/auth"
 
 /**
  * Organizations, wired access control and database hooks (ADR 007).
@@ -48,9 +50,7 @@ test.describe("Default role — database hook", () => {
 
 test.describe.serial("Organizations", () => {
   test("an organizer can create an organization and becomes its owner", async ({ page }) => {
-    await page.goto("/")
-
-    await signInViaPage(page, ORGANIZER)
+    await adoptSession(page, ORGANIZER)
 
     const slug = `club-${unique()}`
     const created = await json(page, "/api/auth/organization/create", {
@@ -68,9 +68,7 @@ test.describe.serial("Organizations", () => {
   })
 
   test("an organization is listed for the member who created it", async ({ page }) => {
-    await page.goto("/")
-
-    await signInViaPage(page, ORGANIZER)
+    await adoptSession(page, ORGANIZER)
 
     const slug = `club-${unique()}`
     const created = await json(page, "/api/auth/organization/create", { name: "Listed Club", slug })

@@ -6,7 +6,7 @@ import {
   actor,
   deleteOrgViaPage,
   gotoFresh,
-  signInViaPage as signIn,
+  adoptSession,
   ACTORS,
 } from "../helpers/auth"
 
@@ -36,7 +36,7 @@ const ORGANIZER_2 = actor("ORGANIZER", 2)
 
 
 async function createInvitation(page: Page, invitee: string) {
-  await signIn(page, ORGANIZER_2)
+  await adoptSession(page, ORGANIZER_2)
   return page.evaluate(async (email) => {
     const org = await (
       await fetch("/api/auth/organization/create", {
@@ -70,7 +70,7 @@ test.describe.serial("Accept invitation page", () => {
     // the invitee, so the context that reaches teardown usually cannot delete
     // anything — which is why an earlier best-effort version silently deleted
     // nothing at all and the orgs kept accumulating.
-    await signIn(page, ORGANIZER_2)
+    await adoptSession(page, ORGANIZER_2)
     while (created.length) await deleteOrgViaPage(page, created.pop()!)
   })
 
@@ -89,7 +89,7 @@ test.describe.serial("Accept invitation page", () => {
   })
 
   test("a bad invitation id is reported as invalid to a signed-in user", async ({ page }) => {
-    await signIn(page, ORGANIZER_2)
+    await adoptSession(page, ORGANIZER_2)
     await gotoFresh(page, "/#/accept-invitation/not-a-real-invitation")
     await expect(page.getByTestId("invitation-error")).toBeVisible()
   })
@@ -98,8 +98,7 @@ test.describe.serial("Accept invitation page", () => {
     const { orgId, invitationId } = await createInvitation(page, ACTORS.REFEREE)
     created.push(orgId)
 
-    await page.context().clearCookies()
-    await signIn(page, REFEREE)
+    await adoptSession(page, REFEREE)
 
     await gotoFresh(page, `/#/accept-invitation/${invitationId}`)
     await expect(page.getByTestId("invitation-ready")).toBeVisible()
@@ -125,8 +124,7 @@ test.describe.serial("Accept invitation page", () => {
     const { orgId, invitationId } = await createInvitation(page, ACTORS.PLAYER)
     created.push(orgId)
 
-    await page.context().clearCookies()
-    await signIn(page, COACH)
+    await adoptSession(page, COACH)
 
     await gotoFresh(page, `/#/accept-invitation/${invitationId}`)
     await expect(page.getByTestId("invitation-wrong-account")).toBeVisible()
@@ -139,7 +137,7 @@ test.describe("Session carries an active organization", () => {
   test("a member's session records which org they are in", async ({ page }) => {
     // ADR 009 left session.active_organization_id unwritten; ADR 011 fills it
     // from the user's oldest membership. The coach is seeded into Assumption.
-    await signIn(page, COACH)
+    await adoptSession(page, COACH)
     const activeOrg = await page.evaluate(async () => {
       const r = await fetch("/api/auth/get-session")
       const s = await r.json()
@@ -149,7 +147,7 @@ test.describe("Session carries an active organization", () => {
   })
 
   test("a user in no organization gets no active organization", async ({ page }) => {
-    await signIn(page, SPECTATOR)
+    await adoptSession(page, SPECTATOR)
     const activeOrg = await page.evaluate(async () => {
       const r = await fetch("/api/auth/get-session")
       const s = await r.json()

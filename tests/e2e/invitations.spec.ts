@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test"
-import { actor, deleteOrg, nameOfActor, signIn } from "../helpers/auth"
+import { actor, deleteOrg, nameOfActor, stateFor } from "../helpers/auth"
 
 /**
  * This spec's own actors, not the shared ones.
@@ -42,8 +42,6 @@ async function inviteTo(request: APIRequestContext, baseURL: string, invitee: st
   // (ADR 006 §9a); a browser sets it, APIRequestContext does not.
   const headers = { Origin: baseURL }
 
-  await signIn(request, ORGANIZER_1)
-
   const slug = `invite-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
   const created = await request.post("/api/auth/organization/create", {
     data: { name: "Invite Test Org", slug },
@@ -68,6 +66,17 @@ async function outboxFor(request: APIRequestContext, to: string): Promise<Outbox
 
 test.describe("Organization invitations send mail", () => {
   test.skip(!LOCAL_ONLY, "mail capture is local-only (ADR 010)")
+
+  /**
+   * The organizer's saved session, rather than signing in inside `inviteTo`.
+   *
+   * All four tests below call it, this block is not serial, so all four were
+   * requesting a sign-in code for the same address at once. A fixed TEST_OTP
+   * does not save that: Better Auth still consumes a verification row per
+   * request, so the losers fail with INVALID_OTP. `storageState` applies to the
+   * `request` fixture as well as to `page`.
+   */
+  test.use({ storageState: stateFor(ORGANIZER_1) })
   test("an invitation produces an email addressed to the invitee", async ({ request, baseURL }) => {
     const invitee = `coach-${Date.now()}@example.com`
     const { cleanup } = await inviteTo(request, baseURL!, invitee)

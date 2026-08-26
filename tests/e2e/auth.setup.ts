@@ -1,6 +1,6 @@
 import { test as setup } from "@playwright/test"
 import { mkdirSync } from "node:fs"
-import { ALL_ACTORS, signIn, stateFor, AUTH_STATE_DIR } from "../helpers/auth"
+import { EVERY_SEEDED_ACTOR, signIn, stateFor, AUTH_STATE_DIR } from "../helpers/auth"
 
 /**
  * Sign in once per actor and save the cookies to disk.
@@ -21,7 +21,11 @@ import { ALL_ACTORS, signIn, stateFor, AUTH_STATE_DIR } from "../helpers/auth"
 setup("sign in as each actor and save session state", async ({ playwright }) => {
   mkdirSync(AUTH_STATE_DIR, { recursive: true })
 
-  for (const email of ALL_ACTORS) {
+  // Every seeded address, not just the six role representatives: specs that
+  // need an actor nobody else is using take an indexed one (`actor("COACH", 2)`)
+  // and it needs a session saved just the same. Serial, so nothing here races
+  // itself — which is the whole failure this exists to prevent.
+  for (const email of EVERY_SEEDED_ACTOR) {
     // A fresh context per actor: reusing one would carry the previous actor's
     // cookie into the next sign-in, and Better Auth would refuse the origin
     // check on a request that already has a session (ADR 006 §9a).
