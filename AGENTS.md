@@ -27,21 +27,29 @@ Update it when you finish something; delete the line when it is done.
    ~1000 hand-written lines and the admin console added ~60 more. This is the
    largest remaining source of per-page boilerplate and nothing has been done
    about it.
-2. **The render tier costs 18s for 26 tests that make no network call** —
-   nearly all of it `vite preview` starting. A long-lived preview with
-   `reuseExistingServer` would take it near zero.
-3. **One e2e spec flakes per run** — usually the role switcher or an
-   org-creating one, and it passes in isolation. Root cause is understood:
-   every e2e spec shares one local D1 and the same six seeded actors, so two
-   specs signing in as the organizer at once make Better Auth refuse the
-   second one's OTP with `INVALID_OTP`.
+2. **Memberships are written out twice** — [`src/routes/seed.ts`](src/routes/seed.ts)
+   and [`scripts/seed-sql.ts`](scripts/seed-sql.ts) each hardcode who belongs to
+   which school, and nothing checks they agree. It is a domain fact and belongs
+   in biz `data/seed/relationships/`, which has no membership file yet.
+3. **`/api/seed` reimplements `seed.sql`.** Both build the same state by
+   different routes. The end state is the route executing the SQL — one
+   definition, two callers.
+4. **One e2e spec flakes per run** — usually the role switcher or an
+   org-creating one, and it passes in isolation. Root cause is understood and
+   is *not* the runner: every e2e spec shares one local D1 and the same seeded
+   actors, and Better Auth invalidates an OTP the moment a newer one is
+   requested for the same address, so two specs signing in as the organizer at
+   once make one fail with `INVALID_OTP`. The worker tier no longer has this
+   because [`seed.sql`](src/db/seed.sql) gives each file its own database;
+   Playwright talks to a real Worker over HTTP and cannot. The two real fixes
+   are shrinking e2e toward zero, or a Worker + D1 per Playwright worker.
 
    **Measured, so do not repeat:** chaining the org-creating specs into a
    dependency order made it *worse* — running `organization` immediately
    before `invitations` puts two org-creation flows for one organizer back to
    back. They tolerate being interleaved, not being adjacent. Adding a
    defensive sign-out inside `signIn`/`signInViaPage` also broke more than it
-   fixed. The real fix is a dedicated actor per spec, not more ordering.
+   fixed.
 
 The test classification is **done**. `mise run test:all` for the numbers; the
 38 left in e2e are genuine round trips and belong there. Do not "optimise the
