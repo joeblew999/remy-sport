@@ -1,6 +1,34 @@
 import { test, expect, type Page } from "@playwright/test"
-import { signInViaPage as signIn, gotoFresh, deleteOrgViaPage, ORGANIZER, COACH, REFEREE, SPECTATOR } from "../helpers/auth"
-import { ACTORS } from "../helpers/auth"
+import {
+  COACH,
+  REFEREE,
+  SPECTATOR,
+  actor,
+  deleteOrgViaPage,
+  gotoFresh,
+  signInViaPage as signIn,
+  ACTORS,
+} from "../helpers/auth"
+
+/**
+ * This spec's own actors, not the shared ones.
+ *
+ * Every e2e spec runs against one local D1 and one set of seeded people. Better
+ * Auth invalidates an OTP when a newer one is requested for the same address,
+ * so two specs signing in as *the* organizer concurrently make one of them fail
+ * with INVALID_OTP — and which one loses moves between runs, so it reads as a
+ * bug in whichever was second.
+ *
+ * The fixtures already seed three organizers and three coaches at three
+ * schools. Nothing needed adding; the specs were simply all taking the first.
+ *
+ * The COACH here is deliberately NOT indexed: seed.ts makes `usr_coach_001` —
+ * the first one — the org admin at Assumption College, and the membership
+ * assertions below are about that seeded relationship. Swapping in another
+ * coach makes them fail for the right reason.
+ */
+const ORGANIZER_2 = actor("ORGANIZER", 2)
+
 
 // ADR 011. The invitation email sent in ADR 010 pointed at a route that did not
 // exist. These cover the landing page and the accept round-trip.
@@ -8,7 +36,7 @@ import { ACTORS } from "../helpers/auth"
 
 
 async function createInvitation(page: Page, invitee: string) {
-  await signIn(page, ORGANIZER)
+  await signIn(page, ORGANIZER_2)
   return page.evaluate(async (email) => {
     const org = await (
       await fetch("/api/auth/organization/create", {
@@ -42,7 +70,7 @@ test.describe.serial("Accept invitation page", () => {
     // the invitee, so the context that reaches teardown usually cannot delete
     // anything — which is why an earlier best-effort version silently deleted
     // nothing at all and the orgs kept accumulating.
-    await signIn(page, ORGANIZER)
+    await signIn(page, ORGANIZER_2)
     while (created.length) await deleteOrgViaPage(page, created.pop()!)
   })
 
@@ -61,7 +89,7 @@ test.describe.serial("Accept invitation page", () => {
   })
 
   test("a bad invitation id is reported as invalid to a signed-in user", async ({ page }) => {
-    await signIn(page, ORGANIZER)
+    await signIn(page, ORGANIZER_2)
     await gotoFresh(page, "/#/accept-invitation/not-a-real-invitation")
     await expect(page.getByTestId("invitation-error")).toBeVisible()
   })

@@ -1,5 +1,20 @@
 import { test, expect, type APIRequestContext } from "@playwright/test"
-import { ACTOR_NAMES, signIn, deleteOrg, ORGANIZER } from "../helpers/auth"
+import { actor, deleteOrg, nameOfActor, signIn } from "../helpers/auth"
+
+/**
+ * This spec's own actors, not the shared ones.
+ *
+ * Every e2e spec runs against one local D1 and one set of seeded people. Better
+ * Auth invalidates an OTP when a newer one is requested for the same address,
+ * so two specs signing in as *the* organizer concurrently make one of them fail
+ * with INVALID_OTP — and which one loses moves between runs, so it reads as a
+ * bug in whichever was second.
+ *
+ * The fixtures already seed three organizers and three coaches at three
+ * schools. Nothing needed adding; the specs were simply all taking the first.
+ */
+const ORGANIZER_1 = actor("ORGANIZER", 1)
+
 
 // The outbox transport, and therefore /api/dev/outbox, exists only locally:
 // production runs MAIL_TRANSPORT=cloudflare and the route 404s there by design.
@@ -27,7 +42,7 @@ async function inviteTo(request: APIRequestContext, baseURL: string, invitee: st
   // (ADR 006 §9a); a browser sets it, APIRequestContext does not.
   const headers = { Origin: baseURL }
 
-  await signIn(request, ORGANIZER)
+  await signIn(request, ORGANIZER_1)
 
   const slug = `invite-${Date.now()}-${Math.floor(Math.random() * 1e6)}`
   const created = await request.post("/api/auth/organization/create", {
@@ -62,7 +77,7 @@ test.describe("Organization invitations send mail", () => {
     expect(messages[0]!.to).toBe(invitee)
     expect(messages[0]!.subject).toContain("Invite Test Org")
     // The inviter is named, so the recipient can tell a real invite from spam.
-    expect(messages[0]!.subject).toContain(ACTOR_NAMES.ORGANIZER)
+    expect(messages[0]!.subject).toContain(nameOfActor(ORGANIZER_1))
     await cleanup()
   })
 

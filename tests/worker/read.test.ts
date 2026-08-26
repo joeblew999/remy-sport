@@ -1,5 +1,5 @@
 import { SELF, env } from "cloudflare:test"
-import { beforeAll, describe, expect, it } from "vitest"
+import { describe, expect, it } from "vitest"
 import {
   AGE_GROUP_CODES,
   EVENT_FORMAT_CODES,
@@ -8,7 +8,7 @@ import {
   LOCALES,
   ORG_TYPE_CODES,
 } from "../../src/domain/vocabularies"
-import { actorFor, api, post, seed, signIn } from "./helpers"
+import { actorFor, api, post, signIn } from "./helpers"
 
 /**
  * Everything the API serves without writing: reads, the vocabularies, the
@@ -19,8 +19,6 @@ import { actorFor, api, post, seed, signIn } from "./helpers"
  * `expect(1).toBe(1)`. Splitting by subject cost more than the subjects
  * explained.
  */
-
-beforeAll(seed)
 
 /**
  * The last of the browserless API assertions.

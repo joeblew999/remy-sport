@@ -1,7 +1,7 @@
 import { SELF } from "cloudflare:test"
-import { beforeAll, describe, expect, it } from "vitest"
+import { describe, expect, it } from "vitest"
 import { SEED_ENTITIES } from "../../src/db/seed-data"
-import { ORIGIN, actorFor, api, post, seed, signIn } from "./helpers"
+import { ORIGIN, actorFor, api, post, signIn } from "./helpers"
 
 /**
  * Everything that writes, and everything that decides who may.
@@ -20,8 +20,6 @@ const ADMIN = actorFor("ADMIN")
 const ORGANIZER = actorFor("ORGANIZER")
 const COACH = actorFor("COACH")
 const SPECTATOR = actorFor("SPECTATOR")
-
-beforeAll(seed)
 
 /**
  * Sign-in, in workerd. Converted from tests/auth.spec.ts and tests/otp.spec.ts.

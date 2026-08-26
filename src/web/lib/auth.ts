@@ -107,8 +107,22 @@ export function useAdminAction() {
   return useMutation({
     mutationFn: ({ path, body }: { path: string; body: unknown }) =>
       call(`/api/auth/admin/${path}`, body),
-    // Impersonation, bans and role changes change the viewer, not just a row.
-    onSuccess: () => identityChanged(qc),
+    /**
+     * A full reload, not an invalidation.
+     *
+     * Impersonation replaces who the session *is*, and a ban or role change
+     * alters what Better Auth will answer for every subsequent request. Half
+     * this page's data comes from the plugin rather than from a query we own,
+     * so refetching the two keys we know about leaves the rest — the role
+     * select's own value among them — showing the pre-change answer.
+     *
+     * The page it lives on is an admin console reached by a handful of people a
+     * handful of times; a reload is the honest way to say "everything you were
+     * looking at is now stale". This is what the server-rendered version did,
+     * and replacing it with targeted invalidation is what broke "an admin can
+     * change someone's role, and it sticks".
+     */
+    onSuccess: () => window.location.reload(),
   });
 }
 

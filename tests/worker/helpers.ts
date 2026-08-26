@@ -52,8 +52,10 @@ export async function signIn(email: string): Promise<string> {
   return cookie!.split(";")[0]!
 }
 
-/** Load the PO's fixtures. Idempotent; each test file has its own D1. */
-export async function seed(): Promise<void> {
-  const res = await SELF.fetch(`${ORIGIN}/api/seed`, { method: "POST" })
-  expect(res.status, "seeding").toBe(200)
-}
+/**
+ * No `seed()` here any more.
+ *
+ * Each test file's database arrives already seeded, from src/db/seed.sql via
+ * apply-migrations.ts. That used to be a `beforeAll` POSTing /api/seed — a
+ * Better Auth `createUser` round trip per user, per file.
+ */

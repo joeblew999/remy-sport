@@ -1,5 +1,20 @@
 import { test, expect } from "@playwright/test"
-import { signInThroughLoginForm, signIn, COACH, REFEREE, BASE, IS_LOCAL } from "../helpers/auth"
+import { BASE, IS_LOCAL, REFEREE, actor, signIn, signInThroughLoginForm } from "../helpers/auth"
+
+/**
+ * This spec's own actors, not the shared ones.
+ *
+ * Every e2e spec runs against one local D1 and one set of seeded people. Better
+ * Auth invalidates an OTP when a newer one is requested for the same address,
+ * so two specs signing in as *the* organizer concurrently make one of them fail
+ * with INVALID_OTP — and which one loses moves between runs, so it reads as a
+ * bug in whichever was second.
+ *
+ * The fixtures already seed three organizers and three coaches at three
+ * schools. Nothing needed adding; the specs were simply all taking the first.
+ */
+const COACH_1 = actor("COACH", 1)
+
 
 // ADR 014. Better Auth core has exposed /list-sessions and /revoke-session all
 // along and nothing used them. It matters more since ADR 012 made sessions last
@@ -33,8 +48,8 @@ test.describe("Devices — where you're signed in", () => {
   })
 
   test("sign out all other devices leaves exactly the current one", async ({ page, request }) => {
-    await signIn(request, COACH)
-    await signInThroughLoginForm(page, COACH)
+    await signIn(request, COACH_1)
+    await signInThroughLoginForm(page, COACH_1)
     await page.goto("/#/devices")
     await expect(page.getByTestId("devices-list")).toBeVisible()
 

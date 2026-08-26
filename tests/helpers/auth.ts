@@ -40,6 +40,48 @@ const first = (role: string) => {
   return user.email
 }
 
+/**
+ * A role's Nth seeded actor, so two specs need not share one.
+ *
+ * The e2e tier runs against one local D1 with one set of seeded people, and
+ * Better Auth refuses a sign-in whose OTP was superseded by another request for
+ * the same address. Two specs signing in as *the* organizer at the same time
+ * therefore make one of them fail with INVALID_OTP — and which one loses moves
+ * between runs, so it reads as a bug in whichever spec happened to be second.
+ *
+ * The fixtures already seed three organizers and three coaches at three
+ * different schools. Nothing needed adding; the specs were simply all taking
+ * the first one. `actor("ORGANIZER", 1)` takes the second.
+ *
+ * Ordering is the fixtures' own, so a given index is stable across runs. Ask
+ * for one past the end and it throws rather than silently wrapping onto an
+ * actor another spec is already using.
+ */
+/**
+ * The display name of a specific actor.
+ *
+ * Distinct from the private `nameOf(role)` below, which answers "the name of
+ * *a* coach". A spec using its own indexed actor needs the name of *that*
+ * person — asserting the shared one's name would pass for the wrong reason.
+ */
+export function nameOfActor(email: string): string {
+  const user = SEED_ENTITIES.users.find((u) => u.email === email)
+  if (!user) throw new Error(`no seeded user with email ${email}`)
+  return user.names.en
+}
+
+export function actor(role: string, index = 0): string {
+  const all = SEED_ENTITIES.users.filter((u) => u.roleCode === role)
+  const user = all[index]
+  if (!user) {
+    throw new Error(
+      `no seeded ${role} at index ${index} — the fixtures have ${all.length}. ` +
+        `Add one upstream in remy-sport-biz rather than sharing an actor with another spec.`,
+    )
+  }
+  return user.email
+}
+
 export const ADMIN = first("ADMIN")
 export const ORGANIZER = first("ORGANIZER")
 export const COACH = first("COACH")

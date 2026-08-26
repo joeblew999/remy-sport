@@ -299,7 +299,7 @@ description = "Install deps, build the SPA, write .dev.vars, apply local D1 migr
 # configuration file does not exist". Everything local runs through setup —
 # dev, dev:seed, dev:ensure, test — so building here fixes all of them at once.
 # web:build declares sources/outputs, so it is a no-op once dist/web is current.
-depends     = ["install", "web:build", "dev:vars", "cf:d1:migrations:apply", "playwright:install", "fonts:vendor"]
+depends     = ["install", "web:build", "dev:vars", "cf:d1:migrations:apply", "playwright:install", "fonts:vendor", "seed:sql"]
 
 [tasks."playwright:install"]
 description = "Install Playwright browsers (proxy-safe, idempotent)"
@@ -487,6 +487,17 @@ depends     = ["web:build"]
 # preview` over dist/web, while the e2e tier needs wrangler, a migrated D1 and
 # six signed-in actors. They were paying for all of that to check a <div>.
 run = "bun x playwright test --config playwright.render.config.ts"
+
+[tasks."seed:sql"]
+description = "Regenerate src/db/seed.sql from the biz fixtures — the seed as data, not an HTTP call"
+depends     = ["install"]
+# Same shape as domain:generate, and for the same reason. The vocabularies have
+# always been SQL (migration 0009); the entities went through POST /api/seed,
+# which needs a running Worker and therefore a database every spec shares.
+# As SQL, each test file seeds its own storage in milliseconds.
+sources = ["scripts/seed-sql.ts", "src/db/seed-data.ts"]
+outputs = ["src/db/seed.sql"]
+run     = "bun scripts/seed-sql.ts"
 
 [tasks."fonts:vendor"]
 description = "Download the web fonts into src/web/fonts/ and regenerate fonts.css"
