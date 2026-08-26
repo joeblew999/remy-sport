@@ -132,8 +132,8 @@ export const userNotificationPreference = sqliteTable("userNotificationPreferenc
  * Every domain table, and its derived row schema.
  *
  * This is what lets a resource cost one line to expose instead of a route
- * block, a handler, a serialiser and a client type. src/api/domain.ts names
- * which of these the API serves and at what access level — that part is
+ * block, a handler, a serialiser and a client type. src/domain/contract.ts
+ * names which of these the API serves and at what access level — that part is
  * deliberately hand-written, because who may read a table is a decision, not a
  * mechanical consequence of the table existing.
  */

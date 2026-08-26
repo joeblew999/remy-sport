@@ -608,3 +608,281 @@ export const VOCABULARY = {
   skillTiers: SKILL_TIER,
   userStatuses: USER_STATUS,
 } as const
+
+/**
+ * Which relations grant which action — the PO's authorisation policy, compiled.
+ *
+ * 186 rows from data/seed/authorization/permissions.jsonl, grouped by action.
+ * A user may perform an action if they hold **any** of the relations listed for
+ * it. `eventTypes` narrows a grant to particular event subtypes; an empty array
+ * means it applies everywhere.
+ *
+ * This is the file src/auth/access-control.ts used to restate by hand, in a
+ * different shape and at a different granularity, with nothing checking the two
+ * against each other. That is how the team write path came to ask about
+ * organisation membership — a relation this model does not contain.
+ */
+export const GRANTS = {
+  SIGN_IN_OUT: [
+    { relation: "PUBLIC", eventTypes: [] },
+  ],
+  INSTALL_APP: [
+    { relation: "PUBLIC", eventTypes: [] },
+  ],
+  MANAGE_ALL_USERS: [
+    { relation: "PLATFORM_ADMIN", eventTypes: [] },
+  ],
+  MODERATE_LISTINGS: [
+    { relation: "PLATFORM_ADMIN", eventTypes: [] },
+  ],
+  BROWSE_EVENTS: [
+    { relation: "PUBLIC", eventTypes: [] },
+  ],
+  BROWSE_TEAMS: [
+    { relation: "PUBLIC", eventTypes: [] },
+  ],
+  CREATE_EVENT: [
+    { relation: "ANY_ORGANIZER", eventTypes: [] },
+    { relation: "PLATFORM_ADMIN", eventTypes: [] },
+  ],
+  VIEW_EVENT: [
+    { relation: "PUBLIC", eventTypes: [] },
+  ],
+  EDIT_EVENT: [
+    { relation: "OWNER", eventTypes: [] },
+    { relation: "CO_ORGANIZER", eventTypes: [] },
+    { relation: "PLATFORM_ADMIN", eventTypes: [] },
+  ],
+  DELETE_EVENT: [
+    { relation: "OWNER", eventTypes: [] },
+    { relation: "PLATFORM_ADMIN", eventTypes: [] },
+  ],
+  MANAGE_DIVISIONS: [
+    { relation: "OWNER", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+    { relation: "CO_ORGANIZER", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+    { relation: "PLATFORM_ADMIN", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+  ],
+  REGISTER_TEAM_FOR_EVENT: [
+    { relation: "HEAD_COACH", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+    { relation: "TEAM_MANAGER", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+    { relation: "PLATFORM_ADMIN", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+  ],
+  REGISTER_PLAYER_FOR_EVENT: [
+    { relation: "SELF", eventTypes: ["CAMP", "SHOWCASE"] },
+    { relation: "GUARDIAN", eventTypes: ["CAMP", "SHOWCASE"] },
+    { relation: "PLATFORM_ADMIN", eventTypes: ["CAMP", "SHOWCASE"] },
+  ],
+  CREATE_TEAM: [
+    { relation: "ANY_COACH", eventTypes: [] },
+    { relation: "PLATFORM_ADMIN", eventTypes: [] },
+  ],
+  VIEW_TEAM: [
+    { relation: "PUBLIC", eventTypes: [] },
+  ],
+  EDIT_TEAM_PROFILE: [
+    { relation: "HEAD_COACH", eventTypes: [] },
+    { relation: "TEAM_MANAGER", eventTypes: [] },
+    { relation: "PLATFORM_ADMIN", eventTypes: [] },
+  ],
+  DELETE_TEAM: [
+    { relation: "PLATFORM_ADMIN", eventTypes: [] },
+  ],
+  MANAGE_ROSTER: [
+    { relation: "HEAD_COACH", eventTypes: [] },
+    { relation: "ASSISTANT_COACH", eventTypes: [] },
+    { relation: "TEAM_MANAGER", eventTypes: [] },
+    { relation: "PLATFORM_ADMIN", eventTypes: [] },
+  ],
+  CREATE_PLAYER: [
+    { relation: "ANY_COACH", eventTypes: [] },
+    { relation: "ANY_PLAYER", eventTypes: [] },
+    { relation: "PLATFORM_ADMIN", eventTypes: [] },
+  ],
+  VIEW_PLAYER: [
+    { relation: "PUBLIC", eventTypes: [] },
+  ],
+  EDIT_PLAYER_PROFILE: [
+    { relation: "SELF", eventTypes: [] },
+    { relation: "GUARDIAN", eventTypes: [] },
+    { relation: "HEAD_COACH", eventTypes: [] },
+    { relation: "ASSISTANT_COACH", eventTypes: [] },
+    { relation: "PLATFORM_ADMIN", eventTypes: [] },
+  ],
+  DELETE_PLAYER: [
+    { relation: "PLATFORM_ADMIN", eventTypes: [] },
+  ],
+  VIEW_PLAYER_STATS: [
+    { relation: "PUBLIC", eventTypes: [] },
+  ],
+  VIEW_BRACKET: [
+    { relation: "PUBLIC", eventTypes: ["TOURNAMENT", "SHOWCASE"] },
+  ],
+  VIEW_FIXTURE_SCHEDULE: [
+    { relation: "PUBLIC", eventTypes: ["TOURNAMENT", "LEAGUE"] },
+  ],
+  VIEW_COURT_ASSIGNMENTS: [
+    { relation: "PUBLIC", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+  ],
+  GENERATE_BRACKETS: [
+    { relation: "OWNER", eventTypes: ["TOURNAMENT", "SHOWCASE"] },
+    { relation: "CO_ORGANIZER", eventTypes: ["TOURNAMENT", "SHOWCASE"] },
+    { relation: "PLATFORM_ADMIN", eventTypes: ["TOURNAMENT", "SHOWCASE"] },
+  ],
+  GENERATE_FIXTURES: [
+    { relation: "OWNER", eventTypes: ["TOURNAMENT", "LEAGUE"] },
+    { relation: "CO_ORGANIZER", eventTypes: ["TOURNAMENT", "LEAGUE"] },
+    { relation: "PLATFORM_ADMIN", eventTypes: ["TOURNAMENT", "LEAGUE"] },
+  ],
+  DEFINE_SESSION_SCHEDULE: [
+    { relation: "OWNER", eventTypes: ["CAMP"] },
+    { relation: "CO_ORGANIZER", eventTypes: ["CAMP"] },
+    { relation: "PLATFORM_ADMIN", eventTypes: ["CAMP"] },
+  ],
+  ASSIGN_COURTS: [
+    { relation: "OWNER", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+    { relation: "CO_ORGANIZER", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+    { relation: "PLATFORM_ADMIN", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+  ],
+  ENTER_SCORES: [
+    { relation: "OWNER", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+    { relation: "CO_ORGANIZER", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+    { relation: "ANY_REFEREE", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+    { relation: "PLATFORM_ADMIN", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+  ],
+  CONFIRM_MATCH_STATUS: [
+    { relation: "OWNER", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+    { relation: "CO_ORGANIZER", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+    { relation: "ANY_REFEREE", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+    { relation: "PLATFORM_ADMIN", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+  ],
+  RECORD_ATTENDANCE: [
+    { relation: "OWNER", eventTypes: ["CAMP"] },
+    { relation: "CO_ORGANIZER", eventTypes: ["CAMP"] },
+    { relation: "HEAD_COACH", eventTypes: ["CAMP"] },
+    { relation: "ASSISTANT_COACH", eventTypes: ["CAMP"] },
+    { relation: "PLATFORM_ADMIN", eventTypes: ["CAMP"] },
+  ],
+  VIEW_GAME_RESULTS: [
+    { relation: "PUBLIC", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+  ],
+  VIEW_MATCH_STATUS: [
+    { relation: "PUBLIC", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+  ],
+  SPOILER_MODE: [
+    { relation: "ANY_SIGNED_IN", eventTypes: [] },
+  ],
+  VIEW_RESULTS_ARCHIVE: [
+    { relation: "PUBLIC", eventTypes: [] },
+  ],
+  VIEW_STANDINGS: [
+    { relation: "PUBLIC", eventTypes: ["TOURNAMENT", "LEAGUE"] },
+  ],
+  VIEW_RANK_MOVEMENT: [
+    { relation: "PUBLIC", eventTypes: ["TOURNAMENT", "LEAGUE"] },
+  ],
+  VIEW_RANKINGS_HISTORY: [
+    { relation: "PUBLIC", eventTypes: [] },
+  ],
+  VIEW_SEASON_RECORDS: [
+    { relation: "PUBLIC", eventTypes: ["LEAGUE"] },
+  ],
+  VIEW_LIVE_SCORES: [
+    { relation: "PUBLIC", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+  ],
+  RECEIVE_NOTIFICATIONS: [
+    { relation: "ANY_SIGNED_IN", eventTypes: [] },
+  ],
+  VIEW_LIVE_STREAM: [
+    { relation: "PUBLIC", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+  ],
+  VIEW_COURT_STATUS_BOARD: [
+    { relation: "PUBLIC", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+  ],
+  AI_CREATE_EVENT: [
+    { relation: "ANY_ORGANIZER", eventTypes: [] },
+    { relation: "PLATFORM_ADMIN", eventTypes: [] },
+  ],
+  AI_BRACKET_SUGGESTIONS: [
+    { relation: "OWNER", eventTypes: ["TOURNAMENT", "SHOWCASE"] },
+    { relation: "CO_ORGANIZER", eventTypes: ["TOURNAMENT", "SHOWCASE"] },
+    { relation: "PLATFORM_ADMIN", eventTypes: ["TOURNAMENT", "SHOWCASE"] },
+  ],
+  AI_QA: [
+    { relation: "PUBLIC", eventTypes: [] },
+  ],
+  SIGN_UP_AS_SPECTATOR: [
+    { relation: "PUBLIC", eventTypes: [] },
+  ],
+  SIGN_UP_AS_PLAYER: [
+    { relation: "PUBLIC", eventTypes: [] },
+  ],
+  SIGN_UP_AS_COACH: [
+    { relation: "PUBLIC", eventTypes: [] },
+  ],
+  SIGN_UP_AS_ORGANIZER: [
+    { relation: "PUBLIC", eventTypes: [] },
+  ],
+  SIGN_UP_PLAYER_AS_GUARDIAN: [
+    { relation: "ANY_SIGNED_IN", eventTypes: [] },
+  ],
+  SIGN_UP_AS_REFEREE_REQUEST: [
+    { relation: "PUBLIC", eventTypes: [] },
+  ],
+  APPROVE_REFEREE: [
+    { relation: "PLATFORM_ADMIN", eventTypes: [] },
+  ],
+  CREATE_USER_ACCOUNT: [
+    { relation: "PLATFORM_ADMIN", eventTypes: [] },
+  ],
+  INVITE_CO_ORGANIZER: [
+    { relation: "OWNER", eventTypes: [] },
+    { relation: "PLATFORM_ADMIN", eventTypes: [] },
+  ],
+  ACCEPT_CO_ORGANIZER_INVITE: [
+    { relation: "ANY_SIGNED_IN", eventTypes: [] },
+  ],
+  FOLLOW_PLAYER: [
+    { relation: "ANY_SIGNED_IN", eventTypes: [] },
+  ],
+  FOLLOW_TEAM: [
+    { relation: "ANY_SIGNED_IN", eventTypes: [] },
+  ],
+  FOLLOW_EVENT: [
+    { relation: "ANY_SIGNED_IN", eventTypes: [] },
+  ],
+  UNFOLLOW_PLAYER: [
+    { relation: "FOLLOWER_PLAYER", eventTypes: [] },
+    { relation: "PLATFORM_ADMIN", eventTypes: [] },
+  ],
+  UNFOLLOW_TEAM: [
+    { relation: "FOLLOWER_TEAM", eventTypes: [] },
+    { relation: "PLATFORM_ADMIN", eventTypes: [] },
+  ],
+  UNFOLLOW_EVENT: [
+    { relation: "FOLLOWER_EVENT", eventTypes: [] },
+    { relation: "PLATFORM_ADMIN", eventTypes: [] },
+  ],
+  RECEIVE_PLAYER_NOTIFICATIONS: [
+    { relation: "FOLLOWER_PLAYER", eventTypes: [] },
+    { relation: "GUARDIAN", eventTypes: [] },
+    { relation: "SELF", eventTypes: [] },
+  ],
+  RECEIVE_TEAM_NOTIFICATIONS: [
+    { relation: "FOLLOWER_TEAM", eventTypes: [] },
+    { relation: "HEAD_COACH", eventTypes: [] },
+    { relation: "ASSISTANT_COACH", eventTypes: [] },
+    { relation: "TEAM_MANAGER", eventTypes: [] },
+    { relation: "TEAM_PLAYER", eventTypes: [] },
+  ],
+  RECEIVE_EVENT_NOTIFICATIONS: [
+    { relation: "FOLLOWER_EVENT", eventTypes: [] },
+    { relation: "OWNER", eventTypes: [] },
+    { relation: "CO_ORGANIZER", eventTypes: [] },
+  ],
+  MANAGE_OWN_NOTIFICATION_CHANNELS: [
+    { relation: "ANY_SIGNED_IN", eventTypes: [] },
+  ],
+  MANAGE_OWN_NOTIFICATION_PREFERENCES: [
+    { relation: "ANY_SIGNED_IN", eventTypes: [] },
+  ],
+} as const

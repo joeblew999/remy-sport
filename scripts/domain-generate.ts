@@ -581,6 +581,61 @@ CREATE INDEX IF NOT EXISTS team_org_idx ON team(org_id);
 
 // ── Write ──────────────────────────────────────────────────────────────────
 
+/**
+ * The authorisation policy: which relation grants which action.
+ *
+ * The only one of the four authorisation files that was never read. The other
+ * three — object_types, actions, relations — already arrive as vocabularies,
+ * because they carry translatable labels and live in reference/. This one is
+ * pure tuples, so it sits in authorization/ and nothing here had picked it up.
+ */
+interface PermissionRow {
+  action_code: string
+  relation_code: string
+  event_type_code: string | null
+}
+
+const PERMISSION_ROWS = readJsonl<PermissionRow>(findSeed("permissions.jsonl"))
+
+function emitGrants(): string {
+  // Grouped by action, and the event subtypes collapsed into one entry per
+  // relation: the fixtures carry a row per (action, relation, subtype), so
+  // MANAGE_DIVISIONS alone is nine rows for three relations.
+  const byAction = new Map<string, Map<string, Set<string>>>()
+  for (const row of PERMISSION_ROWS) {
+    const relations = byAction.get(row.action_code) ?? new Map<string, Set<string>>()
+    const subtypes = relations.get(row.relation_code) ?? new Set<string>()
+    if (row.event_type_code) subtypes.add(row.event_type_code)
+    relations.set(row.relation_code, subtypes)
+    byAction.set(row.action_code, relations)
+  }
+
+  const known = new Set(PERMISSION_ROWS.flatMap((r) => [r.action_code, r.relation_code]))
+  const actions = new Set(readJsonl<{ code: string }>(findSeed("actions.jsonl")).map((a) => a.code))
+  const relations = new Set(readJsonl<{ code: string }>(findSeed("relations.jsonl")).map((r) => r.code))
+  const orphans = [...known].filter((c) => !actions.has(c) && !relations.has(c))
+  if (orphans.length) {
+    // A grant naming something that does not exist would compile to a rule that
+    // can never match — a silent denial rather than an error.
+    console.error(`domain:generate: permissions.jsonl names unknown codes: ${orphans.join(", ")}`)
+    process.exit(1)
+  }
+
+  return [...byAction.entries()]
+    .map(([action, rels]) => {
+      const entries = [...rels.entries()]
+        .map(
+          ([relation, subtypes]) =>
+            `    { relation: ${json(relation)}, eventTypes: [${[...subtypes]
+              .map((s) => json(s))
+              .join(", ")}] },`,
+        )
+        .join("\n")
+      return `  ${action}: [\n${entries}\n  ],\n`
+    })
+    .join("")
+}
+
 const outputs: Array<[string, string]> = [
   [
     OUT_TS,
@@ -615,6 +670,22 @@ ${VOCABULARIES.map(emitConstants).join("\n")}
 export const VOCABULARY = {
 ${VOCABULARIES.map((v) => `  ${camel(v.source)}: ${v.table.toUpperCase()},`).join("\n")}
 } as const
+
+/**
+ * Which relations grant which action — the PO's authorisation policy, compiled.
+ *
+ * ${PERMISSION_ROWS.length} rows from data/seed/authorization/permissions.jsonl, grouped by action.
+ * A user may perform an action if they hold **any** of the relations listed for
+ * it. \`eventTypes\` narrows a grant to particular event subtypes; an empty array
+ * means it applies everywhere.
+ *
+ * This is the file src/auth/access-control.ts used to restate by hand, in a
+ * different shape and at a different granularity, with nothing checking the two
+ * against each other. That is how the team write path came to ask about
+ * organisation membership — a relation this model does not contain.
+ */
+export const GRANTS = {
+${emitGrants()}} as const
 `,
   ],
   [
