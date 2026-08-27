@@ -23,6 +23,7 @@ mise run check            types + unit + worker + dead code + docs + these rules
 mise run test:all         every tier, with the seconds each one costs
 mise run test:tiers       where the tests are, and which are in the wrong tier
 mise run test:render      rendering tests, no Worker, no database
+mise run model:coverage   which of the PO's 75 actions the API implements
 mise run probe            typecheck a snippet against the real project (WEB=1 for the SPA)
 ```
 

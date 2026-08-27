@@ -594,6 +594,15 @@ description = "Run Playwright tests locally"
 depends     = ["setup"]
 run         = "bun x playwright test"
 
+[tasks."model:coverage"]
+description = "Which of the Product Owner's actions the API actually implements"
+depends     = ["install"]
+# Not part of `check`, and not a build failure: most of these are unbuilt on
+# purpose and the roadmap says so. What was missing was a way to SEE it — the
+# API had no way to create a game at all, the model said an organiser schedules
+# fixtures, and nothing connected the two until someone read the router by hand.
+run = "bun scripts/model-coverage.ts"
+
 [tasks.shots]
 description = "Screenshot every screen in every released language into screenshots/"
 depends     = ["setup"]
