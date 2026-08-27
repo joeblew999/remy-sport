@@ -7,6 +7,7 @@
     "@hono/swagger-ui": "^0.6.1",
     "@orpc/client": "1.15.0",
     "@orpc/openapi": "1.15.0",
+    "@orpc/openapi-client": "1.15.0",
     "@orpc/server": "1.15.0",
     "@orpc/tanstack-query": "1.15.0",
     "@orpc/zod": "1.15.0",

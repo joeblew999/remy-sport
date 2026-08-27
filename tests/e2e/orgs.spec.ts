@@ -53,8 +53,32 @@ test.describe.serial("Organisations", () => {
     await page.getByTestId("add-member-email").fill("nobody@example.invalid")
     await page.getByTestId("add-member-submit").click()
 
+    // A 404 carries no field issues, so it belongs at the top of the section
+    // rather than under the email box.
     await expect(page.getByTestId("org-members-error")).toBeVisible()
+    await expect(page.getByTestId("add-member-email-issue")).toHaveCount(0)
     await expect(page.getByTestId(`member-row-nobody@example.invalid`)).toHaveCount(0)
+  })
+
+  /**
+   * The other half of that pair: a *validation* failure has a field, so it goes
+   * under the field. The message is the schema's own — nothing in the client
+   * restates what a valid address is, which is why this has to be a round trip.
+   */
+  test("a malformed address is reported under the email box, in the schema's words", async ({
+    page,
+  }) => {
+    await page.goto("/#/org/org_001")
+    await page.getByTestId("add-member-email").fill("not-an-email")
+    await page.getByTestId("add-member-submit").click()
+
+    await expect(page.getByTestId("add-member-email-issue")).toHaveText("Invalid email address")
+    // Not duplicated as a banner saying "Input validation failed", which is
+    // what the reader used to get and which names no field at all.
+    await expect(page.getByTestId("org-members-error")).toHaveCount(0)
+    // And what they typed is still there to correct. The form used to reset on
+    // submit, so the message described a value that was no longer on screen.
+    await expect(page.getByTestId("add-member-email")).toHaveValue("not-an-email")
   })
 
   test("the profile edit persists across a reload", async ({ page }) => {

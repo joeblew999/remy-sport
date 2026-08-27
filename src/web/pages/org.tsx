@@ -15,10 +15,35 @@
  * to label display-only.
  *
  * So the shape is: try, and let the answer decide what renders.
+ *
+ * The same idea runs through the forms. A failed write comes back with the
+ * server's own validation issues, and `getIssueMessage` puts each one under the
+ * field it belongs to — so "Invalid email address" appears beneath the email
+ * box rather than as a banner saying "Input validation failed". The rules are
+ * the procedure's zod schema and are never restated here.
+ *
+ * Deliberately NOT oRPC's `RequestValidationPlugin`, which would validate the
+ * same rules *before* the request: it takes a runtime contract router, and this
+ * repo removed its contract on purpose (see src/api/domain.ts). Reinstating one
+ * would put the schemas in the browser bundle, which is exactly what
+ * lib/orpc.ts's `import type` avoids.
  */
+
+/**
+ * A validation failure belongs on a field; anything else belongs at the top.
+ *
+ * A 404 "Unknown user" and a 403 have no `issues`, so they have no field to sit
+ * under and would otherwise vanish.
+ */
+function formError(error: unknown): string | null {
+  if (!error) return null;
+  const issues = (error as { data?: { issues?: unknown[] } }).data?.issues;
+  return issues?.length ? null : ((error as Error).message ?? null);
+}
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { getIssueMessage } from "@orpc/openapi-client/helpers";
 import { api, orpc } from "../lib/orpc";
 import { useOrg, useOrgMembers, useOrgs } from "../lib/data";
 import { useSession } from "../lib/session";
@@ -113,7 +138,6 @@ function OrgProfile({
 }) {
   const qc = useQueryClient();
   const [saved, setSaved] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   if (!canEdit) {
     return (
@@ -124,22 +148,25 @@ function OrgProfile({
     );
   }
 
+  // No `useState` for the error: the mutation already holds it, and a copy in
+  // state has to be cleared by hand on every success — which is a second place
+  // for "is there an error right now" to be wrong.
   const save = useMutation({
     mutationFn: (en: string) => api.orgs.update({ id, names: { ...names, en } }),
     onSuccess: () => {
-      setError(null);
       setSaved(true);
       qc.invalidateQueries({ queryKey: orpc.orgs.key() });
       setTimeout(() => setSaved(false), 2000);
     },
-    onError: (e: Error) => setError(e.message),
   });
 
   return (
     <section className="admin-card" data-testid="org-profile">
       <h2>{m.org_profile()}</h2>
       {saved && <div className="admin-ok">{m.org_profile_saved()}</div>}
-      {error && <div className="admin-error" data-testid="org-profile-error">{error}</div>}
+      {formError(save.error) && (
+        <div className="admin-error" data-testid="org-profile-error">{formError(save.error)}</div>
+      )}
       <form
         className="admin-form"
         onSubmit={(e) => {
@@ -155,6 +182,13 @@ function OrgProfile({
           required
           autoComplete="off"
         />
+        {/* Bracket notation for the path into the input object: the schema takes
+            `names` as a locale map, so the issue arrives at `names.en`. */}
+        {getIssueMessage(save.error, "names[en]") && (
+          <p className="admin-error small" data-testid="org-name-issue">
+            {getIssueMessage(save.error, "names[en]")}
+          </p>
+        )}
         <button type="submit" data-testid="org-save" disabled={save.isPending}>
           {save.isPending ? m.org_saving() : m.org_save()}
         </button>
@@ -166,7 +200,6 @@ function OrgProfile({
 function OrgMembers({ id }: { id: string }) {
   const qc = useQueryClient();
   const members = useOrgMembers(id);
-  const [error, setError] = useState<string | null>(null);
 
   const invalidate = () =>
     qc.invalidateQueries({ queryKey: orpc.orgs.members.key({ input: { id } }) });
@@ -174,21 +207,17 @@ function OrgMembers({ id }: { id: string }) {
   const add = useMutation({
     mutationFn: (v: { email: string; orgRoleCode: string }) =>
       api.orgs.addMember({ id, email: v.email, orgRoleCode: v.orgRoleCode as never }),
-    onSuccess: () => {
-      setError(null);
-      invalidate();
-    },
-    onError: (e: Error) => setError(e.message),
+    onSuccess: invalidate,
   });
 
   const remove = useMutation({
     mutationFn: (userId: string) => api.orgs.removeMember({ id, userId }),
-    onSuccess: () => {
-      setError(null);
-      invalidate();
-    },
-    onError: (e: Error) => setError(e.message),
+    onSuccess: invalidate,
   });
+
+  // "Unknown user" is a 404 with no field issues, so it belongs at the top of
+  // the section rather than under the email box.
+  const sectionError = formError(add.error) ?? formError(remove.error);
 
   // The server's answer, not a role check. See the note at the top of the file.
   if (members.error) {
@@ -204,7 +233,9 @@ function OrgMembers({ id }: { id: string }) {
     <>
       <section className="admin-card" data-testid="org-members">
         <h2>{m.org_members()}</h2>
-        {error && <div className="admin-error" data-testid="org-members-error">{error}</div>}
+        {sectionError && (
+          <div className="admin-error" data-testid="org-members-error">{sectionError}</div>
+        )}
 
         <table className="admin-table" data-testid="members-table">
           <thead>
@@ -258,19 +289,34 @@ function OrgMembers({ id }: { id: string }) {
           data-testid="add-member-form"
           onSubmit={(e) => {
             e.preventDefault();
-            const f = new FormData(e.currentTarget);
-            add.mutate({ email: String(f.get("email")), orgRoleCode: String(f.get("role")) });
-            e.currentTarget.reset();
+            const form = e.currentTarget;
+            const f = new FormData(form);
+            // Cleared on success only. Resetting on submit threw away what the
+            // reader typed the moment it was refused, so "Invalid email
+            // address" sat under an empty box describing a value they could no
+            // longer see or correct.
+            add.mutate(
+              { email: String(f.get("email")), orgRoleCode: String(f.get("role")) },
+              { onSuccess: () => form.reset() },
+            );
           }}
         >
+          {/* No `type="email"`: the browser would refuse to submit and the
+              server's own rule — the one that actually decides — would never
+              run. The schema is the single source of what a valid address is,
+              and its message is what the reader sees. */}
           <input
             name="email"
-            type="email"
             data-testid="add-member-email"
             placeholder={m.org_add_member_email()}
             required
             autoComplete="off"
           />
+          {getIssueMessage(add.error, "email") && (
+            <p className="admin-error small" data-testid="add-member-email-issue">
+              {getIssueMessage(add.error, "email")}
+            </p>
+          )}
           {/* From the PO's vocabulary, not a list written out here. */}
           <select name="role" defaultValue="MEMBER">
             {ORG_ROLE_CODES.map((r) => (
