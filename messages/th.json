@@ -95,5 +95,6 @@
   "cancel": "ยกเลิก",
   "games_remaining": "เหลืออีก {count} นัด",
   "dev_holds_nothing": "ไม่มีสิทธิ์พิเศษ — เห็นเฉพาะข้อมูลสาธารณะ",
-  "standings_empty": "ยังไม่มีทีมลงทะเบียน"
+  "standings_empty": "ยังไม่มีทีมลงทะเบียน",
+  "roster_empty": "ยังไม่มีผู้เล่นในทีมนี้"
 }

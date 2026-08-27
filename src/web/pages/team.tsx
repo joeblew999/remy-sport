@@ -19,7 +19,7 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
   // first team — the same fallback #/event uses.
   const { data: team, isPending: teamLoading } = useTeam(id);
   const { data: allTeams, isPending: listLoading } = useTeams();
-  const roster = useRoster();
+  const { data: roster } = useRoster(id);
 
   const t = id ? team : allTeams?.[0];
 
@@ -72,28 +72,27 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
       </div>
 
       <div className="page-inner">
-        {/* Roster and schedule are still fixtures — `players`/`player_teams`
-            and a games table are ADR 008 Phase 2/3. Marked, because the team
-            above them is now real and unlabelled sample data next to real data
-            gets read as real. */}
-        <div className="section-h"><h2>{m.roster()}</h2><a className="more">{m.sample_data()}</a></div>
-        <div className="roster-grid">
-          {roster.map(p => (
-            <div key={p.num} className="player-card">
-              <div className="ava">{p.name.split(" ").map(x => x[0]).join("")}</div>
-              <div>
-                <div className="name">{p.name}</div>
-                <div className="pos">{p.pos} · {p.height}</div>
-                <div className="stats">
-                  <span><b>{p.pts}</b> PPG</span>
-                  <span><b>{p.ast}</b> APG</span>
-                  <span><b>{p.reb}</b> RPG</span>
+        {/* Real players now — `player` and `playerTeam`, current spells only.
+            No per-game averages: the fixture this replaced showed points,
+            assists and rebounds per person and there is no stats table, so they
+            are absent rather than invented a second time. */}
+        <div className="section-h"><h2>{m.roster()}</h2></div>
+        {roster?.players.length ? (
+          <div className="roster-grid" data-testid="roster">
+            {roster.players.map(p => (
+              <div key={p.playerId} className="player-card" data-testid={`player-${p.playerId}`}>
+                <div className="ava">{p.name.split(" ").map(x => x[0]).join("")}</div>
+                <div>
+                  <div className="name">{p.name}</div>
+                  <div className="pos">{p.position}</div>
                 </div>
+                <div className="num">{p.jerseyNumber}</div>
               </div>
-              <div className="num">{p.num}</div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="empty" data-testid="roster-empty">{m.roster_empty()}</div>
+        )}
 
         <div className="section-h" style={{ marginTop: 48 }}><h2>Schedule · Spring 2026</h2><a className="more">{m.sample_data()}</a></div>
         <div className="dash-card">

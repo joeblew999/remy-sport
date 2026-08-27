@@ -79,11 +79,43 @@ test.describe("Team page renders what the API returned", () => {
 })
 
 test.describe("Team page, the rest", () => {
-  test("fixture-backed sections are labelled as sample data", async ({ page }) => {
-    // Roster and schedule still come from src/web/data.ts. Sitting under a real
-    // team, they have to say so (AGENTS.md).
+  /**
+   * The roster is real now — `player` and `playerTeam` — so it is no longer
+   * labelled SAMPLE DATA. What is still fixture-backed on this page says so.
+   */
+  test("the roster renders the squad it was given, without inventing stats", async ({ page }) => {
+    await seedCache(page, [
+      entry(orpc.teams.get, { id: "team_002" }, team()),
+      entry(orpc.teams.roster, { teamId: "team_002" }, {
+        canManage: false,
+        players: [
+          { playerId: "ply_002", names: { en: "Kanya T." }, jerseyNumber: 7, positionCode: "SG", fromDate: "2026-01-01" },
+        ],
+      } as never),
+    ])
+    await page.goto("/#/team/team_002")
+
+    await expect(page.getByTestId("player-ply_002")).toContainText("Kanya T.")
+    await expect(page.getByTestId("player-ply_002")).toContainText("7")
+    // No per-game averages: there is no stats table, so the numbers the old
+    // fixture showed are absent rather than invented again.
+    await expect(page.getByTestId("roster")).not.toContainText("PPG")
+    await expect(page.locator(".section-h", { hasText: "Roster" })).not.toContainText("SAMPLE DATA")
+  })
+
+  test("an empty roster says so rather than rendering nothing", async ({ page }) => {
+    await seedCache(page, [
+      entry(orpc.teams.get, { id: "team_002" }, team()),
+      entry(orpc.teams.roster, { teamId: "team_002" }, { canManage: false, players: [] } as never),
+    ])
+    await page.goto("/#/team/team_002")
+    await expect(page.getByTestId("roster-empty")).toBeVisible()
+  })
+
+  test("what is still a fixture is still labelled", async ({ page }) => {
     await seedCache(page, [entry(orpc.teams.get, { id: "team_002" }, team())])
     await page.goto("/#/team/team_002")
-    await expect(page.locator(".section-h", { hasText: "Roster" })).toContainText("SAMPLE DATA")
+    // The schedule section on this page has no endpoint yet.
+    await expect(page.locator(".section-h", { hasText: "Schedule" })).toContainText("SAMPLE DATA")
   })
 })

@@ -49,6 +49,7 @@ export const router = {
     create: teams.create,
     update: teams.update,
     delete: teams.remove,
+    roster: registrations.roster,
     addPlayer: registrations.addPlayer,
     removePlayer: registrations.removePlayer,
   },

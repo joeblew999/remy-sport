@@ -427,3 +427,38 @@ describe("Standings are derived from the games, never stored", () => {
     expect(standings).toEqual([])
   })
 })
+
+describe("A team's roster", () => {
+  it("is public, and lists the current squad by jersey number", async () => {
+    const res = await api("/api/teams/team_001/players")
+    expect(res.status).toBe(200)
+    const { players, canManage } = (await res.json()) as {
+      players: { playerId: string; jerseyNumber: number; positionCode: string }[]
+      canManage: boolean
+    }
+    expect(players.length).toBeGreaterThan(0)
+    expect(canManage, "a signed-out reader manages nothing").toBe(false)
+    // Ordered, so a team sheet reads like a team sheet.
+    const numbers = players.map((p) => p.jerseyNumber)
+    expect([...numbers].sort((a, b) => a - b)).toEqual(numbers)
+  })
+
+  it("carries no per-game statistics, because there is no table for them", async () => {
+    const { players } = (await (await api("/api/teams/team_001/players")).json()) as {
+      players: Record<string, unknown>[]
+    }
+    // The fixture this replaced invented points, assists and rebounds per
+    // player. Absent is the honest answer.
+    expect(Object.keys(players[0]!)).toEqual(
+      expect.not.arrayContaining(["pts", "ast", "reb", "points", "assists"]),
+    )
+  })
+
+  it("tells a coach they may manage it", async () => {
+    const coach = await signIn(actorFor("COACH"))
+    const { canManage } = (await (
+      await api("/api/teams/team_001/players", { cookie: coach })
+    ).json()) as { canManage: boolean }
+    expect(canManage).toBe(true)
+  })
+})

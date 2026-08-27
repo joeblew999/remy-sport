@@ -20,7 +20,7 @@ import { ORPCError } from "@orpc/server"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import * as schema from "../db/schema"
-import { authed, authedRoute, requireAction } from "./base"
+import { authed, authedRoute, can, requireAction, viewer } from "./base"
 
 /** ISO day. The fixtures record registration and roster dates, not timestamps. */
 const today = () => new Date().toISOString().slice(0, 10)
@@ -211,4 +211,59 @@ export const removePlayer = authed
       )
     if (res.meta.changes === 0) throw new ORPCError("NOT_FOUND", { message: "Not on this roster" })
     return { playerId: input.playerId, toDate }
+  })
+
+/**
+ * The current squad.
+ *
+ * Current, not historical: a spell with a `to_date` in the past is over, which
+ * is the same condition the `TEAM_PLAYER` relation applies. Reading is public —
+ * `VIEW_TEAM` is granted to `PUBLIC`, and a team sheet is the least private
+ * thing a club has.
+ *
+ * No per-game statistics. The fixture this replaces showed points, assists and
+ * rebounds per player; there is no stats table, and inventing three numbers per
+ * person is exactly the thing AGENTS.md forbids. Jersey number, position and
+ * date of birth are real columns and are what a roster actually is.
+ */
+export const roster = viewer
+  .route({ method: "GET", path: "/teams/{teamId}/players", summary: "A team's current squad" })
+  .input(z.object({ teamId: z.string() }))
+  .output(
+    z.object({
+      players: z.array(
+        z.object({
+          playerId: z.string(),
+          names: z.record(z.string(), z.string()),
+          jerseyNumber: z.number().int(),
+          positionCode: z.string(),
+          fromDate: z.string(),
+        }),
+      ),
+      canManage: z.boolean(),
+    }),
+  )
+  .handler(async ({ context, input }) => {
+    const day = today()
+    const rows = await context.db
+      .select({
+        playerId: schema.player.id,
+        names: schema.player.names,
+        jerseyNumber: schema.player.jerseyNumber,
+        positionCode: schema.player.positionCode,
+        fromDate: schema.playerTeam.fromDate,
+        toDate: schema.playerTeam.toDate,
+      })
+      .from(schema.playerTeam)
+      .innerJoin(schema.player, eq(schema.player.id, schema.playerTeam.playerId))
+      .where(eq(schema.playerTeam.teamId, input.teamId))
+      .orderBy(schema.player.jerseyNumber)
+      .all()
+
+    return {
+      players: rows
+        .filter((r) => !r.toDate || r.toDate >= day)
+        .map(({ toDate: _toDate, ...p }) => p),
+      canManage: await can(context.db, "MANAGE_ROSTER", context.user, input.teamId),
+    }
   })

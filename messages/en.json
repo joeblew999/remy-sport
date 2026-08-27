@@ -95,5 +95,6 @@
   "cancel": "Cancel",
   "games_remaining": "{count} remaining",
   "dev_holds_nothing": "no relations — sees only what is public",
-  "standings_empty": "No teams registered yet."
+  "standings_empty": "No teams registered yet.",
+  "roster_empty": "No players on this roster yet."
 }

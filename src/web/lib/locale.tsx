@@ -79,7 +79,15 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   // — no bespoke fetch, no useEffect, no race guard. Reference data is
   // decoration rather than function: without it `label()` renders codes, which
   // is worse-looking but still navigable, so a failure must not blank the app.
-  const { data: reference } = useQuery(orpc.reference.list.queryOptions());
+  //
+  // `staleTime: Infinity` rather than main.tsx's 30s default, for the same
+  // reason useDevAccounts gives: these are the PO's fixtures, and a re-seed is
+  // the only thing that changes them. At the default this refetched all 22
+  // vocabularies on every remount and window refocus past 30 seconds — the
+  // largest response the SPA asks for, for data that cannot have moved.
+  const { data: reference } = useQuery(
+    orpc.reference.list.queryOptions({ staleTime: Infinity }),
+  );
 
   const value = useMemo<LocaleContextValue>(() => {
     // Seeded from the compiled vocabularies so the first paint is already

@@ -20,7 +20,7 @@ import { orpc } from "./orpc";
 import { toEvent, toTeam } from "./api";
 import { useLocalizer } from "./locale";
 import {
-  BRACKET, LIVE_GAME, ROSTER, FEED,
+  BRACKET, LIVE_GAME, FEED,
   type EventStatus, type EventType,
 } from "../data";
 
@@ -95,6 +95,31 @@ export function useGames(eventId: string | undefined) {
           venue: g.venueNames ? loc.name(g.venueNames) : null,
           statusLabel: loc.label("gameStatuses", g.statusCode),
         })),
+    }),
+  );
+}
+
+/**
+ * A team's current squad, with whether the viewer may change it.
+ *
+ * Replaces a `ROSTER` constant of six invented players with invented per-game
+ * averages. Jersey number and position are real; the averages had no table and
+ * are simply absent rather than made up again.
+ */
+export function useRoster(teamId: string | undefined) {
+  const loc = useLocalizer();
+  return useQuery(
+    orpc.teams.roster.queryOptions({
+      input: { teamId: teamId! },
+      enabled: teamId !== undefined,
+      select: (r) => ({
+        canManage: r.canManage,
+        players: r.players.map((p) => ({
+          ...p,
+          name: loc.name(p.names),
+          position: loc.label("positions", p.positionCode),
+        })),
+      }),
     }),
   );
 }
@@ -186,7 +211,7 @@ export function useTeam(id: string | undefined) {
 
 // ── Not yet real ───────────────────────────────────────────────────────────
 //
-// Brackets, live games, rosters and the feed have no tables and no endpoints
+// Brackets, live games and the feed have no tables and no endpoints
 // (roadmap phases 3, 4 and 6). Standings left this list on 2026-08-27: they are
 // derived from the games, so nothing had to be stored for them to become real. These return the fixtures directly and
 // are deliberately NOT dressed up as queries: a `useQuery` here would imply a
@@ -198,5 +223,4 @@ export function useTeam(id: string | undefined) {
 
 export const useBracket = (_eventId?: string) => BRACKET;
 export const useLiveGame = (_gameId?: string) => LIVE_GAME;
-export const useRoster = (_teamId?: string) => ROSTER;
 export const useFeed = () => FEED;
