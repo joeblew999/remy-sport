@@ -23,31 +23,26 @@ mise run probe            typecheck a snippet against the real project (WEB=1 fo
 Kept here because this file is the one thing read at the start of every session.
 Update it when you finish something; delete the line when it is done.
 
-1. **shadcn/ui + Tailwind are still not installed.** `src/web/styles.css` is
+1. **The org backend is complete and nothing in the GUI reaches it.** `ORG` has
+   four actions and their grants, Better Auth's plugin implements members and
+   invitations, and `src/web/` has no way to create an organisation or send an
+   invitation — the only org page accepts invitations the product cannot send.
+   Either build it, or delete the plugin and let `org` be a plain domain table.
+2. **`ACCEPT_CO_ORGANIZER_INVITE` has nothing to accept.** The action is granted
+   to `ANY_SIGNED_IN`, and `eventCoOrganizer` has no pending state — a row exists
+   or it does not. Flagged upstream as a product call: drop the action, or give
+   the table a status the `CO_ORGANIZER` relation filters on, which needs no new
+   machinery.
+3. **shadcn/ui + Tailwind are still not installed.** `src/web/styles.css` is
    ~1000 hand-written lines and the admin console added ~60 more. This is the
    largest remaining source of per-page boilerplate and nothing has been done
    about it.
-2. **Org-as-tenant: this repo built what biz rejected. Resolve it before
-   building more on either.** Decision 17 in biz [data/seed/schema.md](https://github.com/joeblew999/remy-sport-biz/blob/main/data/seed/schema.md) rejected
-   first-class org-as-tenant — "no `ORG_ADMIN`/`ORG_MEMBER` relations" — and
-   [data/access/matrix.md](https://github.com/joeblew999/remy-sport-biz/blob/main/data/access/matrix.md)
-   has no org relation at all; every write is scoped
-   user↔event (`events.organizer_user_id`, `event_co_organizers`) or user↔team
-   (`team_coaches`). This repo shipped the organization plugin, a `member`
-   table, org roles and a working invitation flow, and gates team writes on
-   `requireOrgMember`. Three concrete divergences follow:
-
-   | Action | the matrix grants | [`src/api/teams.ts`](src/api/teams.ts) requires |
-   |---|---|---|
-   | `CREATE_TEAM` | `PLATFORM_ADMIN`, `ANY_COACH` | + org membership |
-   | `EDIT_TEAM_PROFILE` | `HEAD_COACH`, `TEAM_MANAGER` *of that team* | any org member |
-   | `DELETE_TEAM` | `PLATFORM_ADMIN` only | org admins too |
-
-   Two of those are **too permissive**: an org member who coaches nothing may
-   edit any team in the org, and org admins may delete teams. Either biz adopts
-   org tenancy (and `MEMBERSHIPS` in [`scripts/seed-sql.ts`](scripts/seed-sql.ts)
-   becomes a real fixture upstream), or this repo scopes team writes by
-   `team_coaches` as specified. Do not pick one silently.
+4. **Do not re-derive team permissions from org membership.** That was the shape
+   this repo had, and it disagreed with the Product Owner's matrix in two
+   directions at once — an org member who coached nothing could edit any team,
+   and a head coach outside the org was refused. Team writes are scoped by
+   `team_coaches`, which is what the model always granted. Resolved 2026-08-27;
+   kept here so the next session does not rebuild it.
 
 The test classification is **done**. `mise run test:all` for the numbers; the
 38 left in e2e are genuine round trips and belong there. Do not "optimise the
@@ -70,13 +65,41 @@ merging worker files (~3s of workerd startup per file, measured).
 ## Companion repo
 
 [remy-sport-biz](https://github.com/joeblew999/remy-sport-biz) is the Product
-Owner's source of truth, cloned at `../remy-sport-biz/`.
+Owner's source of truth, cloned at `../remy-sport-biz/`. Its `domain/model/` is
+TypeScript, and [`mise run domain:sync`](scripts/domain-sync.ts) copies it into
+[src/domain/model/](src/domain/model/) **verbatim** — nothing transforms it.
 
-**biz wins unless the code here says otherwise, with the reason in the commit.** Schema changes go through biz first —
-the canonical model is
-[data/seed/schema.md](https://github.com/joeblew999/remy-sport-biz/blob/main/data/seed/schema.md).
+**Never write a transform between the two.** That is what this was until
+2026-08-27: 42 JSONL files compiled by a 900-line generator, and every silent
+failure it produced was the transform going wrong quietly — a key spelled
+`full_names` here and `fullNames` there, a NOT NULL pivot column left out of an
+INSERT so twenty-one vocabularies inserted nothing and reported success, a
+column type inferred from a sample value, one naming rule written three times
+and matching nothing in two of them.
+
+What proves the model agrees with this database is the seed:
+`db.insert(city).values(CITY)` does not compile if a field and a column
+disagree. Do not add a script that checks the same thing more weakly.
+
+The copies are committed, so a build never needs biz — it is private, and
+requiring it would put a credential in every deploy. `mise run check` verifies
+they have not drifted.
+
+**biz wins unless the code here says otherwise, with the reason in the commit.**
 
 ## Traps
+
+**The schema is the root, and everything derives upward from it.**
+
+```
+src/db/*-schema.ts  ->  createSelectSchema  ->  oRPC .output()  ->  RouterClient  ->  React
+```
+
+The drizzle tables are **authored**. Nothing generates them, and nothing should:
+the generator that used to had to be taught about `$type<Names>()`, the
+vocabulary-derived enums and the unique indexes one feature at a time, and each
+thing it had not been taught was silently dropped. The PO's model still decides
+what a table *is* — a person reads it and writes the table.
 
 **Schema is drizzle-kit's; data is the seed's. Nothing else writes a migration.**
 `mise run db:generate` diffs [src/db/schema.ts](src/db/schema.ts) against the

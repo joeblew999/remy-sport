@@ -247,29 +247,25 @@ bun x tsc --noEmit -p src/web/tsconfig.json
 echo "typecheck: worker and SPA both clean"
 """
 
-[tasks."domain:generate"]
-description = "Regenerate src/domain/vocabularies.ts from the remy-sport-biz fixtures"
-# Same shape and same reason as auth:schema:generate (ADR 006 §9e): a file
-# generated from a source of truth, committed, with a --check mode that fails
-# when it goes stale. See ADR 015 for why these vocabularies are tables.
-#
-# No `depends`: the script imports only fs and path, so it needs neither
-# `install` nor a running worker. It does need ../remy-sport-biz — run
-# `mise run biz:sync` first if the checkout is absent or behind.
-run = "bun scripts/domain-generate.ts"
+[tasks."domain:sync"]
+description = "Copy the Product Owner's model in from remy-sport-biz — verbatim, no transform"
+depends     = ["install"]
+# This replaced a 900-line generator that read JSONL and emitted TypeScript. The
+# model is authored as TypeScript upstream now, so there is nothing to
+# transform — and every silent bug that pipeline produced was a transform
+# failing quietly. What proves the copy agrees with this database is the seed:
+# db.insert(city).values(CITY) does not compile if a field and a column
+# disagree.
+run = "bun scripts/domain-sync.ts"
 
-[tasks."domain:check"]
-description = "Fail if src/domain/vocabularies.ts is stale relative to the remy-sport-biz fixtures"
-# Deliberately not part of `mise run check`, and not in the deploy pipeline.
-# The generated file is committed precisely so ordinary builds never need the
-# biz repo, and wiring this in would reintroduce that dependency — CI has no
-# checkout and no token. Run it when you have just synced biz, or before
-# committing a vocabulary change.
-#
-# Exit codes come from the script: 1 = stale, 2 = biz checkout missing.
-run = "bun scripts/domain-generate.ts --check"
+[tasks."check:domain"]
+description = "Fail if the committed model has drifted from remy-sport-biz"
+depends     = ["install"]
+# The copies are committed so a build never needs the companion repo — it is
+# private, and requiring it would put a credential in every deploy.
+run = "bun scripts/domain-sync.ts --check"
 
-# ── Dependencies ────────────────────────────────────────────────────────────
+
 
 [tasks."deps:outdated"]
 description = "Show npm packages behind their latest release"
@@ -368,7 +364,7 @@ mise run check:dead
 mise run check:docs
 mise run check:conventions
 mise run check:seed
-mise run check:alignment
+mise run check:domain
 """
 
 [tasks."test:unit"]
@@ -516,16 +512,6 @@ depends     = ["install"]
 # capability the old generate-the-whole-migration approach never had.
 run = "bun x drizzle-kit generate"
 
-[tasks."check:alignment"]
-description = "Fail if the PO's model names a table or column this schema does not have"
-depends     = ["install"]
-# The relation derivations in remy-sport-biz are compiled and executed now, so a
-# name the two repos spell differently is not a documentation discrepancy — it is
-# a query that matches nothing. Relations fail closed, so the symptom would be an
-# unexplained 403 rather than an error. This is what caught
-# events.organizer_user_id against event.created_by, which migration 0016 renamed
-# rather than papering over with an alias table.
-run = "bun scripts/check-alignment.ts"
 
 [tasks."check:seed"]
 description = "Fail if src/db/seed.sql is stale against the fixtures"
