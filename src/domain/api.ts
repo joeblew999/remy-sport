@@ -182,9 +182,32 @@ export const SetGameStatusInput = z.object({
   statusCode: z.enum(GAME_STATUS_CODES),
 })
 
+/**
+ * One line of a league table. Every field is derived from the games — see
+ * src/api/standings.ts for why none of it is stored.
+ */
+export const StandingsSchema = z.object({
+  rank: z.number().int().min(1),
+  teamId: z.string(),
+  teamNames: NamesSchema,
+  // Null where a team is registered without one; the table then reads as a
+  // single group rather than inventing a division to file them under.
+  divisionId: z.string().nullable(),
+  divisionNames: NamesSchema.nullable(),
+  played: z.number().int().min(0),
+  won: z.number().int().min(0),
+  lost: z.number().int().min(0),
+  pointsFor: z.number().int().min(0),
+  pointsAgainst: z.number().int().min(0),
+  pointsDiff: z.number().int(),
+  /** By the Product Owner's STANDINGS_POINTS — two for a win, today. */
+  leaguePoints: z.number().int().min(0),
+})
+
 // ── Inferred types — what the client and the handlers both speak ──────────
 
 export type ApiEvent = z.infer<typeof EventSchema>
 export type ApiGame = z.infer<typeof GameSchema>
 export type ApiTeam = z.infer<typeof TeamSchema>
+export type ApiStandings = z.infer<typeof StandingsSchema>
 export type ApiReference = z.infer<typeof ReferenceSchema>

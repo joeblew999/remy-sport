@@ -55,13 +55,15 @@ interface NavItem {
  * Every label is a message now. They were English literals, which is why the
  * whole sidebar stayed in English on a Thai page while the group headings above
  * them translated.
+ *
+ * No "Standings" entry: a league table belongs to an event, so there is nothing
+ * for a top-level one to show. It is a tab on the event page.
  */
 const navItems = (): NavItem[] => [
   { id: "discover",  label: m.nav_discover() },
   { id: "events",    label: m.nav_my_events() },
   { id: "team",      label: m.nav_my_team() },
   { id: "live",      label: m.nav_live() },
-  { id: "standings", label: m.nav_standings() },
   { id: "orgs",      label: m.nav_orgs() },
   { id: "profile",   label: m.nav_profile() },
 ];

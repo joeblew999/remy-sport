@@ -16,7 +16,6 @@ import { LoginPage } from "./pages/login";
 import { DevicesPage } from "./pages/devices";
 import { AdminPage } from "./pages/admin";
 import { OrgsPage, OrgPage } from "./pages/org";
-import { StandingsTable } from "./pages/event";
 import { m } from "./lib/i18n";
 
 interface TweakDefaults {
@@ -104,16 +103,12 @@ function App() {
             {route.page === "admin" && <AdminPage goto={goto}/>}
             {route.page === "orgs" && <OrgsPage goto={goto}/>}
             {route.page === "org" && <OrgPage id={route.id} goto={goto}/>}
-            {route.page === "standings" && (
-              <>
-                <div className="page-header">
-                  <div className="crumbs">STANDINGS</div>
-                  <h1>Bangkok Schools League · Spring '26</h1>
-                  <div className="sub">U18 Boys · Round 6 of 14 · Updated 12:45 today</div>
-                </div>
-                <StandingsTable/>
-              </>
-            )}
+            {/* No standalone #/standings. A league table belongs to an event —
+                there is no such thing as "the standings" across all of them —
+                and the page carried a hardcoded header to hide that: "Bangkok
+                Schools League · Spring '26 · U18 Boys · Round 6 of 14 · Updated
+                12:45 today", none of which came from anywhere. The table lives
+                on the event's Standings tab. */}
           </div>
         </div>
       </div>

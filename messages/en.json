@@ -94,5 +94,6 @@
   "correct_score": "Correct",
   "cancel": "Cancel",
   "games_remaining": "{count} remaining",
-  "dev_holds_nothing": "no relations — sees only what is public"
+  "dev_holds_nothing": "no relations — sees only what is public",
+  "standings_empty": "No teams registered yet."
 }

@@ -90,3 +90,63 @@ test.describe("An event's schedule", () => {
     await expect(page.getByTestId("schedule")).toHaveCount(0)
   })
 })
+
+/**
+ * The league table, from data rather than from a constant.
+ *
+ * It rendered eight invented schools until 2026-08-27 — Bangkok Christian 5–0,
+ * Saint Gabriel's 4–1 — on both the event page and a standalone page whose
+ * header was equally made up. Every column is derived from the games now.
+ */
+test.describe("Standings", () => {
+  const line = (over: Record<string, unknown>) => ({
+    teamId: "team_001", teamNames: { en: "Assumption U16" },
+    divisionId: "div_001", divisionNames: { en: "U16 Boys" },
+    rank: 1, played: 1, won: 1, lost: 0,
+    pointsFor: 68, pointsAgainst: 54, pointsDiff: 14, leaguePoints: 2,
+    ...over,
+  })
+
+  const seedStandings = (page: Parameters<typeof seedCache>[0], standings: unknown[]) =>
+    seedCache(page, [
+      entry(orpc.events.get, { id: "evt_002" }, {
+        id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" },
+        typeCode: "LEAGUE", formatCode: "5x5", description: null,
+        startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK",
+        isFibaCertified: false, organizerUserId: "usr_org_002", orgId: null,
+        organizerName: "Niran", createdAt: "2026-04-01T00:00:00Z", updatedAt: "2026-04-01T00:00:00Z",
+      } as never),
+      entry(orpc.standings.list, { eventId: "evt_002" }, { standings } as never),
+    ])
+
+  test("renders the table it was given, with the difference signed", async ({ page }) => {
+    await seedStandings(page, [
+      line({}),
+      line({ teamId: "team_003", teamNames: { en: "Montfort U16" }, rank: 2, won: 0, lost: 1, pointsFor: 54, pointsAgainst: 68, pointsDiff: -14, leaguePoints: 0 }),
+    ])
+    await page.goto("/#/event/evt_002")
+    await page.getByRole("button", { name: "Standings" }).click()
+
+    await expect(page.getByTestId("standing-team_001")).toContainText("Assumption U16")
+    // Two points for a win — the PO's STANDINGS_POINTS, not a number here.
+    await expect(page.getByTestId("standing-team_001")).toContainText("+14")
+    await expect(page.getByTestId("standing-team_003")).toContainText("-14")
+  })
+
+  test("a team that has not played shows zeroes, not an absence", async ({ page }) => {
+    await seedStandings(page, [
+      line({ teamId: "team_004", teamNames: { en: "Assumption U18" }, played: 0, won: 0, lost: 0, pointsFor: 0, pointsAgainst: 0, pointsDiff: 0, leaguePoints: 0 }),
+    ])
+    await page.goto("/#/event/evt_002")
+    await page.getByRole("button", { name: "Standings" }).click()
+    await expect(page.getByTestId("standing-team_004")).toBeVisible()
+  })
+
+  test("an event with no registrations says so", async ({ page }) => {
+    await seedStandings(page, [])
+    await page.goto("/#/event/evt_002")
+    await page.getByRole("button", { name: "Standings" }).click()
+    await expect(page.getByTestId("standings-empty")).toBeVisible()
+    await expect(page.getByTestId("standings")).toHaveCount(0)
+  })
+})

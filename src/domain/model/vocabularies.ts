@@ -338,6 +338,27 @@ export type EventTypeCode = (typeof EVENT_TYPE_CODES)[number]
  * does not promise either, and a status nothing can set is a column that is
  * always wrong in the same way.
  */
+/**
+ * How a league table is scored.
+ *
+ * Basketball has no draw, so there are two outcomes and two numbers. Two points
+ * for a win is what the roadmap means by a "points-based table", and it is what
+ * the product has always displayed — it was simply hardcoded in a fixture
+ * (five wins showed as ten points) where nobody could see it was a rule.
+ *
+ * A competition rule belongs to the Product Owner. If a league ever scores
+ * differently this becomes per-event or per-format; today every event uses the
+ * same one, and inventing that configurability before a league needs it would
+ * be a column nothing sets.
+ *
+ * **Only FINISHED games count.** A game in progress has a score, but a table
+ * that moves while people are still playing is a live scoreboard, not standings.
+ */
+export const STANDINGS_POINTS = {
+  win: 2,
+  loss: 0,
+} as const
+
 export const GAME_STATUS = [
   { code: "SCHEDULED", names: {"th":"รอแข่งขัน","en":"Upcoming"} },
   { code: "LIVE", names: {"th":"กำลังแข่ง","en":"Live"} },

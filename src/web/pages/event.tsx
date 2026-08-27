@@ -134,7 +134,7 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
       {tab === "overview" && <EventOverview e={e} goto={goto}/>}
       {tab === "bracket" && <BracketView goto={goto}/>}
       {tab === "schedule" && <div className="page-inner"><Schedule eventId={e.id} spoiler={spoiler}/></div>}
-      {tab === "standings" && <StandingsTable/>}
+      {tab === "standings" && <StandingsTable eventId={e.id}/>}
       {!["overview", "bracket", "schedule", "standings"].includes(tab) && (
         <div className="page-inner"><div className="empty">{tab.toUpperCase()} view — not part of this hi-fi pass.</div></div>
       )}
@@ -144,9 +144,9 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
 
 interface OverviewProps { e: Event; goto: (r: Route) => void }
 
-function EventOverview({ e: _e, goto }: OverviewProps) {
+function EventOverview({ e, goto }: OverviewProps) {
   const G = useLiveGame();
-  const standings = useStandings();
+  const { data: standings } = useStandings(e.id);
   const performers = [
     { name: "Phongphan S.", team: "Saint Gabriel's", line: "24 PTS · 8 AST · 3 STL" },
     { name: "Krit T.", team: "Assumption", line: "21 PTS · 6 REB · 4 3PM" },
@@ -226,14 +226,14 @@ function EventOverview({ e: _e, goto }: OverviewProps) {
             <div className="standing-row head">
               <span></span><span>{m.team()}</span><span>W</span><span>L</span><span></span><span>PTS</span>
             </div>
-            {standings.slice(0, 6).map(s => (
-              <div key={s.rank} className={`standing-row ${s.you ? "you" : ""}`}>
+            {(standings ?? []).slice(0, 6).map(s => (
+              <div key={s.teamId} className="standing-row">
                 <span className="rank">#{s.rank}</span>
                 <span className="team">{s.team}</span>
-                <span className="num">{s.w}</span>
-                <span className="num">{s.l}</span>
-                <span className="num">{s.pf - s.pa > 0 ? "+" : ""}{s.pf - s.pa}</span>
-                <span className="pts">{s.pts}</span>
+                <span className="num">{s.won}</span>
+                <span className="num">{s.lost}</span>
+                <span className="num">{s.pointsDiff > 0 ? "+" : ""}{s.pointsDiff}</span>
+                <span className="pts">{s.leaguePoints}</span>
               </div>
             ))}
           </div>
@@ -257,24 +257,45 @@ function EventOverview({ e: _e, goto }: OverviewProps) {
   );
 }
 
-export function StandingsTable() {
-  const S = useStandings();
+/**
+ * The league table, from `/api/standings`.
+ *
+ * Was eight hardcoded schools with invented records — Bangkok Christian 5–0,
+ * Saint Gabriel's 4–1 — rendered on the event page and `#/standings` since the
+ * SPA was built. Every number is derived from the games now.
+ */
+export function StandingsTable({ eventId }: { eventId: string | undefined }) {
+  const { data, isPending } = useStandings(eventId);
+  const cols = "40px 1fr 50px 50px 70px 70px 70px 60px";
+
+  if (isPending) return <div className="page-inner"><div className="empty">{m.loading()}</div></div>;
+  if (!data?.length) {
+    return (
+      <div className="page-inner">
+        <div className="empty" data-testid="standings-empty">{m.standings_empty()}</div>
+      </div>
+    );
+  }
+
   return (
     <div className="page-inner">
-      <div className="dash-card">
-        <div className="standing-row head" style={{ gridTemplateColumns: "40px 1fr 50px 50px 70px 70px 70px 60px" }}>
-          <span></span><span>{m.team()}</span><span>W</span><span>L</span><span>PF</span><span>PA</span><span>±</span><span>PTS</span>
+      <div className="dash-card" data-testid="standings">
+        <div className="standing-row head" style={{ gridTemplateColumns: cols }}>
+          <span></span><span>{m.team()}</span><span>W</span><span>L</span>
+          <span>PF</span><span>PA</span><span>±</span><span>PTS</span>
         </div>
-        {S.map(s => (
-          <div key={s.rank} className={`standing-row ${s.you ? "you" : ""}`} style={{ gridTemplateColumns: "40px 1fr 50px 50px 70px 70px 70px 60px" }}>
+        {data.map((s) => (
+          <div key={s.teamId} className="standing-row" style={{ gridTemplateColumns: cols }} data-testid={`standing-${s.teamId}`}>
             <span className="rank">#{s.rank}</span>
             <span className="team">{s.team}</span>
-            <span className="num">{s.w}</span>
-            <span className="num">{s.l}</span>
-            <span className="num">{s.pf}</span>
-            <span className="num">{s.pa}</span>
-            <span className="num" style={{ color: s.pf - s.pa > 0 ? "var(--good)" : "var(--ink-3)" }}>{s.pf - s.pa > 0 ? "+" : ""}{s.pf - s.pa}</span>
-            <span className="pts">{s.pts}</span>
+            <span className="num">{s.won}</span>
+            <span className="num">{s.lost}</span>
+            <span className="num">{s.pointsFor}</span>
+            <span className="num">{s.pointsAgainst}</span>
+            <span className="num" style={{ color: s.pointsDiff > 0 ? "var(--good)" : "var(--ink-3)" }}>
+              {s.pointsDiff > 0 ? "+" : ""}{s.pointsDiff}
+            </span>
+            <span className="pts">{s.leaguePoints}</span>
           </div>
         ))}
       </div>

@@ -368,3 +368,62 @@ describe("Routing — what the Worker serves and what it refuses", () => {
     }
   })
 })
+
+describe("Standings are derived from the games, never stored", () => {
+  /**
+   * evt_002 has three registered teams — team_001, team_002, team_004 and
+   * team_003 — but only team_001 v team_003 have fixtures, and only gam_001 is
+   * FINISHED (in evt_001). So evt_002's table is all zeroes until a game there
+   * finishes, which is exactly the start-of-season case.
+   */
+  it("lists every registered team, including ones that have not played", async () => {
+    const res = await api("/api/standings?eventId=evt_002")
+    expect(res.status).toBe(200)
+    const { standings } = (await res.json()) as {
+      standings: { teamId: string; played: number; rank: number }[]
+    }
+    // Four registered, four lines. A table built from games alone would have
+    // shown none of them.
+    expect(standings.map((s) => s.teamId).sort()).toEqual(
+      ["team_001", "team_002", "team_003", "team_004"],
+    )
+    expect(standings.every((s) => s.played === 0)).toBe(true)
+    expect(standings.map((s) => s.rank)).toEqual([1, 2, 3, 4])
+  })
+
+  it("counts a finished game for both teams, and only a finished one", async () => {
+    // evt_001: gam_001 is FINISHED, team_001 68 – team_003 54.
+    const { standings } = (await (await api("/api/standings?eventId=evt_001")).json()) as {
+      standings: {
+        teamId: string; rank: number; played: number; won: number; lost: number
+        pointsFor: number; pointsAgainst: number; pointsDiff: number; leaguePoints: number
+      }[]
+    }
+    const winner = standings.find((s) => s.teamId === "team_001")!
+    const loser = standings.find((s) => s.teamId === "team_003")!
+
+    expect(winner).toMatchObject({
+      rank: 1, played: 1, won: 1, lost: 0,
+      pointsFor: 68, pointsAgainst: 54, pointsDiff: 14,
+      // The PO's STANDINGS_POINTS: two for a win.
+      leaguePoints: 2,
+    })
+    expect(loser).toMatchObject({
+      played: 1, won: 0, lost: 1,
+      pointsFor: 54, pointsAgainst: 68, pointsDiff: -14, leaguePoints: 0,
+    })
+    // team_004 is registered to evt_001 and has no fixture.
+    expect(standings.find((s) => s.teamId === "team_004")?.played).toBe(0)
+  })
+
+  it("is public — reading a table needs no account", async () => {
+    expect((await api("/api/standings?eventId=evt_001")).status).toBe(200)
+  })
+
+  it("an event with no registrations is an empty table, not an error", async () => {
+    const { standings } = (await (await api("/api/standings?eventId=evt_003")).json()) as {
+      standings: unknown[]
+    }
+    expect(standings).toEqual([])
+  })
+})

@@ -235,6 +235,13 @@ export const userNotificationPreference = sqliteTable("userNotificationPreferenc
  * deliberately hand-written, because who may read a table is a decision, not a
  * mechanical consequence of the table existing.
  */
+/** Standings read the registration to learn a team's division. */
+export const eventTeamRelations = relations(eventTeam, ({ one }) => ({
+  event: one(event, { fields: [eventTeam.eventId], references: [event.id] }),
+  team: one(team, { fields: [eventTeam.teamId], references: [team.id] }),
+  division: one(division, { fields: [eventTeam.divisionId], references: [division.id] }),
+}))
+
 export const FIXTURE_TABLES = {
   orgMembers: orgMember,
   divisions: division,

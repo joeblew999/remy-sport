@@ -45,6 +45,7 @@ const SCREENS: { name: string; path: string; as: string | null; open?: string }[
   { name: "org-not-yours", path: "/#/org/org_001", as: actor("COACH", 2) },
   // The schedule, seen by the referee who may score one of its games.
   { name: "schedule", path: "/#/event/evt_002", as: "adisorn.b@bat.test", open: "Schedule" },
+  { name: "standings", path: "/#/event/evt_001", as: null, open: "Standings" },
   { name: "admin", path: "/#/admin", as: ADMIN },
   { name: "devices", path: "/#/devices", as: COACH },
   { name: "profile", path: "/#/profile", as: COACH },

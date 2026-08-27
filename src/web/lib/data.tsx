@@ -20,7 +20,7 @@ import { orpc } from "./orpc";
 import { toEvent, toTeam } from "./api";
 import { useLocalizer } from "./locale";
 import {
-  BRACKET, LIVE_GAME, ROSTER, STANDINGS, FEED,
+  BRACKET, LIVE_GAME, ROSTER, FEED,
   type EventStatus, type EventType,
 } from "../data";
 
@@ -100,6 +100,29 @@ export function useGames(eventId: string | undefined) {
 }
 
 /**
+ * The league table for an event, derived server-side from the games.
+ *
+ * Replaces a `STANDINGS` constant of eight invented schools. The rows arrive
+ * ranked; the only thing done here is resolving names into the reader's
+ * language.
+ */
+export function useStandings(eventId: string | undefined) {
+  const loc = useLocalizer();
+  return useQuery(
+    orpc.standings.list.queryOptions({
+      input: { eventId: eventId! },
+      enabled: eventId !== undefined,
+      select: ({ standings }) =>
+        standings.map((s) => ({
+          ...s,
+          team: loc.name(s.teamNames),
+          division: s.divisionNames ? loc.name(s.divisionNames) : null,
+        })),
+    }),
+  );
+}
+
+/**
  * Organisations, with the city resolved the way every other list resolves it.
  *
  * No mapper in lib/api.ts: an org is already the shape a page renders — the
@@ -163,8 +186,9 @@ export function useTeam(id: string | undefined) {
 
 // ── Not yet real ───────────────────────────────────────────────────────────
 //
-// Brackets, live games, rosters, standings and the feed have no tables and no
-// endpoints (roadmap phases 3, 4 and 6). These return the fixtures directly and
+// Brackets, live games, rosters and the feed have no tables and no endpoints
+// (roadmap phases 3, 4 and 6). Standings left this list on 2026-08-27: they are
+// derived from the games, so nothing had to be stored for them to become real. These return the fixtures directly and
 // are deliberately NOT dressed up as queries: a `useQuery` here would imply a
 // network call that does not exist and a loading state that never happens.
 //
@@ -175,5 +199,4 @@ export function useTeam(id: string | undefined) {
 export const useBracket = (_eventId?: string) => BRACKET;
 export const useLiveGame = (_gameId?: string) => LIVE_GAME;
 export const useRoster = (_teamId?: string) => ROSTER;
-export const useStandings = (_eventId?: string) => STANDINGS;
 export const useFeed = () => FEED;
