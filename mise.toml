@@ -373,6 +373,7 @@ mise run check:seed
 mise run check:domain
 mise run check:tables
 mise run check:assets
+mise run check:messages
 """
 
 [tasks."test:unit"]
@@ -542,6 +543,15 @@ depends = ["install", "cf:d1:migrations:apply"]
 # Edits made here are real writes to the local database, and they survive
 # exactly until the next `mise run cf:d1:reset` or re-seed. Nothing reaches biz.
 run = "bun x drizzle-kit studio"
+
+[tasks."check:messages"]
+description = "Fail if a released locale is missing a UI message"
+depends     = ["install"]
+# Paraglide compiles messages to functions, so a missing KEY is a compile error
+# — but a missing TRANSLATION is not: it falls through to English and the build
+# passes. Verified by deleting one. The model's own values are checked upstream
+# by `data:check` in remy-sport-biz; these 113 had nothing.
+run = "bun scripts/check-messages.ts"
 
 [tasks."check:assets"]
 description = "Fail if a built asset would shadow a Worker route"
