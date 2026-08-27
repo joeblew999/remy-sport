@@ -9,6 +9,17 @@ work rather than a confused reader. It has done exactly that twice.
 
 What is left is the set of things that have already cost a real bug.
 
+**Seeded sign-in on the deployment is a switch, and the admin is never on it.**
+`mise run demo:on` publishes a fixed code so the twelve seeded people can sign in
+with one click — their addresses are `.test` and nothing delivers to them. The
+seeded **admin** is excluded on any deployment: it holds ban, set-role and
+impersonate, and impersonation is the one power that reaches a real person.
+`cf:smoke` fails if it is ever offered, and `/api/dev/outbox` must stay 404 —
+that one would expose everyone else's codes. It is a Worker secret not because
+the value is secret (it is published to the browser and the page says so) but
+because a secret flips without a redeploy. **`mise run demo:off` before the
+platform has real users.**
+
 **Flag architectural friction — do not just absorb it.** When a change makes you
 fight the shape of the thing, or write the same block a third time, say so to
 the Product Owner in your reply. Fix it well enough to finish the task, then
@@ -24,6 +35,8 @@ mise run test:all         every tier, with the seconds each one costs
 mise run test:tiers       where the tests are, and which are in the wrong tier
 mise run test:render      rendering tests, no Worker, no database
 mise run model:coverage   which of the PO's 75 actions the API implements, and which the GUI calls
+mise run demo:status      is seeded sign-in live on the deployment, and who does it offer
+mise run demo:on|off      turn it on or off — takes effect at once, no redeploy
 mise run probe            typecheck a snippet against the real project (WEB=1 for the SPA)
 ```
 
