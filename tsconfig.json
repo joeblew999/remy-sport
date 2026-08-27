@@ -1,5 +1,9 @@
 {
   "compilerOptions": {
+    // src/paraglide is generated JavaScript carrying JSDoc types. The Worker
+    // imports it because the OTP email is written in the same messages the SPA
+    // renders — see src/auth.ts. src/web/tsconfig.json has had this all along.
+    "allowJs": true,
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "Bundler",

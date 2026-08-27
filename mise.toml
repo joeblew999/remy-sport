@@ -236,7 +236,7 @@ fi
 [tasks."i18n:generate"]
 description = "Compile messages/*.json into typed message functions (Paraglide). The locale list comes from project.inlang/settings.json, which domain:sync derives from the model's ALL_LOCALES."
 depends     = ["install"]
-run         = "bun x paraglide-js compile --project ./project.inlang --outdir ./src/web/paraglide"
+run         = "bun x paraglide-js compile --project ./project.inlang --outdir ./src/paraglide"
 
 [tasks."typecheck"]
 description = "Typecheck the Worker and the SPA. Both, because they use different JSX runtimes and so need separate tsconfigs."

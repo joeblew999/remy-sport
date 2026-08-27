@@ -19,7 +19,10 @@ export default defineConfig({
     // data is available in — one list, not two.
     paraglideVitePlugin({
       project: resolve(__dirname, "../../project.inlang"),
-      outdir: resolve(__dirname, "paraglide"),
+      // Up a level: the Worker sends email using the same messages, so they
+      // are the product's copy rather than the SPA's. src/web must not be a
+      // dependency of src/.
+      outdir: resolve(__dirname, "../paraglide"),
       // We own the locale (lib/locale.tsx: localStorage, then the browser's
       // preference). Paraglide reads it through overwriteGetLocale rather than
       // keeping a cookie of its own, so there is one source of truth for which

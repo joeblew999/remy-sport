@@ -127,5 +127,13 @@
   "err_not_a_member": "บุคคลนี้ไม่ใช่สมาชิก",
   "err_no_invitation": "ไม่มีคำเชิญให้ตอบรับ",
   "err_bad_date_range": "วันสิ้นสุดต้องไม่ก่อนวันเริ่มต้น",
-  "err_unknown_org": "ไม่พบองค์กรนี้"
+  "err_unknown_org": "ไม่พบองค์กรนี้",
+  "email_otp_subject": "{otp} คือรหัสเข้าใช้งาน Remy Sport ของคุณ",
+  "email_otp_body": "รหัสของคุณคือ {otp}\n\nใช้รหัสนี้เพื่อ{purpose} รหัสจะหมดอายุใน 10 นาที\n\nหากคุณไม่ได้เป็นผู้ขอรหัสนี้ กรุณาเพิกเฉยต่ออีเมลฉบับนี้ — ไม่มีใครใช้รหัสนี้ได้\nหากไม่มีอีเมลของคุณ",
+  "email_otp_purpose_sign_in": "เข้าสู่ระบบ Remy Sport",
+  "email_otp_purpose_verify_email": "ยืนยันอีเมลของคุณ",
+  "email_otp_purpose_change_email": "ยืนยันอีเมลใหม่ของคุณ",
+  "email_otp_purpose_other": "ดำเนินการต่อ",
+  "email_invite_subject": "{invitedBy} เชิญคุณเข้าร่วม {org} บน Remy Sport",
+  "email_invite_body": "{invitedBy} ได้เชิญคุณเข้าร่วม {org} บน Remy Sport\n\nตอบรับคำเชิญ: {url}\n\nหากคุณไม่ได้คาดหวังอีเมลฉบับนี้ คุณสามารถเพิกเฉยได้"
 }

@@ -11,7 +11,7 @@
 
 import { createContext, useContext, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { overwriteGetLocale } from "../paraglide/runtime.js";
+import { overwriteGetLocale } from "../../paraglide/runtime.js";
 import { VOCABULARY } from "../../domain/vocabularies";
 import { orpc } from "./orpc";
 import type { ReactNode } from "react";

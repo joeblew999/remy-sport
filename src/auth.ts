@@ -7,6 +7,23 @@ import type { Context } from "hono"
 import type { AppEnv, Bindings } from "./types"
 import { buildAuthOptions } from "./auth.config"
 import { mailerFor, usesOutbox } from "./mail/mailer"
+import { LOCALES, type ReleasedLocale } from "./domain/vocabularies"
+import { FALLBACK } from "./domain/names"
+/**
+ * The product's own copy, compiled by Paraglide — the same messages the SPA
+ * renders, so an email and a page cannot word the same thing differently.
+ *
+ * Straight from the generated module rather than through `src/web/lib/i18n`:
+ * that wrapper also exports the SPA's locale runtime, and the Worker must not
+ * depend on src/web. Sending this mail is what showed the messages were never
+ * the SPA's to own, which is why they compile to src/paraglide now.
+ *
+ * Safe in a Worker: the runtime guards every browser global behind
+ * `typeof window !== "undefined"`, and every call here passes `options.locale`
+ * explicitly, so `getLocale()` — the part that would look for a document — is
+ * never reached.
+ */
+import { m } from "./paraglide/messages.js"
 import * as schema from "./db/schema"
 
 /** The fixtures' people. A fixed code only ever applies to one of these. */
@@ -43,8 +60,58 @@ const ADMIN_EMAILS: ReadonlySet<string> = new Set<string>(
  * oRPC procedures have no Hono context to hand it — `authed` in
  * src/api/base.ts resolves the session from the raw Request. Narrowing the
  * parameter to what is actually used lets both callers pass what they have.
+ *
+ * `headers` is the third thing it reads, and it is optional because not every
+ * caller has a request: `src/auth.cli.ts` builds an instance for the Better
+ * Auth CLI, which never serves one. Without headers the mail falls back to the
+ * base locale, which is what it did before this existed.
  */
-export type AuthHost = { env: Bindings; req: { url: string } }
+export type AuthHost = {
+  env: Bindings
+  req: { url: string }
+  /** The incoming request's headers, for `Accept-Language`. */
+  headers?: Headers
+}
+
+/**
+ * The reader's language, from the browser that asked for the code.
+ *
+ * `Accept-Language` is the only signal available at this point: the OTP is
+ * requested before anyone is signed in, so there is no account to carry a
+ * preference and no session to read one from. It is the browser's own setting,
+ * which is exactly the question being asked.
+ *
+ * Quality values are honoured rather than taking the first tag, because
+ * `en;q=0.5,th;q=0.9` means Thai and reading left to right would answer
+ * English. Region is dropped — `th-TH` is Thai — and anything the product does
+ * not offer is skipped, so a reader whose browser prefers French gets the base
+ * locale rather than nothing.
+ */
+function localeFrom(headers: Headers | undefined): ReleasedLocale {
+  const header = headers?.get("accept-language")
+  // FALLBACK is typed against every declared locale, including drafts; an email
+  // must go out in one the product actually offers.
+  const base = FALLBACK as ReleasedLocale
+  if (!header) return base
+
+  const offered = LOCALES as readonly string[]
+  const ranked = header
+    .split(",")
+    .map((part) => {
+      const [tag, ...params] = part.trim().split(";")
+      const q = params.find((x) => x.trim().startsWith("q="))
+      return {
+        // `th-TH` and `TH` are both Thai.
+        tag: (tag ?? "").trim().toLowerCase().split("-")[0] ?? "",
+        // A tag with no `q` is q=1, which is what makes it win by default.
+        q: q ? Number.parseFloat(q.split("=")[1] ?? "0") : 1,
+      }
+    })
+    .filter((x) => x.tag && Number.isFinite(x.q))
+    .sort((a, b) => b.q - a.q)
+
+  return (ranked.find((x) => offered.includes(x.tag))?.tag as ReleasedLocale) ?? base
+}
 
 export function createAuth(c: AuthHost) {
   const db = drizzle(c.env.DB, { schema })
@@ -89,16 +156,20 @@ export function createAuth(c: AuthHost) {
         const base = c.env.BETTER_AUTH_URL ?? requestOrigin
         const url = `${base}/#/accept-invitation/${id}`
         const invitedBy = inviter.user.name || inviter.user.email
+        /**
+         * English, explicitly.
+         *
+         * `Accept-Language` on *this* request is the inviter's browser, and the
+         * mail is going to somebody else — so it says nothing about the person
+         * who will read it. Guessing from it would be worse than not guessing.
+         * Their own preference is knowable once they have an account; until
+         * then the base locale is the honest answer.
+         */
+        const args = { locale: FALLBACK } as const
         await mailer.send({
           to: email,
-          subject: `${invitedBy} invited you to join ${organization.name} on Remy Sport`,
-          text: [
-            `${invitedBy} has invited you to join ${organization.name} on Remy Sport.`,
-            ``,
-            `Accept the invitation: ${url}`,
-            ``,
-            `If you were not expecting this, you can ignore this email.`,
-          ].join("\n"),
+          subject: m.email_invite_subject({ invitedBy, org: organization.name }, args),
+          text: m.email_invite_body({ invitedBy, org: organization.name, url }, args),
         })
       },
 
@@ -106,25 +177,24 @@ export function createAuth(c: AuthHost) {
       // retypes cannot be turned into a one-click link, which is the point.
       // A link in an inbox is a bearer credential that survives forwarding.
       sendVerificationOTP: async ({ email, otp, type }) => {
+        /**
+         * The browser that asked for the code is the one about to read it, so
+         * `Accept-Language` on this request is a real signal — unlike on the
+         * invitation above, where the recipient is somebody else.
+         */
+        const args = { locale: localeFrom(c.headers) } as const
         const purpose =
           type === "sign-in"
-            ? "sign in to Remy Sport"
+            ? m.email_otp_purpose_sign_in({}, args)
             : type === "email-verification"
-              ? "verify your email address"
+              ? m.email_otp_purpose_verify_email({}, args)
               : type === "change-email"
-                ? "confirm your new email address"
-                : "continue"
+                ? m.email_otp_purpose_change_email({}, args)
+                : m.email_otp_purpose_other({}, args)
         await mailer.send({
           to: email,
-          subject: `${otp} is your Remy Sport code`,
-          text: [
-            `Your code is ${otp}.`,
-            ``,
-            `Use it to ${purpose}. It expires in 10 minutes.`,
-            ``,
-            `If you did not ask for this, ignore this email — nobody can use the`,
-            `code without it.`,
-          ].join("\n"),
+          subject: m.email_otp_subject({ otp }, args),
+          text: m.email_otp_body({ otp, purpose }, args),
         })
       },
 

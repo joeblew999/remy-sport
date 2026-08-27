@@ -20,6 +20,19 @@ the value is secret (it is published to the browser and the page says so) but
 because a secret flips without a redeploy. **`mise run demo:off` before the
 platform has real users.**
 
+**Messages compile to `src/paraglide`, not `src/web/paraglide`.** They are the
+product's copy, not the SPA's — `src/auth.ts` writes the sign-in email from the
+same messages a page renders, so an email and a screen cannot word the same
+thing differently. The Worker must not depend on `src/web`, which is what moving
+the output settled. It imports the generated module directly rather than
+`src/web/lib/i18n`, whose other exports are the SPA's locale runtime.
+
+**Email locale comes from `Accept-Language`, and only for the OTP.** The browser
+asking for a code is the one about to read it, so the header is a real signal.
+On an invitation it is not: the recipient is somebody else, and the header
+describes the sender — that mail stays in the base locale until the invitee has
+an account with a preference of its own.
+
 **The API throws codes, not sentences.** `src/api/errors.ts` defines every
 refusal a person can read — `TEAM_PLAYS_ITSELF`, `DIVISION_MISMATCH` and its
 four facts — and the sentence is a paraglide message rendered client-side. An

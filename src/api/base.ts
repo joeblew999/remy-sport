@@ -74,7 +74,11 @@ export const pub = base.use(async ({ context, next }) =>
  * 401 rather than 403: the caller may simply not have logged in.
  */
 export const authed = pub.use(async ({ context, next }) => {
-  const auth = createAuth({ env: context.env, req: { url: context.request.url } })
+  const auth = createAuth({
+    env: context.env,
+    req: { url: context.request.url },
+    headers: context.request.headers,
+  })
   const session = await auth.api.getSession({ headers: context.request.headers })
   const user = session?.user as SessionUser | undefined
   if (!user) throw new ORPCError("UNAUTHORIZED", { message: "Unauthorized" })
@@ -93,7 +97,11 @@ export const authed = pub.use(async ({ context, next }) => {
  * that lookup used to cost when it ran for every asset request.
  */
 export const viewer = pub.use(async ({ context, next }) => {
-  const auth = createAuth({ env: context.env, req: { url: context.request.url } })
+  const auth = createAuth({
+    env: context.env,
+    req: { url: context.request.url },
+    headers: context.request.headers,
+  })
   const session = await auth.api.getSession({ headers: context.request.headers })
   return next({ context: { ...context, user: (session?.user as SessionUser) ?? null } })
 })

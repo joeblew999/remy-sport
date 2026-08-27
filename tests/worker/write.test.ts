@@ -1012,3 +1012,60 @@ describe("The seeded sign-in, and what it deliberately cannot reach", () => {
     expect(waraporn.holds).not.toContain("GAME_REFEREE gam_001")
   })
 })
+
+describe("The sign-in email speaks the reader's language", () => {
+  /**
+   * `Accept-Language` on the OTP request is the browser about to read the code,
+   * so it is a real signal — unlike on an invitation, where the recipient is
+   * somebody else and the header describes the sender.
+   */
+  const send = (email: string, acceptLanguage?: string) =>
+    api("/api/auth/email-otp/send-verification-otp", {
+      method: "POST",
+      body: JSON.stringify({ email, type: "sign-in" }),
+      ...(acceptLanguage ? { headers: { "Accept-Language": acceptLanguage } } : {}),
+    })
+
+  it("sends Thai to a browser that asks for Thai", async () => {
+    const to = fresh("th")
+    await send(to, "th-TH,th;q=0.9,en;q=0.8")
+    const [mail] = await outbox(to)
+    expect(mail!.subject).toContain("คือรหัสเข้าใช้งาน")
+    expect(mail!.body).toContain("รหัสของคุณคือ")
+  })
+
+  it("honours quality values rather than reading left to right", async () => {
+    // English first in the list, Thai preferred. Taking the first tag would
+    // answer English and be wrong.
+    const to = fresh("q")
+    await send(to, "en;q=0.5,th;q=0.9")
+    const [mail] = await outbox(to)
+    expect(mail!.subject).toContain("คือรหัสเข้าใช้งาน")
+  })
+
+  it("ignores a region and a language the product does not offer", async () => {
+    const to = fresh("region")
+    await send(to, "en-GB")
+    expect((await outbox(to))[0]!.subject).toMatch(/is your Remy Sport code$/)
+
+    const other = fresh("fr")
+    await send(other, "fr-FR,fr;q=0.9")
+    // Not nothing, and not French: the base locale.
+    expect((await outbox(other))[0]!.subject).toMatch(/is your Remy Sport code$/)
+  })
+
+  it("falls back to English when the header is absent", async () => {
+    const to = fresh("none")
+    await send(to)
+    expect((await outbox(to))[0]!.subject).toMatch(/is your Remy Sport code$/)
+  })
+
+  it("still carries a usable code, whatever the language", async () => {
+    const to = fresh("usable")
+    await send(to, "th")
+    const [mail] = await outbox(to)
+    const code = mail!.body.match(/(\d{6})/)?.[1]
+    expect(code, "the code survives translation").toBeTruthy()
+    expect((await post("/api/auth/sign-in/email-otp", { email: to, otp: code })).status).toBe(200)
+  })
+})

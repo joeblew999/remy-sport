@@ -127,5 +127,13 @@
   "err_not_a_member": "That person is not a member.",
   "err_no_invitation": "There is no invitation to accept.",
   "err_bad_date_range": "The end date must be on or after the start date.",
-  "err_unknown_org": "That organisation does not exist."
+  "err_unknown_org": "That organisation does not exist.",
+  "email_otp_subject": "{otp} is your Remy Sport code",
+  "email_otp_body": "Your code is {otp}.\n\nUse it to {purpose}. It expires in 10 minutes.\n\nIf you did not ask for this, ignore this email — nobody can use the\ncode without it.",
+  "email_otp_purpose_sign_in": "sign in to Remy Sport",
+  "email_otp_purpose_verify_email": "verify your email address",
+  "email_otp_purpose_change_email": "confirm your new email address",
+  "email_otp_purpose_other": "continue",
+  "email_invite_subject": "{invitedBy} invited you to join {org} on Remy Sport",
+  "email_invite_body": "{invitedBy} has invited you to join {org} on Remy Sport.\n\nAccept the invitation: {url}\n\nIf you were not expecting this, you can ignore this email."
 }

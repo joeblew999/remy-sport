@@ -22,6 +22,6 @@
 // exactly what let the old dictionary rot to four entries while the interface
 // grew.
 
-export { m } from "../paraglide/messages.js"
-export { locales, baseLocale, isLocale } from "../paraglide/runtime.js"
-export type { Locale } from "../paraglide/runtime.js"
+export { m } from "../../paraglide/messages.js"
+export { locales, baseLocale, isLocale } from "../../paraglide/runtime.js"
+export type { Locale } from "../../paraglide/runtime.js"
