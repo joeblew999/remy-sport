@@ -28,6 +28,7 @@ export const router = {
     list: orgs.list,
     get: orgs.get,
     update: orgs.update,
+    members: orgs.members,
     addMember: orgs.addMember,
     removeMember: orgs.removeMember,
   },

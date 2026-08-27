@@ -7,16 +7,28 @@ interface NavItem {
   count: string | null;
 }
 
-const NAV_ITEMS: NavItem[] = [
+/**
+ * Built per render, not once at module scope.
+ *
+ * A message is a *call* — `m.nav_orgs()` evaluates to the string for whichever
+ * locale is active when it runs. At module scope it ran once at import and the
+ * label then stayed in that language forever, which switching to Thai showed
+ * immediately. Nothing caught it earlier because every other label here is a
+ * hardcoded English literal, and those are the same in both languages by
+ * accident rather than by design.
+ */
+const navItems = (): NavItem[] => [
   { id: "discover",  label: "Discover",   count: "124" },
   { id: "events",    label: "My events",  count: "6" },
   { id: "team",      label: "My team",    count: "SGS" },
   { id: "live",      label: "Live now",   count: "3" },
   { id: "standings", label: "Standings",  count: null },
+  { id: "orgs",      label: m.nav_orgs(), count: null },
   { id: "profile",   label: "Profile",    count: null },
 ];
 
 export function Sidebar({ page, setPage }: { page: string; setPage: (p: string) => void }) {
+  const NAV_ITEMS = navItems();
   return (
     <aside className="sidebar">
       <div className="brand">

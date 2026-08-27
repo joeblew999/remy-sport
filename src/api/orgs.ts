@@ -57,11 +57,62 @@ export const update = authed
   })
 
 /**
+ * Who is in an organisation.
+ *
+ * Gated on `INVITE_ORG_MEMBER` rather than the public `VIEW_ORG`, and the choice
+ * is worth stating because the Product Owner's model does not make it: there is
+ * no `VIEW_ORG_MEMBERS` action. Reading an organisation's *profile* is public;
+ * its roster is a list of people's email addresses, so it is not. The smallest
+ * defensible rule that uses an action the model already defines is "whoever may
+ * add and remove members may see them" — ORG_OWNER, ORG_ADMIN, PLATFORM_ADMIN.
+ *
+ * If the PO wants ordinary members to see each other, that is a new action in
+ * the model, not a change here.
+ */
+export const members = authed
+  .route({ method: "GET", path: "/orgs/{id}/members", summary: "List an organisation's members", ...authedRoute })
+  .input(IdInput)
+  .output(
+    z.object({
+      members: z.array(
+        z.object({
+          userId: z.string(),
+          email: z.string(),
+          name: z.string().nullable(),
+          orgRoleCode: z.enum(ORG_ROLE_CODES),
+        }),
+      ),
+    }),
+  )
+  .use(requireAction("INVITE_ORG_MEMBER"))
+  .handler(async ({ context, input }) => ({
+    members: await context.db
+      .select({
+        userId: schema.orgMember.userId,
+        email: schema.user.email,
+        name: schema.user.name,
+        orgRoleCode: schema.orgMember.orgRoleCode,
+      })
+      .from(schema.orgMember)
+      .innerJoin(schema.user, eq(schema.user.id, schema.orgMember.userId))
+      .where(eq(schema.orgMember.orgId, input.id))
+      .orderBy(schema.user.email)
+      .all(),
+  }))
+
+/**
  * Writes the tuple the `ORG_OWNER`/`ORG_ADMIN` relations read.
  *
  * `org_member` is ours, with the Product Owner's own column names and role
  * codes. It was Better Auth's `member` table until the organization plugin was
  * removed, which is why this used to need a role-casing translation.
+ *
+ * Takes `email` **or** `userId`. A person adding a coach to a school knows the
+ * address they signed up with, not the id — a GUI that demanded the id would
+ * only be usable by someone reading the database. This is an exact-match lookup
+ * by someone who already holds `INVITE_ORG_MEMBER` on this organisation, and it
+ * reveals nothing the `userId` form did not: that path already answers "Unknown
+ * user" for an id that does not exist.
  */
 export const addMember = authed
   .route({
@@ -71,14 +122,22 @@ export const addMember = authed
     successStatus: 201,
     ...authedRoute,
   })
-  .input(IdInput.extend({ userId: z.string(), orgRoleCode: z.enum(ORG_ROLE_CODES).optional() }))
+  .input(
+    IdInput.extend({
+      userId: z.string().optional(),
+      email: z.string().email().optional(),
+      orgRoleCode: z.enum(ORG_ROLE_CODES).optional(),
+    }).refine((v) => Boolean(v.userId) !== Boolean(v.email), {
+      message: "Give either userId or email, not both",
+    }),
+  )
   .output(z.object({ orgId: z.string(), userId: z.string(), role: z.enum(ORG_ROLE_CODES) }))
   .use(requireAction("INVITE_ORG_MEMBER"))
   .handler(async ({ context, input }) => {
     const person = await context.db
       .select({ id: schema.user.id })
       .from(schema.user)
-      .where(eq(schema.user.id, input.userId))
+      .where(input.userId ? eq(schema.user.id, input.userId) : eq(schema.user.email, input.email!))
       .get()
     if (!person) throw new ORPCError("NOT_FOUND", { message: "Unknown user" })
 
@@ -86,10 +145,10 @@ export const addMember = authed
     const orgRoleCode = input.orgRoleCode ?? "MEMBER"
     await context.db
       .insert(schema.orgMember)
-      .values({ orgId: input.id, userId: input.userId, orgRoleCode })
+      .values({ orgId: input.id, userId: person.id, orgRoleCode })
       .onConflictDoNothing()
 
-    return { orgId: input.id, userId: input.userId, role: orgRoleCode }
+    return { orgId: input.id, userId: person.id, role: orgRoleCode }
   })
 
 export const removeMember = authed

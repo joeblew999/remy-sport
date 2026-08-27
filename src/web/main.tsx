@@ -15,6 +15,7 @@ import { ProfilePage } from "./pages/profile";
 import { LoginPage } from "./pages/login";
 import { DevicesPage } from "./pages/devices";
 import { AdminPage } from "./pages/admin";
+import { OrgsPage, OrgPage } from "./pages/org";
 import { StandingsTable } from "./pages/event";
 import { m } from "./lib/i18n";
 
@@ -64,7 +65,10 @@ function App() {
     document.documentElement.style.setProperty("--accent-deep", tweaks.accentColor);
   }, [tweaks.accentColor]);
 
-  const sidebarPage = (route.page === "event" || route.page === "bracket") ? "discover" : route.page;
+  // A detail page keeps its list highlighted in the nav.
+  const sidebarPage = (route.page === "event" || route.page === "bracket") ? "discover"
+    : route.page === "org" ? "orgs"
+    : route.page;
 
   const handleSpoilerSet = (fn: boolean | ((prev: boolean) => boolean)) => {
     setSpoiler(prev => typeof fn === "function" ? fn(prev) : fn);
@@ -98,6 +102,8 @@ function App() {
             {route.page === "login" && <LoginPage goto={goto}/>}
             {route.page === "devices" && <DevicesPage goto={goto}/>}
             {route.page === "admin" && <AdminPage goto={goto}/>}
+            {route.page === "orgs" && <OrgsPage goto={goto}/>}
+            {route.page === "org" && <OrgPage id={route.id} goto={goto}/>}
             {route.page === "standings" && (
               <>
                 <div className="page-header">

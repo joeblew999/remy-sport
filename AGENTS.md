@@ -23,14 +23,19 @@ mise run probe            typecheck a snippet against the real project (WEB=1 fo
 Kept here because this file is the one thing read at the start of every session.
 Update it when you finish something; delete the line when it is done.
 
-1. **The org API exists; no GUI reaches it.** `/api/orgs` reads, edits and
-   manages members, and `src/web/` calls none of it — the only org page accepts
-   Better Auth invitations the product still cannot send. The backend is no
-   longer the gap; the front end is.
-   Build it with the primitives that exist. [`src/web/pages/admin.tsx`](src/web/pages/admin.tsx)
-   is already the pattern — `.admin-card` + `.admin-table` + `.badge` + `.btn` +
-   `.muted` + `.empty` is a table with row actions, which is what member
-   management is. No new dependency is needed; see item 2.
+1. **A page must not carry its own copy of the access matrix.**
+   [`src/web/pages/org.tsx`](src/web/pages/org.tsx) is the shape to copy: it
+   never asks what the viewer's role is. It asks the server for the member list,
+   and a 403 renders as "not yours". Every relation is derived upstream from the
+   PO's model, so a mirror in the client is the second answer to "may you" that
+   drifts from the first — `admin.tsx`'s ROLE_PERMISSIONS is careful to label
+   itself display-only for the same reason.
+   Built 2026-08-27 with the primitives that already existed — `.admin-card` +
+   `.admin-table` + `.badge` + `.btn` + `.muted` + `.empty` — and no new
+   dependency; see item 2.
+   Two gaps it exposed, both closed: there was no procedure to *list* an org's
+   members, and `addMember` took only a `userId` nobody can discover, so it now
+   takes an email too.
 2. **Do not install shadcn/ui + Tailwind.** This file used to call
    `src/web/styles.css` "the largest remaining source of per-page boilerplate".
    Measured 2026-08-27, that is false. It is 1093 lines defining **100 classes

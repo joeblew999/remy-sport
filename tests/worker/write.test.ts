@@ -561,4 +561,65 @@ describe("Organisations — the actions ORG was declared for", () => {
         .status,
     ).toBe(404)
   })
+
+  /**
+   * The roster, and who may see it.
+   *
+   * The model declares no VIEW_ORG_MEMBERS, so this is gated on
+   * INVITE_ORG_MEMBER — whoever may add and remove members may see them. The
+   * profile stays public; a list of people's email addresses does not.
+   */
+  it("an org admin sees the roster; an outsider does not, and nor does a stranger", async () => {
+    const admin = await signIn(actorFor("COACH"))
+    const res = await api("/api/orgs/org_001/members", { cookie: admin })
+    expect(res.status).toBe(200)
+    const { members } = (await res.json()) as {
+      members: { userId: string; email: string; orgRoleCode: string }[]
+    }
+    // The fixtures put usr_coach_001 in org_001 as ADMIN.
+    expect(members.some((mem) => mem.userId === "usr_coach_001")).toBe(true)
+    expect(members.every((mem) => mem.email.includes("@"))).toBe(true)
+
+    const outsider = await signIn(SEED_ENTITIES.users.find((u) => u.id === "usr_coach_003")!.email)
+    expect((await api("/api/orgs/org_001/members", { cookie: outsider })).status).toBe(403)
+
+    // Anonymous is 401 and not 403: "sign in" and "not yours" are different
+    // answers, and the page renders them differently.
+    expect((await api("/api/orgs/org_001/members")).status).toBe(401)
+  })
+
+  it("a member can be added by email, which is what a person actually knows", async () => {
+    const admin = await signIn(actorFor("COACH"))
+    const newcomer = SEED_ENTITIES.users.find((u) => u.id === "usr_referee_002")!
+
+    const added = await post("/api/orgs/org_001/members", { email: newcomer.email }, admin)
+    expect(added.status).toBe(201)
+    // Resolved to the id, so the tuple the relations read is the same one the
+    // userId form writes.
+    expect((await added.json()).userId).toBe(newcomer.id)
+
+    const listed = await api("/api/orgs/org_001/members", { cookie: admin })
+    const { members } = (await listed.json()) as { members: { email: string }[] }
+    expect(members.some((mem) => mem.email === newcomer.email)).toBe(true)
+
+    await api(`/api/orgs/org_001/members/${newcomer.id}`, { method: "DELETE", cookie: admin })
+  })
+
+  it("an address nobody signed up with is 404, not a silent no-op", async () => {
+    const admin = await signIn(actorFor("COACH"))
+    const res = await post("/api/orgs/org_001/members", { email: "nobody@example.invalid" }, admin)
+    expect(res.status).toBe(404)
+  })
+
+  it("giving both an id and an email, or neither, is refused", async () => {
+    const admin = await signIn(actorFor("COACH"))
+    const both = await post(
+      "/api/orgs/org_001/members",
+      { userId: "usr_referee_001", email: "a@b.test" },
+      admin,
+    )
+    expect(both.status, "userId and email are alternatives, not a pair").toBeGreaterThanOrEqual(400)
+    const neither = await post("/api/orgs/org_001/members", {}, admin)
+    expect(neither.status).toBeGreaterThanOrEqual(400)
+  })
 })

@@ -4,7 +4,7 @@ import type { JSX } from "react";
 
 export type IconName =
   | "discover" | "events" | "teams" | "live" | "standings" | "profile"
-  | "bell" | "download" | "arrow" | "plus" | "search"
+  | "orgs" | "bell" | "download" | "arrow" | "plus" | "search"
   | "eye" | "eyeoff" | "follow" | "share";
 
 const PATHS: Record<IconName, JSX.Element> = {
@@ -14,6 +14,9 @@ const PATHS: Record<IconName, JSX.Element> = {
   live: <><circle cx="8" cy="8" r="2" fill="currentColor"/><circle cx="8" cy="8" r="5" stroke="currentColor" strokeWidth="1.2" fill="none"/></>,
   standings: <><path d="M2 14h12M4 14V8M8 14V4M12 14V10" stroke="currentColor" strokeWidth="1.4" fill="none"/></>,
   profile: <><circle cx="8" cy="6" r="2.5" stroke="currentColor" strokeWidth="1.3" fill="none"/><path d="M3 14c0-2.2 2.2-4 5-4s5 1.8 5 4" stroke="currentColor" strokeWidth="1.3" fill="none"/></>,
+  // A school: pitched roof over a hall with a door. Reads at 16px because the
+  // roof and the door are the only two shapes.
+  orgs: <><path d="M1.5 6.5L8 2l6.5 4.5" stroke="currentColor" strokeWidth="1.3" fill="none"/><path d="M3 7v7h10V7" stroke="currentColor" strokeWidth="1.3" fill="none"/><path d="M6.5 14v-3.5h3V14" stroke="currentColor" strokeWidth="1.2" fill="none"/></>,
   bell: <><path d="M4 11V7a4 4 0 1 1 8 0v4l1 1.5H3z" stroke="currentColor" strokeWidth="1.3" fill="none"/><path d="M6.5 13.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" strokeWidth="1.3"/></>,
   download: <><path d="M8 1v9M4 7l4 4 4-4M2 14h12" stroke="currentColor" strokeWidth="1.4" fill="none"/></>,
   arrow: <><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.3" fill="none"/></>,

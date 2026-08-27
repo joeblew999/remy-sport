@@ -29,9 +29,10 @@ const db = drizzle(env.DB, { schema }) as unknown as Db
  * A (user, object) pair the seed says holds this relation.
  *
  * The fixtures are keyed by their own file names and columns; the derivation
- * names the tables the rows actually land in. Those agree everywhere except
- * organisation membership, which lands in a table Better Auth owns — so that one
- * pair is read from the fixture's own column names.
+ * names the tables the rows actually land in, and `FIXTURE_TABLE` maps between
+ * them. Organisation membership used to be the exception, because it landed in
+ * a table Better Auth owned; it is `org_member` now, with the PO's own column
+ * names, so there is no longer a special case here.
  */
 function seededTuple(code: string): { userId: string; objectId: string } | null {
   const r = RELATION.find((x) => x.code === code)!

@@ -73,6 +73,55 @@ export function useTeams() {
   );
 }
 
+/**
+ * Organisations, with the city resolved the way every other list resolves it.
+ *
+ * No mapper in lib/api.ts: an org is already the shape a page renders — the
+ * only derived fields are the localised name and city label, which the
+ * localizer gives directly. A `toOrg` here would be a function that renames
+ * three keys.
+ */
+export function useOrgs() {
+  const loc = useLocalizer();
+  return useQuery(
+    orpc.orgs.list.queryOptions({
+      select: ({ orgs }) =>
+        orgs.map((o) => ({ ...o, name: loc.name(o.names), city: loc.label("cities", o.cityCode) })),
+    }),
+  );
+}
+
+export function useOrg(id: string | undefined) {
+  const loc = useLocalizer();
+  return useQuery(
+    orpc.orgs.get.queryOptions({
+      input: { id: id! },
+      enabled: id !== undefined,
+      select: (o) => ({ ...o, name: loc.name(o.names), city: loc.label("cities", o.cityCode) }),
+    }),
+  );
+}
+
+/**
+ * An organisation's roster.
+ *
+ * 403s for anyone who is not its owner or admin, and that is the page's only
+ * source of truth about whether to show the section — see pages/org.tsx. The
+ * `retry: false` matters: main.tsx already declines to retry a 4xx, and this
+ * restates it because a *denied* query that stayed `pending` through retries
+ * would render as "loading" instead of "not yours".
+ */
+export function useOrgMembers(id: string | undefined) {
+  return useQuery(
+    orpc.orgs.members.queryOptions({
+      input: { id: id! },
+      enabled: id !== undefined,
+      retry: false,
+      select: ({ members }) => members,
+    }),
+  );
+}
+
 export function useTeam(id: string | undefined) {
   const loc = useLocalizer();
   return useQuery(
