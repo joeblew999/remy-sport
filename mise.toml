@@ -372,6 +372,7 @@ mise run check:conventions
 mise run check:seed
 mise run check:domain
 mise run check:tables
+mise run check:assets
 """
 
 [tasks."test:unit"]
@@ -541,6 +542,19 @@ depends = ["install", "cf:d1:migrations:apply"]
 # Edits made here are real writes to the local database, and they survive
 # exactly until the next `mise run cf:d1:reset` or re-seed. Nothing reaches biz.
 run = "bun x drizzle-kit studio"
+
+[tasks."check:assets"]
+description = "Fail if a built asset would shadow a Worker route"
+depends     = ["install"]
+# Assets are served before the Worker (wrangler.toml), which is right — a hashed
+# bundle from the asset store costs nothing where the same request through the
+# Worker is billed and logged. The cost is that a new top-level file in dist/web
+# could silently win a Worker route: /doc would start returning a static file and
+# nothing would throw. The Worker's routes come from Hono itself, so this cannot
+# fall behind them.
+#
+# Skips with a message when dist/web is absent rather than passing on nothing.
+run = "bun scripts/check-assets.ts"
 
 [tasks."check:tables"]
 description = "Fail if the model names a table this schema does not have"
