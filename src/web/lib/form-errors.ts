@@ -81,6 +81,31 @@ function definedMessage(error: unknown): string | null {
   return render ? render(candidate.data ?? {}) : (candidate.message ?? null)
 }
 
+/**
+ * The message for an error the API did NOT name — a raw 404, 403 or 401.
+ *
+ * These carry no `data` and never went through `.errors()`, so `definedMessage`
+ * declines them. What they do carry is an oRPC `code`, and that is enough: the
+ * same `err_<code>` convention that renders TEAM_PLAYS_ITSELF renders NOT_FOUND.
+ *
+ * Written because the alternative was rendering the server's own sentence, and
+ * that is how English reached a Thai reader from the back end. `throw new
+ * ORPCError("NOT_FOUND", { message: "Not found" })` appears a dozen times in
+ * src/api, and every one of them put "Not found" on screen verbatim. Localising
+ * those dozen strings would have been the wrong fix: the next one added would
+ * leak again. So the client stops rendering server prose at all, and the leak
+ * closes for every throw site at once, including ones not written yet.
+ *
+ * The Worker's `message` is now a developer-facing detail — it still reaches
+ * logs and the network tab, which is where it is useful.
+ */
+function codeMessage(error: unknown): string | null {
+  const code = (error as { code?: unknown }).code
+  if (typeof code !== "string" || !/^[A-Z][A-Z_]*$/.test(code)) return null
+  const render = (m as unknown as Record<string, ((d: unknown) => string) | undefined>)[keyFor(code)]
+  return render ? render({}) : null
+}
+
 interface Issue {
   path?: unknown
   message?: string
@@ -110,10 +135,16 @@ export function formErrors(error: unknown, paths: readonly string[] = []): FormE
   if (defined) return { field: () => undefined, form: defined }
 
   const issues = (error as { data?: { issues?: Issue[] } }).data?.issues
-  const message = (error as Error).message ?? null
 
   // Not a validation failure: a 404, a 403, a refusal with a sentence in it.
-  if (!issues?.length) return { field: () => undefined, form: message }
+  //
+  // `codeMessage` first, and the server's own text only if there is no code to
+  // work with — a network failure, say, where the message is the browser's and
+  // not the Worker's. See codeMessage for why the server's prose is a last
+  // resort rather than the default it used to be.
+  if (!issues?.length) {
+    return { field: () => undefined, form: codeMessage(error) ?? (error as Error).message ?? null }
+  }
 
   const claimed = new Set<string>()
   for (const p of paths) if (getIssueMessage(error, p) !== undefined) claimed.add(p)

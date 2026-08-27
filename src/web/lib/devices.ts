@@ -1,3 +1,4 @@
+import { formatSince } from "./dates"
 /**
  * Turning a session row into something a person can recognise (ADR 014).
  *
@@ -112,13 +113,12 @@ export function toDevices(sessions: RawSession[], currentToken: string | null): 
     })
 }
 
-export function formatWhen(iso: string): string {
-  const then = new Date(iso).getTime()
-  const mins = Math.round((Date.now() - then) / 60000)
-  if (mins < 1) return "just now"
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.round(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.round(hours / 24)
-  return days === 1 ? "yesterday" : `${days}d ago`
+/**
+ * Delegates to `formatSince` — see lib/dates.ts.
+ *
+ * This used to return "just now" / "5m ago" / "yesterday" as English literals,
+ * on the one screen where somebody is checking whether a session is theirs.
+ */
+export function formatWhen(locale: string, iso: string): string {
+  return formatSince(locale, iso);
 }

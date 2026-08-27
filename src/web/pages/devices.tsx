@@ -3,6 +3,7 @@ import { useDevices, useRevokeDevice } from "../lib/auth";
 import { toDevices, formatWhen, type RawSession } from "../lib/devices";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
+import { useLocale } from "../lib/locale";
 
 /**
  * "Where am I signed in?" — ADR 014.
@@ -16,6 +17,7 @@ import { m } from "../lib/i18n";
  * feature that would not answer this question.
  */
 export function DevicesPage({ goto }: { goto: (r: Route) => void }) {
+  const { locale } = useLocale();
   const { user, loading: sessionLoading } = useSession();
   // One query, two mutations. This was ~60 lines: a `useState` for the list, a
   // `useState` for the error, a `useState` for which row is busy, a `load`
@@ -85,12 +87,16 @@ export function DevicesPage({ goto }: { goto: (r: Route) => void }) {
                     )}
                   </div>
                   <div className="device-meta">
-                    {[d.ipAddress ?? "IP not recorded", `last active ${formatWhen(d.lastSeen)}`]
-                      .join(" · ")}
+                    {[
+                      d.ipAddress ?? m.ip_not_recorded(),
+                      m.last_active({ when: formatWhen(locale, d.lastSeen) }),
+                    ].join(" · ")}
                   </div>
                 </div>
                 {d.current ? (
-                  <span className="device-meta">signed in {formatWhen(d.createdAt)}</span>
+                  <span className="device-meta">
+                    {m.signed_in_when({ when: formatWhen(locale, d.createdAt) })}
+                  </span>
                 ) : (
                   <button
                     className="btn"

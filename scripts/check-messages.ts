@@ -104,6 +104,28 @@ for (const code of Object.keys(ERRORS)) {
   }
 }
 
+/**
+ * The HTTP-level codes too, which are not in ERRORS.
+ *
+ * A raw `new ORPCError("NOT_FOUND", …)` never goes through `.errors()`, so it
+ * carries no entry in the table above — but the client still renders it by
+ * code, because rendering the Worker's own `message` is how English reached a
+ * Thai reader. Every code the Worker actually throws is listed here; a new one
+ * added to src/api without a message would put the bare code on screen.
+ *
+ * Kept as a literal list rather than grepped out of src/: a grep would silently
+ * find nothing the day the throw site is written differently, and report
+ * success. This is short, and a missing entry is caught by the test in
+ * tests/unit/form-errors.test.ts as well.
+ */
+const THROWN_CODES = ["NOT_FOUND", "FORBIDDEN", "UNAUTHORIZED", "BAD_REQUEST", "INTERNAL_SERVER_ERROR"]
+for (const code of THROWN_CODES) {
+  const key = `err_${code.toLowerCase()}`
+  if (!expected.includes(key)) {
+    problems.push(`en: ${key} is missing — the Worker can throw a bare ${code}`)
+  }
+}
+
 if (problems.length) {
   console.error(
     `check-messages: ${problems.length} problem(s):\n` + problems.map((p) => `  ${p}`).join("\n") +

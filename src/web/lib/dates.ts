@@ -114,3 +114,42 @@ export function formatTimeOn(locale: string, at: Date, timeZone: string | null):
     ...(timeZone ? { timeZone } : {}),
   }).format(at);
 }
+
+/**
+ * "5 minutes ago", "yesterday" — in the reader's language.
+ *
+ * `formatWhen` in lib/devices.ts hand-rolled this and returned English:
+ * "just now", "5m ago", "yesterday", "3d ago". It shipped on the devices page,
+ * which is a security screen — the one place somebody is trying to work out
+ * whether a session is theirs — and it read in English whatever language they
+ * had chosen.
+ *
+ * `Intl.RelativeTimeFormat` is native and knows every locale, the same way
+ * `DateTimeFormat` does. `numeric: "auto"` is what produces "yesterday" rather
+ * than "1 day ago"; without it every language gets the wooden form.
+ *
+ * The unit is chosen here rather than by the caller because the thresholds are
+ * the same everywhere — under a minute, under an hour, under a day — while the
+ * WORDS are not, and those are the part `Intl` owns.
+ */
+export function formatSince(locale: string, iso: string, now: number = Date.now()): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "—";
+
+  const seconds = Math.round((then - now) / 1000);
+  const abs = Math.abs(seconds);
+
+  let value: number;
+  let unit: Intl.RelativeTimeFormatUnit;
+  if (abs < 60) [value, unit] = [seconds, "second"];
+  else if (abs < 3600) [value, unit] = [Math.round(seconds / 60), "minute"];
+  else if (abs < 86_400) [value, unit] = [Math.round(seconds / 3600), "hour"];
+  else [value, unit] = [Math.round(seconds / 86_400), "day"];
+
+  try {
+    return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(value, unit);
+  } catch {
+    // Same reasoning as `fmt` above: a malformed tag must not blank the page.
+    return new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }).format(value, unit);
+  }
+}

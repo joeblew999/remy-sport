@@ -580,12 +580,12 @@ depends     = ["install"]
 # The count only goes down.
 #
 # To fix a batch:  mise run check:i18n:prune
-run = "bun x eslint 'src/web/**/*.tsx'"
+run = "bun x eslint src/web"
 
 [tasks."check:i18n:prune"]
 description = "Lower the untranslated-string baseline after fixing some"
 depends     = ["install"]
-run = "bun x eslint 'src/web/**/*.tsx' --prune-suppressions"
+run = "bun x eslint src/web --prune-suppressions"
 
 [tasks."check:deps"]
 description = "Fail if a module imports across a layer boundary, or two modules import each other"

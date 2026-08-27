@@ -56,4 +56,36 @@ export default [
       ],
     },
   },
+  /**
+   * The view-model layer, which `jsx-no-literals` cannot see.
+   *
+   * That rule walks JSX, and `src/web/lib/api.ts` has none — it is plain
+   * TypeScript that MANUFACTURES the strings JSX later renders. That is exactly
+   * where `statusLabel` returned "Live now", "Finished" and "Registration open"
+   * as literals, so every Thai event card carried an English status chip. The
+   * JSX rule was green throughout, because there was no JSX involved.
+   *
+   * So: a string literal in a `return` is an error here. That is narrow on
+   * purpose — it is the shape a label takes on its way to the screen, and it
+   * does not object to a literal used as a key, a code, a class name or a
+   * comparison, which is most of what this layer otherwise does.
+   *
+   * It cannot catch a label built by concatenation or assigned to a variable
+   * first, and pretending otherwise would be the bullshit. What it does catch
+   * is the exact shape that shipped.
+   */
+  {
+    files: ["src/web/lib/api.ts", "src/web/lib/localizer.ts", "src/web/lib/devices.ts"],
+    languageOptions: { parser: tsParser, parserOptions: { sourceType: "module" } },
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "ReturnStatement > Literal[value=/[A-Za-z]{2,}\\s+[A-Za-z]{2,}/]",
+          message:
+            "A user-visible string returned from the view-model layer. Wrap it in a paraglide message — this is where statusLabel shipped 'Live now' to every Thai reader.",
+        },
+      ],
+    },
+  },
 ]

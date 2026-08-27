@@ -80,12 +80,12 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
   // Invalidating the session and the account list is its job, not this page's —
   // so nothing here calls window.location.reload().
   const adminAction = useAdminAction();
-  if (adminAction.error && !error) setError(adminAction.error.message);
+  if (adminAction.error && !error) setError(formErrors(adminAction.error).form);
 
   const deleteEvent = useMutation({
     mutationFn: (id: string) => api.events.delete({ id }),
     onSuccess: () => qc.invalidateQueries({ queryKey: orpc.events.key() }),
-    onError: (e: Error) => setError(e.message),
+    onError: (e: Error) => setError(formErrors(e).form),
   });
 
   if (loading || !user) return <div className="page-header"><h1>Loading…</h1></div>;

@@ -4,6 +4,7 @@ import { api, orpc } from "../lib/orpc";
 import { useRoster, useTeam, useTeams } from "../lib/data";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
+import { formErrors } from "../lib/form-errors";
 
 interface ScheduleRow {
   date: string;
@@ -158,7 +159,11 @@ function ManageRoster({ teamId, roster }: { teamId: string; roster: Roster }) {
   return (
     <section className="admin-card" style={{ marginTop: 24 }} data-testid="manage-roster">
       <h2>{m.manage_roster()}</h2>
-      {error && <div className="admin-error" data-testid="roster-error">{(error as Error).message}</div>}
+      {/* formErrors, not `error.message`: the raw message is the Worker's own
+          English ("Not found"), which reached a Thai reader verbatim. */}
+      {formErrors(error).form && (
+        <div className="admin-error" data-testid="roster-error">{formErrors(error).form}</div>
+      )}
 
       {roster.players.length > 0 && (
         <table className="admin-table" data-testid="roster-table">

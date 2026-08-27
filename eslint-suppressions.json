@@ -26,7 +26,7 @@
   },
   "src/web/pages/devices.tsx": {
     "react/jsx-no-literals": {
-      "count": 7
+      "count": 6
     }
   },
   "src/web/pages/discover.tsx": {

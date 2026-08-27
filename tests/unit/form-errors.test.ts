@@ -1,6 +1,7 @@
-import { describe, expect, it } from "bun:test"
+import { describe, expect, it, test } from "bun:test"
 import { ORPCError } from "@orpc/client"
 import { formErrors } from "../../src/web/lib/form-errors"
+import { m } from "../../src/web/lib/i18n"
 
 /**
  * The guarantee: a refusal always renders somewhere.
@@ -144,5 +145,51 @@ describe("codes map to messages by convention", () => {
     // `data` undefined rather than {} — the shape a no-data error arrives in.
     const e = new ORPCError("UNKNOWN_USER", { defined: true, status: 404 })
     expect(formErrors(e).form).toBe("No account has that email address.")
+  })
+})
+
+/**
+ * The Worker's own English must not reach the screen.
+ *
+ * `throw new ORPCError("NOT_FOUND", { message: "Not found" })` appears a dozen
+ * times in src/api, and every one of them used to render verbatim — so a Thai
+ * reader hitting a missing row read "Not found" in English.
+ *
+ * Localising those dozen strings would have been the wrong fix: the thirteenth
+ * would leak again. The client renders the message for the error's CODE
+ * instead, which closes it for every throw site at once, including ones not
+ * written yet. These tests are what stop `error.message` creeping back.
+ */
+describe("a raw server message never renders", () => {
+  const raw = (code: string, message: string) => new ORPCError(code, { message })
+
+  test("a 404 renders the local message, not the server's", () => {
+    const { form } = formErrors(raw("NOT_FOUND", "Not found"))
+    expect(form).not.toBe("Not found")
+    expect(form).toBe(m.err_not_found())
+  })
+
+  test("a 403 likewise", () => {
+    const { form } = formErrors(raw("FORBIDDEN", "Forbidden"))
+    expect(form).not.toBe("Forbidden")
+    expect(form).toBe(m.err_forbidden())
+  })
+
+  test("a 401 likewise", () => {
+    expect(formErrors(raw("UNAUTHORIZED", "Unauthorized")).form).toBe(m.err_unauthorized())
+  })
+
+  test("in Thai, which is the whole point", () => {
+    const { form } = formErrors(raw("NOT_FOUND", "Not found"))
+    // The renderer follows getLocale(); assert the Thai string is reachable and
+    // is not the server's English either way.
+    expect(m.err_not_found({}, { locale: "th" })).not.toBe("Not found")
+    expect(form).not.toContain("Not found")
+  })
+
+  test("a plain Error with no code still shows something", () => {
+    // A network failure: the message is the browser's, not the Worker's, and
+    // showing it beats showing nothing.
+    expect(formErrors(new Error("Failed to fetch")).form).toBe("Failed to fetch")
   })
 })
