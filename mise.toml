@@ -375,6 +375,7 @@ mise run check:tables
 mise run check:assets
 mise run check:messages
 mise run check:deps
+mise run check:i18n
 """
 
 [tasks."test:unit"]
@@ -553,6 +554,38 @@ depends     = ["install"]
 # passes. Verified by deleting one. The model's own values are checked upstream
 # by `data:check` in remy-sport-biz; these 113 had nothing.
 run = "bun scripts/check-messages.ts"
+
+[tasks."check:i18n"]
+description = "Fail if a user-visible string is written into the UI instead of a message"
+depends     = ["install"]
+# The companion to check:messages, and the one that catches what it cannot.
+#
+# check:messages asks "does every locale carry every message?" and answers
+# 147/147. True, and the wrong question — it cannot see a string that was never
+# a message. It was green while ~130 hardcoded English strings shipped: an
+# English status chip on every Thai event card, English headers on the admin
+# console, "Venue TBC" inside a Thai sentence.
+#
+# `react/jsx-no-literals` walks the AST and flags a JSXText node — a string in a
+# RENDERED position. It cannot confuse that with a comment, a type, a className
+# or a data-testid, because those are different nodes. The first attempt at this
+# was a regex over the source and it reported `Promise<T>` and a player's name
+# as untranslated copy; it found fewer real ones (99) than the AST rule (130)
+# while producing noise. Text matching cannot answer an AST question.
+#
+# eslint-suppressions.json is a ratchet, not an exemption list. The 130 that
+# already exist are recorded so the build is green today; a NEW one fails
+# immediately, and fixing an old one fails too — with "unused suppression",
+# which is the prompt to run --prune-suppressions and lock the lower number in.
+# The count only goes down.
+#
+# To fix a batch:  mise run check:i18n:prune
+run = "bun x eslint 'src/web/**/*.tsx'"
+
+[tasks."check:i18n:prune"]
+description = "Lower the untranslated-string baseline after fixing some"
+depends     = ["install"]
+run = "bun x eslint 'src/web/**/*.tsx' --prune-suppressions"
 
 [tasks."check:deps"]
 description = "Fail if a module imports across a layer boundary, or two modules import each other"

@@ -1,0 +1,62 @@
+{
+  "src/web/components/schedule.tsx": {
+    "react/jsx-no-literals": {
+      "count": 1
+    }
+  },
+  "src/web/components/sidebar.tsx": {
+    "react/jsx-no-literals": {
+      "count": 2
+    }
+  },
+  "src/web/main.tsx": {
+    "react/jsx-no-literals": {
+      "count": 1
+    }
+  },
+  "src/web/pages/admin.tsx": {
+    "react/jsx-no-literals": {
+      "count": 31
+    }
+  },
+  "src/web/pages/bracket.tsx": {
+    "react/jsx-no-literals": {
+      "count": 4
+    }
+  },
+  "src/web/pages/devices.tsx": {
+    "react/jsx-no-literals": {
+      "count": 7
+    }
+  },
+  "src/web/pages/discover.tsx": {
+    "react/jsx-no-literals": {
+      "count": 3
+    }
+  },
+  "src/web/pages/event.tsx": {
+    "react/jsx-no-literals": {
+      "count": 30
+    }
+  },
+  "src/web/pages/live.tsx": {
+    "react/jsx-no-literals": {
+      "count": 27
+    }
+  },
+  "src/web/pages/login.tsx": {
+    "react/jsx-no-literals": {
+      "count": 7
+    }
+  },
+  "src/web/pages/profile.tsx": {
+    "react/jsx-no-literals": {
+      "count": 13
+    }
+  },
+  "src/web/pages/team.tsx": {
+    "react/jsx-no-literals": {
+      "count": 4
+    }
+  }
+}
