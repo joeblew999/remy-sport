@@ -16,6 +16,7 @@ const base = {
   awayTeamNames: { en: "Montfort U16", th: "มงฟอร์ต U16" },
   venueNames: { en: "Assumption Indoor Court" },
   canEnterScore: false,
+  canSetStatus: false,
 }
 
 const finished = { ...base, id: "gam_001", startsAt: "2026-06-10T10:00:00Z", statusCode: "FINISHED", homeScore: 68, awayScore: 54, venueId: "ven_002" }
@@ -65,6 +66,19 @@ test.describe("An event's schedule", () => {
 
     await expect(page.getByTestId("home-score-gam_001")).toHaveValue("68")
     await expect(page.getByTestId("away-score-gam_001")).toHaveValue("54")
+  })
+
+  test("the status becomes a control only for someone who may set it", async ({ page }) => {
+    await seed(page, [
+      { ...finished, canSetStatus: true },
+      upcoming,
+    ])
+    await page.goto("/#/event/evt_002")
+    await page.getByRole("button", { name: "Schedule" }).click()
+
+    // A separate grant from scoring, so a separate control.
+    await expect(page.getByTestId("game-status-gam_001")).toHaveRole("combobox")
+    await expect(page.getByTestId("game-status-gam_003")).not.toHaveRole("combobox")
   })
 
   test("says so when an event has no fixtures, rather than showing an empty table", async ({ page }) => {

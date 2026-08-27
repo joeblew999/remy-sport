@@ -16,6 +16,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { getIssueMessage } from "@orpc/openapi-client/helpers";
 import { api, orpc } from "../lib/orpc";
 import { useGames } from "../lib/data";
+import { useLocale } from "../lib/locale";
 import { m } from "../lib/i18n";
 
 type Game = NonNullable<ReturnType<typeof useGames>["data"]>[number];
@@ -67,12 +68,16 @@ function GameRow({ game, spoiler }: { game: Game; spoiler: boolean }) {
         <div className="device-meta">
           {[timeOf(game.startsAt), game.venue ?? m.venue_tbc()].join(" · ")}
           {" · "}
-          <span
-            data-testid={`game-status-${game.id}`}
-            style={game.statusCode === "LIVE" ? { color: "var(--live)" } : undefined}
-          >
-            {game.statusLabel}
-          </span>
+          {game.canSetStatus ? (
+            <GameStatus game={game} />
+          ) : (
+            <span
+              data-testid={`game-status-${game.id}`}
+              style={game.statusCode === "LIVE" ? { color: "var(--live)" } : undefined}
+            >
+              {game.statusLabel}
+            </span>
+          )}
         </div>
       </div>
 
@@ -98,6 +103,46 @@ function GameRow({ game, spoiler }: { game: Game; spoiler: boolean }) {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Moving a game between upcoming, live, half-time and finished.
+ *
+ * A select rather than a button, because the states are not a sequence you step
+ * through: a game called live by mistake has to go back, and half-time is not
+ * "half of finished". The options come from the reference vocabulary, so a state
+ * added to the model appears here without an edit.
+ *
+ * Gated on `canSetStatus`, which is its own grant — `CONFIRM_MATCH_STATUS`, not
+ * `ENTER_SCORES`. The same people hold both today and that is not this
+ * component's business.
+ */
+function GameStatus({ game }: { game: Game }) {
+  const qc = useQueryClient();
+  const { reference, name } = useLocale();
+
+  const set = useMutation({
+    mutationFn: (statusCode: string) =>
+      api.games.setStatus({ id: game.id, statusCode: statusCode as never }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: orpc.games.key() }),
+  });
+
+  return (
+    <select
+      className="status-select"
+      data-testid={`game-status-${game.id}`}
+      value={game.statusCode}
+      disabled={set.isPending}
+      onChange={(e) => set.mutate(e.target.value)}
+      style={game.statusCode === "LIVE" ? { color: "var(--live)" } : undefined}
+    >
+      {(reference?.gameStatuses ?? []).map((s) => (
+        <option key={s.code} value={s.code}>
+          {name(s.names, s.code)}
+        </option>
+      ))}
+    </select>
   );
 }
 

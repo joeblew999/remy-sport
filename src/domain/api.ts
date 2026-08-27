@@ -152,6 +152,14 @@ export const GameSchema = createSelectSchema(schema.game)
     // Null until a court is assigned. The product renders "Venue TBC".
     venueNames: NamesSchema.nullable(),
     canEnterScore: z.boolean(),
+    /**
+     * A separate action in the model, and separate here. Today the same people
+     * hold both, but `ENTER_SCORES` and `CONFIRM_MATCH_STATUS` are distinct
+     * grants — deciding a game is over is not the same as writing what the score
+     * was — and collapsing them here would be this file guessing that they stay
+     * identical.
+     */
+    canSetStatus: z.boolean(),
   })
 
 /**

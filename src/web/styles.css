@@ -1128,3 +1128,13 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   font-family: 'IBM Plex Mono', monospace; font-size: 10px;
   color: var(--ink-3); letter-spacing: 0.04em; line-height: 1.5;
 }
+
+/* The status control sits inline in a metadata line, so it carries none of a
+   select's usual chrome — only the caret marks it as editable. */
+.status-select {
+  border: none; background: transparent; padding: 0 2px 0 0;
+  font-family: 'IBM Plex Mono', monospace; font-size: inherit;
+  color: inherit; cursor: pointer;
+}
+.status-select:hover { text-decoration: underline; }
+.status-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

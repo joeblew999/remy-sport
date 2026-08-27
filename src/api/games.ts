@@ -52,6 +52,7 @@ async function serialize(db: Db, user: SessionUser | null, row: Row): Promise<Ap
     awayTeamNames: awayTeam?.names ?? {},
     venueNames: venue?.names ?? null,
     canEnterScore: await can(db, "ENTER_SCORES", user, row.id),
+    canSetStatus: await can(db, "CONFIRM_MATCH_STATUS", user, row.id),
   }
 }
 
