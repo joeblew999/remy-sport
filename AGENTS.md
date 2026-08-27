@@ -41,6 +41,14 @@ Update it when you finish something; delete the line when it is done.
    Built 2026-08-27 with the primitives that already existed — `.admin-card` +
    `.admin-table` + `.badge` + `.btn` + `.muted` + `.empty` — and no new
    dependency; see item 2.
+   [`src/web/components/schedule.tsx`](src/web/components/schedule.tsx) is the
+   sharper case: the answer is per *row*. A referee is assigned to one game and
+   not the next, so `canEnterScore` and `canSetStatus` arrive per game and the
+   component reads them. No rule in a client could have got that right.
+   **Sign in as any seeded person to check the GUI against the matrix.** `#/login`
+   lists all twelve with the relations each holds — `ORG_ADMIN org_001`,
+   `GAME_REFEREE gam_002` — derived from the model server-side, so it is the same
+   answer the API gives when you act as them. One click, no inbox, local only.
    Two gaps it exposed, both closed: there was no procedure to *list* an org's
    members, and `addMember` took only a `userId` nobody can discover, so it now
    takes an email too.
