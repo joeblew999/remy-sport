@@ -55,10 +55,14 @@ Update it when you finish something; delete the line when it is done.
    The old files are safe to delete; they are already gone from biz `HEAD`.
 
 The test classification is **done**. `mise run test:all` for the numbers; the
-38 left in e2e are genuine round trips and belong there. Do not "optimise the
+25 left in e2e are genuine round trips and belong there. Do not "optimise the
 runner" — a whole session went into storageState, worker counts and project
 ordering and it stopped dead. What worked was moving tests to the right tier and
 merging worker files (~3s of workerd startup per file, measured).
+
+Two measurements, so they are not guessed at again: the render tier's cost was
+**never `vite preview`** — it starts in 338ms; it was Google Fonts. And
+`isolatedStorage: false` and guarding the migration batch each bought nothing.
 
 > Four tiers, and the rule for choosing one:
 >
