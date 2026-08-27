@@ -1,5 +1,6 @@
 import { test, expect } from "./fixture"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
+import { sessionKey } from "../../src/web/lib/session"
 
 /**
  * The shell and the derived view models, with the cache handed its data.
@@ -77,4 +78,42 @@ test.describe("Event view models are derived, not stored", () => {
     await expect(page.locator(".event-hero")).toContainText("Bangkok Schools Basketball League 2026")
   })
 
+})
+
+/**
+ * The sidebar shows the signed-in account, not an invented one.
+ *
+ * It used to render "Coach Sukasem · Head Coach · SGS", hardcoded, at the bottom
+ * of every page — while the topbar showed the real account. A signed-in coach
+ * saw two different people on one screen, and nothing marked either as sample.
+ */
+test.describe("The sidebar identity", () => {
+  test("is the signed-in user, and matches the topbar", async ({ page }) => {
+    await seedCache(page, [
+      {
+        queryKey: sessionKey as unknown as readonly unknown[],
+        data: {
+          user: { id: "u1", email: "wichai.s@assumption.test", name: "Wichai Srisuk", role: "coach" },
+          session: { activeOrganizationId: null, impersonatedBy: null },
+        },
+      },
+    ])
+    await page.goto("/#/")
+
+    await expect(page.getByTestId("sidebar-user")).toContainText("Wichai Srisuk")
+    await expect(page.getByTestId("sidebar-user")).toContainText("coach")
+    await expect(page.getByTestId("topbar-user")).toHaveText("Wichai Srisuk")
+    // The name nobody is signed in as.
+    await expect(page.getByTestId("sidebar-user")).not.toContainText("Sukasem")
+  })
+
+  test("renders nothing at all when signed out, rather than a placeholder person", async ({
+    page,
+  }) => {
+    await seedCache(page, [
+      { queryKey: sessionKey as unknown as readonly unknown[], data: { user: null, session: null } },
+    ])
+    await page.goto("/#/")
+    await expect(page.getByTestId("sidebar-user")).toHaveCount(0)
+  })
 })

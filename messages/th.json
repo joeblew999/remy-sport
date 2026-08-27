@@ -5,7 +5,6 @@
   "loading_events": "กำลังโหลดรายการแข่งขัน…",
   "loading_event": "กำลังโหลดรายการแข่งขัน…",
   "loading_team": "กำลังโหลดข้อมูลทีม…",
-  "loading_invitation": "กำลังโหลดคำเชิญ…",
   "loading_sessions": "กำลังโหลดอุปกรณ์ที่เข้าสู่ระบบ…",
   "loading": "กำลังโหลด…",
   "not_found_event": "ไม่พบรายการแข่งขันนี้",
@@ -13,9 +12,7 @@
   "nav_home": "หน้าแรก",
   "nav_discover": "ค้นหา",
   "division": "รุ่นการแข่งขัน",
-  "organised_by": "จัดโดย {organiser}",
   "open_game": "เปิดดูเกม →",
-  "continue": "ดำเนินการต่อ →",
   "signed_in_devices": "อุปกรณ์ที่คุณเข้าสู่ระบบ",
   "sign_in": "เข้าสู่ระบบ",
   "sign_out": "ออกจากระบบ",
@@ -82,5 +79,12 @@
   "org_role": "บทบาท",
   "org_save": "บันทึก",
   "org_saving": "กำลังบันทึก…",
-  "org_open": "จัดการ"
+  "org_open": "จัดการ",
+  "devices": "อุปกรณ์",
+  "nav_my_events": "อีเวนต์ของฉัน",
+  "nav_my_team": "ทีมของฉัน",
+  "nav_live": "กำลังแข่ง",
+  "nav_standings": "ตารางคะแนน",
+  "nav_profile": "โปรไฟล์",
+  "nav_you": "ของคุณ"
 }

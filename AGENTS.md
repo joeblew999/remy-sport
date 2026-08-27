@@ -63,12 +63,21 @@ Update it when you finish something; delete the line when it is done.
    ledger `0000`–`0003`, `foreign_key_check` clean. From here the chain is
    append-only. Check with
    `wrangler d1 execute remy-sport-db --remote --command "SELECT name FROM d1_migrations"`.
-4. **Five unhandled rejections in `test:worker`, and vitest exits 0 anyway.**
-   All from the four tests that assert a *refusal* (wrong OTP, reused OTP,
-   superseded OTP, password sign-in): Better Auth returns the 400 the test
-   asserts and also leaves the `APIError` floating. Pre-existing, not a
-   regression, and the tests are correct. It matters because a real unhandled
-   rejection would hide in that count.
+4. **`test:worker` prints five unhandled rejections on purpose — do not go
+   hunting them.** They come from the four tests that assert a *refusal* (wrong
+   OTP, reused OTP, superseded OTP, password sign-in). Better Auth returns the
+   400 the test asserts and separately leaves the `APIError` floating inside its
+   own dispatch; `better-call`'s router catches and converts the error on the
+   response path, so this is a second promise, not that one. `withSpan` and
+   `runWithEndpointContext` both chain correctly, so it is not either of those.
+   `vitest.config.ts` already sets `dangerouslyIgnoreUnhandledErrors` with the
+   reasoning written out — the run stays green by decision, not by accident.
+   **The residual cost is the part worth knowing:** that flag is all-or-nothing,
+   so an unhandled rejection in *our* Worker code would be ignored just as
+   quietly. Narrowing it to Better Auth's is not reachable from the setup file —
+   vitest intercepts these itself, so an `unhandledrejection` listener in
+   `apply-migrations.ts` never fires (probed 2026-08-27). It would take an
+   upstream fix or a vitest option that does not exist yet.
 5. **Do not re-derive team permissions from org membership.** That was the shape
    this repo had, and it disagreed with the Product Owner's matrix in two
    directions at once — an org member who coached nothing could edit any team,

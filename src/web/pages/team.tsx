@@ -76,7 +76,7 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
             and a games table are ADR 008 Phase 2/3. Marked, because the team
             above them is now real and unlabelled sample data next to real data
             gets read as real. */}
-        <div className="section-h"><h2>{m.roster()}</h2><a className="more">SAMPLE DATA</a></div>
+        <div className="section-h"><h2>{m.roster()}</h2><a className="more">{m.sample_data()}</a></div>
         <div className="roster-grid">
           {roster.map(p => (
             <div key={p.num} className="player-card">
@@ -95,7 +95,7 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
           ))}
         </div>
 
-        <div className="section-h" style={{ marginTop: 48 }}><h2>Schedule · Spring 2026</h2><a className="more">SAMPLE DATA</a></div>
+        <div className="section-h" style={{ marginTop: 48 }}><h2>Schedule · Spring 2026</h2><a className="more">{m.sample_data()}</a></div>
         <div className="dash-card">
           {schedule.map((g, i) => (
             <div key={i} style={{ display: "grid", gridTemplateColumns: "90px 1fr 80px 100px 80px", padding: "14px 18px", borderBottom: "1px solid var(--rule)", alignItems: "center", background: g.live ? "var(--accent-soft)" : "transparent" }}>

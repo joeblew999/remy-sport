@@ -42,7 +42,7 @@ export function EventPage({ id, goto }: EventProps) {
     <>
       <div className="event-hero">
         <div className="meta-bar">
-          <button onClick={() => goto({ page: "discover" })} className="crumbs" style={{ background: "transparent", border: "none", padding: 0, fontFamily: "IBM Plex Mono, monospace", fontSize: 11, color: "var(--ink-3)", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer" }}>← DISCOVER</button>
+          <button onClick={() => goto({ page: "discover" })} className="crumbs" style={{ background: "transparent", border: "none", padding: 0, fontFamily: "IBM Plex Mono, monospace", fontSize: 11, color: "var(--ink-3)", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer" }}>← {m.nav_discover()}</button>
           <span className={`type ${e.type.toLowerCase()}`} style={{
             display: "inline-flex", padding: "3px 8px",
             fontFamily: "IBM Plex Mono, monospace", fontSize: 10, letterSpacing: "0.1em",

@@ -1,10 +1,39 @@
 import { Icon } from "./icon";
+import { initialsFor } from "./account";
+import { useSession } from "../lib/session";
 import { m } from "../lib/i18n";
+
+/**
+ * Who is actually signed in.
+ *
+ * This was "SK / Coach Sukasem / Head Coach · SGS", hardcoded, and it sat at the
+ * bottom of every page while the topbar showed the real account a few hundred
+ * pixels away — so a signed-in coach saw two different people at once. It read
+ * as fact because nothing marked it as invented, which is what AGENTS.md's
+ * "never invent a value for a field with no table" is about.
+ *
+ * The platform role, like the topbar: the school beside it would need the org
+ * behind `session.activeOrganizationId`, and inventing one is how this started.
+ */
+function UserCard() {
+  const { user, loading } = useSession();
+  if (loading || !user) return null;
+
+  const label = user.name || user.email;
+  return (
+    <div className="user-card" data-testid="sidebar-user">
+      <div className="avatar" aria-hidden="true">{initialsFor(label)}</div>
+      <div className="info">
+        <div className="name">{label}</div>
+        {user.role && <div className="role">{user.role}</div>}
+      </div>
+    </div>
+  );
+}
 
 interface NavItem {
   id: string;
   label: string;
-  count: string | null;
 }
 
 /**
@@ -16,15 +45,25 @@ interface NavItem {
  * immediately. Nothing caught it earlier because every other label here is a
  * hardcoded English literal, and those are the same in both languages by
  * accident rather than by design.
+ *
+ * The badges these carried are gone: "124" beside Discover, "6", "3", "SGS".
+ * None came from anywhere — the API returns four events — and a number in a nav
+ * reads as a count, not as decoration. `useEvents()` is already cached by the
+ * time this renders, so a real one is cheap if it is ever wanted; an invented
+ * one is not worth having.
+ *
+ * Every label is a message now. They were English literals, which is why the
+ * whole sidebar stayed in English on a Thai page while the group headings above
+ * them translated.
  */
 const navItems = (): NavItem[] => [
-  { id: "discover",  label: "Discover",   count: "124" },
-  { id: "events",    label: "My events",  count: "6" },
-  { id: "team",      label: "My team",    count: "SGS" },
-  { id: "live",      label: "Live now",   count: "3" },
-  { id: "standings", label: "Standings",  count: null },
-  { id: "orgs",      label: m.nav_orgs(), count: null },
-  { id: "profile",   label: "Profile",    count: null },
+  { id: "discover",  label: m.nav_discover() },
+  { id: "events",    label: m.nav_my_events() },
+  { id: "team",      label: m.nav_my_team() },
+  { id: "live",      label: m.nav_live() },
+  { id: "standings", label: m.nav_standings() },
+  { id: "orgs",      label: m.nav_orgs() },
+  { id: "profile",   label: m.nav_profile() },
 ];
 
 export function Sidebar({ page, setPage }: { page: string; setPage: (p: string) => void }) {
@@ -41,39 +80,25 @@ export function Sidebar({ page, setPage }: { page: string; setPage: (p: string) 
           <button key={it.id} className={`nav-item ${page === it.id ? "active" : ""}`} onClick={() => setPage(it.id)}>
             <span className="ico"><Icon name={it.id === "team" ? "teams" : it.id} /></span>
             <span>{it.label}</span>
-            {it.count && <span className="count">{it.count}</span>}
           </button>
         ))}
       </div>
       <div className="nav-group">
-        <div className="label">You</div>
+        <div className="label">{m.nav_you()}</div>
         {NAV_ITEMS.slice(4).map(it => (
           <button key={it.id} className={`nav-item ${page === it.id ? "active" : ""}`} onClick={() => setPage(it.id)}>
             <span className="ico"><Icon name={it.id} /></span>
             <span>{it.label}</span>
-            {it.count && <span className="count">{it.count}</span>}
           </button>
         ))}
       </div>
-      <div className="nav-group">
-        <div className="label">{m.following()}</div>
-        <button className="nav-item">
-          <span className="ico" style={{ background: "var(--accent)", borderRadius: "50%" }}></span>
-          <span>Saint Gabriel's</span>
-        </button>
-        <button className="nav-item">
-          <span className="ico" style={{ background: "var(--court)", borderRadius: "50%" }}></span>
-          <span>Bangkok Cup '26</span>
-        </button>
-      </div>
+      {/* No "Following" group. It listed Saint Gabriel's and Bangkok Cup '26 for
+          every viewer, signed in or not, and neither button did anything.
+          The model has a `subscriptions` table and the FOLLOWER_TEAM and
+          FOLLOWER_EVENT relations derive from it — so this can be real. It needs
+          an endpoint, not two hardcoded rows. */}
       <div className="sidebar-bottom">
-        <div className="user-card">
-          <div className="avatar">SK</div>
-          <div className="info">
-            <div className="name">Coach Sukasem</div>
-            <div className="role">Head Coach · SGS</div>
-          </div>
-        </div>
+        <UserCard />
       </div>
     </aside>
   );

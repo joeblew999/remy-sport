@@ -1,5 +1,6 @@
 import { useSession, useSignOut } from "../lib/session";
 import type { Route } from "../lib/router";
+import { m } from "../lib/i18n";
 
 /**
  * Who you are, and how to stop being them.
@@ -12,6 +13,22 @@ import type { Route } from "../lib/router";
  * Lives in the topbar because that is where the account control sits in the
  * harness too — the two GUIs should not disagree about where "sign out" is.
  */
+/**
+ * Two letters for an avatar, from a name or an address.
+ *
+ * Exported because the sidebar shows the same person at the same time, and two
+ * implementations of "who is signed in" is how they came to disagree — it used
+ * to render a hardcoded "SK / Coach Sukasem" beside this component's real name.
+ */
+export function initialsFor(label: string): string {
+  return label
+    .split(/[\s@.]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]!.toUpperCase())
+    .join("");
+}
+
 export function Account({ goto }: { goto: (r: Route) => void }) {
   const { user, loading } = useSession();
   const signOut = useSignOut();
@@ -23,18 +40,13 @@ export function Account({ goto }: { goto: (r: Route) => void }) {
   if (!user) {
     return (
       <button className="btn primary" data-testid="topbar-sign-in" onClick={() => goto({ page: "login" })}>
-        Sign in
+        {m.sign_in()}
       </button>
     );
   }
 
   const label = user.name || user.email;
-  const initials = label
-    .split(/[\s@.]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]!.toUpperCase())
-    .join("");
+  const initials = initialsFor(label);
 
   return (
     <div className="account-slot" data-testid="topbar-account">
@@ -45,11 +57,15 @@ export function Account({ goto }: { goto: (r: Route) => void }) {
             (ADR 009), and this is the one that decides what you may do. */}
         {user.role && <div className="account-role" data-testid="topbar-role">{user.role}</div>}
       </div>
+      {/* These three were English literals while every other string in the
+          chrome was translated, so the topbar stayed in English on a Thai page —
+          visible in the first screenshot run. The messages already existed and
+          nothing called them. */}
       <button className="btn" data-testid="topbar-devices" onClick={() => goto({ page: "devices" })}>
-        Devices
+        {m.devices()}
       </button>
       <button className="btn" data-testid="topbar-sign-out" onClick={() => signOut.mutate()}>
-        Sign out
+        {m.sign_out()}
       </button>
     </div>
   );
