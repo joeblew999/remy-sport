@@ -75,7 +75,7 @@ export function OrgPage({ id, goto }: { id?: string; goto: (r: Route) => void })
         <div className="sub">{[org.data.city, org.data.slug].filter(Boolean).join(" · ")}</div>
       </div>
 
-      <OrgProfile id={org.data.id} names={org.data.names} />
+      <OrgProfile id={org.data.id} names={org.data.names} canEdit={org.data.canEdit} />
       {/* Signed-out visitors are not offered a members section at all: the
           query would 403 for a reason that has nothing to do with this org. */}
       {user && <OrgMembers id={org.data.id} />}
@@ -90,17 +90,39 @@ export function OrgPage({ id, goto }: { id?: string; goto: (r: Route) => void })
 }
 
 /**
- * The profile edit.
+ * The profile, editable only by someone the server says may edit it.
+ *
+ * `canEdit` comes off the org itself — see src/api/orgs.ts. It is not derived
+ * here from the viewer's role, which would be the copy of the access matrix
+ * this file opens by refusing to keep. Before it existed, every viewer got a
+ * Save button and a coach from another school got a 403 for pressing it.
  *
  * Only `names.en` is offered. The column is a locale map and the API takes the
  * whole thing, but a two-field form here would quietly imply that English and
  * Thai are the languages this product has — `ALL_LOCALES` decides that, and it
  * has three. Editing the rest is a localisation surface, not a profile form.
  */
-function OrgProfile({ id, names }: { id: string; names: Record<string, string> }) {
+function OrgProfile({
+  id,
+  names,
+  canEdit,
+}: {
+  id: string;
+  names: Record<string, string>;
+  canEdit: boolean;
+}) {
   const qc = useQueryClient();
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  if (!canEdit) {
+    return (
+      <section className="admin-card" data-testid="org-profile">
+        <h2>{m.org_profile()}</h2>
+        <p className="muted" data-testid="org-name-readonly">{names.en ?? ""}</p>
+      </section>
+    );
+  }
 
   const save = useMutation({
     mutationFn: (en: string) => api.orgs.update({ id, names: { ...names, en } }),

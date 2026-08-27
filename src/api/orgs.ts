@@ -18,7 +18,7 @@ import * as schema from "../db/schema"
 import { OrgSchema, UpdateOrgInput } from "../domain/api"
 import { clean } from "../domain/names"
 import { ORG_ROLE_CODES } from "../domain/vocabularies"
-import { authed, authedRoute, pub, requireAction } from "./base"
+import { authed, authedRoute, can, pub, requireAction, viewer } from "./base"
 
 const IdInput = z.object({ id: z.string() })
 
@@ -29,14 +29,24 @@ export const list = pub
     orgs: await context.db.query.org.findMany({ orderBy: (o, { asc }) => [asc(o.slug)] }),
   }))
 
-export const get = pub
+/**
+ * `canEdit` is the server answering "may you", so the page does not guess.
+ *
+ * Without it the profile form was offered to everyone and 403'd on save for
+ * anyone who was not an owner or admin — a control that cannot work. The
+ * alternative was for the client to check the viewer's role, which is a second
+ * copy of the access matrix and the exact drift `requireAction` exists to
+ * remove. `viewer` rather than `pub` because the answer depends on who asks;
+ * for a stranger it is simply false.
+ */
+export const get = viewer
   .route({ method: "GET", path: "/orgs/{id}", summary: "Get one organisation" })
   .input(IdInput)
-  .output(OrgSchema)
+  .output(OrgSchema.extend({ canEdit: z.boolean() }))
   .handler(async ({ context, input }) => {
     const row = await context.db.query.org.findFirst({ where: (o, { eq: is }) => is(o.id, input.id) })
     if (!row) throw new ORPCError("NOT_FOUND", { message: "Not found" })
-    return row
+    return { ...row, canEdit: await can(context.db, "EDIT_ORG_PROFILE", context.user, input.id) }
   })
 
 export const update = authed

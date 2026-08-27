@@ -22,6 +22,9 @@ const ORG = {
   cityCode: "BKK",
   provinceCode: "BKK",
   names: { en: "Assumption College", th: "โรงเรียนอัสสัมชัญ" },
+  // The server's answer to "may this reader edit it". Not derived in the page
+  // from a role — see src/api/orgs.ts.
+  canEdit: true,
 }
 
 const signedIn = {
@@ -57,6 +60,20 @@ test.describe("An organisation page", () => {
 
     await expect(page.getByTestId("org-page")).toContainText("Assumption College")
     await expect(page.getByTestId("org-name-input")).toHaveValue("Assumption College")
+  })
+
+  test("offers no Save button to someone the server says may not edit", async ({ page }) => {
+    // The whole branch, in one field. The page reads `canEdit` and nothing else
+    // — it does not know or ask what this viewer's role is.
+    await seedCache(page, [
+      signedIn,
+      entry(orpc.orgs.get, { id: "org_001" }, { ...ORG, canEdit: false } as never),
+    ])
+    await page.goto("/#/org/org_001")
+
+    await expect(page.getByTestId("org-name-readonly")).toHaveText("Assumption College")
+    await expect(page.getByTestId("org-name-input")).toHaveCount(0)
+    await expect(page.getByTestId("org-save")).toHaveCount(0)
   })
 
   test("shows the roster when the members query answers", async ({ page }) => {

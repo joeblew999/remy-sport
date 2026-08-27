@@ -522,6 +522,35 @@ describe("Organisations — the actions ORG was declared for", () => {
     expect(org.names.en).toBe("Assumption College")
   })
 
+  /**
+   * `canEdit` is what stops the GUI offering a Save button that 403s. It is the
+   * same question `requireAction` asks — so the two must never disagree, which
+   * is what the second half of this asserts.
+   */
+  it("the org reports whether the reader may edit it, and it matches what a write does", async () => {
+    const anon = (await (await api("/api/orgs/org_001")).json()) as { canEdit: boolean }
+    expect(anon.canEdit, "a stranger holds only PUBLIC").toBe(false)
+
+    // usr_coach_001 is ADMIN of org_001.
+    const admin = await signIn(actorFor("COACH"))
+    const mine = (await (await api("/api/orgs/org_001", { cookie: admin })).json()) as {
+      canEdit: boolean
+    }
+    expect(mine.canEdit).toBe(true)
+    expect((await put("/api/orgs/org_001", { names: { en: "Assumption College" } }, admin)).status)
+      .toBe(200)
+
+    const outsider = await signIn(SEED_ENTITIES.users.find((u) => u.id === "usr_coach_003")!.email)
+    const theirs = (await (await api("/api/orgs/org_001", { cookie: outsider })).json()) as {
+      canEdit: boolean
+    }
+    expect(theirs.canEdit).toBe(false)
+    expect(
+      (await put("/api/orgs/org_001", { names: { en: "Mine Now" } }, outsider)).status,
+      "canEdit false and the write refused — the report and the enforcement agree",
+    ).toBe(403)
+  })
+
   it("an org admin may edit its profile; an unrelated coach may not", async () => {
     // usr_coach_001 is ADMIN of org_001 in the fixtures.
     const admin = await signIn(actorFor("COACH"))

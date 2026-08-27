@@ -71,9 +71,16 @@ test.describe.serial("Organisations", () => {
 test.describe("A coach at another school", () => {
   test.use({ storageState: stateFor(OUTSIDER) })
 
-  test("sees the profile but is told the roster is not theirs", async ({ page }) => {
+  test("sees the profile read-only, and is told the roster is not theirs", async ({ page }) => {
     await page.goto("/#/org/org_001")
     await expect(page.getByTestId("org-profile")).toBeVisible()
+
+    // The profile is public, so they see the name — but not a Save button that
+    // would 403. `canEdit` comes back false from the real API here, which is
+    // the half the render tier has to seed.
+    await expect(page.getByTestId("org-name-readonly")).toBeVisible()
+    await expect(page.getByTestId("org-save")).toHaveCount(0)
+
     await expect(page.getByTestId("org-members-denied")).toBeVisible()
     await expect(page.getByTestId("add-member-form")).toHaveCount(0)
   })

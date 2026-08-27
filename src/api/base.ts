@@ -82,6 +82,23 @@ export const authed = pub.use(async ({ context, next }) => {
 })
 
 /**
+ * Public, but aware of who is asking — `user` is null for a stranger.
+ *
+ * For a read that anyone may make but whose *response* depends on the reader:
+ * `orgs.get` is public and returns `canEdit`, so the page can offer a Save
+ * button only to someone it will work for.
+ *
+ * Not the default. It costs the session lookup `pub` exists to avoid, and most
+ * public reads return the same bytes to everybody — see the note above on what
+ * that lookup used to cost when it ran for every asset request.
+ */
+export const viewer = pub.use(async ({ context, next }) => {
+  const auth = createAuth({ env: context.env, req: { url: context.request.url } })
+  const session = await auth.api.getSession({ headers: context.request.headers })
+  return next({ context: { ...context, user: (session?.user as SessionUser) ?? null } })
+})
+
+/**
  * May this user perform this action on this object?
  *
  * One middleware, replacing `requirePermission` + `requireOwner` /
@@ -108,6 +125,65 @@ export const authed = pub.use(async ({ context, next }) => {
  */
 const defaultId = (input: { id?: string }) => input.id ?? ""
 
+/**
+ * May this user take this action on this object? The same question
+ * `requireAction` asks, answered rather than enforced.
+ *
+ * It exists because a page needs it too. `org.tsx` shows a Save button on a
+ * profile, and until this existed it had no way to know whether saving would
+ * work — so a coach at another school was offered a control that 403s. The fix
+ * is not for the client to work it out from the viewer's role: that is a second
+ * copy of the access matrix, which is the drift this whole file exists to
+ * remove. The server already knows, so the server says.
+ *
+ * `user` is null for a signed-out viewer, who holds exactly the relations
+ * granted to everyone. The sentinel below is what expresses that: `PUBLIC`
+ * resolves true, a role comparison resolves false, and a table lookup matches
+ * no row because no row has an empty user id.
+ *
+ * Says nothing about whether the object exists — that is a 404, and a different
+ * question. `requireAction` keeps it.
+ */
+export async function can(
+  db: Db,
+  action: keyof typeof GRANTS,
+  user: SessionUser | null,
+  objectId: string | null,
+): Promise<boolean> {
+  const grants = GRANTS[action] as ReadonlyArray<{
+    relation: string
+    eventTypes: readonly string[]
+  }>
+  // Fails closed: an action with no grants permits nobody.
+  if (!grants?.length) return false
+
+  const viewer = user ?? { id: "", role: null }
+
+  // Platform relations first: a role comparison, no object and no query.
+  for (const g of grants) {
+    if (!g.eventTypes.length && (await holds(db, g.relation, viewer, null))) return true
+  }
+  if (!objectId) return false
+
+  // Some grants apply only to certain event subtypes — a camp has no brackets
+  // to generate. Resolve the subtype once, only if one asks.
+  let subtype: string | null | undefined
+  if (grants.some((g) => g.eventTypes.length)) {
+    const row = await db
+      .select({ typeCode: schema.event.typeCode })
+      .from(schema.event)
+      .where(eq(schema.event.id, objectId))
+      .get()
+    subtype = row?.typeCode ?? null
+  }
+
+  for (const g of grants) {
+    if (g.eventTypes.length && !(subtype && g.eventTypes.includes(subtype))) continue
+    if (await holds(db, g.relation, viewer, objectId)) return true
+  }
+  return false
+}
+
 export function requireAction(
   action: keyof typeof GRANTS,
   idFrom: (input: never) => string = defaultId as (input: never) => string,
@@ -115,19 +191,12 @@ export function requireAction(
   return base
     .$context<ApiContext & { user: SessionUser }>()
     .middleware(async ({ context, next }, input: unknown) => {
-      const grants = GRANTS[action] as ReadonlyArray<{
-        relation: string
-        eventTypes: readonly string[]
-      }>
-      if (!grants?.length) throw new ORPCError("FORBIDDEN", { message: "Forbidden" })
-
       const db = database(context.env)
       const user = context.user!
 
-      // Platform relations first: a role comparison, no object and no query.
-      for (const g of grants) {
-        if (!g.eventTypes.length && (await holds(db, g.relation, user, null))) return next()
-      }
+      // A platform relation needs no object, so it can answer before there is
+      // one to look up — `CREATE_TEAM` acts on a team that does not exist yet.
+      if (await can(db, action, user, null)) return next()
 
       // Which table this action acts on comes from the action itself: it
       // declares an object type, and the type declares its table. A PLATFORM
@@ -135,28 +204,15 @@ export function requireAction(
       const table = objectTableFor(action)
       if (!table) throw new ORPCError("FORBIDDEN", { message: "Forbidden" })
 
+      // The 404 is the part `can` deliberately does not do. Answering
+      // "forbidden" for an id that does not exist tells a caller which ids are
+      // real, so existence is checked before permission is refused.
       const objectId = (idFrom as (i: unknown) => string)(input)
       if (!objectId || !(await objectExists(db, table, objectId))) {
         throw new ORPCError("NOT_FOUND", { message: "Not found" })
       }
 
-      // Some grants apply only to certain event subtypes — a camp has no
-      // brackets to generate. Resolve the subtype once, only if one asks.
-      let subtype: string | null | undefined
-      const needsSubtype = grants.some((g) => g.eventTypes.length)
-      if (needsSubtype) {
-        const row = await db
-          .select({ typeCode: schema.event.typeCode })
-          .from(schema.event)
-          .where(eq(schema.event.id, objectId))
-          .get()
-        subtype = row?.typeCode ?? null
-      }
-
-      for (const g of grants) {
-        if (g.eventTypes.length && !(subtype && g.eventTypes.includes(subtype))) continue
-        if (await holds(db, g.relation, user, objectId)) return next()
-      }
+      if (await can(db, action, user, objectId)) return next()
       throw new ORPCError("FORBIDDEN", { message: "Forbidden" })
     })
 }
