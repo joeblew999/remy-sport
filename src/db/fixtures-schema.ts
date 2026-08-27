@@ -10,7 +10,7 @@
 // into JSON.
 //
 
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core"
+import { sqliteTable, text, integer, uniqueIndex } from "drizzle-orm/sqlite-core"
 import { createSelectSchema } from "drizzle-zod"
 import type { Names } from "../domain/names"
 import { user, organization } from "./auth-schema"
@@ -24,6 +24,7 @@ import { coachRole } from "./vocabularies-schema"
 import { eventFormat } from "./vocabularies-schema"
 import { eventType } from "./vocabularies-schema"
 import { gender } from "./vocabularies-schema"
+import { guardianType } from "./vocabularies-schema"
 import { locale } from "./vocabularies-schema"
 import { notificationCategory } from "./vocabularies-schema"
 import { notificationChannel } from "./vocabularies-schema"
@@ -33,7 +34,6 @@ import { orgType } from "./vocabularies-schema"
 import { position } from "./vocabularies-schema"
 import { role } from "./vocabularies-schema"
 import { relation } from "./vocabularies-schema"
-import { relationship } from "./vocabularies-schema"
 import { skillTier } from "./vocabularies-schema"
 import { userStatus } from "./vocabularies-schema"
 
@@ -66,52 +66,52 @@ export const eventCoOrganizer = sqliteTable("eventCoOrganizer", {
   eventId: text("event_id").notNull().references(() => event.id),
   userId: text("user_id").notNull().references(() => user.id),
   addedAt: text("added_at").notNull(),
-})
+}, (t) => [uniqueIndex("eventCoOrganizer_key").on(t.eventId, t.userId)])
 
 export const eventPlayer = sqliteTable("eventPlayer", {
   eventId: text("event_id").notNull().references(() => event.id),
   playerId: text("player_id").notNull().references(() => player.id),
   registeredAt: text("registered_at").notNull(),
-})
+}, (t) => [uniqueIndex("eventPlayer_key").on(t.eventId, t.playerId)])
 
 export const eventTeam = sqliteTable("eventTeam", {
   eventId: text("event_id").notNull().references(() => event.id),
   teamId: text("team_id").notNull().references(() => team.id),
   divisionId: text("division_id").notNull().references(() => division.id),
   registeredAt: text("registered_at").notNull(),
-})
+}, (t) => [uniqueIndex("eventTeam_key").on(t.eventId, t.teamId, t.divisionId)])
 
 export const eventVenue = sqliteTable("eventVenue", {
   eventId: text("event_id").notNull().references(() => event.id),
   venueId: text("venue_id").notNull().references(() => venue.id),
   isPrimary: integer("is_primary", { mode: "boolean" }).notNull(),
-})
+}, (t) => [uniqueIndex("eventVenue_key").on(t.eventId, t.venueId)])
 
 export const guardian = sqliteTable("guardian", {
   userId: text("user_id").notNull().references(() => user.id),
   playerId: text("player_id").notNull().references(() => player.id),
-  relationshipCode: text("relationship_code").notNull().references(() => relationship.code),
-})
+  guardianTypeCode: text("guardian_type_code").notNull().references(() => guardianType.code),
+}, (t) => [uniqueIndex("guardian_key").on(t.userId, t.playerId)])
 
 export const playerTeam = sqliteTable("playerTeam", {
   playerId: text("player_id").notNull().references(() => player.id),
   teamId: text("team_id").notNull().references(() => team.id),
   fromDate: text("from_date").notNull(),
   toDate: text("to_date"),
-})
+}, (t) => [uniqueIndex("playerTeam_key").on(t.playerId, t.teamId, t.fromDate)])
 
 export const subscription = sqliteTable("subscription", {
   userId: text("user_id").notNull().references(() => user.id),
   objectTypeCode: text("object_type_code").notNull().references(() => objectType.code),
   objectId: text("object_id").notNull(),
   subscribedAt: text("subscribed_at").notNull(),
-})
+}, (t) => [uniqueIndex("subscription_key").on(t.userId, t.objectTypeCode, t.objectId)])
 
 export const teamCoach = sqliteTable("teamCoach", {
   teamId: text("team_id").notNull().references(() => team.id),
   userId: text("user_id").notNull().references(() => user.id),
   coachRoleCode: text("coach_role_code").notNull().references(() => coachRole.code),
-})
+}, (t) => [uniqueIndex("teamCoach_key").on(t.teamId, t.userId)])
 
 export const userNotificationChannel = sqliteTable("userNotificationChannel", {
   userId: text("user_id").notNull().references(() => user.id),
@@ -120,14 +120,14 @@ export const userNotificationChannel = sqliteTable("userNotificationChannel", {
   addressLabel: text("address_label").notNull(),
   isEnabled: integer("is_enabled", { mode: "boolean" }).notNull(),
   verifiedAt: text("verified_at"),
-})
+}, (t) => [uniqueIndex("userNotificationChannel_key").on(t.userId, t.channelCode, t.addressLabel)])
 
 export const userNotificationPreference = sqliteTable("userNotificationPreference", {
   userId: text("user_id").notNull().references(() => user.id),
   notificationTypeCode: text("notification_type_code").notNull().references(() => notificationType.code),
   channelCode: text("channel_code").notNull().references(() => notificationChannel.code),
   isEnabled: integer("is_enabled", { mode: "boolean" }).notNull(),
-})
+}, (t) => [uniqueIndex("userNotificationPreference_key").on(t.userId, t.notificationTypeCode, t.channelCode)])
 
 /**
  * Every domain table, and its derived row schema.

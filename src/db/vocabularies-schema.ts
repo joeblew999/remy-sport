@@ -87,6 +87,13 @@ export const gender = sqliteTable("gender", {
   sort: integer("sort").notNull(),
 })
 
+export const guardianType = sqliteTable("guardian_type", {
+  code: text("code").primaryKey(),
+  nameEn: text("name_en").notNull(),
+  names: text("names", { mode: "json" }).$type<Names>().notNull(),
+  sort: integer("sort").notNull(),
+})
+
 export const locale = sqliteTable("locale", {
   code: text("code").primaryKey(),
   nameEn: text("name_en").notNull(),
@@ -172,13 +179,6 @@ export const relation = sqliteTable("relation", {
   sort: integer("sort").notNull(),
 })
 
-export const relationship = sqliteTable("relationship", {
-  code: text("code").primaryKey(),
-  nameEn: text("name_en").notNull(),
-  names: text("names", { mode: "json" }).$type<Names>().notNull(),
-  sort: integer("sort").notNull(),
-})
-
 export const skillTier = sqliteTable("skill_tier", {
   code: text("code").primaryKey(),
   nameEn: text("name_en").notNull(),
@@ -213,6 +213,7 @@ export const VOCABULARY_TABLES = {
   eventFormats: eventFormat,
   eventTypes: eventType,
   genders: gender,
+  guardianTypes: guardianType,
   locales: locale,
   notificationCategories: notificationCategory,
   notificationChannels: notificationChannel,
@@ -222,7 +223,6 @@ export const VOCABULARY_TABLES = {
   positions: position,
   roles: role,
   relations: relation,
-  relationships: relationship,
   skillTiers: skillTier,
   userStatuses: userStatus,
 } as const
@@ -244,6 +244,7 @@ export const VOCABULARY_SCHEMAS = {
   eventFormats: z.array(createSelectSchema(eventFormat)),
   eventTypes: z.array(createSelectSchema(eventType)),
   genders: z.array(createSelectSchema(gender)),
+  guardianTypes: z.array(createSelectSchema(guardianType)),
   locales: z.array(createSelectSchema(locale)),
   notificationCategories: z.array(createSelectSchema(notificationCategory)),
   notificationChannels: z.array(createSelectSchema(notificationChannel)),
@@ -253,7 +254,6 @@ export const VOCABULARY_SCHEMAS = {
   positions: z.array(createSelectSchema(position)),
   roles: z.array(createSelectSchema(role)),
   relations: z.array(createSelectSchema(relation)),
-  relationships: z.array(createSelectSchema(relationship)),
   skillTiers: z.array(createSelectSchema(skillTier)),
   userStatuses: z.array(createSelectSchema(userStatus)),
 } as const
@@ -269,6 +269,7 @@ export const VOCABULARY_ORDER = {
   eventFormats: eventFormat.sort,
   eventTypes: eventType.sort,
   genders: gender.sort,
+  guardianTypes: guardianType.sort,
   locales: locale.sort,
   notificationCategories: notificationCategory.sort,
   notificationChannels: notificationChannel.sort,
@@ -278,7 +279,6 @@ export const VOCABULARY_ORDER = {
   positions: position.sort,
   roles: role.sort,
   relations: relation.sort,
-  relationships: relationship.sort,
   skillTiers: skillTier.sort,
   userStatuses: userStatus.sort,
 } as const

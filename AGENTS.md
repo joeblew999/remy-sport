@@ -78,6 +78,27 @@ the canonical model is
 
 ## Traps
 
+**Schema changes go through `mise run db:generate`, not by editing a migration.**
+drizzle-kit diffs [src/db/schema.ts](src/db/schema.ts) against
+`src/db/migrations/meta/0017_snapshot.json` and emits only the delta, numbered
+from 0018. Migrations 0009 and 0013 are **frozen** — `domain:generate` used to
+rewrite them whole on every run, which works only while every change is additive
+and is why a vocabulary could not be renamed: regenerating rewrote a migration
+production had already applied. Run `db:generate` in a real terminal; a rename
+prompts, because "renamed, or dropped and recreated?" needs a person. Vocabulary
+*rows* are data and drizzle-kit does not carry them — those need a data
+migration, of which
+[0017](src/db/migrations/0017_org_relations.sql) is the worked example.
+
+**An index the database has and the drizzle schema does not is one a generated
+migration can drop.** All ten join-table composite keys were in that state until
+2026-08-27; they exist because a re-seed silently duplicated all 58 join rows
+without them. They are emitted now from the `**Uniqueness**` lines in the PO's
+schema.md, parsed the same way `validate-seed.nu` parses them upstream. Two
+remain undeclared — `organization_slug_uidx` and `user_biz_id_idx`, on tables
+Better Auth generates — so never run `drizzle-kit push`, and read a generated
+migration before applying it.
+
 **Never set `TEST_OTP` on a deployed Worker.** It makes `generateOTP` return a
 constant for every address the fixtures seed, so the admin account's sign-in
 code becomes public knowledge. It is a local-dev value. `mise run deploy` ends

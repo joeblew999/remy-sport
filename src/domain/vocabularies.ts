@@ -338,6 +338,23 @@ export const GENDER_CODES = GENDER.map((t) => t.code) as unknown as [
 
 export type GenderCode = (typeof GENDER_CODES)[number]
 
+/** 4 rows, from guardian_types.jsonl. */
+export const GUARDIAN_TYPE = [
+  { code: "PARENT", names: {"th":"ผู้ปกครอง","en":"Parent"} },
+  { code: "GRANDPARENT", names: {"th":"ปู่ย่าตายาย","en":"Grandparent"} },
+  { code: "LEGAL_GUARDIAN", names: {"th":"ผู้ดูแล","en":"Legal Guardian"} },
+  { code: "OTHER", names: {"th":"อื่นๆ","en":"Other"} },
+] as const
+
+export const GUARDIAN_TYPE_CODES = GUARDIAN_TYPE.map((t) => t.code) as unknown as [
+  "PARENT",
+  "GRANDPARENT",
+  "LEGAL_GUARDIAN",
+  "OTHER",
+]
+
+export type GuardianTypeCode = (typeof GUARDIAN_TYPE_CODES)[number]
+
 /** 3 rows, from locales.jsonl. */
 export const LOCALE = [
   { code: "th", status: "released", names: {"th":"ไทย","en":"Thai"} },
@@ -555,23 +572,6 @@ export const RELATION_CODES = RELATION.map((t) => t.code) as unknown as [
 
 export type RelationCode = (typeof RELATION_CODES)[number]
 
-/** 4 rows, from relationships.jsonl. */
-export const RELATIONSHIP = [
-  { code: "PARENT", names: {"th":"ผู้ปกครอง","en":"Parent"} },
-  { code: "GRANDPARENT", names: {"th":"ปู่ย่าตายาย","en":"Grandparent"} },
-  { code: "GUARDIAN", names: {"th":"ผู้ดูแล","en":"Legal Guardian"} },
-  { code: "OTHER", names: {"th":"อื่นๆ","en":"Other"} },
-] as const
-
-export const RELATIONSHIP_CODES = RELATIONSHIP.map((t) => t.code) as unknown as [
-  "PARENT",
-  "GRANDPARENT",
-  "GUARDIAN",
-  "OTHER",
-]
-
-export type RelationshipCode = (typeof RELATIONSHIP_CODES)[number]
-
 /** 1 rows, from skill_tiers.jsonl. */
 export const SKILL_TIER = [
   { code: "PREMIER", names: {"th":"พรีเมียร์","en":"Premier"} },
@@ -619,6 +619,7 @@ export const VOCABULARY = {
   eventFormats: EVENT_FORMAT,
   eventTypes: EVENT_TYPE,
   genders: GENDER,
+  guardianTypes: GUARDIAN_TYPE,
   locales: LOCALE,
   notificationCategories: NOTIFICATION_CATEGORY,
   notificationChannels: NOTIFICATION_CHANNEL,
@@ -628,7 +629,6 @@ export const VOCABULARY = {
   positions: POSITION,
   roles: ROLE,
   relations: RELATION,
-  relationships: RELATIONSHIP,
   skillTiers: SKILL_TIER,
   userStatuses: USER_STATUS,
 } as const

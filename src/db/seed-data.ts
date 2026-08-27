@@ -106,7 +106,7 @@ export const SEED_RELATIONSHIPS = {
     {"eventId":"evt_004","venueId":"ven_002","isPrimary":true},
   ],
   guardians: [
-    {"userId":"usr_spectator_001","playerId":"ply_001","relationshipCode":"PARENT"},
+    {"userId":"usr_spectator_001","playerId":"ply_001","guardianTypeCode":"PARENT"},
   ],
   orgMembers: [
     {"orgId":"org_001","userId":"usr_coach_001","orgRoleCode":"ADMIN"},

@@ -501,6 +501,21 @@ sources = ["scripts/seed-sql.ts", "src/db/seed-data.ts"]
 outputs = ["src/db/seed.sql"]
 run     = "bun scripts/seed-sql.ts"
 
+[tasks."db:generate"]
+description = "Emit a migration for whatever changed in the drizzle schema (prompts on renames)"
+depends     = ["install"]
+# drizzle-kit diffs src/db/schema.ts against meta/0017_snapshot.json and writes
+# only the delta, numbered from 0018 so it never collides with the seventeen
+# hand-written and generated migrations already there.
+#
+# There is deliberately no 0000 baseline .sql: those seventeen already built the
+# shape the snapshot records, so emitting one would re-run work that is done.
+#
+# Run this in a real terminal. A rename asks whether the column was renamed or
+# dropped and recreated, and that question needs a person — which is exactly the
+# capability the old generate-the-whole-migration approach never had.
+run = "bun x drizzle-kit generate"
+
 [tasks."check:alignment"]
 description = "Fail if the PO's model names a table or column this schema does not have"
 depends     = ["install"]

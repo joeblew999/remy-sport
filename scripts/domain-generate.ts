@@ -31,6 +31,21 @@ import { dirname, resolve } from "path"
 const BIZ = resolve(import.meta.dir, "../../remy-sport-biz/data/seed")
 const OUT_TS = resolve(import.meta.dir, "../src/domain/vocabularies.ts")
 const OUT_SCHEMA = resolve(import.meta.dir, "../src/db/vocabularies-schema.ts")
+/**
+ * FROZEN. Both were emitted whole by this script until 2026-08-27, and that is
+ * why a vocabulary could not be renamed: regenerating rewrote a migration
+ * deployed databases had already applied, so a fresh database would get the new
+ * name and production the old with nothing bridging them.
+ *
+ * drizzle-kit owns schema changes now — it diffs src/db/schema.ts against
+ * meta/0017_snapshot.json and emits only the delta, prompting on a rename
+ * because that question needs a person. `mise run db:generate`.
+ *
+ * This script still emits the drizzle tables those diffs are taken from, so a
+ * fixture change still starts here. What it no longer does is rewrite history.
+ * New vocabulary *rows* are data, not schema, and drizzle-kit does not carry
+ * them — those need a data migration, of which 0017 is the worked example.
+ */
 const MIGRATION = resolve(import.meta.dir, "../src/db/migrations/0009_reference_vocabularies.sql")
 const OUT_SEED = resolve(import.meta.dir, "../src/db/seed-data.ts")
 const OUT_FIXTURES = resolve(import.meta.dir, "../src/db/fixtures-schema.ts")
@@ -471,6 +486,38 @@ const GENERATED_ENTITIES = Object.entries(ENTITIES).filter(([source]) => !APP_OW
  * columns to the entity, so the database carries the PO's model with its real
  * constraints rather than a hand-typed approximation of it.
  */
+/**
+ * The uniqueness each table declares, read from the PO's schema.md.
+ *
+ * The document is the source, exactly as it is upstream: remy-sport-biz's
+ * validate-seed.nu parses these same lines to check the fixtures actually hold
+ * the keys they claim. Any backticked name on a `**Uniqueness**:` line is a
+ * column — the same rule, so the two repos cannot read it differently.
+ *
+ * These are not decoration. Migration 0014 added them after a re-seed silently
+ * duplicated all 58 join rows, because `INSERT OR IGNORE` has nothing to conflict
+ * on without a constraint. They were missing from the drizzle schema, which
+ * meant the schema-of-record did not know the database's own constraints — and
+ * anything regenerating DDL from it would have dropped them.
+ */
+const UNIQUENESS: Map<string, string[]> = (() => {
+  const out = new Map<string, string[]>()
+  const doc = resolve(BIZ, "schema.md")
+  if (!existsSync(doc)) return out
+  let table: string | null = null
+  for (const line of readFileSync(doc, "utf8").split("\n")) {
+    const heading = line.match(/^##\s+(\w+)\.jsonl/)
+    if (heading) table = heading[1]!
+    else if (table && line.startsWith("**Uniqueness**:")) {
+      const cols = [...line.matchAll(/`([a-z_]+)`/g)].map((m) => m[1]!)
+      // "`code` globally" is the primary key already; only composites need one.
+      if (cols.length > 1) out.set(table, cols)
+      table = null
+    }
+  }
+  return out
+})()
+
 function emitFixtureTable(source: string, rows: Json[], byEntity: Map<string, string>): string {
   const table = singular(source)
   const keys = Object.keys(rows[0]!)
@@ -493,7 +540,18 @@ function emitFixtureTable(source: string, rows: Json[], byEntity: Map<string, st
     if (target) parts.push(`references(() => ${camel(target.table)}.${target.column})`)
     return `  ${key}: ${parts.join(".")},`
   })
-  return [`export const ${camel(table)} = sqliteTable(${json(table)}, {`, ...fields, `})`, ``].join("\n")
+  // The index name matches what migration 0014 created, so declaring it here
+  // describes the database rather than proposing a change to it.
+  // schema.md keys by the fixture's own snake_case name; readFolder keys by
+  // camelCase. Compare in one form — `guardians` and `subscriptions` are single
+  // words and matched by accident, which is exactly how this hid.
+  const unique = UNIQUENESS.get(source.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`))
+  const tail = unique
+    ? `}, (t) => [uniqueIndex(${json(`${table}_key`)}).on(${unique
+        .map((c) => `t.${camel(c)}`)
+        .join(", ")})])`
+    : "})"
+  return [`export const ${camel(table)} = sqliteTable(${json(table)}, {`, ...fields, tail, ``].join("\n")
 }
 
 const snake = (camelName: string) => camelName.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`)
@@ -752,11 +810,10 @@ ${VOCABULARIES.map((v) => `  ${camel(v.source)}: ${camel(v.table)}.${v.columns.s
 } as const
 `,
   ],
-  [MIGRATION, `${header("Tables and rows", "--")}\n${VOCABULARIES.map(emitSql).join("\n")}${MIGRATION_TAIL}`],
   [
     OUT_FIXTURES,
     `${header("Drizzle tables for the domain model", "//")}
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core"
+import { sqliteTable, text, integer, uniqueIndex } from "drizzle-orm/sqlite-core"
 import { createSelectSchema } from "drizzle-zod"
 import type { Names } from "../domain/names"
 import { user, organization } from "./auth-schema"
@@ -802,21 +859,6 @@ ${[...GENERATED_ENTITIES.map(([s]) => s), ...GENERATED_LINKS.map(([s]) => s)].ma
       null,
       2,
     )}\n`,
-  ],
-  [
-    MIGRATION_MODEL,
-    `${header("The domain model", "--")}
--- Every entity and join table the Product Owner defines that this repo does not
--- already own. \`user\` and \`organization\` are Better Auth's; \`event\` and
--- \`team\` carry columns the fixtures do not model. Everything else is here,
--- with the foreign keys the fixtures imply.
---
--- Rows are loaded by /api/seed rather than inlined, because \`user_id\` and
--- \`org_id\` have to be translated from the fixtures' ids to the ones Better
--- Auth generates.
-
-${GENERATED_ENTITIES.map(([source, rows]) => emitFixtureSql(source, rows, ENTITY_TABLE)).join("\n")}
-${GENERATED_LINKS.map(([source, rows]) => emitFixtureSql(source, rows, ENTITY_TABLE)).join("\n")}`,
   ],
   [
     OUT_SEED,

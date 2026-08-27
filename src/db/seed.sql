@@ -104,7 +104,7 @@ INSERT OR IGNORE INTO eventVenue (event_id, venue_id, is_primary) VALUES ('evt_0
 INSERT OR IGNORE INTO eventVenue (event_id, venue_id, is_primary) VALUES ('evt_004', 'ven_002', 1);
 
 -- guardians
-INSERT OR IGNORE INTO guardian (user_id, player_id, relationship_code) VALUES ('usr_spectator_001', 'ply_001', 'PARENT');
+INSERT OR IGNORE INTO guardian (user_id, player_id, guardian_type_code) VALUES ('usr_spectator_001', 'ply_001', 'PARENT');
 
 -- playerTeams
 INSERT OR IGNORE INTO playerTeam (player_id, team_id, from_date, to_date) VALUES ('ply_001', 'team_001', '2026-01-01', NULL);

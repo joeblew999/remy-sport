@@ -65,6 +65,14 @@ is real; the cure is one line of documentation, not relocation.
 
 ## Phase 1 — Untangle "relation" from "relationship" · biz + app
 
+> **Unblocked 2026-08-27.** This was parked because renaming a vocabulary
+> rewrote migrations production had already applied. drizzle-kit owns schema
+> deltas now (`mise run db:generate`) and prompts on a rename, so the rename can
+> finally be expressed. The `links/` folder rename is already done; what is left
+> is `relationships.jsonl` → `guardian_types.jsonl` and the `GUARDIAN` →
+> `LEGAL_GUARDIAN` code, both of which need `db:generate` run in a terminal.
+
+
 - **biz** `reference/relationships.jsonl` → `reference/guardian_types.jsonl`
 - **biz** column `guardians.relationship_code` → `guardian_type_code`
 - **biz** value `GUARDIAN` → `LEGAL_GUARDIAN`, so it stops colliding with the

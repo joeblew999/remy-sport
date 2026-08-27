@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm"
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core"
+import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core"
 import type { Names } from "../domain/names"
 /**
  * The vocabularies are declared ON the columns, not restated at the boundary.
@@ -87,7 +87,10 @@ export const event = sqliteTable("event", {
     .references(() => user.id),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
-})
+}, (t) => [
+  // Created by migration 0005. Same reason as team_org_idx above.
+  index("event_city_code_idx").on(t.cityCode),
+])
 
 /**
  * Team profiles, following canonical `teams` in
@@ -112,7 +115,12 @@ export const team = sqliteTable("team", {
     .references(() => gender.code),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
-})
+}, (t) => [
+  // Declared because the schema is now the source drizzle-kit diffs against:
+  // an index the database has and this file does not know about is one a
+  // generated migration would quietly drop. Created by migration 0006.
+  index("team_org_idx").on(t.orgId),
+])
 
 
 /** U10 … SENIOR. `sort` exists because age order is not code order. */
