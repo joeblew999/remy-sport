@@ -159,6 +159,47 @@ describe("date ranges are written the way each language writes them", () => {
     expect(range("th", "2026-06-10", "2026-06-10")).toContain("2026"))
 })
 
+/**
+ * The status chip and the "starts in N days" countdown, in the reader's
+ * language.
+ *
+ * These were English string literals returned straight out of `statusLabel` —
+ * "Live now", "Finished", "Registration open" — so a Thai reader saw an English
+ * status on every event card and every event page. They render on the two most
+ * visited screens in the product, which is why they were worth fixing before
+ * the admin console's headers.
+ */
+describe("event status speaks the reader's language", () => {
+  const label = (locale: string, startDate: string, endDate: string, today: string) =>
+    toEvent(
+      event({ startDate, endDate }),
+      { ...loc, locale } as Localizer,
+      on(today),
+    ).statusLabel
+
+  test("live, in English", () =>
+    expect(label("en", "2026-06-01", "2026-06-30", "2026-06-10")).toBe("Live now"))
+  test("live, in Thai", () =>
+    expect(label("th", "2026-06-01", "2026-06-30", "2026-06-10")).toBe("กำลังแข่ง"))
+
+  test("finished, in Thai", () =>
+    expect(label("th", "2026-01-01", "2026-01-02", "2026-06-10")).toBe("จบการแข่งขัน"))
+
+  test("the countdown interpolates into Thai word order", () =>
+    expect(label("th", "2026-06-17", "2026-06-18", "2026-06-10")).toBe("เริ่มในอีก 7 วัน"))
+
+  test("tomorrow is its own phrase, not '1 days'", () => {
+    expect(label("en", "2026-06-11", "2026-06-11", "2026-06-10")).toBe("Starts tomorrow")
+    expect(label("th", "2026-06-11", "2026-06-11", "2026-06-10")).toBe("เริ่มพรุ่งนี้")
+  })
+
+  test("an unknown organiser is translated too", () =>
+    expect(
+      toEvent(event({ organizerName: null }), { ...loc, locale: "th" } as Localizer, on("2026-06-10"))
+        .organizer,
+    ).toBe("ไม่ทราบผู้จัด"))
+})
+
 describe("shortCode — initials only", () => {
   test("takes initials from a multi-word name", () => {
     expect(shortCode("Bangkok Christian College")).toBe("BCC")

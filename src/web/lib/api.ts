@@ -16,6 +16,7 @@ export type ApiEvent = RouterClient<Router>["events"]["get"] extends
 
 import * as PlainDate from "temporal-polyfill/fns/PlainDate";
 import { formatDayRange, formatMonthShort } from "./dates";
+import { m } from "./i18n";
 
 const pd = (iso: string) => {
   const [y, m, d] = iso.split("-").map(Number);
@@ -30,11 +31,11 @@ function parseDay(iso: string): Date {
 }
 
 function formatRange(
-  locale: string,
+  locale: Localizer["locale"],
   start: string | null,
   end: string | null,
 ): string {
-  if (!start) return "Dates TBC";
+  if (!start) return m.dates_tbc({}, { locale });
   return formatDayRange(locale, parseDay(start), end ? parseDay(end) : null);
 }
 
@@ -74,19 +75,26 @@ function daysBetween(a: Date, b: Date): number {
   return PlainDate.diffDays(pdOf(a), pdOf(b));
 }
 
-function statusLabel(status: EventStatus, start: string | null, today: Date): string {
+function statusLabel(
+  locale: Localizer["locale"],
+  status: EventStatus,
+  start: string | null,
+  today: Date,
+): string {
   switch (status) {
     case "live":
-      return "Live now";
+      return m.status_live({}, { locale });
     case "closed":
-      return "Finished";
+      return m.status_finished({}, { locale });
     case "open":
-      return "Registration open";
+      return m.status_registration_open({}, { locale });
     case "upcoming": {
-      if (!start) return "Dates TBC";
+      if (!start) return m.dates_tbc({}, { locale });
       const days = daysBetween(today, parseDay(start));
-      if (days <= 0) return "Starting today";
-      return days === 1 ? "Starts tomorrow" : `Starts in ${days} days`;
+      if (days <= 0) return m.starts_today({}, { locale });
+      return days === 1
+        ? m.starts_tomorrow({}, { locale })
+        : m.starts_in_days({ days }, { locale });
     }
   }
 }
@@ -109,18 +117,18 @@ export function toEvent(e: ApiEvent, loc: Localizer, today: Date = new Date()): 
     // choose between a pair of fields.
     title: loc.name(e.names, e.name),
     div: "—",
-    loc: "Venue TBC",
+    loc: m.venue_tbc({}, { locale: loc.locale }),
     city: loc.label("cities", e.cityCode) || "—",
     day: start ? start.getDate() : 0,
     mo: start ? formatMonthShort(loc.locale, start) : "TBC",
     date: formatRange(loc.locale, e.startDate, e.endDate),
     status,
-    statusLabel: statusLabel(status, e.startDate, today),
+    statusLabel: statusLabel(loc.locale, status, e.startDate, today),
     teams: 0,
     courts: 0,
     games: 0,
     gamesPlayed: 0,
-    organizer: e.organizerName ?? "Unknown organiser",
+    organizer: e.organizerName ?? m.unknown_organiser({}, { locale: loc.locale }),
   };
 }
 
