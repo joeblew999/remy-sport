@@ -12,7 +12,7 @@
  */
 
 import { ORPCError } from "@orpc/server"
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import * as schema from "../db/schema"
 import type { ApiEvent } from "../domain/api"
 import { clean, pivot } from "../domain/names"
@@ -194,12 +194,52 @@ export const addCoOrganizer = authed
     if (!invitee) throw new ORPCError("NOT_FOUND", { message: "Unknown user" })
 
     const addedAt = new Date().toISOString().slice(0, 10)
+    // PENDING, not ACCEPTED. CO_ORGANIZER filters on ACCEPTED, so this grants
+    // nothing until the invitee takes it up — which is what the PO's separate
+    // ACCEPT_CO_ORGANIZER_INVITE action is for.
+    //
     // Idempotent: eventCoOrganizer_key is unique on (event_id, user_id), so
-    // adding someone twice is a no-op rather than a duplicate relation tuple.
+    // re-inviting is a no-op rather than a second tuple — and it must not reset
+    // someone who has already accepted back to pending.
     await context.db
       .insert(schema.eventCoOrganizer)
-      .values({ eventId: input.id, userId: input.userId, addedAt })
+      .values({ eventId: input.id, userId: input.userId, addedAt, statusCode: "PENDING" })
       .onConflictDoNothing()
 
     return { eventId: input.id, userId: input.userId, addedAt }
+  })
+
+/**
+ * Take up an invitation to co-organise an event.
+ *
+ * Granted to `ANY_SIGNED_IN`, because the invitee is by definition not yet in
+ * any relation to the event — that is the whole point of the pending state, and
+ * why this cannot be scoped the way every other event action is. What stands in
+ * for the missing relation is the row: you may only accept an invitation
+ * addressed to you.
+ */
+export const acceptCoOrganizerInvite = authed
+  .route({
+    method: "POST",
+    path: "/events/{id}/co-organizers/accept",
+    summary: "Accept an invitation to co-organise an event",
+    ...authedRoute,
+  })
+  .input(IdInput)
+  .output(z.object({ eventId: z.string(), userId: z.string(), statusCode: z.string() }))
+  .use(requireAction("ACCEPT_CO_ORGANIZER_INVITE"))
+  .handler(async ({ context, input }) => {
+    const res = await context.db
+      .update(schema.eventCoOrganizer)
+      .set({ statusCode: "ACCEPTED" })
+      .where(
+        and(
+          eq(schema.eventCoOrganizer.eventId, input.id),
+          eq(schema.eventCoOrganizer.userId, context.user.id),
+        ),
+      )
+    // No invitation for this person on this event. A 404 rather than a 403:
+    // there is nothing here to be forbidden from.
+    if (res.meta.changes === 0) throw new ORPCError("NOT_FOUND", { message: "No invitation" })
+    return { eventId: input.id, userId: context.user.id, statusCode: "ACCEPTED" }
   })

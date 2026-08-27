@@ -359,6 +359,25 @@ export const GUARDIAN_TYPE_CODES = GUARDIAN_TYPE.map((t) => t.code) as unknown a
 export type GuardianTypeCode = (typeof GUARDIAN_TYPE_CODES)[number]
 
 /** 3 rows, from locales.jsonl. */
+/**
+ * Whether an invitation is outstanding or taken up.
+ *
+ * `ACCEPT_CO_ORGANIZER_INVITE` is granted to `ANY_SIGNED_IN` and had nothing to
+ * accept: `eventCoOrganizers` recorded a co-organizer or it did not. An invite
+ * action and an accept action only mean something if there is a state between
+ * them.
+ */
+export const INVITE_STATUS = [
+  { code: "PENDING", names: {"th":"รอการตอบรับ","en":"Pending"} },
+  { code: "ACCEPTED", names: {"th":"ตอบรับแล้ว","en":"Accepted"} },
+] as const
+
+export const INVITE_STATUS_CODES = INVITE_STATUS.map((t) => t.code) as unknown as [
+  "PENDING",
+  "ACCEPTED",
+]
+export type InviteStatusCode = (typeof INVITE_STATUS_CODES)[number]
+
 export const LOCALE = [
   { code: "th", status: "released", names: {"th":"ไทย","en":"Thai"} },
   { code: "en", status: "released", names: {"th":"อังกฤษ","en":"English"} },
@@ -529,7 +548,7 @@ export type RoleCode = (typeof ROLE_CODES)[number]
 /** 22 rows, from relations.jsonl. */
 export const RELATION = [
   { code: "OWNER", objectTypeCode: "EVENT", via: "table", sourceTable: "events", objectColumn: "id", userColumn: "organizer_user_id", filterColumn: null, filterValue: null, throughTable: null, throughColumn: null, activeToColumn: null, roleCode: null, names: {"th":"เจ้าของ","en":"Owner"} },
-  { code: "CO_ORGANIZER", objectTypeCode: "EVENT", via: "table", sourceTable: "event_co_organizers", objectColumn: "event_id", userColumn: "user_id", filterColumn: null, filterValue: null, throughTable: null, throughColumn: null, activeToColumn: null, roleCode: null, names: {"th":"ผู้ร่วมจัด","en":"Co-organizer"} },
+  { code: "CO_ORGANIZER", objectTypeCode: "EVENT", via: "table", sourceTable: "event_co_organizers", objectColumn: "event_id", userColumn: "user_id", filterColumn: "status_code", filterValue: "ACCEPTED", throughTable: null, throughColumn: null, activeToColumn: null, roleCode: null, names: {"th":"ผู้ร่วมจัด","en":"Co-organizer"} },
   { code: "HEAD_COACH", objectTypeCode: "TEAM", via: "table", sourceTable: "team_coaches", objectColumn: "team_id", userColumn: "user_id", filterColumn: "coach_role_code", filterValue: "HEAD", throughTable: null, throughColumn: null, activeToColumn: null, roleCode: null, names: {"th":"หัวหน้าผู้ฝึกสอน","en":"Head Coach"} },
   { code: "ASSISTANT_COACH", objectTypeCode: "TEAM", via: "table", sourceTable: "team_coaches", objectColumn: "team_id", userColumn: "user_id", filterColumn: "coach_role_code", filterValue: "ASSISTANT", throughTable: null, throughColumn: null, activeToColumn: null, roleCode: null, names: {"th":"ผู้ช่วยผู้ฝึกสอน","en":"Assistant Coach"} },
   { code: "TEAM_MANAGER", objectTypeCode: "TEAM", via: "table", sourceTable: "team_coaches", objectColumn: "team_id", userColumn: "user_id", filterColumn: "coach_role_code", filterValue: "MANAGER", throughTable: null, throughColumn: null, activeToColumn: null, roleCode: null, names: {"th":"ผู้จัดการทีม","en":"Team Manager"} },

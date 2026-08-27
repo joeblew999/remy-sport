@@ -493,7 +493,9 @@ depends     = ["install"]
 # always been SQL (migration 0009); the entities went through POST /api/seed,
 # which needs a running Worker and therefore a database every spec shares.
 # As SQL, each test file seeds its own storage in milliseconds.
-sources = ["scripts/seed-sql.ts", "src/db/seed-data.ts"]
+# The model is copied in from remy-sport-biz, so the copies are the input —
+# src/db/seed-data.ts is a re-export and would never change.
+sources = ["scripts/seed-sql.ts", "src/domain/model/*.ts", "src/db/*-schema.ts"]
 outputs = ["src/db/seed.sql"]
 run     = "bun scripts/seed-sql.ts"
 

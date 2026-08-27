@@ -20,8 +20,10 @@
 import { sqliteTable, text, integer, uniqueIndex } from "drizzle-orm/sqlite-core"
 import { createSelectSchema } from "drizzle-zod"
 import type { Names } from "../domain/names"
+import { INVITE_STATUS_CODES } from "../domain/vocabularies"
 import { user, organization } from "./auth-schema"
 import { event, team } from "./app-schema"
+import { inviteStatus } from "./vocabularies-schema"
 import { objectType } from "./vocabularies-schema"
 import { action } from "./vocabularies-schema"
 import { ageGroup } from "./vocabularies-schema"
@@ -82,6 +84,12 @@ export const eventCoOrganizer = sqliteTable("eventCoOrganizer", {
   eventId: text("event_id").notNull().references(() => event.id),
   userId: text("user_id").notNull().references(() => user.id),
   addedAt: text("added_at").notNull(),
+  // PENDING until they accept. The CO_ORGANIZER relation filters on ACCEPTED,
+  // so an outstanding invitation grants nothing — which is what makes
+  // ACCEPT_CO_ORGANIZER_INVITE an action rather than a formality.
+  statusCode: text("status_code", { enum: INVITE_STATUS_CODES })
+    .notNull()
+    .references(() => inviteStatus.code),
 }, (t) => [uniqueIndex("eventCoOrganizer_key").on(t.eventId, t.userId)])
 
 export const eventPlayer = sqliteTable("eventPlayer", {

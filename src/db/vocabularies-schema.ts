@@ -102,6 +102,20 @@ export const guardianType = sqliteTable("guardian_type", {
   sort: integer("sort").notNull(),
 })
 
+/**
+ * Whether an invitation is outstanding or taken up.
+ *
+ * The `CO_ORGANIZER` relation filters on `ACCEPTED`, so a pending invitation
+ * grants nothing — which is what makes `ACCEPT_CO_ORGANIZER_INVITE` an action
+ * rather than a formality.
+ */
+export const inviteStatus = sqliteTable("invite_status", {
+  code: text("code").primaryKey(),
+  nameEn: text("name_en").notNull(),
+  names: text("names", { mode: "json" }).$type<Names>().notNull(),
+  sort: integer("sort").notNull(),
+})
+
 export const locale = sqliteTable("locale", {
   code: text("code").primaryKey(),
   nameEn: text("name_en").notNull(),
@@ -212,6 +226,7 @@ export const userStatus = sqliteTable("user_status", {
  * and therefore a field on the endpoint, with nothing else to edit.
  */
 export const VOCABULARY_TABLES = {
+  inviteStatuses: inviteStatus,
   objectTypes: objectType,
   actions: action,
   ageGroups: ageGroup,
@@ -268,6 +283,7 @@ export const VOCABULARY_SCHEMAS = {
 
 /** The column each vocabulary is ordered by when the API returns it. */
 export const VOCABULARY_ORDER = {
+  inviteStatuses: inviteStatus.sort,
   objectTypes: objectType.sort,
   actions: action.sort,
   ageGroups: ageGroup.sort,

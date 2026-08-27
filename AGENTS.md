@@ -28,16 +28,11 @@ Update it when you finish something; delete the line when it is done.
    invitations, and `src/web/` has no way to create an organisation or send an
    invitation — the only org page accepts invitations the product cannot send.
    Either build it, or delete the plugin and let `org` be a plain domain table.
-2. **`ACCEPT_CO_ORGANIZER_INVITE` has nothing to accept.** The action is granted
-   to `ANY_SIGNED_IN`, and `eventCoOrganizer` has no pending state — a row exists
-   or it does not. Flagged upstream as a product call: drop the action, or give
-   the table a status the `CO_ORGANIZER` relation filters on, which needs no new
-   machinery.
-3. **shadcn/ui + Tailwind are still not installed.** `src/web/styles.css` is
+2. **shadcn/ui + Tailwind are still not installed.** `src/web/styles.css` is
    ~1000 hand-written lines and the admin console added ~60 more. This is the
    largest remaining source of per-page boilerplate and nothing has been done
    about it.
-4. **Do not re-derive team permissions from org membership.** That was the shape
+3. **Do not re-derive team permissions from org membership.** That was the shape
    this repo had, and it disagreed with the Product Owner's matrix in two
    directions at once — an org member who coached nothing could edit any team,
    and a head coach outside the org was refused. Team writes are scoped by
@@ -116,7 +111,14 @@ pre-launch, so the history was worth less than the simplicity.
 
 **Reference rows are not schema.** Every vocabulary row lives in
 [src/db/seed.sql](src/db/seed.sql), ahead of the entities that reference them,
-so changing a vocabulary is a re-seed and never a migration.
+so changing a vocabulary is a re-seed and never a migration — a migration runs
+once, and a corrected label would never reach a database already seeded.
+
+The exception is narrow and 0001 is the only case: **a migration must leave the
+database valid on its own.** 0002 backfills existing co-organizers to
+`ACCEPTED`, so the two `invite_status` rows have to exist by then, so they are
+in 0001. Only put rows in a migration when a migration would otherwise violate
+its own foreign key.
 
 **An index the database has and the drizzle schema does not is one a generated
 migration can drop.** All ten join-table composite keys were in that state until

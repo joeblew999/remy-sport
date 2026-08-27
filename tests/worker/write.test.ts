@@ -495,8 +495,17 @@ describe("Co-organizers — the relation nothing used to create", () => {
     const added = await post(`/api/events/${id}/co-organizers`, { userId: other.id }, owner)
     expect(added.status).toBe(201)
 
+    // Still refused: the invitation is PENDING, and CO_ORGANIZER filters on
+    // ACCEPTED. This is what makes ACCEPT_CO_ORGANIZER_INVITE an action rather
+    // than a formality — being invited is not being a co-organizer.
+    const pending = await put(`/api/events/${id}`, { names: { en: "Not Yet" } }, otherCookie)
+    expect(pending.status, "a pending invitation grants nothing").toBe(403)
+
+    const accepted = await post(`/api/events/${id}/co-organizers/accept`, {}, otherCookie)
+    expect(accepted.status).toBe(200)
+
     const allowed = await put(`/api/events/${id}`, { names: { en: "Edited By Co" } }, otherCookie)
-    expect(allowed.status, "CO_ORGANIZER grants EDIT_EVENT").toBe(200)
+    expect(allowed.status, "CO_ORGANIZER grants EDIT_EVENT once accepted").toBe(200)
 
     // DELETE_EVENT is granted to OWNER and PLATFORM_ADMIN only — schema.md says
     // so in words too: "a co-organizer can edit the event but cannot delete it".
@@ -515,6 +524,20 @@ describe("Co-organizers — the relation nothing used to create", () => {
     for (const _ of [1, 2]) {
       expect((await post(`/api/events/${id}/co-organizers`, { userId: other.id }, owner)).status).toBe(201)
     }
+  })
+
+  it("you cannot accept an invitation you were never sent", async () => {
+    const owner = await signIn(actorFor("ORGANIZER"))
+    const { id } = (await (
+      await post("/api/events", { names: { en: "Uninvited" }, typeCode: "SHOWCASE" }, owner)
+    ).json()) as { id: string }
+
+    // ACCEPT_CO_ORGANIZER_INVITE is granted to ANY_SIGNED_IN, because the
+    // invitee holds no relation to the event yet — that is the point of the
+    // pending state. What stands in for the missing relation is the row.
+    const coach = await signIn(actorFor("COACH"))
+    const res = await post(`/api/events/${id}/co-organizers/accept`, {}, coach)
+    expect(res.status, "no invitation to accept").toBe(404)
   })
 
   it("someone who is not the owner cannot add a co-organizer", async () => {

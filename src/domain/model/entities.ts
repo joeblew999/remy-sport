@@ -69,7 +69,7 @@ export const SEED_ENTITIES = {
 /** The join rows between them: rosters, registrations, guardians, follows. */
 export const SEED_RELATIONSHIPS = {
   eventCoOrganizers: [
-    {"eventId":"evt_001","userId":"usr_org_002","addedAt":"2026-04-05"},
+    {"eventId":"evt_001","userId":"usr_org_002","addedAt":"2026-04-05","statusCode":"ACCEPTED"},
   ],
   eventPlayers: [
     {"eventId":"evt_003","playerId":"ply_001","registeredAt":"2026-03-20"},
