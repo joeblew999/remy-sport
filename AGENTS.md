@@ -20,31 +20,29 @@ the value is secret (it is published to the browser and the page says so) but
 because a secret flips without a redeploy. **`mise run demo:off` before the
 platform has real users.**
 
-**inlang is a translation management system, not a compiler.** The project used
-one quarter of it — the paraglide compiler — and hand-edited
-`messages/{locale}.json` like a config file. That is what made i18n feel like
-boilerplate, and it had already failed: `ja` was declared and sat at **0 of 152
-messages**, because adding a third language meant hand-writing 152 Japanese
-strings and nobody was going to.
+**Adding a language is one pass, and Claude does the translating.** This is how
+`ja` went from 0 to 196 messages: read `messages/en.json`, write
+`messages/<locale>.json`, check the placeholders, `mise run i18n:generate`.
+Nothing else is set up and nothing else is needed — inlang's own editor and its
+machine-translate CLI both exist, and neither is used here, so neither is
+described here as if it were.
 
-The three parts that were never used:
+**`messages/en.json` is the only file written by hand.** Every other locale is a
+translation of it, so a message is added once and translated once. `ja` is
+complete and still `status: "draft"` in the PO's model — nobody who speaks
+Japanese has read it. Flipping `draft` to `released` in remy-sport-biz offers it
+to users; that is the PO's call.
 
-| | |
-|---|---|
-| [Fink](https://fink.inlang.com) | a web editor for translators — no git, no clone, no PR. This is where a human reviews and fixes. |
-| Sherlock | the VS Code extension in `.vscode/extensions.json`. Select a string, "Extract Message", and it writes the key into `en.json` **and** replaces the string with `m.key()` in place. That is the step that was being done by hand. |
-| `inlang machine translate` | seeds a locale in one command. Its free endpoint is dead and it wants a DeepL or Google key — which is why `ja` was filled by Claude instead, and why the next language can be too. |
+**Placeholders are the failure mode nothing catches.** `check:messages` counts a
+non-empty string as translated, so a translation that dropped `{days}` ships as
+"Starts in days" and only a reader notices. Compare them when a locale lands —
+every `{name}` in `en.json` must appear, spelled identically, in the translation.
 
-**`messages/en.json` is the only file to write by hand.** Everything else is a
-translation of it. `ja` was filled in one pass and is complete (154/154) but
-still `status: "draft"` in the PO's model — nobody who speaks Japanese has read
-it. Flipping `draft` to `released` in remy-sport-biz offers it to users; that is
-the PO's call, not a developer's.
-
-**Placeholders are the failure mode nothing else catches.** `check:messages`
-counts a non-empty string as translated, so a translation that dropped `{days}`
-would ship as "Starts in days" and only a reader would notice. Check them when
-a locale lands.
+**`check:i18n` catches the other half: a string that was never a message.**
+`check:messages` cannot — it asks whether every locale has every message, and
+answers 196/196 while hardcoded English ships. The ESLint rule walks the AST
+instead, and `eslint-suppressions.json` is a ratchet holding the known 66, all
+of which are fixture copy on SAMPLE DATA screens.
 
 **Messages compile to `src/paraglide`, not `src/web/paraglide`.** They are the
 product's copy, not the SPA's — `src/auth.ts` writes the sign-in email from the
