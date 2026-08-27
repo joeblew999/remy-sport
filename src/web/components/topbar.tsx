@@ -20,11 +20,15 @@ export function Topbar({ spoiler, setSpoiler, onMenu, goto }: Props) {
           <span></span><span></span><span></span>
         </button>
       )}
-      <div className="search">
-        <span style={{ color: "var(--ink-3)" }}><Icon name="search"/></span>
-        <input placeholder={m.search_placeholder()}/>
-        <span className="kbd">⌘K</span>
-      </div>
+      {/* The search box is gone, and it is the one worth explaining. It had a
+          placeholder, a ⌘K hint and no handler of any kind: you could type into
+          it and nothing would ever happen. A control that invites input and
+          discards it is worse than an absent one, and it was the most
+          prominent thing in the chrome.
+
+          It comes back when there is something to search. `search_placeholder`
+          and the `.search` styles are kept for that. */}
+      <div className="topbar-spacer" />
       {/* One button per declared locale. A third language appears here by
           being in the fixtures — there is nothing to add. */}
       <div className="lang-switch">
@@ -41,8 +45,14 @@ export function Topbar({ spoiler, setSpoiler, onMenu, goto }: Props) {
       <button className="icon-btn" title={m.spoiler_mode()} onClick={() => setSpoiler(s => !s)}>
         <Icon name={spoiler ? "eyeoff" : "eye"} />
       </button>
-      <button className="icon-btn"><Icon name="bell" /><span className="badge"></span></button>
-      <button className="install-btn"><Icon name="download"/>{m.install_app()}</button>
+      {/* No bell: it carried an unread dot over a notifications feature that
+          does not exist. The model has `user_notification_channels` and
+          `user_notification_preferences`, so this is buildable — it is not built.
+
+          No "Install app" either. There is no manifest and no service worker,
+          so the button announced a PWA the product is not. Both are on the
+          roadmap; neither is shipped, and the chrome should not claim
+          otherwise. */}
       <Account goto={goto}/>
     </header>
   );

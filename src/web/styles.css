@@ -145,6 +145,9 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   background: var(--paper);
   flex-shrink: 0;
 }
+/* Holds the right-hand controls to the right, the way `.search` used to while
+   it was still there. See components/topbar.tsx for why it went. */
+.topbar-spacer { flex: 1; }
 .search {
   flex: 1; max-width: 480px;
   display: flex; align-items: center; gap: 10px;
