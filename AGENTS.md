@@ -126,12 +126,14 @@ Update it when you finish something; delete the line when it is done.
    `game_referees` is what makes score entry safe, and the only way to assign
    one is the seed, so an organiser running a real tournament cannot yet put a
    referee on a game.
-8. **`CREATE_PLAYER` is granted to `PUBLIC` in the model.** `PUBLIC` includes
-   anonymous visitors, so as written anyone at all may create a player — and it
-   makes the `ANY_COACH`, `ANY_PLAYER` and `PLATFORM_ADMIN` grants beside it
-   redundant, which is what suggests it is a slip rather than a decision. Player
-   creation is deliberately NOT built pending that answer; rosters and
-   registration do not need it. Ask the Product Owner before implementing it.
+8. **No write action is granted to `PUBLIC`, and `mise run check` keeps it that
+   way.** I claimed `CREATE_PLAYER` was, on 2026-08-27, and it is not — the
+   claim came from a `grep -A 8` whose context ran into the next action's
+   grants. `CREATE_PLAYER` is `ANY_COACH` / `ANY_PLAYER` / `PLATFORM_ADMIN`,
+   `DELETE_PLAYER` is admin-only, and a full audit found no public write
+   anywhere. `check-tables.ts` now asserts that, so the next person does not
+   have to trust either the model or me. **Read a grant block whole** — the
+   blocks are adjacent and eight lines of context crosses into the next one.
 9. **A per-object capability in a list is N queries. Known, accepted, bounded.**
    `games.list` returns `canEnterScore` per row, and each one is a `can()` —
    about two reads for an inherited relation. Three games is six reads; a season

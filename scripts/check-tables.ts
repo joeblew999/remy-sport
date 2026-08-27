@@ -107,6 +107,35 @@ for (const [action, grants] of Object.entries(GRANTS)) {
   }
 }
 
+/**
+ * Nothing that writes may be granted to everyone.
+ *
+ * `PUBLIC` includes anonymous visitors, so it is right for reads — a spectator
+ * looking up a score needs no account — and never right for a write. Classified
+ * by the verb the action code starts with, which is what those codes encode.
+ *
+ * This passes today and is here to keep passing. It exists because I reported a
+ * public `CREATE_PLAYER` that did not exist, from a grep whose context spilled
+ * into the next action's grants: the question deserves an answer that is checked
+ * rather than read.
+ */
+const WRITES =
+  /^(CREATE|EDIT|DELETE|REGISTER|ENTER|CONFIRM|RECORD|MANAGE|GENERATE|INVITE|REMOVE|ACCEPT|ASSIGN|SET|APPROVE|MODERATE|BAN|IMPERSONATE|WITHDRAW)/
+
+for (const [action, grants] of Object.entries(GRANTS)) {
+  if (!WRITES.test(action)) continue
+  for (const g of grants as ReadonlyArray<{ relation: string }>) {
+    // `ANY_SIGNED_IN` is deliberately allowed: the three actions using it are
+    // "manage your OWN notification channels / preferences" and "accept an
+    // invitation addressed to you". The scoping is in the resource, not the
+    // relation, and the handler enforces it — tests/worker/write.test.ts asserts
+    // you cannot accept an invitation you were never sent.
+    if (g.relation === "PUBLIC") {
+      problems.push(`action ${action} writes but is granted to PUBLIC — anyone, signed out, could do it`)
+    }
+  }
+}
+
 if (problems.length) {
   console.error(`check-tables: ${problems.length} problem(s):\n` + problems.map((p) => `  ${p}`).join("\n"))
   process.exit(1)
