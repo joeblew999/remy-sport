@@ -140,7 +140,7 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
             }}
           />
           <button className="btn primary" type="submit" disabled={busy} data-testid="spa-verify-code">
-            {busy ? "Signing in…" : "Sign in"}
+            {busy ? m.signing_in() : m.sign_in()}
           </button>
           <button
             type="button"

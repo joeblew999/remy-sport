@@ -104,7 +104,7 @@ export function DevicesPage({ goto }: { goto: (r: Route) => void }) {
                     disabled={busy === d.token}
                     onClick={() => void revoke(d.token)}
                   >
-                    {busy === d.token ? "Signing out…" : "Sign out"}
+                    {busy === d.token ? m.signing_out() : m.sign_out()}
                   </button>
                 )}
               </div>
@@ -120,7 +120,7 @@ export function DevicesPage({ goto }: { goto: (r: Route) => void }) {
                 onClick={() => void revokeOthers()}
               >
                 {busy === "others"
-                  ? "Signing out…"
+                  ? m.signing_out()
                   : `Sign out all other devices (${others.length})`}
               </button>
             </div>

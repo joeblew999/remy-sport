@@ -82,7 +82,7 @@ function App() {
       {tweaks.showTauriChrome && (
         <div className="tauri-chrome">
           <div className="traffic"><span className="red"/><span className="yellow"/><span className="green"/></div>
-          <div className="title">{"Remy Sport"} · {route.page}</div>
+          <div className="title">Remy Sport · {route.page}</div>
         </div>
       )}
       <div className={`app ${navOpen ? "nav-open" : ""}`} style={tweaks.showTauriChrome ? { height: "calc(100vh - 28px)" } : {}}>

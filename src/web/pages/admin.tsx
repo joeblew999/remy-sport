@@ -175,7 +175,7 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
             ) : (
               <tr>
                 <td colSpan={4} className="muted">
-                  {events.isPending ? "Loading…" : "No events yet."}
+                  {events.isPending ? m.loading() : m.no_events_yet()}
                 </td>
               </tr>
             )}
@@ -270,7 +270,7 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
                             })
                           }
                         >
-                          {a.banned ? "Unban" : "Ban"}
+                          {a.banned ? m.unban() : m.ban()}
                         </button>
                       </>
                     )}
@@ -355,7 +355,7 @@ function CreateEvent({ onError }: { onError: (m: string | null) => void }) {
           </p>
         )}
         <button type="submit" disabled={create.isPending}>
-          {create.isPending ? "Creating…" : "Create event"}
+          {create.isPending ? m.creating() : m.create_event()}
         </button>
       </form>
     </section>

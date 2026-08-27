@@ -65,7 +65,7 @@ export function DiscoverPage({ goto, spoiler }: DiscoverProps) {
         <div className="tab-row">
           {(["all", "live", "open", "upcoming", "closed"] as Tab[]).map(id => (
             <button key={id} className={`tab ${tab === id ? "active" : ""}`} onClick={() => setTab(id)}>
-              {{ all: "All", live: "Live", open: "Registering", upcoming: "Upcoming", closed: "Past" }[id]}
+              {{ all: m.tab_all(), live: m.tab_live(), open: m.tab_registering(), upcoming: m.tab_upcoming(), closed: m.tab_past() }[id]}
               <span className="count">{counts[id]}</span>
             </button>
           ))}
@@ -115,7 +115,7 @@ export function DiscoverPage({ goto, spoiler }: DiscoverProps) {
         {error && <div className="empty">{m.events_load_failed()}</div>}
         {!isPending && !error && events.length === 0 && (
           <div className="empty">
-            {allEvents.length === 0 ? "No events yet." : "No events match your filters."}
+            {allEvents.length === 0 ? m.no_events_yet() : m.no_events_match()}
           </div>
         )}
       </div>

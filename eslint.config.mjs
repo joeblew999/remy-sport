@@ -49,6 +49,32 @@ export default [
        * see. `allowedStrings` is for glyphs and separators that are the same in
        * every language — an em dash is not English.
        */
+      /**
+       * A string inside a JSX *expression*, which `jsx-no-literals` cannot see.
+       *
+       * It walks JSXText nodes, and `{{ all: "All", live: "Live" }[id]}` has
+       * none — it is an object literal in an expression container. That is how
+       * the discover page's tab row stayed English in Thai and Japanese while
+       * this file reported the page clean.
+       *
+       * The pattern is `^[A-Z][a-z]` — a capital followed by a lowercase — and
+       * that shape is doing real work. It matches "All", "Live", "Registering":
+       * words a person reads. It does NOT match "LIVE", "NOT_FOUND" or
+       * "tournament", which is what a comparison against a code looks like, and
+       * comparisons are most of what string literals do in this position.
+       */
+      "no-restricted-syntax": [
+        "error",
+        {
+          // `JSXElement >` restricts this to a container that is a CHILD of an
+          // element — rendered content. Without it the selector also matched
+          // attribute values, and `style={{ fontFamily: "Space Grotesk" }}` is
+          // a font stack, not a sentence.
+          selector: "JSXExpressionContainer Literal[value=/^[A-Z][a-z]/]:not(JSXAttribute *)",
+          message:
+            "A user-visible string inside a JSX expression. Wrap it in a paraglide message — this is how the discover tab row stayed English in every language.",
+        },
+      ],
       "react/jsx-no-literals": [
         "error",
         {
@@ -60,7 +86,7 @@ export default [
           // and wrapping it in a message would invite somebody to.
           allowedStrings: [
             "—", "–", "·", "/", "|", ":", "×", "→", "←", "↗", "↻", "+", "-", "?", "*",
-            "Remy Sport", "เรมีสปอร์ต",
+            "Remy Sport", "Remy Sport ·", "เรมีสปอร์ต",
             // A masked score and a keyboard shortcut. Neither is language.
             "--", "⌘K", "#", "±",
           ],
