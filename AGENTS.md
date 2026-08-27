@@ -27,10 +27,28 @@ Update it when you finish something; delete the line when it is done.
    manages members, and `src/web/` calls none of it — the only org page accepts
    Better Auth invitations the product still cannot send. The backend is no
    longer the gap; the front end is.
-2. **shadcn/ui + Tailwind are still not installed.** `src/web/styles.css` is
-   ~1000 hand-written lines and the admin console added ~60 more. This is the
-   largest remaining source of per-page boilerplate and nothing has been done
-   about it.
+   Build it with the primitives that exist. [`src/web/pages/admin.tsx`](src/web/pages/admin.tsx)
+   is already the pattern — `.admin-card` + `.admin-table` + `.badge` + `.btn` +
+   `.muted` + `.empty` is a table with row actions, which is what member
+   management is. No new dependency is needed; see item 2.
+2. **Do not install shadcn/ui + Tailwind.** This file used to call
+   `src/web/styles.css` "the largest remaining source of per-page boilerplate".
+   Measured 2026-08-27, that is false. It is 1093 lines defining **100 classes
+   for 9 pages**, and essentially all of them are live — the first audit called
+   9 dead and was wrong about 5, which are composed in template literals
+   (`` className={`tab ${...}`} ``). It is a design system with an OKLCH token
+   palette, not accumulated boilerplate.
+   - **71 of the 100 classes are used on exactly one page**, and they are the
+     bespoke product: brackets, live score cells, standings rows, team hero.
+     shadcn/ui has no bracket component. It would replace maybe 5–8 of the 20
+     shared classes — `.btn`, `.badge`, `.dash-card`, a table, tabs.
+   - The bundle is **105 KiB gzipped**. Radix, shadcn's foundation, is not free,
+     and it buys components that already exist.
+   - `body`'s font stack tail is load-bearing: it is what renders Japanese,
+     Korean and Chinese, and a declared locale becomes tofu without it.
+     Tailwind's preflight is a live hazard to that, for no gain.
+   - shadcn's default look is the generic one. Trading a deliberate identity for
+     it is a downgrade, not a cleanup.
 3. **Never renumber a migration that has been deployed.** wrangler tracks them
    by *filename*: squashing `0001`–`0015` into `0000_init` left production
    recording fifteen names the repo no longer had, so the chain would have
