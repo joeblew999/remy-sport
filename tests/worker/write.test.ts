@@ -452,3 +452,66 @@ describe("Org teams are a separate noun from roster teams", () => {
     expect(roster.orgName).toBe("Triam Udom Suksa School")
   })
 })
+
+describe("Co-organizers — the relation nothing used to create", () => {
+  /**
+   * EDIT_EVENT is granted to OWNER, CO_ORGANIZER and PLATFORM_ADMIN. Only the
+   * first two of those were reachable, because no endpoint ever wrote an
+   * event_co_organizers row — so the app was stricter than the matrix, and the
+   * grant sat there meaning nothing.
+   */
+  it("an organizer added as co-organizer can edit an event they do not own", async () => {
+    const owner = await signIn(actorFor("ORGANIZER"))
+    const created = await post(
+      "/api/events",
+      { names: { en: "Co-organised Event" }, typeCode: "TOURNAMENT" },
+      owner,
+    )
+    expect(created.status).toBe(201)
+    const { id } = (await created.json()) as { id: string }
+
+    // A different organizer: seeded, and not the one who created it.
+    const other = SEED_ENTITIES.users.find(
+      (u) => u.roleCode === "ORGANIZER" && u.email !== actorFor("ORGANIZER"),
+    )!
+    const otherCookie = await signIn(other.email)
+
+    const refused = await put(`/api/events/${id}`, { names: { en: "Nope" } }, otherCookie)
+    expect(refused.status, "not a co-organizer yet").toBe(403)
+
+    const added = await post(`/api/events/${id}/co-organizers`, { userId: other.id }, owner)
+    expect(added.status).toBe(201)
+
+    const allowed = await put(`/api/events/${id}`, { names: { en: "Edited By Co" } }, otherCookie)
+    expect(allowed.status, "CO_ORGANIZER grants EDIT_EVENT").toBe(200)
+
+    // DELETE_EVENT is granted to OWNER and PLATFORM_ADMIN only — schema.md says
+    // so in words too: "a co-organizer can edit the event but cannot delete it".
+    const del = await api(`/api/events/${id}`, { method: "DELETE", cookie: otherCookie })
+    expect(del.status, "but not DELETE_EVENT").toBe(403)
+  })
+
+  it("adding the same co-organizer twice is a no-op, not a duplicate tuple", async () => {
+    const owner = await signIn(actorFor("ORGANIZER"))
+    const { id } = (await (
+      await post("/api/events", { names: { en: "Twice" }, typeCode: "CAMP" }, owner)
+    ).json()) as { id: string }
+    const other = SEED_ENTITIES.users.find(
+      (u) => u.roleCode === "ORGANIZER" && u.email !== actorFor("ORGANIZER"),
+    )!
+    for (const _ of [1, 2]) {
+      expect((await post(`/api/events/${id}/co-organizers`, { userId: other.id }, owner)).status).toBe(201)
+    }
+  })
+
+  it("someone who is not the owner cannot add a co-organizer", async () => {
+    const owner = await signIn(actorFor("ORGANIZER"))
+    const { id } = (await (
+      await post("/api/events", { names: { en: "Guarded" }, typeCode: "LEAGUE" }, owner)
+    ).json()) as { id: string }
+
+    const coach = await signIn(actorFor("COACH"))
+    const res = await post(`/api/events/${id}/co-organizers`, { userId: "usr_org_002" }, coach)
+    expect(res.status).toBe(403)
+  })
+})

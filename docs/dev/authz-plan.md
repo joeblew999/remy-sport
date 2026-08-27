@@ -251,17 +251,23 @@ All six wired actions, checked against the grant rows.
 
 | Action | Granted to | The app requires | Verdict |
 |---|---|---|---|
-| `CREATE_EVENT` | ANY_ORGANIZER, PLATFORM_ADMIN | permission only | matches |
-| `EDIT_EVENT` | OWNER, CO_ORGANIZER, PLATFORM_ADMIN | permission + `requireOwner` | stricter — CO_ORGANIZER unbuilt |
-| `DELETE_EVENT` | OWNER, PLATFORM_ADMIN | permission + `requireOwner` | matches |
-| `CREATE_TEAM` | ANY_COACH, PLATFORM_ADMIN | permission + org membership | stricter |
-| `EDIT_TEAM_PROFILE` | HEAD_COACH, TEAM_MANAGER, PLATFORM_ADMIN | any org member | **too permissive** |
-| `DELETE_TEAM` | PLATFORM_ADMIN | org admins too | **too permissive** |
+| `CREATE_EVENT` | ANY_ORGANIZER, PLATFORM_ADMIN | `requireAction` | matches |
+| `EDIT_EVENT` | OWNER, CO_ORGANIZER, PLATFORM_ADMIN | `requireAction` | matches — CO_ORGANIZER built 2026-08-27 |
+| `DELETE_EVENT` | OWNER, PLATFORM_ADMIN | `requireAction` | matches |
+| `CREATE_TEAM` | ANY_COACH, PLATFORM_ADMIN | `requireAction` | matches |
+| `EDIT_TEAM_PROFILE` | HEAD_COACH, TEAM_MANAGER, PLATFORM_ADMIN | `requireAction` | matches |
+| `DELETE_TEAM` | PLATFORM_ADMIN | `requireAction` | matches |
 
 ## Also open, not authorization
 
-- **`INVITE_CO_ORGANIZER` is not built.** It is the only invitation the PO
-  specified. `eventCoOrganizer` is seeded but has no API, route or UI. What *is*
-  built is Better Auth's org invitation — which has no UI to send one.
+- ~~**`INVITE_CO_ORGANIZER` is not built.**~~ **Built 2026-08-27.** It writes the
+  `CO_ORGANIZER` tuple, which is what made `EDIT_EVENT` reachable for anyone but
+  the owner. The PO's `ACCEPT_CO_ORGANIZER_INVITE` still has nothing to accept —
+  the table carries no pending state — and that is flagged upstream as a product
+  call.
+- **No org UI.** `ORG` now has four actions and their grants, and Better Auth's
+  organization plugin implements members and invitations, but nothing in
+  `src/web/` can create an organisation or send an invitation. The only org page
+  accepts invitations the product cannot send.
 - **shadcn/ui + Tailwind still not installed** — `src/web/styles.css` is ~1000
   hand-written lines, the largest remaining source of per-page boilerplate.

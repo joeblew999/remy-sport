@@ -155,3 +155,51 @@ export const remove = authed
     await context.db.delete(schema.event).where(eq(schema.event.id, input.id))
     return { deleted: true }
   })
+
+/**
+ * Add a co-organizer to an event.
+ *
+ * `INVITE_CO_ORGANIZER` is granted to `OWNER` and `PLATFORM_ADMIN`, and the row
+ * this writes *is* the `CO_ORGANIZER` relation — `event_co_organizers.user_id`
+ * is what relations.jsonl derives it from. So adding one here is what makes
+ * `EDIT_EVENT` reachable for anybody but the owner, which the PO's matrix has
+ * always granted and this repo could not honour because nothing created the
+ * tuple.
+ *
+ * **The PO's model also has `ACCEPT_CO_ORGANIZER_INVITE`, granted to
+ * `ANY_SIGNED_IN`, and there is nothing here to accept.** `event_co_organizers`
+ * carries `event_id`, `user_id` and `added_at` — no pending state, no status.
+ * Either the action is vestigial or the table needs a state the fixtures do not
+ * model, and that is the PO's call rather than a column to invent here. Until
+ * then this adds directly, which is exactly what the data describes.
+ */
+export const addCoOrganizer = authed
+  .route({
+    method: "POST",
+    path: "/events/{id}/co-organizers",
+    summary: "Add a co-organizer to an event",
+    successStatus: 201,
+    ...authedRoute,
+  })
+  .input(IdInput.extend({ userId: z.string() }))
+  .output(z.object({ eventId: z.string(), userId: z.string(), addedAt: z.string() }))
+  .use(requireAction("INVITE_CO_ORGANIZER", existingEvent))
+  .handler(async ({ context, input }) => {
+    // The FK would refuse an unknown user, but a 404 says which id was wrong.
+    const invitee = await context.db
+      .select({ id: schema.user.id })
+      .from(schema.user)
+      .where(eq(schema.user.id, input.userId))
+      .get()
+    if (!invitee) throw new ORPCError("NOT_FOUND", { message: "Unknown user" })
+
+    const addedAt = new Date().toISOString().slice(0, 10)
+    // Idempotent: eventCoOrganizer_key is unique on (event_id, user_id), so
+    // adding someone twice is a no-op rather than a duplicate relation tuple.
+    await context.db
+      .insert(schema.eventCoOrganizer)
+      .values({ eventId: input.id, userId: input.userId, addedAt })
+      .onConflictDoNothing()
+
+    return { eventId: input.id, userId: input.userId, addedAt }
+  })

@@ -20,6 +20,7 @@ export const router = {
     create: events.create,
     update: events.update,
     delete: events.remove,
+    addCoOrganizer: events.addCoOrganizer,
   },
   teams: {
     list: teams.list,
