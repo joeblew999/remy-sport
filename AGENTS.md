@@ -100,7 +100,39 @@ Update it when you finish something; delete the line when it is done.
    and a head coach outside the org was refused. Team writes are scoped by
    `team_coaches`, which is what the model always granted. Resolved 2026-08-27;
    kept here so the next session does not rebuild it.
-6. **A per-object capability in a list is N queries. Known, accepted, bounded.**
+6. **An action can be about a *pair*, and the model can only name one object.**
+   Registering a team asks two things of two different objects: are you this
+   team's coach, and is this event one you may enter. `REGISTER_TEAM_FOR_EVENT`
+   named EVENT while every relation granting it is about a TEAM, so the check
+   resolved `team_coaches.team_id = <an event id>`, matched nothing, and failed
+   closed — **no coach could register a team**, only a platform admin. Same class
+   as the GAME bug: a relation resolved against the wrong object type is silent,
+   because failing closed looks like a policy rather than a defect.
+   The action is TEAM-scoped now and `requireAction` takes an event context for
+   the `eventTypes` narrowing. **`mise run check` enforces it now** — see
+   `check-tables.ts`, which fails if an action is granted to a relation about a
+   different object type. Writing that check found two more instances the same
+   minute: `EDIT_PLAYER_PROFILE` and `RECORD_ATTENDANCE` are both granted to
+   HEAD_COACH and ASSISTANT_COACH, which are about a TEAM. **So a coach cannot
+   edit their own player's profile, and cannot record attendance.** Both are
+   listed pair-by-pair as known exceptions rather than exempted wholesale, and
+   both need the Product Owner: they want "a coach of the team this player is
+   on", which is PLAYER → player_teams → team_coaches — an object-side hop two
+   joins deep, where the derivation shapes reach one.
+7. **Two things I decided not to build, so the next session knows they are
+   choices rather than oversights.** Standings are one table per event, not
+   grouped by division — the division is on each row, and grouping is a page
+   concern the day a league needs it. And **referee assignment has no screen**:
+   `game_referees` is what makes score entry safe, and the only way to assign
+   one is the seed, so an organiser running a real tournament cannot yet put a
+   referee on a game.
+8. **`CREATE_PLAYER` is granted to `PUBLIC` in the model.** `PUBLIC` includes
+   anonymous visitors, so as written anyone at all may create a player — and it
+   makes the `ANY_COACH`, `ANY_PLAYER` and `PLATFORM_ADMIN` grants beside it
+   redundant, which is what suggests it is a slip rather than a decision. Player
+   creation is deliberately NOT built pending that answer; rosters and
+   registration do not need it. Ask the Product Owner before implementing it.
+9. **A per-object capability in a list is N queries. Known, accepted, bounded.**
    `games.list` returns `canEnterScore` per row, and each one is a `can()` —
    about two reads for an inherited relation. Three games is six reads; a season
    of three hundred is not acceptable. The right fix is to answer it set-wise:
@@ -108,12 +140,12 @@ Update it when you finish something; delete the line when it is done.
    score" is one query, not N. **Do not fix it by moving the decision into the
    client** — that is the copy of the access matrix items 1 and 2 exist to
    prevent. Revisit when a schedule first exceeds a page.
-7. **Reading a row back after a write is written out per procedure.** Both game
+10. **Reading a row back after a write is written out per procedure.** Both game
    writes end with the same `reload` because the update returns nothing useful
    and the response must carry the joined names and the capability. `orgs.update`
    does its own version, `teams.update` another. Three copies is the point at
    which it should be one helper on the base builder; it is at three now.
-8. **The JSONL seed data is fully ported and verified.** All 298 rows of the 42
+11. **The JSONL seed data is fully ported and verified.** All 298 rows of the 42
    deleted `.jsonl` files have an identical counterpart in
    `domain/model/*.ts`, field by field, including every one of the 582 locale
    values that used to live in `translations.jsonl` and `entity_names.jsonl`.
