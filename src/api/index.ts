@@ -26,6 +26,7 @@ export const router = {
     delete: events.remove,
     addCoOrganizer: events.addCoOrganizer,
     acceptCoOrganizerInvite: events.acceptCoOrganizerInvite,
+    entries: registrations.eventTeams,
     registerTeam: registrations.registerTeam,
     withdrawTeam: registrations.withdrawTeam,
   },

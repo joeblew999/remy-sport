@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Icon } from "../components/icon";
 import { Schedule } from "../components/schedule";
+import { Entries } from "../components/entries";
 import { useEvent, useEvents, useGames, useLiveGame, useStandings } from "../lib/data";
 import type { Event } from "../data";
 import type { Route } from "../lib/router";
@@ -130,7 +131,7 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
           ["venues", m.tab_venues()],
           ["rules", m.tab_rules()],
         ] as [EventTab, string][]).map(([tabId, label]) => (
-          <button key={tabId} className={`tab ${tab === tabId ? "active" : ""}`} onClick={() => setTab(tabId)}>{label}</button>
+          <button key={tabId} data-testid={`tab-${tabId}`} className={`tab ${tab === tabId ? "active" : ""}`} onClick={() => setTab(tabId)}>{label}</button>
         ))}
       </div>
 
@@ -138,7 +139,8 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
       {tab === "bracket" && <BracketView goto={goto}/>}
       {tab === "schedule" && <div className="page-inner"><Schedule eventId={e.id} spoiler={spoiler}/></div>}
       {tab === "standings" && <StandingsTable eventId={e.id}/>}
-      {!["overview", "bracket", "schedule", "standings"].includes(tab) && (
+      {tab === "teams" && <div className="page-inner"><Entries eventId={e.id}/></div>}
+      {!["overview", "bracket", "schedule", "standings", "teams"].includes(tab) && (
         <div className="page-inner"><div className="empty">{tab.toUpperCase()} view — not part of this hi-fi pass.</div></div>
       )}
     </>

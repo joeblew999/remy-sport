@@ -11,7 +11,7 @@
   "not_found_team": "ไม่พบทีมนี้",
   "nav_home": "หน้าแรก",
   "nav_discover": "ค้นหา",
-  "division": "รุ่นการแข่งขัน",
+  "division": "ดิวิชั่น",
   "open_game": "เปิดดูเกม →",
   "signed_in_devices": "อุปกรณ์ที่คุณเข้าสู่ระบบ",
   "sign_in": "เข้าสู่ระบบ",
@@ -101,5 +101,9 @@
   "tab_bracket": "สายการแข่งขัน",
   "tab_teams": "ทีม",
   "tab_venues": "สนามแข่ง",
-  "tab_rules": "กติกาและข้อมูล"
+  "tab_rules": "กติกาและข้อมูล",
+  "withdraw": "ถอนทีม",
+  "entries_empty": "ยังไม่มีทีมเข้าร่วม",
+  "enter_a_team": "ส่งทีมเข้าแข่งขัน",
+  "no_matching_division": "ไม่มีดิวิชั่นที่ตรงกับรุ่นอายุและเพศของทีมนี้"
 }

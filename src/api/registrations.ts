@@ -267,3 +267,98 @@ export const roster = viewer
       canManage: await can(context.db, "MANAGE_ROSTER", context.user, input.teamId),
     }
   })
+
+/**
+ * What the event's Teams tab needs, in one call.
+ *
+ * Two lists, because the page asks two questions: who is entered, and what may
+ * *I* enter. The second cannot be worked out in the browser — "may this person
+ * register this team for this event" is the pair-shaped question the model
+ * answers, and a client guessing at it would be the copy of the access matrix
+ * this codebase keeps refusing to make.
+ *
+ * `registrable` is empty for most people, and that is the honest answer: a
+ * spectator entering nothing sees no form rather than a form that will 403.
+ */
+export const eventTeams = viewer
+  .route({ method: "GET", path: "/events/{eventId}/teams", summary: "Teams entered, and teams you could enter" })
+  .input(z.object({ eventId: z.string() }))
+  .output(
+    z.object({
+      registered: z.array(
+        z.object({
+          teamId: z.string(),
+          names: z.record(z.string(), z.string()),
+          divisionId: z.string(),
+          divisionNames: z.record(z.string(), z.string()),
+          canWithdraw: z.boolean(),
+        }),
+      ),
+      registrable: z.array(
+        z.object({
+          teamId: z.string(),
+          names: z.record(z.string(), z.string()),
+          ageGroupCode: z.string(),
+          genderCode: z.string(),
+        }),
+      ),
+      divisions: z.array(
+        z.object({
+          id: z.string(),
+          names: z.record(z.string(), z.string()),
+          ageGroupCode: z.string(),
+          genderCode: z.string(),
+        }),
+      ),
+    }),
+  )
+  .handler(async ({ context, input }) => {
+    const rows = await context.db.query.eventTeam.findMany({
+      where: (et, { eq }) => eq(et.eventId, input.eventId),
+      with: { team: { columns: { id: true, names: true } }, division: true },
+    })
+
+    const registered = []
+    for (const r of rows) {
+      if (!r.team || !r.division) continue
+      registered.push({
+        teamId: r.team.id,
+        names: r.team.names,
+        divisionId: r.division.id,
+        divisionNames: r.division.names,
+        canWithdraw: await can(
+          context.db,
+          "REGISTER_TEAM_FOR_EVENT",
+          context.user,
+          r.team.id,
+          input.eventId,
+        ),
+      })
+    }
+
+    // Everything already in, so the same team is not offered twice.
+    const entered = new Set(rows.map((r) => r.teamId))
+    const all = await context.db.query.team.findMany({
+      columns: { id: true, names: true, ageGroupCode: true, genderCode: true },
+    })
+
+    const registrable = []
+    for (const t of all) {
+      if (entered.has(t.id)) continue
+      if (await can(context.db, "REGISTER_TEAM_FOR_EVENT", context.user, t.id, input.eventId)) {
+        registrable.push({
+          teamId: t.id,
+          names: t.names,
+          ageGroupCode: t.ageGroupCode,
+          genderCode: t.genderCode,
+        })
+      }
+    }
+
+    // The divisions a team can be entered into, so the page can offer only the
+    // ones that match — the API refuses a mismatch, and a form that offers an
+    // impossible choice is a form that teaches people to expect errors.
+    const divisions = await context.db.query.division.findMany()
+
+    return { registered, registrable, divisions }
+  })

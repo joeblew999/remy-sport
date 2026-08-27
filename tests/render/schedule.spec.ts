@@ -150,3 +150,88 @@ test.describe("Standings", () => {
     await expect(page.getByTestId("standings")).toHaveCount(0)
   })
 })
+
+/**
+ * The Teams tab. The form appears only when the server offers something to
+ * enter — the page never works that out for itself.
+ */
+test.describe("Event entries", () => {
+  const EVENT = {
+    id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" },
+    typeCode: "LEAGUE", formatCode: "5x5", description: null,
+    startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK",
+    isFibaCertified: false, organizerUserId: "usr_org_002", orgId: null,
+    organizerName: "Niran", createdAt: "2026-04-01T00:00:00Z", updatedAt: "2026-04-01T00:00:00Z",
+  }
+  const U16M = { id: "div_001", names: { en: "U16 Boys" }, ageGroupCode: "U16", genderCode: "M" }
+  const U18F = { id: "div_004", names: { en: "U18 Girls" }, ageGroupCode: "U18", genderCode: "F" }
+
+  const seedEntries = (page: Parameters<typeof seedCache>[0], entries: unknown) =>
+    seedCache(page, [
+      entry(orpc.events.get, { id: "evt_002" }, EVENT as never),
+      entry(orpc.events.entries, { eventId: "evt_002" }, entries as never),
+    ])
+
+  const open = async (page: Parameters<typeof seedCache>[0]) => {
+    await page.goto("/#/event/evt_002")
+    await page.getByRole("button", { name: "Teams" }).click()
+  }
+
+  test("shows who is entered, and no form when there is nothing to enter", async ({ page }) => {
+    await seedEntries(page, {
+      registered: [{ teamId: "team_001", names: { en: "Assumption U16" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: false }],
+      registrable: [],
+      divisions: [U16M],
+    })
+    await open(page)
+
+    await expect(page.getByTestId("entry-team_001")).toContainText("Assumption U16")
+    await expect(page.getByTestId("entry-team_001")).toContainText("U16 Boys")
+    await expect(page.getByTestId("withdraw-team_001")).toHaveCount(0)
+    await expect(page.getByTestId("enter-team")).toHaveCount(0)
+  })
+
+  test("offers the form, and only the divisions the chosen team matches", async ({ page }) => {
+    await seedEntries(page, {
+      registered: [],
+      registrable: [{ teamId: "team_004", names: { en: "Assumption U18" }, ageGroupCode: "U18", genderCode: "M" }],
+      // Neither division matches a U18 boys' team.
+      divisions: [U16M, U18F],
+    })
+    await open(page)
+
+    await expect(page.getByTestId("enter-team")).toBeVisible()
+    // Said plainly, rather than an empty select that submits nothing.
+    await expect(page.getByTestId("no-division")).toBeVisible()
+    await expect(page.getByTestId("enter-team-submit")).toBeDisabled()
+  })
+
+  test("enables entry once a division matches", async ({ page }) => {
+    await seedEntries(page, {
+      registered: [],
+      registrable: [{ teamId: "team_001", names: { en: "Assumption U16" }, ageGroupCode: "U16", genderCode: "M" }],
+      divisions: [U16M, U18F],
+    })
+    await open(page)
+
+    await expect(page.getByTestId("no-division")).toHaveCount(0)
+    await expect(page.getByTestId("enter-team-submit")).toBeEnabled()
+    // The mismatched one is not offered at all.
+    await expect(page.getByTestId("enter-division-select")).not.toContainText("U18 Girls")
+  })
+
+  test("a withdraw button appears only where the server allows it", async ({ page }) => {
+    await seedEntries(page, {
+      registered: [
+        { teamId: "team_001", names: { en: "Mine" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: true },
+        { teamId: "team_003", names: { en: "Theirs" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: false },
+      ],
+      registrable: [],
+      divisions: [U16M],
+    })
+    await open(page)
+
+    await expect(page.getByTestId("withdraw-team_001")).toBeVisible()
+    await expect(page.getByTestId("withdraw-team_003")).toHaveCount(0)
+  })
+})

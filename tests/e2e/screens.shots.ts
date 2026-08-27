@@ -32,9 +32,9 @@ const OUT = "screenshots"
  * same as "any signed-in user" — it is what a stranger sees. Add a line here to
  * add a screen; nothing else needs changing.
  *
- * `open` names a button to press first, for a view that is behind a tab. Without
- * it the event page would only ever be photographed on its default tab, and the
- * schedule — the thing worth looking at — would never appear.
+ * `open` is a tab's id, not its label. Labels are translated, so naming one by
+ * text photographed the English page and timed out on the Thai one — which is
+ * the localisation working, caught by the screenshots.
  */
 const SCREENS: { name: string; path: string; as: string | null; open?: string }[] = [
   { name: "discover", path: "/#/", as: null },
@@ -44,8 +44,11 @@ const SCREENS: { name: string; path: string; as: string | null; open?: string }[
   // belongs to another school, so the roster must render as refused.
   { name: "org-not-yours", path: "/#/org/org_001", as: actor("COACH", 2) },
   // The schedule, seen by the referee who may score one of its games.
-  { name: "schedule", path: "/#/event/evt_002", as: "adisorn.b@bat.test", open: "Schedule" },
-  { name: "standings", path: "/#/event/evt_001", as: null, open: "Standings" },
+  { name: "schedule", path: "/#/event/evt_002", as: "adisorn.b@bat.test", open: "schedule" },
+  { name: "standings", path: "/#/event/evt_001", as: null, open: "standings" },
+  // A coach with a team still to enter: the entry form is the half a spectator
+  // never sees.
+  { name: "entries", path: "/#/event/evt_004", as: COACH, open: "teams" },
   { name: "admin", path: "/#/admin", as: ADMIN },
   { name: "devices", path: "/#/devices", as: COACH },
   { name: "profile", path: "/#/profile", as: COACH },
@@ -73,7 +76,7 @@ for (const screen of SCREENS) {
 
       const page = await ctx.newPage()
       await page.goto(screen.path)
-      if (screen.open) await page.getByRole("button", { name: screen.open }).click()
+      if (screen.open) await page.getByTestId(`tab-${screen.open}`).click()
       // The data arrives over the network, so there is a real moment where the
       // page says "Loading…". Waiting for the network to settle is what stops
       // that being what gets captured.

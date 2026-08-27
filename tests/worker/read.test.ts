@@ -462,3 +462,52 @@ describe("A team's roster", () => {
     expect(canManage).toBe(true)
   })
 })
+
+describe("An event's entries — who is in, and what you could enter", () => {
+  it("lists the entered teams with their divisions, to anyone", async () => {
+    const res = await api("/api/events/evt_002/teams")
+    expect(res.status).toBe(200)
+    const { registered, registrable } = (await res.json()) as {
+      registered: { teamId: string; divisionId: string; canWithdraw: boolean }[]
+      registrable: unknown[]
+    }
+    expect(registered.map((r) => r.teamId).sort()).toEqual(
+      ["team_001", "team_002", "team_003", "team_004"],
+    )
+    // Signed out: nothing to withdraw, nothing to enter. The page renders the
+    // list and no form, rather than a form that would be refused.
+    expect(registered.every((r) => !r.canWithdraw)).toBe(true)
+    expect(registrable).toEqual([])
+  })
+
+  it("offers a coach only the teams they may enter, and none already in", async () => {
+    // Wichai head-coaches team_001 and team_004. Both are already in evt_002,
+    // so there is nothing left for him to enter there.
+    const coach = await signIn(actorFor("COACH"))
+    const evt002 = (await (await api("/api/events/evt_002/teams", { cookie: coach })).json()) as {
+      registered: { teamId: string; canWithdraw: boolean }[]
+      registrable: { teamId: string }[]
+    }
+    expect(evt002.registrable, "both his teams are already entered").toEqual([])
+    // But he may withdraw the ones he coaches, and only those.
+    const his = evt002.registered.filter((r) => r.canWithdraw).map((r) => r.teamId).sort()
+    expect(his).toEqual(["team_001", "team_004"])
+
+    // evt_004 is a SHOWCASE with team_001 and team_002 entered, so team_004 is
+    // his to enter.
+    const evt004 = (await (await api("/api/events/evt_004/teams", { cookie: coach })).json()) as {
+      registrable: { teamId: string; ageGroupCode: string; genderCode: string }[]
+    }
+    expect(evt004.registrable.map((t) => t.teamId)).toEqual(["team_004"])
+    // Carries what the page needs to offer only matching divisions.
+    expect(evt004.registrable[0]).toMatchObject({ ageGroupCode: "U18", genderCode: "M" })
+  })
+
+  it("offers nothing for a camp — teams do not enter camps", async () => {
+    const coach = await signIn(actorFor("COACH"))
+    const { registrable } = (await (
+      await api("/api/events/evt_003/teams", { cookie: coach })
+    ).json()) as { registrable: unknown[] }
+    expect(registrable).toEqual([])
+  })
+})

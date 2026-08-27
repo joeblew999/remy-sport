@@ -101,5 +101,9 @@
   "tab_bracket": "Bracket",
   "tab_teams": "Teams",
   "tab_venues": "Venues",
-  "tab_rules": "Rules & info"
+  "tab_rules": "Rules & info",
+  "withdraw": "Withdraw",
+  "entries_empty": "No teams entered yet.",
+  "enter_a_team": "Enter a team",
+  "no_matching_division": "No division matches this team's age group and gender."
 }

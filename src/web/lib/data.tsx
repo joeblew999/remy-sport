@@ -125,6 +125,33 @@ export function useRoster(teamId: string | undefined) {
 }
 
 /**
+ * Who is entered in an event, and what this viewer could enter.
+ *
+ * `registrable` is the server's answer to "may I register this team for this
+ * event" — a pair-shaped question the client cannot work out. It comes back
+ * empty for everyone without a team to enter, which is what makes the form
+ * appear for a coach and not for a spectator.
+ */
+export function useEntries(eventId: string | undefined) {
+  const loc = useLocalizer();
+  return useQuery(
+    orpc.events.entries.queryOptions({
+      input: { eventId: eventId! },
+      enabled: eventId !== undefined,
+      select: (r) => ({
+        registered: r.registered.map((x) => ({
+          ...x,
+          team: loc.name(x.names),
+          division: loc.name(x.divisionNames),
+        })),
+        registrable: r.registrable.map((x) => ({ ...x, team: loc.name(x.names) })),
+        divisions: r.divisions.map((d) => ({ ...d, division: loc.name(d.names) })),
+      }),
+    }),
+  );
+}
+
+/**
  * The league table for an event, derived server-side from the games.
  *
  * Replaces a `STANDINGS` constant of eight invented schools. The rows arrive
