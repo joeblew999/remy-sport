@@ -608,6 +608,47 @@ description = "Run Playwright tests locally"
 depends     = ["setup"]
 run         = "bun x playwright test"
 
+# ── Demo sign-in ────────────────────────────────────────────────────────────
+# Lets the twelve seeded people sign in on a deployment with one click. Their
+# addresses are `.test` so nothing delivers to them, and the dev outbox does not
+# exist on a deployment — a fixed code is the only way in.
+#
+# A Worker secret rather than a [vars] entry, and not because the value is
+# secret: it is published to the browser with the account list, and the login
+# page labels it. It is a secret because a secret changes WITHOUT a redeploy,
+# and a switch you may need off in a hurry should not need a commit and a build.
+
+[tasks."demo:on"]
+description = "Let the seeded people sign in on the deployment (published code; never the admin)"
+depends     = ["install"]
+# The seeded ADMIN is excluded in src/auth.ts on any deployment — that account
+# can impersonate, which is the one power reaching a real person. cf:smoke fails
+# if it ever appears in the list.
+run = """
+CODE="${DEMO_CODE:-424242}"
+printf '%s' "$CODE" | bun x wrangler secret put TEST_OTP
+echo "demo:on: seeded sign-in is live at {{env.CF_DEPLOY_URL}}/#/login with code $CODE"
+echo "demo:on: the admin is NOT offered, and /api/dev/outbox stays closed"
+"""
+
+[tasks."demo:off"]
+description = "Stop the seeded people signing in on the deployment"
+depends     = ["install"]
+# Run this before the platform has real users. A demo account cannot reach
+# anyone else's data, but it can edit shared fixture data — and once real events
+# exist, those are not fixtures any more.
+run = """
+bun x wrangler secret delete TEST_OTP
+echo "demo:off: seeded sign-in is off — the fixtures' addresses have no inbox, so there is no way in"
+"""
+
+[tasks."demo:status"]
+description = "Is seeded sign-in on, and who does it offer?"
+depends     = ["install"]
+# Asks the deployment rather than the config: what is set and what is *serving*
+# are different questions, and only the second one matters.
+run = "bun scripts/demo-status.ts"
+
 [tasks."model:coverage"]
 description = "Which of the Product Owner's actions the API actually implements"
 depends     = ["install"]

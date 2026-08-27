@@ -1,16 +1,27 @@
 {
   "current": {
-    "_generated": "2026-08-27T05:57:16.121Z",
+    "_generated": "2026-08-27T06:17:27.011Z",
     "app": "0.1.0",
     "url": "https://remy.ubuntusoftware.net",
     "git": {
-      "commit": "941d344",
+      "commit": "11ce8c4",
       "branch": "main",
-      "tag": "941d344",
-      "github": "https://github.com/joeblew999/remy-sport/commit/941d3442078f49405400f3fac520e15b3d1eb3e2"
+      "tag": "11ce8c4",
+      "github": "https://github.com/joeblew999/remy-sport/commit/11ce8c4aecee1a343fa2922b0ba167d53cb2cd03"
     }
   },
   "history": [
+    {
+      "_generated": "2026-08-27T05:57:16.121Z",
+      "app": "0.1.0",
+      "url": "https://remy.ubuntusoftware.net",
+      "git": {
+        "commit": "941d344",
+        "branch": "main",
+        "tag": "941d344",
+        "github": "https://github.com/joeblew999/remy-sport/commit/941d3442078f49405400f3fac520e15b3d1eb3e2"
+      }
+    },
     {
       "_generated": "2026-08-27T05:06:49.129Z",
       "app": "0.1.0",
@@ -217,26 +228,9 @@
         "branch": "main",
         "tag": "1478ec5"
       }
-    },
-    {
-      "_generated": "2026-02-23T02:05:08.211Z",
-      "app": "0.1.0",
-      "url": "https://remy-sport.gedw99.workers.dev",
-      "git": {
-        "commit": "c450b2b",
-        "branch": "main",
-        "tag": "c450b2b"
-      }
     }
   ],
   "cf_versions": [
-    {
-      "id": "2dbca784-d882-4c84-8bb4-f7f869f026cf",
-      "number": 10,
-      "created": "2026-08-21T03:03:32.22449Z",
-      "source": "version_upload",
-      "url": null
-    },
     {
       "id": "f1420ced-000c-4342-af6b-7e572d63224e",
       "number": 11,
@@ -297,6 +291,13 @@
       "id": "e77077d2-8560-43a1-9c23-05048771f1ed",
       "number": 19,
       "created": "2026-08-27T05:07:07.910108Z",
+      "source": "version_upload",
+      "url": null
+    },
+    {
+      "id": "6036ce43-825f-43c6-8768-0c34f6950bec",
+      "number": 20,
+      "created": "2026-08-27T05:57:39.074815Z",
       "source": "version_upload",
       "url": null
     }
