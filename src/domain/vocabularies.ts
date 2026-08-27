@@ -14,7 +14,8 @@ export * from "./model/vocabularies"
 export type { Names } from "./model/names"
 
 import {
-  ACTION, AGE_GROUP, INVITE_STATUS, CITY, COACH_ROLE, EVENT_FORMAT, EVENT_TYPE, GENDER,
+  ACTION, AGE_GROUP, INVITE_STATUS, CITY, COACH_ROLE, EVENT_FORMAT, EVENT_TYPE,
+  GAME_STATUS, GENDER,
   GUARDIAN_TYPE, LOCALE, NOTIFICATION_CATEGORY, NOTIFICATION_CHANNEL,
   NOTIFICATION_TYPE, OBJECT_TYPE, ORG_ROLE, ORG_TYPE, POSITION, PROVINCE,
   RELATION, ROLE, SKILL_TIER, USER_STATUS,
@@ -44,6 +45,8 @@ export const FIXTURE_TABLE: Record<string, string> = {
   "event_venues": "eventVenue",
   "events": "event",
   "guardians": "guardian",
+  "game_referees": "gameReferee",
+  "games": "game",
   "org_members": "org_member",
   "orgs": "org",
   "player_teams": "playerTeam",
@@ -98,6 +101,7 @@ export const VOCABULARY = {
   coachRoles: COACH_ROLE,
   eventFormats: EVENT_FORMAT,
   eventTypes: EVENT_TYPE,
+  gameStatuses: GAME_STATUS,
   genders: GENDER,
   guardianTypes: GUARDIAN_TYPE,
   locales: LOCALE,

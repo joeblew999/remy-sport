@@ -116,6 +116,19 @@ export const inviteStatus = sqliteTable("invite_status", {
   sort: integer("sort").notNull(),
 })
 
+/**
+ * The states a game moves through: upcoming, live, half-time, finished.
+ *
+ * `CONFIRM_MATCH_STATUS` is the action that moves it, and it is scoped to the
+ * game rather than the event — see the GAME relations in the model.
+ */
+export const gameStatus = sqliteTable("game_status", {
+  code: text("code").primaryKey(),
+  nameEn: text("name_en").notNull(),
+  names: text("names", { mode: "json" }).$type<Names>().notNull(),
+  sort: integer("sort").notNull(),
+})
+
 export const locale = sqliteTable("locale", {
   code: text("code").primaryKey(),
   nameEn: text("name_en").notNull(),
@@ -235,6 +248,7 @@ export const VOCABULARY_TABLES = {
   coachRoles: coachRole,
   eventFormats: eventFormat,
   eventTypes: eventType,
+  gameStatuses: gameStatus,
   genders: gender,
   guardianTypes: guardianType,
   locales: locale,
@@ -292,6 +306,7 @@ export const VOCABULARY_ORDER = {
   coachRoles: coachRole.sort,
   eventFormats: eventFormat.sort,
   eventTypes: eventType.sort,
+  gameStatuses: gameStatus.sort,
   genders: gender.sort,
   guardianTypes: guardianType.sort,
   locales: locale.sort,

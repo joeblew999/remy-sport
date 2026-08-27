@@ -118,9 +118,72 @@ export async function holds(
     return user.role === STORED_ROLE[r.roleCode as keyof typeof STORED_ROLE]
   }
   if (!objectId) return false
+
+  /**
+   * Inherited from the object's parent: whoever runs the event runs its games.
+   *
+   * Read the parent's id off the child row, then ask the *named* relation about
+   * the parent — so `GAME_EVENT_CO_ORGANIZER` is `CO_ORGANIZER` on the game's
+   * event, including its `status_code = ACCEPTED` filter, and stays correct if
+   * that relation is ever redefined.
+   *
+   * The table shape cannot express this. Its one hop resolves the *user* side
+   * (`player_teams` -> `players.user_id`); this hop is on the *object* side, and
+   * for a co-organizer it is two joins deep — `games` -> `events` ->
+   * `event_co_organizers`. Recursing costs one extra read and reuses a relation
+   * already defined rather than restating its derivation against a new table.
+   *
+   * Depth is bounded by the model: a parent relation naming a parent relation
+   * would recurse, and nothing in the model does. `GAME` is the only child
+   * object type, and its parents are all `EVENT`.
+   */
+  if (r.via === "parent") {
+    const src = sql.identifier(tableFor(r.sourceTable!))
+    const idCol = sql.identifier(r.objectColumn!)
+    const fk = sql.identifier(r.throughColumn!)
+    const row = await db.get<{ parent: string | null }>(
+      sql`SELECT ${src}.${fk} AS parent FROM ${src} WHERE ${src}.${idCol} = ${objectId} LIMIT 1`,
+    )
+    if (!row?.parent) return false
+    return holds(db, r.parentRelation!, user, row.parent)
+  }
+
   return holdsTableRelation(db, r, user.id, objectId)
 }
 
+
+/**
+ * The event an action's object belongs to, for the grants that narrow by
+ * subtype — "a camp has no brackets to generate".
+ *
+ * For an EVENT action the object *is* the event. For a GAME action it is one
+ * hop up, and the model says which: `GAME` declares `parentTypeCode: "EVENT"`
+ * and `parentColumn: "event_id"`.
+ *
+ * Written because the caller used to assume the two were the same and looked up
+ * `event.id = objectId` unconditionally. Against a game id that matched no row,
+ * so the subtype resolved to null, so every grant carrying `eventTypes` was
+ * skipped — and `ENTER_SCORES` silently denied everyone, referees and organisers
+ * alike. It failed closed, which is the safe direction and the hard one to spot.
+ */
+export async function eventIdFor(
+  db: Db,
+  action: string,
+  objectId: string,
+): Promise<string | null> {
+  const a = ACTION.find((x) => x.code === action)
+  const type = OBJECT_TYPE.find((t) => t.code === a?.objectTypeCode)
+  if (!type) return null
+  if (type.code === "EVENT") return objectId
+  if (type.parentTypeCode !== "EVENT" || !type.tableName) return null
+
+  const src = sql.identifier(tableFor(type.tableName))
+  const fk = sql.identifier(type.parentColumn!)
+  const row = await db.get<{ parent: string | null }>(
+    sql`SELECT ${src}.${fk} AS parent FROM ${src} WHERE ${src}.${sql.identifier("id")} = ${objectId} LIMIT 1`,
+  )
+  return row?.parent ?? null
+}
 
 /**
  * The table an action's object lives in, or null when it has none.

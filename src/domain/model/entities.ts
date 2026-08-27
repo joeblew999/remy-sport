@@ -58,6 +58,23 @@ export const SEED_ENTITIES = {
     {"id":"usr_referee_001","roleCode":"REFEREE","statusCode":"ACTIVE","email":"adisorn.b@bat.test","phone":"+66812340041","lineId":"ref_adisorn","localeCode":"th","names":{"th":"อดิศร บุญชัย","en":"Adisorn Boonchai"}},
     {"id":"usr_referee_002","roleCode":"REFEREE","statusCode":"PENDING_APPROVAL","email":"waraporn.j@bat.test","phone":"+66812340042","lineId":"ref_waraporn","localeCode":"th","names":{"th":"วราภรณ์ ใจงาม","en":"Waraporn Jaingam"}},
   ],
+  /**
+   * Three games, in the three states that matter: played, in progress, and
+   * still to come.
+   *
+   * Only team_001 and team_003 can meet — they are the two U16 boys' teams, and
+   * a fixture between teams of different age groups or genders would be a
+   * fixture nobody would ever schedule. team_003 is registered to evt_002 below
+   * so the league has an opponent to field.
+   *
+   * gam_003 has no scores and no venue: a game that has not been played has no
+   * result, and 0–0 is a result. The product already renders "Venue TBC".
+   */
+  games: [
+    {"id":"gam_001","eventId":"evt_001","homeTeamId":"team_001","awayTeamId":"team_003","venueId":"ven_002","startsAt":"2026-06-10T10:00:00Z","statusCode":"FINISHED","homeScore":68,"awayScore":54},
+    {"id":"gam_002","eventId":"evt_002","homeTeamId":"team_001","awayTeamId":"team_003","venueId":"ven_001","startsAt":"2026-08-27T13:00:00Z","statusCode":"LIVE","homeScore":41,"awayScore":38},
+    {"id":"gam_003","eventId":"evt_002","homeTeamId":"team_003","awayTeamId":"team_001","venueId":null,"startsAt":"2026-09-15T10:00:00Z","statusCode":"SCHEDULED","homeScore":null,"awayScore":null},
+  ],
   venues: [
     {"id":"ven_001","address":"26 Charoen Krung Rd","cityCode":"BANGKOK","provinceCode":"BKK","names":{"th":"สนามกีฬาในร่ม โรงเรียนอัสสัมชัญ","en":"Assumption College Indoor Court"}},
     {"id":"ven_002","address":"National Stadium Complex Rama I Rd","cityCode":"BANGKOK","provinceCode":"BKK","names":{"th":"สนามกีฬานิมิบุตร","en":"Nimibutr Stadium"}},
@@ -85,6 +102,9 @@ export const SEED_RELATIONSHIPS = {
     {"eventId":"evt_002","teamId":"team_001","divisionId":"div_001","registeredAt":"2026-04-15"},
     {"eventId":"evt_002","teamId":"team_002","divisionId":"div_004","registeredAt":"2026-04-16"},
     {"eventId":"evt_002","teamId":"team_004","divisionId":"div_002","registeredAt":"2026-04-17"},
+    // The league's second U16 boys' team — without an opponent in its division,
+    // team_001 would have nobody to play and the games below could not exist.
+    {"eventId":"evt_002","teamId":"team_003","divisionId":"div_001","registeredAt":"2026-04-18"},
     {"eventId":"evt_004","teamId":"team_001","divisionId":"div_001","registeredAt":"2026-07-01"},
     {"eventId":"evt_004","teamId":"team_002","divisionId":"div_004","registeredAt":"2026-07-02"},
   ],
@@ -94,6 +114,19 @@ export const SEED_RELATIONSHIPS = {
     {"eventId":"evt_002","venueId":"ven_001","isPrimary":true},
     {"eventId":"evt_003","venueId":"ven_003","isPrimary":true},
     {"eventId":"evt_004","venueId":"ven_002","isPrimary":true},
+  ],
+  /**
+   * Which referee is on which game.
+   *
+   * This is what `GAME_REFEREE` reads, and the reason it exists: `ENTER_SCORES`
+   * used to be granted to `ANY_REFEREE`, the platform role, so every referee
+   * could enter a score for every game in every event. Adisorn is on the two
+   * Bangkok games; Waraporn has the September fixture and no others.
+   */
+  gameReferees: [
+    {"gameId":"gam_001","userId":"usr_referee_001"},
+    {"gameId":"gam_002","userId":"usr_referee_001"},
+    {"gameId":"gam_003","userId":"usr_referee_002"},
   ],
   guardians: [
     {"userId":"usr_spectator_001","playerId":"ply_001","guardianTypeCode":"PARENT"},

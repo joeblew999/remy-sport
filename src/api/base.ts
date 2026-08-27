@@ -19,7 +19,7 @@ import { drizzle } from "drizzle-orm/d1"
 import { eq } from "drizzle-orm"
 import * as schema from "../db/schema"
 import { GRANTS } from "../domain/vocabularies"
-import { holds, objectExists, objectTableFor } from "./relations"
+import { eventIdFor, holds, objectExists, objectTableFor } from "./relations"
 import { createAuth } from "../auth"
 import type { Bindings } from "../types"
 
@@ -167,13 +167,21 @@ export async function can(
 
   // Some grants apply only to certain event subtypes — a camp has no brackets
   // to generate. Resolve the subtype once, only if one asks.
+  //
+  // The event is not always the object: a GAME action carries a game id, and the
+  // subtype belongs to the event above it. `eventIdFor` reads that hop off the
+  // model rather than assuming the two are the same, which is what silently
+  // denied ENTER_SCORES to everybody.
   let subtype: string | null | undefined
   if (grants.some((g) => g.eventTypes.length)) {
-    const row = await db
-      .select({ typeCode: schema.event.typeCode })
-      .from(schema.event)
-      .where(eq(schema.event.id, objectId))
-      .get()
+    const eventId = await eventIdFor(db, action, objectId)
+    const row = eventId
+      ? await db
+          .select({ typeCode: schema.event.typeCode })
+          .from(schema.event)
+          .where(eq(schema.event.id, eventId))
+          .get()
+      : undefined
     subtype = row?.typeCode ?? null
   }
 

@@ -20,10 +20,11 @@
 import { sqliteTable, text, integer, uniqueIndex } from "drizzle-orm/sqlite-core"
 import { createSelectSchema } from "drizzle-zod"
 import type { Names } from "../domain/names"
-import { INVITE_STATUS_CODES, ORG_ROLE_CODES } from "../domain/vocabularies"
+import { GAME_STATUS_CODES, INVITE_STATUS_CODES, ORG_ROLE_CODES } from "../domain/vocabularies"
 import { user } from "./auth-schema"
 import { event, team } from "./app-schema"
 import { inviteStatus } from "./vocabularies-schema"
+import { gameStatus } from "./vocabularies-schema"
 import { objectType } from "./vocabularies-schema"
 import { action } from "./vocabularies-schema"
 import { ageGroup } from "./vocabularies-schema"
@@ -109,6 +110,48 @@ export const eventCoOrganizer = sqliteTable("eventCoOrganizer", {
     .references(() => inviteStatus.code),
 }, (t) => [uniqueIndex("eventCoOrganizer_key").on(t.eventId, t.userId)])
 
+/**
+ * One match inside an event — the noun the whole Scores, Standings and Live
+ * half of the roadmap hangs off, and which the model had actions for but no
+ * object type until 2026-08-27.
+ *
+ * `venueId` is nullable because the product already renders "Venue TBC" rather
+ * than inventing one, and a fixture is often scheduled before a court is
+ * assigned. The two scores are nullable for the same reason: a game that has
+ * not been played has no score, and 0–0 is a result, not an absence.
+ *
+ * Per-quarter scoring is deliberately absent — the roadmap files it under
+ * Future Ideas, and a box score is a separate table when it arrives, not four
+ * more columns here.
+ */
+export const game = sqliteTable("game", {
+  id: text("id").primaryKey(),
+  eventId: text("event_id").notNull().references(() => event.id),
+  homeTeamId: text("home_team_id").notNull().references(() => team.id),
+  awayTeamId: text("away_team_id").notNull().references(() => team.id),
+  venueId: text("venue_id").references(() => venue.id),
+  // ISO 8601 datetime: a game has a kick-off time, where an event has only dates.
+  startsAt: text("starts_at").notNull(),
+  statusCode: text("status_code", { enum: GAME_STATUS_CODES })
+    .notNull()
+    .default("SCHEDULED")
+    .references(() => gameStatus.code),
+  homeScore: integer("home_score"),
+  awayScore: integer("away_score"),
+})
+
+/**
+ * Which referees are on this game.
+ *
+ * The `GAME_REFEREE` relation reads exactly this. Before it existed,
+ * `ENTER_SCORES` was granted to `ANY_REFEREE` — the platform role — so every
+ * referee could score every game in every event.
+ */
+export const gameReferee = sqliteTable("gameReferee", {
+  gameId: text("game_id").notNull().references(() => game.id),
+  userId: text("user_id").notNull().references(() => user.id),
+}, (t) => [uniqueIndex("gameReferee_key").on(t.gameId, t.userId)])
+
 export const eventPlayer = sqliteTable("eventPlayer", {
   eventId: text("event_id").notNull().references(() => event.id),
   playerId: text("player_id").notNull().references(() => player.id),
@@ -185,6 +228,8 @@ export const FIXTURE_TABLES = {
   orgs: org,
   players: player,
   venues: venue,
+  games: game,
+  gameReferees: gameReferee,
   eventCoOrganizers: eventCoOrganizer,
   eventPlayers: eventPlayer,
   eventTeams: eventTeam,
