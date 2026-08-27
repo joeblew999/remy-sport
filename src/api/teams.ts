@@ -18,7 +18,7 @@ import type { Names } from "../domain/names"
 import { clean, pivot } from "../domain/names"
 import { z } from "zod"
 import { CreateTeamInput, TeamSchema, UpdateTeamInput } from "../domain/api"
-import { authed, authedRoute, existingTeam, pub, requireAction, type Db } from "./base"
+import { authed, authedRoute, pub, requireAction, type Db } from "./base"
 
 const IdInput = z.object({ id: z.string() })
 
@@ -139,7 +139,7 @@ export const update = authed
   .route({ method: "PUT", path: "/teams/{id}", summary: "Update a team", ...authedRoute })
   .input(IdInput.extend(UpdateTeamInput.shape))
   .output(TeamSchema)
-  .use(requireAction("EDIT_TEAM_PROFILE", existingTeam))
+  .use(requireAction("EDIT_TEAM_PROFILE"))
   .handler(async ({ context, input }) => {
     const { id, names, ...columns } = input
     await context.db
@@ -165,7 +165,7 @@ export const remove = authed
   // The PO grants DELETE_TEAM to PLATFORM_ADMIN and to nobody else — no relation
   // to the team is required or accepted, so this is the one team write where
   // holding a coaching role changes nothing.
-  .use(requireAction("DELETE_TEAM", existingTeam))
+  .use(requireAction("DELETE_TEAM"))
   .handler(async ({ context, input }) => {
     // The rows that point at this team, first.
     //
@@ -181,8 +181,9 @@ export const remove = authed
     ])
 
     const res = await context.db.delete(schema.team).where(eq(schema.team.id, input.id))
-    // `existingTeam` has already 404'd a missing id, so reaching zero changes
-    // here means it was deleted between the two — still a 404 to the caller.
+    // requireAction has already 404'd a missing id — it resolves the table from
+    // the action's object type — so reaching zero changes here means the row was
+    // deleted between the two. Still a 404 to the caller.
     if (res.meta.changes === 0) throw new ORPCError("NOT_FOUND", { message: "Not found" })
     return { deleted: input.id }
   })

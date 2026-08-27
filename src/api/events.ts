@@ -18,7 +18,7 @@ import type { ApiEvent } from "../domain/api"
 import { clean, pivot } from "../domain/names"
 import { z } from "zod"
 import { CreateEventInput, EventSchema, UpdateEventInput } from "../domain/api"
-import { authed, authedRoute, existingEvent, pub, requireAction, type Db } from "./base"
+import { authed, authedRoute, pub, requireAction, type Db } from "./base"
 
 const IdInput = z.object({ id: z.string() })
 
@@ -113,7 +113,7 @@ export const update = authed
   .route({ method: "PUT", path: "/events/{id}", summary: "Update an event", ...authedRoute })
   .input(IdInput.extend(UpdateEventInput.shape))
   .output(EventSchema)
-  .use(requireAction("EDIT_EVENT", existingEvent))
+  .use(requireAction("EDIT_EVENT"))
   .handler(async ({ context, input }) => {
     const { id, names, ...columns } = input
     const existing = await context.db
@@ -150,7 +150,7 @@ export const remove = authed
   .route({ method: "DELETE", path: "/events/{id}", summary: "Delete an event", ...authedRoute })
   .input(IdInput)
   .output(z.object({ deleted: z.boolean() }))
-  .use(requireAction("DELETE_EVENT", existingEvent))
+  .use(requireAction("DELETE_EVENT"))
   .handler(async ({ context, input }) => {
     await context.db.delete(schema.event).where(eq(schema.event.id, input.id))
     return { deleted: true }
@@ -183,7 +183,7 @@ export const addCoOrganizer = authed
   })
   .input(IdInput.extend({ userId: z.string() }))
   .output(z.object({ eventId: z.string(), userId: z.string(), addedAt: z.string() }))
-  .use(requireAction("INVITE_CO_ORGANIZER", existingEvent))
+  .use(requireAction("INVITE_CO_ORGANIZER"))
   .handler(async ({ context, input }) => {
     // The FK would refuse an unknown user, but a 404 says which id was wrong.
     const invitee = await context.db

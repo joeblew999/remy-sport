@@ -25,7 +25,7 @@
  */
 
 import { sql } from "drizzle-orm"
-import { RELATION, ROLE_CODES } from "../domain/vocabularies"
+import { ACTION, OBJECT_TYPE, RELATION, ROLE_CODES } from "../domain/vocabularies"
 import type { Db } from "./base"
 
 type RelationRow = (typeof RELATION)[number]
@@ -163,4 +163,31 @@ export function unresolvedRelations(tables: Record<string, Record<string, unknow
     if (r.activeToColumn) check(r.sourceTable!, r.activeToColumn)
     return problems
   })
+}
+
+/**
+ * The table an action's object lives in, or null when it has none.
+ *
+ * `EDIT_TEAM_PROFILE` declares `object_type_code: TEAM` and `TEAM` declares
+ * `table_name: teams`, so the action already says what it acts on. Passing an
+ * object resolver at every call site restated that, and a restatement is a place
+ * to disagree — `requireAction("EDIT_TEAM_PROFILE", existingEvent)` would have
+ * type-checked and quietly authorised against the wrong row.
+ *
+ * `CREATE_TEAM` is a PLATFORM action: the team does not exist yet, so there is
+ * nothing to be in a relation to, and this returns null.
+ */
+export function objectTableFor(action: string): string | null {
+  const a = ACTION.find((x) => x.code === action)
+  if (!a) return null
+  const type = OBJECT_TYPE.find((t) => t.code === a.objectTypeCode)
+  return type?.tableName ? tableFor(type.tableName) : null
+}
+
+/** Does a row with this id exist in that table? A missing object is a 404, not a 403. */
+export async function objectExists(db: Db, table: string, id: string): Promise<boolean> {
+  const row = await db.get(
+    sql`SELECT 1 AS ok FROM ${sql.identifier(table)} WHERE ${sql.identifier("id")} = ${id} LIMIT 1`,
+  )
+  return row !== undefined && row !== null
 }

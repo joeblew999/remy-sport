@@ -19,7 +19,7 @@ import { drizzle } from "drizzle-orm/d1"
 import { eq } from "drizzle-orm"
 import * as schema from "../db/schema"
 import { GRANTS } from "../domain/vocabularies"
-import { holds } from "./relations"
+import { holds, objectExists, objectTableFor } from "./relations"
 import { createAuth } from "../auth"
 import type { Bindings } from "../types"
 
@@ -99,9 +99,18 @@ export const authed = pub.use(async ({ context, next }) => {
  *
  * Fails closed. An action with no grants forbids everyone.
  */
-export function requireAction<TInput>(
+/**
+ * Where the object's id sits in the input. `{ id }` for every route so far.
+ *
+ * Kept as an override rather than assumed, because a route that acts on one
+ * object while carrying another's id in `id` will exist eventually — but it does
+ * not yet, and a parameter nobody passes is better than one everybody passes.
+ */
+const defaultId = (input: { id?: string }) => input.id ?? ""
+
+export function requireAction(
   action: keyof typeof GRANTS,
-  objectFrom?: (input: TInput, db: Db) => Promise<string | null> | string | null,
+  idFrom: (input: never) => string = defaultId as (input: never) => string,
 ) {
   return base
     .$context<ApiContext & { user: SessionUser }>()
@@ -120,9 +129,16 @@ export function requireAction<TInput>(
         if (!g.eventTypes.length && (await holds(db, g.relation, user, null))) return next()
       }
 
-      if (!objectFrom) throw new ORPCError("FORBIDDEN", { message: "Forbidden" })
-      const objectId = await objectFrom(input as TInput, db)
-      if (!objectId) throw new ORPCError("NOT_FOUND", { message: "Not found" })
+      // Which table this action acts on comes from the action itself: it
+      // declares an object type, and the type declares its table. A PLATFORM
+      // action has none, and reaching here means no relation granted it.
+      const table = objectTableFor(action)
+      if (!table) throw new ORPCError("FORBIDDEN", { message: "Forbidden" })
+
+      const objectId = (idFrom as (i: unknown) => string)(input)
+      if (!objectId || !(await objectExists(db, table, objectId))) {
+        throw new ORPCError("NOT_FOUND", { message: "Not found" })
+      }
 
       // Some grants apply only to certain event subtypes — a camp has no
       // brackets to generate. Resolve the subtype once, only if one asks.
@@ -147,18 +163,5 @@ export function requireAction<TInput>(
 
 
 
-/**
- * The object a write targets, confirmed to exist.
- *
- * `requireAction` distinguishes "you may not" from "it is not there", and can
- * only do that if the resolver says which. Passing `input.id` straight through
- * looks equivalent and is not: a missing team then answers 403, which tells a
- * caller the id is real.
- */
-export const existingEvent = async (input: { id: string }, db: Db) =>
-  (await db.select({ id: schema.event.id }).from(schema.event).where(eq(schema.event.id, input.id)).get())?.id ?? null
-
-export const existingTeam = async (input: { id: string }, db: Db) =>
-  (await db.select({ id: schema.team.id }).from(schema.team).where(eq(schema.team.id, input.id)).get())?.id ?? null
 
 

@@ -29,11 +29,11 @@ export type ReleasedLocale = (typeof LOCALES)[number]
 
 /** 5 rows, from object_types.jsonl. */
 export const OBJECT_TYPE = [
-  { code: "EVENT", names: {"th":"อีเวนต์","en":"Event"}, descriptions: {"th":"ทัวร์นาเมนต์ ลีก ค่ายฝึก และกิจกรรมแสดงผลงาน โดยประเภทย่อยอยู่ใน events.type_code","en":"Tournaments leagues camps showcases — subtype lives in events.type_code"} },
-  { code: "TEAM", names: {"th":"ทีม","en":"Team"}, descriptions: {"th":"โปรไฟล์ทีมและรายชื่อผู้เล่น","en":"Team profile and roster"} },
-  { code: "PLAYER", names: {"th":"ผู้เล่น","en":"Player"}, descriptions: {"th":"โปรไฟล์ผู้เล่นรายบุคคล","en":"Individual player profile"} },
-  { code: "ORG", names: {"th":"องค์กร","en":"Organisation"}, descriptions: {"th":"โรงเรียน สโมสร และสหพันธ์","en":"Schools clubs federations"} },
-  { code: "PLATFORM", names: {"th":"แพลตฟอร์ม","en":"Platform"}, descriptions: {"th":"การดำเนินการทั่วทั้งระบบที่ไม่ผูกกับออบเจ็กต์ใดโดยเฉพาะ","en":"Global actions not tied to a specific object"} },
+  { code: "EVENT", tableName: "events", names: {"th":"อีเวนต์","en":"Event"}, descriptions: {"th":"ทัวร์นาเมนต์ ลีก ค่ายฝึก และกิจกรรมแสดงผลงาน โดยประเภทย่อยอยู่ใน events.type_code","en":"Tournaments leagues camps showcases — subtype lives in events.type_code"} },
+  { code: "TEAM", tableName: "teams", names: {"th":"ทีม","en":"Team"}, descriptions: {"th":"โปรไฟล์ทีมและรายชื่อผู้เล่น","en":"Team profile and roster"} },
+  { code: "PLAYER", tableName: "players", names: {"th":"ผู้เล่น","en":"Player"}, descriptions: {"th":"โปรไฟล์ผู้เล่นรายบุคคล","en":"Individual player profile"} },
+  { code: "ORG", tableName: "organizations", names: {"th":"องค์กร","en":"Organisation"}, descriptions: {"th":"โรงเรียน สโมสร และสหพันธ์","en":"Schools clubs federations"} },
+  { code: "PLATFORM", tableName: null, names: {"th":"แพลตฟอร์ม","en":"Platform"}, descriptions: {"th":"การดำเนินการทั่วทั้งระบบที่ไม่ผูกกับออบเจ็กต์ใดโดยเฉพาะ","en":"Global actions not tied to a specific object"} },
 ] as const
 
 export const OBJECT_TYPE_CODES = OBJECT_TYPE.map((t) => t.code) as unknown as [

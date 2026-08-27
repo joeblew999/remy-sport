@@ -21,6 +21,7 @@ export const objectType = sqliteTable("object_type", {
   names: text("names", { mode: "json" }).$type<Names>().notNull(),
   descriptionEn: text("description_en").notNull(),
   descriptions: text("descriptions", { mode: "json" }).$type<Names>().notNull(),
+  tableName: text("table_name"),
   sort: integer("sort").notNull(),
 })
 
