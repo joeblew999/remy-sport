@@ -960,7 +960,6 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   .event-row > :nth-child(5) { display: none; }
   .event-row > :nth-child(6) { grid-area: status; align-self: start; }
 
-  /* Tables: horizontal-scroll containers */
   .standing-row { font-size: 12px; padding-left: 12px; padding-right: 12px; }
   .roster-grid { grid-template-columns: 1fr; }
   .player-card { padding: 12px; }
@@ -1080,6 +1079,77 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 }
 .admin-table button.danger { color: var(--live); border-color: var(--live); }
 .admin-table select { font-size: 12px; padding: 2px 6px; border: 1px solid var(--rule); border-radius: 4px; }
+
+/* ─── Mobile data tables: ≤ 768px ───
+   Deliberately here and not in the ≤768px block above, which sits ~180 lines
+   EARLIER in this file than the `.admin-table` rules it would need to beat. A
+   media query adds no specificity, so `.admin-table td` up there and
+   `.admin-table td` down here tie, and the later one wins — the stacking
+   applied while `padding` and `border-bottom` silently did not, leaving desktop
+   rules drawn across a card layout. Overrides go after what they override. */
+@media (max-width: 768px) {
+  /* ── Data tables stack into cards ──
+     Every `.admin-table` — events, accounts, org members, roster, entries — is
+     four columns of desktop layout in 390px. Nothing overflowed the page, which
+     is why no check caught it, but "Chiang Mai Summer Basketball Camp 2026"
+     rendered one word per line down a 150px Name column while Description sat
+     empty beside it. Six lines to say one event.
+
+     A sideways-scrolling table was the other option and is worse: the reader
+     has to discover the scroll, and the column that matters is the one off
+     screen. So the row becomes the card instead.
+
+     No component changes and no `data-label` pseudo-elements. The header row is
+     dropped because all five tables put the identity in the first cell and the
+     action in the last, so a stacked row reads as name-then-detail without a
+     label to reinstate. If a table ever arrives whose columns are not
+     self-describing, that is when to add labels — not before. */
+  .admin-table thead { display: none; }
+  .admin-table,
+  .admin-table tbody,
+  .admin-table tr,
+  .admin-table td { display: block; width: 100%; }
+  .admin-table tr {
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    background: var(--paper);
+  }
+  .admin-table td {
+    border-bottom: none;
+    padding: 3px 0;
+  }
+  /* The identity of the row, given the weight the missing header used to carry. */
+  .admin-table td:first-child {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--ink);
+  }
+  /* The action gets its own line and a real tap target — 30px of button was
+     fine under a mouse and is not under a thumb. */
+  .admin-table td:last-child:has(button) { padding-top: 10px; }
+  .admin-table td button {
+    width: 100%;
+    min-height: 44px;
+  }
+  /* The empty state is one cell spanning the whole table; as a card it would
+     read as a row of data that happens to say "none". */
+  .admin-table td[colspan] {
+    border: none;
+    background: none;
+    font-size: 13px;
+    font-weight: 400;
+    padding: 4px 0;
+  }
+  .admin-table tr:has(td[colspan]) {
+    border: none;
+    background: none;
+    padding: 4px 0;
+    margin-bottom: 0;
+  }
+}
 .admin-form { display: flex; flex-direction: column; gap: 8px; max-width: 420px; }
 .admin-form input, .admin-form select {
   padding: 8px 10px; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper);

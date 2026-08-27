@@ -60,6 +60,26 @@ const SCREENS: { name: string; path: string; as: string | null; open?: string }[
   { name: "login", path: "/#/login", as: null },
 ]
 
+/**
+ * Desktop and phone, because the two disagree and only one was ever looked at.
+ *
+ * Every `.admin-table` — events, accounts, org members, roster, entries — was
+ * four columns of desktop layout squeezed into 390px, rendering "Chiang Mai
+ * Summer Basketball Camp 2026" one word per line down a 150px column. Nothing
+ * overflowed the page, so no automated check could have objected; the whole
+ * suite passed and the screen was unusable. It was found by looking, which is
+ * what this file is for, and it could not be found here because this file only
+ * ever photographed 1280px.
+ *
+ * `isMobile` and `hasTouch` as well as the width: they change what the page
+ * gets — `@media (pointer: coarse)` bumps tap targets, and a viewport-only
+ * shrink would photograph a desktop pointer on a phone-sized screen.
+ */
+const VIEWPORTS = [
+  { name: "desktop", viewport: { width: 1280, height: 900 } },
+  { name: "mobile", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
+] as const
+
 // One clean directory per run, so a screen that was deleted does not leave a
 // stale picture behind to be read as current.
 test.beforeAll(() => {
@@ -69,10 +89,12 @@ test.beforeAll(() => {
 
 for (const screen of SCREENS) {
   for (const locale of LOCALES) {
-    test(`${screen.name} · ${locale}`, async ({ browser }) => {
+   for (const vp of VIEWPORTS) {
+    test(`${screen.name} · ${locale} · ${vp.name}`, async ({ browser }) => {
       const ctx = await browser.newContext({
         ...(screen.as ? { storageState: stateFor(screen.as) } : {}),
-        viewport: { width: 1280, height: 900 },
+        viewport: vp.viewport,
+        ...("isMobile" in vp ? { isMobile: vp.isMobile, hasTouch: vp.hasTouch } : {}),
       })
       // Set before the bundle runs. Clicking the switcher would work too, but
       // it screenshots a page that rendered once in the wrong language first,
@@ -86,8 +108,12 @@ for (const screen of SCREENS) {
       // page says "Loading…". Waiting for the network to settle is what stops
       // that being what gets captured.
       await page.waitForLoadState("networkidle")
-      await page.screenshot({ path: `${OUT}/${screen.name}.${locale}.png`, fullPage: true })
+      await page.screenshot({
+        path: `${OUT}/${vp.name}/${screen.name}.${locale}.png`,
+        fullPage: true,
+      })
       await ctx.close()
     })
+   }
   }
 }
