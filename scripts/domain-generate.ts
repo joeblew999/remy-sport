@@ -156,10 +156,59 @@ function singular(plural: string): string {
   return plural.endsWith("s") ? plural.slice(0, -1) : plural
 }
 
-const camel = (snake: string) => snake.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())
+const camel = (s: string) => s.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())
+const snake = (camelName: string) => camelName.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`)
 const pascal = (snake: string) => {
   const c = camel(snake)
   return c[0]!.toUpperCase() + c.slice(1)
+}
+
+/**
+ * The column type schema.md declares, keyed `table.column`.
+ *
+ * The declaration wins over what the values happen to look like. Inferring from
+ * a sample means a text column whose fixture rows are all digits becomes
+ * INTEGER — remy-sport-biz's own validator carries a note about that happening
+ * once, to a phone number in E.164 form. The document says `text`; the data
+ * said otherwise; the data was wrong.
+ *
+ * Upstream already validates the values against these declarations, so trusting
+ * them here removes a third opinion rather than adding one.
+ */
+const DECLARED_TYPE: Map<string, "TEXT" | "INTEGER"> = (() => {
+  const out = new Map<string, "TEXT" | "INTEGER">()
+  const doc = resolve(BIZ, "schema.md")
+  if (!existsSync(doc)) return out
+  let table: string | null = null
+  for (const line of readFileSync(doc, "utf8").split("\n")) {
+    const heading = line.match(/^##\s+(\w+)\.jsonl/)
+    if (heading) {
+      table = heading[1]!
+      continue
+    }
+    const col = line.match(/^\|\s*`([a-z_]+)`\s*\|\s*(\w+)\s*\|/)
+    if (table && col) {
+      const declared = col[2]!.toLowerCase()
+      // `FK` and `date` are text in SQLite; only these two are stored as numbers.
+      out.set(`${table}.${col[1]}`, declared === "integer" || declared === "boolean" ? "INTEGER" : "TEXT")
+    }
+  }
+  return out
+})()
+
+/** The declared type, or the inferred one, and a loud failure if they disagree. */
+function columnType(source: string, key: string, sample: unknown): "TEXT" | "INTEGER" {
+  const inferred = typeof sample === "number" || typeof sample === "boolean" ? "INTEGER" : "TEXT"
+  const declared = DECLARED_TYPE.get(`${source}.${snake(key)}`)
+  if (!declared) return inferred
+  if (declared !== inferred && sample !== undefined) {
+    fail(
+      `domain-generate: ${source}.${snake(key)} is declared ${declared} in schema.md but its ` +
+        `values look like ${inferred}. One of the two is wrong, and guessing which would be worse ` +
+        `than stopping.`,
+    )
+  }
+  return declared
 }
 
 // ── Reading a vocabulary ───────────────────────────────────────────────────
@@ -206,7 +255,7 @@ function readVocabularies(): Vocab[] {
         const sample = rows.find((r) => r[key] !== null && r[key] !== undefined)?.[key]
         columns.push({
           name: key,
-          sql: typeof sample === "number" || typeof sample === "boolean" ? "INTEGER" : "TEXT",
+          sql: columnType(source, key, sample),
           notNull: !nullable,
         })
 
@@ -524,13 +573,16 @@ function emitFixtureTable(source: string, rows: Json[], byEntity: Map<string, st
   const fields = keys.map((key) => {
     const nullable = rows.some((r) => r[key] === null || r[key] === undefined)
     const sample = rows.find((r) => r[key] !== null && r[key] !== undefined)?.[key]
+    // Same declaration-wins rule as the vocabularies: schema.md says what a
+    // column is, and a fixture whose values disagree stops the build.
+    const declared = key === "names" ? "TEXT" : columnType(source, key, sample)
     const kind =
       key === "names"
         ? `text(${json("names")}, { mode: "json" }).$type<Names>().notNull()`
-        : typeof sample === "number"
-          ? `integer(${json(snake(key))})`
-          : typeof sample === "boolean"
-            ? `integer(${json(snake(key))}, { mode: "boolean" })`
+        : declared === "INTEGER" && typeof sample === "boolean"
+          ? `integer(${json(snake(key))}, { mode: "boolean" })`
+          : declared === "INTEGER"
+            ? `integer(${json(snake(key))})`
             : `text(${json(snake(key))})`
     const parts = [kind]
     if (key === "id") parts.push("primaryKey()")
@@ -554,7 +606,6 @@ function emitFixtureTable(source: string, rows: Json[], byEntity: Map<string, st
   return [`export const ${camel(table)} = sqliteTable(${json(table)}, {`, ...fields, tail, ``].join("\n")
 }
 
-const snake = (camelName: string) => camelName.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`)
 
 /** Resolve a `*_code` or `*_id` column to the table it points at. */
 function referenceFor(
