@@ -128,6 +128,7 @@ INSERT OR IGNORE INTO teamCoach (team_id, user_id, coach_role_code) VALUES ('tea
 INSERT OR IGNORE INTO teamCoach (team_id, user_id, coach_role_code) VALUES ('team_002', 'usr_coach_002', 'HEAD');
 INSERT OR IGNORE INTO teamCoach (team_id, user_id, coach_role_code) VALUES ('team_003', 'usr_coach_003', 'HEAD');
 INSERT OR IGNORE INTO teamCoach (team_id, user_id, coach_role_code) VALUES ('team_004', 'usr_coach_001', 'HEAD');
+INSERT OR IGNORE INTO teamCoach (team_id, user_id, coach_role_code) VALUES ('team_002', 'usr_coach_003', 'MANAGER');
 
 -- userNotificationChannels
 INSERT OR IGNORE INTO userNotificationChannel (user_id, channel_code, address, address_label, is_enabled, verified_at) VALUES ('usr_admin_001', 'EMAIL', 'admin@remysport.test', 'primary', 1, '2026-01-15');
