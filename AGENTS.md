@@ -20,6 +20,32 @@ the value is secret (it is published to the browser and the page says so) but
 because a secret flips without a redeploy. **`mise run demo:off` before the
 platform has real users.**
 
+**inlang is a translation management system, not a compiler.** The project used
+one quarter of it — the paraglide compiler — and hand-edited
+`messages/{locale}.json` like a config file. That is what made i18n feel like
+boilerplate, and it had already failed: `ja` was declared and sat at **0 of 152
+messages**, because adding a third language meant hand-writing 152 Japanese
+strings and nobody was going to.
+
+The three parts that were never used:
+
+| | |
+|---|---|
+| [Fink](https://fink.inlang.com) | a web editor for translators — no git, no clone, no PR. This is where a human reviews and fixes. |
+| Sherlock | the VS Code extension in `.vscode/extensions.json`. Select a string, "Extract Message", and it writes the key into `en.json` **and** replaces the string with `m.key()` in place. That is the step that was being done by hand. |
+| `inlang machine translate` | seeds a locale in one command. Its free endpoint is dead and it wants a DeepL or Google key — which is why `ja` was filled by Claude instead, and why the next language can be too. |
+
+**`messages/en.json` is the only file to write by hand.** Everything else is a
+translation of it. `ja` was filled in one pass and is complete (154/154) but
+still `status: "draft"` in the PO's model — nobody who speaks Japanese has read
+it. Flipping `draft` to `released` in remy-sport-biz offers it to users; that is
+the PO's call, not a developer's.
+
+**Placeholders are the failure mode nothing else catches.** `check:messages`
+counts a non-empty string as translated, so a translation that dropped `{days}`
+would ship as "Starts in days" and only a reader would notice. Check them when
+a locale lands.
+
 **Messages compile to `src/paraglide`, not `src/web/paraglide`.** They are the
 product's copy, not the SPA's — `src/auth.ts` writes the sign-in email from the
 same messages a page renders, so an email and a screen cannot word the same

@@ -1,0 +1,14 @@
+{
+  // Sherlock is inlang's editor extension, and it is the authoring half of the
+  // i18n workflow this project had been doing by hand.
+  //
+  // Select a hardcoded string, run "Sherlock: Extract Message", and it writes
+  // the key into messages/en.json and replaces the string with m.your_key() in
+  // place. That is the step that was being done manually — invent a key, open
+  // en.json, open th.json, run the compiler — and it is why adding a string
+  // felt like boilerplate.
+  //
+  // It also shows every message inline in the editor, so an untranslated locale
+  // is visible while writing the component rather than after it ships.
+  "recommendations": ["inlang.vs-code-extension"]
+}
