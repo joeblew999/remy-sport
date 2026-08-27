@@ -109,6 +109,7 @@ export const SEED_RELATIONSHIPS = {
     {"userId":"usr_spectator_001","playerId":"ply_001","guardianTypeCode":"PARENT"},
   ],
   orgMembers: [
+    {"orgId":"org_001","userId":"usr_org_001","orgRoleCode":"OWNER"},
     {"orgId":"org_001","userId":"usr_coach_001","orgRoleCode":"ADMIN"},
     {"orgId":"org_002","userId":"usr_org_002","orgRoleCode":"MEMBER"},
   ],
