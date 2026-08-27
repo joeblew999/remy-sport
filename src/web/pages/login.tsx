@@ -158,18 +158,31 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
             <h2>{m.dev_accounts()}</h2>
             <a className="more">LOCAL ONLY</a>
           </div>
-          <div className="dev-account-row">
+          {/* Every seeded person, not one per role. The differences *within* a
+              role are the point: two coaches run different schools, two referees
+              are on different games, and signing in as the wrong one is why a
+              permission looks broken when it is working correctly.
+
+              `holds` is derived from the model server-side, so what is printed
+              here is the same answer the API will give when you act as them. */}
+          <div className="dev-account-list">
             {devAccounts.data.map((account) => (
               <button
-                key={account.role}
-                className="btn"
-                // Keyed by role, not by the address: the address is a person's
-                // now, and a test that wants "the referee" means the role.
-                data-testid={`spa-dev-${account.role}`}
-                title={`${account.name} — ${account.email}`}
+                key={account.email}
+                className="dev-account"
+                // Still a per-role testid for the first of each, because specs
+                // that want "the referee" mean the role and should not have to
+                // know a person's name.
+                data-testid={`spa-dev-${account.email}`}
                 onClick={() => void fillDev(account.email)}
               >
-                {account.role}
+                <span className="dev-account-who">
+                  <strong>{account.name}</strong>
+                  <span className="badge badge-outline">{account.role}</span>
+                </span>
+                <span className="dev-account-holds">
+                  {account.holds.length ? account.holds.join(" · ") : m.dev_holds_nothing()}
+                </span>
               </button>
             ))}
           </div>

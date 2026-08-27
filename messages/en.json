@@ -86,5 +86,13 @@
   "nav_live": "Live now",
   "nav_standings": "Standings",
   "nav_profile": "Profile",
-  "nav_you": "You"
+  "nav_you": "You",
+  "schedule_empty": "No games scheduled yet.",
+  "venue_tbc": "Venue TBC",
+  "spoiler_hidden": "hidden",
+  "enter_score": "Enter score",
+  "correct_score": "Correct",
+  "cancel": "Cancel",
+  "games_remaining": "{count} remaining",
+  "dev_holds_nothing": "no relations — sees only what is public"
 }

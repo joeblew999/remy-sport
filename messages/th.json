@@ -86,5 +86,13 @@
   "nav_live": "กำลังแข่ง",
   "nav_standings": "ตารางคะแนน",
   "nav_profile": "โปรไฟล์",
-  "nav_you": "ของคุณ"
+  "nav_you": "ของคุณ",
+  "schedule_empty": "ยังไม่มีการแข่งขัน",
+  "venue_tbc": "รอประกาศสนาม",
+  "spoiler_hidden": "ซ่อนอยู่",
+  "enter_score": "บันทึกคะแนน",
+  "correct_score": "แก้ไข",
+  "cancel": "ยกเลิก",
+  "games_remaining": "เหลืออีก {count} นัด",
+  "dev_holds_nothing": "ไม่มีสิทธิ์พิเศษ — เห็นเฉพาะข้อมูลสาธารณะ"
 }

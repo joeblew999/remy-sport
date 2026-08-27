@@ -18,6 +18,7 @@ import * as schema from "../db/schema"
 import { VOCABULARY_SCHEMAS } from "../db/vocabularies-schema"
 import {
   AGE_GROUP_CODES,
+  GAME_STATUS_CODES,
   CITY_CODES,
   EVENT_FORMAT_CODES,
   EVENT_TYPE_CODES,
@@ -134,8 +135,48 @@ export const CreateTeamInput = z.object({
  */
 export const UpdateTeamInput = CreateTeamInput.omit({ orgId: true }).partial()
 
+/**
+ * One game, with the names a schedule needs and the answer to "may I score it".
+ *
+ * `canEnterScore` is the server's answer, the same way `orgs.get` returns
+ * `canEdit`: the page must not work it out from the viewer's role, because that
+ * is a second copy of the access matrix. It is per row because the answer is per
+ * row — a referee is assigned to one game and not the next, which is the whole
+ * reason GAME exists as an object type.
+ */
+export const GameSchema = createSelectSchema(schema.game)
+  .extend({
+    statusCode: z.enum(GAME_STATUS_CODES),
+    homeTeamNames: NamesSchema,
+    awayTeamNames: NamesSchema,
+    // Null until a court is assigned. The product renders "Venue TBC".
+    venueNames: NamesSchema.nullable(),
+    canEnterScore: z.boolean(),
+  })
+
+/**
+ * Both scores or neither.
+ *
+ * A game with one score is not a partially-entered result, it is a wrong one —
+ * and `homeScore` alone would read as a shutout. Clearing a mistaken entry is
+ * `null` for both, which is why they are nullable rather than optional.
+ */
+export const EnterScoreInput = z.object({
+  id: z.string(),
+  homeScore: z.number().int().min(0).nullable(),
+  awayScore: z.number().int().min(0).nullable(),
+}).refine((v) => (v.homeScore === null) === (v.awayScore === null), {
+  message: "Give both scores or neither",
+})
+
+export const SetGameStatusInput = z.object({
+  id: z.string(),
+  statusCode: z.enum(GAME_STATUS_CODES),
+})
+
 // ── Inferred types — what the client and the handlers both speak ──────────
 
 export type ApiEvent = z.infer<typeof EventSchema>
+export type ApiGame = z.infer<typeof GameSchema>
 export type ApiTeam = z.infer<typeof TeamSchema>
 export type ApiReference = z.infer<typeof ReferenceSchema>

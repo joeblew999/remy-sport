@@ -280,6 +280,7 @@ export const VOCABULARY_SCHEMAS = {
   coachRoles: z.array(createSelectSchema(coachRole)),
   eventFormats: z.array(createSelectSchema(eventFormat)),
   eventTypes: z.array(createSelectSchema(eventType)),
+  gameStatuses: z.array(createSelectSchema(gameStatus)),
   genders: z.array(createSelectSchema(gender)),
   guardianTypes: z.array(createSelectSchema(guardianType)),
   locales: z.array(createSelectSchema(locale)),

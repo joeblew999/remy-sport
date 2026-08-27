@@ -353,10 +353,14 @@ function RoleSwitcher({ current }: { current: string }) {
   const verifyCode = useVerifyCode();
   // `useDevAccounts` 404s to an empty list off localhost, so this renders
   // nothing there rather than branching on the environment.
-  const actors = (useDevAccounts().data ?? []).map((a) => ({
-    ...a,
-    label: a.role.charAt(0).toUpperCase() + a.role.slice(1),
-  }));
+  // One per role, deliberately. /api/dev/accounts lists every seeded person now,
+  // because the differences *within* a role are what you check a permission
+  // against — but this control switches ROLE, and three buttons all reading
+  // "Coach" would be three ways to do the same thing. Choosing a particular
+  // person is the login page's job.
+  const actors = (useDevAccounts().data ?? [])
+    .filter((a, i, all) => all.findIndex((o) => o.role === a.role) === i)
+    .map((a) => ({ ...a, label: a.role.charAt(0).toUpperCase() + a.role.slice(1) }));
 
   const switchTo = async (email: string) => {
     try {

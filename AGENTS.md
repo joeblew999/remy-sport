@@ -9,6 +9,14 @@ work rather than a confused reader. It has done exactly that twice.
 
 What is left is the set of things that have already cost a real bug.
 
+**Flag architectural friction — do not just absorb it.** When a change makes you
+fight the shape of the thing, or write the same block a third time, say so to
+the Product Owner in your reply. Fix it well enough to finish the task, then
+name it: what you hit, what you did instead, and what the real fix would be.
+Silently working around a bad seam is how it survives — the workaround ships,
+nobody hears about it, and the next person pays the same tax without knowing it
+is a tax. `## Next` below is where the ones worth keeping are written down.
+
 ```
 mise tasks                what you can run, and what each does
 mise run check            types + unit + worker + dead code + docs + these rules
@@ -84,7 +92,20 @@ Update it when you finish something; delete the line when it is done.
    and a head coach outside the org was refused. Team writes are scoped by
    `team_coaches`, which is what the model always granted. Resolved 2026-08-27;
    kept here so the next session does not rebuild it.
-6. **The JSONL seed data is fully ported and verified.** All 298 rows of the 42
+6. **A per-object capability in a list is N queries. Known, accepted, bounded.**
+   `games.list` returns `canEnterScore` per row, and each one is a `can()` —
+   about two reads for an inherited relation. Three games is six reads; a season
+   of three hundred is not acceptable. The right fix is to answer it set-wise:
+   every relation is derivable in SQL, so "which of these games may this user
+   score" is one query, not N. **Do not fix it by moving the decision into the
+   client** — that is the copy of the access matrix items 1 and 2 exist to
+   prevent. Revisit when a schedule first exceeds a page.
+7. **Reading a row back after a write is written out per procedure.** Both game
+   writes end with the same `reload` because the update returns nothing useful
+   and the response must carry the joined names and the capability. `orgs.update`
+   does its own version, `teams.update` another. Three copies is the point at
+   which it should be one helper on the base builder; it is at three now.
+8. **The JSONL seed data is fully ported and verified.** All 298 rows of the 42
    deleted `.jsonl` files have an identical counterpart in
    `domain/model/*.ts`, field by field, including every one of the 582 locale
    values that used to live in `translations.jsonl` and `entity_names.jsonl`.

@@ -74,6 +74,32 @@ export function useTeams() {
 }
 
 /**
+ * The games in an event, in kick-off order.
+ *
+ * `canEnterScore` arrives per game from the server — see src/api/games.ts. The
+ * page never works it out from the viewer's role, because a referee is assigned
+ * to one game and not the next, and a rule in the client could not know that
+ * without a copy of the model.
+ */
+export function useGames(eventId: string | undefined) {
+  const loc = useLocalizer();
+  return useQuery(
+    orpc.games.list.queryOptions({
+      input: { eventId },
+      enabled: eventId !== undefined,
+      select: ({ games }) =>
+        games.map((g) => ({
+          ...g,
+          homeTeam: loc.name(g.homeTeamNames),
+          awayTeam: loc.name(g.awayTeamNames),
+          venue: g.venueNames ? loc.name(g.venueNames) : null,
+          statusLabel: loc.label("gameStatuses", g.statusCode),
+        })),
+    }),
+  );
+}
+
+/**
  * Organisations, with the city resolved the way every other list resolves it.
  *
  * No mapper in lib/api.ts: an org is already the shape a page renders — the

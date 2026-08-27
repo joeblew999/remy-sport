@@ -95,7 +95,7 @@ function App() {
           <div className="page">
             {route.page === "discover" && <DiscoverPage goto={goto} spoiler={spoiler}/>}
             {route.page === "events" && <DiscoverPage goto={goto} spoiler={spoiler}/>}
-            {route.page === "event" && <EventPage id={route.id} goto={goto}/>}
+            {route.page === "event" && <EventPage id={route.id} goto={goto} spoiler={spoiler}/>}
             {route.page === "live" && <LivePage goto={goto} spoiler={spoiler} setSpoiler={handleSpoilerSet}/>}
             {route.page === "team" && <TeamPage id={route.id} goto={goto}/>}
             {route.page === "profile" && <ProfilePage goto={goto}/>}

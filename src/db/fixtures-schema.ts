@@ -18,6 +18,7 @@
 // Tables for the domain model — entities and the links between them.
 
 import { sqliteTable, text, integer, uniqueIndex } from "drizzle-orm/sqlite-core"
+import { relations } from "drizzle-orm"
 import { createSelectSchema } from "drizzle-zod"
 import type { Names } from "../domain/names"
 import { GAME_STATUS_CODES, INVITE_STATUS_CODES, ORG_ROLE_CODES } from "../domain/vocabularies"
@@ -151,6 +152,18 @@ export const gameReferee = sqliteTable("gameReferee", {
   gameId: text("game_id").notNull().references(() => game.id),
   userId: text("user_id").notNull().references(() => user.id),
 }, (t) => [uniqueIndex("gameReferee_key").on(t.gameId, t.userId)])
+
+/**
+ * Declared so a read can say `with: { homeTeam: true }` instead of three joins
+ * and a hand-picked column list — the same reason app-schema declares them for
+ * events and teams.
+ */
+export const gameRelations = relations(game, ({ one }) => ({
+  event: one(event, { fields: [game.eventId], references: [event.id] }),
+  homeTeam: one(team, { fields: [game.homeTeamId], references: [team.id] }),
+  awayTeam: one(team, { fields: [game.awayTeamId], references: [team.id] }),
+  venue: one(venue, { fields: [game.venueId], references: [venue.id] }),
+}))
 
 export const eventPlayer = sqliteTable("eventPlayer", {
   eventId: text("event_id").notNull().references(() => event.id),

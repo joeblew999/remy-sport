@@ -1094,3 +1094,37 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   border: 1px solid var(--rule); background: var(--paper); cursor: pointer;
 }
 .admin-switcher button.active { background: var(--accent); color: var(--paper); border-color: var(--accent); }
+
+/* Scores in a schedule row. Tabular figures so 7–7 and 71–54 line up down the
+   column, and the same mono face the rest of the data chrome uses. */
+.score-cell {
+  font-family: 'IBM Plex Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  color: var(--ink);
+  min-width: 72px;
+  text-align: right;
+}
+.score-form { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.score-form input {
+  width: 56px; padding: 6px 8px; text-align: center;
+  font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums;
+  border: 1px solid var(--rule-2); border-radius: 6px; background: var(--paper);
+  color: var(--ink);
+}
+.score-form input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* The seeded sign-in list. One row per person, with the relations they hold —
+   see routes/dev-mail.ts for why all of them and not one per role. */
+.dev-account-list { display: flex; flex-direction: column; gap: 6px; }
+.dev-account {
+  display: flex; flex-direction: column; gap: 4px; align-items: flex-start;
+  width: 100%; padding: 10px 12px; text-align: left;
+  border: 1px solid var(--rule); border-radius: 8px; background: var(--paper);
+}
+.dev-account:hover { background: var(--paper-2); border-color: var(--rule-2); }
+.dev-account-who { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.dev-account-holds {
+  font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+  color: var(--ink-3); letter-spacing: 0.04em; line-height: 1.5;
+}

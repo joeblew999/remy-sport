@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Icon } from "../components/icon";
-import { useEvent, useEvents, useLiveGame, useStandings } from "../lib/data";
+import { Schedule } from "../components/schedule";
+import { useEvent, useEvents, useGames, useLiveGame, useStandings } from "../lib/data";
 import type { Event } from "../data";
 import type { Route } from "../lib/router";
 import { BracketView } from "./bracket";
@@ -12,9 +13,11 @@ type EventTab = "overview" | "bracket" | "schedule" | "standings" | "teams" | "v
 interface EventProps {
   id: string | undefined;
   goto: (r: Route) => void;
+  /** Hides results, not fixtures — see components/schedule.tsx. */
+  spoiler: boolean;
 }
 
-export function EventPage({ id, goto }: EventProps) {
+export function EventPage({ id, goto, spoiler }: EventProps) {
   const { reference, name } = useLocale();
   const { data: event, isPending: eventLoading } = useEvent(id);
   const { data: allEvents, isPending: listLoading } = useEvents();
@@ -22,6 +25,12 @@ export function EventPage({ id, goto }: EventProps) {
 
   // `#/event` with no id shows whichever event sorts first, as it always has.
   const e = id ? event : allEvents?.[0];
+
+  // The games count, from the games. Cached, and the schedule tab subscribes to
+  // the same key — so opening it costs nothing extra.
+  const { data: games } = useGames(e?.id);
+  const total = games?.length ?? 0;
+  const played = games?.filter((g) => g.homeScore !== null).length ?? 0;
 
   // Both accessors are async now, so the page has render states it did not
   // have when the data was a module-level constant. Hooks above run
@@ -80,22 +89,23 @@ export function EventPage({ id, goto }: EventProps) {
             <div className="label">{m.courts()}</div>
             <div className="value">{e.courts || "—"}</div>
           </div>
+          {/* Real, from the games endpoint. `teams` and `courts` above are still
+              honest zeroes — no endpoint counts them yet — and render as "—"
+              rather than as a number nobody computed.
+
+              The FORMAT and FOLLOWING cells that sat here are gone: "Single-elim
+              / + 3rd-place game" was true of no event in the database, and "284
+              / parents, coaches, scouts" counted followers of nothing. The model
+              has a `subscriptions` table, so the second can come back the day an
+              endpoint reads it. */}
           <div className="stat-cell">
             <div className="label">{m.games()}</div>
             <div className="value">
-              {e.gamesPlayed > 0 ? <><em>{e.gamesPlayed}</em> / {e.games}</> : (e.games || "—")}
+              {played > 0 ? <><em>{played}</em> / {total}</> : (total || "—")}
             </div>
-            {e.gamesPlayed > 0 && <div className="sub">{e.games - e.gamesPlayed} remaining</div>}
-          </div>
-          <div className="stat-cell">
-            <div className="label">{m.format()}</div>
-            <div className="value" style={{ fontSize: 18 }}>Single-elim</div>
-            <div className="sub">+ 3rd-place game</div>
-          </div>
-          <div className="stat-cell">
-            <div className="label">{m.following()}</div>
-            <div className="value" style={{ fontSize: 18 }}>284</div>
-            <div className="sub">parents, coaches, scouts</div>
+            {played > 0 && played < total && (
+              <div className="sub">{m.games_remaining({ count: total - played })}</div>
+            )}
           </div>
         </div>
 
@@ -113,7 +123,7 @@ export function EventPage({ id, goto }: EventProps) {
           ["bracket", "Bracket"],
           ["schedule", "Schedule"],
           ["standings", "Standings"],
-          ["teams", "Teams (16)"],
+          ["teams", "Teams"],
           ["venues", "Venues"],
           ["rules", "Rules & info"],
         ] as [EventTab, string][]).map(([tabId, label]) => (
@@ -123,7 +133,7 @@ export function EventPage({ id, goto }: EventProps) {
 
       {tab === "overview" && <EventOverview e={e} goto={goto}/>}
       {tab === "bracket" && <BracketView goto={goto}/>}
-      {tab === "schedule" && <SchedulePlaceholder/>}
+      {tab === "schedule" && <div className="page-inner"><Schedule eventId={e.id} spoiler={spoiler}/></div>}
       {tab === "standings" && <StandingsTable/>}
       {!["overview", "bracket", "schedule", "standings"].includes(tab) && (
         <div className="page-inner"><div className="empty">{tab.toUpperCase()} view — not part of this hi-fi pass.</div></div>
@@ -272,52 +282,3 @@ export function StandingsTable() {
   );
 }
 
-interface ScheduleGame {
-  time: string;
-  court: string;
-  a: string;
-  b: string;
-  sa: number | null;
-  sb: number | null;
-  status: "F" | "LIVE" | "Up";
-  live?: boolean;
-}
-
-function SchedulePlaceholder() {
-  const games: ScheduleGame[] = [
-    { time: "09:00", court: "A", a: "BKC", b: "SAR", sa: 78, sb: 42, status: "F" },
-    { time: "09:00", court: "B", a: "MDS", b: "SJS", sa: 55, sb: 62, status: "F" },
-    { time: "10:30", court: "A", a: "SGS", b: "SKL", sa: 71, sb: 54, status: "F" },
-    { time: "10:30", court: "B", a: "ASC", b: "RIS", sa: 65, sb: 58, status: "F" },
-    { time: "12:00", court: "A", a: "BKC", b: "SJS", sa: 68, sb: 51, status: "F" },
-    { time: "12:00", court: "B", a: "SGS", b: "ASC", sa: 54, sb: 49, status: "LIVE", live: true },
-    { time: "14:00", court: "A", a: "TUS", b: "BKP", sa: null, sb: null, status: "Up" },
-    { time: "15:30", court: "A", a: "ISB", b: "WLS", sa: null, sb: null, status: "Up" },
-  ];
-  return (
-    <div className="page-inner">
-      <div className="dash-card">
-        <div style={{ display: "grid", gridTemplateColumns: "80px 60px 1fr 80px 1fr 80px 60px", padding: "10px 18px", borderBottom: "1px solid var(--rule)", fontFamily: "IBM Plex Mono, monospace", fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
-          <span>{m.time()}</span><span>{m.court()}</span><span>{m.home_team()}</span><span>{m.score()}</span><span>{m.away()}</span><span></span><span>{m.status()}</span>
-        </div>
-        {games.map((g, i) => (
-          <div key={i} style={{ display: "grid", gridTemplateColumns: "80px 60px 1fr 80px 1fr 80px 60px", padding: "14px 18px", borderBottom: "1px solid var(--rule)", alignItems: "center", background: g.live ? "var(--accent-soft)" : "transparent" }}>
-            <span style={{ fontFamily: "Space Grotesk, sans-serif", fontWeight: 500, fontSize: 16 }}>{g.time}</span>
-            <span style={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 11, color: "var(--ink-3)", letterSpacing: "0.06em" }}>CT {g.court}</span>
-            <span style={{ fontWeight: g.sa != null && g.sb != null && g.sa > g.sb ? 600 : 400 }}>{g.a}</span>
-            <span style={{ fontFamily: "Space Grotesk, sans-serif", fontWeight: 600, color: g.sa != null && g.sb != null && g.sa > g.sb ? "var(--accent)" : "var(--ink)" }}>
-              {g.sa !== null ? `${g.sa}–${g.sb}` : "—"}
-            </span>
-            <span style={{ fontWeight: g.sa != null && g.sb != null && g.sb > g.sa ? 600 : 400 }}>{g.b}</span>
-            <span></span>
-            <span style={{
-              fontFamily: "IBM Plex Mono, monospace", fontSize: 11, letterSpacing: "0.1em",
-              color: g.live ? "var(--live)" : (g.status === "F" ? "var(--ink-3)" : "var(--ink-2)"),
-              fontWeight: g.live ? 500 : 400,
-            }}>{g.status === "LIVE" ? "● LIVE" : (g.status === "F" ? "FINAL" : "UPCOMING")}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}

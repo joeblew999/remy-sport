@@ -8,6 +8,7 @@
  */
 
 import * as events from "./events"
+import * as games from "./games"
 import * as orgs from "./orgs"
 import * as teams from "./teams"
 import * as reference from "./reference"
@@ -31,6 +32,12 @@ export const router = {
     members: orgs.members,
     addMember: orgs.addMember,
     removeMember: orgs.removeMember,
+  },
+  games: {
+    list: games.list,
+    get: games.get,
+    enterScore: games.enterScore,
+    setStatus: games.setStatus,
   },
   teams: {
     list: teams.list,

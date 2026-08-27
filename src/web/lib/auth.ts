@@ -136,6 +136,16 @@ export interface DevAccount {
   role: string;
   email: string;
   name: string;
+  /**
+   * The relations this account holds, as the access matrix names them —
+   * `ORG_ADMIN org_001`, `GAME_REFEREE gam_002`. Derived from the model, so
+   * it is the same answer the API will give when you act as them.
+   *
+   * This is what makes signing in as a seeded person useful rather than
+   * arbitrary: two coaches differ by which school they run, and picking the
+   * wrong one is why a permission looks broken when it is working.
+   */
+  holds: string[];
 }
 
 export const useDevAccounts = () =>

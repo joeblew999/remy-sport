@@ -31,14 +31,20 @@ const OUT = "screenshots"
  * `as: null` is a signed-out visitor, which is a distinct rendering and not the
  * same as "any signed-in user" — it is what a stranger sees. Add a line here to
  * add a screen; nothing else needs changing.
+ *
+ * `open` names a button to press first, for a view that is behind a tab. Without
+ * it the event page would only ever be photographed on its default tab, and the
+ * schedule — the thing worth looking at — would never appear.
  */
-const SCREENS: { name: string; path: string; as: string | null }[] = [
+const SCREENS: { name: string; path: string; as: string | null; open?: string }[] = [
   { name: "discover", path: "/#/", as: null },
   { name: "orgs", path: "/#/orgs", as: COACH },
   { name: "org", path: "/#/org/org_001", as: COACH },
   // The same URL as the line above, and the point of the pair: this coach
   // belongs to another school, so the roster must render as refused.
   { name: "org-not-yours", path: "/#/org/org_001", as: actor("COACH", 2) },
+  // The schedule, seen by the referee who may score one of its games.
+  { name: "schedule", path: "/#/event/evt_002", as: "adisorn.b@bat.test", open: "Schedule" },
   { name: "admin", path: "/#/admin", as: ADMIN },
   { name: "devices", path: "/#/devices", as: COACH },
   { name: "profile", path: "/#/profile", as: COACH },
@@ -66,6 +72,7 @@ for (const screen of SCREENS) {
 
       const page = await ctx.newPage()
       await page.goto(screen.path)
+      if (screen.open) await page.getByRole("button", { name: screen.open }).click()
       // The data arrives over the network, so there is a real moment where the
       // page says "Loading…". Waiting for the network to settle is what stops
       // that being what gets captured.

@@ -1,8 +1,8 @@
 import { Hono } from "hono"
 import type { AppEnv } from "../types"
 import { readOutbox, clearOutbox, usesOutbox } from "../mail/mailer"
-import { SEED_ENTITIES } from "../../src/domain/model/entities"
-import { STORED_ROLE } from "../domain/vocabularies"
+import { SEED_ENTITIES, SEED_RELATIONSHIPS } from "../../src/domain/model/entities"
+import { RELATION, STORED_ROLE } from "../domain/vocabularies"
 
 /**
  * Read back mail captured by the `outbox` transport (ADR 010).
@@ -36,29 +36,81 @@ devMail.delete("/api/dev/outbox", (c) => {
 
 export default devMail
 
+const camel = (s: string) => s.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())
+
 /**
- * The seeded demo accounts, one per role.
+ * What this user actually holds, derived from the model — not a written list.
+ *
+ * Every table-shaped relation says which fixture table links a user to an
+ * object and under what filter, so "who is this person, in terms the access
+ * matrix uses" is a walk over `RELATION` and the seed. Nothing here names a
+ * relation, so one added upstream shows up the same day.
+ *
+ * This is what makes the seeded accounts useful for checking the GUI against
+ * the matrix. Two coaches are not interchangeable — `usr_coach_001` runs
+ * org_001 and `usr_coach_003` does not — and two referees differ by which game
+ * they are on. A picker that offered one account per role could not show any of
+ * that, which is what it did before.
+ *
+ * Parent relations are skipped: they have no tuple of their own by design, and
+ * listing "GAME_EVENT_OWNER gam_002" beside "OWNER evt_002" would say the same
+ * fact twice.
+ */
+function holdsFor(userId: string): string[] {
+  const out: string[] = []
+  const seed = { ...SEED_ENTITIES, ...SEED_RELATIONSHIPS } as Record<
+    string,
+    readonly Record<string, unknown>[] | undefined
+  >
+
+  for (const r of RELATION) {
+    if (r.via !== "table") continue
+    const rows = seed[camel(r.sourceTable!)]
+    if (!rows) continue
+
+    for (const row of rows) {
+      if (r.filterColumn && row[camel(r.filterColumn)] !== r.filterValue) continue
+      // A spell that has ended does not still grant the relation.
+      if (r.activeToColumn && row[camel(r.activeToColumn)]) continue
+
+      let holder: unknown
+      if (r.throughTable) {
+        // The link row names an entity, and only that entity knows the user —
+        // `player_teams` holds a player, and a minor may have no account.
+        const via = seed[camel(r.throughTable)]
+        holder = via?.find((p) => p.id === row[camel(r.throughColumn!)])?.[camel(r.userColumn!)]
+      } else {
+        holder = row[camel(r.userColumn!)]
+      }
+      if (holder === userId) out.push(`${r.code} ${String(row[camel(r.objectColumn!)])}`)
+    }
+  }
+  return out
+}
+
+/**
+ * Every seeded account, with what each one holds.
  *
  * The login screens used to build `${role}@remy.dev` and hope the seed route
  * had created it. The accounts are the Product Owner's people now, with their
- * own addresses at their own schools, so the screens ask rather than guess —
- * and a role that stops being seeded stops appearing, instead of rendering a
- * button that signs nobody in.
+ * own addresses at their own schools, so the screens ask rather than guess.
+ *
+ * All of them, not one per role: the differences *within* a role are the whole
+ * point of a permission model, and they are what you need to sign in as to see
+ * whether the GUI agrees with the matrix.
  *
  * Guarded by the same transport check as the outbox: these are only useful
  * where the fixed sign-in code applies, which is exactly where mail is
- * captured rather than sent.
+ * captured rather than sent. It never exists in production.
  */
 devMail.get("/api/dev/accounts", (c) => {
   if (!usesOutbox(c.env)) return c.json({ error: "Not found" }, 404)
-  const byRole = SEED_ENTITIES.users.filter(
-    (u, i, all) => all.findIndex((o) => o.roleCode === u.roleCode) === i,
-  )
   return c.json({
-    accounts: byRole.map((u) => ({
+    accounts: SEED_ENTITIES.users.map((u) => ({
       role: STORED_ROLE[u.roleCode],
       email: u.email,
       name: u.names.en,
+      holds: holdsFor(u.id),
     })),
   })
 })

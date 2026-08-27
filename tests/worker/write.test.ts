@@ -652,3 +652,80 @@ describe("Organisations — the actions ORG was declared for", () => {
     expect(neither.status).toBeGreaterThanOrEqual(400)
   })
 })
+
+describe("Games — the object type ENTER_SCORES was missing", () => {
+  /**
+   * The regression these exist for: `ENTER_SCORES` was granted to `ANY_REFEREE`,
+   * the platform role, so any referee could score any game in any event. Adisorn
+   * (usr_referee_001) is assigned to gam_001 and gam_002; Waraporn
+   * (usr_referee_002) only to gam_003.
+   */
+  it("a schedule is public — a spectator needs no account to read a score", async () => {
+    const res = await api("/api/games?eventId=evt_002")
+    expect(res.status).toBe(200)
+    const { games } = (await res.json()) as {
+      games: { id: string; statusCode: string; homeScore: number | null; canEnterScore: boolean }[]
+    }
+    expect(games.map((g) => g.id)).toEqual(["gam_002", "gam_003"])
+    expect(games[0]!.statusCode).toBe("LIVE")
+    // Nobody is signed in, so nobody may score.
+    expect(games.every((g) => !g.canEnterScore)).toBe(true)
+  })
+
+  it("the assigned referee may enter a score, and it is read back", async () => {
+    const adisorn = await signIn("adisorn.b@bat.test")
+    const res = await put("/api/games/gam_002/score", { homeScore: 55, awayScore: 47 }, adisorn)
+    expect(res.status).toBe(200)
+    const game = (await res.json()) as { homeScore: number; awayScore: number; canEnterScore: boolean }
+    expect(game.homeScore).toBe(55)
+    expect(game.awayScore).toBe(47)
+    expect(game.canEnterScore, "the API tells them they may do it again").toBe(true)
+  })
+
+  it("a referee assigned to another game may NOT — this is the whole point", async () => {
+    const waraporn = await signIn("waraporn.j@bat.test")
+    // Assigned to gam_003 only.
+    expect((await put("/api/games/gam_002/score", { homeScore: 99, awayScore: 0 }, waraporn)).status)
+      .toBe(403)
+    expect((await put("/api/games/gam_003/score", { homeScore: 60, awayScore: 58 }, waraporn)).status)
+      .toBe(200)
+  })
+
+  it("the event's organiser may score any game in it", async () => {
+    // usr_org_002 owns evt_002.
+    const organiser = await signIn(SEED_ENTITIES.users.find((u) => u.id === "usr_org_002")!.email)
+    expect((await put("/api/games/gam_002/score", { homeScore: 61, awayScore: 59 }, organiser)).status)
+      .toBe(200)
+    // ...and not one in an event they neither own nor co-organise. gam_001 is in
+    // evt_001, where usr_org_002 IS an accepted co-organizer — so use a third.
+    const outsider = await signIn(SEED_ENTITIES.users.find((u) => u.id === "usr_org_003")!.email)
+    expect((await put("/api/games/gam_002/score", { homeScore: 1, awayScore: 1 }, outsider)).status)
+      .toBe(403)
+  })
+
+  it("an accepted co-organizer of the event may score its games", async () => {
+    // usr_org_002 is an ACCEPTED co-organizer of evt_001, which gam_001 is in.
+    const coOrganizer = await signIn(SEED_ENTITIES.users.find((u) => u.id === "usr_org_002")!.email)
+    expect((await put("/api/games/gam_001/score", { homeScore: 68, awayScore: 54 }, coOrganizer)).status)
+      .toBe(200)
+  })
+
+  it("one score without the other is refused", async () => {
+    const adisorn = await signIn("adisorn.b@bat.test")
+    const res = await put("/api/games/gam_002/score", { homeScore: 55, awayScore: null }, adisorn)
+    expect(res.status).toBe(400)
+  })
+
+  it("status is a separate action from scoring, and moves the game", async () => {
+    const adisorn = await signIn("adisorn.b@bat.test")
+    const res = await put("/api/games/gam_002/status", { statusCode: "FINISHED" }, adisorn)
+    expect(res.status).toBe(200)
+    expect((await res.json()).statusCode).toBe("FINISHED")
+  })
+
+  it("an unknown game is 404, not 403 — it must not leak which ids exist", async () => {
+    const adisorn = await signIn("adisorn.b@bat.test")
+    expect((await put("/api/games/gam_nope/score", { homeScore: 1, awayScore: 2 }, adisorn)).status)
+      .toBe(404)
+  })
+})
