@@ -358,7 +358,7 @@ function RoleSwitcher({ current }: { current: string }) {
   // against — but this control switches ROLE, and three buttons all reading
   // "Coach" would be three ways to do the same thing. Choosing a particular
   // person is the login page's job.
-  const actors = (useDevAccounts().data ?? [])
+  const actors = (useDevAccounts().data?.accounts ?? [])
     .filter((a, i, all) => all.findIndex((o) => o.role === a.role) === i)
     .map((a) => ({ ...a, label: a.role.charAt(0).toUpperCase() + a.role.slice(1) }));
 

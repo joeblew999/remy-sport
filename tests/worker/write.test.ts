@@ -954,3 +954,53 @@ describe("Referee assignment", () => {
     expect(res.status).toBe(403)
   })
 })
+
+describe("The seeded sign-in, and what it deliberately cannot reach", () => {
+  /**
+   * A fixed code is a published credential: it is in the repo, and where the
+   * demo picker is enabled it is on the page. So the only question is what
+   * someone can do with one.
+   *
+   * These run with MAIL_TRANSPORT=outbox, which is the *local* case — the admin
+   * keeps its fixed code there, because an outbox is readable only by whoever
+   * is running the Worker and the suite needs admin coverage. The deployment
+   * case is asserted by cf:smoke, where the outbox does not exist.
+   */
+  it("only ever applies to a seeded address — a real one gets a random code", async () => {
+    const stranger = fresh("outsider")
+    await post("/api/auth/email-otp/send-verification-otp", { email: stranger, type: "sign-in" })
+    // The fixed code must not work for an address the fixtures do not name.
+    const res = await post("/api/auth/sign-in/email-otp", { email: stranger, otp: "424242" })
+    expect(res.status, "TEST_OTP is scoped to the seeded set").not.toBe(200)
+
+    // And the real emailed code does.
+    const [mail] = await outbox(stranger)
+    expect((await post("/api/auth/sign-in/email-otp", { email: stranger, otp: codeFrom(mail!.body) })).status)
+      .toBe(200)
+  })
+
+  it("lists every seeded person locally, admin included", async () => {
+    const res = await api("/api/dev/accounts")
+    expect(res.status).toBe(200)
+    const { accounts, code } = (await res.json()) as {
+      accounts: { role: string; holds: string[] }[]
+      code?: string
+    }
+    expect(accounts).toHaveLength(SEED_ENTITIES.users.length)
+    expect(accounts.some((a) => a.role === "admin"), "the outbox makes this safe").toBe(true)
+    // No published code here: the outbox carries a real generated one instead.
+    expect(code).toBeUndefined()
+  })
+
+  it("carries what each account holds, so you can pick the right person", async () => {
+    const { accounts } = (await (await api("/api/dev/accounts")).json()) as {
+      accounts: { email: string; holds: string[] }[]
+    }
+    const adisorn = accounts.find((a) => a.email === "adisorn.b@bat.test")!
+    expect(adisorn.holds).toContain("GAME_REFEREE gam_001")
+    // Two referees differ by which game — the difference a role-shaped picker
+    // could not show.
+    const waraporn = accounts.find((a) => a.email === "waraporn.j@bat.test")!
+    expect(waraporn.holds).not.toContain("GAME_REFEREE gam_001")
+  })
+})

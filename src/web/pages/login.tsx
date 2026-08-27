@@ -48,17 +48,21 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
   }
 
   /**
-   * Dev shortcut. Requests a code and prefills it from the outbox.
+   * Sign in as a seeded person, without an inbox.
    *
-   * `useDevAccounts` yields an empty list off localhost — the endpoint 404s
-   * whenever MAIL_TRANSPORT is not `outbox` — so this renders nothing in
-   * production without anyone checking a build flag.
+   * Two ways in, and which one applies is the server's to say. Locally the code
+   * is generated and read back from the dev outbox. On a deployment with
+   * TEST_OTP the code is fixed and comes down with the account list, because
+   * `.test` addresses have no inbox to read.
+   *
+   * Either way this completes a *real* sign-in — request a code, redeem it — so
+   * what you get is an ordinary session and nothing here bypasses Better Auth.
    */
   async function fillDev(address: string) {
     setEmail(address);
     try {
       await requestCode.mutateAsync(address);
-      const code = await codeFromOutbox(address);
+      const code = devAccounts.data?.code ?? (await codeFromOutbox(address));
       if (code) setOtp(code);
       setStep("code");
     } catch {
@@ -152,11 +156,11 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
         </form>
       )}
 
-      {devAccounts.data?.length && (
+      {devAccounts.data?.accounts.length ? (
         <div className="dev-accounts" data-testid="spa-dev-accounts">
           <div className="section-h" style={{ marginTop: 32 }}>
             <h2>{m.dev_accounts()}</h2>
-            <a className="more">LOCAL ONLY</a>
+            <a className="more">{devAccounts.data?.code ? m.demo_accounts_note() : "LOCAL ONLY"}</a>
           </div>
           {/* Every seeded person, not one per role. The differences *within* a
               role are the point: two coaches run different schools, two referees
@@ -166,7 +170,7 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
               `holds` is derived from the model server-side, so what is printed
               here is the same answer the API will give when you act as them. */}
           <div className="dev-account-list">
-            {devAccounts.data.map((account) => (
+            {devAccounts.data.accounts.map((account) => (
               <button
                 key={account.email}
                 className="dev-account"
@@ -187,7 +191,7 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
             ))}
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -69,15 +69,20 @@ test.describe("The permission grid reflects the viewer's role", () => {
       as("admin"),
       entry(orpc.events.list, undefined, { events: [] } as never),
       {
-        // `useDevAccounts` — the dev-only list the switcher renders. It 404s to
-        // an empty array off localhost, so seeding it is also what makes this
-        // test independent of MAIL_TRANSPORT.
+        // `useDevAccounts` — the seeded-accounts list the switcher renders. It
+        // 404s to an empty result where neither the outbox nor a fixed code is
+        // available, so seeding it is what makes this test independent of
+        // MAIL_TRANSPORT. `{ accounts, code? }` since a deployment with a fixed
+        // code sends the code down with the list.
         queryKey: ["dev", "accounts"] as readonly unknown[],
-        data: ["admin", "organizer", "coach", "player", "spectator", "referee"].map((role) => ({
-          role,
-          email: `${role}@remy.test`,
-          name: role,
-        })),
+        data: {
+          accounts: ["admin", "organizer", "coach", "player", "spectator", "referee"].map((role) => ({
+            role,
+            email: `${role}@remy.test`,
+            name: role,
+            holds: [],
+          })),
+        },
       },
     ])
     await page.goto("/#/admin")

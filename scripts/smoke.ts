@@ -7,11 +7,17 @@
  * provisions either, so the pipeline always exited red even when the deploy had
  * succeeded.
  *
- * Provisioning it was the obvious fix and the wrong one. `TEST_OTP` makes
- * `generateOTP` return a constant for every seeded address, so setting it on a
- * public site is a permanent sign-in backdoor for the admin account. And the
- * suite writes as it runs: the seven `hook-*@remy.dev` accounts in the deployed
- * database are what previous runs against production left behind.
+ * Provisioning it to run the whole suite was the obvious fix and the wrong one:
+ * the suite *writes* as it runs, and the `hook-*@remy.dev` accounts that used to
+ * sit in the deployed database are what previous runs against production left
+ * behind.
+ *
+ * `TEST_OTP` itself is now set deliberately, for a different reason — it fixes
+ * the sign-in code for seeded accounts so the demo picker can offer them, since
+ * `.test` addresses have no inbox. Two things keep that honest and both are
+ * checked below: the seeded **admin** is excluded, because it can impersonate
+ * and therefore reach a real person; and the outbox stays 404, because it would
+ * expose everyone else's codes.
  *
  * The suite already runs against a real Worker earlier in the same pipeline
  * (`mise run test`, wrangler dev + local D1). Running it twice mostly re-proves
@@ -82,10 +88,27 @@ await check("the teams read path answers", async () => {
   return res.ok ? null : `expected 200, got ${res.status}`
 })
 
+await check("if seeded sign-in is on, it excludes the admin", async () => {
+  // Enabled by TEST_OTP, which fixes the code for seeded non-admin accounts so
+  // the demo picker can offer them — `.test` addresses have no inbox to read.
+  // 404 means it is off, which is also fine.
+  const res = await get("/api/dev/accounts")
+  if (res.status === 404) return null
+  if (!res.ok) return `expected 200 or 404, got ${res.status}`
+
+  const body = (await res.json()) as { accounts?: { role: string }[]; code?: string }
+  const admin = body.accounts?.find((a) => a.role === "admin")
+  // The one account that can impersonate, and therefore reach a real person.
+  if (admin) return "the seeded admin is being offered a published sign-in code"
+  if (!body.code) return "seeded sign-in is on but no code was published — nobody can use it"
+  return null
+})
+
 await check("the dev outbox does NOT exist", async () => {
-  // /api/dev/* is mounted only under MAIL_TRANSPORT=outbox. If this ever answers
-  // in production, deployed mail is being captured instead of sent — and anyone
-  // can read other people's sign-in codes.
+  // The outbox is mounted only under MAIL_TRANSPORT=outbox, and unlike the
+  // account list above it must NEVER open on a deployment: it would let anyone
+  // read other people's sign-in codes, including a real person's. Seeded
+  // sign-in deliberately does not need it — the code is published instead.
   const res = await get("/api/dev/outbox")
   return res.status === 404 ? null : `expected 404, got ${res.status}`
 })

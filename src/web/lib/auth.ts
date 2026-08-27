@@ -127,10 +127,13 @@ export function useAdminAction() {
 }
 
 
-// ── Dev-only reads ─────────────────────────────────────────────────────────
-// Both 404 unless MAIL_TRANSPORT=outbox, which is the point: they cannot work
-// against production. `enabled` is left on — a 404 simply yields an empty
-// list, and the UI renders nothing rather than branching on the environment.
+// ── Seeded sign-in ─────────────────────────────────────────────────────────
+// The outbox 404s unless MAIL_TRANSPORT=outbox and must never do otherwise: it
+// would expose real people's codes. The account *list* also opens up on a
+// deployment where TEST_OTP is set, because `.test` addresses have no inbox and
+// a published code is the only way in — see src/routes/dev-mail.ts. Either way
+// a 404 yields an empty list and the UI renders nothing, so no page branches on
+// the environment.
 
 export interface DevAccount {
   role: string;
@@ -152,10 +155,11 @@ export const useDevAccounts = () =>
   useQuery({
     queryKey: ["dev", "accounts"],
     staleTime: Infinity, // fixtures; they do not change while the page is open
-    queryFn: async (): Promise<DevAccount[]> => {
+    queryFn: async (): Promise<{ accounts: DevAccount[]; code?: string }> => {
       const res = await fetch("/api/dev/accounts");
-      if (!res.ok) return [];
-      return ((await res.json()) as { accounts?: DevAccount[] }).accounts ?? [];
+      if (!res.ok) return { accounts: [] };
+      const body = (await res.json()) as { accounts?: DevAccount[]; code?: string };
+      return { accounts: body.accounts ?? [], code: body.code };
     },
   });
 

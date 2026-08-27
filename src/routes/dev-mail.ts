@@ -95,18 +95,50 @@ function holdsFor(userId: string): string[] {
  * had created it. The accounts are the Product Owner's people now, with their
  * own addresses at their own schools, so the screens ask rather than guess.
  *
- * All of them, not one per role: the differences *within* a role are the whole
- * point of a permission model, and they are what you need to sign in as to see
- * whether the GUI agrees with the matrix.
+ * All of them bar the admin: the differences *within* a role are the whole point
+ * of a permission model, and they are what you need to sign in as to see whether
+ * the GUI agrees with the matrix.
  *
- * Guarded by the same transport check as the outbox: these are only useful
- * where the fixed sign-in code applies, which is exactly where mail is
- * captured rather than sent. It never exists in production.
+ * Available in two situations, and only these. Locally, where mail is captured
+ * in the outbox. And on a deployment where TEST_OTP is set, which fixes the code
+ * for seeded non-admin accounts — without that there is no way in, because the
+ * fixtures' addresses are `.test` and nothing delivers to them.
+ *
+ * `/api/dev/outbox` is NOT enabled by the second case and must never be: it
+ * would expose real people's sign-in codes. Only the account *list* opens up.
  */
 devMail.get("/api/dev/accounts", (c) => {
-  if (!usesOutbox(c.env)) return c.json({ error: "Not found" }, 404)
+  const outbox = usesOutbox(c.env)
+  const demo = Boolean(c.env.TEST_OTP)
+  // Locally the outbox makes this useful. On a deployment it is useful only if
+  // the codes are fixed, because there is no inbox to read `.test` mail from.
+  if (!outbox && !demo) return c.json({ error: "Not found" }, 404)
+
+  /**
+   * On a deployment the admin is not offered, and could not sign in this way
+   * anyway — src/auth.ts withholds the fixed code from it wherever mail is
+   * really sent. That account can impersonate, which is the one power that
+   * reaches a real person.
+   *
+   * Locally it stays in the list: mail is captured, the outbox is readable only
+   * by whoever is running the Worker, and the admin console is a thing to
+   * develop against.
+   */
+  const people = outbox
+    ? SEED_ENTITIES.users
+    : SEED_ENTITIES.users.filter((u) => u.roleCode !== "ADMIN")
+
   return c.json({
-    accounts: SEED_ENTITIES.users.map((u) => ({
+    /**
+     * The code, when it is fixed.
+     *
+     * Publishing it is not a leak — it is a published credential by
+     * construction, and saying so on the page is more honest than a one-click
+     * button that hides where the code came from. Absent locally, where the
+     * outbox carries a real generated code instead.
+     */
+    ...(demo && !outbox ? { code: c.env.TEST_OTP } : {}),
+    accounts: people.map((u) => ({
       role: STORED_ROLE[u.roleCode],
       email: u.email,
       name: u.names.en,

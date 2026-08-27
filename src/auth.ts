@@ -6,12 +6,34 @@ import { eq } from "drizzle-orm"
 import type { Context } from "hono"
 import type { AppEnv, Bindings } from "./types"
 import { buildAuthOptions } from "./auth.config"
-import { mailerFor } from "./mail/mailer"
+import { mailerFor, usesOutbox } from "./mail/mailer"
 import * as schema from "./db/schema"
 
-/** The fixtures' people. Sign-in codes are fixed only for these addresses. */
+/** The fixtures' people. A fixed code only ever applies to one of these. */
 const SEEDED_EMAILS: ReadonlySet<string> = new Set<string>(
   SEED_ENTITIES.users.map((u) => u.email),
+)
+
+/**
+ * The seeded admin, which is the one account a fixed code must not reach on a
+ * deployment.
+ *
+ * A fixed code is a published credential — it is in the repo, and where the
+ * demo picker is enabled it is on the page — so the only question is what
+ * someone can do with it. For a coach, organiser, referee, player or spectator:
+ * act within seeded fixture data, which is what a demo is for.
+ *
+ * The admin is different in kind. That account holds Better Auth's admin plugin
+ * — ban, set-role, and **impersonate** — and impersonation is the one power
+ * that reaches a real person's account. So on a deployment it signs in the
+ * ordinary way, through a real inbox, and the demo picker never lists it.
+ *
+ * Where mail is captured rather than sent, the exclusion buys nothing and costs
+ * the test suite its admin coverage: an outbox is only readable by whoever is
+ * running the Worker. So it applies exactly where the risk does.
+ */
+const ADMIN_EMAILS: ReadonlySet<string> = new Set<string>(
+  SEED_ENTITIES.users.filter((u) => u.roleCode === "ADMIN").map((u) => u.email),
 )
 
 /**
@@ -115,18 +137,23 @@ export function createAuth(c: AuthHost) {
       // the suite loses its auth coverage on deploys or the app grows a way to
       // read production mail — both worse.
       //
-      // Scope is the mitigation: TEST_OTP must be set explicitly, and it only
-      // ever applies to addresses the fixtures seed. Real addresses always get
-      // a random code. Keyed on the seeded set rather than a domain, because
-      // the PO's people are at their own schools and federations — there is no
-      // one demo domain to match on any more. Note this is strictly narrower than what it
-      // replaces — seed.ts previously committed working passwords for these
-      // same accounts to the repo. Unset TEST_OTP before the platform has real
-      // users; ADR 012 records that as a launch gate.
+      // Scope is the mitigation, and it is two-layered: TEST_OTP must be set
+      // explicitly, and it only ever applies to seeded addresses that are not
+      // the admin. Real addresses always get a random code, and so does the
+      // seeded admin — see DEMO_EMAILS for why that one is different in kind.
+      //
+      // Keyed on the seeded set rather than a domain, because the PO's people
+      // are at their own schools and federations and there is no one demo
+      // domain to match on. Strictly narrower than what it replaced: seed.ts
+      // once committed working passwords for these same accounts.
+      //
+      // Still unset this before the platform has real users. A demo account
+      // cannot reach anyone else's data, but it can edit shared fixture data,
+      // and once real events exist those are not fixtures any more.
       ...(c.env.TEST_OTP
         ? {
             generateOTP: ({ email }: { email: string }) =>
-              SEEDED_EMAILS.has(email)
+              SEEDED_EMAILS.has(email) && !(ADMIN_EMAILS.has(email) && !usesOutbox(c.env))
                 ? c.env.TEST_OTP!
                 : String(crypto.getRandomValues(new Uint32Array(1))[0]! % 1_000_000).padStart(6, "0"),
           }
