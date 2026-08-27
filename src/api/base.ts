@@ -143,12 +143,20 @@ const defaultId = (input: { id?: string }) => input.id ?? ""
  *
  * Says nothing about whether the object exists — that is a 404, and a different
  * question. `requireAction` keeps it.
+ *
+ * `eventContext` is for the actions that are about a *pair*. Registering a team
+ * asks two things of two different objects: are you this team's coach, and is
+ * this event one you may enter. The relation resolves against the team; the
+ * `eventTypes` narrowing belongs to the event, and only the caller knows which
+ * event that is. Where the object's own type declares an EVENT parent — a game
+ * — it is derived instead and this stays undefined.
  */
 export async function can(
   db: Db,
   action: keyof typeof GRANTS,
   user: SessionUser | null,
   objectId: string | null,
+  eventContext?: string | null,
 ): Promise<boolean> {
   const grants = GRANTS[action] as ReadonlyArray<{
     relation: string
@@ -174,7 +182,8 @@ export async function can(
   // denied ENTER_SCORES to everybody.
   let subtype: string | null | undefined
   if (grants.some((g) => g.eventTypes.length)) {
-    const eventId = await eventIdFor(db, action, objectId)
+    const eventId =
+      eventContext !== undefined ? eventContext : await eventIdFor(db, action, objectId)
     const row = eventId
       ? await db
           .select({ typeCode: schema.event.typeCode })
@@ -195,6 +204,13 @@ export async function can(
 export function requireAction(
   action: keyof typeof GRANTS,
   idFrom: (input: never) => string = defaultId as (input: never) => string,
+  /**
+   * Which event narrows this grant, for the actions that are about a pair.
+   * `registerTeam` acts on a team but is entering an event, and only the input
+   * says which. Omitted everywhere else, where the event is the object or is
+   * derived from it.
+   */
+  eventFrom?: (input: never) => string | null,
 ) {
   return base
     .$context<ApiContext & { user: SessionUser }>()
@@ -220,7 +236,10 @@ export function requireAction(
         throw new ORPCError("NOT_FOUND", { message: "Not found" })
       }
 
-      if (await can(db, action, user, objectId)) return next()
+      const eventContext = eventFrom
+        ? (eventFrom as (i: unknown) => string | null)(input)
+        : undefined
+      if (await can(db, action, user, objectId, eventContext)) return next()
       throw new ORPCError("FORBIDDEN", { message: "Forbidden" })
     })
 }

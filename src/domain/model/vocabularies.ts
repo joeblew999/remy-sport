@@ -74,8 +74,8 @@ export const ACTION = [
   { code: "EDIT_EVENT", objectTypeCode: "EVENT", category: "Events", names: {"th":"แก้ไขอีเวนต์","en":"Edit event"} },
   { code: "DELETE_EVENT", objectTypeCode: "EVENT", category: "Events", names: {"th":"ลบอีเวนต์","en":"Delete event"} },
   { code: "MANAGE_DIVISIONS", objectTypeCode: "EVENT", category: "Events", names: {"th":"จัดการดิวิชั่น","en":"Manage event divisions"} },
-  { code: "REGISTER_TEAM_FOR_EVENT", objectTypeCode: "EVENT", category: "Events", names: {"th":"ลงทะเบียนทีมเข้าอีเวนต์","en":"Register team for event"} },
-  { code: "REGISTER_PLAYER_FOR_EVENT", objectTypeCode: "EVENT", category: "Events", names: {"th":"ลงทะเบียนผู้เล่นเข้าอีเวนต์","en":"Register player for event"} },
+  { code: "REGISTER_TEAM_FOR_EVENT", objectTypeCode: "TEAM", category: "Events", names: {"th":"ลงทะเบียนทีมเข้าอีเวนต์","en":"Register team for event"} },
+  { code: "REGISTER_PLAYER_FOR_EVENT", objectTypeCode: "PLAYER", category: "Events", names: {"th":"ลงทะเบียนผู้เล่นเข้าอีเวนต์","en":"Register player for event"} },
   { code: "CREATE_TEAM", objectTypeCode: "PLATFORM", category: "Teams", names: {"th":"สร้างทีม","en":"Create team"} },
   { code: "VIEW_TEAM", objectTypeCode: "TEAM", category: "Teams", names: {"th":"ดูโปรไฟล์ทีม","en":"View team profile"} },
   { code: "EDIT_TEAM_PROFILE", objectTypeCode: "TEAM", category: "Teams", names: {"th":"แก้ไขโปรไฟล์ทีม","en":"Edit team profile"} },
@@ -752,11 +752,21 @@ export const GRANTS = {
     { relation: "CO_ORGANIZER", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
     { relation: "PLATFORM_ADMIN", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
   ],
+  // Scoped to the TEAM, because that is what HEAD_COACH and TEAM_MANAGER are
+  // about. It said EVENT, which meant the check looked for
+  // `team_coaches.team_id = <an event id>` — matching nothing, so it failed
+  // closed and only a platform admin could register a team.
+  //
+  // `eventTypes` still narrows by the event being entered. Registration is an
+  // action about a *pair* — are you this team's coach, and is this event one you
+  // may enter — and the two halves are answered against different objects.
   REGISTER_TEAM_FOR_EVENT: [
     { relation: "HEAD_COACH", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
     { relation: "TEAM_MANAGER", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
     { relation: "PLATFORM_ADMIN", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
   ],
+  // Scoped to the PLAYER, for the same reason: SELF and GUARDIAN are about a
+  // player, not about the event they are entering.
   REGISTER_PLAYER_FOR_EVENT: [
     { relation: "SELF", eventTypes: ["CAMP", "SHOWCASE"] },
     { relation: "GUARDIAN", eventTypes: ["CAMP", "SHOWCASE"] },

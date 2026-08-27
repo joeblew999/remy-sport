@@ -10,6 +10,7 @@
 import * as events from "./events"
 import * as games from "./games"
 import * as orgs from "./orgs"
+import * as registrations from "./registrations"
 import * as standings from "./standings"
 import * as teams from "./teams"
 import * as reference from "./reference"
@@ -25,6 +26,8 @@ export const router = {
     delete: events.remove,
     addCoOrganizer: events.addCoOrganizer,
     acceptCoOrganizerInvite: events.acceptCoOrganizerInvite,
+    registerTeam: registrations.registerTeam,
+    withdrawTeam: registrations.withdrawTeam,
   },
   orgs: {
     list: orgs.list,
@@ -46,6 +49,8 @@ export const router = {
     create: teams.create,
     update: teams.update,
     delete: teams.remove,
+    addPlayer: registrations.addPlayer,
+    removePlayer: registrations.removePlayer,
   },
   standings: { list: standings.list },
   reference: { list: reference.list },

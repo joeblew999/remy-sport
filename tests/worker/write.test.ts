@@ -729,3 +729,106 @@ describe("Games — the object type ENTER_SCORES was missing", () => {
       .toBe(404)
   })
 })
+
+describe("Registration — the action about a pair", () => {
+  /**
+   * `REGISTER_TEAM_FOR_EVENT` declared object type EVENT while every relation
+   * granting it (HEAD_COACH, TEAM_MANAGER) is about a TEAM, so the check looked
+   * for `team_coaches.team_id = <an event id>`, matched nothing, and failed
+   * closed. No coach could register a team.
+   *
+   * It is TEAM-scoped now, with the event supplied as the context that narrows
+   * the grant by subtype.
+   */
+  const post_ = (path: string, body: unknown, cookie: string) => post(path, body, cookie)
+
+  it("a head coach can enter their own team, and it is idempotent", async () => {
+    // usr_coach_001 is HEAD_COACH of team_001, which is U16 M like div_001.
+    const coach = await signIn(actorFor("COACH"))
+    const body = { teamId: "team_001", eventId: "evt_004", divisionId: "div_001" }
+
+    const first = await post_("/api/events/evt_004/teams", body, coach)
+    expect(first.status, "the fix: a coach may register their own team").toBe(201)
+
+    // Pressing it again means the same thing it meant the first time.
+    expect((await post_("/api/events/evt_004/teams", body, coach)).status).toBe(201)
+    const { standings } = (await (await api("/api/standings?eventId=evt_004")).json()) as {
+      standings: { teamId: string }[]
+    }
+    expect(standings.filter((s) => s.teamId === "team_001")).toHaveLength(1)
+
+    // Put it back.
+    expect(
+      (await api("/api/events/evt_004/teams/team_001", { method: "DELETE", cookie: coach })).status,
+    ).toBe(200)
+  })
+
+  it("a coach at another school cannot enter that team", async () => {
+    const outsider = await signIn(SEED_ENTITIES.users.find((u) => u.id === "usr_coach_003")!.email)
+    const res = await post_(
+      "/api/events/evt_004/teams",
+      { teamId: "team_001", eventId: "evt_004", divisionId: "div_001" },
+      outsider,
+    )
+    expect(res.status).toBe(403)
+  })
+
+  it("a team cannot enter a division it does not match", async () => {
+    // team_002 is U18 F; div_001 is U16 M. The foreign keys allow it and
+    // nothing else would have caught it.
+    const coach = await signIn(SEED_ENTITIES.users.find((u) => u.id === "usr_coach_002")!.email)
+    const res = await post_(
+      "/api/events/evt_004/teams",
+      { teamId: "team_002", eventId: "evt_004", divisionId: "div_001" },
+      coach,
+    )
+    expect(res.status).toBe(400)
+    expect((await res.json()).message).toContain("U18")
+  })
+
+  it("withdrawing something never entered is 404", async () => {
+    // Pranom coaches team_002, which is not entered in evt_001 (a TOURNAMENT,
+    // so the grant covers it). Permitted to withdraw, nothing to withdraw.
+    const coach = await signIn(SEED_ENTITIES.users.find((u) => u.id === "usr_coach_002")!.email)
+    const res = await api("/api/events/evt_001/teams/team_002", { method: "DELETE", cookie: coach })
+    expect(res.status).toBe(404)
+  })
+
+  it("a camp is not something a team enters — the subtype narrows the grant", async () => {
+    // Individuals register for camps; REGISTER_TEAM_FOR_EVENT covers
+    // tournaments, leagues and showcases only. evt_003 is a CAMP.
+    const coach = await signIn(actorFor("COACH"))
+    const res = await post(
+      "/api/events/evt_003/teams",
+      { teamId: "team_001", eventId: "evt_003", divisionId: "div_001" },
+      coach,
+    )
+    expect(res.status).toBe(403)
+  })
+})
+
+describe("Rosters", () => {
+  it("a head coach adds a player, and removing ends the spell rather than deleting it", async () => {
+    const coach = await signIn(actorFor("COACH"))
+    // ply_003 is not on team_001 in the fixtures.
+    const added = await post("/api/teams/team_001/players", { teamId: "team_001", playerId: "ply_003" }, coach)
+    expect(added.status).toBe(201)
+
+    const removed = await api("/api/teams/team_001/players/ply_003", { method: "DELETE", cookie: coach })
+    expect(removed.status).toBe(200)
+    // An end date, not a deletion — last season's team sheet stays true.
+    expect((await removed.json()).toDate).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+
+  it("a coach of another team may not touch this roster", async () => {
+    const outsider = await signIn(SEED_ENTITIES.users.find((u) => u.id === "usr_coach_003")!.email)
+    const res = await post("/api/teams/team_001/players", { teamId: "team_001", playerId: "ply_003" }, outsider)
+    expect(res.status).toBe(403)
+  })
+
+  it("an unknown player is 404, not a row nobody asked for", async () => {
+    const coach = await signIn(actorFor("COACH"))
+    const res = await post("/api/teams/team_001/players", { teamId: "team_001", playerId: "ply_nope" }, coach)
+    expect(res.status).toBe(404)
+  })
+})

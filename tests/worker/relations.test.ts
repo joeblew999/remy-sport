@@ -175,3 +175,33 @@ describe("ENTER_SCORES is scoped to the game, not the platform", () => {
     expect(await can(db, "ENTER_SCORES", { id: "usr_org_003", role: "organizer" }, "gam_001")).toBe(false)
   })
 })
+
+describe("Registration is an action about two objects", () => {
+  /**
+   * `REGISTER_TEAM_FOR_EVENT` declares object type EVENT, but every relation
+   * that grants it — HEAD_COACH, TEAM_MANAGER — is about a TEAM. Resolving one
+   * against an event id looks for `team_coaches.team_id = 'evt_001'`, which
+   * matches nothing, so it fails closed and only a platform admin can register.
+   *
+   * Registration is inherently a pair: are you this team's coach, and is this
+   * event one you may enter. The model's one-object shape cannot say that.
+   */
+  const coach = { id: "usr_coach_001", role: "coach" }
+
+  it("resolves the relation against the TEAM and the subtype against the EVENT", async () => {
+    // usr_coach_001 is HEAD_COACH of team_001. evt_001 is a TOURNAMENT, which
+    // the grant allows.
+    expect(await holds(db, "HEAD_COACH", coach, "team_001")).toBe(true)
+    expect(await can(db, "REGISTER_TEAM_FOR_EVENT", coach, "team_001", "evt_001")).toBe(true)
+  })
+
+  it("refuses an event subtype the grant does not cover", async () => {
+    // evt_003 is a CAMP. Teams do not enter camps — individuals do — so the
+    // same coach and the same team are refused for that event alone.
+    expect(await can(db, "REGISTER_TEAM_FOR_EVENT", coach, "team_001", "evt_003")).toBe(false)
+  })
+
+  it("refuses a team they do not coach, whatever the event", async () => {
+    expect(await can(db, "REGISTER_TEAM_FOR_EVENT", coach, "team_002", "evt_001")).toBe(false)
+  })
+})
