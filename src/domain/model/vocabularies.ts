@@ -507,11 +507,11 @@ export type OrgTypeCode = (typeof ORG_TYPE_CODES)[number]
 
 /** 5 rows, from positions.jsonl. */
 export const POSITION = [
-  { code: "PG", names: {"th":"พอยต์การ์ด","en":"PG"}, full_names: {"th":"พอยต์การ์ด","en":"Point Guard"} },
-  { code: "SG", names: {"th":"ชู้ตติ้งการ์ด","en":"SG"}, full_names: {"th":"ชู้ตติ้งการ์ด","en":"Shooting Guard"} },
-  { code: "SF", names: {"th":"สมอลล์ฟอร์เวิร์ด","en":"SF"}, full_names: {"th":"สมอลล์ฟอร์เวิร์ด","en":"Small Forward"} },
-  { code: "PF", names: {"th":"พาวเวอร์ฟอร์เวิร์ด","en":"PF"}, full_names: {"th":"พาวเวอร์ฟอร์เวิร์ด","en":"Power Forward"} },
-  { code: "C", names: {"th":"เซ็นเตอร์","en":"C"}, full_names: {"th":"เซ็นเตอร์","en":"Center"} },
+  { code: "PG", names: {"th":"พอยต์การ์ด","en":"PG"}, fullNames: {"th":"พอยต์การ์ด","en":"Point Guard"} },
+  { code: "SG", names: {"th":"ชู้ตติ้งการ์ด","en":"SG"}, fullNames: {"th":"ชู้ตติ้งการ์ด","en":"Shooting Guard"} },
+  { code: "SF", names: {"th":"สมอลล์ฟอร์เวิร์ด","en":"SF"}, fullNames: {"th":"สมอลล์ฟอร์เวิร์ด","en":"Small Forward"} },
+  { code: "PF", names: {"th":"พาวเวอร์ฟอร์เวิร์ด","en":"PF"}, fullNames: {"th":"พาวเวอร์ฟอร์เวิร์ด","en":"Power Forward"} },
+  { code: "C", names: {"th":"เซ็นเตอร์","en":"C"}, fullNames: {"th":"เซ็นเตอร์","en":"Center"} },
 ] as const
 
 export const POSITION_CODES = POSITION.map((t) => t.code) as unknown as [

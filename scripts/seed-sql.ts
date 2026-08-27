@@ -149,14 +149,12 @@ for (const [name, table] of Object.entries(VOCABULARY_TABLES) as [string, SQLite
     // them is not an error you get told about: they are NOT NULL, and
     // `INSERT OR IGNORE` swallows a NOT NULL violation exactly as quietly as a
     // duplicate — twenty-one vocabularies silently inserted nothing.
-    // Keys arrive as the fixtures spell them — `full_names` as well as `names`
-    // — and drizzle names its columns in camelCase, so normalise before
-    // matching. A key that does not match is a column left out of the INSERT,
-    // and `INSERT OR IGNORE` reports that as nothing at all.
-    const camel = (k: string) => k.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())
+    // The model spells its keys exactly as drizzle names its columns, which is
+    // what lets this loop be a straight copy. A key that did not match would be
+    // a column left out of the INSERT, and `INSERT OR IGNORE` reports that as
+    // nothing at all.
     const values: Record<string, unknown> = { sort: i + 1 }
-    for (const [k, v] of Object.entries(row)) {
-      const key = camel(k)
+    for (const [key, v] of Object.entries(row)) {
       values[key] = v
       // Every locale-keyed JSON column has a NOT NULL `*_en` pivot beside it.
       if (v && typeof v === "object") values[`${key.replace(/s$/, "")}En`] = pivot(v as Names) ?? ""

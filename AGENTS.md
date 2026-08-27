@@ -31,12 +31,28 @@ Update it when you finish something; delete the line when it is done.
    ~1000 hand-written lines and the admin console added ~60 more. This is the
    largest remaining source of per-page boilerplate and nothing has been done
    about it.
-3. **Do not re-derive team permissions from org membership.** That was the shape
+3. **Production is four migrations behind.** `0000`–`0003` are written, applied
+   locally and never deployed — 0003 drops the organization plugin's six tables
+   after copying `member` into `org_member`. `mise run deploy` runs them and ends
+   with `cf:smoke`. Nobody uses production yet, so the window is now.
+4. **Five unhandled rejections in `test:worker`, and vitest exits 0 anyway.**
+   All from the four tests that assert a *refusal* (wrong OTP, reused OTP,
+   superseded OTP, password sign-in): Better Auth returns the 400 the test
+   asserts and also leaves the `APIError` floating. Pre-existing, not a
+   regression, and the tests are correct. It matters because a real unhandled
+   rejection would hide in that count.
+5. **Do not re-derive team permissions from org membership.** That was the shape
    this repo had, and it disagreed with the Product Owner's matrix in two
    directions at once — an org member who coached nothing could edit any team,
    and a head coach outside the org was refused. Team writes are scoped by
    `team_coaches`, which is what the model always granted. Resolved 2026-08-27;
    kept here so the next session does not rebuild it.
+6. **The JSONL seed data is fully ported and verified.** All 298 rows of the 42
+   deleted `.jsonl` files have an identical counterpart in
+   `domain/model/*.ts`, field by field, including every one of the 582 locale
+   values that used to live in `translations.jsonl` and `entity_names.jsonl`.
+   The only differences are this week's deliberate ones, each in its own commit.
+   The old files are safe to delete; they are already gone from biz `HEAD`.
 
 The test classification is **done**. `mise run test:all` for the numbers; the
 38 left in e2e are genuine round trips and belong there. Do not "optimise the
@@ -134,11 +150,17 @@ code becomes public knowledge. It is a local-dev value. `mise run deploy` ends
 with [`cf:smoke`](scripts/smoke.ts), which verifies a deployment without one;
 `test:deployed` needs it and is deliberately out of the pipeline.
 
-**Never pass the platform `ac`/`roles` to a Better Auth plugin.** Custom roles
-*replace* the plugin's own. Broken twice: `organization()` made `"owner"` — the
-role `createOrganization` writes — resolve to nothing, and `admin()` locked the
-seeded admin out of every admin endpoint. Both invisible until something called
-those endpoints. Plugins get their own scoped controllers ([`src/auth/`](src/auth/));
+**Better Auth owns authentication and nothing else.** Four tables: `user`,
+`session`, `account`, `verification`. It owned six more — organization, member,
+invitation, organizationRole, orgTeam, orgTeamMember — and every one was the
+domain's, which is why the model ended up naming an auth library's columns and
+the app needed two mappings to read its own data. Membership is `org_member`.
+If a plugin wants to own a domain table, that is the signal not to use it.
+
+**Never pass the platform `ac`/`roles` to the admin plugin.** Custom roles
+*replace* the plugin's own, so `admin()` locked the seeded admin out of every
+admin endpoint — invisible until something called one. It gets its own scoped
+controller ([`src/auth/admin-access-control.ts`](src/auth/admin-access-control.ts));
 `mise run check` asserts it.
 
 **Do not merge the statement sets to "fix" that.** The admin plugin declares
@@ -146,16 +168,15 @@ those endpoints. Plugins get their own scoped controllers ([`src/auth/`](src/aut
 `session` means a *camp session*. Merging makes "may define a camp session" and
 "may revoke someone's login" the same permission.
 
-**Two tables are called "team".** `team` is a roster of players; `org_team` is a
-group of *users who log in*. Rosters cannot move into `org_team_member` — its
-`user_id` is a non-null FK, and biz makes `players.user_id` nullable because
-minors usually have no account.
-
-**A write needs both access-control questions.** `requirePermission` asks whether
-this actor type may do this at all; `requireOrgMember` asks whether they stand in
-the right relation to *this* object. Both in [`src/api/base.ts`](src/api/base.ts),
-composed in [`src/api/teams.ts`](src/api/teams.ts). Check the biz access matrix
-before adding either.
+**A write asks one question, and the answer is upstream.**
+`requireAction("EDIT_TEAM_PROFILE")` reads the grants: the action names the
+relations that satisfy it, each relation resolves itself from the table it
+derives from, and the object comes from the action's own `object_type`. Nothing
+about which table or which relations is written here. There is no
+`requirePermission` and no `requireOrgMember` — the second of those was a
+relation the model does not define, and it disagreed with the matrix in both
+directions at once. [`src/api/base.ts`](src/api/base.ts) and
+[`src/api/relations.ts`](src/api/relations.ts) are the whole of it.
 
 **`better-auth` is pinned to 1.7.1 exactly. Do not restore the caret.** Two things
 are not guessable: the CLI was renamed (`@better-auth/cli` is frozen at 1.4.22
