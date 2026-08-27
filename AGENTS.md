@@ -20,6 +20,16 @@ the value is secret (it is published to the browser and the page says so) but
 because a secret flips without a redeploy. **`mise run demo:off` before the
 platform has real users.**
 
+**Form errors go through `formErrors(error, paths)` — never `getIssueMessage`
+directly.** The obvious shape, `getIssueMessage(err, "email") ?? message`, fails
+silently: a path matching no issue returns undefined *and* the fallback stays
+quiet because issues exist, so a refused write renders nothing at all and the
+reader thinks the button is broken. These paths are strings and nothing
+type-checks them, so a rename upstream causes it. `formErrors` takes every path
+the form renders and surfaces anything unclaimed at form level — a wrong path
+then shows the message in the wrong place, which someone notices, instead of
+nowhere. `tests/unit/form-errors.test.ts` asserts it.
+
 **Flag architectural friction — do not just absorb it.** When a change makes you
 fight the shape of the thing, or write the same block a third time, say so to
 the Product Owner in your reply. Fix it well enough to finish the task, then

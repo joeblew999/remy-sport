@@ -31,13 +31,12 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { getIssueMessage } from "@orpc/openapi-client/helpers";
 import { api, orpc } from "../lib/orpc";
 import { useOrg, useOrgMembers, useOrgs } from "../lib/data";
 import { useSession } from "../lib/session";
 import { ORG_ROLE_CODES } from "../../domain/vocabularies";
 import type { Route } from "../lib/router";
-import { formError } from "../lib/form-errors";
+import { formErrors } from "../lib/form-errors";
 import { m } from "../lib/i18n";
 
 export function OrgsPage({ goto }: { goto: (r: Route) => void }) {
@@ -149,12 +148,14 @@ function OrgProfile({
     },
   });
 
+  const saveErr = formErrors(save.error, ["names[en]"]);
+
   return (
     <section className="admin-card" data-testid="org-profile">
       <h2>{m.org_profile()}</h2>
       {saved && <div className="admin-ok">{m.org_profile_saved()}</div>}
-      {formError(save.error) && (
-        <div className="admin-error" data-testid="org-profile-error">{formError(save.error)}</div>
+      {saveErr.form && (
+        <div className="admin-error" data-testid="org-profile-error">{saveErr.form}</div>
       )}
       <form
         className="admin-form"
@@ -172,10 +173,12 @@ function OrgProfile({
           autoComplete="off"
         />
         {/* Bracket notation for the path into the input object: the schema takes
-            `names` as a locale map, so the issue arrives at `names.en`. */}
-        {getIssueMessage(save.error, "names[en]") && (
+            `names` as a locale map, so the issue arrives at `names.en`. If that
+            path ever stops matching, the message moves to `saveErr.form` above
+            rather than disappearing. */}
+        {saveErr.field("names[en]") && (
           <p className="admin-error small" data-testid="org-name-issue">
-            {getIssueMessage(save.error, "names[en]")}
+            {saveErr.field("names[en]")}
           </p>
         )}
         <button type="submit" data-testid="org-save" disabled={save.isPending}>
@@ -206,7 +209,8 @@ function OrgMembers({ id }: { id: string }) {
 
   // "Unknown user" is a 404 with no field issues, so it belongs at the top of
   // the section rather than under the email box.
-  const sectionError = formError(add.error) ?? formError(remove.error);
+  const addErr = formErrors(add.error, ["email"]);
+  const sectionError = addErr.form ?? formErrors(remove.error).form;
 
   // The server's answer, not a role check. See the note at the top of the file.
   if (members.error) {
@@ -301,9 +305,9 @@ function OrgMembers({ id }: { id: string }) {
             required
             autoComplete="off"
           />
-          {getIssueMessage(add.error, "email") && (
+          {addErr.field("email") && (
             <p className="admin-error small" data-testid="add-member-email-issue">
-              {getIssueMessage(add.error, "email")}
+              {addErr.field("email")}
             </p>
           )}
           {/* From the PO's vocabulary, not a list written out here. */}

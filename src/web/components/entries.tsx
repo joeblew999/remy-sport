@@ -13,10 +13,9 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { getIssueMessage } from "@orpc/openapi-client/helpers";
 import { api, orpc } from "../lib/orpc";
 import { useEntries } from "../lib/data";
-import { formError } from "../lib/form-errors";
+import { formErrors } from "../lib/form-errors";
 import { m } from "../lib/i18n";
 
 export function Entries({ eventId }: { eventId: string }) {
@@ -105,6 +104,8 @@ function EnterTeam({
     (d) => d.ageGroupCode === team?.ageGroupCode && d.genderCode === team?.genderCode,
   );
 
+  const enterErr = () => formErrors(enter.error, ["divisionId"]);
+
   const enter = useMutation({
     mutationFn: (v: { teamId: string; divisionId: string }) =>
       api.events.registerTeam({ eventId, ...v }),
@@ -153,9 +154,12 @@ function EnterTeam({
           {enter.isPending ? m.org_saving() : m.enter_a_team()}
         </button>
 
-        {enter.error && (
+        {/* Either the division issue on its own field, or anything else — a
+            team that never entered, a division that does not match — at form
+            level. Neither can be dropped. */}
+        {(enterErr().field("divisionId") ?? enterErr().form) && (
           <p className="admin-error small" data-testid="enter-error">
-            {getIssueMessage(enter.error, "divisionId") ?? formError(enter.error)}
+            {enterErr().field("divisionId") ?? enterErr().form}
           </p>
         )}
       </form>

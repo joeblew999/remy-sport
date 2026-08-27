@@ -13,11 +13,10 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { getIssueMessage } from "@orpc/openapi-client/helpers";
 import { api, orpc } from "../lib/orpc";
 import { useEntries, useGames } from "../lib/data";
 import { useLocale } from "../lib/locale";
-import { formError } from "../lib/form-errors";
+import { formErrors } from "../lib/form-errors";
 import { m } from "../lib/i18n";
 
 type Game = NonNullable<ReturnType<typeof useGames>["data"]>[number];
@@ -235,6 +234,8 @@ function ScoreForm({ game, onDone }: { game: Game; onDone: () => void }) {
     },
   });
 
+  const scoreErr = formErrors(save.error, ["homeScore"]);
+
   return (
     <form
       className="score-form"
@@ -270,10 +271,11 @@ function ScoreForm({ game, onDone }: { game: Game; onDone: () => void }) {
       <button type="button" className="btn" onClick={onDone}>
         {m.cancel()}
       </button>
-      {/* The schema's own message, under the field it belongs to. */}
-      {(getIssueMessage(save.error, "homeScore") ?? save.error) && (
+      {/* "Give both scores or neither" is a refinement across two fields, so it
+          has no single home — it arrives at form level and is said once. */}
+      {(scoreErr.field("homeScore") ?? scoreErr.form) && (
         <p className="admin-error small" data-testid={`score-error-${game.id}`}>
-          {getIssueMessage(save.error, "homeScore") ?? (save.error as Error | null)?.message}
+          {scoreErr.field("homeScore") ?? scoreErr.form}
         </p>
       )}
     </form>
@@ -301,6 +303,7 @@ export function AddFixture({ eventId }: { eventId: string }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: orpc.games.key() }),
   });
 
+  const addErr = formErrors(add.error, ["startsAt"]);
   const teams = entries?.registered ?? [];
   // The server's answer, per event. Two teams alone is not permission.
   if (!entries?.canManageFixtures || teams.length < 2) return null;
@@ -332,9 +335,9 @@ export function AddFixture({ eventId }: { eventId: string }) {
           ))}
         </select>
         <input name="startsAt" type="datetime-local" required data-testid="fixture-starts" />
-        {getIssueMessage(add.error, "startsAt") && (
+        {addErr.field("startsAt") && (
           <p className="admin-error small" data-testid="fixture-starts-issue">
-            {getIssueMessage(add.error, "startsAt")}
+            {addErr.field("startsAt")}
           </p>
         )}
         <button type="submit" data-testid="add-fixture-submit" disabled={add.isPending}>
@@ -343,9 +346,12 @@ export function AddFixture({ eventId }: { eventId: string }) {
         {/* A refusal with no field to sit under — "that team is not registered
             for this event", "a team cannot play itself". Those belong at the
             bottom of the form, not beneath an input that is not the problem. */}
-        {formError(add.error) && (
+        {/* A refusal with no field to sit under — "that team is not registered
+            for this event", "a team cannot play itself" — plus any issue the
+            fields above did not claim. */}
+        {addErr.form && (
           <p className="admin-error small" data-testid="add-fixture-error">
-            {formError(add.error)}
+            {addErr.form}
           </p>
         )}
       </form>

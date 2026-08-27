@@ -22,7 +22,7 @@
 
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getIssueMessage } from "@orpc/openapi-client/helpers";
+import { formErrors } from "../lib/form-errors";
 import { api, orpc } from "../lib/orpc";
 import { useAccounts, useAdminAction, useDevAccounts, useRequestCode, useVerifyCode, codeFromOutbox, signOutSilently } from "../lib/auth";
 import { useSession } from "../lib/session";
@@ -300,13 +300,20 @@ function CreateEvent({ onError }: { onError: (m: string | null) => void }) {
       qc.invalidateQueries({ queryKey: orpc.events.key() });
       setTimeout(() => setDone(false), 2000);
     },
-    onError: (e: Error) => onError(e.message),
+    onError: () => undefined,
   });
+
+  // Anything these two do not claim — a bad type code, a date range the API
+  // refuses — is rendered at form level below rather than vanishing.
+  const createErr = formErrors(create.error, ["names[en]", "description"]);
 
   return (
     <section className="admin-card" data-testid="create-event-form">
       <h2>Create event</h2>
       {done && <div className="admin-ok">Event created.</div>}
+      {createErr.form && (
+        <div className="admin-error" data-testid="create-event-error">{createErr.form}</div>
+      )}
       <form
         className="admin-form"
         onSubmit={(e) => {
@@ -323,9 +330,9 @@ function CreateEvent({ onError }: { onError: (m: string | null) => void }) {
         <input name="name" placeholder="Event name" required autoComplete="off" />
         {/* The schema's own message, under the field it belongs to — `names` is
             a locale map, so an issue on the English name arrives at names.en. */}
-        {getIssueMessage(create.error, "names[en]") && (
+        {createErr.field("names[en]") && (
           <p className="admin-error small" data-testid="create-event-name-issue">
-            {getIssueMessage(create.error, "names[en]")}
+            {createErr.field("names[en]")}
           </p>
         )}
         <select name="type" required defaultValue="tournament">
@@ -335,9 +342,9 @@ function CreateEvent({ onError }: { onError: (m: string | null) => void }) {
           <option value="showcase">Showcase</option>
         </select>
         <input name="description" placeholder="Description (optional)" autoComplete="off" />
-        {getIssueMessage(create.error, "description") && (
+        {createErr.field("description") && (
           <p className="admin-error small" data-testid="create-event-description-issue">
-            {getIssueMessage(create.error, "description")}
+            {createErr.field("description")}
           </p>
         )}
         <button type="submit" disabled={create.isPending}>
