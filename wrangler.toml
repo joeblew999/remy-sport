@@ -28,7 +28,7 @@ not_found_handling = "none"
 [[d1_databases]]
 binding = "DB"
 database_name = "remy-sport-db"
-database_id = "a95ca62b-63be-4245-9ee4-e39e60ebfdab"
+database_id = "c5b3cb3e-6b40-45e3-8e9a-ec7cddb84a87"
 migrations_dir = "src/db/migrations"
 
 # R2 Storage
