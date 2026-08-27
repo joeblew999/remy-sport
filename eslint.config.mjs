@@ -31,6 +31,10 @@ import react from "eslint-plugin-react"
 import tsParser from "@typescript-eslint/parser"
 
 export default [
+  // Type declarations have no runtime strings, and one of them carries an
+  // inline disable for a rule this config does not define — which ESLint
+  // reports as an error in itself.
+  { ignores: ["**/*.d.ts"] },
   {
     files: ["src/web/**/*.tsx"],
     languageOptions: {
@@ -83,7 +87,10 @@ export default [
    * is the exact shape that shipped.
    */
   {
-    files: ["src/web/lib/api.ts", "src/web/lib/localizer.ts", "src/web/lib/devices.ts"],
+    // Every .ts in the SPA, not a list of three files. The list was what I
+    // first wrote and it is the wrong shape: a NEW module manufacturing UI
+    // strings would not be on it, which is exactly the case a check exists for.
+    files: ["src/web/**/*.ts"],
     languageOptions: { parser: tsParser, parserOptions: { sourceType: "module" } },
     rules: {
       "no-restricted-syntax": [
