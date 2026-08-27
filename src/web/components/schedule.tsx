@@ -18,6 +18,7 @@ import { useEntries, useGames } from "../lib/data";
 import { useLocale } from "../lib/locale";
 import { formErrors } from "../lib/form-errors";
 import { m } from "../lib/i18n";
+import { formatTimeOn } from "../lib/dates";
 
 type Game = NonNullable<ReturnType<typeof useGames>["data"]>["games"][number];
 
@@ -32,35 +33,25 @@ type Game = NonNullable<ReturnType<typeof useGames>["data"]>["games"][number];
  * The locale is the app's, not the browser's — `undefined` here meant a Thai
  * page rendered "Aug 27" because the browser was set to English.
  *
- * `-u-ca-gregory` is deliberate. Thai defaults to the Buddhist era, so `th`
- * alone renders 2569 for 2026, and every other date on the page comes from
- * `formatRange` in Gregorian. One page showing both would be worse than either.
- * Offering Buddhist dates is a real thing to consider — but as a decision, and
- * everywhere at once.
+ * The calendar is not chosen here. `CALENDAR` in lib/dates.ts is, once, for
+ * every date on the site — which is what makes "offer Buddhist dates" a
+ * decision somebody can actually take rather than a hunt through call sites.
  *
- * `Intl` directly, and no date library. This gets proposed periodically, so the
- * reasoning is here rather than in a commit message nobody will find:
- * `date-fns-tz`'s `formatInTimeZone` is a wrapper over the same
- * `Intl.DateTimeFormat` call below, so adopting it would cost bytes to
- * reimplement the one line it replaces. Temporal would be the real upgrade and
- * is not available — see `tests/worker/runtime.test.ts`, which is the tripwire
- * for when that changes.
+ * Formatting goes through `Intl`, not through the date library this repo does
+ * now depend on. That is not an inconsistency, it is the split described in
+ * lib/dates.ts: `temporal-polyfill/fns` does arithmetic `Date` cannot do
+ * correctly, and `Intl` does formatting no library should be re-shipping —
+ * `date-fns-tz`'s `formatInTimeZone` is a wrapper over exactly this call.
  */
 function timeOf(startsAt: string, locale: string, timeZone: string | null): string {
   const d = new Date(startsAt);
   if (Number.isNaN(d.getTime())) return "—";
   try {
-    return d.toLocaleString(`${locale}-u-ca-gregory`, {
-      day: "numeric",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-      ...(timeZone ? { timeZone } : {}),
-    });
+    return formatTimeOn(locale, d, timeZone);
   } catch {
     // An IANA name the runtime does not know throws rather than degrading.
     // A time on the wrong clock is worse than a time with no clock named, so
-    // fall back to the instant rather than to the machine's zone.
+    // fall back to the instant rather than to the machine's own zone.
     return d.toISOString().replace("T", " ").slice(0, 16) + " UTC";
   }
 }

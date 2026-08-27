@@ -115,18 +115,48 @@ describe("fields with no table render placeholders, never invented values", () =
   })
 })
 
-describe("date ranges read as a human would write them", () => {
-  const range = (startDate: string | null, endDate: string | null) =>
-    toEvent(event({ startDate, endDate }), loc, on("2026-01-01")).date
+/**
+ * Date ranges, in the reader's language and their word order.
+ *
+ * These used to assert "JUN 10–14, 2026", produced by a hardcoded English month
+ * array. That was not merely untranslated — it was structurally English-only:
+ * the format string said MONTH DAY, YEAR, and Thai writes the day first. No
+ * amount of translating the month names would have fixed the order.
+ *
+ * `Intl.DateTimeFormat.formatRange` knows both, and knows that a range inside
+ * one month collapses differently in each. The Thai cases below are the proof —
+ * if this ever regresses to hand-rolled formatting, they are what fails.
+ */
+describe("date ranges are written the way each language writes them", () => {
+  const range = (locale: string, startDate: string | null, endDate: string | null) =>
+    toEvent(event({ startDate, endDate }), { ...loc, locale } as Localizer, on("2026-01-01")).date
 
-  test("undated", () => expect(range(null, null)).toBe("Dates TBC"))
-  test("single day", () => expect(range("2026-06-10", "2026-06-10")).toBe("JUN 10, 2026"))
-  test("within one month collapses the month", () =>
-    expect(range("2026-06-10", "2026-06-14")).toBe("JUN 10–14, 2026"))
-  test("across months keeps both", () =>
-    expect(range("2026-06-28", "2026-07-02")).toBe("JUN 28 – JUL 2, 2026"))
-  test("across a year keeps both years", () =>
-    expect(range("2026-12-28", "2027-01-02")).toBe("DEC 28, 2026 – JAN 2, 2027"))
+  test("undated", () => expect(range("en", null, null)).toBe("Dates TBC"))
+
+  describe("en", () => {
+    test("single day", () => expect(range("en", "2026-06-10", "2026-06-10")).toBe("Jun 10, 2026"))
+    test("within one month collapses the month", () =>
+      expect(range("en", "2026-06-10", "2026-06-14")).toBe("Jun 10 – 14, 2026"))
+    test("across months keeps both", () =>
+      expect(range("en", "2026-06-28", "2026-07-02")).toBe("Jun 28 – Jul 2, 2026"))
+    test("across a year keeps both years", () =>
+      expect(range("en", "2026-12-28", "2027-01-02")).toBe("Dec 28, 2026 – Jan 2, 2027"))
+  })
+
+  describe("th — day first, which the old formatter could not express", () => {
+    test("single day", () => expect(range("th", "2026-06-10", "2026-06-10")).toBe("10 มิ.ย. 2026"))
+    test("within one month collapses the month", () =>
+      expect(range("th", "2026-06-10", "2026-06-14")).toBe("10–14 มิ.ย. 2026"))
+    test("across months keeps both", () =>
+      expect(range("th", "2026-06-28", "2026-07-02")).toBe("28 มิ.ย. – 2 ก.ค. 2026"))
+    test("across a year keeps both years", () =>
+      expect(range("th", "2026-12-28", "2027-01-02")).toBe("28 ธ.ค. 2026 – 2 ม.ค. 2027"))
+  })
+
+  // The Gregorian year, not the Buddhist 2569, and that is a decision rather
+  // than an accident — CALENDAR in lib/dates.ts, with the reasoning.
+  test("th renders the Gregorian year, per the one calendar decision", () =>
+    expect(range("th", "2026-06-10", "2026-06-10")).toContain("2026"))
 })
 
 describe("shortCode — initials only", () => {

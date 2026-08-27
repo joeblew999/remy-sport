@@ -16,7 +16,7 @@
 import { describe, it, expect, afterAll } from "bun:test"
 import { toEvent } from "../../src/web/lib/api"
 
-const loc = { name: (_n: unknown, fallback: string) => fallback, label: () => "" } as never
+const loc = { locale: "en", name: (_n: unknown, fallback: string) => fallback, label: () => "" } as never
 
 const event = (startDate: string) =>
   ({

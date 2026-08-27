@@ -14,7 +14,14 @@ import type { Localizer } from "./localizer";
 export type ApiEvent = RouterClient<Router>["events"]["get"] extends
   (...a: never[]) => Promise<infer R> ? R : never
 
-const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+import * as PlainDate from "temporal-polyfill/fns/PlainDate";
+import { formatDayRange, formatMonthShort } from "./dates";
+
+const pd = (iso: string) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return PlainDate.create(y!, m!, d!);
+};
+const pdOf = (d: Date) => PlainDate.create(d.getFullYear(), d.getMonth() + 1, d.getDate());
 
 /** Parse a `YYYY-MM-DD` day string without letting the local timezone shift it. */
 function parseDay(iso: string): Date {
@@ -22,21 +29,13 @@ function parseDay(iso: string): Date {
   return new Date(y, m - 1, d);
 }
 
-function formatRange(start: string | null, end: string | null): string {
+function formatRange(
+  locale: string,
+  start: string | null,
+  end: string | null,
+): string {
   if (!start) return "Dates TBC";
-  const s = parseDay(start);
-  if (!end || end === start) {
-    return `${MONTHS[s.getMonth()]} ${s.getDate()}, ${s.getFullYear()}`;
-  }
-  const e = parseDay(end);
-  const sameMonth = s.getFullYear() === e.getFullYear() && s.getMonth() === e.getMonth();
-  if (sameMonth) {
-    return `${MONTHS[s.getMonth()]} ${s.getDate()}–${e.getDate()}, ${s.getFullYear()}`;
-  }
-  const sameYear = s.getFullYear() === e.getFullYear();
-  const left = `${MONTHS[s.getMonth()]} ${s.getDate()}`;
-  const right = `${MONTHS[e.getMonth()]} ${e.getDate()}, ${e.getFullYear()}`;
-  return sameYear ? `${left} – ${right}` : `${left}, ${s.getFullYear()} – ${right}`;
+  return formatDayRange(locale, parseDay(start), end ? parseDay(end) : null);
 }
 
 /**
@@ -50,13 +49,11 @@ function formatRange(start: string | null, end: string | null): string {
  */
 function deriveStatus(start: string | null, end: string | null, today: Date): EventStatus {
   if (!start) return "upcoming";
-  const s = parseDay(start);
-  const e = end ? parseDay(end) : s;
-  // Compare at day granularity — an event is live on its final day, not until
-  // midnight at the start of it.
-  const now = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  if (now < s) return "upcoming";
-  if (now > e) return "closed";
+  const s = pd(start);
+  const e = end ? pd(end) : s;
+  const now = pdOf(today);
+  if (PlainDate.compare(now, s) < 0) return "upcoming";
+  if (PlainDate.compare(now, e) > 0) return "closed";
   return "live";
 }
 
@@ -74,9 +71,7 @@ function deriveStatus(start: string | null, end: string | null, today: Date): Ev
  * shift, so the subtraction is exact whole days by construction.
  */
 function daysBetween(a: Date, b: Date): number {
-  const ua = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
-  const ub = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate());
-  return Math.round((ub - ua) / 86_400_000);
+  return PlainDate.diffDays(pdOf(a), pdOf(b));
 }
 
 function statusLabel(status: EventStatus, start: string | null, today: Date): string {
@@ -117,8 +112,8 @@ export function toEvent(e: ApiEvent, loc: Localizer, today: Date = new Date()): 
     loc: "Venue TBC",
     city: loc.label("cities", e.cityCode) || "—",
     day: start ? start.getDate() : 0,
-    mo: start ? MONTHS[start.getMonth()] : "TBC",
-    date: formatRange(e.startDate, e.endDate),
+    mo: start ? formatMonthShort(loc.locale, start) : "TBC",
+    date: formatRange(loc.locale, e.startDate, e.endDate),
     status,
     statusLabel: statusLabel(status, e.startDate, today),
     teams: 0,

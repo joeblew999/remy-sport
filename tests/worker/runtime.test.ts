@@ -23,11 +23,16 @@
 import { it, expect } from "vitest"
 
 /**
- * Temporal is not available, and the SPA is not waiting for it either.
+ * Temporal is not available natively.
  *
  * Measured 2026-08-27 on miniflare 5.20260815.0-alpha, at both our
  * compatibility_date (2025-09-01) and at 2026-08-01. Undefined in both.
  * Cloudflare's compatibility-flags documentation lists no flag for it.
+ *
+ * The SPA now depends on `temporal-polyfill/fns` for calendar arithmetic — 3.5KB
+ * gzipped through the tree-shakable functional entrypoint, which is what made it
+ * worth having. This test is about the *native* API, which is a different
+ * question: when it lands, the polyfill can shrink or go.
  *
  * When this fails, the decision to revisit is:
  *
@@ -37,13 +42,13 @@ import { it, expect } from "vitest"
  *   2. The Worker gains little either way. Every date call site here is
  *      `new Date().toISOString()` for a timestamp or `new Date()` for a drizzle
  *      `updatedAt`. There is no timezone arithmetic on this side at all.
- *   3. The SPA is where the date logic actually lives, and it ships to Safari.
- *      Temporal in the Worker but not the browser means two dialects, which is
- *      worse than one that works.
+ *   3. The browser is what decides. The polyfill exists for Safari, not for the
+ *      Worker, so native support here changes nothing until it is native there
+ *      too — and shipping two dialects is worse than one that works.
  *
  * In other words: this failing is permission to think about it, not a
- * requirement to adopt it. Deleting the test is a fine outcome; so is widening
- * it to assert the shape we depend on.
+ * requirement to act. Deleting the test is a fine outcome; so is widening it to
+ * assert the shape we depend on.
  */
 it("Temporal is still absent from the Worker runtime", () => {
   const present = typeof (globalThis as Record<string, unknown>).Temporal !== "undefined"
