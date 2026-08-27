@@ -31,10 +31,15 @@ Update it when you finish something; delete the line when it is done.
    ~1000 hand-written lines and the admin console added ~60 more. This is the
    largest remaining source of per-page boilerplate and nothing has been done
    about it.
-3. **Production is four migrations behind.** `0000`–`0003` are written, applied
-   locally and never deployed — 0003 drops the organization plugin's six tables
-   after copying `member` into `org_member`. `mise run deploy` runs them and ends
-   with `cf:smoke`. Nobody uses production yet, so the window is now.
+3. **Never renumber a migration that has been deployed.** wrangler tracks them
+   by *filename*: squashing `0001`–`0015` into `0000_init` left production
+   recording fifteen names the repo no longer had, so the chain would have
+   replayed `0000_init` against a database that already had every table.
+   Production was rebuilt from the chain on 2026-08-27 (deleted, recreated,
+   migrated, seeded — it had no users) and now matches local exactly: 43 tables,
+   ledger `0000`–`0003`, `foreign_key_check` clean. From here the chain is
+   append-only. Check with
+   `wrangler d1 execute remy-sport-db --remote --command "SELECT name FROM d1_migrations"`.
 4. **Five unhandled rejections in `test:worker`, and vitest exits 0 anyway.**
    All from the four tests that assert a *refusal* (wrong OTP, reused OTP,
    superseded OTP, password sign-in): Better Auth returns the 400 the test
