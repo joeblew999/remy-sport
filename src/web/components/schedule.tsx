@@ -19,10 +19,15 @@ import { useLocale } from "../lib/locale";
 import { formErrors } from "../lib/form-errors";
 import { m } from "../lib/i18n";
 
-type Game = NonNullable<ReturnType<typeof useGames>["data"]>[number];
+type Game = NonNullable<ReturnType<typeof useGames>["data"]>["games"][number];
 
 /**
- * When a game starts, in the reader's language.
+ * When a game starts, on a named clock, in the reader's language.
+ *
+ * `startsAt` is an instant in UTC. That is unambiguous and useless on its own:
+ * "10:00" means nothing until it says whose ten o'clock. So this takes the zone
+ * explicitly and never falls back to the machine's — a page that guesses is how
+ * a coach turns up an hour late.
  *
  * The locale is the app's, not the browser's — `undefined` here meant a Thai
  * page rendered "Aug 27" because the browser was set to English.
@@ -33,21 +38,33 @@ type Game = NonNullable<ReturnType<typeof useGames>["data"]>[number];
  * Offering Buddhist dates is a real thing to consider — but as a decision, and
  * everywhere at once.
  */
-function timeOf(startsAt: string, locale: string): string {
+function timeOf(startsAt: string, locale: string, timeZone: string | null): string {
   const d = new Date(startsAt);
-  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString(`${locale}-u-ca-gregory`, {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  if (Number.isNaN(d.getTime())) return "—";
+  try {
+    return d.toLocaleString(`${locale}-u-ca-gregory`, {
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      ...(timeZone ? { timeZone } : {}),
+    });
+  } catch {
+    // An IANA name the runtime does not know throws rather than degrading.
+    // A time on the wrong clock is worse than a time with no clock named, so
+    // fall back to the instant rather than to the machine's zone.
+    return d.toISOString().replace("T", " ").slice(0, 16) + " UTC";
+  }
 }
+
+/** "Asia/Bangkok" reads as "Bangkok" in a line already dense with detail. */
+const shortZone = (tz: string) => tz.split("/").pop()!.replace(/_/g, " ");
 
 export function Schedule({ eventId, spoiler }: { eventId: string; spoiler: boolean }) {
   const games = useGames(eventId);
 
   if (games.isPending) return <div className="empty">{m.loading()}</div>;
-  if (!games.data?.length) {
+  if (!games.data?.games.length) {
     // Not an empty table: an event with no fixtures yet has none, and a header
     // over nothing reads as a loading state that never finishes.
     return (
@@ -59,14 +76,22 @@ export function Schedule({ eventId, spoiler }: { eventId: string; spoiler: boole
 
   return (
     <div className="dash-card" data-testid="schedule">
-      {games.data.map((g) => (
-        <GameRow key={g.id} game={g} spoiler={spoiler} />
+      {games.data.games.map((g) => (
+        <GameRow key={g.id} game={g} spoiler={spoiler} viewerZone={games.data.viewerTimezone} />
       ))}
     </div>
   );
 }
 
-function GameRow({ game, spoiler }: { game: Game; spoiler: boolean }) {
+function GameRow({
+  game,
+  spoiler,
+  viewerZone,
+}: {
+  game: Game;
+  spoiler: boolean;
+  viewerZone: string | null;
+}) {
   const { locale } = useLocale();
   const [editing, setEditing] = useState(false);
   const played = game.homeScore !== null && game.awayScore !== null;
@@ -78,7 +103,22 @@ function GameRow({ game, spoiler }: { game: Game; spoiler: boolean }) {
           {game.homeTeam} <span className="muted">v</span> {game.awayTeam}
         </div>
         <div className="device-meta">
-          {[timeOf(game.startsAt, locale), game.venue ?? m.venue_tbc()].join(" · ")}
+          {/* The venue's clock is the primary one: it is the time printed on a
+              schedule and the time somebody turns up. The viewer's own is shown
+              beside it only when it differs, so a local reader — which is most
+              of them — sees one time rather than the same time twice. */}
+          {[
+            game.timezone
+              ? `${timeOf(game.startsAt, locale, game.timezone)} ${shortZone(game.timezone)}`
+              : timeOf(game.startsAt, locale, viewerZone),
+            game.venue ?? m.venue_tbc(),
+          ].join(" · ")}
+          {game.timezone && viewerZone && viewerZone !== game.timezone && (
+            <span data-testid={`local-time-${game.id}`}>
+              {" · "}
+              {m.your_time({ time: timeOf(game.startsAt, locale, viewerZone) })}
+            </span>
+          )}
           {" · "}
           {game.referees.length > 0 && (
             <>

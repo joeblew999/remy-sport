@@ -30,8 +30,8 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
   // The games count, from the games. Cached, and the schedule tab subscribes to
   // the same key — so opening it costs nothing extra.
   const { data: games } = useGames(e?.id);
-  const total = games?.length ?? 0;
-  const played = games?.filter((g) => g.homeScore !== null).length ?? 0;
+  const total = games?.games.length ?? 0;
+  const played = games?.games.filter((g) => g.homeScore !== null).length ?? 0;
 
   // Both accessors are async now, so the page has render states it did not
   // have when the data was a module-level constant. Hooks above run

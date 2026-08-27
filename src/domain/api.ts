@@ -78,6 +78,12 @@ export const EventSchema = createSelectSchema(schema.event)
 
 export const CreateEventInput = z.object({
   names: NamesInput,
+  /**
+   * The venue's clock, IANA. Optional: when the organiser does not say, the
+   * request's own zone is used, because someone in Bangkok scheduling a
+   * Bangkok tournament should not have to fill this in.
+   */
+  timezone: z.string().optional(),
   typeCode: EventTypeSchema,
   formatCode: EventFormatSchema.optional(),
   description: z.string().optional(),
@@ -160,6 +166,12 @@ export const GameSchema = createSelectSchema(schema.game)
      * identical.
      */
     canSetStatus: z.boolean(),
+    /**
+     * The venue's clock, from the event — "Asia/Bangkok". `startsAt` is UTC and
+     * unambiguous; this is what lets a schedule say the time the game actually
+     * starts where it is played. Null where nobody said.
+     */
+    timezone: z.string().nullable(),
     canAssignReferee: z.boolean(),
     /**
      * Who is officiating. Public, and deliberately: a referee's name on a

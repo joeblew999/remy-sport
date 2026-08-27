@@ -32,42 +32,22 @@
 
 import { getIssueMessage } from "@orpc/openapi-client/helpers"
 import { isDefinedError, ORPCError } from "@orpc/client"
-import type { ErrorCode } from "../../api/errors"
 import { m } from "./i18n"
 
 /**
- * A defined error's code, rendered in the reader's language.
+ * A code's sentence, by convention rather than by a table.
  *
- * The server sends a code and the facts; the sentence is written here, as a
- * paraglide message like every other string in the product. Before this, the
- * API threw English prose and the page printed it — so a Thai coach on a fully
- * Thai page read "A team cannot play itself" in English.
+ * `TEAM_PLAYS_ITSELF` reads `err_team_plays_itself`. There used to be a
+ * hand-written `Record<ErrorCode, ...>` here, which meant adding an error
+ * touched four files and wrote the same English twice — once as the code's
+ * `message`, once in `en.json`. Both are gone: the server sends no sentence at
+ * all, and this derives the key.
  *
- * Typed as `Record<ErrorCode, ...>`, so adding a code in src/api/errors.ts and
- * forgetting the message is a compile error rather than a blank error box.
+ * The compile-time guarantee the table gave up is replaced by a build-time one:
+ * `mise run check:messages` fails when a code in src/api/errors.ts has no
+ * `err_*` message in a released locale, so a missing sentence still cannot ship.
  */
-const MESSAGES: Record<ErrorCode, (data: never) => string> = {
-  TEAM_PLAYS_ITSELF: () => m.err_team_plays_itself(),
-  TEAM_NOT_ENTERED: () => m.err_team_not_entered(),
-  DIVISION_MISMATCH: (d: {
-    teamAgeGroup: string
-    teamGender: string
-    divisionAgeGroup: string
-    divisionGender: string
-  }) => m.err_division_mismatch(d),
-  NOT_REGISTERED: () => m.err_not_registered(),
-  NOT_ON_ROSTER: () => m.err_not_on_roster(),
-  UNKNOWN_USER: () => m.err_unknown_user(),
-  UNKNOWN_PLAYER: () => m.err_unknown_player(),
-  UNKNOWN_EVENT: () => m.err_unknown_event(),
-  UNKNOWN_DIVISION: () => m.err_unknown_division(),
-  UNKNOWN_ORG: () => m.err_unknown_org(),
-  NOT_A_REFEREE: () => m.err_not_a_referee(),
-  NOT_ASSIGNED: () => m.err_not_assigned(),
-  NOT_A_MEMBER: () => m.err_not_a_member(),
-  NO_INVITATION: () => m.err_no_invitation(),
-  BAD_DATE_RANGE: () => m.err_bad_date_range(),
-}
+const keyFor = (code: string) => `err_${code.toLowerCase()}`
 
 /**
  * The sentence for a refusal the API named, or null if it named nothing.
@@ -87,8 +67,18 @@ function definedMessage(error: unknown): string | null {
   const candidate = error as ORPCError<string, unknown>
   if (!isDefinedError(candidate)) return null
 
-  const render = MESSAGES[candidate.code as ErrorCode] as ((d: unknown) => string) | undefined
-  return render ? render(candidate.data) : (candidate.message ?? null)
+  /**
+   * Paraglide compiles one function per message, so this is a lookup on the
+   * generated module. `data` is passed straight through — a message with no
+   * placeholders ignores it, and one with them names exactly the fields the
+   * error's own zod schema declares.
+   */
+  const render = (m as unknown as Record<string, ((d: unknown) => string) | undefined>)[
+    keyFor(candidate.code)
+  ]
+  // A code this build has no message for. Only reachable against a newer
+  // Worker; check:messages makes it impossible within one build.
+  return render ? render(candidate.data ?? {}) : (candidate.message ?? null)
 }
 
 interface Issue {

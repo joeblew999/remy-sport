@@ -116,3 +116,33 @@ describe("defined errors", () => {
     expect(formErrors({ message: "Unauthorized" }).form).toBe("Unauthorized")
   })
 })
+
+/**
+ * The convention that replaced a hand-written table.
+ *
+ * `TEAM_PLAYS_ITSELF` reads `err_team_plays_itself`. Adding an error used to
+ * touch four files and write the same English twice — once as the code's
+ * `message`, once in `en.json`. `mise run check:messages` is what stops a code
+ * shipping without a sentence now that no table declares them.
+ */
+describe("codes map to messages by convention", () => {
+  it("renders a code with no data", () => {
+    const e = new ORPCError("TEAM_PLAYS_ITSELF", { defined: true, status: 400 })
+    expect(formErrors(e).form).toBe("A team cannot play itself.")
+  })
+
+  it("renders a code whose message names the data it was sent", () => {
+    const e = new ORPCError("DIVISION_MISMATCH", {
+      defined: true,
+      status: 400,
+      data: { teamAgeGroup: "U18", teamGender: "F", divisionAgeGroup: "U16", divisionGender: "M" },
+    })
+    expect(formErrors(e).form).toBe("This team is U18 F; that division is U16 M.")
+  })
+
+  it("survives a code that carries no data at all", () => {
+    // `data` undefined rather than {} — the shape a no-data error arrives in.
+    const e = new ORPCError("UNKNOWN_USER", { defined: true, status: 404 })
+    expect(formErrors(e).form).toBe("No account has that email address.")
+  })
+})

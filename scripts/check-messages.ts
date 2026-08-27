@@ -20,6 +20,7 @@
 import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { ALL_LOCALES, LOCALES } from "../src/domain/vocabularies"
+import { ERRORS } from "../src/api/errors"
 
 const ROOT = resolve(import.meta.dir, "..")
 
@@ -72,6 +73,24 @@ for (const locale of ALL_LOCALES) {
   // file is intent rather than a defect.
   const n = keysOf(load(locale) ?? {}).length
   console.log(`check-messages: '${locale}' — draft, not offered (${n}/${expected.length})`)
+}
+
+/**
+ * Every error code the API can throw has a sentence to render.
+ *
+ * `src/web/lib/form-errors.ts` looks a code up by convention — TEAM_PLAYS_ITSELF
+ * reads `err_team_plays_itself` — rather than through a hand-written table. That
+ * removed a fourth file to edit per error and a second copy of the English, and
+ * it gave up a compile-time guarantee. This is that guarantee, moved here.
+ *
+ * A code with no message renders the code itself to a person: "TEAM_PLAYS_ITSELF"
+ * in an error box. That must not ship.
+ */
+for (const code of Object.keys(ERRORS)) {
+  const key = `err_${code.toLowerCase()}`
+  if (!expected.includes(key)) {
+    problems.push(`en: ${key} is missing — src/api/errors.ts can throw ${code}`)
+  }
 }
 
 if (problems.length) {

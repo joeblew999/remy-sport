@@ -78,6 +78,20 @@ export const event = sqliteTable("event", {
   // defaults them on create.
   startDate: text("start_date"),
   endDate: text("end_date"),
+  /**
+   * The venue's clock, as an IANA name — "Asia/Bangkok".
+   *
+   * `starts_at` on a game is an instant in UTC, which is unambiguous but not
+   * enough: a schedule has to say what time the game starts *where it is
+   * played*, and only the event knows that. A viewer in another zone then sees
+   * both, so neither is a guess.
+   *
+   * Not derived from `city_code`. A city is where an event is listed; the venue
+   * is where it is played, and a federation running a fixture abroad breaks the
+   * shortcut. Nullable for rows that predate this, which fall back to the
+   * viewer's own zone rather than to a zone somebody assumed.
+   */
+  timezone: text("timezone"),
   cityCode: text("city_code", { enum: CITY_CODES }),
   provinceCode: text("province_code"), // canonical: 3-letter code, e.g. BKK
   isFibaCertified: integer("is_fiba_certified", { mode: "boolean" })

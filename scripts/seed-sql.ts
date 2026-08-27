@@ -228,6 +228,7 @@ for (const e of SEED_ENTITIES.events) {
       names: clean(e.names),
       typeCode: e.typeCode,
       formatCode: e.formatCode,
+      timezone: e.timezone,
       startDate: e.startDate,
       endDate: e.endDate,
       cityCode: e.cityCode,

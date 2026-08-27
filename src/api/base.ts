@@ -31,6 +31,23 @@ export interface ApiContext {
 
 export type SessionUser = { id: string; name?: string | null; role?: string | null }
 
+/**
+ * The viewer's own clock, as Cloudflare resolved it — "Asia/Bangkok".
+ *
+ * `request.cf.timezone` comes from the edge on every Worker request, so it
+ * costs nothing and needs no library. It is absent under `wrangler dev` and in
+ * the test pool, and absent is a real answer rather than a failure: a page that
+ * does not know the reader's zone shows the venue's clock alone, which is what
+ * a schedule meant before anyone thought about zones.
+ *
+ * A guess from an IP, not a preference. It is right for "what time is this for
+ * me" and wrong as a stored setting, which is why nothing writes it down.
+ */
+export function viewerTimezone(request: Request): string | null {
+  const cf = (request as Request & { cf?: { timezone?: string } }).cf
+  return cf?.timezone ?? null
+}
+
 export type Db = ReturnType<typeof database>
 const database = (env: Bindings) => drizzle(env.DB, { schema })
 

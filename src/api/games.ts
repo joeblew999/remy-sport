@@ -23,7 +23,7 @@ import * as schema from "../db/schema"
 import { EnterScoreInput, GameSchema, SetGameStatusInput, type ApiGame } from "../domain/api"
 import { STORED_ROLE } from "../domain/vocabularies"
 import { ERRORS } from "./errors"
-import { can, requireAction, viewer, authed, authedRoute, type Db, type SessionUser } from "./base"
+import { can, requireAction, viewer, viewerTimezone, authed, authedRoute, type Db, type SessionUser } from "./base"
 
 const IdInput = z.object({ id: z.string() })
 
@@ -31,12 +31,17 @@ type Row = typeof schema.game.$inferSelect & {
   homeTeam?: { names: Record<string, string> } | null
   awayTeam?: { names: Record<string, string> } | null
   venue?: { names: Record<string, string> } | null
+  event?: { timezone: string | null } | null
 }
 
 const withNames = {
   homeTeam: { columns: { names: true } },
   awayTeam: { columns: { names: true } },
   venue: { columns: { names: true } },
+  // The clock this game is played on. Per game rather than per response,
+  // because `games.list` can span events and two of them can be in different
+  // zones.
+  event: { columns: { timezone: true } },
 } as const
 
 /**
@@ -47,7 +52,7 @@ const withNames = {
  * are all derivable in SQL — not to move the decision into the client.
  */
 async function serialize(db: Db, user: SessionUser | null, row: Row): Promise<ApiGame> {
-  const { homeTeam, awayTeam, venue, ...rest } = row
+  const { homeTeam, awayTeam, venue, event, ...rest } = row
   const assign = await can(db, "ASSIGN_REFEREE", user, row.id)
   const onThisGame = await db
     .select({ userId: schema.gameReferee.userId, name: schema.user.name })
@@ -60,6 +65,7 @@ async function serialize(db: Db, user: SessionUser | null, row: Row): Promise<Ap
     homeTeamNames: homeTeam?.names ?? {},
     awayTeamNames: awayTeam?.names ?? {},
     venueNames: venue?.names ?? null,
+    timezone: event?.timezone ?? null,
     canEnterScore: await can(db, "ENTER_SCORES", user, row.id),
     canSetStatus: await can(db, "CONFIRM_MATCH_STATUS", user, row.id),
     canAssignReferee: assign,
@@ -85,7 +91,7 @@ async function serialize(db: Db, user: SessionUser | null, row: Row): Promise<Ap
 export const list = viewer
   .route({ method: "GET", path: "/games", summary: "List games, optionally for one event" })
   .input(z.object({ eventId: z.string().optional() }))
-  .output(z.object({ games: z.array(GameSchema) }))
+  .output(z.object({ games: z.array(GameSchema), viewerTimezone: z.string().nullable() }))
   .handler(async ({ context, input }) => {
     const rows = await context.db.query.game.findMany({
       where: input.eventId ? (g, { eq: is }) => is(g.eventId, input.eventId!) : undefined,
@@ -94,7 +100,13 @@ export const list = viewer
       // place rather than sorting to the bottom.
       orderBy: (g, { asc }) => [asc(g.startsAt)],
     })
-    return { games: await Promise.all(rows.map((r) => serialize(context.db, context.user, r))) }
+    return {
+      games: await Promise.all(rows.map((r) => serialize(context.db, context.user, r))),
+      // Resolved at the edge, so a page can show "18:00 your time" without
+      // asking the browser and without a library. Null under wrangler dev and
+      // in tests, which the page treats as "show the venue clock alone".
+      viewerTimezone: viewerTimezone(context.request),
+    }
   })
 
 export const get = viewer

@@ -19,7 +19,7 @@ import { clean, pivot } from "../domain/names"
 import { z } from "zod"
 import { CreateEventInput, EventSchema, UpdateEventInput } from "../domain/api"
 import { ERRORS } from "./errors"
-import { authed, authedRoute, pub, requireAction, type Db } from "./base"
+import { authed, authedRoute, pub, requireAction, viewerTimezone, type Db } from "./base"
 
 const IdInput = z.object({ id: z.string() })
 
@@ -72,11 +72,19 @@ export const get = pub
     return serialize(row)
   })
 
-/** ISO day strings compare correctly as plain strings. */
-function assertDateOrder(start?: string | null, end?: string | null) {
-  if (start && end && end < start) {
-    throw new ORPCError("BAD_REQUEST", { message: ERRORS.BAD_DATE_RANGE.message })
-  }
+/**
+ * ISO day strings compare correctly as plain strings.
+ *
+ * Takes the error factory rather than throwing its own, because a defined error
+ * belongs to the procedure that declared it — that is what puts the code in the
+ * contract and lets the page render the sentence in the reader's language.
+ */
+function assertDateOrder(
+  raise: () => Error,
+  start?: string | null,
+  end?: string | null,
+) {
+  if (start && end && end < start) throw raise()
 }
 
 export const create = authed
@@ -84,8 +92,9 @@ export const create = authed
   .input(CreateEventInput)
   .output(EventSchema)
   .use(requireAction("CREATE_EVENT"))
-  .handler(async ({ context, input }) => {
-    assertDateOrder(input.startDate, input.endDate)
+  .errors({ BAD_DATE_RANGE: ERRORS.BAD_DATE_RANGE })
+  .handler(async ({ context, input, errors }) => {
+    assertDateOrder(errors.BAD_DATE_RANGE, input.startDate, input.endDate)
     const now = new Date()
     const names = clean(input.names)
     const row = {
@@ -100,6 +109,11 @@ export const create = authed
       endDate: input.endDate ?? input.startDate ?? null,
       cityCode: input.cityCode ?? null,
       provinceCode: input.provinceCode ?? null,
+      // The organiser's own zone unless they say otherwise — someone in Bangkok
+      // scheduling a Bangkok tournament should not have to fill this in. Null
+      // where the edge did not say, which the schedule renders as "no venue
+      // clock" rather than as a zone nobody chose.
+      timezone: input.timezone ?? viewerTimezone(context.request),
       isFibaCertified: input.isFibaCertified ?? false,
       organizerUserId: context.user.id,
       createdAt: now,
@@ -115,7 +129,8 @@ export const update = authed
   .input(IdInput.extend(UpdateEventInput.shape))
   .output(EventSchema)
   .use(requireAction("EDIT_EVENT"))
-  .handler(async ({ context, input }) => {
+  .errors({ BAD_DATE_RANGE: ERRORS.BAD_DATE_RANGE })
+  .handler(async ({ context, input, errors }) => {
     const { id, names, ...columns } = input
     const existing = await context.db
       .select()
@@ -126,7 +141,11 @@ export const update = authed
 
     // Validate against the merged row, not the patch: sending only endDate must
     // still be checked against the startDate already stored.
-    assertDateOrder(columns.startDate ?? existing.startDate, columns.endDate ?? existing.endDate)
+    assertDateOrder(
+      errors.BAD_DATE_RANGE,
+      columns.startDate ?? existing.startDate,
+      columns.endDate ?? existing.endDate,
+    )
 
     await context.db
       .update(schema.event)

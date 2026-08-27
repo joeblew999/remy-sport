@@ -9,11 +9,11 @@
  * reader's language (src/web/lib/form-errors.ts), and `data` carries what the
  * sentence needs to name.
  *
- * **The `message` here is not dead.** It is what a non-browser caller sees —
- * curl, the OpenAPI document, another service — and what the client falls back
- * to if a code ever arrives with no message defined for it. English is the right
- * language for that audience; it is the wrong one for a person using the
- * product, and the difference is the whole point.
+ * **There is no `message` here, deliberately.** oRPC defaults it to the code, so
+ * a non-browser caller — curl, another service, the OpenAPI document — sees
+ * `TEAM_PLAYS_ITSELF`, which is the contract they should be reading anyway. An
+ * English sentence here would be the same sentence as `messages/en.json`, in a
+ * second place, drifting from the first. One string, one home.
  *
  * Not everything is here, deliberately. `UNAUTHORIZED` and `FORBIDDEN` are
  * produced by the middleware in base.ts and are never rendered as prose — a 401
@@ -24,21 +24,14 @@
 
 import { z } from "zod"
 
-/** Something the caller named does not exist. `what` is the noun to say. */
-const unknown = (what: string) => ({
-  status: 404,
-  message: `Unknown ${what}`,
-})
+/** Something the caller named does not exist. */
+const NOT_FOUND = { status: 404 } as const
 
 export const ERRORS = {
   // ── Fixtures ──────────────────────────────────────────────────────────────
-  TEAM_PLAYS_ITSELF: {
-    status: 400,
-    message: "A team cannot play itself",
-  },
+  TEAM_PLAYS_ITSELF: { status: 400 },
   TEAM_NOT_ENTERED: {
     status: 400,
-    message: "That team is not registered for this event",
     data: z.object({ teamId: z.string() }),
   },
 
@@ -50,7 +43,6 @@ export const ERRORS = {
    */
   DIVISION_MISMATCH: {
     status: 400,
-    message: "That team does not match the division it was entered into",
     data: z.object({
       teamAgeGroup: z.string(),
       teamGender: z.string(),
@@ -58,28 +50,22 @@ export const ERRORS = {
       divisionGender: z.string(),
     }),
   },
-  NOT_REGISTERED: { status: 404, message: "That team is not entered in this event" },
-  NOT_ON_ROSTER: { status: 404, message: "That player is not on this roster" },
+  NOT_REGISTERED: { status: 404 },
+  NOT_ON_ROSTER: { status: 404 },
 
   // ── People ────────────────────────────────────────────────────────────────
-  UNKNOWN_USER: unknown("user"),
-  UNKNOWN_PLAYER: unknown("player"),
-  UNKNOWN_EVENT: unknown("event"),
-  UNKNOWN_DIVISION: unknown("division"),
-  UNKNOWN_ORG: unknown("organisation"),
-  NOT_A_REFEREE: {
-    status: 400,
-    message: "That account is not a referee",
-  },
-  NOT_ASSIGNED: { status: 404, message: "That referee is not on this game" },
-  NOT_A_MEMBER: { status: 404, message: "That person is not a member" },
-  NO_INVITATION: { status: 404, message: "There is no invitation to accept" },
+  UNKNOWN_USER: NOT_FOUND,
+  UNKNOWN_PLAYER: NOT_FOUND,
+  UNKNOWN_EVENT: NOT_FOUND,
+  UNKNOWN_DIVISION: NOT_FOUND,
+  UNKNOWN_ORG: NOT_FOUND,
+  NOT_A_REFEREE: { status: 400 },
+  NOT_ASSIGNED: { status: 404 },
+  NOT_A_MEMBER: { status: 404 },
+  NO_INVITATION: { status: 404 },
 
   // ── Events ────────────────────────────────────────────────────────────────
-  BAD_DATE_RANGE: {
-    status: 400,
-    message: "The end date must be on or after the start date",
-  },
+  BAD_DATE_RANGE: { status: 400 },
 } as const
 
 /** The codes, for the client's message table to be checked against. */

@@ -87,14 +87,16 @@ export function useGames(eventId: string | undefined) {
     orpc.games.list.queryOptions({
       input: { eventId },
       enabled: eventId !== undefined,
-      select: ({ games }) =>
-        games.map((g) => ({
+      select: ({ games, viewerTimezone }) => ({
+        viewerTimezone,
+        games: games.map((g) => ({
           ...g,
           homeTeam: loc.name(g.homeTeamNames),
           awayTeam: loc.name(g.awayTeamNames),
           venue: g.venueNames ? loc.name(g.venueNames) : null,
           statusLabel: loc.label("gameStatuses", g.statusCode),
         })),
+      }),
     }),
   );
 }

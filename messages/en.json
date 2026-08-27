@@ -135,5 +135,6 @@
   "email_otp_purpose_change_email": "confirm your new email address",
   "email_otp_purpose_other": "continue",
   "email_invite_subject": "{invitedBy} invited you to join {org} on Remy Sport",
-  "email_invite_body": "{invitedBy} has invited you to join {org} on Remy Sport.\n\nAccept the invitation: {url}\n\nIf you were not expecting this, you can ignore this email."
+  "email_invite_body": "{invitedBy} has invited you to join {org} on Remy Sport.\n\nAccept the invitation: {url}\n\nIf you were not expecting this, you can ignore this email.",
+  "your_time": "{time} your time"
 }

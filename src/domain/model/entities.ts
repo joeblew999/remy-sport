@@ -16,11 +16,21 @@ export const SEED_ENTITIES = {
     {"id":"div_005","ageGroupCode":"U18","genderCode":"M","skillTierCode":"PREMIER","names":{"th":"U18 ชาย ระดับสูง","en":"U18 Boys Premier"}},
     {"id":"div_006","ageGroupCode":"U16","genderCode":"M","skillTierCode":"PREMIER","names":{"th":"U16 ชาย ระดับสูง","en":"U16 Boys Premier"}},
   ],
+  /**
+   * `timezone` is the venue's, as an IANA name — the clock the game is played
+   * on. Every seeded event is in Thailand, and the column exists so that stops
+   * being an assumption the first time one is not: a tournament in Singapore
+   * starting "10:00" means 10:00 there, not 10:00 in Bangkok.
+   *
+   * Stored on the event rather than derived from the city, because a city is
+   * where an event is *listed* and a venue is where it is *played*, and a
+   * federation running a fixture abroad breaks the shortcut.
+   */
   events: [
-    {"id":"evt_001","typeCode":"TOURNAMENT","formatCode":"5x5","organizerUserId":"usr_org_001","orgId":"org_001","startDate":"2026-06-10","endDate":"2026-06-15","cityCode":"BANGKOK","provinceCode":"BKK","isFibaCertified":false,"names":{"th":"การแข่งขัน Sponsor Thailand Basketball League 2026 รอบกรุงเทพ","en":"Sponsor Thailand Basketball League 2026 — Bangkok Round"}},
-    {"id":"evt_002","typeCode":"LEAGUE","formatCode":"5x5","organizerUserId":"usr_org_002","orgId":null,"startDate":"2026-05-01","endDate":"2026-09-30","cityCode":"BANGKOK","provinceCode":"BKK","isFibaCertified":false,"names":{"th":"ลีกบาสเกตบอลโรงเรียนกรุงเทพ ฤดูกาล 2026","en":"Bangkok Schools Basketball League 2026"}},
-    {"id":"evt_003","typeCode":"CAMP","formatCode":"5x5","organizerUserId":"usr_org_003","orgId":"org_003","startDate":"2026-04-15","endDate":"2026-04-19","cityCode":"CHIANG_MAI","provinceCode":"CMI","isFibaCertified":false,"names":{"th":"ค่ายฝึกบาสเกตบอลภาคฤดูร้อน เชียงใหม่ 2026","en":"Chiang Mai Summer Basketball Camp 2026"}},
-    {"id":"evt_004","typeCode":"SHOWCASE","formatCode":"5x5","organizerUserId":"usr_org_001","orgId":"org_004","startDate":"2026-08-01","endDate":"2026-08-02","cityCode":"BANGKOK","provinceCode":"BKK","isFibaCertified":true,"names":{"th":"การโชว์ผู้เล่นบาสเกตบอลประเทศไทย 2026","en":"Thailand Basketball Showcase 2026"}},
+    {"id":"evt_001","typeCode":"TOURNAMENT","timezone":"Asia/Bangkok","formatCode":"5x5","organizerUserId":"usr_org_001","orgId":"org_001","startDate":"2026-06-10","endDate":"2026-06-15","cityCode":"BANGKOK","provinceCode":"BKK","isFibaCertified":false,"names":{"th":"การแข่งขัน Sponsor Thailand Basketball League 2026 รอบกรุงเทพ","en":"Sponsor Thailand Basketball League 2026 — Bangkok Round"}},
+    {"id":"evt_002","typeCode":"LEAGUE","timezone":"Asia/Bangkok","formatCode":"5x5","organizerUserId":"usr_org_002","orgId":null,"startDate":"2026-05-01","endDate":"2026-09-30","cityCode":"BANGKOK","provinceCode":"BKK","isFibaCertified":false,"names":{"th":"ลีกบาสเกตบอลโรงเรียนกรุงเทพ ฤดูกาล 2026","en":"Bangkok Schools Basketball League 2026"}},
+    {"id":"evt_003","typeCode":"CAMP","timezone":"Asia/Bangkok","formatCode":"5x5","organizerUserId":"usr_org_003","orgId":"org_003","startDate":"2026-04-15","endDate":"2026-04-19","cityCode":"CHIANG_MAI","provinceCode":"CMI","isFibaCertified":false,"names":{"th":"ค่ายฝึกบาสเกตบอลภาคฤดูร้อน เชียงใหม่ 2026","en":"Chiang Mai Summer Basketball Camp 2026"}},
+    {"id":"evt_004","typeCode":"SHOWCASE","timezone":"Asia/Bangkok","formatCode":"5x5","organizerUserId":"usr_org_001","orgId":"org_004","startDate":"2026-08-01","endDate":"2026-08-02","cityCode":"BANGKOK","provinceCode":"BKK","isFibaCertified":true,"names":{"th":"การโชว์ผู้เล่นบาสเกตบอลประเทศไทย 2026","en":"Thailand Basketball Showcase 2026"}},
   ],
   orgs: [
     {"id":"org_001","slug":"assumption-college","orgTypeCode":"SCHOOL","cityCode":"BANGKOK","provinceCode":"BKK","names":{"th":"โรงเรียนอัสสัมชัญ","en":"Assumption College"}},
