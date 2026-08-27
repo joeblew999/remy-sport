@@ -37,6 +37,14 @@ type Game = NonNullable<ReturnType<typeof useGames>["data"]>["games"][number];
  * `formatRange` in Gregorian. One page showing both would be worse than either.
  * Offering Buddhist dates is a real thing to consider — but as a decision, and
  * everywhere at once.
+ *
+ * `Intl` directly, and no date library. This gets proposed periodically, so the
+ * reasoning is here rather than in a commit message nobody will find:
+ * `date-fns-tz`'s `formatInTimeZone` is a wrapper over the same
+ * `Intl.DateTimeFormat` call below, so adopting it would cost bytes to
+ * reimplement the one line it replaces. Temporal would be the real upgrade and
+ * is not available — see `tests/worker/runtime.test.ts`, which is the tripwire
+ * for when that changes.
  */
 function timeOf(startsAt: string, locale: string, timeZone: string | null): string {
   const d = new Date(startsAt);
