@@ -22,6 +22,7 @@ import { z } from "zod"
 import * as schema from "../db/schema"
 import { EnterScoreInput, GameSchema, SetGameStatusInput, type ApiGame } from "../domain/api"
 import { STORED_ROLE } from "../domain/vocabularies"
+import { ERRORS } from "./errors"
 import { can, requireAction, viewer, authed, authedRoute, type Db, type SessionUser } from "./base"
 
 const IdInput = z.object({ id: z.string() })
@@ -173,20 +174,19 @@ const FixtureInput = z.object({
   startsAt: z.string(),
 })
 
-/** A team cannot play itself, and nothing in the schema says so. */
-function assertDistinct(homeTeamId: string, awayTeamId: string) {
-  if (homeTeamId === awayTeamId) {
-    throw new ORPCError("BAD_REQUEST", { message: "A team cannot play itself" })
-  }
-}
-
 export const create = authed
   .route({ method: "POST", path: "/events/{eventId}/games", summary: "Add a fixture", successStatus: 201, ...authedRoute })
+  // Codes and facts, not prose — the sentence is rendered in the reader's
+  // language client-side. See src/api/errors.ts.
+  .errors({
+    TEAM_PLAYS_ITSELF: ERRORS.TEAM_PLAYS_ITSELF,
+    TEAM_NOT_ENTERED: ERRORS.TEAM_NOT_ENTERED,
+  })
   .input(FixtureInput)
   .output(GameSchema)
   .use(requireAction("MANAGE_FIXTURES", (i: { eventId: string }) => i.eventId))
-  .handler(async ({ context, input }) => {
-    assertDistinct(input.homeTeamId, input.awayTeamId)
+  .handler(async ({ context, input, errors }) => {
+    if (input.homeTeamId === input.awayTeamId) throw errors.TEAM_PLAYS_ITSELF()
 
     /**
      * Both teams must be in this event.
@@ -202,9 +202,7 @@ export const create = authed
       .all()
     const ids = new Set(entered.map((e) => e.teamId))
     for (const teamId of [input.homeTeamId, input.awayTeamId]) {
-      if (!ids.has(teamId)) {
-        throw new ORPCError("BAD_REQUEST", { message: `${teamId} is not registered for this event` })
-      }
+      if (!ids.has(teamId)) throw errors.TEAM_NOT_ENTERED({ data: { teamId } })
     }
 
     // Readable and sortable, and unique per event without a counter table.
@@ -225,11 +223,12 @@ export const update = authed
   .route({ method: "PUT", path: "/events/{eventId}/games/{id}", summary: "Change a fixture", ...authedRoute })
   .input(FixtureInput.partial().extend({ id: z.string(), eventId: z.string() }))
   .output(GameSchema)
+  .errors({ TEAM_PLAYS_ITSELF: ERRORS.TEAM_PLAYS_ITSELF })
   .use(requireAction("MANAGE_FIXTURES", (i: { eventId: string }) => i.eventId))
-  .handler(async ({ context, input }) => {
+  .handler(async ({ context, input, errors }) => {
     const { id, eventId: _eventId, ...columns } = input
-    if (columns.homeTeamId && columns.awayTeamId) {
-      assertDistinct(columns.homeTeamId, columns.awayTeamId)
+    if (columns.homeTeamId && columns.awayTeamId && columns.homeTeamId === columns.awayTeamId) {
+      throw errors.TEAM_PLAYS_ITSELF()
     }
     await context.db.update(schema.game).set(columns).where(eq(schema.game.id, id))
     return reload(context.db, context.user, id)
@@ -258,21 +257,20 @@ export const remove = authed
  */
 export const assignReferee = authed
   .route({ method: "POST", path: "/games/{id}/referees", summary: "Assign a referee to a game", successStatus: 201, ...authedRoute })
+  .errors({ UNKNOWN_USER: ERRORS.UNKNOWN_USER, NOT_A_REFEREE: ERRORS.NOT_A_REFEREE })
   .input(z.object({ id: z.string(), userId: z.string() }))
   .output(z.object({ gameId: z.string(), userId: z.string() }))
   .use(requireAction("ASSIGN_REFEREE"))
-  .handler(async ({ context, input }) => {
+  .handler(async ({ context, input, errors }) => {
     const person = await context.db
       .select({ id: schema.user.id, role: schema.user.role })
       .from(schema.user)
       .where(eq(schema.user.id, input.userId))
       .get()
-    if (!person) throw new ORPCError("NOT_FOUND", { message: "Unknown user" })
+    if (!person) throw errors.UNKNOWN_USER()
     // The platform role is what says someone officiates at all. Assigning a
     // coach as referee is not a permission question, it is a mistake.
-    if (person.role !== STORED_ROLE.REFEREE) {
-      throw new ORPCError("BAD_REQUEST", { message: "That account is not a referee" })
-    }
+    if (person.role !== STORED_ROLE.REFEREE) throw errors.NOT_A_REFEREE()
 
     await context.db
       .insert(schema.gameReferee)
@@ -283,15 +281,16 @@ export const assignReferee = authed
 
 export const unassignReferee = authed
   .route({ method: "DELETE", path: "/games/{id}/referees/{userId}", summary: "Take a referee off a game", ...authedRoute })
+  .errors({ NOT_ASSIGNED: ERRORS.NOT_ASSIGNED })
   .input(z.object({ id: z.string(), userId: z.string() }))
   .output(z.object({ removed: z.string() }))
   .use(requireAction("ASSIGN_REFEREE"))
-  .handler(async ({ context, input }) => {
+  .handler(async ({ context, input, errors }) => {
     const res = await context.db
       .delete(schema.gameReferee)
       .where(
         and(eq(schema.gameReferee.gameId, input.id), eq(schema.gameReferee.userId, input.userId)),
       )
-    if (res.meta.changes === 0) throw new ORPCError("NOT_FOUND", { message: "Not assigned" })
+    if (res.meta.changes === 0) throw errors.NOT_ASSIGNED()
     return { removed: input.userId }
   })

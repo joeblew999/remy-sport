@@ -783,7 +783,15 @@ describe("Registration — the action about a pair", () => {
       coach,
     )
     expect(res.status).toBe(400)
-    expect((await res.json()).message).toContain("U18")
+    // A code and the facts, not a sentence. The sentence is written in the
+    // reader's language client-side — an English message thrown from here would
+    // reach a Thai page untranslated.
+    const body = (await res.json()) as {
+      code: string
+      data: { teamAgeGroup: string; divisionAgeGroup: string }
+    }
+    expect(body.code).toBe("DIVISION_MISMATCH")
+    expect(body.data).toMatchObject({ teamAgeGroup: "U18", divisionAgeGroup: "U16" })
   })
 
   it("withdrawing something never entered is 404", async () => {
@@ -877,7 +885,7 @@ describe("Fixtures — the half of scheduling that did not exist", () => {
       await signIn(SEED_ENTITIES.users.find((u) => u.id === "usr_org_001")!.email),
     )
     expect(res.status).toBe(400)
-    expect((await res.json()).message).toContain("not registered")
+    expect((await res.json()).code).toBe("TEAM_NOT_ENTERED")
     expect(organiser).toBeTruthy()
   })
 
@@ -940,7 +948,7 @@ describe("Referee assignment", () => {
       organiser,
     )
     expect(res.status).toBe(400)
-    expect((await res.json()).message).toContain("not a referee")
+    expect((await res.json()).code).toBe("NOT_A_REFEREE")
   })
 
   it("a referee cannot assign themselves — that would undo the point", async () => {

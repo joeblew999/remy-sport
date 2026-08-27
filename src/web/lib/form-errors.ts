@@ -31,6 +31,65 @@
  */
 
 import { getIssueMessage } from "@orpc/openapi-client/helpers"
+import { isDefinedError, ORPCError } from "@orpc/client"
+import type { ErrorCode } from "../../api/errors"
+import { m } from "./i18n"
+
+/**
+ * A defined error's code, rendered in the reader's language.
+ *
+ * The server sends a code and the facts; the sentence is written here, as a
+ * paraglide message like every other string in the product. Before this, the
+ * API threw English prose and the page printed it — so a Thai coach on a fully
+ * Thai page read "A team cannot play itself" in English.
+ *
+ * Typed as `Record<ErrorCode, ...>`, so adding a code in src/api/errors.ts and
+ * forgetting the message is a compile error rather than a blank error box.
+ */
+const MESSAGES: Record<ErrorCode, (data: never) => string> = {
+  TEAM_PLAYS_ITSELF: () => m.err_team_plays_itself(),
+  TEAM_NOT_ENTERED: () => m.err_team_not_entered(),
+  DIVISION_MISMATCH: (d: {
+    teamAgeGroup: string
+    teamGender: string
+    divisionAgeGroup: string
+    divisionGender: string
+  }) => m.err_division_mismatch(d),
+  NOT_REGISTERED: () => m.err_not_registered(),
+  NOT_ON_ROSTER: () => m.err_not_on_roster(),
+  UNKNOWN_USER: () => m.err_unknown_user(),
+  UNKNOWN_PLAYER: () => m.err_unknown_player(),
+  UNKNOWN_EVENT: () => m.err_unknown_event(),
+  UNKNOWN_DIVISION: () => m.err_unknown_division(),
+  UNKNOWN_ORG: () => m.err_unknown_org(),
+  NOT_A_REFEREE: () => m.err_not_a_referee(),
+  NOT_ASSIGNED: () => m.err_not_assigned(),
+  NOT_A_MEMBER: () => m.err_not_a_member(),
+  NO_INVITATION: () => m.err_no_invitation(),
+  BAD_DATE_RANGE: () => m.err_bad_date_range(),
+}
+
+/**
+ * The sentence for a refusal the API named, or null if it named nothing.
+ *
+ * Falls back to the server's own English message for a code with no entry,
+ * which cannot happen while the table above type-checks — but a client running
+ * against a newer Worker is exactly the case where it could, and English beats
+ * blank.
+ */
+function definedMessage(error: unknown): string | null {
+  /**
+   * Cast before asking. `isDefinedError<T>` narrows to
+   * `Extract<T, ORPCError<any, any>>`, and extracting from `unknown` yields
+   * `never` — it is built for a typed client where the error is a known union,
+   * and this helper deliberately takes anything so every form can use it.
+   */
+  const candidate = error as ORPCError<string, unknown>
+  if (!isDefinedError(candidate)) return null
+
+  const render = MESSAGES[candidate.code as ErrorCode] as ((d: unknown) => string) | undefined
+  return render ? render(candidate.data) : (candidate.message ?? null)
+}
 
 interface Issue {
   path?: unknown
@@ -53,6 +112,12 @@ export interface FormErrors {
  */
 export function formErrors(error: unknown, paths: readonly string[] = []): FormErrors {
   if (!error) return { field: () => undefined, form: null }
+
+  // A refusal the API named — rendered in the reader's language, not the
+  // server's. This is checked first because a defined error carries a code, and
+  // the code is a better answer than any message.
+  const defined = definedMessage(error)
+  if (defined) return { field: () => undefined, form: defined }
 
   const issues = (error as { data?: { issues?: Issue[] } }).data?.issues
   const message = (error as Error).message ?? null

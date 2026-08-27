@@ -18,6 +18,7 @@ import * as schema from "../db/schema"
 import { OrgSchema, UpdateOrgInput } from "../domain/api"
 import { clean } from "../domain/names"
 import { ORG_ROLE_CODES } from "../domain/vocabularies"
+import { ERRORS } from "./errors"
 import { authed, authedRoute, can, pub, requireAction, viewer } from "./base"
 
 const IdInput = z.object({ id: z.string() })
@@ -141,15 +142,16 @@ export const addMember = authed
       message: "Give either userId or email, not both",
     }),
   )
+  .errors({ UNKNOWN_USER: ERRORS.UNKNOWN_USER })
   .output(z.object({ orgId: z.string(), userId: z.string(), role: z.enum(ORG_ROLE_CODES) }))
   .use(requireAction("INVITE_ORG_MEMBER"))
-  .handler(async ({ context, input }) => {
+  .handler(async ({ context, input, errors }) => {
     const person = await context.db
       .select({ id: schema.user.id })
       .from(schema.user)
       .where(input.userId ? eq(schema.user.id, input.userId) : eq(schema.user.email, input.email!))
       .get()
-    if (!person) throw new ORPCError("NOT_FOUND", { message: "Unknown user" })
+    if (!person) throw errors.UNKNOWN_USER()
 
     // The PO says ADMIN; the column holds admin. One mapping, generated.
     const orgRoleCode = input.orgRoleCode ?? "MEMBER"
@@ -169,14 +171,15 @@ export const removeMember = authed
     ...authedRoute,
   })
   .input(IdInput.extend({ userId: z.string() }))
+  .errors({ NOT_A_MEMBER: ERRORS.NOT_A_MEMBER })
   .output(z.object({ removed: z.string() }))
   .use(requireAction("REMOVE_ORG_MEMBER"))
-  .handler(async ({ context, input }) => {
+  .handler(async ({ context, input, errors }) => {
     const res = await context.db
       .delete(schema.orgMember)
       .where(
         and(eq(schema.orgMember.orgId, input.id), eq(schema.orgMember.userId, input.userId)),
       )
-    if (res.meta.changes === 0) throw new ORPCError("NOT_FOUND", { message: "Not a member" })
+    if (res.meta.changes === 0) throw errors.NOT_A_MEMBER()
     return { removed: input.userId }
   })

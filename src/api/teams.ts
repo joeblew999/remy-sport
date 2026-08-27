@@ -18,6 +18,7 @@ import type { Names } from "../domain/names"
 import { clean, pivot } from "../domain/names"
 import { z } from "zod"
 import { CreateTeamInput, TeamSchema, UpdateTeamInput } from "../domain/api"
+import { ERRORS } from "./errors"
 import { authed, authedRoute, pub, requireAction, type Db } from "./base"
 
 const IdInput = z.object({ id: z.string() })
@@ -72,7 +73,8 @@ export const create = authed
   .input(CreateTeamInput)
   .output(TeamSchema)
   .use(requireAction("CREATE_TEAM"))
-  .handler(async ({ context, input }) => {
+  .errors({ UNKNOWN_ORG: ERRORS.UNKNOWN_ORG })
+  .handler(async ({ context, input, errors }) => {
     // CREATE_TEAM is a PLATFORM action — the PO grants it to ANY_COACH and
     // PLATFORM_ADMIN, with no relation to the org — so nothing upstream has
     // confirmed this org exists. The FK would fail anyway; a 404 says why.
@@ -81,7 +83,7 @@ export const create = authed
       .from(schema.org)
       .where(eq(schema.org.id, input.orgId))
       .get()
-    if (!org) throw new ORPCError("NOT_FOUND", { message: "Unknown organization" })
+    if (!org) throw errors.UNKNOWN_ORG()
 
     const now = new Date()
     const names = clean(input.names)

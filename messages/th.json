@@ -112,5 +112,20 @@
   "everyone_on_squad": "ผู้เล่นทุกคนอยู่ในทีมนี้แล้ว",
   "assign_referee": "มอบหมายผู้ตัดสิน…",
   "add_fixture": "เพิ่มการแข่งขัน",
-  "demo_accounts_note": "บัญชีทดลอง — รหัสเปิดเผย"
+  "demo_accounts_note": "บัญชีทดลอง — รหัสเปิดเผย",
+  "err_team_plays_itself": "ทีมไม่สามารถแข่งกับตัวเองได้",
+  "err_team_not_entered": "ทีมนี้ยังไม่ได้ลงทะเบียนในอีเวนต์นี้",
+  "err_division_mismatch": "ทีมนี้เป็นรุ่น {teamAgeGroup} {teamGender} แต่ดิวิชั่นนั้นเป็น {divisionAgeGroup} {divisionGender}",
+  "err_not_registered": "ทีมนี้ยังไม่ได้ลงทะเบียนในอีเวนต์นี้",
+  "err_not_on_roster": "ผู้เล่นคนนี้ไม่ได้อยู่ในทีมนี้",
+  "err_unknown_user": "ไม่พบบัญชีที่ใช้อีเมลนี้",
+  "err_unknown_player": "ไม่พบผู้เล่นคนนี้",
+  "err_unknown_event": "ไม่พบอีเวนต์นี้",
+  "err_unknown_division": "ไม่พบดิวิชั่นนี้",
+  "err_not_a_referee": "บัญชีนี้ไม่ใช่ผู้ตัดสิน",
+  "err_not_assigned": "ผู้ตัดสินคนนี้ไม่ได้รับมอบหมายเกมนี้",
+  "err_not_a_member": "บุคคลนี้ไม่ใช่สมาชิก",
+  "err_no_invitation": "ไม่มีคำเชิญให้ตอบรับ",
+  "err_bad_date_range": "วันสิ้นสุดต้องไม่ก่อนวันเริ่มต้น",
+  "err_unknown_org": "ไม่พบองค์กรนี้"
 }

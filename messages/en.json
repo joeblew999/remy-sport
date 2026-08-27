@@ -112,5 +112,20 @@
   "everyone_on_squad": "Every player is already on this squad.",
   "assign_referee": "Assign referee…",
   "add_fixture": "Add a fixture",
-  "demo_accounts_note": "DEMO — PUBLISHED CODE"
+  "demo_accounts_note": "DEMO — PUBLISHED CODE",
+  "err_team_plays_itself": "A team cannot play itself.",
+  "err_team_not_entered": "That team is not entered in this event.",
+  "err_division_mismatch": "This team is {teamAgeGroup} {teamGender}; that division is {divisionAgeGroup} {divisionGender}.",
+  "err_not_registered": "That team is not entered in this event.",
+  "err_not_on_roster": "That player is not on this roster.",
+  "err_unknown_user": "No account has that email address.",
+  "err_unknown_player": "That player does not exist.",
+  "err_unknown_event": "That event does not exist.",
+  "err_unknown_division": "That division does not exist.",
+  "err_not_a_referee": "That account is not a referee.",
+  "err_not_assigned": "That referee is not on this game.",
+  "err_not_a_member": "That person is not a member.",
+  "err_no_invitation": "There is no invitation to accept.",
+  "err_bad_date_range": "The end date must be on or after the start date.",
+  "err_unknown_org": "That organisation does not exist."
 }

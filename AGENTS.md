@@ -20,6 +20,16 @@ the value is secret (it is published to the browser and the page says so) but
 because a secret flips without a redeploy. **`mise run demo:off` before the
 platform has real users.**
 
+**The API throws codes, not sentences.** `src/api/errors.ts` defines every
+refusal a person can read — `TEAM_PLAYS_ITSELF`, `DIVISION_MISMATCH` and its
+four facts — and the sentence is a paraglide message rendered client-side. An
+English string thrown from a handler reaches a Thai page untranslated, which is
+what all seventeen of them used to do. The `message` in a definition is for
+non-browser callers and the OpenAPI document; it is not what the product shows.
+`UNAUTHORIZED`, `FORBIDDEN` and a bare `NOT_FOUND` stay untyped on purpose — the
+page branches on those rather than printing them. The client's table is
+`Record<ErrorCode, ...>`, so a new code without a message is a compile error.
+
 **Form errors go through `formErrors(error, paths)` — never `getIssueMessage`
 directly.** The obvious shape, `getIssueMessage(err, "email") ?? message`, fails
 silently: a path matching no issue returns undefined *and* the fallback stays

@@ -18,6 +18,7 @@ import type { ApiEvent } from "../domain/api"
 import { clean, pivot } from "../domain/names"
 import { z } from "zod"
 import { CreateEventInput, EventSchema, UpdateEventInput } from "../domain/api"
+import { ERRORS } from "./errors"
 import { authed, authedRoute, pub, requireAction, type Db } from "./base"
 
 const IdInput = z.object({ id: z.string() })
@@ -74,7 +75,7 @@ export const get = pub
 /** ISO day strings compare correctly as plain strings. */
 function assertDateOrder(start?: string | null, end?: string | null) {
   if (start && end && end < start) {
-    throw new ORPCError("BAD_REQUEST", { message: "endDate must be on or after startDate" })
+    throw new ORPCError("BAD_REQUEST", { message: ERRORS.BAD_DATE_RANGE.message })
   }
 }
 
@@ -184,14 +185,15 @@ export const addCoOrganizer = authed
   .input(IdInput.extend({ userId: z.string() }))
   .output(z.object({ eventId: z.string(), userId: z.string(), addedAt: z.string() }))
   .use(requireAction("INVITE_CO_ORGANIZER"))
-  .handler(async ({ context, input }) => {
+  .errors({ UNKNOWN_USER: ERRORS.UNKNOWN_USER })
+  .handler(async ({ context, input, errors }) => {
     // The FK would refuse an unknown user, but a 404 says which id was wrong.
     const invitee = await context.db
       .select({ id: schema.user.id })
       .from(schema.user)
       .where(eq(schema.user.id, input.userId))
       .get()
-    if (!invitee) throw new ORPCError("NOT_FOUND", { message: "Unknown user" })
+    if (!invitee) throw errors.UNKNOWN_USER()
 
     const addedAt = new Date().toISOString().slice(0, 10)
     // PENDING, not ACCEPTED. CO_ORGANIZER filters on ACCEPTED, so this grants
@@ -228,7 +230,8 @@ export const acceptCoOrganizerInvite = authed
   .input(IdInput)
   .output(z.object({ eventId: z.string(), userId: z.string(), statusCode: z.string() }))
   .use(requireAction("ACCEPT_CO_ORGANIZER_INVITE"))
-  .handler(async ({ context, input }) => {
+  .errors({ NO_INVITATION: ERRORS.NO_INVITATION })
+  .handler(async ({ context, input, errors }) => {
     const res = await context.db
       .update(schema.eventCoOrganizer)
       .set({ statusCode: "ACCEPTED" })
@@ -240,6 +243,6 @@ export const acceptCoOrganizerInvite = authed
       )
     // No invitation for this person on this event. A 404 rather than a 403:
     // there is nothing here to be forbidden from.
-    if (res.meta.changes === 0) throw new ORPCError("NOT_FOUND", { message: "No invitation" })
+    if (res.meta.changes === 0) throw errors.NO_INVITATION()
     return { eventId: input.id, userId: context.user.id, statusCode: "ACCEPTED" }
   })

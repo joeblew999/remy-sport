@@ -20,6 +20,7 @@ import { ORPCError } from "@orpc/server"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import * as schema from "../db/schema"
+import { ERRORS } from "./errors"
 import { authed, authedRoute, can, requireAction, viewer } from "./base"
 
 /** ISO day. The fixtures record registration and roster dates, not timestamps. */
@@ -47,6 +48,11 @@ export const registerTeam = authed
     successStatus: 201,
     ...authedRoute,
   })
+  .errors({
+    UNKNOWN_EVENT: ERRORS.UNKNOWN_EVENT,
+    UNKNOWN_DIVISION: ERRORS.UNKNOWN_DIVISION,
+    DIVISION_MISMATCH: ERRORS.DIVISION_MISMATCH,
+  })
   .input(RegisterTeamInput)
   .output(z.object({ eventId: z.string(), teamId: z.string(), divisionId: z.string() }))
   .use(
@@ -56,7 +62,7 @@ export const registerTeam = authed
       (i: { eventId: string }) => i.eventId,
     ),
   )
-  .handler(async ({ context, input }) => {
+  .handler(async ({ context, input, errors }) => {
     const event = await context.db
       .select({ id: schema.event.id })
       .from(schema.event)
@@ -64,7 +70,7 @@ export const registerTeam = authed
       .get()
     // The permission check proved the *team* exists; the event is the other half
     // of the pair and is checked here.
-    if (!event) throw new ORPCError("NOT_FOUND", { message: "Unknown event" })
+    if (!event) throw errors.UNKNOWN_EVENT()
 
     /**
      * A team must match the division it enters.
@@ -82,7 +88,7 @@ export const registerTeam = authed
       .from(schema.division)
       .where(eq(schema.division.id, input.divisionId))
       .get()
-    if (!division) throw new ORPCError("NOT_FOUND", { message: "Unknown division" })
+    if (!division) throw errors.UNKNOWN_DIVISION()
 
     const team = await context.db
       .select({
@@ -96,8 +102,15 @@ export const registerTeam = authed
       team &&
       (team.ageGroupCode !== division.ageGroupCode || team.genderCode !== division.genderCode)
     ) {
-      throw new ORPCError("BAD_REQUEST", {
-        message: `This team is ${team.ageGroupCode} ${team.genderCode}; that division is ${division.ageGroupCode} ${division.genderCode}`,
+      // The facts, not the sentence. The page says "this team is U18 boys; that
+      // division is U16 boys" in the reader's language, from these four codes.
+      throw errors.DIVISION_MISMATCH({
+        data: {
+          teamAgeGroup: team.ageGroupCode,
+          teamGender: team.genderCode,
+          divisionAgeGroup: division.ageGroupCode,
+          divisionGender: division.genderCode,
+        },
       })
     }
 
@@ -123,6 +136,7 @@ export const withdrawTeam = authed
     summary: "Withdraw a team from an event",
     ...authedRoute,
   })
+  .errors({ NOT_REGISTERED: ERRORS.NOT_REGISTERED })
   .input(z.object({ teamId: z.string(), eventId: z.string() }))
   .output(z.object({ withdrawn: z.string() }))
   .use(
@@ -132,7 +146,7 @@ export const withdrawTeam = authed
       (i: { eventId: string }) => i.eventId,
     ),
   )
-  .handler(async ({ context, input }) => {
+  .handler(async ({ context, input, errors }) => {
     const res = await context.db
       .delete(schema.eventTeam)
       .where(
@@ -141,7 +155,7 @@ export const withdrawTeam = authed
           eq(schema.eventTeam.teamId, input.teamId),
         ),
       )
-    if (res.meta.changes === 0) throw new ORPCError("NOT_FOUND", { message: "Not registered" })
+    if (res.meta.changes === 0) throw errors.NOT_REGISTERED()
     return { withdrawn: input.teamId }
   })
 
@@ -166,16 +180,17 @@ export const addPlayer = authed
     successStatus: 201,
     ...authedRoute,
   })
+  .errors({ UNKNOWN_PLAYER: ERRORS.UNKNOWN_PLAYER })
   .input(RosterInput.extend({ fromDate: z.string().optional() }))
   .output(z.object({ teamId: z.string(), playerId: z.string(), fromDate: z.string() }))
   .use(requireAction("MANAGE_ROSTER", (i: { teamId: string }) => i.teamId))
-  .handler(async ({ context, input }) => {
+  .handler(async ({ context, input, errors }) => {
     const player = await context.db
       .select({ id: schema.player.id })
       .from(schema.player)
       .where(eq(schema.player.id, input.playerId))
       .get()
-    if (!player) throw new ORPCError("NOT_FOUND", { message: "Unknown player" })
+    if (!player) throw errors.UNKNOWN_PLAYER()
 
     const fromDate = input.fromDate ?? today()
     await context.db
@@ -193,10 +208,11 @@ export const removePlayer = authed
     summary: "End a player's spell in a team",
     ...authedRoute,
   })
+  .errors({ NOT_ON_ROSTER: ERRORS.NOT_ON_ROSTER })
   .input(RosterInput)
   .output(z.object({ playerId: z.string(), toDate: z.string() }))
   .use(requireAction("MANAGE_ROSTER", (i: { teamId: string }) => i.teamId))
-  .handler(async ({ context, input }) => {
+  .handler(async ({ context, input, errors }) => {
     const toDate = today()
     // Ends the spell, does not delete it. A deleted row would make last
     // season's team sheet wrong retrospectively.
@@ -209,7 +225,7 @@ export const removePlayer = authed
           eq(schema.playerTeam.playerId, input.playerId),
         ),
       )
-    if (res.meta.changes === 0) throw new ORPCError("NOT_FOUND", { message: "Not on this roster" })
+    if (res.meta.changes === 0) throw errors.NOT_ON_ROSTER()
     return { playerId: input.playerId, toDate }
   })
 

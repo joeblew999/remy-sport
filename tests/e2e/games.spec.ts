@@ -72,3 +72,39 @@ test.describe.serial("Scoring a game", () => {
     })
   })
 })
+
+/**
+ * A refusal from the API, in the reader's language.
+ *
+ * The whole point of typed errors here. The API used to throw English prose and
+ * the page printed it, so a Thai coach on a fully Thai page read "A team cannot
+ * play itself" in English. Only a round trip can prove this: the error has to
+ * cross the wire as a code and be rendered by the browser.
+ */
+test.describe("Refusals are translated", () => {
+  test.use({ storageState: stateFor(actor("ORGANIZER", 1)) })
+
+  test("in English, and in Thai, from the same code", async ({ page }) => {
+    // evt_002's entered teams include team_001 twice over in the pickers, so a
+    // team can be selected against itself.
+    await page.goto("/#/event/evt_002")
+    await page.getByTestId("tab-schedule").click()
+    await expect(page.getByTestId("add-fixture")).toBeVisible()
+
+    const submit = async () => {
+      await page.getByTestId("fixture-home").selectOption({ index: 0 })
+      await page.getByTestId("fixture-away").selectOption({ index: 0 })
+      await page.getByTestId("fixture-starts").fill("2026-09-30T10:00")
+      await page.getByTestId("add-fixture-submit").click()
+    }
+
+    await submit()
+    await expect(page.getByTestId("add-fixture-error")).toHaveText("A team cannot play itself.")
+
+    // Same refusal, same code, different language.
+    await page.locator(".lang-switch button", { hasText: "TH" }).click()
+    await page.getByTestId("tab-schedule").click()
+    await submit()
+    await expect(page.getByTestId("add-fixture-error")).toHaveText("ทีมไม่สามารถแข่งกับตัวเองได้")
+  })
+})
