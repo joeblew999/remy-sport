@@ -60,6 +60,25 @@ function deriveStatus(start: string | null, end: string | null, today: Date): Ev
   return "live";
 }
 
+/**
+ * Whole calendar days from `a` to `b`.
+ *
+ * Not `(b - a) / 86_400_000`. A span crossing a daylight-saving transition is
+ * not a whole number of 24-hour days — Melbourne's clocks go back on 5 April
+ * 2026, so 1 April to 8 April is seven days and 169 hours. Dividing and
+ * rounding turned that into "Starts in 8 days" for anyone viewing from a zone
+ * that observes DST. Thailand does not, which is why the primary audience never
+ * saw it and no test caught it.
+ *
+ * `Date.UTC` of the local year/month/day gives an instant with no offset to
+ * shift, so the subtraction is exact whole days by construction.
+ */
+function daysBetween(a: Date, b: Date): number {
+  const ua = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
+  const ub = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate());
+  return Math.round((ub - ua) / 86_400_000);
+}
+
 function statusLabel(status: EventStatus, start: string | null, today: Date): string {
   switch (status) {
     case "live":
@@ -70,11 +89,7 @@ function statusLabel(status: EventStatus, start: string | null, today: Date): st
       return "Registration open";
     case "upcoming": {
       if (!start) return "Dates TBC";
-      const days = Math.ceil(
-        (parseDay(start).getTime() -
-          new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) /
-          86_400_000,
-      );
+      const days = daysBetween(today, parseDay(start));
       if (days <= 0) return "Starting today";
       return days === 1 ? "Starts tomorrow" : `Starts in ${days} days`;
     }
