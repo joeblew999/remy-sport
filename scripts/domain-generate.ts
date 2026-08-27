@@ -411,10 +411,36 @@ function readFolder(folder: string, withNames: boolean): Record<string, Json[]> 
  *                    `description`, and the deliberate absence of `org_id`
  *                    that migration 0005 recorded.
  */
-const APP_OWNED = new Set(["users", "orgs", "events", "teams"])
+const APP_OWNED = new Set([
+  "users",
+  "orgs",
+  "events",
+  "teams",
+  // Better Auth's `member` table. Same arrangement as users and orgs: the
+  // fixtures are the seed data for a table the auth library owns and whose
+  // columns we do not choose. Generating a second membership table beside it
+  // would be two answers to one question — which is the drift this whole
+  // model exists to stop.
+  "org_members",
+])
 
 const ENTITIES = readFolder("entities", true)
-const RELATIONSHIPS = readFolder("relationships", false)
+/** Every link fixture, including those whose rows land in a table we do not own. */
+const RELATIONSHIPS = readFolder("links", false)
+
+/**
+ * The link fixtures this repo generates a table for.
+ *
+ * `org_members` is excluded but still exported as seed data: its rows go into
+ * Better Auth's `member` table, exactly as `users` and `orgs` go into `user` and
+ * `organization`. Generating a second membership table beside it would be two
+ * answers to one question.
+ */
+// readFolder keys by camelCase, APP_OWNED is written in the fixtures' own
+// snake_case — compare in one form or the exclusion silently does nothing.
+const GENERATED_LINKS = Object.entries(RELATIONSHIPS).filter(
+  ([s]) => !APP_OWNED.has(s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`)),
+)
 
 /**
  * What a `*_id` column points at.
@@ -738,7 +764,7 @@ import { event, team } from "./app-schema"
 ${VOCABULARIES.map((v) => `import { ${camel(v.table)} } from "./vocabularies-schema"`).join("\n")}
 
 ${GENERATED_ENTITIES.map(([source, rows]) => emitFixtureTable(source, rows, ENTITY_TABLE)).join("\n")}
-${Object.entries(RELATIONSHIPS).map(([source, rows]) => emitFixtureTable(source, rows, ENTITY_TABLE)).join("\n")}
+${GENERATED_LINKS.map(([source, rows]) => emitFixtureTable(source, rows, ENTITY_TABLE)).join("\n")}
 /**
  * Every domain table, and its derived row schema.
  *
@@ -749,11 +775,11 @@ ${Object.entries(RELATIONSHIPS).map(([source, rows]) => emitFixtureTable(source,
  * mechanical consequence of the table existing.
  */
 export const FIXTURE_TABLES = {
-${[...GENERATED_ENTITIES.map(([s]) => s), ...Object.keys(RELATIONSHIPS)].map((source) => `  ${camel(source)}: ${camel(singular(source))},`).join("\n")}
+${[...GENERATED_ENTITIES.map(([s]) => s), ...GENERATED_LINKS.map(([s]) => s)].map((source) => `  ${camel(source)}: ${camel(singular(source))},`).join("\n")}
 } as const
 
 export const FIXTURE_SCHEMAS = {
-${[...GENERATED_ENTITIES.map(([s]) => s), ...Object.keys(RELATIONSHIPS)].map((source) => `  ${camel(source)}: createSelectSchema(${camel(singular(source))}),`).join("\n")}
+${[...GENERATED_ENTITIES.map(([s]) => s), ...GENERATED_LINKS.map(([s]) => s)].map((source) => `  ${camel(source)}: createSelectSchema(${camel(singular(source))}),`).join("\n")}
 } as const`,
   ],
   [
@@ -790,7 +816,7 @@ ${[...GENERATED_ENTITIES.map(([s]) => s), ...Object.keys(RELATIONSHIPS)].map((so
 -- Auth generates.
 
 ${GENERATED_ENTITIES.map(([source, rows]) => emitFixtureSql(source, rows, ENTITY_TABLE)).join("\n")}
-${Object.entries(RELATIONSHIPS).map(([source, rows]) => emitFixtureSql(source, rows, ENTITY_TABLE)).join("\n")}`,
+${GENERATED_LINKS.map(([source, rows]) => emitFixtureSql(source, rows, ENTITY_TABLE)).join("\n")}`,
   ],
   [
     OUT_SEED,
@@ -837,6 +863,6 @@ for (const [path, text] of outputs) {
 console.log(
   `domain:generate: ${VOCABULARIES.length} vocabularies, ` +
     `${Object.keys(ENTITIES).length} entity tables, ` +
-    `${Object.keys(RELATIONSHIPS).length} relationship tables, ` +
+    `${GENERATED_LINKS.length} link tables, ` +
     `${LOCALES.length} locales`,
 )

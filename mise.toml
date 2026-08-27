@@ -368,6 +368,7 @@ mise run check:dead
 mise run check:docs
 mise run check:conventions
 mise run check:seed
+mise run check:alignment
 """
 
 [tasks."test:unit"]
@@ -499,6 +500,17 @@ depends     = ["install"]
 sources = ["scripts/seed-sql.ts", "src/db/seed-data.ts"]
 outputs = ["src/db/seed.sql"]
 run     = "bun scripts/seed-sql.ts"
+
+[tasks."check:alignment"]
+description = "Fail if the PO's model names a table or column this schema does not have"
+depends     = ["install"]
+# The relation derivations in remy-sport-biz are compiled and executed now, so a
+# name the two repos spell differently is not a documentation discrepancy — it is
+# a query that matches nothing. Relations fail closed, so the symptom would be an
+# unexplained 403 rather than an error. This is what caught
+# events.organizer_user_id against event.created_by, which migration 0016 renamed
+# rather than papering over with an alias table.
+run = "bun scripts/check-alignment.ts"
 
 [tasks."check:seed"]
 description = "Fail if src/db/seed.sql is stale against the fixtures"

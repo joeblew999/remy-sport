@@ -122,6 +122,13 @@ export const notificationType = sqliteTable("notification_type", {
   sort: integer("sort").notNull(),
 })
 
+export const orgRole = sqliteTable("org_role", {
+  code: text("code").primaryKey(),
+  nameEn: text("name_en").notNull(),
+  names: text("names", { mode: "json" }).$type<Names>().notNull(),
+  sort: integer("sort").notNull(),
+})
+
 export const orgType = sqliteTable("org_type", {
   code: text("code").primaryKey(),
   nameEn: text("name_en").notNull(),
@@ -210,6 +217,7 @@ export const VOCABULARY_TABLES = {
   notificationCategories: notificationCategory,
   notificationChannels: notificationChannel,
   notificationTypes: notificationType,
+  orgRoles: orgRole,
   orgTypes: orgType,
   positions: position,
   roles: role,
@@ -240,6 +248,7 @@ export const VOCABULARY_SCHEMAS = {
   notificationCategories: z.array(createSelectSchema(notificationCategory)),
   notificationChannels: z.array(createSelectSchema(notificationChannel)),
   notificationTypes: z.array(createSelectSchema(notificationType)),
+  orgRoles: z.array(createSelectSchema(orgRole)),
   orgTypes: z.array(createSelectSchema(orgType)),
   positions: z.array(createSelectSchema(position)),
   roles: z.array(createSelectSchema(role)),
@@ -264,6 +273,7 @@ export const VOCABULARY_ORDER = {
   notificationCategories: notificationCategory.sort,
   notificationChannels: notificationChannel.sort,
   notificationTypes: notificationType.sort,
+  orgRoles: orgRole.sort,
   orgTypes: orgType.sort,
   positions: position.sort,
   roles: role.sort,

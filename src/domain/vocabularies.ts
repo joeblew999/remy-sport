@@ -27,13 +27,12 @@ export type Locale = (typeof ALL_LOCALES)[number]
 /** A language actually on offer. Narrower than `Locale`. */
 export type ReleasedLocale = (typeof LOCALES)[number]
 
-/** 6 rows, from object_types.jsonl. */
+/** 5 rows, from object_types.jsonl. */
 export const OBJECT_TYPE = [
   { code: "EVENT", names: {"th":"อีเวนต์","en":"Event"}, descriptions: {"th":"ทัวร์นาเมนต์ ลีก ค่ายฝึก และกิจกรรมแสดงผลงาน โดยประเภทย่อยอยู่ใน events.type_code","en":"Tournaments leagues camps showcases — subtype lives in events.type_code"} },
   { code: "TEAM", names: {"th":"ทีม","en":"Team"}, descriptions: {"th":"โปรไฟล์ทีมและรายชื่อผู้เล่น","en":"Team profile and roster"} },
   { code: "PLAYER", names: {"th":"ผู้เล่น","en":"Player"}, descriptions: {"th":"โปรไฟล์ผู้เล่นรายบุคคล","en":"Individual player profile"} },
   { code: "ORG", names: {"th":"องค์กร","en":"Organisation"}, descriptions: {"th":"โรงเรียน สโมสร และสหพันธ์","en":"Schools clubs federations"} },
-  { code: "DIVISION", names: {"th":"ดิวิชั่น","en":"Division"}, descriptions: {"th":"ดิวิชั่นการแข่งขันภายในอีเวนต์","en":"Competitive division within events"} },
   { code: "PLATFORM", names: {"th":"แพลตฟอร์ม","en":"Platform"}, descriptions: {"th":"การดำเนินการทั่วทั้งระบบที่ไม่ผูกกับออบเจ็กต์ใดโดยเฉพาะ","en":"Global actions not tied to a specific object"} },
 ] as const
 
@@ -42,13 +41,12 @@ export const OBJECT_TYPE_CODES = OBJECT_TYPE.map((t) => t.code) as unknown as [
   "TEAM",
   "PLAYER",
   "ORG",
-  "DIVISION",
   "PLATFORM",
 ]
 
 export type ObjectTypeCode = (typeof OBJECT_TYPE_CODES)[number]
 
-/** 69 rows, from actions.jsonl. */
+/** 73 rows, from actions.jsonl. */
 export const ACTION = [
   { code: "SIGN_IN_OUT", objectTypeCode: "PLATFORM", category: "Auth", names: {"th":"ลงชื่อเข้า / ออก","en":"Sign in / Sign out"} },
   { code: "SIGN_UP_AS_SPECTATOR", objectTypeCode: "PLATFORM", category: "Auth", names: {"th":"สมัครเป็นผู้ชม","en":"Sign up as Spectator"} },
@@ -119,6 +117,10 @@ export const ACTION = [
   { code: "AI_CREATE_EVENT", objectTypeCode: "PLATFORM", category: "AI", names: {"th":"สร้างอีเวนต์ผ่านแชต","en":"Create event via AI chat"} },
   { code: "AI_BRACKET_SUGGESTIONS", objectTypeCode: "EVENT", category: "AI", names: {"th":"คำแนะนำสายแข่งขัน","en":"AI bracket suggestions"} },
   { code: "AI_QA", objectTypeCode: "PLATFORM", category: "AI", names: {"th":"ถาม-ตอบ AI","en":"AI Q&A"} },
+  { code: "VIEW_ORG", objectTypeCode: "ORG", category: "Organisation", names: {"th":"ดูโปรไฟล์องค์กร","en":"View organisation profile"} },
+  { code: "EDIT_ORG_PROFILE", objectTypeCode: "ORG", category: "Organisation", names: {"th":"แก้ไขโปรไฟล์องค์กร","en":"Edit organisation profile"} },
+  { code: "INVITE_ORG_MEMBER", objectTypeCode: "ORG", category: "Organisation", names: {"th":"เชิญสมาชิกเข้าองค์กร","en":"Invite someone to an organisation"} },
+  { code: "REMOVE_ORG_MEMBER", objectTypeCode: "ORG", category: "Organisation", names: {"th":"นำสมาชิกออกจากองค์กร","en":"Remove someone from an organisation"} },
 ] as const
 
 export const ACTION_CODES = ACTION.map((t) => t.code) as unknown as [
@@ -191,6 +193,10 @@ export const ACTION_CODES = ACTION.map((t) => t.code) as unknown as [
   "AI_CREATE_EVENT",
   "AI_BRACKET_SUGGESTIONS",
   "AI_QA",
+  "VIEW_ORG",
+  "EDIT_ORG_PROFILE",
+  "INVITE_ORG_MEMBER",
+  "REMOVE_ORG_MEMBER",
 ]
 
 export type ActionCode = (typeof ACTION_CODES)[number]
@@ -428,6 +434,19 @@ export const NOTIFICATION_TYPE_CODES = NOTIFICATION_TYPE.map((t) => t.code) as u
 
 export type NotificationTypeCode = (typeof NOTIFICATION_TYPE_CODES)[number]
 
+/** 2 rows, from org_roles.jsonl. */
+export const ORG_ROLE = [
+  { code: "ADMIN", names: {"th":"ผู้ดูแลองค์กร","en":"Organisation Admin"} },
+  { code: "MEMBER", names: {"th":"สมาชิกองค์กร","en":"Organisation Member"} },
+] as const
+
+export const ORG_ROLE_CODES = ORG_ROLE.map((t) => t.code) as unknown as [
+  "ADMIN",
+  "MEMBER",
+]
+
+export type OrgRoleCode = (typeof ORG_ROLE_CODES)[number]
+
 /** 4 rows, from org_types.jsonl. */
 export const ORG_TYPE = [
   { code: "SCHOOL", names: {"th":"โรงเรียน","en":"School"} },
@@ -485,7 +504,7 @@ export const ROLE_CODES = ROLE.map((t) => t.code) as unknown as [
 
 export type RoleCode = (typeof ROLE_CODES)[number]
 
-/** 19 rows, from relations.jsonl. */
+/** 21 rows, from relations.jsonl. */
 export const RELATION = [
   { code: "OWNER", objectTypeCode: "EVENT", via: "table", sourceTable: "events", objectColumn: "id", userColumn: "organizer_user_id", filterColumn: null, filterValue: null, throughTable: null, throughColumn: null, activeToColumn: null, roleCode: null, names: {"th":"เจ้าของ","en":"Owner"} },
   { code: "CO_ORGANIZER", objectTypeCode: "EVENT", via: "table", sourceTable: "event_co_organizers", objectColumn: "event_id", userColumn: "user_id", filterColumn: null, filterValue: null, throughTable: null, throughColumn: null, activeToColumn: null, roleCode: null, names: {"th":"ผู้ร่วมจัด","en":"Co-organizer"} },
@@ -497,6 +516,8 @@ export const RELATION = [
   { code: "GUARDIAN", objectTypeCode: "PLAYER", via: "table", sourceTable: "guardians", objectColumn: "player_id", userColumn: "user_id", filterColumn: null, filterValue: null, throughTable: null, throughColumn: null, activeToColumn: null, roleCode: null, names: {"th":"ผู้ปกครอง","en":"Guardian"} },
   { code: "FOLLOWER_PLAYER", objectTypeCode: "PLAYER", via: "table", sourceTable: "subscriptions", objectColumn: "object_id", userColumn: "user_id", filterColumn: "object_type_code", filterValue: "PLAYER", throughTable: null, throughColumn: null, activeToColumn: null, roleCode: null, names: {"th":"ผู้ติดตาม (ผู้เล่น)","en":"Player Follower"} },
   { code: "FOLLOWER_TEAM", objectTypeCode: "TEAM", via: "table", sourceTable: "subscriptions", objectColumn: "object_id", userColumn: "user_id", filterColumn: "object_type_code", filterValue: "TEAM", throughTable: null, throughColumn: null, activeToColumn: null, roleCode: null, names: {"th":"ผู้ติดตาม (ทีม)","en":"Team Follower"} },
+  { code: "ORG_ADMIN", objectTypeCode: "ORG", via: "table", sourceTable: "members", objectColumn: "organization_id", userColumn: "user_id", filterColumn: "role", filterValue: "admin", throughTable: null, throughColumn: null, activeToColumn: null, roleCode: null, names: {"th":"ผู้ดูแลองค์กร","en":"Organisation Admin"} },
+  { code: "ORG_MEMBER", objectTypeCode: "ORG", via: "table", sourceTable: "members", objectColumn: "organization_id", userColumn: "user_id", filterColumn: "role", filterValue: "member", throughTable: null, throughColumn: null, activeToColumn: null, roleCode: null, names: {"th":"สมาชิกองค์กร","en":"Organisation Member"} },
   { code: "FOLLOWER_EVENT", objectTypeCode: "EVENT", via: "table", sourceTable: "subscriptions", objectColumn: "object_id", userColumn: "user_id", filterColumn: "object_type_code", filterValue: "EVENT", throughTable: null, throughColumn: null, activeToColumn: null, roleCode: null, names: {"th":"ผู้ติดตาม (อีเวนต์)","en":"Event Follower"} },
   { code: "PLATFORM_ADMIN", objectTypeCode: "PLATFORM", via: "role", sourceTable: null, objectColumn: null, userColumn: null, filterColumn: null, filterValue: null, throughTable: null, throughColumn: null, activeToColumn: null, roleCode: "ADMIN", names: {"th":"ผู้ดูแลแพลตฟอร์ม","en":"Platform Admin"} },
   { code: "ANY_ORGANIZER", objectTypeCode: "PLATFORM", via: "role", sourceTable: null, objectColumn: null, userColumn: null, filterColumn: null, filterValue: null, throughTable: null, throughColumn: null, activeToColumn: null, roleCode: "ORGANIZER", names: {"th":"ผู้จัดการแข่งขันใดๆ","en":"Any Organizer"} },
@@ -519,6 +540,8 @@ export const RELATION_CODES = RELATION.map((t) => t.code) as unknown as [
   "GUARDIAN",
   "FOLLOWER_PLAYER",
   "FOLLOWER_TEAM",
+  "ORG_ADMIN",
+  "ORG_MEMBER",
   "FOLLOWER_EVENT",
   "PLATFORM_ADMIN",
   "ANY_ORGANIZER",
@@ -600,6 +623,7 @@ export const VOCABULARY = {
   notificationCategories: NOTIFICATION_CATEGORY,
   notificationChannels: NOTIFICATION_CHANNEL,
   notificationTypes: NOTIFICATION_TYPE,
+  orgRoles: ORG_ROLE,
   orgTypes: ORG_TYPE,
   positions: POSITION,
   roles: ROLE,
@@ -612,7 +636,7 @@ export const VOCABULARY = {
 /**
  * Which relations grant which action — the PO's authorisation policy, compiled.
  *
- * 186 rows from data/seed/authorization/permissions.jsonl, grouped by action.
+ * 193 rows from data/seed/authorization/permissions.jsonl, grouped by action.
  * A user may perform an action if they hold **any** of the relations listed for
  * it. `eventTypes` narrows a grant to particular event subtypes; an empty array
  * means it applies everywhere.
@@ -884,5 +908,20 @@ export const GRANTS = {
   ],
   MANAGE_OWN_NOTIFICATION_PREFERENCES: [
     { relation: "ANY_SIGNED_IN", eventTypes: [] },
+  ],
+  VIEW_ORG: [
+    { relation: "PUBLIC", eventTypes: [] },
+  ],
+  EDIT_ORG_PROFILE: [
+    { relation: "ORG_ADMIN", eventTypes: [] },
+    { relation: "PLATFORM_ADMIN", eventTypes: [] },
+  ],
+  INVITE_ORG_MEMBER: [
+    { relation: "ORG_ADMIN", eventTypes: [] },
+    { relation: "PLATFORM_ADMIN", eventTypes: [] },
+  ],
+  REMOVE_ORG_MEMBER: [
+    { relation: "ORG_ADMIN", eventTypes: [] },
+    { relation: "PLATFORM_ADMIN", eventTypes: [] },
   ],
 } as const
