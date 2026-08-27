@@ -118,14 +118,17 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
       </div>
 
       <div className="detail-tabs">
+        {/* Labels are messages: these were English literals, so the tab strip
+            stayed in English on a Thai page while everything under it
+            translated. */}
         {([
-          ["overview", "Overview"],
-          ["bracket", "Bracket"],
-          ["schedule", "Schedule"],
-          ["standings", "Standings"],
-          ["teams", "Teams"],
-          ["venues", "Venues"],
-          ["rules", "Rules & info"],
+          ["overview", m.tab_overview()],
+          ["bracket", m.tab_bracket()],
+          ["schedule", m.schedule()],
+          ["standings", m.nav_standings()],
+          ["teams", m.tab_teams()],
+          ["venues", m.tab_venues()],
+          ["rules", m.tab_rules()],
         ] as [EventTab, string][]).map(([tabId, label]) => (
           <button key={tabId} className={`tab ${tab === tabId ? "active" : ""}`} onClick={() => setTab(tabId)}>{label}</button>
         ))}

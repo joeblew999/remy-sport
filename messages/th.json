@@ -96,5 +96,10 @@
   "games_remaining": "เหลืออีก {count} นัด",
   "dev_holds_nothing": "ไม่มีสิทธิ์พิเศษ — เห็นเฉพาะข้อมูลสาธารณะ",
   "standings_empty": "ยังไม่มีทีมลงทะเบียน",
-  "roster_empty": "ยังไม่มีผู้เล่นในทีมนี้"
+  "roster_empty": "ยังไม่มีผู้เล่นในทีมนี้",
+  "tab_overview": "ภาพรวม",
+  "tab_bracket": "สายการแข่งขัน",
+  "tab_teams": "ทีม",
+  "tab_venues": "สนามแข่ง",
+  "tab_rules": "กติกาและข้อมูล"
 }

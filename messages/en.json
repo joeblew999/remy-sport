@@ -96,5 +96,10 @@
   "games_remaining": "{count} remaining",
   "dev_holds_nothing": "no relations — sees only what is public",
   "standings_empty": "No teams registered yet.",
-  "roster_empty": "No players on this roster yet."
+  "roster_empty": "No players on this roster yet.",
+  "tab_overview": "Overview",
+  "tab_bracket": "Bracket",
+  "tab_teams": "Teams",
+  "tab_venues": "Venues",
+  "tab_rules": "Rules & info"
 }

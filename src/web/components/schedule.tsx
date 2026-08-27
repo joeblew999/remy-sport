@@ -21,10 +21,21 @@ import { m } from "../lib/i18n";
 
 type Game = NonNullable<ReturnType<typeof useGames>["data"]>[number];
 
-/** The time of day a game starts, in the reader's locale. */
-function timeOf(startsAt: string): string {
+/**
+ * When a game starts, in the reader's language.
+ *
+ * The locale is the app's, not the browser's — `undefined` here meant a Thai
+ * page rendered "Aug 27" because the browser was set to English.
+ *
+ * `-u-ca-gregory` is deliberate. Thai defaults to the Buddhist era, so `th`
+ * alone renders 2569 for 2026, and every other date on the page comes from
+ * `formatRange` in Gregorian. One page showing both would be worse than either.
+ * Offering Buddhist dates is a real thing to consider — but as a decision, and
+ * everywhere at once.
+ */
+function timeOf(startsAt: string, locale: string): string {
   const d = new Date(startsAt);
-  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString(undefined, {
+  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString(`${locale}-u-ca-gregory`, {
     day: "numeric",
     month: "short",
     hour: "2-digit",
@@ -56,6 +67,7 @@ export function Schedule({ eventId, spoiler }: { eventId: string; spoiler: boole
 }
 
 function GameRow({ game, spoiler }: { game: Game; spoiler: boolean }) {
+  const { locale } = useLocale();
   const [editing, setEditing] = useState(false);
   const played = game.homeScore !== null && game.awayScore !== null;
 
@@ -66,7 +78,7 @@ function GameRow({ game, spoiler }: { game: Game; spoiler: boolean }) {
           {game.homeTeam} <span className="muted">v</span> {game.awayTeam}
         </div>
         <div className="device-meta">
-          {[timeOf(game.startsAt), game.venue ?? m.venue_tbc()].join(" · ")}
+          {[timeOf(game.startsAt, locale), game.venue ?? m.venue_tbc()].join(" · ")}
           {" · "}
           {game.canSetStatus ? (
             <GameStatus game={game} />
