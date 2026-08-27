@@ -487,10 +487,17 @@ function readFolder(folder: string, withNames: boolean): Record<string, Json[]> 
  * Everything else in the fixtures becomes a real table with real foreign keys.
  * These four cannot, and the reasons are structural rather than laziness:
  *
- *   users, orgs      Better Auth owns `user` and `organization`. It generates
- *                    their schema from src/auth.config.ts and their ids at
- *                    runtime, so a second definition here would fight it. The
- *                    fixtures still seed them — see src/routes/seed.ts.
+ *   users            Better Auth owns `user`: it generates that schema from
+ *                    src/auth.config.ts, so a second definition here would
+ *                    fight it. The fixtures seed it.
+ *
+ *                    `orgs` is NOT here any more. Better Auth's `organization`
+ *                    used to carry four of the PO's columns as
+ *                    additionalFields, which is how `names` — a JSON column by
+ *                    design since migration 0010 — ended up a string that
+ *                    src/api/teams.ts parsed by hand: additionalFields has no
+ *                    JSON type. The domain owns the domain now, and Better Auth
+ *                    keeps id, name and slug for its own plugin.
  *   events, teams    already exist with columns the fixtures do not model:
  *                    `created_by` (the organiser as a Better Auth user),
  *                    `description`, and the deliberate absence of `org_id`
@@ -498,7 +505,6 @@ function readFolder(folder: string, withNames: boolean): Record<string, Json[]> 
  */
 const APP_OWNED = new Set([
   "users",
-  "orgs",
   "events",
   "teams",
   // Better Auth's `member` table. Same arrangement as users and orgs: the

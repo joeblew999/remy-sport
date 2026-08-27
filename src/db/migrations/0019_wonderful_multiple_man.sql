@@ -1,1 +1,0 @@
-ALTER TABLE `object_type` ADD `table_name` text;

@@ -45,6 +45,15 @@ export const division = sqliteTable("division", {
   names: text("names", { mode: "json" }).$type<Names>().notNull(),
 })
 
+export const org = sqliteTable("org", {
+  id: text("id").primaryKey(),
+  slug: text("slug").notNull(),
+  orgTypeCode: text("org_type_code").notNull().references(() => orgType.code),
+  cityCode: text("city_code").notNull().references(() => city.code),
+  provinceCode: text("province_code").notNull().references(() => province.code),
+  names: text("names", { mode: "json" }).$type<Names>().notNull(),
+}, (t) => [uniqueIndex("org_key").on(t.id, t.slug)])
+
 export const player = sqliteTable("player", {
   id: text("id").primaryKey(),
   userId: text("user_id").references(() => user.id),
@@ -140,6 +149,7 @@ export const userNotificationPreference = sqliteTable("userNotificationPreferenc
  */
 export const FIXTURE_TABLES = {
   divisions: division,
+  orgs: org,
   players: player,
   venues: venue,
   eventCoOrganizers: eventCoOrganizer,
@@ -156,6 +166,7 @@ export const FIXTURE_TABLES = {
 
 export const FIXTURE_SCHEMAS = {
   divisions: createSelectSchema(division),
+  orgs: createSelectSchema(org),
   players: createSelectSchema(player),
   venues: createSelectSchema(venue),
   eventCoOrganizers: createSelectSchema(eventCoOrganizer),

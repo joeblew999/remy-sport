@@ -36,6 +36,8 @@ import { resolve } from "path"
 import { getTableColumns, getTableName } from "drizzle-orm"
 import type { SQLiteTable } from "drizzle-orm/sqlite-core"
 import { FIXTURE_TABLES } from "../src/db/fixtures-schema"
+import { VOCABULARY_TABLES } from "../src/db/vocabularies-schema"
+import { VOCABULARY } from "../src/domain/vocabularies"
 import * as schema from "../src/db/schema"
 import { SEED_ENTITIES, SEED_RELATIONSHIPS } from "../src/db/seed-data"
 import { clean, pivot } from "../src/domain/names"
@@ -114,9 +116,57 @@ const lines: string[] = [
   "-- the worker tests directly and by POST /api/seed at runtime, so both get the",
   "-- same database. See scripts/seed-sql.ts for why that distinction matters.",
   "",
+  "-- The whole file is one transaction, so foreign keys are checked once at the",
+  "-- end rather than statement by statement. Vocabularies reference each other —",
+  "-- a relation names an object type, a city names a province — and ordering",
+  "-- twenty-one of them by dependency would be a second model of the same",
+  "-- references the columns already declare.",
+  "PRAGMA defer_foreign_keys = true;",
+  "",
 ]
 
-lines.push("-- Users. `role` is the platform role; `biz_id` bridges to the fixtures.")
+/**
+ * The controlled vocabularies, first — everything below has a foreign key into
+ * one of them.
+ *
+ * These lived in migration 0009, emitted whole on every run, which is what made
+ * a vocabulary impossible to rename: regenerating rewrote a migration deployed
+ * databases had already applied. Schema is drizzle-kit's job now and data is
+ * this file's, so a vocabulary that gains, loses or renames a row is a re-seed
+ * rather than a migration.
+ */
+let vocabRows = 0
+for (const [name, table] of Object.entries(VOCABULARY_TABLES) as [string, SQLiteTable][]) {
+  const rows = (VOCABULARY as Record<string, readonly Record<string, unknown>[]>)[name]
+  if (!rows?.length) continue
+  lines.push("", `-- ${name}`)
+  for (const [i, row] of rows.entries()) {
+    // `sort` is the fixtures' own order, which is how /api/reference returns
+    // them — a vocabulary the PO ordered deliberately must not come back
+    // alphabetical.
+    // The `*_en` pivots are columns in the database and JSON keys in the
+    // compiled constants, so they have to be materialised back out. Omitting
+    // them is not an error you get told about: they are NOT NULL, and
+    // `INSERT OR IGNORE` swallows a NOT NULL violation exactly as quietly as a
+    // duplicate — twenty-one vocabularies silently inserted nothing.
+    // Keys arrive as the fixtures spell them — `full_names` as well as `names`
+    // — and drizzle names its columns in camelCase, so normalise before
+    // matching. A key that does not match is a column left out of the INSERT,
+    // and `INSERT OR IGNORE` reports that as nothing at all.
+    const camel = (k: string) => k.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())
+    const values: Record<string, unknown> = { sort: i + 1 }
+    for (const [k, v] of Object.entries(row)) {
+      const key = camel(k)
+      values[key] = v
+      // Every locale-keyed JSON column has a NOT NULL `*_en` pivot beside it.
+      if (v && typeof v === "object") values[`${key.replace(/s$/, "")}En`] = pivot(v as Names) ?? ""
+    }
+    lines.push(insertOf(table, values))
+    vocabRows++
+  }
+}
+
+lines.push("", "-- Users. `role` is the platform role; `biz_id` bridges to the fixtures.")
 for (const u of SEED_ENTITIES.users) {
   lines.push(
     insertOf(schema.user, {
@@ -144,7 +194,14 @@ for (const u of SEED_ENTITIES.users) {
   )
 }
 
-lines.push("", "-- Organisations. Better Auth's table; the extra columns are additionalFields.")
+lines.push(
+  "",
+  "-- Better Auth's shadow of an organisation: id, name and slug, which is all",
+  "-- its plugin needs for members and invitations. The domain's `org` — the",
+  "-- PO's columns, with `names` as real JSON — is emitted with the other",
+  "-- entities below, because it is one now rather than a set of",
+  "-- additionalFields on this table.",
+)
 for (const o of SEED_ENTITIES.orgs) {
   lines.push(
     insertOf(schema.organization, {
@@ -152,10 +209,6 @@ for (const o of SEED_ENTITIES.orgs) {
       name: pivot(o.names)!,
       slug: o.slug,
       createdAt: AT,
-      names: JSON.stringify(clean(o.names)),
-      orgTypeCode: o.orgTypeCode,
-      cityCode: o.cityCode,
-      provinceCode: o.provinceCode,
     } satisfies Partial<typeof schema.organization.$inferInsert>),
   )
 }

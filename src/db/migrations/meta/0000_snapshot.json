@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "69c39e52-c437-470c-aeae-50aab77ca175",
+  "id": "cd7a600e-5248-4661-a290-62ca5243b7fd",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "account": {
@@ -1174,10 +1174,10 @@
         }
       },
       "foreignKeys": {
-        "team_org_id_organization_id_fk": {
-          "name": "team_org_id_organization_id_fk",
+        "team_org_id_org_id_fk": {
+          "name": "team_org_id_org_id_fk",
           "tableFrom": "team",
-          "tableTo": "organization",
+          "tableTo": "org",
           "columnsFrom": [
             "org_id"
           ],
@@ -1561,6 +1561,44 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "guardian_type": {
+      "name": "guardian_type",
+      "columns": {
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name_en": {
+          "name": "name_en",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "names": {
+          "name": "names",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "sort": {
+          "name": "sort",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "locale": {
       "name": "locale",
       "columns": {
@@ -1812,6 +1850,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "table_name": {
+          "name": "table_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "sort": {
@@ -2132,44 +2177,6 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "relationship": {
-      "name": "relationship",
-      "columns": {
-        "code": {
-          "name": "code",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "name_en": {
-          "name": "name_en",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "names": {
-          "name": "names",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "sort": {
-          "name": "sort",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -2707,8 +2714,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "relationship_code": {
-          "name": "relationship_code",
+        "guardian_type_code": {
+          "name": "guardian_type_code",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -2752,12 +2759,113 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "guardian_relationship_code_relationship_code_fk": {
-          "name": "guardian_relationship_code_relationship_code_fk",
+        "guardian_guardian_type_code_guardian_type_code_fk": {
+          "name": "guardian_guardian_type_code_guardian_type_code_fk",
           "tableFrom": "guardian",
-          "tableTo": "relationship",
+          "tableTo": "guardian_type",
           "columnsFrom": [
-            "relationship_code"
+            "guardian_type_code"
+          ],
+          "columnsTo": [
+            "code"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "org": {
+      "name": "org",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "org_type_code": {
+          "name": "org_type_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "city_code": {
+          "name": "city_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "province_code": {
+          "name": "province_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "names": {
+          "name": "names",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "org_key": {
+          "name": "org_key",
+          "columns": [
+            "id",
+            "slug"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "org_org_type_code_org_type_code_fk": {
+          "name": "org_org_type_code_org_type_code_fk",
+          "tableFrom": "org",
+          "tableTo": "org_type",
+          "columnsFrom": [
+            "org_type_code"
+          ],
+          "columnsTo": [
+            "code"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "org_city_code_city_code_fk": {
+          "name": "org_city_code_city_code_fk",
+          "tableFrom": "org",
+          "tableTo": "city",
+          "columnsFrom": [
+            "city_code"
+          ],
+          "columnsTo": [
+            "code"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "org_province_code_province_code_fk": {
+          "name": "org_province_code_province_code_fk",
+          "tableFrom": "org",
+          "tableTo": "province",
+          "columnsFrom": [
+            "province_code"
           ],
           "columnsTo": [
             "code"

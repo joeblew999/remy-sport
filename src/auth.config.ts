@@ -233,22 +233,15 @@ export function buildAuthOptions(deps: AuthDeps = {}) {
         dynamicAccessControl: { enabled: true },
         schema: {
           organization: {
-            additionalFields: {
-              // Display names keyed by locale, stored as JSON. Not `nameTh`:
-              // a per-language column would mean an ALTER TABLE and a Better
-              // Auth schema regeneration every time the product ships a
-              // language. Typed `string` because additionalFields has no JSON
-              // type — src/api/teams.ts parses it at the boundary, the one
-              // place that reads it.
-              names: { type: "string", required: false },
-              // Canonical org_types: SCHOOL, CLUB, FEDERATION, GRASSROOTS.
-              orgTypeCode: { type: "string", required: false },
-              // Canonical city code, e.g. BANGKOK — not a display name, so it
-              // renders in the reader's language via the `city` vocabulary.
-              cityCode: { type: "string", required: false },
-              // Canonical: 3-letter province code, e.g. BKK, CMI.
-              provinceCode: { type: "string", required: false },
-            },
+            // No additionalFields, deliberately.
+            //
+            // `names`, `orgTypeCode`, `cityCode` and `provinceCode` lived here
+            // and were the PO's model stored inside an auth library's table.
+            // additionalFields has no JSON type, so `names` — a JSON column by
+            // design since migration 0010 — was a string that src/api/teams.ts
+            // parsed by hand. They are columns on the generated `org` table now.
+            // Better Auth keeps id, name and slug, which is all its plugin
+            // needs.
           },
           // `team` is already taken by the domain roster table (migration 0006,
           // ADR 008). Both tables are real and both are needed; renaming the

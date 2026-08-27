@@ -1,6 +1,7 @@
 import { relations } from "drizzle-orm"
 import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core"
 import type { Names } from "../domain/names"
+import { org } from "./fixtures-schema"
 /**
  * The vocabularies are declared ON the columns, not restated at the boundary.
  *
@@ -104,7 +105,7 @@ export const team = sqliteTable("team", {
   names: localeNames(),
   orgId: text("org_id")
     .notNull()
-    .references(() => organization.id),
+    .references(() => org.id),
   // Foreign keys as of migration 0009 — the database rejects a code outside the
   // vocabulary, which it previously accepted from any writer.
   ageGroupCode: text("age_group_code", { enum: AGE_GROUP_CODES })
@@ -147,7 +148,7 @@ import { ageGroup, city, gender, province } from "./vocabularies-schema"
  * and hand-picking columns only because nothing here declared the shape.
  */
 export const teamRelations = relations(team, ({ one }) => ({
-  organization: one(organization, { fields: [team.orgId], references: [organization.id] }),
+  org: one(org, { fields: [team.orgId], references: [org.id] }),
   ageGroup: one(ageGroup, { fields: [team.ageGroupCode], references: [ageGroup.code] }),
   gender: one(gender, { fields: [team.genderCode], references: [gender.code] }),
 }))

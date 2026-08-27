@@ -3,24 +3,10 @@
   "dialect": "sqlite",
   "entries": [
     {
-      "idx": 17,
+      "idx": 0,
       "version": "6",
-      "when": 1787792266196,
-      "tag": "0017_baseline",
-      "breakpoints": true
-    },
-    {
-      "idx": 18,
-      "version": "6",
-      "when": 1787792444456,
-      "tag": "0018_rename_guardian_types",
-      "breakpoints": true
-    },
-    {
-      "idx": 19,
-      "version": "6",
-      "when": 1787793104054,
-      "tag": "0019_wonderful_multiple_man",
+      "when": 1787795001451,
+      "tag": "0000_init",
       "breakpoints": true
     }
   ]

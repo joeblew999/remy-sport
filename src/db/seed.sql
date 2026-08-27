@@ -4,6 +4,250 @@
 -- the worker tests directly and by POST /api/seed at runtime, so both get the
 -- same database. See scripts/seed-sql.ts for why that distinction matters.
 
+-- The whole file is one transaction, so foreign keys are checked once at the
+-- end rather than statement by statement. Vocabularies reference each other —
+-- a relation names an object type, a city names a province — and ordering
+-- twenty-one of them by dependency would be a second model of the same
+-- references the columns already declare.
+PRAGMA defer_foreign_keys = true;
+
+
+-- objectTypes
+INSERT OR IGNORE INTO object_type (code, name_en, names, description_en, descriptions, table_name, sort) VALUES ('EVENT', 'Event', '{"th":"อีเวนต์","en":"Event"}', 'Tournaments leagues camps showcases — subtype lives in events.type_code', '{"th":"ทัวร์นาเมนต์ ลีก ค่ายฝึก และกิจกรรมแสดงผลงาน โดยประเภทย่อยอยู่ใน events.type_code","en":"Tournaments leagues camps showcases — subtype lives in events.type_code"}', 'events', 1);
+INSERT OR IGNORE INTO object_type (code, name_en, names, description_en, descriptions, table_name, sort) VALUES ('TEAM', 'Team', '{"th":"ทีม","en":"Team"}', 'Team profile and roster', '{"th":"โปรไฟล์ทีมและรายชื่อผู้เล่น","en":"Team profile and roster"}', 'teams', 2);
+INSERT OR IGNORE INTO object_type (code, name_en, names, description_en, descriptions, table_name, sort) VALUES ('PLAYER', 'Player', '{"th":"ผู้เล่น","en":"Player"}', 'Individual player profile', '{"th":"โปรไฟล์ผู้เล่นรายบุคคล","en":"Individual player profile"}', 'players', 3);
+INSERT OR IGNORE INTO object_type (code, name_en, names, description_en, descriptions, table_name, sort) VALUES ('ORG', 'Organisation', '{"th":"องค์กร","en":"Organisation"}', 'Schools clubs federations', '{"th":"โรงเรียน สโมสร และสหพันธ์","en":"Schools clubs federations"}', 'organizations', 4);
+INSERT OR IGNORE INTO object_type (code, name_en, names, description_en, descriptions, table_name, sort) VALUES ('PLATFORM', 'Platform', '{"th":"แพลตฟอร์ม","en":"Platform"}', 'Global actions not tied to a specific object', '{"th":"การดำเนินการทั่วทั้งระบบที่ไม่ผูกกับออบเจ็กต์ใดโดยเฉพาะ","en":"Global actions not tied to a specific object"}', NULL, 5);
+
+-- actions
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('SIGN_IN_OUT', 'PLATFORM', 'Auth', 'Sign in / Sign out', '{"th":"ลงชื่อเข้า / ออก","en":"Sign in / Sign out"}', 1);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('SIGN_UP_AS_SPECTATOR', 'PLATFORM', 'Auth', 'Sign up as Spectator', '{"th":"สมัครเป็นผู้ชม","en":"Sign up as Spectator"}', 2);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('SIGN_UP_AS_PLAYER', 'PLATFORM', 'Auth', 'Sign up as Player (adult)', '{"th":"สมัครเป็นผู้เล่น (ผู้ใหญ่)","en":"Sign up as Player (adult)"}', 3);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('SIGN_UP_AS_COACH', 'PLATFORM', 'Auth', 'Sign up as Coach', '{"th":"สมัครเป็นโค้ช","en":"Sign up as Coach"}', 4);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('SIGN_UP_AS_ORGANIZER', 'PLATFORM', 'Auth', 'Sign up as Organizer', '{"th":"สมัครเป็นผู้จัดการแข่งขัน","en":"Sign up as Organizer"}', 5);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('SIGN_UP_PLAYER_AS_GUARDIAN', 'PLATFORM', 'Auth', 'Sign up minor Player as Guardian', '{"th":"สมัครผู้เล่น (เด็กในความดูแล)","en":"Sign up minor Player as Guardian"}', 6);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('SIGN_UP_AS_REFEREE_REQUEST', 'PLATFORM', 'Auth', 'Submit Referee signup request', '{"th":"ส่งคำขอสมัครเป็นผู้ตัดสิน","en":"Submit Referee signup request"}', 7);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('APPROVE_REFEREE', 'PLATFORM', 'Admin', 'Approve pending Referee account', '{"th":"อนุมัติผู้ตัดสิน","en":"Approve pending Referee account"}', 8);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('CREATE_USER_ACCOUNT', 'PLATFORM', 'Admin', 'Create any user account (admin-only minting)', '{"th":"สร้างบัญชีผู้ใช้ (ใดๆ)","en":"Create any user account (admin-only minting)"}', 9);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('INVITE_CO_ORGANIZER', 'EVENT', 'Events', 'Invite Co-organizer to event', '{"th":"เชิญผู้ร่วมจัด","en":"Invite Co-organizer to event"}', 10);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('ACCEPT_CO_ORGANIZER_INVITE', 'EVENT', 'Events', 'Accept Co-organizer invite', '{"th":"ตอบรับเป็นผู้ร่วมจัด","en":"Accept Co-organizer invite"}', 11);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('INSTALL_APP', 'PLATFORM', 'Live', 'Install app (PWA)', '{"th":"ติดตั้งแอป (PWA)","en":"Install app (PWA)"}', 12);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('MANAGE_ALL_USERS', 'PLATFORM', 'Admin', 'Manage all users', '{"th":"จัดการผู้ใช้ทั้งหมด","en":"Manage all users"}', 13);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('MODERATE_LISTINGS', 'PLATFORM', 'Admin', 'Moderate listings', '{"th":"ตรวจสอบและจัดการรายการ","en":"Moderate listings"}', 14);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('BROWSE_EVENTS', 'PLATFORM', 'Events', 'Browse events (list)', '{"th":"เรียกดูอีเวนต์","en":"Browse events (list)"}', 15);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('BROWSE_TEAMS', 'PLATFORM', 'Teams', 'Browse / find a team', '{"th":"ค้นหาทีม","en":"Browse / find a team"}', 16);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('CREATE_EVENT', 'PLATFORM', 'Events', 'Create event', '{"th":"สร้างอีเวนต์","en":"Create event"}', 17);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('VIEW_EVENT', 'EVENT', 'Events', 'View event detail', '{"th":"ดูอีเวนต์","en":"View event detail"}', 18);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('EDIT_EVENT', 'EVENT', 'Events', 'Edit event', '{"th":"แก้ไขอีเวนต์","en":"Edit event"}', 19);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('DELETE_EVENT', 'EVENT', 'Events', 'Delete event', '{"th":"ลบอีเวนต์","en":"Delete event"}', 20);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('MANAGE_DIVISIONS', 'EVENT', 'Events', 'Manage event divisions', '{"th":"จัดการดิวิชั่น","en":"Manage event divisions"}', 21);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('REGISTER_TEAM_FOR_EVENT', 'EVENT', 'Events', 'Register team for event', '{"th":"ลงทะเบียนทีมเข้าอีเวนต์","en":"Register team for event"}', 22);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('REGISTER_PLAYER_FOR_EVENT', 'EVENT', 'Events', 'Register player for event', '{"th":"ลงทะเบียนผู้เล่นเข้าอีเวนต์","en":"Register player for event"}', 23);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('CREATE_TEAM', 'PLATFORM', 'Teams', 'Create team', '{"th":"สร้างทีม","en":"Create team"}', 24);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('VIEW_TEAM', 'TEAM', 'Teams', 'View team profile', '{"th":"ดูโปรไฟล์ทีม","en":"View team profile"}', 25);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('EDIT_TEAM_PROFILE', 'TEAM', 'Teams', 'Edit team profile', '{"th":"แก้ไขโปรไฟล์ทีม","en":"Edit team profile"}', 26);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('DELETE_TEAM', 'TEAM', 'Teams', 'Delete team', '{"th":"ลบทีม","en":"Delete team"}', 27);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('MANAGE_ROSTER', 'TEAM', 'Teams', 'Manage team roster', '{"th":"จัดการรายชื่อผู้เล่น","en":"Manage team roster"}', 28);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('CREATE_PLAYER', 'PLATFORM', 'Players', 'Create player profile', '{"th":"สร้างโปรไฟล์ผู้เล่น","en":"Create player profile"}', 29);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('VIEW_PLAYER', 'PLAYER', 'Players', 'View player profile', '{"th":"ดูโปรไฟล์ผู้เล่น","en":"View player profile"}', 30);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('EDIT_PLAYER_PROFILE', 'PLAYER', 'Players', 'Edit player profile', '{"th":"แก้ไขโปรไฟล์ผู้เล่น","en":"Edit player profile"}', 31);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('DELETE_PLAYER', 'PLAYER', 'Players', 'Delete player profile', '{"th":"ลบโปรไฟล์ผู้เล่น","en":"Delete player profile"}', 32);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('VIEW_PLAYER_STATS', 'PLAYER', 'Rankings', 'View player stats', '{"th":"ดูสถิติผู้เล่น","en":"View player stats"}', 33);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('FOLLOW_PLAYER', 'PLAYER', 'Players', 'Follow player', '{"th":"ติดตามผู้เล่น","en":"Follow player"}', 34);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('UNFOLLOW_PLAYER', 'PLAYER', 'Players', 'Unfollow player', '{"th":"เลิกติดตามผู้เล่น","en":"Unfollow player"}', 35);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('RECEIVE_PLAYER_NOTIFICATIONS', 'PLAYER', 'Live', 'Receive player notifications', '{"th":"รับการแจ้งเตือนผู้เล่น","en":"Receive player notifications"}', 36);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('FOLLOW_TEAM', 'TEAM', 'Teams', 'Follow team', '{"th":"ติดตามทีม","en":"Follow team"}', 37);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('UNFOLLOW_TEAM', 'TEAM', 'Teams', 'Unfollow team', '{"th":"เลิกติดตามทีม","en":"Unfollow team"}', 38);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('RECEIVE_TEAM_NOTIFICATIONS', 'TEAM', 'Live', 'Receive team notifications', '{"th":"รับการแจ้งเตือนทีม","en":"Receive team notifications"}', 39);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('FOLLOW_EVENT', 'EVENT', 'Events', 'Follow event', '{"th":"ติดตามอีเวนต์","en":"Follow event"}', 40);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('UNFOLLOW_EVENT', 'EVENT', 'Events', 'Unfollow event', '{"th":"เลิกติดตามอีเวนต์","en":"Unfollow event"}', 41);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('RECEIVE_EVENT_NOTIFICATIONS', 'EVENT', 'Live', 'Receive event notifications', '{"th":"รับการแจ้งเตือนอีเวนต์","en":"Receive event notifications"}', 42);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('VIEW_BRACKET', 'EVENT', 'Schedules', 'View bracket', '{"th":"ดูสายแข่งขัน","en":"View bracket"}', 43);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('VIEW_FIXTURE_SCHEDULE', 'EVENT', 'Schedules', 'View fixture schedule', '{"th":"ดูตารางแข่งขัน","en":"View fixture schedule"}', 44);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('VIEW_COURT_ASSIGNMENTS', 'EVENT', 'Schedules', 'View court assignments', '{"th":"ดูการจัดสนาม","en":"View court assignments"}', 45);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('GENERATE_BRACKETS', 'EVENT', 'Schedules', 'Generate brackets', '{"th":"สร้างสายแข่งขัน","en":"Generate brackets"}', 46);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('GENERATE_FIXTURES', 'EVENT', 'Schedules', 'Generate fixtures', '{"th":"สร้างตารางแข่งขัน","en":"Generate fixtures"}', 47);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('DEFINE_SESSION_SCHEDULE', 'EVENT', 'Schedules', 'Define session schedule', '{"th":"กำหนดตารางเซสชัน","en":"Define session schedule"}', 48);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('ASSIGN_COURTS', 'EVENT', 'Schedules', 'Assign courts', '{"th":"กำหนดสนาม","en":"Assign courts"}', 49);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('ENTER_SCORES', 'EVENT', 'Scores', 'Enter scores', '{"th":"บันทึกคะแนน","en":"Enter scores"}', 50);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('CONFIRM_MATCH_STATUS', 'EVENT', 'Scores', 'Confirm match status', '{"th":"ยืนยันสถานะการแข่งขัน","en":"Confirm match status"}', 51);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('RECORD_ATTENDANCE', 'EVENT', 'Scores', 'Record attendance', '{"th":"บันทึกการเข้าร่วม","en":"Record attendance"}', 52);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('VIEW_GAME_RESULTS', 'EVENT', 'Scores', 'View game results', '{"th":"ดูผลการแข่งขัน","en":"View game results"}', 53);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('VIEW_MATCH_STATUS', 'EVENT', 'Scores', 'View match status', '{"th":"ดูสถานะการแข่งขัน","en":"View match status"}', 54);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('SPOILER_MODE', 'PLATFORM', 'Scores', 'Spoiler mode preference', '{"th":"โหมดซ่อนสปอยล์","en":"Spoiler mode preference"}', 55);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('VIEW_RESULTS_ARCHIVE', 'PLATFORM', 'Scores', 'View results archive', '{"th":"ดูประวัติผลการแข่งขัน","en":"View results archive"}', 56);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('VIEW_STANDINGS', 'EVENT', 'Rankings', 'View standings', '{"th":"ดูตารางคะแนน","en":"View standings"}', 57);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('VIEW_RANK_MOVEMENT', 'EVENT', 'Rankings', 'View rank movement', '{"th":"ดูการเปลี่ยนอันดับ","en":"View rank movement"}', 58);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('VIEW_RANKINGS_HISTORY', 'PLATFORM', 'Rankings', 'View rankings history', '{"th":"ดูประวัติอันดับ","en":"View rankings history"}', 59);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('VIEW_SEASON_RECORDS', 'EVENT', 'Rankings', 'View season records', '{"th":"ดูสถิติประจำฤดูกาล","en":"View season records"}', 60);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('VIEW_LIVE_SCORES', 'EVENT', 'Live', 'View live scores', '{"th":"ดูคะแนนสด","en":"View live scores"}', 61);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('RECEIVE_NOTIFICATIONS', 'PLATFORM', 'Live', 'Receive push notifications', '{"th":"รับการแจ้งเตือน","en":"Receive push notifications"}', 62);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('MANAGE_OWN_NOTIFICATION_CHANNELS', 'PLATFORM', 'Live', 'Manage own notification channels (add / remove / verify / enable / disable)', '{"th":"จัดการช่องทางการแจ้งเตือนของตัวเอง","en":"Manage own notification channels (add / remove / verify / enable / disable)"}', 63);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('MANAGE_OWN_NOTIFICATION_PREFERENCES', 'PLATFORM', 'Live', 'Manage own per-type notification preferences (which type via which channel)', '{"th":"จัดการการตั้งค่าการแจ้งเตือนของตัวเอง","en":"Manage own per-type notification preferences (which type via which channel)"}', 64);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('VIEW_LIVE_STREAM', 'EVENT', 'Live', 'View live stream links', '{"th":"ดูถ่ายทอดสด","en":"View live stream links"}', 65);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('VIEW_COURT_STATUS_BOARD', 'EVENT', 'Live', 'View court status board', '{"th":"ดูกระดานสถานะสนาม","en":"View court status board"}', 66);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('AI_CREATE_EVENT', 'PLATFORM', 'AI', 'Create event via AI chat', '{"th":"สร้างอีเวนต์ผ่านแชต","en":"Create event via AI chat"}', 67);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('AI_BRACKET_SUGGESTIONS', 'EVENT', 'AI', 'AI bracket suggestions', '{"th":"คำแนะนำสายแข่งขัน","en":"AI bracket suggestions"}', 68);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('AI_QA', 'PLATFORM', 'AI', 'AI Q&A', '{"th":"ถาม-ตอบ AI","en":"AI Q&A"}', 69);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('VIEW_ORG', 'ORG', 'Organisation', 'View organisation profile', '{"th":"ดูโปรไฟล์องค์กร","en":"View organisation profile"}', 70);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('EDIT_ORG_PROFILE', 'ORG', 'Organisation', 'Edit organisation profile', '{"th":"แก้ไขโปรไฟล์องค์กร","en":"Edit organisation profile"}', 71);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('INVITE_ORG_MEMBER', 'ORG', 'Organisation', 'Invite someone to an organisation', '{"th":"เชิญสมาชิกเข้าองค์กร","en":"Invite someone to an organisation"}', 72);
+INSERT OR IGNORE INTO action (code, object_type_code, category, name_en, names, sort) VALUES ('REMOVE_ORG_MEMBER', 'ORG', 'Organisation', 'Remove someone from an organisation', '{"th":"นำสมาชิกออกจากองค์กร","en":"Remove someone from an organisation"}', 73);
+
+-- ageGroups
+INSERT OR IGNORE INTO age_group (code, name_en, names, min_age, max_age, sort) VALUES ('U10', 'Under 10', '{"th":"อายุไม่เกิน 10 ปี","en":"Under 10"}', NULL, 10, 1);
+INSERT OR IGNORE INTO age_group (code, name_en, names, min_age, max_age, sort) VALUES ('U12', 'Under 12', '{"th":"อายุไม่เกิน 12 ปี","en":"Under 12"}', NULL, 12, 2);
+INSERT OR IGNORE INTO age_group (code, name_en, names, min_age, max_age, sort) VALUES ('U14', 'Under 14', '{"th":"อายุไม่เกิน 14 ปี","en":"Under 14"}', NULL, 14, 3);
+INSERT OR IGNORE INTO age_group (code, name_en, names, min_age, max_age, sort) VALUES ('U16', 'Under 16', '{"th":"อายุไม่เกิน 16 ปี","en":"Under 16"}', NULL, 16, 4);
+INSERT OR IGNORE INTO age_group (code, name_en, names, min_age, max_age, sort) VALUES ('U18', 'Under 18', '{"th":"อายุไม่เกิน 18 ปี","en":"Under 18"}', NULL, 18, 5);
+INSERT OR IGNORE INTO age_group (code, name_en, names, min_age, max_age, sort) VALUES ('U21', 'Under 21', '{"th":"อายุไม่เกิน 21 ปี","en":"Under 21"}', NULL, 21, 6);
+INSERT OR IGNORE INTO age_group (code, name_en, names, min_age, max_age, sort) VALUES ('OPEN', 'Open Age', '{"th":"เปิดอายุ","en":"Open Age"}', NULL, NULL, 7);
+INSERT OR IGNORE INTO age_group (code, name_en, names, min_age, max_age, sort) VALUES ('SENIOR', 'Senior', '{"th":"อาวุโส","en":"Senior"}', 30, NULL, 8);
+
+-- provinces
+INSERT OR IGNORE INTO province (code, name_en, names, sort) VALUES ('BKK', 'Bangkok', '{"th":"กรุงเทพมหานคร","en":"Bangkok"}', 1);
+INSERT OR IGNORE INTO province (code, name_en, names, sort) VALUES ('NBI', 'Nonthaburi', '{"th":"นนทบุรี","en":"Nonthaburi"}', 2);
+INSERT OR IGNORE INTO province (code, name_en, names, sort) VALUES ('CMI', 'Chiang Mai', '{"th":"เชียงใหม่","en":"Chiang Mai"}', 3);
+INSERT OR IGNORE INTO province (code, name_en, names, sort) VALUES ('CRI', 'Chiang Rai', '{"th":"เชียงราย","en":"Chiang Rai"}', 4);
+INSERT OR IGNORE INTO province (code, name_en, names, sort) VALUES ('NMA', 'Nakhon Ratchasima', '{"th":"นครราชสีมา","en":"Nakhon Ratchasima"}', 5);
+INSERT OR IGNORE INTO province (code, name_en, names, sort) VALUES ('KKN', 'Khon Kaen', '{"th":"ขอนแก่น","en":"Khon Kaen"}', 6);
+INSERT OR IGNORE INTO province (code, name_en, names, sort) VALUES ('UBN', 'Ubon Ratchathani', '{"th":"อุบลราชธานี","en":"Ubon Ratchathani"}', 7);
+INSERT OR IGNORE INTO province (code, name_en, names, sort) VALUES ('UDN', 'Udon Thani', '{"th":"อุดรธานี","en":"Udon Thani"}', 8);
+INSERT OR IGNORE INTO province (code, name_en, names, sort) VALUES ('CBI', 'Chonburi', '{"th":"ชลบุรี","en":"Chonburi"}', 9);
+INSERT OR IGNORE INTO province (code, name_en, names, sort) VALUES ('PHK', 'Phuket', '{"th":"ภูเก็ต","en":"Phuket"}', 10);
+INSERT OR IGNORE INTO province (code, name_en, names, sort) VALUES ('SKA', 'Songkhla', '{"th":"สงขลา","en":"Songkhla"}', 11);
+INSERT OR IGNORE INTO province (code, name_en, names, sort) VALUES ('NST', 'Nakhon Si Thammarat', '{"th":"นครศรีธรรมราช","en":"Nakhon Si Thammarat"}', 12);
+INSERT OR IGNORE INTO province (code, name_en, names, sort) VALUES ('SNI', 'Surat Thani', '{"th":"สุราษฎร์ธานี","en":"Surat Thani"}', 13);
+INSERT OR IGNORE INTO province (code, name_en, names, sort) VALUES ('RBR', 'Ratchaburi', '{"th":"ราชบุรี","en":"Ratchaburi"}', 14);
+INSERT OR IGNORE INTO province (code, name_en, names, sort) VALUES ('PTE', 'Pathum Thani', '{"th":"ปทุมธานี","en":"Pathum Thani"}', 15);
+
+-- cities
+INSERT OR IGNORE INTO city (code, name_en, names, province_code, sort) VALUES ('BANGKOK', 'Bangkok', '{"th":"กรุงเทพมหานคร","en":"Bangkok"}', 'BKK', 1);
+INSERT OR IGNORE INTO city (code, name_en, names, province_code, sort) VALUES ('CHIANG_MAI', 'Chiang Mai', '{"th":"เชียงใหม่","en":"Chiang Mai"}', 'CMI', 2);
+
+-- coachRoles
+INSERT OR IGNORE INTO coach_role (code, name_en, names, sort) VALUES ('HEAD', 'Head Coach', '{"th":"หัวหน้าผู้ฝึกสอน","en":"Head Coach"}', 1);
+INSERT OR IGNORE INTO coach_role (code, name_en, names, sort) VALUES ('ASSISTANT', 'Assistant Coach', '{"th":"ผู้ช่วยผู้ฝึกสอน","en":"Assistant Coach"}', 2);
+INSERT OR IGNORE INTO coach_role (code, name_en, names, sort) VALUES ('MANAGER', 'Team Manager', '{"th":"ผู้จัดการทีม","en":"Team Manager"}', 3);
+
+-- eventFormats
+INSERT OR IGNORE INTO event_format (code, name_en, names, sort) VALUES ('5x5', '5-on-5', '{"th":"5 ต่อ 5","en":"5-on-5"}', 1);
+INSERT OR IGNORE INTO event_format (code, name_en, names, sort) VALUES ('3x3', '3x3', '{"th":"3 ต่อ 3","en":"3x3"}', 2);
+
+-- eventTypes
+INSERT OR IGNORE INTO event_type (code, name_en, names, description_en, descriptions, sort) VALUES ('TOURNAMENT', 'Tournament', '{"th":"การแข่งขันแบบทัวร์นาเมนต์","en":"Tournament"}', 'Bracketed competition with elimination rounds and a declared winner', '{"th":"การแข่งขันแบบแบ่งสายและคัดออกจนได้ผู้ชนะที่ประกาศอย่างเป็นทางการ","en":"Bracketed competition with elimination rounds and a declared winner"}', 1);
+INSERT OR IGNORE INTO event_type (code, name_en, names, description_en, descriptions, sort) VALUES ('LEAGUE', 'League', '{"th":"ลีก","en":"League"}', 'Recurring season — teams play scheduled rounds and accumulate points', '{"th":"ฤดูกาลแข่งขันต่อเนื่อง ทีมแข่งขันตามรอบที่กำหนดและสะสมคะแนน","en":"Recurring season — teams play scheduled rounds and accumulate points"}', 2);
+INSERT OR IGNORE INTO event_type (code, name_en, names, description_en, descriptions, sort) VALUES ('CAMP', 'Camp / Clinic', '{"th":"ค่ายฝึก","en":"Camp / Clinic"}', 'Training event — skill development not competition', '{"th":"กิจกรรมฝึกทักษะเพื่อพัฒนาความสามารถ ไม่ใช่การแข่งขัน","en":"Training event — skill development not competition"}', 3);
+INSERT OR IGNORE INTO event_type (code, name_en, names, description_en, descriptions, sort) VALUES ('SHOWCASE', 'Showcase', '{"th":"การโชว์ผู้เล่น","en":"Showcase"}', 'Exhibition event for visibility — scouts recruiters media', '{"th":"กิจกรรมแสดงผลงานเพื่อสร้างโอกาสให้แมวมอง ผู้สรรหา และสื่อเห็นผู้เล่น","en":"Exhibition event for visibility — scouts recruiters media"}', 4);
+
+-- genders
+INSERT OR IGNORE INTO gender (code, name_en, names, sort) VALUES ('M', 'Boys', '{"th":"ชาย","en":"Boys"}', 1);
+INSERT OR IGNORE INTO gender (code, name_en, names, sort) VALUES ('F', 'Girls', '{"th":"หญิง","en":"Girls"}', 2);
+INSERT OR IGNORE INTO gender (code, name_en, names, sort) VALUES ('COED', 'Co-ed', '{"th":"ผสม","en":"Co-ed"}', 3);
+
+-- guardianTypes
+INSERT OR IGNORE INTO guardian_type (code, name_en, names, sort) VALUES ('PARENT', 'Parent', '{"th":"ผู้ปกครอง","en":"Parent"}', 1);
+INSERT OR IGNORE INTO guardian_type (code, name_en, names, sort) VALUES ('GRANDPARENT', 'Grandparent', '{"th":"ปู่ย่าตายาย","en":"Grandparent"}', 2);
+INSERT OR IGNORE INTO guardian_type (code, name_en, names, sort) VALUES ('LEGAL_GUARDIAN', 'Legal Guardian', '{"th":"ผู้ดูแล","en":"Legal Guardian"}', 3);
+INSERT OR IGNORE INTO guardian_type (code, name_en, names, sort) VALUES ('OTHER', 'Other', '{"th":"อื่นๆ","en":"Other"}', 4);
+
+-- locales
+INSERT OR IGNORE INTO locale (code, name_en, names, status, sort) VALUES ('th', 'Thai', '{"th":"ไทย","en":"Thai"}', 'released', 1);
+INSERT OR IGNORE INTO locale (code, name_en, names, status, sort) VALUES ('en', 'English', '{"th":"อังกฤษ","en":"English"}', 'released', 2);
+INSERT OR IGNORE INTO locale (code, name_en, names, status, sort) VALUES ('ja', 'Japanese', '{"th":"ญี่ปุ่น","en":"Japanese"}', 'draft', 3);
+
+-- notificationCategories
+INSERT OR IGNORE INTO notification_category (code, name_en, names, sort) VALUES ('LIVE', 'Live', '{"th":"สด","en":"Live"}', 1);
+INSERT OR IGNORE INTO notification_category (code, name_en, names, sort) VALUES ('REMINDER', 'Reminder', '{"th":"เตือนความจำ","en":"Reminder"}', 2);
+INSERT OR IGNORE INTO notification_category (code, name_en, names, sort) VALUES ('DISCOVERY', 'Discovery', '{"th":"ค้นพบ","en":"Discovery"}', 3);
+INSERT OR IGNORE INTO notification_category (code, name_en, names, sort) VALUES ('TEAM', 'Team', '{"th":"ทีม","en":"Team"}', 4);
+INSERT OR IGNORE INTO notification_category (code, name_en, names, sort) VALUES ('REGISTRATION', 'Registration', '{"th":"การสมัคร","en":"Registration"}', 5);
+INSERT OR IGNORE INTO notification_category (code, name_en, names, sort) VALUES ('DIGEST', 'Digest', '{"th":"สรุป","en":"Digest"}', 6);
+INSERT OR IGNORE INTO notification_category (code, name_en, names, sort) VALUES ('ANNOUNCEMENT', 'Announcement', '{"th":"ประกาศ","en":"Announcement"}', 7);
+INSERT OR IGNORE INTO notification_category (code, name_en, names, sort) VALUES ('WORKFLOW', 'Workflow', '{"th":"ขั้นตอนดำเนินการ","en":"Workflow"}', 8);
+
+-- notificationChannels
+INSERT OR IGNORE INTO notification_channel (code, name_en, names, address_format, description_en, descriptions, sort) VALUES ('LINE', 'LINE', '{"th":"ไลน์","en":"LINE"}', 'LINE personal ID or LINE Official Account user ID', 'Dominant messaging channel in Thailand (90%+ penetration). Highest engagement.', '{"th":"ช่องทางรับส่งข้อความหลักในประเทศไทย มีการใช้งานมากกว่า 90 เปอร์เซ็นต์และมีการมีส่วนร่วมสูงสุด","en":"Dominant messaging channel in Thailand (90%+ penetration). Highest engagement."}', 1);
+INSERT OR IGNORE INTO notification_channel (code, name_en, names, address_format, description_en, descriptions, sort) VALUES ('EMAIL', 'Email', '{"th":"อีเมล","en":"Email"}', 'RFC 5322 email address', 'Universal but lower engagement in Thailand. Good for digests and receipts.', '{"th":"ใช้ได้ทั่วไปแต่มีการมีส่วนร่วมในไทยต่ำกว่า เหมาะสำหรับสรุปข้อมูลและใบเสร็จ","en":"Universal but lower engagement in Thailand. Good for digests and receipts."}', 2);
+INSERT OR IGNORE INTO notification_channel (code, name_en, names, address_format, description_en, descriptions, sort) VALUES ('SMS', 'SMS', '{"th":"เอสเอ็มเอส","en":"SMS"}', 'E.164 phone number', 'Reliable delivery; cost per message. Good for OTP and critical alerts.', '{"th":"ส่งถึงผู้รับได้อย่างน่าเชื่อถือ แต่มีค่าใช้จ่ายต่อข้อความ เหมาะสำหรับรหัส OTP และการแจ้งเตือนสำคัญ","en":"Reliable delivery; cost per message. Good for OTP and critical alerts."}', 3);
+INSERT OR IGNORE INTO notification_channel (code, name_en, names, address_format, description_en, descriptions, sort) VALUES ('PUSH', 'Push', '{"th":"การแจ้งเตือนแบบ Push","en":"Push"}', 'Web Push subscription token (PWA)', 'Requires PWA installation. Free at scale; limited reach until adoption grows.', '{"th":"ต้องติดตั้ง PWA ไม่มีค่าใช้จ่ายเมื่อใช้งานในปริมาณมาก แต่การเข้าถึงยังจำกัดจนกว่าจะมีผู้ติดตั้งเพิ่ม","en":"Requires PWA installation. Free at scale; limited reach until adoption grows."}', 4);
+INSERT OR IGNORE INTO notification_channel (code, name_en, names, address_format, description_en, descriptions, sort) VALUES ('IN_APP', 'In-app', '{"th":"การแจ้งเตือนในแอป","en":"In-app"}', 'Internal user ID (delivered when user opens app/site)', 'Always works for signed-in users; only seen when user is active.', '{"th":"ใช้งานได้เสมอสำหรับผู้ที่ลงชื่อเข้าใช้ แต่จะแสดงเมื่อผู้ใช้กำลังใช้งานแอปหรือเว็บไซต์","en":"Always works for signed-in users; only seen when user is active."}', 5);
+
+-- notificationTypes
+INSERT OR IGNORE INTO notification_type (code, category_code, name_en, names, description_en, descriptions, sort) VALUES ('MATCH_START', 'LIVE', 'Match Start', '{"th":"เริ่มแข่งขัน","en":"Match Start"}', 'A match is starting now', '{"th":"การแข่งขันกำลังจะเริ่มต้น","en":"A match is starting now"}', 1);
+INSERT OR IGNORE INTO notification_type (code, category_code, name_en, names, description_en, descriptions, sort) VALUES ('MATCH_END', 'LIVE', 'Match End', '{"th":"จบการแข่งขัน","en":"Match End"}', 'A match has ended (final score available)', '{"th":"การแข่งขันจบลงแล้วและมีผลคะแนนสุดท้าย","en":"A match has ended (final score available)"}', 2);
+INSERT OR IGNORE INTO notification_type (code, category_code, name_en, names, description_en, descriptions, sort) VALUES ('SCORE_UPDATE', 'LIVE', 'Score Update', '{"th":"คะแนนเปลี่ยนแปลง","en":"Score Update"}', 'Score changed during a live match', '{"th":"คะแนนเปลี่ยนแปลงระหว่างการแข่งขันสด","en":"Score changed during a live match"}', 3);
+INSERT OR IGNORE INTO notification_type (code, category_code, name_en, names, description_en, descriptions, sort) VALUES ('EVENT_REMINDER', 'REMINDER', 'Event Reminder', '{"th":"เตือนความจำอีเวนต์","en":"Event Reminder"}', 'An event is starting soon (24h or 1h before)', '{"th":"อีเวนต์กำลังจะเริ่มในอีกไม่นาน ก่อนเริ่ม 24 ชั่วโมงหรือ 1 ชั่วโมง","en":"An event is starting soon (24h or 1h before)"}', 4);
+INSERT OR IGNORE INTO notification_type (code, category_code, name_en, names, description_en, descriptions, sort) VALUES ('EVENT_CREATED', 'DISCOVERY', 'Event Created', '{"th":"อีเวนต์ใหม่","en":"Event Created"}', 'A new event was published in your followed scope', '{"th":"มีการเผยแพร่อีเวนต์ใหม่ในขอบเขตที่คุณติดตาม","en":"A new event was published in your followed scope"}', 5);
+INSERT OR IGNORE INTO notification_type (code, category_code, name_en, names, description_en, descriptions, sort) VALUES ('ROSTER_CHANGE', 'TEAM', 'Roster Change', '{"th":"เปลี่ยนแปลงรายชื่อผู้เล่น","en":"Roster Change"}', 'A followed team''s roster changed', '{"th":"รายชื่อผู้เล่นของทีมที่คุณติดตามมีการเปลี่ยนแปลง","en":"A followed team''s roster changed"}', 6);
+INSERT OR IGNORE INTO notification_type (code, category_code, name_en, names, description_en, descriptions, sort) VALUES ('REGISTRATION_OPEN', 'REGISTRATION', 'Registration Open', '{"th":"เปิดลงทะเบียน","en":"Registration Open"}', 'Event registration is now open', '{"th":"เปิดรับลงทะเบียนอีเวนต์แล้ว","en":"Event registration is now open"}', 7);
+INSERT OR IGNORE INTO notification_type (code, category_code, name_en, names, description_en, descriptions, sort) VALUES ('REGISTRATION_CLOSING', 'REGISTRATION', 'Registration Closing Soon', '{"th":"ปิดลงทะเบียนเร็วๆนี้","en":"Registration Closing Soon"}', 'Event registration is about to close', '{"th":"การลงทะเบียนอีเวนต์กำลังจะปิด","en":"Event registration is about to close"}', 8);
+INSERT OR IGNORE INTO notification_type (code, category_code, name_en, names, description_en, descriptions, sort) VALUES ('DAILY_DIGEST', 'DIGEST', 'Daily Digest', '{"th":"สรุปประจำวัน","en":"Daily Digest"}', 'Daily summary of activity you follow', '{"th":"สรุปกิจกรรมที่คุณติดตามประจำวัน","en":"Daily summary of activity you follow"}', 9);
+INSERT OR IGNORE INTO notification_type (code, category_code, name_en, names, description_en, descriptions, sort) VALUES ('WEEKLY_DIGEST', 'DIGEST', 'Weekly Digest', '{"th":"สรุปประจำสัปดาห์","en":"Weekly Digest"}', 'Weekly summary of activity you follow', '{"th":"สรุปกิจกรรมที่คุณติดตามประจำสัปดาห์","en":"Weekly summary of activity you follow"}', 10);
+INSERT OR IGNORE INTO notification_type (code, category_code, name_en, names, description_en, descriptions, sort) VALUES ('ANNOUNCEMENT', 'ANNOUNCEMENT', 'Announcement', '{"th":"ประกาศ","en":"Announcement"}', 'General announcement from an organizer or admin', '{"th":"ประกาศทั่วไปจากผู้จัดการแข่งขันหรือผู้ดูแลระบบ","en":"General announcement from an organizer or admin"}', 11);
+INSERT OR IGNORE INTO notification_type (code, category_code, name_en, names, description_en, descriptions, sort) VALUES ('APPROVAL_REQUEST', 'WORKFLOW', 'Approval Request', '{"th":"คำขออนุมัติ","en":"Approval Request"}', 'Admin action needed (e.g. pending REFEREE signup)', '{"th":"ต้องดำเนินการโดยผู้ดูแลระบบ เช่น คำขอสมัครผู้ตัดสินที่รออนุมัติ","en":"Admin action needed (e.g. pending REFEREE signup)"}', 12);
+INSERT OR IGNORE INTO notification_type (code, category_code, name_en, names, description_en, descriptions, sort) VALUES ('APPROVAL_GRANTED', 'WORKFLOW', 'Approval Granted', '{"th":"ได้รับอนุมัติ","en":"Approval Granted"}', 'Your request was approved', '{"th":"คำขอของคุณได้รับการอนุมัติแล้ว","en":"Your request was approved"}', 13);
+INSERT OR IGNORE INTO notification_type (code, category_code, name_en, names, description_en, descriptions, sort) VALUES ('INVITATION', 'WORKFLOW', 'Invitation', '{"th":"คำเชิญ","en":"Invitation"}', 'You were invited (co-organizer etc)', '{"th":"คุณได้รับคำเชิญ เช่น คำเชิญเป็นผู้ร่วมจัด","en":"You were invited (co-organizer etc)"}', 14);
+
+-- orgRoles
+INSERT OR IGNORE INTO org_role (code, name_en, names, sort) VALUES ('OWNER', 'Organisation Owner', '{"th":"เจ้าขององค์กร","en":"Organisation Owner"}', 1);
+INSERT OR IGNORE INTO org_role (code, name_en, names, sort) VALUES ('ADMIN', 'Organisation Admin', '{"th":"ผู้ดูแลองค์กร","en":"Organisation Admin"}', 2);
+INSERT OR IGNORE INTO org_role (code, name_en, names, sort) VALUES ('MEMBER', 'Organisation Member', '{"th":"สมาชิกองค์กร","en":"Organisation Member"}', 3);
+
+-- orgTypes
+INSERT OR IGNORE INTO org_type (code, name_en, names, sort) VALUES ('SCHOOL', 'School', '{"th":"โรงเรียน","en":"School"}', 1);
+INSERT OR IGNORE INTO org_type (code, name_en, names, sort) VALUES ('CLUB', 'Club', '{"th":"สโมสร","en":"Club"}', 2);
+INSERT OR IGNORE INTO org_type (code, name_en, names, sort) VALUES ('FEDERATION', 'Federation', '{"th":"สหพันธ์","en":"Federation"}', 3);
+INSERT OR IGNORE INTO org_type (code, name_en, names, sort) VALUES ('GRASSROOTS', 'Grassroots', '{"th":"ชุมชนรากหญ้า","en":"Grassroots"}', 4);
+
+-- positions
+INSERT OR IGNORE INTO position (code, name_en, names, full_name_en, full_names, sort) VALUES ('PG', 'PG', '{"th":"พอยต์การ์ด","en":"PG"}', 'Point Guard', '{"th":"พอยต์การ์ด","en":"Point Guard"}', 1);
+INSERT OR IGNORE INTO position (code, name_en, names, full_name_en, full_names, sort) VALUES ('SG', 'SG', '{"th":"ชู้ตติ้งการ์ด","en":"SG"}', 'Shooting Guard', '{"th":"ชู้ตติ้งการ์ด","en":"Shooting Guard"}', 2);
+INSERT OR IGNORE INTO position (code, name_en, names, full_name_en, full_names, sort) VALUES ('SF', 'SF', '{"th":"สมอลล์ฟอร์เวิร์ด","en":"SF"}', 'Small Forward', '{"th":"สมอลล์ฟอร์เวิร์ด","en":"Small Forward"}', 3);
+INSERT OR IGNORE INTO position (code, name_en, names, full_name_en, full_names, sort) VALUES ('PF', 'PF', '{"th":"พาวเวอร์ฟอร์เวิร์ด","en":"PF"}', 'Power Forward', '{"th":"พาวเวอร์ฟอร์เวิร์ด","en":"Power Forward"}', 4);
+INSERT OR IGNORE INTO position (code, name_en, names, full_name_en, full_names, sort) VALUES ('C', 'C', '{"th":"เซ็นเตอร์","en":"C"}', 'Center', '{"th":"เซ็นเตอร์","en":"Center"}', 5);
+
+-- roles
+INSERT OR IGNORE INTO role (code, name_en, names, description_en, descriptions, sort) VALUES ('ADMIN', 'Admin', '{"th":"ผู้ดูแลระบบ","en":"Admin"}', 'Internal staff managing the platform — full write access across all data', '{"th":"เจ้าหน้าที่ภายในที่ดูแลแพลตฟอร์มและมีสิทธิ์เขียนข้อมูลทั้งหมด","en":"Internal staff managing the platform — full write access across all data"}', 1);
+INSERT OR IGNORE INTO role (code, name_en, names, description_en, descriptions, sort) VALUES ('ORGANIZER', 'Organizer', '{"th":"ผู้จัดการแข่งขัน","en":"Organizer"}', 'Creates and runs tournaments leagues camps showcases', '{"th":"สร้างและจัดทัวร์นาเมนต์ ลีก ค่ายฝึก และกิจกรรมแสดงผลงาน","en":"Creates and runs tournaments leagues camps showcases"}', 2);
+INSERT OR IGNORE INTO role (code, name_en, names, description_en, descriptions, sort) VALUES ('COACH', 'Coach', '{"th":"โค้ช","en":"Coach"}', 'Manages a team — roster registration attendance', '{"th":"จัดการทีม การลงทะเบียนรายชื่อผู้เล่น และการบันทึกการเข้าร่วม","en":"Manages a team — roster registration attendance"}', 3);
+INSERT OR IGNORE INTO role (code, name_en, names, description_en, descriptions, sort) VALUES ('PLAYER', 'Player', '{"th":"ผู้เล่น","en":"Player"}', 'Individual athlete — own profile registrations stats', '{"th":"นักกีฬารายบุคคลที่จัดการโปรไฟล์ การลงทะเบียน และสถิติของตนเอง","en":"Individual athlete — own profile registrations stats"}', 4);
+INSERT OR IGNORE INTO role (code, name_en, names, description_en, descriptions, sort) VALUES ('SPECTATOR', 'Spectator', '{"th":"ผู้ชม","en":"Spectator"}', 'Read-only follower — parents fans casual viewers', '{"th":"ผู้ติดตามที่อ่านข้อมูลได้อย่างเดียว เช่น ผู้ปกครอง แฟนกีฬา และผู้ชมทั่วไป","en":"Read-only follower — parents fans casual viewers"}', 5);
+INSERT OR IGNORE INTO role (code, name_en, names, description_en, descriptions, sort) VALUES ('REFEREE', 'Referee', '{"th":"ผู้ตัดสิน","en":"Referee"}', 'Certified official — score entry match status', '{"th":"เจ้าหน้าที่ผู้ได้รับการรับรองที่บันทึกคะแนนและสถานะการแข่งขัน","en":"Certified official — score entry match status"}', 6);
+
+-- relations
+INSERT OR IGNORE INTO relation (code, object_type_code, name_en, names, via, source_table, object_column, user_column, filter_column, filter_value, through_table, through_column, active_to_column, role_code, sort) VALUES ('OWNER', 'EVENT', 'Owner', '{"th":"เจ้าของ","en":"Owner"}', 'table', 'events', 'id', 'organizer_user_id', NULL, NULL, NULL, NULL, NULL, NULL, 1);
+INSERT OR IGNORE INTO relation (code, object_type_code, name_en, names, via, source_table, object_column, user_column, filter_column, filter_value, through_table, through_column, active_to_column, role_code, sort) VALUES ('CO_ORGANIZER', 'EVENT', 'Co-organizer', '{"th":"ผู้ร่วมจัด","en":"Co-organizer"}', 'table', 'event_co_organizers', 'event_id', 'user_id', NULL, NULL, NULL, NULL, NULL, NULL, 2);
+INSERT OR IGNORE INTO relation (code, object_type_code, name_en, names, via, source_table, object_column, user_column, filter_column, filter_value, through_table, through_column, active_to_column, role_code, sort) VALUES ('HEAD_COACH', 'TEAM', 'Head Coach', '{"th":"หัวหน้าผู้ฝึกสอน","en":"Head Coach"}', 'table', 'team_coaches', 'team_id', 'user_id', 'coach_role_code', 'HEAD', NULL, NULL, NULL, NULL, 3);
+INSERT OR IGNORE INTO relation (code, object_type_code, name_en, names, via, source_table, object_column, user_column, filter_column, filter_value, through_table, through_column, active_to_column, role_code, sort) VALUES ('ASSISTANT_COACH', 'TEAM', 'Assistant Coach', '{"th":"ผู้ช่วยผู้ฝึกสอน","en":"Assistant Coach"}', 'table', 'team_coaches', 'team_id', 'user_id', 'coach_role_code', 'ASSISTANT', NULL, NULL, NULL, NULL, 4);
+INSERT OR IGNORE INTO relation (code, object_type_code, name_en, names, via, source_table, object_column, user_column, filter_column, filter_value, through_table, through_column, active_to_column, role_code, sort) VALUES ('TEAM_MANAGER', 'TEAM', 'Team Manager', '{"th":"ผู้จัดการทีม","en":"Team Manager"}', 'table', 'team_coaches', 'team_id', 'user_id', 'coach_role_code', 'MANAGER', NULL, NULL, NULL, NULL, 5);
+INSERT OR IGNORE INTO relation (code, object_type_code, name_en, names, via, source_table, object_column, user_column, filter_column, filter_value, through_table, through_column, active_to_column, role_code, sort) VALUES ('TEAM_PLAYER', 'TEAM', 'Team Player', '{"th":"ผู้เล่นในทีม","en":"Team Player"}', 'table', 'player_teams', 'team_id', 'user_id', NULL, NULL, 'players', 'player_id', 'to_date', NULL, 6);
+INSERT OR IGNORE INTO relation (code, object_type_code, name_en, names, via, source_table, object_column, user_column, filter_column, filter_value, through_table, through_column, active_to_column, role_code, sort) VALUES ('SELF', 'PLAYER', 'Self', '{"th":"ตัวเอง","en":"Self"}', 'table', 'players', 'id', 'user_id', NULL, NULL, NULL, NULL, NULL, NULL, 7);
+INSERT OR IGNORE INTO relation (code, object_type_code, name_en, names, via, source_table, object_column, user_column, filter_column, filter_value, through_table, through_column, active_to_column, role_code, sort) VALUES ('GUARDIAN', 'PLAYER', 'Guardian', '{"th":"ผู้ปกครอง","en":"Guardian"}', 'table', 'guardians', 'player_id', 'user_id', NULL, NULL, NULL, NULL, NULL, NULL, 8);
+INSERT OR IGNORE INTO relation (code, object_type_code, name_en, names, via, source_table, object_column, user_column, filter_column, filter_value, through_table, through_column, active_to_column, role_code, sort) VALUES ('FOLLOWER_PLAYER', 'PLAYER', 'Player Follower', '{"th":"ผู้ติดตาม (ผู้เล่น)","en":"Player Follower"}', 'table', 'subscriptions', 'object_id', 'user_id', 'object_type_code', 'PLAYER', NULL, NULL, NULL, NULL, 9);
+INSERT OR IGNORE INTO relation (code, object_type_code, name_en, names, via, source_table, object_column, user_column, filter_column, filter_value, through_table, through_column, active_to_column, role_code, sort) VALUES ('FOLLOWER_TEAM', 'TEAM', 'Team Follower', '{"th":"ผู้ติดตาม (ทีม)","en":"Team Follower"}', 'table', 'subscriptions', 'object_id', 'user_id', 'object_type_code', 'TEAM', NULL, NULL, NULL, NULL, 10);
+INSERT OR IGNORE INTO relation (code, object_type_code, name_en, names, via, source_table, object_column, user_column, filter_column, filter_value, through_table, through_column, active_to_column, role_code, sort) VALUES ('ORG_OWNER', 'ORG', 'Organisation Owner', '{"th":"เจ้าขององค์กร","en":"Organisation Owner"}', 'table', 'members', 'organization_id', 'user_id', 'role', 'owner', NULL, NULL, NULL, NULL, 11);
+INSERT OR IGNORE INTO relation (code, object_type_code, name_en, names, via, source_table, object_column, user_column, filter_column, filter_value, through_table, through_column, active_to_column, role_code, sort) VALUES ('ORG_ADMIN', 'ORG', 'Organisation Admin', '{"th":"ผู้ดูแลองค์กร","en":"Organisation Admin"}', 'table', 'members', 'organization_id', 'user_id', 'role', 'admin', NULL, NULL, NULL, NULL, 12);
+INSERT OR IGNORE INTO relation (code, object_type_code, name_en, names, via, source_table, object_column, user_column, filter_column, filter_value, through_table, through_column, active_to_column, role_code, sort) VALUES ('ORG_MEMBER', 'ORG', 'Organisation Member', '{"th":"สมาชิกองค์กร","en":"Organisation Member"}', 'table', 'members', 'organization_id', 'user_id', 'role', 'member', NULL, NULL, NULL, NULL, 13);
+INSERT OR IGNORE INTO relation (code, object_type_code, name_en, names, via, source_table, object_column, user_column, filter_column, filter_value, through_table, through_column, active_to_column, role_code, sort) VALUES ('FOLLOWER_EVENT', 'EVENT', 'Event Follower', '{"th":"ผู้ติดตาม (อีเวนต์)","en":"Event Follower"}', 'table', 'subscriptions', 'object_id', 'user_id', 'object_type_code', 'EVENT', NULL, NULL, NULL, NULL, 14);
+INSERT OR IGNORE INTO relation (code, object_type_code, name_en, names, via, source_table, object_column, user_column, filter_column, filter_value, through_table, through_column, active_to_column, role_code, sort) VALUES ('PLATFORM_ADMIN', 'PLATFORM', 'Platform Admin', '{"th":"ผู้ดูแลแพลตฟอร์ม","en":"Platform Admin"}', 'role', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'ADMIN', 15);
+INSERT OR IGNORE INTO relation (code, object_type_code, name_en, names, via, source_table, object_column, user_column, filter_column, filter_value, through_table, through_column, active_to_column, role_code, sort) VALUES ('ANY_ORGANIZER', 'PLATFORM', 'Any Organizer', '{"th":"ผู้จัดการแข่งขันใดๆ","en":"Any Organizer"}', 'role', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'ORGANIZER', 16);
+INSERT OR IGNORE INTO relation (code, object_type_code, name_en, names, via, source_table, object_column, user_column, filter_column, filter_value, through_table, through_column, active_to_column, role_code, sort) VALUES ('ANY_COACH', 'PLATFORM', 'Any Coach', '{"th":"โค้ชใดๆ","en":"Any Coach"}', 'role', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'COACH', 17);
+INSERT OR IGNORE INTO relation (code, object_type_code, name_en, names, via, source_table, object_column, user_column, filter_column, filter_value, through_table, through_column, active_to_column, role_code, sort) VALUES ('ANY_PLAYER', 'PLATFORM', 'Any Player', '{"th":"ผู้เล่นใดๆ","en":"Any Player"}', 'role', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'PLAYER', 18);
+INSERT OR IGNORE INTO relation (code, object_type_code, name_en, names, via, source_table, object_column, user_column, filter_column, filter_value, through_table, through_column, active_to_column, role_code, sort) VALUES ('ANY_REFEREE', 'PLATFORM', 'Any Referee', '{"th":"ผู้ตัดสินใดๆ","en":"Any Referee"}', 'role', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'REFEREE', 19);
+INSERT OR IGNORE INTO relation (code, object_type_code, name_en, names, via, source_table, object_column, user_column, filter_column, filter_value, through_table, through_column, active_to_column, role_code, sort) VALUES ('ANY_SPECTATOR', 'PLATFORM', 'Any Spectator', '{"th":"ผู้ชมใดๆ","en":"Any Spectator"}', 'role', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'SPECTATOR', 20);
+INSERT OR IGNORE INTO relation (code, object_type_code, name_en, names, via, source_table, object_column, user_column, filter_column, filter_value, through_table, through_column, active_to_column, role_code, sort) VALUES ('ANY_SIGNED_IN', 'PLATFORM', 'Any Signed-in User', '{"th":"ผู้ที่เข้าสู่ระบบใดๆ","en":"Any Signed-in User"}', 'everyone', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 21);
+INSERT OR IGNORE INTO relation (code, object_type_code, name_en, names, via, source_table, object_column, user_column, filter_column, filter_value, through_table, through_column, active_to_column, role_code, sort) VALUES ('PUBLIC', 'PLATFORM', 'Public', '{"th":"สาธารณะ","en":"Public"}', 'everyone', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 22);
+
+-- skillTiers
+INSERT OR IGNORE INTO skill_tier (code, name_en, names, sort) VALUES ('PREMIER', 'Premier', '{"th":"พรีเมียร์","en":"Premier"}', 1);
+
+-- userStatuses
+INSERT OR IGNORE INTO user_status (code, name_en, names, description_en, descriptions, sort) VALUES ('ACTIVE', 'Active', '{"th":"ใช้งานอยู่","en":"Active"}', 'Account is fully active and can use the platform', '{"th":"บัญชีเปิดใช้งานเต็มรูปแบบและสามารถใช้แพลตฟอร์มได้","en":"Account is fully active and can use the platform"}', 1);
+INSERT OR IGNORE INTO user_status (code, name_en, names, description_en, descriptions, sort) VALUES ('PENDING_APPROVAL', 'Pending Approval', '{"th":"รออนุมัติ","en":"Pending Approval"}', 'Account exists but is waiting for admin approval (e.g. REFEREE awaiting BAT certification verification)', '{"th":"มีบัญชีแล้วแต่กำลังรอการอนุมัติจากผู้ดูแลระบบ เช่น ผู้ตัดสินที่รอการตรวจสอบการรับรอง BAT","en":"Account exists but is waiting for admin approval (e.g. REFEREE awaiting BAT certification verification)"}', 2);
+INSERT OR IGNORE INTO user_status (code, name_en, names, description_en, descriptions, sort) VALUES ('SUSPENDED', 'Suspended', '{"th":"ระงับชั่วคราว","en":"Suspended"}', 'Account is temporarily suspended by admin', '{"th":"บัญชีถูกระงับชั่วคราวโดยผู้ดูแลระบบ","en":"Account is temporarily suspended by admin"}', 3);
+INSERT OR IGNORE INTO user_status (code, name_en, names, description_en, descriptions, sort) VALUES ('DEACTIVATED', 'Deactivated', '{"th":"ปิดใช้งาน","en":"Deactivated"}', 'Account is permanently deactivated', '{"th":"บัญชีถูกปิดใช้งานถาวร","en":"Account is permanently deactivated"}', 4);
+
 -- Users. `role` is the platform role; `biz_id` bridges to the fixtures.
 INSERT OR IGNORE INTO user (id, name, email, email_verified, created_at, updated_at, role, biz_id) VALUES ('usr_admin_001', 'System Admin', 'admin@remysport.test', 1, 1767225600000, 1767225600000, 'admin', 'usr_admin_001');
 INSERT OR IGNORE INTO account (id, issuer, account_id, provider_id, user_id, created_at, updated_at) VALUES ('acc_usr_admin_001', 'local:credential', 'usr_admin_001', 'credential', 'usr_admin_001', 1767225600000, 1767225600000);
@@ -30,12 +274,16 @@ INSERT OR IGNORE INTO account (id, issuer, account_id, provider_id, user_id, cre
 INSERT OR IGNORE INTO user (id, name, email, email_verified, created_at, updated_at, role, biz_id) VALUES ('usr_referee_002', 'Waraporn Jaingam', 'waraporn.j@bat.test', 1, 1767225600000, 1767225600000, 'referee', 'usr_referee_002');
 INSERT OR IGNORE INTO account (id, issuer, account_id, provider_id, user_id, created_at, updated_at) VALUES ('acc_usr_referee_002', 'local:credential', 'usr_referee_002', 'credential', 'usr_referee_002', 1767225600000, 1767225600000);
 
--- Organisations. Better Auth's table; the extra columns are additionalFields.
-INSERT OR IGNORE INTO organization (id, name, slug, created_at, names, org_type_code, city_code, province_code) VALUES ('org_001', 'Assumption College', 'assumption-college', 1767225600000, '{"th":"โรงเรียนอัสสัมชัญ","en":"Assumption College"}', 'SCHOOL', 'BANGKOK', 'BKK');
-INSERT OR IGNORE INTO organization (id, name, slug, created_at, names, org_type_code, city_code, province_code) VALUES ('org_002', 'Triam Udom Suksa School', 'triam-udom-suksa', 1767225600000, '{"th":"โรงเรียนเตรียมอุดมศึกษา","en":"Triam Udom Suksa School"}', 'SCHOOL', 'BANGKOK', 'BKK');
-INSERT OR IGNORE INTO organization (id, name, slug, created_at, names, org_type_code, city_code, province_code) VALUES ('org_003', 'Montfort College', 'montfort-college', 1767225600000, '{"th":"โรงเรียนมงฟอร์ตวิทยาลัย","en":"Montfort College"}', 'SCHOOL', 'CHIANG_MAI', 'CMI');
-INSERT OR IGNORE INTO organization (id, name, slug, created_at, names, org_type_code, city_code, province_code) VALUES ('org_004', 'Basketball Sport Association of Thailand', 'basketball-sport-association-thailand', 1767225600000, '{"th":"สมาคมกีฬาบาสเกตบอลแห่งประเทศไทย","en":"Basketball Sport Association of Thailand"}', 'FEDERATION', 'BANGKOK', 'BKK');
-INSERT OR IGNORE INTO organization (id, name, slug, created_at, names, org_type_code, city_code, province_code) VALUES ('org_005', 'Bangkok Basketball Club', 'bangkok-basketball-club', 1767225600000, '{"th":"สโมสรบาสเกตบอลกรุงเทพ","en":"Bangkok Basketball Club"}', 'CLUB', 'BANGKOK', 'BKK');
+-- Better Auth's shadow of an organisation: id, name and slug, which is all
+-- its plugin needs for members and invitations. The domain's `org` — the
+-- PO's columns, with `names` as real JSON — is emitted with the other
+-- entities below, because it is one now rather than a set of
+-- additionalFields on this table.
+INSERT OR IGNORE INTO organization (id, name, slug, created_at) VALUES ('org_001', 'Assumption College', 'assumption-college', 1767225600000);
+INSERT OR IGNORE INTO organization (id, name, slug, created_at) VALUES ('org_002', 'Triam Udom Suksa School', 'triam-udom-suksa', 1767225600000);
+INSERT OR IGNORE INTO organization (id, name, slug, created_at) VALUES ('org_003', 'Montfort College', 'montfort-college', 1767225600000);
+INSERT OR IGNORE INTO organization (id, name, slug, created_at) VALUES ('org_004', 'Basketball Sport Association of Thailand', 'basketball-sport-association-thailand', 1767225600000);
+INSERT OR IGNORE INTO organization (id, name, slug, created_at) VALUES ('org_005', 'Bangkok Basketball Club', 'bangkok-basketball-club', 1767225600000);
 
 -- Memberships — who may act for which school (biz links/org_members.jsonl).
 INSERT OR IGNORE INTO member (id, organization_id, user_id, role, created_at) VALUES ('mem_usr_org_001', 'org_001', 'usr_org_001', 'owner', 1767225600000);
@@ -61,6 +309,13 @@ INSERT OR IGNORE INTO division (id, age_group_code, gender_code, skill_tier_code
 INSERT OR IGNORE INTO division (id, age_group_code, gender_code, skill_tier_code, names) VALUES ('div_004', 'U18', 'F', NULL, '{"th":"U18 หญิง","en":"U18 Girls"}');
 INSERT OR IGNORE INTO division (id, age_group_code, gender_code, skill_tier_code, names) VALUES ('div_005', 'U18', 'M', 'PREMIER', '{"th":"U18 ชาย ระดับสูง","en":"U18 Boys Premier"}');
 INSERT OR IGNORE INTO division (id, age_group_code, gender_code, skill_tier_code, names) VALUES ('div_006', 'U16', 'M', 'PREMIER', '{"th":"U16 ชาย ระดับสูง","en":"U16 Boys Premier"}');
+
+-- orgs
+INSERT OR IGNORE INTO org (id, slug, org_type_code, city_code, province_code, names) VALUES ('org_001', 'assumption-college', 'SCHOOL', 'BANGKOK', 'BKK', '{"th":"โรงเรียนอัสสัมชัญ","en":"Assumption College"}');
+INSERT OR IGNORE INTO org (id, slug, org_type_code, city_code, province_code, names) VALUES ('org_002', 'triam-udom-suksa', 'SCHOOL', 'BANGKOK', 'BKK', '{"th":"โรงเรียนเตรียมอุดมศึกษา","en":"Triam Udom Suksa School"}');
+INSERT OR IGNORE INTO org (id, slug, org_type_code, city_code, province_code, names) VALUES ('org_003', 'montfort-college', 'SCHOOL', 'CHIANG_MAI', 'CMI', '{"th":"โรงเรียนมงฟอร์ตวิทยาลัย","en":"Montfort College"}');
+INSERT OR IGNORE INTO org (id, slug, org_type_code, city_code, province_code, names) VALUES ('org_004', 'basketball-sport-association-thailand', 'FEDERATION', 'BANGKOK', 'BKK', '{"th":"สมาคมกีฬาบาสเกตบอลแห่งประเทศไทย","en":"Basketball Sport Association of Thailand"}');
+INSERT OR IGNORE INTO org (id, slug, org_type_code, city_code, province_code, names) VALUES ('org_005', 'bangkok-basketball-club', 'CLUB', 'BANGKOK', 'BKK', '{"th":"สโมสรบาสเกตบอลกรุงเทพ","en":"Bangkok Basketball Club"}');
 
 -- players
 INSERT OR IGNORE INTO player (id, user_id, jersey_number, position_code, dob, names) VALUES ('ply_001', 'usr_player_001', 4, 'PG', '2009-03-15', '{"th":"ธนกร สุขใส","en":"Thanakorn Suksai"}');

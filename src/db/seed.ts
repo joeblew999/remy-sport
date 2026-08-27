@@ -13,20 +13,19 @@ export const SEED_STATEMENTS = statements(seedSql)
 /**
  * Split a SQL file into executable statements.
  *
- * Strip comment lines **first**, then split on `;`. Splitting first glues each
- * block's `-- header` onto the statement under it, so the first INSERT of every
- * section silently becomes part of a comment — which showed up as a foreign-key
- * failure three tables later, not as a parse error.
+ * One statement per line, which is what the generator emits — so the line IS the
+ * unit, and comment lines are dropped rather than split around.
  *
- * Adequate because this file is generated: one statement per line, no semicolons
- * inside the string literals it emits.
+ * It used to split on `;`, with a note claiming the generated literals contained
+ * none. They do: a notification channel is described as "Reliable delivery; costs
+ * per message", and moving the vocabularies into this file cut that statement in
+ * half. Splitting on the separator inside your data is a classic, and the note
+ * asserting it could not happen is why nobody looked.
  */
 export function statements(sql: string): string[] {
   return sql
     .split("\n")
-    .filter((l) => !l.trim().startsWith("--"))
-    .join("\n")
-    .split(";")
-    .map((s) => s.trim())
-    .filter(Boolean)
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith("--"))
+    .map((l) => (l.endsWith(";") ? l.slice(0, -1) : l))
 }

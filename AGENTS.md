@@ -78,17 +78,22 @@ the canonical model is
 
 ## Traps
 
-**Schema changes go through `mise run db:generate`, not by editing a migration.**
-drizzle-kit diffs [src/db/schema.ts](src/db/schema.ts) against
-`src/db/migrations/meta/0017_snapshot.json` and emits only the delta, numbered
-from 0018. Migrations 0009 and 0013 are **frozen** — `domain:generate` used to
-rewrite them whole on every run, which works only while every change is additive
-and is why a vocabulary could not be renamed: regenerating rewrote a migration
-production had already applied. Run `db:generate` in a real terminal; a rename
-prompts, because "renamed, or dropped and recreated?" needs a person. Vocabulary
-*rows* are data and drizzle-kit does not carry them — those need a data
-migration, of which
-[0017](src/db/migrations/0017_org_relations.sql) is the worked example.
+**Schema is drizzle-kit's; data is the seed's. Nothing else writes a migration.**
+`mise run db:generate` diffs [src/db/schema.ts](src/db/schema.ts) against the
+snapshot under `src/db/migrations/meta/` and emits only the delta. Run it in a
+real terminal — a rename prompts, because "renamed, or dropped and recreated?"
+needs a person, and **read what it produces**: two of its migrations have been
+wrong so far, one selecting a renamed column out of the old table and one
+creating a table then pointing a foreign key at it while it was still empty.
+
+The twenty migrations before this were squashed into `0000_init` on 2026-08-27.
+They had accumulated a generated-migration problem — `domain:generate` emitted
+two of them whole on every run, so a rename rewrote history — and the app was
+pre-launch, so the history was worth less than the simplicity.
+
+**Reference rows are not schema.** Every vocabulary row lives in
+[src/db/seed.sql](src/db/seed.sql), ahead of the entities that reference them,
+so changing a vocabulary is a re-seed and never a migration.
 
 **An index the database has and the drizzle schema does not is one a generated
 migration can drop.** All ten join-table composite keys were in that state until
@@ -133,12 +138,12 @@ are not guessable: the CLI was renamed (`@better-auth/cli` is frozen at 1.4.22
 forever; it is plain `auth` now, and checking the old package makes upgrades look
 permanently blocked — verify with `bun pm why @better-auth/core`), and 1.7 needed
 the `account.issuer` backfill in
-[migration 0007](src/db/migrations/0007_account_issuer.sql) or every sign-in fails
+`0000_init`, which carries it forward or every sign-in fails
 with `User not found`. The pin also guards `session.cookieCache`, whose
 invalidation semantics better-auth defines.
 
 **There is no `translation` table.** One was specified and deliberately not built
-— [migration 0010](src/db/migrations/0010_localised_entity_names.sql) says why.
+— the `names` column's shape says why.
 Names are a `names` JSON column on the row with a NOT NULL English pivot beside
 it. There is no `nameTh` field and there should never be one again. Helpers:
 [`src/domain/names.ts`](src/domain/names.ts).

@@ -23,42 +23,25 @@ import { authed, authedRoute, pub, requireAction, type Db } from "./base"
 const IdInput = z.object({ id: z.string() })
 
 const withOrg = {
-  organization: { columns: { name: true, names: true, cityCode: true, provinceCode: true } },
+  org: { columns: { names: true, cityCode: true, provinceCode: true } },
 } as const
-
-/**
- * `organization` is Better Auth's table, and its additionalFields have no JSON
- * type — so its `names` arrives as a string and is parsed here, the one place
- * that reads it. Our own tables use a typed JSON column and need none of this.
- */
-function orgNames(raw: string | null | undefined): Names {
-  if (!raw) return {}
-  try {
-    return JSON.parse(raw) as Names
-  } catch {
-    return {}
-  }
-}
 
 function serialize(
   row: typeof schema.team.$inferSelect & {
-    organization?: {
-      name: string
-      names: string | null
-      cityCode: string | null
-      provinceCode: string | null
-    } | null
+    org?: { names: Names; cityCode: string | null; provinceCode: string | null } | null
   },
 ): ApiTeam {
-  const { organization, createdAt, updatedAt, ageGroupCode, genderCode, ...rest } = row
+  const { org, createdAt, updatedAt, ageGroupCode, genderCode, ...rest } = row
   return {
     ...rest,
     ageGroupCode,
     genderCode,
-    orgName: organization?.name ?? null,
-    orgNames: orgNames(organization?.names),
-    orgCityCode: organization?.cityCode ?? null,
-    orgProvinceCode: organization?.provinceCode ?? null,
+    // `names` is a real JSON column now, so there is nothing to parse and the
+    // English pivot comes from the same helper every other name uses.
+    orgName: org ? (pivot(org.names) ?? null) : null,
+    orgNames: org?.names ?? {},
+    orgCityCode: org?.cityCode ?? null,
+    orgProvinceCode: org?.provinceCode ?? null,
   }
 }
 
@@ -95,8 +78,8 @@ export const create = authed
     // confirmed this org exists. The FK would fail anyway; a 404 says why.
     const org = await context.db
       .select()
-      .from(schema.organization)
-      .where(eq(schema.organization.id, input.orgId))
+      .from(schema.org)
+      .where(eq(schema.org.id, input.orgId))
       .get()
     if (!org) throw new ORPCError("NOT_FOUND", { message: "Unknown organization" })
 
@@ -132,7 +115,7 @@ export const create = authed
         .onConflictDoNothing()
     }
 
-    return serialize({ ...row, organization: org })
+    return serialize({ ...row, org })
   })
 
 export const update = authed
