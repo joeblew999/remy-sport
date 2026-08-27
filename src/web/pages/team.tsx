@@ -102,7 +102,7 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
             team, not worked out from the viewer's role. */}
         {roster?.canManage && id && <ManageRoster teamId={id} roster={roster}/>}
 
-        <div className="section-h" style={{ marginTop: 48 }}><h2>Schedule · Spring 2026</h2><a className="more">{m.sample_data()}</a></div>
+        <div className="section-h" style={{ marginTop: 48 }}><h2>{m.schedule()}</h2><a className="more">{m.sample_data()}</a></div>
         <div className="dash-card">
           {schedule.map((g, i) => (
             <div key={i} style={{ display: "grid", gridTemplateColumns: "90px 1fr 80px 100px 80px", padding: "14px 18px", borderBottom: "1px solid var(--rule)", alignItems: "center", background: g.live ? "var(--accent-soft)" : "transparent" }}>

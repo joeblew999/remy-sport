@@ -9,7 +9,7 @@ export function BracketView({ goto }: { goto: (r: Route) => void }) {
     <div className="bracket-page">
       <SampleData />
       <div className="legend">
-        <span style={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--ink-3)" }}>FORMAT · SINGLE-ELIMINATION · 16 TEAMS</span>
+        <span style={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--ink-3)" }}>{m.bracket_format({ teams: 16 })}</span>
         <span style={{ marginLeft: "auto" }}/>
         <span className="swatch live"><span className="dot"/>{m.status_live()}</span>
         <span className="swatch done"><span className="dot"/>{m.status_final()}</span>

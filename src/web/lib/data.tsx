@@ -20,7 +20,7 @@ import { orpc } from "./orpc";
 import { toEvent, toTeam } from "./api";
 import { useLocalizer } from "./locale";
 import {
-  BRACKET, LIVE_GAME, FEED,
+  BRACKET, LIVE_GAME, NEXT_GAME, FEED,
   type EventStatus, type EventType,
 } from "../data";
 
@@ -254,4 +254,5 @@ export function useTeam(id: string | undefined) {
 
 export const useBracket = (_eventId?: string) => BRACKET;
 export const useLiveGame = (_gameId?: string) => LIVE_GAME;
+export const useNextGame = () => NEXT_GAME;
 export const useFeed = () => FEED;

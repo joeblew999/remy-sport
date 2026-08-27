@@ -591,19 +591,15 @@ depends     = ["install"]
 # as untranslated copy; it found fewer real ones (99) than the AST rule (130)
 # while producing noise. Text matching cannot answer an AST question.
 #
-# eslint-suppressions.json is a ratchet, not an exemption list. The 130 that
-# already exist are recorded so the build is green today; a NEW one fails
-# immediately, and fixing an old one fails too — with "unused suppression",
-# which is the prompt to run --prune-suppressions and lock the lower number in.
-# The count only goes down.
+# There is no suppressions file any more. It started at 130 and was pruned to
+# zero, so this is a hard gate: any user-visible string written into the UI
+# fails the build, with its file and line. Nothing to grandfather, nothing to
+# argue about.
 #
-# To fix a batch:  mise run check:i18n:prune
+# If a genuinely language-neutral token appears — notation like "±", a keyboard
+# shortcut, the product's own name — add it to `allowedStrings` in
+# eslint.config.mjs with a reason, rather than reintroducing suppressions.
 run = "bun x eslint src/web"
-
-[tasks."check:i18n:prune"]
-description = "Lower the untranslated-string baseline after fixing some"
-depends     = ["install"]
-run = "bun x eslint src/web --prune-suppressions"
 
 [tasks."check:deps"]
 description = "Fail if a module imports across a layer boundary, or two modules import each other"

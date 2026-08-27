@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Icon } from "../components/icon";
 import { Schedule, AddFixture } from "../components/schedule";
 import { Entries } from "../components/entries";
-import { useEvent, useEvents, useGames, useLiveGame, useStandings } from "../lib/data";
+import { useEvent, useEvents, useGames, useLiveGame, useNextGame, useStandings } from "../lib/data";
 import type { Event } from "../data";
 import type { Route } from "../lib/router";
 import { BracketView } from "./bracket";
@@ -156,6 +156,7 @@ interface OverviewProps { e: Event; goto: (r: Route) => void }
 
 function EventOverview({ e, goto }: OverviewProps) {
   const G = useLiveGame();
+  const N = useNextGame();
   const { data: standings } = useStandings(e.id);
   const performers = [
     { name: "Phongphan S.", team: "Saint Gabriel's", line: "24 PTS · 8 AST · 3 STL" },
@@ -173,49 +174,49 @@ function EventOverview({ e, goto }: OverviewProps) {
     <div className="page-inner">
       <div className="dash-grid">
         <div>
-          <div className="section-h"><h2>{m.live_and_next()}</h2><a className="more">VIEW SCHEDULE →</a></div>
+          <div className="section-h"><h2>{m.live_and_next()}</h2><a className="more">{m.view_schedule()}</a></div>
           <div className="dash-card" style={{ borderColor: "var(--live)", borderWidth: 1.5 }}>
             <div className="head" style={{ color: "var(--live)" }}>
-              <span><span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--live)", marginRight: 6, animation: "pulse 1.4s infinite" }}/>LIVE · {G.quarter} {G.clock} · COURT B</span>
-              <a className="more" onClick={() => goto({ page: "live" })} style={{ cursor: "pointer", color: "var(--ink)" }}>OPEN →</a>
+              <span><span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--live)", marginRight: 6, animation: "pulse 1.4s infinite" }}/>{m.live_now_at({ quarter: G.quarter, clock: G.clock, court: G.court, event: G.round })}</span>
+              <a className="more" onClick={() => goto({ page: "live" })} style={{ cursor: "pointer", color: "var(--ink)" }}>{m.open_link()}</a>
             </div>
             <div className="next-game">
               <div className="team">
                 <div className="name">{G.teamA.name}</div>
-                <div className="meta">SEED {G.teamA.seed} · {G.teamA.record}</div>
+                <div className="meta">{m.seed_n({ n: G.teamA.seed })} · {G.teamA.record}</div>
               </div>
               <div className="when">
                 <div className="countdown" style={{ color: "var(--live)", fontVariantNumeric: "tabular-nums" }}>
                   {G.quarters.a.reduce<number>((acc, b) => acc + (b ?? 0), 0)}–{G.quarters.b.reduce<number>((acc, b) => acc + (b ?? 0), 0)}
                 </div>
-                <div className="label">QUARTERFINAL 2</div>
+                <div className="label">{G.round}</div>
               </div>
               <div className="team r">
                 <div className="name">{G.teamB.name}</div>
-                <div className="meta">SEED {G.teamB.seed} · {G.teamB.record}</div>
+                <div className="meta">{m.seed_n({ n: G.teamB.seed })} · {G.teamB.record}</div>
               </div>
             </div>
           </div>
 
           <div className="dash-card" style={{ marginTop: 12 }}>
-            <div className="head"><span>NEXT · 14:00 · COURT A</span></div>
+            <div className="head"><span>{m.next_at({ time: N.time, court: N.court })}</span></div>
             <div className="next-game">
               <div className="team">
-                <div className="name">Triam Udom</div>
-                <div className="meta">SEED 3 · 1–0</div>
+                <div className="name">{N.teamA.name}</div>
+                <div className="meta">{m.seed_n({ n: N.teamA.seed })} · {N.teamA.record}</div>
               </div>
               <div className="when">
-                <div className="countdown">1:18</div>
-                <div className="label">UNTIL TIPOFF</div>
+                <div className="countdown">{N.countdown}</div>
+                <div className="label">{m.until_tipoff()}</div>
               </div>
               <div className="team r">
-                <div className="name">Bangkok Patana</div>
-                <div className="meta">SEED 6 · 1–0</div>
+                <div className="name">{N.teamB.name}</div>
+                <div className="meta">{m.seed_n({ n: N.teamB.seed })} · {N.teamB.record}</div>
               </div>
             </div>
           </div>
 
-          <div className="section-h"><h2>{m.top_performers_today()}</h2><a className="more">ALL STATS →</a></div>
+          <div className="section-h"><h2>{m.top_performers_today()}</h2><a className="more">{m.all_stats()}</a></div>
           <div className="dash-card">
             {performers.map((p, i) => (
               <div key={i} style={{ display: "grid", gridTemplateColumns: "32px 1fr auto", gap: 12, padding: "12px 18px", borderBottom: "1px solid var(--rule)", alignItems: "center" }}>
@@ -231,10 +232,10 @@ function EventOverview({ e, goto }: OverviewProps) {
         </div>
 
         <div>
-          <div className="section-h"><h2>{m.standings()}</h2><a className="more">FULL TABLE →</a></div>
+          <div className="section-h"><h2>{m.standings()}</h2><a className="more">{m.full_table()}</a></div>
           <div className="dash-card">
             <div className="standing-row head">
-              <span></span><span>{m.team()}</span><span>W</span><span>L</span><span></span><span>PTS</span>
+              <span></span><span>{m.team()}</span><span>{m.col_won()}</span><span>{m.col_lost()}</span><span></span><span>{m.col_points()}</span>
             </div>
             {(standings ?? []).slice(0, 6).map(s => (
               <div key={s.teamId} className="standing-row">
@@ -291,8 +292,8 @@ export function StandingsTable({ eventId }: { eventId: string | undefined }) {
     <div className="page-inner">
       <div className="dash-card" data-testid="standings">
         <div className="standing-row head" style={{ gridTemplateColumns: cols }}>
-          <span></span><span>{m.team()}</span><span>W</span><span>L</span>
-          <span>PF</span><span>PA</span><span>±</span><span>PTS</span>
+          <span></span><span>{m.team()}</span><span>{m.col_won()}</span><span>{m.col_lost()}</span>
+          <span>{m.col_points_for()}</span><span>{m.col_points_against()}</span><span>±</span><span>{m.col_points()}</span>
         </div>
         {data.map((s) => (
           <div key={s.teamId} className="standing-row" style={{ gridTemplateColumns: cols }} data-testid={`standing-${s.teamId}`}>

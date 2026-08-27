@@ -61,6 +61,8 @@ export default [
           allowedStrings: [
             "—", "–", "·", "/", "|", ":", "×", "→", "←", "↗", "↻", "+", "-", "?", "*",
             "Remy Sport", "เรมีสปอร์ต",
+            // A masked score and a keyboard shortcut. Neither is language.
+            "--", "⌘K", "#", "±",
           ],
           ignoreProps: true,
           noAttributeStrings: false,

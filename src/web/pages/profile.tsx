@@ -1,4 +1,4 @@
-import { useEvents, useFeed } from "../lib/data";
+import { useEvents, useFeed, useLiveGame } from "../lib/data";
 import { useSession } from "../lib/session";
 import { SampleData } from "../components/sample";
 import type { Route } from "../lib/router";
@@ -8,6 +8,14 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
   const { user } = useSession();
   const { data: events = [], isPending: eventsLoading } = useEvents({ limit: 4 });
   const feed = useFeed();
+  // The same fixture the live page renders, not a second hand-typed copy of it.
+  // This block had "Saint Gabriel's", "54–49" and "SEED 4" written inline, so
+  // the two screens could disagree about the same imaginary game — and the
+  // scores had to be edited in two places to stay consistent.
+  const G = useLiveGame();
+  const [sa, sb] = [G.quarters.a, G.quarters.b].map((q) =>
+    q.reduce<number>((acc, n) => acc + (n ?? 0), 0),
+  ) as [number, number];
   const quickActions: [string, string, string][] = [
     ["+", "Create event", "Tournament, league, camp or showcase"],
     ["↗", "Add to roster", "12 players · 3 spots open"],
@@ -30,28 +38,28 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
       <div className="page-inner">
         <div className="dash-grid">
           <div>
-            <div className="section-h"><h2>{m.your_live_game()}</h2><a className="more" onClick={() => goto({ page: "live" })} style={{ cursor: "pointer" }}>OPEN COURT VIEW →</a></div>
+            <div className="section-h"><h2>{m.your_live_game()}</h2><a className="more" onClick={() => goto({ page: "live" })} style={{ cursor: "pointer" }}>{m.open_court_view()}</a></div>
             <div className="dash-card" style={{ borderColor: "var(--live)", borderWidth: 1.5 }}>
               <div className="head" style={{ color: "var(--live)" }}>
-                <span><span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--live)", marginRight: 6, animation: "pulse 1.4s infinite" }}/>LIVE · Q3 06:42 · COURT B · BANGKOK CUP QF</span>
+                <span><span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--live)", marginRight: 6, animation: "pulse 1.4s infinite" }}/>{m.live_now_at({ quarter: G.quarter, clock: G.clock, court: G.court, event: G.eventShort })}</span>
               </div>
               <div className="next-game">
                 <div className="team">
-                  <div className="name">Saint Gabriel's</div>
-                  <div className="meta">YOUR TEAM</div>
+                  <div className="name">{G.teamA.name}</div>
+                  <div className="meta">{m.your_team()}</div>
                 </div>
                 <div className="when">
-                  <div className="countdown" style={{ color: "var(--live)" }}>54–49</div>
-                  <div className="label">LEADING +5</div>
+                  <div className="countdown" style={{ color: "var(--live)" }}>{sa}–{sb}</div>
+                  <div className="label">{m.leading_by({ points: Math.abs(sa - sb) })}</div>
                 </div>
                 <div className="team r">
-                  <div className="name">Assumption</div>
-                  <div className="meta">SEED 4</div>
+                  <div className="name">{G.teamB.name}</div>
+                  <div className="meta">{m.seed_n({ n: G.teamB.seed })}</div>
                 </div>
               </div>
             </div>
 
-            <div className="section-h"><h2>{m.activity()}</h2><a className="more">ALL →</a></div>
+            <div className="section-h"><h2>{m.activity()}</h2><a className="more">{m.see_all()}</a></div>
             {/* Inline, not a page banner: the events above this ARE real, so the
                 job here is to say which half is which. */}
             <SampleData inline />
@@ -69,7 +77,7 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
           </div>
 
           <div>
-            <div className="section-h"><h2>{m.your_events()}</h2><a className="more">+ NEW</a></div>
+            <div className="section-h"><h2>{m.your_events()}</h2><a className="more">{m.new_item()}</a></div>
             <div className="dash-card">
               {events.map(e => (
                 <button key={e.id} onClick={() => goto({ page: "event", id: e.id })} style={{

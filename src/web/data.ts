@@ -101,6 +101,13 @@ export interface LiveGame {
   id: string;
   court: string;
   event: string;
+  /** Invented, like everything else here — see the SAMPLE DATA banner on the
+   *  page. These used to be typed straight into live.tsx, which made a fixture
+   *  look like UI copy and put it in front of the translator. */
+  eventShort: string;
+  round: string;
+  venue: string;
+  scorer: string;
   quarter: string;
   clock: string;
   teamA: LiveGameTeam;
@@ -180,10 +187,23 @@ export const BRACKET: Bracket = {
   ],
 };
 
+/** The fixture after the live one, for the event page's "live & next up". */
+export const NEXT_GAME = {
+  time: "14:00",
+  court: "COURT A",
+  countdown: "1:18",
+  teamA: { name: "Triam Udom", seed: 3, record: "1–0" },
+  teamB: { name: "Bangkok Patana", seed: 6, record: "1–0" },
+} as const;
+
 export const LIVE_GAME: LiveGame = {
   id: "q2",
   court: "COURT B",
   event: "BANGKOK CUP · QUARTERFINAL 2",
+  eventShort: "Bangkok Cup",
+  round: "Quarterfinal 2",
+  venue: "Hua Mark Indoor · Bangkok",
+  scorer: "Coach Sukasem",
   quarter: "Q3",
   clock: "06:42",
   teamA: { id: "t2", name: "Saint Gabriel's", short: "SGS", crest: "a", seed: 5, record: "4–0" },
