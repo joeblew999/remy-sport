@@ -64,6 +64,19 @@ export const FIXTURE_TABLE: Record<string, string> = {
  * chances to compare the two forms and silently match nobody — and relations
  * fail closed, so that surfaces as an unexplained 403 rather than an error.
  */
+/**
+ * An organisation role as the membership table stores it.
+ *
+ * Better Auth owns that table and writes `owner`, `admin` and `member`; the
+ * model says `OWNER`, `ADMIN`, `MEMBER`. Derived from the vocabulary rather than
+ * typed out, so a role added upstream cannot be missed here — which is exactly
+ * what happened when OWNER was absent and an organisation's own creator held no
+ * relation to it.
+ */
+export const STORED_ORG_ROLE = Object.fromEntries(
+  ORG_ROLE.map((r) => [r.code, r.code.toLowerCase()]),
+) as Record<(typeof ORG_ROLE)[number]["code"], string>
+
 export const STORED_ROLE = {
   ADMIN: "admin",
   ORGANIZER: "organizer",

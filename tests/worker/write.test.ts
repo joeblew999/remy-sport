@@ -551,3 +551,56 @@ describe("Co-organizers — the relation nothing used to create", () => {
     expect(res.status).toBe(403)
   })
 })
+
+describe("Organisations — the actions ORG was declared for", () => {
+  /**
+   * `ORG` was a declared object type with no relations and no actions until
+   * 2026-08-27, so nothing could be authorised against a school. These four
+   * endpoints are what the grants were always describing.
+   */
+  it("anyone may read an organisation — VIEW_ORG is granted to PUBLIC", async () => {
+    const res = await api("/api/orgs/org_001")
+    expect(res.status).toBe(200)
+    const org = (await res.json()) as { slug: string; names: Record<string, string> }
+    expect(org.slug).toBe("assumption-college")
+    // A real JSON column, not a string somebody has to parse.
+    expect(org.names.en).toBe("Assumption College")
+  })
+
+  it("an org admin may edit its profile; an unrelated coach may not", async () => {
+    // usr_coach_001 is ADMIN of org_001 in the fixtures.
+    const admin = await signIn(actorFor("COACH"))
+    const ok = await put("/api/orgs/org_001", { names: { en: "Assumption College", th: "โรงเรียนอัสสัมชัญ" } }, admin)
+    expect(ok.status, "ORG_ADMIN grants EDIT_ORG_PROFILE").toBe(200)
+
+    // A coach at another school holds no relation to this one.
+    const other = SEED_ENTITIES.users.find((u) => u.id === "usr_coach_003")!
+    const outsider = await signIn(other.email)
+    const refused = await put("/api/orgs/org_001", { names: { en: "Mine Now" } }, outsider)
+    expect(refused.status, "no relation to this organisation").toBe(403)
+  })
+
+  it("an org admin can add and remove a member, and that grants the relation", async () => {
+    const admin = await signIn(actorFor("COACH"))
+    const newcomer = SEED_ENTITIES.users.find((u) => u.id === "usr_referee_001")!
+
+    const added = await post("/api/orgs/org_001/members", { userId: newcomer.id }, admin)
+    expect(added.status).toBe(201)
+    expect((await added.json()).role, "the PO says MEMBER; the column holds member").toBe("member")
+
+    // A plain member cannot edit the profile — that is ORG_ADMIN and above.
+    const member = await signIn(newcomer.email)
+    expect((await put("/api/orgs/org_001", { names: { en: "No" } }, member)).status).toBe(403)
+
+    const removed = await api(`/api/orgs/org_001/members/${newcomer.id}`, {
+      method: "DELETE",
+      cookie: admin,
+    })
+    expect(removed.status).toBe(200)
+    // Removing twice is a 404: there is nothing left to remove.
+    expect(
+      (await api(`/api/orgs/org_001/members/${newcomer.id}`, { method: "DELETE", cookie: admin }))
+        .status,
+    ).toBe(404)
+  })
+})

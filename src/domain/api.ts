@@ -94,6 +94,23 @@ export const UpdateEventInput = CreateEventInput.partial()
 
 // ── Teams ─────────────────────────────────────────────────────────────────
 
+/**
+ * An organisation — a school, club or federation.
+ *
+ * The domain's own table, not Better Auth's `organization`. Better Auth keeps
+ * id, name and slug for its plugin; everything the Product Owner models about a
+ * school is here, with `names` a real JSON column rather than a string.
+ */
+export const OrgSchema = createSelectSchema(schema.org)
+export type ApiOrg = z.infer<typeof OrgSchema>
+
+/** Only the profile is editable — the codes are the PO's vocabulary. */
+export const UpdateOrgInput = z.object({
+  names: z.record(z.string(), z.string()).optional(),
+  cityCode: z.string().optional(),
+  provinceCode: z.string().optional(),
+})
+
 export const TeamSchema = createSelectSchema(schema.team)
   .omit({ createdAt: true, updatedAt: true })
   .extend({

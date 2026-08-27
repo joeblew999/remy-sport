@@ -23,11 +23,10 @@ mise run probe            typecheck a snippet against the real project (WEB=1 fo
 Kept here because this file is the one thing read at the start of every session.
 Update it when you finish something; delete the line when it is done.
 
-1. **The org backend is complete and nothing in the GUI reaches it.** `ORG` has
-   four actions and their grants, Better Auth's plugin implements members and
-   invitations, and `src/web/` has no way to create an organisation or send an
-   invitation — the only org page accepts invitations the product cannot send.
-   Either build it, or delete the plugin and let `org` be a plain domain table.
+1. **The org API exists; no GUI reaches it.** `/api/orgs` reads, edits and
+   manages members, and `src/web/` calls none of it — the only org page accepts
+   Better Auth invitations the product still cannot send. The backend is no
+   longer the gap; the front end is.
 2. **shadcn/ui + Tailwind are still not installed.** `src/web/styles.css` is
    ~1000 hand-written lines and the admin console added ~60 more. This is the
    largest remaining source of per-page boilerplate and nothing has been done

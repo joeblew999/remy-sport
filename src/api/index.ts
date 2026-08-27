@@ -8,6 +8,7 @@
  */
 
 import * as events from "./events"
+import * as orgs from "./orgs"
 import * as teams from "./teams"
 import * as reference from "./reference"
 import * as health from "./health"
@@ -22,6 +23,13 @@ export const router = {
     delete: events.remove,
     addCoOrganizer: events.addCoOrganizer,
     acceptCoOrganizerInvite: events.acceptCoOrganizerInvite,
+  },
+  orgs: {
+    list: orgs.list,
+    get: orgs.get,
+    update: orgs.update,
+    addMember: orgs.addMember,
+    removeMember: orgs.removeMember,
   },
   teams: {
     list: teams.list,
