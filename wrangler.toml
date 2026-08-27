@@ -70,6 +70,28 @@ BETTER_AUTH_URL = "https://remy.ubuntusoftware.net"
 MAIL_TRANSPORT  = "cloudflare"
 EMAIL_FROM      = "noreply@remy.ubuntusoftware.net"
 
+# The demo sign-in code, and a `[vars]` entry rather than a secret ON PURPOSE.
+#
+# It fixes the sign-in code for the twelve seeded people so the login page can
+# offer them one click — their addresses are `.test`, nothing delivers to them,
+# and the dev outbox does not exist on a deployment and must not. The code is
+# sent to the browser with the account list and the page labels it as published,
+# so storing it with `wrangler secret` would be theatre: a value the product
+# hands to every visitor is not a secret, and filing it as one would only hide
+# from us what is already public.
+#
+# What keeps it safe is scope, not secrecy, and it is asserted by `cf:smoke`:
+#   * it applies only to addresses the fixtures seed — a real address always
+#     gets a random code (src/auth.ts)
+#   * the seeded ADMIN is excluded on any deployment, because that account can
+#     impersonate and so reach a real person
+#   * /api/dev/outbox stays 404, so nobody else's code is ever readable
+#
+# **Delete this line before the platform has real users.** A demo account cannot
+# reach anyone else's data, but it can edit shared fixture data — and once real
+# events exist, those are not fixtures any more.
+TEST_OTP = "424242"
+
 # BETTER_AUTH_SECRET is set via `wrangler secret` — not stored in config
 # For local dev, .dev.vars provides the secret
 
