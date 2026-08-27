@@ -22,6 +22,7 @@
 
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getIssueMessage } from "@orpc/openapi-client/helpers";
 import { api, orpc } from "../lib/orpc";
 import { useAccounts, useAdminAction, useDevAccounts, useRequestCode, useVerifyCode, codeFromOutbox, signOutSilently } from "../lib/auth";
 import { useSession } from "../lib/session";
@@ -320,6 +321,13 @@ function CreateEvent({ onError }: { onError: (m: string | null) => void }) {
         }}
       >
         <input name="name" placeholder="Event name" required autoComplete="off" />
+        {/* The schema's own message, under the field it belongs to — `names` is
+            a locale map, so an issue on the English name arrives at names.en. */}
+        {getIssueMessage(create.error, "names[en]") && (
+          <p className="admin-error small" data-testid="create-event-name-issue">
+            {getIssueMessage(create.error, "names[en]")}
+          </p>
+        )}
         <select name="type" required defaultValue="tournament">
           <option value="tournament">Tournament</option>
           <option value="league">League</option>
@@ -327,6 +335,11 @@ function CreateEvent({ onError }: { onError: (m: string | null) => void }) {
           <option value="showcase">Showcase</option>
         </select>
         <input name="description" placeholder="Description (optional)" autoComplete="off" />
+        {getIssueMessage(create.error, "description") && (
+          <p className="admin-error small" data-testid="create-event-description-issue">
+            {getIssueMessage(create.error, "description")}
+          </p>
+        )}
         <button type="submit" disabled={create.isPending}>
           {create.isPending ? "Creating…" : "Create event"}
         </button>

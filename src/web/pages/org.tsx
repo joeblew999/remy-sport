@@ -29,18 +29,6 @@
  * lib/orpc.ts's `import type` avoids.
  */
 
-/**
- * A validation failure belongs on a field; anything else belongs at the top.
- *
- * A 404 "Unknown user" and a 403 have no `issues`, so they have no field to sit
- * under and would otherwise vanish.
- */
-function formError(error: unknown): string | null {
-  if (!error) return null;
-  const issues = (error as { data?: { issues?: unknown[] } }).data?.issues;
-  return issues?.length ? null : ((error as Error).message ?? null);
-}
-
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { getIssueMessage } from "@orpc/openapi-client/helpers";
@@ -49,6 +37,7 @@ import { useOrg, useOrgMembers, useOrgs } from "../lib/data";
 import { useSession } from "../lib/session";
 import { ORG_ROLE_CODES } from "../../domain/vocabularies";
 import type { Route } from "../lib/router";
+import { formError } from "../lib/form-errors";
 import { m } from "../lib/i18n";
 
 export function OrgsPage({ goto }: { goto: (r: Route) => void }) {

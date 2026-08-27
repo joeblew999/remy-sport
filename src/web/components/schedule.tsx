@@ -17,6 +17,7 @@ import { getIssueMessage } from "@orpc/openapi-client/helpers";
 import { api, orpc } from "../lib/orpc";
 import { useEntries, useGames } from "../lib/data";
 import { useLocale } from "../lib/locale";
+import { formError } from "../lib/form-errors";
 import { m } from "../lib/i18n";
 
 type Game = NonNullable<ReturnType<typeof useGames>["data"]>[number];
@@ -331,12 +332,20 @@ export function AddFixture({ eventId }: { eventId: string }) {
           ))}
         </select>
         <input name="startsAt" type="datetime-local" required data-testid="fixture-starts" />
+        {getIssueMessage(add.error, "startsAt") && (
+          <p className="admin-error small" data-testid="fixture-starts-issue">
+            {getIssueMessage(add.error, "startsAt")}
+          </p>
+        )}
         <button type="submit" data-testid="add-fixture-submit" disabled={add.isPending}>
           {add.isPending ? m.org_saving() : m.add_fixture()}
         </button>
-        {add.error && (
+        {/* A refusal with no field to sit under — "that team is not registered
+            for this event", "a team cannot play itself". Those belong at the
+            bottom of the form, not beneath an input that is not the problem. */}
+        {formError(add.error) && (
           <p className="admin-error small" data-testid="add-fixture-error">
-            {(add.error as Error).message}
+            {formError(add.error)}
           </p>
         )}
       </form>

@@ -16,6 +16,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { getIssueMessage } from "@orpc/openapi-client/helpers";
 import { api, orpc } from "../lib/orpc";
 import { useEntries } from "../lib/data";
+import { formError } from "../lib/form-errors";
 import { m } from "../lib/i18n";
 
 export function Entries({ eventId }: { eventId: string }) {
@@ -154,7 +155,7 @@ function EnterTeam({
 
         {enter.error && (
           <p className="admin-error small" data-testid="enter-error">
-            {getIssueMessage(enter.error, "divisionId") ?? (enter.error as Error).message}
+            {getIssueMessage(enter.error, "divisionId") ?? formError(enter.error)}
           </p>
         )}
       </form>

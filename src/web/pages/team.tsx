@@ -131,6 +131,10 @@ type Roster = NonNullable<ReturnType<typeof useRoster>["data"]>;
 /**
  * Adding and removing players.
  *
+ * Whole-form errors only: the form is a select and a button, so a validation
+ * issue has no field to sit under. "Unknown player" and a 403 are the failures
+ * this can produce, and both belong at the top.
+ *
  * Removing *ends the spell* rather than deleting it — `playerTeam` carries from
  * and to dates, and the TEAM_PLAYER relation reads `to_date`, so a departure
  * stops granting access without making last season's team sheet wrong. The

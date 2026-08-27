@@ -15,6 +15,11 @@ import { m } from "../lib/i18n";
  * This is also what removes the jarring hand-off ADR 011 flagged: an invitee
  * landing on the accept page no longer gets bounced into the other GUI to sign
  * in.
+ *
+ * No `getIssueMessage` here, and that is not an oversight. These two forms post
+ * to Better Auth, not to an oRPC procedure, and Better Auth answers with
+ * `{ code, message }` — there is no `data.issues` to read a per-field message
+ * out of. The whole-form message is the only thing there is.
  */
 export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Route }) {
   const [email, setEmail] = useState("");
