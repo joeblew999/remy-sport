@@ -99,14 +99,28 @@ const AT = 1_767_225_600_000 // 2026-01-01T00:00:00Z
  * the row is typed against the table, so a renamed or removed column stops the
  * build here rather than surfacing as a broken database later.
  */
-function insertOf<T extends SQLiteTable>(table: T, row: Record<string, unknown>): string {
+function insertOf<T extends SQLiteTable>(
+  table: T,
+  row: Record<string, unknown>,
+  opts: { upsert?: boolean } = {},
+): string {
   const cols = getTableColumns(table)
   const present = Object.keys(cols).filter((k) => k in row)
-  return (
-    `INSERT OR IGNORE INTO ${getTableName(table)} ` +
+  const head =
+    `INSERT INTO ${getTableName(table)} ` +
     `(${present.map((k) => cols[k]!.name).join(", ")}) VALUES ` +
-    `(${present.map((k) => lit(row[k])).join(", ")});`
-  )
+    `(${present.map((k) => lit(row[k])).join(", ")})`
+
+  if (!opts.upsert) return `INSERT OR IGNORE${head.slice("INSERT".length)};`
+
+  // Update in place rather than replace: the code is a foreign key, and
+  // INSERT OR REPLACE deletes the row first, which would take its children with
+  // it or fail outright.
+  const set = present
+    .filter((k) => cols[k]!.name !== "code")
+    .map((k) => `${cols[k]!.name} = excluded.${cols[k]!.name}`)
+    .join(", ")
+  return `${head} ON CONFLICT(code) DO UPDATE SET ${set};`
 }
 
 const lines: string[] = [
@@ -161,7 +175,13 @@ for (const [name, table] of Object.entries(VOCABULARY_TABLES) as [string, SQLite
       // Every locale-keyed JSON column has a NOT NULL `*_en` pivot beside it.
       if (v && typeof v === "object") values[`${key.replace(/s$/, "")}En`] = pivot(v as Names) ?? ""
     }
-    lines.push(insertOf(table, values))
+    // Vocabularies upsert; everything below does not.
+    //
+    // The PO owns these absolutely — a renamed city is a correction, and with
+    // INSERT OR IGNORE no database that had already been seeded would ever see
+    // it. Entities are different: an event's name can be edited in the product,
+    // and re-seeding must not overwrite what somebody changed.
+    lines.push(insertOf(table, values, { upsert: true }))
     vocabRows++
   }
 }

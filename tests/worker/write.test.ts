@@ -71,11 +71,24 @@ describe("seeding", () => {
    * missing `local:credential` issuer behind a green test.
    */
   it("is idempotent against an already-seeded database", async () => {
+    // Not "writes nothing": the vocabularies upsert, so re-seeding re-asserts
+    // the PO's labels on purpose — that is how a renamed city reaches a database
+    // that was seeded before the rename. What must not change is how many rows
+    // there are. Duplicating is the failure this guards.
+    const count = async () => {
+      const res = await api("/api/teams")
+      const { teams } = (await res.json()) as { teams: unknown[] }
+      const events = (await (await api("/api/events")).json()) as { events: unknown[] }
+      return { teams: teams.length, events: events.events.length }
+    }
+    const before = await count()
+
     const res = await SELF.fetch(`${ORIGIN}/api/seed`, { method: "POST" })
     expect(res.status).toBe(200)
     const body = (await res.json()) as { statements: number; written: number }
     expect(body.statements).toBeGreaterThan(SEED_ENTITIES.users.length)
-    expect(body.written).toBe(0)
+
+    expect(await count(), "re-seeding must not duplicate a single row").toEqual(before)
   })
 
   it("seeds every actor the fixtures define, signable-in", async () => {
