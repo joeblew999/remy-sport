@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/d1"
 import { describe, expect, it } from "vitest"
 import * as schema from "../../src/db/schema"
 import { SEED_ENTITIES, SEED_RELATIONSHIPS } from "../../src/db/seed-data"
-import { RELATION } from "../../src/domain/vocabularies"
+import { RELATION, STORED_ROLE } from "../../src/domain/vocabularies"
 import { holds } from "../../src/api/relations"
 import type { Db } from "../../src/api/base"
 import "./apply-migrations"
@@ -108,7 +108,7 @@ describe("platform relations read the role Better Auth assigns", () => {
     async (code, roleCode) => {
       // The fixtures say COACH and the user table holds coach: this asserts the
       // casing seam, which fails closed and would otherwise surface as 403s.
-      expect(await holds(db, code, { id: "u", role: roleCode.toLowerCase() }, null)).toBe(true)
+      expect(await holds(db, code, { id: "u", role: STORED_ROLE[roleCode as keyof typeof STORED_ROLE] }, null)).toBe(true)
       expect(await holds(db, code, { id: "u", role: "definitely-not-a-role" }, null)).toBe(false)
     },
   )
@@ -117,7 +117,7 @@ describe("platform relations read the role Better Auth assigns", () => {
     for (const u of SEED_ENTITIES.users) {
       const matched = []
       for (const r of roleShaped) {
-        if (await holds(db, r.code, { id: u.id, role: u.roleCode.toLowerCase() }, null)) {
+        if (await holds(db, r.code, { id: u.id, role: STORED_ROLE[u.roleCode] }, null)) {
           matched.push(r.code)
         }
       }

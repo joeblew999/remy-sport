@@ -720,6 +720,26 @@ function emitGrants(): string {
     .join("")
 }
 
+const FIXTURE_TABLE_ENTRIES = [
+  ...new Set([
+    ...Object.keys(ENTITIES).map(snake),
+    ...Object.keys(RELATIONSHIPS).map(snake),
+    ...readJsonl<{ source_table: string | null }>(findSeed("relations.jsonl"))
+      .map((r) => r.source_table)
+      .filter((t): t is string => !!t),
+    ...readJsonl<{ table_name: string | null }>(findSeed("object_types.jsonl"))
+      .map((t) => t.table_name)
+      .filter((t): t is string => !!t),
+  ]),
+]
+  .sort()
+  .map((name) => `  ${json(name)}: ${json(camel(singular(name)))},`)
+  .join("\n")
+
+const STORED_ROLE_ENTRIES = readJsonl<{ code: string }>(findSeed("roles.jsonl"))
+  .map((r) => `  ${r.code}: ${json(r.code.toLowerCase())},`)
+  .join("\n")
+
 const outputs: Array<[string, string]> = [
   [
     OUT_TS,
@@ -751,6 +771,35 @@ ${VOCABULARIES.map(emitConstants).join("\n")}
  * source at runtime — this is the same data, compiled in, so the first paint is
  * already right and a Tauri build has labels with no network at all.
  */
+/**
+ * A fixture's name, and the table its rows actually live in.
+ *
+ * \`team_coaches\` is \`teamCoach\`; \`members\` is Better Auth's \`member\`. The rule is
+ * mechanical, which is exactly why it kept being re-implemented — this file, the
+ * relation resolver and the alignment check each had their own copy, and two of
+ * them silently did nothing when a caller compared a camelCase key against a
+ * snake_case one. Derived once, here, where the fixture names are known.
+ *
+ * Covers every name a relation's \`source_table\` or an object type's \`table_name\`
+ * can hold, including the tables Better Auth owns.
+ */
+export const FIXTURE_TABLE: Record<string, string> = {
+${FIXTURE_TABLE_ENTRIES}
+}
+
+/**
+ * The platform role as the database stores it, per the PO's role code.
+ *
+ * The fixtures say \`COACH\`; the \`user.role\` column holds \`coach\`, because Better
+ * Auth's admin plugin matches its own roles in lower case and everything else
+ * followed. Eight places called \`.toLowerCase()\` themselves, which is eight
+ * chances to compare the two forms and silently match nobody — and relations
+ * fail closed, so that surfaces as an unexplained 403 rather than an error.
+ */
+export const STORED_ROLE = {
+${STORED_ROLE_ENTRIES}
+} as const
+
 export const VOCABULARY = {
 ${VOCABULARIES.map((v) => `  ${camel(v.source)}: ${v.table.toUpperCase()},`).join("\n")}
 } as const

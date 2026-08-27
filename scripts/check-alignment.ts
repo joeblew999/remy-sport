@@ -16,7 +16,7 @@
 import { getTableColumns, getTableName } from "drizzle-orm"
 import type { SQLiteTable } from "drizzle-orm/sqlite-core"
 import * as schema from "../src/db/schema"
-import { RELATION, ROLE_CODES } from "../src/domain/vocabularies"
+import { FIXTURE_TABLE, RELATION, STORED_ROLE } from "../src/domain/vocabularies"
 
 /** Every table this database actually has, by its SQL name, with its columns. */
 const TABLES: Record<string, Set<string>> = {}
@@ -33,25 +33,10 @@ for (const value of Object.values(schema)) {
   }
 }
 
-/**
- * The PO names tables in plural snake_case; this schema uses singular camelCase.
- *
- * Mechanical, because both sides are generated from the same fixtures by the
- * same rule — kept in step with `singularOf` in domain-generate.ts.
- */
-function tableFor(fixtureTable: string): string {
-  const camel = fixtureTable.replace(/_(\w)/g, (_, c: string) => c.toUpperCase())
-  return camel.endsWith("ies")
-    ? `${camel.slice(0, -3)}y`
-    : /(?:ch|sh|ss|us|x|z)es$/.test(camel)
-      ? camel.slice(0, -2)
-      : camel.endsWith("s")
-        ? camel.slice(0, -1)
-        : camel
-}
+/** Generated — see FIXTURE_TABLE in domain/vocabularies.ts. */
+const tableFor = (fixtureTable: string): string => FIXTURE_TABLE[fixtureTable] ?? fixtureTable
 
 const problems: string[] = []
-const roles = new Set(ROLE_CODES.map((r) => r.toLowerCase()))
 
 const need = (relation: string, fixtureTable: string, col: string) => {
   const t = tableFor(fixtureTable)
@@ -65,7 +50,7 @@ const need = (relation: string, fixtureTable: string, col: string) => {
 for (const r of RELATION) {
   if (r.via === "everyone") continue
   if (r.via === "role") {
-    if (!roles.has((r.roleCode ?? "").toLowerCase())) {
+    if (!(r.roleCode! in STORED_ROLE)) {
       problems.push(`${r.code}: names role '${r.roleCode}', which is not in roles.jsonl`)
     }
     continue

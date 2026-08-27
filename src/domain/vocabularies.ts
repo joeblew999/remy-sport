@@ -609,6 +609,59 @@ export type UserStatusCode = (typeof USER_STATUS_CODES)[number]
  * source at runtime — this is the same data, compiled in, so the first paint is
  * already right and a Tauri build has labels with no network at all.
  */
+/**
+ * A fixture's name, and the table its rows actually live in.
+ *
+ * `team_coaches` is `teamCoach`; `members` is Better Auth's `member`. The rule is
+ * mechanical, which is exactly why it kept being re-implemented — this file, the
+ * relation resolver and the alignment check each had their own copy, and two of
+ * them silently did nothing when a caller compared a camelCase key against a
+ * snake_case one. Derived once, here, where the fixture names are known.
+ *
+ * Covers every name a relation's `source_table` or an object type's `table_name`
+ * can hold, including the tables Better Auth owns.
+ */
+export const FIXTURE_TABLE: Record<string, string> = {
+  "divisions": "division",
+  "event_co_organizers": "eventCoOrganizer",
+  "event_players": "eventPlayer",
+  "event_teams": "eventTeam",
+  "event_venues": "eventVenue",
+  "events": "event",
+  "guardians": "guardian",
+  "members": "member",
+  "org_members": "orgMember",
+  "organizations": "organization",
+  "orgs": "org",
+  "player_teams": "playerTeam",
+  "players": "player",
+  "subscriptions": "subscription",
+  "team_coaches": "teamCoach",
+  "teams": "team",
+  "user_notification_channels": "userNotificationChannel",
+  "user_notification_preferences": "userNotificationPreference",
+  "users": "user",
+  "venues": "venue",
+}
+
+/**
+ * The platform role as the database stores it, per the PO's role code.
+ *
+ * The fixtures say `COACH`; the `user.role` column holds `coach`, because Better
+ * Auth's admin plugin matches its own roles in lower case and everything else
+ * followed. Eight places called `.toLowerCase()` themselves, which is eight
+ * chances to compare the two forms and silently match nobody — and relations
+ * fail closed, so that surfaces as an unexplained 403 rather than an error.
+ */
+export const STORED_ROLE = {
+  ADMIN: "admin",
+  ORGANIZER: "organizer",
+  COACH: "coach",
+  PLAYER: "player",
+  SPECTATOR: "spectator",
+  REFEREE: "referee",
+} as const
+
 export const VOCABULARY = {
   objectTypes: OBJECT_TYPE,
   actions: ACTION,

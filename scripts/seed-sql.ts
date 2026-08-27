@@ -38,6 +38,7 @@ import type { SQLiteTable } from "drizzle-orm/sqlite-core"
 import { FIXTURE_TABLES } from "../src/db/fixtures-schema"
 import { SEED_ENTITIES, SEED_RELATIONSHIPS } from "../src/db/seed-data"
 import { clean, pivot } from "../src/domain/names"
+import { STORED_ROLE } from "../src/domain/vocabularies"
 import type { Names } from "../src/domain/names"
 
 const ROOT = resolve(import.meta.dir, "..")
@@ -94,7 +95,7 @@ lines.push("-- Users. `role` is the platform role; `biz_id` bridges to the fixtu
 for (const u of SEED_ENTITIES.users) {
   lines.push(
     `INSERT OR IGNORE INTO user (id, name, email, email_verified, created_at, updated_at, role, biz_id) VALUES ` +
-      `(${q(u.id)}, ${q(pivot(u.names))}, ${q(u.email)}, 1, ${AT}, ${AT}, ${q(u.roleCode.toLowerCase())}, ${q(u.id)});`,
+      `(${q(u.id)}, ${q(pivot(u.names))}, ${q(u.email)}, 1, ${AT}, ${AT}, ${q(STORED_ROLE[u.roleCode])}, ${q(u.id)});`,
   )
   // One credential account per user, with the issuer 1.7 matches sign-in on.
   lines.push(

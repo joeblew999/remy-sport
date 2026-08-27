@@ -2,6 +2,7 @@ import { Hono } from "hono"
 import type { AppEnv } from "../types"
 import { readOutbox, clearOutbox, usesOutbox } from "../mail/mailer"
 import { SEED_ENTITIES } from "../db/seed-data"
+import { STORED_ROLE } from "../domain/vocabularies"
 
 /**
  * Read back mail captured by the `outbox` transport (ADR 010).
@@ -55,7 +56,7 @@ devMail.get("/api/dev/accounts", (c) => {
   )
   return c.json({
     accounts: byRole.map((u) => ({
-      role: u.roleCode.toLowerCase(),
+      role: STORED_ROLE[u.roleCode],
       email: u.email,
       name: u.names.en,
     })),

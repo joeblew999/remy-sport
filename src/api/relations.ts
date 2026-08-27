@@ -25,31 +25,20 @@
  */
 
 import { sql } from "drizzle-orm"
-import { ACTION, OBJECT_TYPE, RELATION, ROLE_CODES } from "../domain/vocabularies"
+import { ACTION, FIXTURE_TABLE, OBJECT_TYPE, RELATION, STORED_ROLE } from "../domain/vocabularies"
 import type { Db } from "./base"
 
 type RelationRow = (typeof RELATION)[number]
 
 /**
- * The PO's table names are plural snake_case; ours are singular camelCase.
+ * The table a fixture's rows live in.
  *
- * Both sides are generated from the same fixtures, so the rule is mechanical
- * rather than a mapping to maintain — `team_coaches` is `teamCoach`. Only the
- * irregulars need saying.
+ * Generated — see FIXTURE_TABLE in domain/vocabularies.ts. This used to
+ * re-derive the plural-snake to singular-camel rule locally, as did the
+ * alignment check and the generator, and two of those three silently matched
+ * nothing when a caller had the case the other way round.
  */
-const IRREGULAR: Record<string, string> = { people: "person" }
-
-function tableFor(fixtureTable: string): string {
-  const camel = fixtureTable.replace(/_(\w)/g, (_, c: string) => c.toUpperCase())
-  if (IRREGULAR[camel]) return IRREGULAR[camel]!
-  return camel.endsWith("ies")
-    ? `${camel.slice(0, -3)}y`
-    : /(?:ch|sh|ss|us|x|z)es$/.test(camel)
-      ? camel.slice(0, -2)
-      : camel.endsWith("s")
-        ? camel.slice(0, -1)
-        : camel
-}
+const tableFor = (fixtureTable: string): string => FIXTURE_TABLE[fixtureTable] ?? fixtureTable
 
 /**
  * No column aliasing, deliberately.
@@ -123,47 +112,15 @@ export async function holds(
 
   if (r.via === "everyone") return true
   if (r.via === "role") {
-    // The fixtures say COACH; Better Auth's user.role holds coach, because
-    // scripts/seed-sql.ts lowercases on the way in. Compare in one form or
-    // ANY_COACH matches nobody — and it fails closed, so it would surface as
-    // unexplained 403s rather than as a hole.
-    return (user.role ?? "").toLowerCase() === r.roleCode!.toLowerCase()
+    // STORED_ROLE is the code as the database holds it. Comparing the two forms
+    // by hand is what this replaced: it fails closed, so getting it wrong
+    // matches nobody and surfaces as unexplained 403s rather than as an error.
+    return user.role === STORED_ROLE[r.roleCode as keyof typeof STORED_ROLE]
   }
   if (!objectId) return false
   return holdsTableRelation(db, r, user.id, objectId)
 }
 
-/**
- * Every relation is executable against the schema that ships — asserted, not
- * assumed.
- *
- * A relation added upstream naming a table or column this database does not have
- * would grant nothing, silently, and every permission row referencing it would
- * be quietly unenforceable. Run by `mise run check`.
- */
-export function unresolvedRelations(tables: Record<string, Record<string, unknown>>): string[] {
-  const roles = new Set(ROLE_CODES.map((r) => r.toLowerCase()))
-  return RELATION.flatMap((r) => {
-    if (r.via === "everyone") return []
-    if (r.via === "role") {
-      return roles.has((r.roleCode ?? "").toLowerCase()) ? [] : [`${r.code}: no role ${r.roleCode}`]
-    }
-    const problems: string[] = []
-    const check = (fixtureTable: string, col: string) => {
-      const t = tableFor(fixtureTable)
-      const cols = tables[t]
-      if (!cols) return problems.push(`${r.code}: no table ${t} (${fixtureTable})`)
-      const c = column(fixtureTable, col)
-      if (!(c in cols)) problems.push(`${r.code}: ${t} has no column ${c}`)
-    }
-    check(r.sourceTable!, r.objectColumn!)
-    if (r.throughTable) check(r.throughTable, r.userColumn!)
-    else check(r.sourceTable!, r.userColumn!)
-    if (r.filterColumn) check(r.sourceTable!, r.filterColumn)
-    if (r.activeToColumn) check(r.sourceTable!, r.activeToColumn)
-    return problems
-  })
-}
 
 /**
  * The table an action's object lives in, or null when it has none.
