@@ -670,6 +670,34 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .live-action-btn.primary .val { color: var(--paper);}
 .live-action-btn.primary:hover { background: var(--accent-deep);}
 
+/* ── Sample-data banner ──
+   Fixture-backed screens say so. See components/sample.tsx for which three and
+   why a banner rather than the small chip team.tsx uses beside a heading. */
+.sample-banner {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  border: 1px dashed var(--rule-2);
+  border-radius: 6px;
+  background: var(--paper-2);
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.sample-banner strong {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent-deep);
+  font-weight: 600;
+}
+/* On a dark screen (the live page) the paper tokens would glow. */
+.live-page .sample-banner {
+  background: transparent;
+  border-color: oklch(0.35 0.01 270);
+  color: oklch(0.72 0.01 270);
+}
+.sample-banner.inline { margin: 8px 0 0; }
+
 /* spoiler mode banner */
 .spoiler-bar {
   display: flex; align-items: center; justify-content: space-between;
@@ -967,7 +995,22 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   /* Live scoreboard stacks */
   .live-scoreboard { grid-template-columns: 1fr; gap: 16px; padding: 18px 14px; }
   .score-numbers { font-size: clamp(64px, 16vw, 96px); justify-content: center; }
+  /* Both teams, styled the same. The 3-column grid gave A left and B right,
+     which is correct side by side and incoherent stacked: `.score-team.r`
+     centred its text while `margin-left: auto` still shoved its crest to the
+     edge, so one team read centred-with-a-floating-badge and the other
+     left-aligned. Stacked, they are just two teams in a column. */
+  .score-team,
   .score-team.r { text-align: center; }
+  .score-team .crest,
+  .score-team.r .crest { margin-left: auto; margin-right: auto; }
+  .score-team .name { font-size: 28px; }
+  .score-team .crest { width: 64px; height: 64px; margin-bottom: 10px; }
+
+  /* The spoiler bar is a two-column row that does not fit: "SHOWING LIVE
+     SCORES" and "HIDE SCORES" each broke mid-phrase into two lines. */
+  .spoiler-bar { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .spoiler-bar .toggle { align-self: stretch; justify-content: space-between; }
   .live-clock { padding: 14px; }
   .quarters-table { font-size: 12px; }
   .live-header { flex-direction: column; align-items: flex-start; gap: 8px; }

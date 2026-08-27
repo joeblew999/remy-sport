@@ -2,6 +2,7 @@ import { Icon } from "../components/icon";
 import { useLiveGame } from "../lib/data";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
+import { SampleData } from "../components/sample";
 
 interface LiveProps {
   goto: (r: Route) => void;
@@ -17,6 +18,7 @@ export function LivePage({ goto, spoiler, setSpoiler }: LiveProps) {
 
   return (
     <div className="live-page">
+      <SampleData />
       <div className="crumbs" style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: "IBM Plex Mono, monospace", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12, color: "oklch(0.6 0.01 270)" }}>
         <button onClick={() => goto({ page: "discover" })} style={{ background: "transparent", border: "none", padding: 0, color: "inherit", cursor: "pointer", fontFamily: "inherit", fontSize: "inherit", letterSpacing: "inherit" }}>{m.nav_discover()}</button>
         <span style={{ opacity: 0.5 }}>/</span>

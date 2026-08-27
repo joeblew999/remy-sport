@@ -54,6 +54,11 @@ const SCREENS: { name: string; path: string; as: string | null; open?: string }[
   { name: "entries", path: "/#/event/evt_004", as: COACH, open: "teams" },
   // The coach's own team page, where the squad is editable.
   { name: "roster", path: "/#/team/team_001", as: COACH },
+  // Both of these are in the product and were in neither this list nor any
+  // test: `live` has its own sidebar entry, and `bracket` is a whole tab. A
+  // screen nobody photographs is a screen nobody looks at.
+  { name: "live", path: "/#/live", as: null },
+  { name: "bracket", path: "/#/event/evt_002", as: null, open: "bracket" },
   { name: "admin", path: "/#/admin", as: ADMIN },
   { name: "devices", path: "/#/devices", as: COACH },
   { name: "profile", path: "/#/profile", as: COACH },

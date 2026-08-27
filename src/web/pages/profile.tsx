@@ -1,4 +1,5 @@
 import { useEvents, useFeed } from "../lib/data";
+import { SampleData } from "../components/sample";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
 
@@ -44,6 +45,9 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
             </div>
 
             <div className="section-h"><h2>{m.activity()}</h2><a className="more">ALL →</a></div>
+            {/* Inline, not a page banner: the events above this ARE real, so the
+                job here is to say which half is which. */}
+            <SampleData inline />
             <div className="dash-card feed-list">
               {feed.map((f, i) => (
                 <div key={i} className="feed-item">

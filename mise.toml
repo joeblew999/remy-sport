@@ -1125,7 +1125,21 @@ depends     = ["install"]
 # idempotency convention. This matters most for Tauri: tauri.conf.json runs
 # `mise run web:build` itself via beforeDevCommand/beforeBuildCommand, so
 # without these the SPA was rebuilt twice on every `mise run tauri:build`.
-sources     = ["src/web/**/*", "package.json", "bun.lock"]
+#
+# src/paraglide and src/domain are in this list because the SPA imports both,
+# and leaving them out was a staleness bug with teeth: adding a message,
+# compiling it with `i18n:generate` and running `web:build` reported "sources
+# up-to-date, skipping" and shipped a bundle without the new string. A
+# translation could have passed every check and deployed missing. The rule is
+# that `sources` lists what the build READS, not what lives in its own folder.
+sources     = [
+  "src/web/**/*",
+  "src/paraglide/**/*",
+  "src/domain/**/*",
+  "messages/*.json",
+  "package.json",
+  "bun.lock",
+]
 outputs     = ["dist/web/index.html"]
 run         = "bun x vite build --config src/web/vite.config.ts"
 
