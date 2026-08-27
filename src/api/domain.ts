@@ -8,7 +8,7 @@
  * removal was for.
  *
  * The schema is derived from the table, so a column added upstream by
- * `mise run domain:generate` appears in the response, in the OpenAPI document
+ * `mise run domain:sync` appears in the response, in the OpenAPI document
  * and in the client's types with nothing edited here.
  *
  * What is NOT shared, and stays written out one line at a time: WHICH tables

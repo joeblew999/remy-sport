@@ -39,7 +39,7 @@ import {
 const localeNames = () => text("names", { mode: "json" }).$type<Names>().notNull()
 
 /**
- * Controlled vocabularies (ADR 015), copied from remy-sport-biz/data/seed.
+ * Controlled vocabularies (ADR 015), copied from remy-sport-biz/domain/model.
  *
  * These were Zod enums hand-written in src/routes/*.ts and nothing else. The
  * database accepted anything, so a bad code could arrive from the seed route, a
@@ -62,7 +62,7 @@ import { user, organization } from "./auth-schema"
  */
 /**
  * Columns follow the canonical `events` definition in
- * remy-sport-biz/data/seed/schema.md. Migration 0005 explains the two names
+ * remy-sport-biz/domain/model/schema.md. Migration 0005 explains the two names
  * that deliberately differ (`name` for `name_en`, `created_by` for
  * `organizer_user_id`) and why `org_id` is absent.
  */
@@ -95,7 +95,7 @@ export const event = sqliteTable("event", {
 
 /**
  * Team profiles, following canonical `teams` in
- * remy-sport-biz/data/seed/schema.md. Migration 0006 explains why `org_id`
+ * remy-sport-biz/domain/model/schema.md. Migration 0006 explains why `org_id`
  * points at Better Auth's `organization` rather than a second orgs table, and
  * why the two `_code` columns are plain text validated at the API boundary.
  */
@@ -131,7 +131,7 @@ export const team = sqliteTable("team", {
  * There were eight of them written out here by hand, which meant every new
  * vocabulary upstream needed a table typed out again, in step, by someone who
  * remembered to. There are twenty now and none of them are written here — see
- * scripts/domain-generate.ts and `mise run domain:check`.
+ * scripts/domain-generate.ts and `mise run check:domain`.
  */
 export * from "./vocabularies-schema"
 

@@ -1,6 +1,6 @@
 import { SELF } from "cloudflare:test"
 import { expect } from "vitest"
-import { SEED_ENTITIES } from "../../src/db/seed-data"
+import { SEED_ENTITIES } from "../../src/domain/model/entities"
 
 /**
  * The whole harness for a Worker test. Three functions, no fixtures.

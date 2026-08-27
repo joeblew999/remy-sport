@@ -1,6 +1,6 @@
 import { betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
-import { SEED_ENTITIES } from "./db/seed-data"
+import { SEED_ENTITIES } from "../src/domain/model/entities"
 import { drizzle } from "drizzle-orm/d1"
 import { eq } from "drizzle-orm"
 import type { Context } from "hono"

@@ -104,7 +104,7 @@ wrong so far, one selecting a renamed column out of the old table and one
 creating a table then pointing a foreign key at it while it was still empty.
 
 The twenty migrations before this were squashed into `0000_init` on 2026-08-27.
-They had accumulated a generated-migration problem — `domain:generate` emitted
+They had accumulated a generated-migration problem — `domain:sync` emitted
 two of them whole on every run, so a rename rewrote history — and the app was
 pre-launch, so the history was worth less than the simplicity.
 
@@ -123,7 +123,7 @@ its own foreign key.
 migration can drop.** All ten join-table composite keys were in that state until
 2026-08-27; they exist because a re-seed silently duplicated all 58 join rows
 without them. They are emitted now from the `**Uniqueness**` lines in the PO's
-schema.md, parsed the same way `validate-seed.nu` parses them upstream. Two
+schema.md, parsed the same way `the model's own gate.nu` parses them upstream. Two
 remain undeclared — `organization_slug_uidx` and `user_biz_id_idx`, on tables
 Better Auth generates — so never run `drizzle-kit push`, and read a generated
 migration before applying it.

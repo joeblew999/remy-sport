@@ -26,7 +26,7 @@ export const list = pub
   .output(ReferenceSchema)
   .handler(async ({ context: { db } }) => {
   // Ordered by `sort` where the fixture has one, so the PO controls dropdown
-  // order by ordering the JSONL — sorting by code gives OPEN, SENIOR, U10, U12…
+  // order by ordering the model — sorting by code gives OPEN, SENIOR, U10, U12…
   // Provinces and cities have no curated order and go by name.
   const entries = await Promise.all(
     Object.entries(VOCABULARY_TABLES).map(async ([key, table]) => [

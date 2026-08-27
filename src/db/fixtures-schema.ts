@@ -11,7 +11,7 @@
 // transform.
 //
 // The Product Owner's model still drives what these tables are — a person reads
-// data/seed/schema.md and writes the table. What proves the two agree is the
+// the model and writes the table. What proves the two agree is the
 // seed: `db.insert(city).values(CITY)` does not compile if the data and the
 // column disagree, which is a stronger check than any script comparing them.
 //

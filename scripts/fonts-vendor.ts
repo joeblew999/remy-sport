@@ -41,8 +41,8 @@ const OUT = join(ROOT, "src/web/fonts")
  *            through to system-ui.
  *
  * Keyed by locale so this follows the same rule as everything else here:
- * shipping a language is a change to the PO's locales.jsonl plus
- * `mise run domain:generate`, not an edit to a list in this file. A declared
+ * shipping a language is a change to the model's ALL_LOCALES plus
+ * `mise run domain:sync`, not an edit to a list in this file. A declared
  * locale with no entry below is a hard failure, not silent tofu.
  *
  * `latin`/`latin-ext` are unconditional: names, codes and numerals appear in

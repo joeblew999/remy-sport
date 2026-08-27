@@ -1,7 +1,7 @@
 /**
  * Emit the seed as SQL, so a database can be seeded without a running Worker.
  *
- * The vocabularies already work this way: `mise run domain:generate` turns the
+ * The vocabularies already work this way: `mise run domain:sync` turns the
  * PO's fixtures into migration 0009, and any database applies it offline and
  * deterministically. The *entities* — users, orgs, teams, players, the join
  * tables — did not. They went through `POST /api/seed`, which called Better
@@ -39,7 +39,7 @@ import { FIXTURE_TABLES } from "../src/db/fixtures-schema"
 import { VOCABULARY_TABLES } from "../src/db/vocabularies-schema"
 import { VOCABULARY } from "../src/domain/vocabularies"
 import * as schema from "../src/db/schema"
-import { SEED_ENTITIES, SEED_RELATIONSHIPS } from "../src/db/seed-data"
+import { SEED_ENTITIES, SEED_RELATIONSHIPS } from "../src/domain/model/entities"
 import { clean, pivot } from "../src/domain/names"
 import { STORED_ROLE } from "../src/domain/vocabularies"
 import type { Names } from "../src/domain/names"
@@ -77,7 +77,7 @@ const AT = 1_767_225_600_000 // 2026-01-01T00:00:00Z
  * These two rows used to be invented here, because the PO's model declared an
  * `ORG` object type and then attached nothing to it — no relations, no actions —
  * so the app filled the gap itself. They are upstream data now
- * (`links/org_members.jsonl`), and the `ORG_ADMIN`/`ORG_MEMBER` relations derive
+ * (`SEED_RELATIONSHIPS.orgMembers`), and the `ORG_ADMIN`/`ORG_MEMBER` relations derive
  * from the rows this writes.
  *
  * Better Auth owns the `member` table, so its column names are used rather than
@@ -233,7 +233,7 @@ for (const o of SEED_ENTITIES.orgs) {
   )
 }
 
-lines.push("", "-- Memberships — who may act for which school (biz links/org_members.jsonl).")
+lines.push("", "-- Memberships — who may act for which school (the model's orgMembers).")
 for (const m of SEED_RELATIONSHIPS.orgMembers) {
   lines.push(
     insertOf(schema.member, {

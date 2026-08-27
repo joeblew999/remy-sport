@@ -33,7 +33,7 @@ test.describe("SPA events come from the API", () => {
     // events from the server rather than from a fixture.
     expect(calls.some((u) => u.includes("/rpc"))).toBe(true)
 
-    // The seeded fixtures come from remy-sport-biz/data/seed/events.jsonl and
+    // The seeded fixtures come from remy-sport-biz/`s` in the model and
     // never existed in the old mock data, so seeing one proves the source swap.
     const titles = await page.locator(".event-row .name").allTextContents()
     expect(titles).toContain("Chiang Mai Summer Basketball Camp 2026")

@@ -89,7 +89,7 @@ export const authed = pub.use(async ({ context, next }) => {
  * relations that satisfy it, and the caller needs **any one** of them.
  *
  * Nothing here is a policy decision. `GRANTS` is generated from
- * permissions.jsonl and the relations resolve themselves from their own
+ * the model's GRANTS, and the relations resolve themselves from their own
  * structured derivation, so changing who may do what is an edit upstream, not a
  * code change. That is the whole point: the previous arrangement restated a
  * fraction of the same policy by hand, in a different shape, and drifted.

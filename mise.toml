@@ -76,7 +76,7 @@ DEV_URL         = "http://localhost:8787"
 GITHUB_REPO_URL = "https://github.com/joeblew999/remy-sport"
 
 # The Product Owner's repo, cloned as a sibling by biz:sync. The path is not a
-# free choice: scripts/domain-generate.ts resolves `../remy-sport-biz/data/seed`
+# free choice: scripts/domain-generate.ts resolves `../remy-sport-biz/domain/model`
 # and AGENTS.md documents the same location, so a nested ./.biz/ checkout would
 # mean editing both. Sibling also keeps it outside this repo's tree, so there is
 # nothing to gitignore and no chance of it being committed here.
@@ -500,7 +500,7 @@ depends     = ["install"]
 # which needs a running Worker and therefore a database every spec shares.
 # As SQL, each test file seeds its own storage in milliseconds.
 # The model is copied in from remy-sport-biz, so the copies are the input —
-# src/db/seed-data.ts is a re-export and would never change.
+# The model is the input; there is no re-export layer between them any more.
 sources = ["scripts/seed-sql.ts", "src/domain/model/*.ts", "src/db/*-schema.ts"]
 outputs = ["src/db/seed.sql"]
 run     = "bun scripts/seed-sql.ts"
@@ -536,7 +536,7 @@ git diff --quiet -- src/db/seed.sql || {
   git --no-pager diff --stat -- src/db/seed.sql
   exit 1
 }
-echo "check-seed: seed.sql matches the fixtures"
+echo "check-seed: seed.sql matches the model"
 """
 
 [tasks."fonts:vendor"]

@@ -25,7 +25,7 @@
 
 const BASE = process.env.CF_DEPLOY_URL ?? "https://remy.ubuntusoftware.net"
 
-const { SEED_ENTITIES } = await import("../src/db/seed-data")
+const { SEED_ENTITIES } = await import("../src/domain/model/entities")
 
 let failed = 0
 

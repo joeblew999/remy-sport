@@ -27,7 +27,7 @@ describe("Localisation", () => {
   it("the locale lists have one source", () => {
     // Paraglide can hold copy for every DECLARED language, drafts included —
     // otherwise a translation in progress would have nowhere to live. Both
-    // lists are generated from the PO's locales.jsonl, so neither is a second
+    // lists both come from the model's ALL_LOCALES, so neither is a second
     // source of truth.
     expect([...locales].sort()).toEqual([...ALL_LOCALES].sort())
     expect(ALL_LOCALES).toContain(baseLocale)

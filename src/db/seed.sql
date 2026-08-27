@@ -289,7 +289,7 @@ INSERT OR IGNORE INTO organization (id, name, slug, created_at) VALUES ('org_003
 INSERT OR IGNORE INTO organization (id, name, slug, created_at) VALUES ('org_004', 'Basketball Sport Association of Thailand', 'basketball-sport-association-thailand', 1767225600000);
 INSERT OR IGNORE INTO organization (id, name, slug, created_at) VALUES ('org_005', 'Bangkok Basketball Club', 'bangkok-basketball-club', 1767225600000);
 
--- Memberships — who may act for which school (biz links/org_members.jsonl).
+-- Memberships — who may act for which school (the model's orgMembers).
 INSERT OR IGNORE INTO member (id, organization_id, user_id, role, created_at) VALUES ('mem_usr_org_001', 'org_001', 'usr_org_001', 'owner', 1767225600000);
 INSERT OR IGNORE INTO member (id, organization_id, user_id, role, created_at) VALUES ('mem_usr_coach_001', 'org_001', 'usr_coach_001', 'admin', 1767225600000);
 INSERT OR IGNORE INTO member (id, organization_id, user_id, role, created_at) VALUES ('mem_usr_org_002', 'org_002', 'usr_org_002', 'member', 1767225600000);

@@ -1,6 +1,6 @@
 import { SELF } from "cloudflare:test"
 import { describe, expect, it } from "vitest"
-import { SEED_ENTITIES } from "../../src/db/seed-data"
+import { SEED_ENTITIES } from "../../src/domain/model/entities"
 import { ORIGIN, actorFor, api, post, signIn } from "./helpers"
 
 /**

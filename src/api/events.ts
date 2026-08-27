@@ -161,7 +161,7 @@ export const remove = authed
  *
  * `INVITE_CO_ORGANIZER` is granted to `OWNER` and `PLATFORM_ADMIN`, and the row
  * this writes *is* the `CO_ORGANIZER` relation — `event_co_organizers.user_id`
- * is what relations.jsonl derives it from. So adding one here is what makes
+ * is what the model's `CO_ORGANIZER` derives it from. So adding one here is what makes
  * `EDIT_EVENT` reachable for anybody but the owner, which the PO's matrix has
  * always granted and this repo could not honour because nothing created the
  * tuple.

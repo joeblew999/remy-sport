@@ -14,7 +14,7 @@ export default defineConfig({
     react(),
     // UI copy is compiled, not looked up at runtime: a missing key is a build
     // error and unused messages are tree-shaken out. The locale list in
-    // project.inlang/settings.json is GENERATED from the PO's locales.jsonl,
+    // project.inlang/settings.json is derived from the model's ALL_LOCALES,
     // so the languages the interface can be written in are the languages the
     // data is available in — one list, not two.
     paraglideVitePlugin({

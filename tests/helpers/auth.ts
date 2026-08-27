@@ -1,6 +1,6 @@
 import { expect, type APIRequestContext, type BrowserContext, type Page } from "@playwright/test"
 import { existsSync, readFileSync } from "node:fs"
-import { SEED_ENTITIES } from "../../src/db/seed-data"
+import { SEED_ENTITIES } from "../../src/domain/model/entities"
 
 /**
  * Signing in, now that there are no passwords (ADR 012).

@@ -2,7 +2,7 @@
  * Does this user hold this relation to this object?
  *
  * The PO's model answers authorisation with relations, not roles: you may edit
- * this team because you coach it, not because you are a coach. `relations.jsonl`
+ * this team because you coach it, not because you are a coach. the model's `RELATION`
  * lists the nineteen, and each now carries its derivation as **structured
  * columns** rather than prose, so this file executes them instead of restating
  * them. There is one query builder here, not nineteen resolvers.

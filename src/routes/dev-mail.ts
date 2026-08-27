@@ -1,7 +1,7 @@
 import { Hono } from "hono"
 import type { AppEnv } from "../types"
 import { readOutbox, clearOutbox, usesOutbox } from "../mail/mailer"
-import { SEED_ENTITIES } from "../db/seed-data"
+import { SEED_ENTITIES } from "../../src/domain/model/entities"
 import { STORED_ROLE } from "../domain/vocabularies"
 
 /**

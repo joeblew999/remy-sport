@@ -96,7 +96,7 @@ const RULES: Rule[] = [
   },
   {
     claim: '"There are no passwords anywhere, including the seed."',
-    check: () => (/password/i.test(read("src/db/seed-data.ts")) ? ["src/db/seed-data.ts"] : []),
+    check: () => (/password/i.test(read("src/domain/model/entities.ts")) ? ["src/domain/model/entities.ts"] : []),
   },
   {
     claim: '"There is one environment." — no `[env.*]` in wrangler.toml',

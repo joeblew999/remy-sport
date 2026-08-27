@@ -1,7 +1,7 @@
 /**
  * Fail when the documentation names a file that does not exist.
  *
- * Same shape as auth:schema:check and domain:check — an artifact is compared
+ * Same shape as auth:schema:check and check:domain — an artifact is compared
  * against the source of truth and the task fails on drift. The artifact here is
  * prose; the source of truth is the tree.
  *
