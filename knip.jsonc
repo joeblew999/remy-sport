@@ -19,6 +19,10 @@
   // the scripts mise runs. Specs count — a helper used only by tests is live.
   // vite.config.ts is an entry too: it is passed to `vite --config`, so nothing
   // imports it and it is not dead.
+  //
+  // `*.shots.ts` for the same reason as the configs: playwright.shots.config.ts
+  // selects it with a regex rather than importing it, so nothing in the graph
+  // points at it and knip reads that as dead.
   "entry": [
     "src/web/main.tsx",
     "src/web/vite.config.ts",
@@ -26,7 +30,8 @@
     "scripts/*.ts",
     "tests/**/*.spec.ts",
     "tests/**/*.test.ts",
-    "tests/**/*.setup.ts"
+    "tests/**/*.setup.ts",
+    "tests/**/*.shots.ts"
   ],
 
   "project": ["src/**/*.{ts,tsx}", "scripts/**/*.ts", "tests/**/*.ts"],

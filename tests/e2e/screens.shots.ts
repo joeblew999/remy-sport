@@ -1,0 +1,77 @@
+import { test } from "@playwright/test"
+import { mkdirSync, rmSync } from "node:fs"
+import { LOCALES } from "../../src/domain/vocabularies"
+import { stateFor, actor, ADMIN, COACH } from "../helpers/auth"
+
+/**
+ * Screenshots of every screen, in every released language, into `screenshots/`.
+ *
+ * Not a test — nothing here asserts anything, and it must never fail a build.
+ * It exists because a green suite says a page *works*, not that it *looks*
+ * right, and the two came apart twice while building the org GUI: a heading
+ * butted onto a table and read as a column header, and the sidebar stayed in
+ * English after switching to Thai. Both were invisible to 165 passing tests and
+ * obvious in a picture.
+ *
+ * Deliberately not a `.spec.ts`. Playwright's default `testMatch` only collects
+ * `*.spec.ts` / `*.test.ts`, so `mise run test` does not see this file at all
+ * and needs no `testIgnore` entry to keep ignoring it. `mise run shots` points
+ * playwright.shots.config.ts at it explicitly.
+ *
+ * It reuses the E2E tier's whole apparatus — the seeded database, the signed-in
+ * states from auth.setup.ts, the wrangler dev server — because "what does a
+ * coach see" is a question that needs a real session against real data.
+ */
+
+const OUT = "screenshots"
+
+/**
+ * The screens worth looking at, and who is looking.
+ *
+ * `as: null` is a signed-out visitor, which is a distinct rendering and not the
+ * same as "any signed-in user" — it is what a stranger sees. Add a line here to
+ * add a screen; nothing else needs changing.
+ */
+const SCREENS: { name: string; path: string; as: string | null }[] = [
+  { name: "discover", path: "/#/", as: null },
+  { name: "orgs", path: "/#/orgs", as: COACH },
+  { name: "org", path: "/#/org/org_001", as: COACH },
+  // The same URL as the line above, and the point of the pair: this coach
+  // belongs to another school, so the roster must render as refused.
+  { name: "org-not-yours", path: "/#/org/org_001", as: actor("COACH", 2) },
+  { name: "admin", path: "/#/admin", as: ADMIN },
+  { name: "devices", path: "/#/devices", as: COACH },
+  { name: "profile", path: "/#/profile", as: COACH },
+  { name: "login", path: "/#/login", as: null },
+]
+
+// One clean directory per run, so a screen that was deleted does not leave a
+// stale picture behind to be read as current.
+test.beforeAll(() => {
+  rmSync(OUT, { recursive: true, force: true })
+  mkdirSync(OUT, { recursive: true })
+})
+
+for (const screen of SCREENS) {
+  for (const locale of LOCALES) {
+    test(`${screen.name} · ${locale}`, async ({ browser }) => {
+      const ctx = await browser.newContext({
+        ...(screen.as ? { storageState: stateFor(screen.as) } : {}),
+        viewport: { width: 1280, height: 900 },
+      })
+      // Set before the bundle runs. Clicking the switcher would work too, but
+      // it screenshots a page that rendered once in the wrong language first,
+      // and any animation mid-transition lands in the picture.
+      await ctx.addInitScript((l) => localStorage.setItem("remy.locale", l), locale)
+
+      const page = await ctx.newPage()
+      await page.goto(screen.path)
+      // The data arrives over the network, so there is a real moment where the
+      // page says "Loading…". Waiting for the network to settle is what stops
+      // that being what gets captured.
+      await page.waitForLoadState("networkidle")
+      await page.screenshot({ path: `${OUT}/${screen.name}.${locale}.png`, fullPage: true })
+      await ctx.close()
+    })
+  }
+}
