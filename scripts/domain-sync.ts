@@ -22,6 +22,7 @@ import { resolve } from "path"
 
 const BIZ = resolve(import.meta.dir, "../../remy-sport-biz/domain/model")
 const HERE = resolve(import.meta.dir, "../src/domain/model")
+const SETTINGS = resolve(import.meta.dir, "../project.inlang/settings.json")
 const FILES = ["names.ts", "vocabularies.ts", "entities.ts"]
 const check = process.argv.includes("--check")
 
@@ -35,6 +36,29 @@ if (!existsSync(BIZ)) {
   process.exit(check ? 0 : 2)
 }
 
+/**
+ * One derived file, and it is not a copy.
+ *
+ * Paraglide reads its locale list from project.inlang/settings.json, and that
+ * list is the model's `ALL_LOCALES`. The deleted generator wrote it; nothing did
+ * afterwards, so adding a language upstream would have compiled no messages for
+ * it and nobody would have been told. Written here because this is the one place
+ * that already knows when the model changed.
+ */
+function inlangSettings(): string {
+  const model = readFileSync(resolve(BIZ, "vocabularies.ts"), "utf8")
+  const locales = [...(model.match(/export const ALL_LOCALES = \[(.*?)\]/s)?.[1] ?? "").matchAll(/"(\w+)"/g)].map(
+    (m) => m[1],
+  )
+  if (!locales.length) {
+    console.error("domain:sync: could not read ALL_LOCALES from the model")
+    process.exit(2)
+  }
+  const settings = JSON.parse(readFileSync(SETTINGS, "utf8")) as { locales: string[] }
+  settings.locales = locales
+  return JSON.stringify(settings, null, 2) + "\n"
+}
+
 const stale: string[] = []
 for (const file of FILES) {
   const from = readFileSync(resolve(BIZ, file), "utf8")
@@ -46,6 +70,13 @@ for (const file of FILES) {
   }
 }
 
+const settings = inlangSettings()
+if (check) {
+  if (readFileSync(SETTINGS, "utf8") !== settings) stale.push("project.inlang/settings.json")
+} else {
+  writeFileSync(SETTINGS, settings)
+}
+
 if (check && stale.length) {
   console.error(
     `domain:sync: ${stale.length} file(s) differ from remy-sport-biz — run 'mise run domain:sync':\n` +
@@ -55,6 +86,6 @@ if (check && stale.length) {
 }
 console.log(
   check
-    ? `domain-sync: ${FILES.length} files match remy-sport-biz`
-    : `domain-sync: copied ${FILES.length} files from remy-sport-biz`,
+    ? `domain-sync: ${FILES.length} files and the locale list match remy-sport-biz`
+    : `domain-sync: copied ${FILES.length} files and ${JSON.parse(settings).locales.length} locales`,
 )

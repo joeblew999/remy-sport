@@ -84,25 +84,6 @@ export function useTeam(id: string | undefined) {
   );
 }
 
-/**
- * Prefetch on hover, for list -> detail.
- *
- * `onFocus` as well as `onMouseEnter` is not optional: hover does not exist on
- * the touch targets most of this app's traffic comes from, and a keyboard user
- * gets nothing from `onMouseEnter` alone.
- *
- *   <a {...prefetchEvent(id)} onClick={…}>
- */
-export function usePrefetch() {
-  const qc = useQueryClient();
-  const on = (run: () => void) => ({ onMouseEnter: run, onFocus: run });
-  return {
-    event: (id: string) =>
-      on(() => void qc.prefetchQuery(orpc.events.get.queryOptions({ input: { id } }))),
-    team: (id: string) =>
-      on(() => void qc.prefetchQuery(orpc.teams.get.queryOptions({ input: { id } }))),
-  };
-}
 
 
 // ── Not yet real ───────────────────────────────────────────────────────────

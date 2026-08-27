@@ -37,9 +37,9 @@ import {
  */
 export const orgAc = createAccessControl({ ...defaultStatements })
 
-export const orgOwner = orgAc.newRole({ ...ownerAc.statements })
-export const orgAdmin = orgAc.newRole({ ...adminAc.statements })
-export const orgMember = orgAc.newRole({ ...memberAc.statements })
+const orgOwner = orgAc.newRole({ ...ownerAc.statements })
+const orgAdmin = orgAc.newRole({ ...adminAc.statements })
+const orgMember = orgAc.newRole({ ...memberAc.statements })
 
 export const orgRoles = {
   owner: orgOwner,

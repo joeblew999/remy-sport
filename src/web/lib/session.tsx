@@ -62,11 +62,6 @@ export function useSession() {
   };
 }
 
-/** Invalidate the session — after signing in, impersonating, or stopping. */
-export function useRefreshSession() {
-  const qc = useQueryClient();
-  return () => qc.invalidateQueries({ queryKey: sessionKey });
-}
 
 export function useSignOut() {
   const qc = useQueryClient();

@@ -22,7 +22,7 @@ export const SEED_STATEMENTS = statements(seedSql)
  * half. Splitting on the separator inside your data is a classic, and the note
  * asserting it could not happen is why nobody looked.
  */
-export function statements(sql: string): string[] {
+function statements(sql: string): string[] {
   return sql
     .split("\n")
     .map((l) => l.trim())

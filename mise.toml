@@ -164,7 +164,7 @@ biz:sync: fnox secret {{env.BIZ_TOKEN_KEY}} is not set.
                (prompts with hidden input — the value never reaches argv or
                 shell history)
 
-  Not having it only blocks `domain:generate` against fresh fixtures.
+  Not having it only blocks `domain:sync` against a newer model.
   src/domain/vocabularies.ts is committed, so builds do not need this repo.
 EOF
   exit 1
@@ -234,7 +234,7 @@ fi
 # UI copy is compiled, so it has to exist before anything typechecks it. The
 # Vite plugin does this during a build; this task is for everything else.
 [tasks."i18n:generate"]
-description = "Compile messages/*.json into typed message functions (Paraglide). The locale list comes from project.inlang/settings.json, which domain:generate writes from the PO's locales."
+description = "Compile messages/*.json into typed message functions (Paraglide). The locale list comes from project.inlang/settings.json, which domain:sync derives from the model's ALL_LOCALES."
 depends     = ["install"]
 run         = "bun x paraglide-js compile --project ./project.inlang --outdir ./src/web/paraglide"
 
@@ -358,6 +358,12 @@ depends     = ["cf:types"]
 # would skip exactly the run that would have caught the drift.
 run = """
 bun x tsc --noEmit
+# src/web has its own tsconfig — React, different lib and jsx settings — and the
+# root one excludes it. So `tsc --noEmit` above checks the Worker and nothing
+# else, and for a long time nothing checked the GUI at all: a dead-code sweep
+# deleted `describeDevice` from src/web/lib/devices.ts while the line below it
+# still called it, and only an e2e failure noticed.
+mise run web:typecheck
 mise run test:unit
 mise run test:worker
 mise run check:dead
@@ -489,7 +495,7 @@ run = "bun x playwright test --config playwright.render.config.ts"
 [tasks."seed:sql"]
 description = "Regenerate src/db/seed.sql from the biz fixtures — the seed as data, not an HTTP call"
 depends     = ["install"]
-# Same shape as domain:generate, and for the same reason. The vocabularies have
+# The vocabularies have
 # always been SQL (migration 0009); the entities went through POST /api/seed,
 # which needs a running Worker and therefore a database every spec shares.
 # As SQL, each test file seeds its own storage in milliseconds.
@@ -933,12 +939,12 @@ run         = "bun x wrangler d1 migrations apply {{env.CF_D1_NAME}} --remote"
 
 # Wrangler records which migrations it has applied and never re-runs one. That
 # is right for hand-written migrations and wrong for 0009, which
-# `domain:generate` rewrites wholesale whenever the PO's fixtures change — the
-# regenerated file is simply ignored locally, so the database silently keeps the
+# Migrations are drizzle-kit's and reference rows are the seed's, so a model
+# change is a re-seed rather than a replay — but a schema change still needs one.
 # old vocabulary while the generated TypeScript moves on. Dropping the local
 # state and replaying is the only way to pick it up.
 [tasks."cf:d1:reset"]
-description = "Delete the local D1 database and replay every migration from scratch. Use after `domain:generate` changes migration 0009 — wrangler will not re-apply a migration it has already run. Local only; never touches remote."
+description = "Delete the local D1 database and replay every migration from scratch. Use when a migration has changed under a database that already ran it — wrangler will not re-apply one. Local only; never touches remote."
 depends     = ["install"]
 run = """
 rm -rf .wrangler/state/v3/d1

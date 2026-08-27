@@ -28,18 +28,15 @@ import {
 /**
  * Display names keyed by locale.
  *
- * A record rather than `nameEn`/`nameTh` fields, so shipping a language adds a
- * key to an object instead of a column to a table, a field to a type, and a
- * case to every consumer.
+ * partialRecord, not record: with an enum key `z.record` demands EVERY locale be
+ * present, which would make an English-only name invalid.
  */
-export const NamesSchema = z
-  // partialRecord, not record: with an enum key `z.record` demands EVERY
-  // locale be present, which would make an English-only name invalid.
+const NamesSchema = z
   .partialRecord(z.enum(LOCALES), z.string())
   .meta({ description: "Display names keyed by locale code", examples: [{ en: "Boys", th: "ชาย" }] })
 
 /** At least one language must carry a name; which one is the caller's choice. */
-export const NamesInput = NamesSchema.refine((n) => Object.values(n).some((v) => v?.trim()), {
+const NamesInput = NamesSchema.refine((n) => Object.values(n).some((v) => v?.trim()), {
   message: "at least one locale must carry a name",
 })
 

@@ -24,6 +24,26 @@ mise run test                # a real browser + real Worker    ~1.1m
 mise run deploy              # check -> test -> deploy -> migrate -> seed -> verify
 ```
 
+## How it fits together
+
+**The schema is authored, and everything derives upward from it.**
+
+```
+src/db/*-schema.ts  →  createSelectSchema  →  oRPC .output()  →  RouterClient  →  React
+```
+
+The drizzle tables are the root. Nothing generates them and nothing should — the
+generator that used to had to be taught about typed JSON columns, the
+vocabulary-derived enums and the unique indexes one feature at a time, and
+whatever it had not been taught was dropped without a word.
+
+The Product Owner's model still decides what a table *is*. It lives in
+[remy-sport-biz](https://github.com/joeblew999/remy-sport-biz) as TypeScript and
+is copied in verbatim by `mise run domain:sync` — a copy, never a transform,
+because a transform is where the two disagree. What proves the model fits the
+schema is the seed itself: `db.insert(city).values(CITY)` does not compile if a
+field and a column disagree.
+
 ## Where things are
 
 ```

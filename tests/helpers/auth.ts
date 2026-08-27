@@ -115,8 +115,6 @@ export const ACTOR_NAMES = {
   REFEREE: nameOf("REFEREE"),
 } as const
 
-export const ALL_ACTORS = [ADMIN, ORGANIZER, COACH, PLAYER, SPECTATOR, REFEREE]
-
 /**
  * Every seeded address, so auth.setup.ts can save a session for each.
  *

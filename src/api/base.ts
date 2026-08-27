@@ -32,7 +32,7 @@ export interface ApiContext {
 export type SessionUser = { id: string; name?: string | null; role?: string | null }
 
 export type Db = ReturnType<typeof database>
-export const database = (env: Bindings) => drizzle(env.DB, { schema })
+const database = (env: Bindings) => drizzle(env.DB, { schema })
 
 const base = os.$context<ApiContext>()
 
