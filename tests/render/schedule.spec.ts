@@ -17,6 +17,9 @@ const base = {
   venueNames: { en: "Assumption Indoor Court" },
   canEnterScore: false,
   canSetStatus: false,
+  canAssignReferee: false,
+  referees: [],
+  availableReferees: [],
 }
 
 const finished = { ...base, id: "gam_001", startsAt: "2026-06-10T10:00:00Z", statusCode: "FINISHED", homeScore: 68, awayScore: 54, venueId: "ven_002" }
@@ -182,6 +185,7 @@ test.describe("Event entries", () => {
       registered: [{ teamId: "team_001", names: { en: "Assumption U16" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: false }],
       registrable: [],
       divisions: [U16M],
+      canManageFixtures: false,
     })
     await open(page)
 
@@ -197,6 +201,7 @@ test.describe("Event entries", () => {
       registrable: [{ teamId: "team_004", names: { en: "Assumption U18" }, ageGroupCode: "U18", genderCode: "M" }],
       // Neither division matches a U18 boys' team.
       divisions: [U16M, U18F],
+      canManageFixtures: false,
     })
     await open(page)
 
@@ -211,6 +216,7 @@ test.describe("Event entries", () => {
       registered: [],
       registrable: [{ teamId: "team_001", names: { en: "Assumption U16" }, ageGroupCode: "U16", genderCode: "M" }],
       divisions: [U16M, U18F],
+      canManageFixtures: false,
     })
     await open(page)
 
@@ -228,10 +234,81 @@ test.describe("Event entries", () => {
       ],
       registrable: [],
       divisions: [U16M],
+      canManageFixtures: false,
     })
     await open(page)
 
     await expect(page.getByTestId("withdraw-team_001")).toBeVisible()
     await expect(page.getByTestId("withdraw-team_003")).toHaveCount(0)
+  })
+})
+
+/**
+ * The organiser's half of the schedule: adding a fixture and choosing who
+ * officiates. Both appear on the server's word and never on a role.
+ */
+test.describe("Running a schedule", () => {
+  const EV = {
+    id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" },
+    typeCode: "LEAGUE", formatCode: "5x5", description: null,
+    startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK",
+    isFibaCertified: false, organizerUserId: "usr_org_002", orgId: null,
+    organizerName: "Niran", createdAt: "2026-04-01T00:00:00Z", updatedAt: "2026-04-01T00:00:00Z",
+  }
+  const two = [
+    { teamId: "team_001", names: { en: "A" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: false },
+    { teamId: "team_003", names: { en: "B" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: false },
+  ]
+
+  const show = async (
+    page: Parameters<typeof seedCache>[0],
+    opts: { canManageFixtures: boolean; game?: Record<string, unknown> },
+  ) => {
+    await seedCache(page, [
+      entry(orpc.events.get, { id: "evt_002" }, EV as never),
+      entry(orpc.events.entries, { eventId: "evt_002" }, {
+        registered: two, registrable: [], divisions: [], canManageFixtures: opts.canManageFixtures,
+      } as never),
+      entry(orpc.games.list, { eventId: "evt_002" }, {
+        games: [{ ...finished, ...(opts.game ?? {}) }],
+      } as never),
+    ])
+    await page.goto("/#/event/evt_002")
+    await page.getByTestId("tab-schedule").click()
+  }
+
+  // One seed per test: seedCache installs an init script, and re-seeding inside
+  // a test stacks a second one whose ordering is not worth relying on.
+  test("no fixture form for someone who may not add one, however many teams", async ({ page }) => {
+    await show(page, { canManageFixtures: false })
+    await expect(page.getByTestId("schedule")).toBeVisible()
+    await expect(page.getByTestId("add-fixture")).toHaveCount(0)
+  })
+
+  test("the organiser gets it", async ({ page }) => {
+    await show(page, { canManageFixtures: true })
+    await expect(page.getByTestId("add-fixture")).toBeVisible()
+  })
+
+  test("a referee's name is shown to everyone — that is what makes it accountable", async ({ page }) => {
+    await show(page, {
+      canManageFixtures: false,
+      game: { referees: [{ userId: "usr_referee_001", name: "Adisorn Boonchai" }] },
+    })
+    await expect(page.getByTestId("referees-gam_001")).toContainText("Adisorn Boonchai")
+    await expect(page.getByTestId("assign-referee-gam_001")).toHaveCount(0)
+  })
+
+  test("and only the organiser can change it", async ({ page }) => {
+    await show(page, {
+      canManageFixtures: true,
+      game: {
+        referees: [{ userId: "usr_referee_001", name: "Adisorn Boonchai" }],
+        canAssignReferee: true,
+        availableReferees: [{ userId: "usr_referee_002", name: "Waraporn Jaingam" }],
+      },
+    })
+    await expect(page.getByTestId("unassign-gam_001-usr_referee_001")).toBeVisible()
+    await expect(page.getByTestId("referee-select-gam_001")).toContainText("Waraporn")
   })
 })

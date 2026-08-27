@@ -109,5 +109,7 @@
   "manage_roster": "Manage squad",
   "remove_from_squad": "Remove",
   "add_to_squad": "Add to squad",
-  "everyone_on_squad": "Every player is already on this squad."
+  "everyone_on_squad": "Every player is already on this squad.",
+  "assign_referee": "Assign referee…",
+  "add_fixture": "Add a fixture"
 }

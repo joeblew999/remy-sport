@@ -160,6 +160,14 @@ export const GameSchema = createSelectSchema(schema.game)
      * identical.
      */
     canSetStatus: z.boolean(),
+    canAssignReferee: z.boolean(),
+    /**
+     * Who is officiating. Public, and deliberately: a referee's name on a
+     * fixture is what makes an assignment accountable, and it is the visible
+     * half of what stops anyone else entering the score.
+     */
+    referees: z.array(z.object({ userId: z.string(), name: z.string() })),
+    availableReferees: z.array(z.object({ userId: z.string(), name: z.string() })),
   })
 
 /**

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Icon } from "../components/icon";
-import { Schedule } from "../components/schedule";
+import { Schedule, AddFixture } from "../components/schedule";
 import { Entries } from "../components/entries";
 import { useEvent, useEvents, useGames, useLiveGame, useStandings } from "../lib/data";
 import type { Event } from "../data";
@@ -137,7 +137,12 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
 
       {tab === "overview" && <EventOverview e={e} goto={goto}/>}
       {tab === "bracket" && <BracketView goto={goto}/>}
-      {tab === "schedule" && <div className="page-inner"><Schedule eventId={e.id} spoiler={spoiler}/></div>}
+      {tab === "schedule" && (
+        <div className="page-inner">
+          <Schedule eventId={e.id} spoiler={spoiler}/>
+          <AddFixture eventId={e.id}/>
+        </div>
+      )}
       {tab === "standings" && <StandingsTable eventId={e.id}/>}
       {tab === "teams" && <div className="page-inner"><Entries eventId={e.id}/></div>}
       {!["overview", "bracket", "schedule", "standings", "teams"].includes(tab) && (

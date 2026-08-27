@@ -47,6 +47,13 @@ const withNames = {
  */
 async function serialize(db: Db, user: SessionUser | null, row: Row): Promise<ApiGame> {
   const { homeTeam, awayTeam, venue, ...rest } = row
+  const assign = await can(db, "ASSIGN_REFEREE", user, row.id)
+  const onThisGame = await db
+    .select({ userId: schema.gameReferee.userId, name: schema.user.name })
+    .from(schema.gameReferee)
+    .innerJoin(schema.user, eq(schema.user.id, schema.gameReferee.userId))
+    .where(eq(schema.gameReferee.gameId, row.id))
+    .all()
   return {
     ...rest,
     homeTeamNames: homeTeam?.names ?? {},
@@ -54,6 +61,23 @@ async function serialize(db: Db, user: SessionUser | null, row: Row): Promise<Ap
     venueNames: venue?.names ?? null,
     canEnterScore: await can(db, "ENTER_SCORES", user, row.id),
     canSetStatus: await can(db, "CONFIRM_MATCH_STATUS", user, row.id),
+    canAssignReferee: assign,
+    /**
+     * Referees not already on this game, and only for someone who may assign
+     * one. A global "list every referee" endpoint would be a directory of
+     * people, readable by anyone who found it; this is the same list scoped to
+     * the one decision it exists for.
+     */
+    availableReferees: assign
+      ? (
+          await db
+            .select({ userId: schema.user.id, name: schema.user.name })
+            .from(schema.user)
+            .where(eq(schema.user.role, STORED_ROLE.REFEREE))
+            .all()
+        ).filter((c) => !onThisGame.some((r) => r.userId === c.userId))
+      : [],
+    referees: onThisGame.map((r) => ({ userId: r.userId, name: r.name })),
   }
 }
 

@@ -45,6 +45,9 @@ const SCREENS: { name: string; path: string; as: string | null; open?: string }[
   { name: "org-not-yours", path: "/#/org/org_001", as: actor("COACH", 2) },
   // The schedule, seen by the referee who may score one of its games.
   { name: "schedule", path: "/#/event/evt_002", as: "adisorn.b@bat.test", open: "schedule" },
+  // The organiser's view of the same tab: the fixture form and the referee
+  // picker a referee never sees.
+  { name: "schedule-organiser", path: "/#/event/evt_002", as: actor("ORGANIZER", 1), open: "schedule" },
   { name: "standings", path: "/#/event/evt_001", as: null, open: "standings" },
   // A coach with a team still to enter: the entry form is the half a spectator
   // never sees.

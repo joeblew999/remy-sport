@@ -321,6 +321,8 @@ export const eventTeams = viewer
           genderCode: z.string(),
         }),
       ),
+      /** Whether this viewer may add fixtures to the event — MANAGE_FIXTURES. */
+      canManageFixtures: z.boolean(),
       divisions: z.array(
         z.object({
           id: z.string(),
@@ -379,5 +381,10 @@ export const eventTeams = viewer
     // impossible choice is a form that teaches people to expect errors.
     const divisions = await context.db.query.division.findMany()
 
-    return { registered, registrable, divisions }
+    return {
+      registered,
+      registrable,
+      divisions,
+      canManageFixtures: await can(context.db, "MANAGE_FIXTURES", context.user, input.eventId),
+    }
   })

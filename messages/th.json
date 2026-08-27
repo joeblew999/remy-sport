@@ -109,5 +109,7 @@
   "manage_roster": "จัดการผู้เล่น",
   "remove_from_squad": "นำออก",
   "add_to_squad": "เพิ่มเข้าทีม",
-  "everyone_on_squad": "ผู้เล่นทุกคนอยู่ในทีมนี้แล้ว"
+  "everyone_on_squad": "ผู้เล่นทุกคนอยู่ในทีมนี้แล้ว",
+  "assign_referee": "มอบหมายผู้ตัดสิน…",
+  "add_fixture": "เพิ่มการแข่งขัน"
 }

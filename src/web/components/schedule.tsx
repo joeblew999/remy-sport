@@ -15,7 +15,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { getIssueMessage } from "@orpc/openapi-client/helpers";
 import { api, orpc } from "../lib/orpc";
-import { useGames } from "../lib/data";
+import { useEntries, useGames } from "../lib/data";
 import { useLocale } from "../lib/locale";
 import { m } from "../lib/i18n";
 
@@ -80,6 +80,15 @@ function GameRow({ game, spoiler }: { game: Game; spoiler: boolean }) {
         <div className="device-meta">
           {[timeOf(game.startsAt, locale), game.venue ?? m.venue_tbc()].join(" · ")}
           {" · "}
+          {game.referees.length > 0 && (
+            <>
+              {" · "}
+              <span data-testid={`referees-${game.id}`}>
+                {game.referees.map((r) => r.name).join(", ")}
+              </span>
+            </>
+          )}
+          {" · "}
           {game.canSetStatus ? (
             <GameStatus game={game} />
           ) : (
@@ -102,6 +111,7 @@ function GameRow({ game, spoiler }: { game: Game; spoiler: boolean }) {
               {/* Spoiler mode hides the result, not the fixture. */}
               {spoiler && played ? m.spoiler_hidden() : played ? `${game.homeScore}–${game.awayScore}` : "—"}
             </span>
+            {game.canAssignReferee && <Referees game={game} />}
             {game.canEnterScore && (
               <button
                 className="btn"
@@ -155,6 +165,60 @@ function GameStatus({ game }: { game: Game }) {
         </option>
       ))}
     </select>
+  );
+}
+
+/**
+ * Who officiates this game.
+ *
+ * `ASSIGN_REFEREE` is granted to whoever runs the event and deliberately not to
+ * referees — one who could assign themselves would undo the reason score entry
+ * is safe. So this control appears for an organiser and never for the official
+ * standing on the court.
+ */
+function Referees({ game }: { game: Game }) {
+  const qc = useQueryClient();
+  const invalidate = () => qc.invalidateQueries({ queryKey: orpc.games.key() });
+
+  const assign = useMutation({
+    mutationFn: (userId: string) => api.games.assignReferee({ id: game.id, userId }),
+    onSuccess: invalidate,
+  });
+  const unassign = useMutation({
+    mutationFn: (userId: string) => api.games.unassignReferee({ id: game.id, userId }),
+    onSuccess: invalidate,
+  });
+
+  const free = game.availableReferees;
+
+  return (
+    <span className="referee-picker" data-testid={`assign-referee-${game.id}`}>
+      {game.referees.map((r) => (
+        <button
+          key={r.userId}
+          className="badge badge-outline"
+          title={m.remove_from_squad()}
+          data-testid={`unassign-${game.id}-${r.userId}`}
+          onClick={() => unassign.mutate(r.userId)}
+        >
+          {r.name} ×
+        </button>
+      ))}
+      {free.length > 0 && (
+        <select
+          value=""
+          data-testid={`referee-select-${game.id}`}
+          onChange={(e) => e.target.value && assign.mutate(e.target.value)}
+        >
+          <option value="">{m.assign_referee()}</option>
+          {free.map((c) => (
+            <option key={c.userId} value={c.userId}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      )}
+    </span>
   );
 }
 
@@ -212,5 +276,70 @@ function ScoreForm({ game, onDone }: { game: Game; onDone: () => void }) {
         </p>
       )}
     </form>
+  );
+}
+
+/**
+ * Adding a fixture.
+ *
+ * Only for whoever runs the event — `MANAGE_FIXTURES`, which the schedule asks
+ * about the event rather than about any game, because a game that does not
+ * exist yet has no relation to be in.
+ *
+ * Teams come from the event's entries, so a fixture can only be made between
+ * teams that actually entered. The API refuses anything else; offering it here
+ * would be a form that teaches people to expect errors.
+ */
+export function AddFixture({ eventId }: { eventId: string }) {
+  const qc = useQueryClient();
+  const { data: entries } = useEntries(eventId);
+
+  const add = useMutation({
+    mutationFn: (v: { homeTeamId: string; awayTeamId: string; startsAt: string }) =>
+      api.games.create({ eventId, ...v }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: orpc.games.key() }),
+  });
+
+  const teams = entries?.registered ?? [];
+  // The server's answer, per event. Two teams alone is not permission.
+  if (!entries?.canManageFixtures || teams.length < 2) return null;
+
+  return (
+    <section className="admin-card" style={{ marginTop: 16 }} data-testid="add-fixture">
+      <h2>{m.add_fixture()}</h2>
+      <form
+        className="admin-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const f = new FormData(e.currentTarget);
+          add.mutate({
+            homeTeamId: String(f.get("home")),
+            awayTeamId: String(f.get("away")),
+            // `datetime-local` has no zone; the fixtures store UTC.
+            startsAt: new Date(String(f.get("startsAt"))).toISOString(),
+          });
+        }}
+      >
+        <select name="home" data-testid="fixture-home">
+          {teams.map((t) => (
+            <option key={t.teamId} value={t.teamId}>{t.team}</option>
+          ))}
+        </select>
+        <select name="away" data-testid="fixture-away" defaultValue={teams[1]!.teamId}>
+          {teams.map((t) => (
+            <option key={t.teamId} value={t.teamId}>{t.team}</option>
+          ))}
+        </select>
+        <input name="startsAt" type="datetime-local" required data-testid="fixture-starts" />
+        <button type="submit" data-testid="add-fixture-submit" disabled={add.isPending}>
+          {add.isPending ? m.org_saving() : m.add_fixture()}
+        </button>
+        {add.error && (
+          <p className="admin-error small" data-testid="add-fixture-error">
+            {(add.error as Error).message}
+          </p>
+        )}
+      </form>
+    </section>
   );
 }

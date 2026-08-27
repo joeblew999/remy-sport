@@ -147,6 +147,7 @@ export function useEntries(eventId: string | undefined) {
         })),
         registrable: r.registrable.map((x) => ({ ...x, team: loc.name(x.names) })),
         divisions: r.divisions.map((d) => ({ ...d, division: loc.name(d.names) })),
+        canManageFixtures: r.canManageFixtures,
       }),
     }),
   );
