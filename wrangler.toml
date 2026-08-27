@@ -13,14 +13,25 @@ custom_domain = true
 
 # Static assets — the Vite SPA (src/web) served from this same Worker, so the
 # GUI and the API share one origin. No CORS, no cross-site cookies.
-# run_worker_first: the Worker's own routes (/, /login, /dashboard, /api/*)
-# take priority; anything unmatched falls through to the asset store.
+#
+# Asset-first, which is wrangler's default. This was `run_worker_first = true`,
+# justified by Worker routes named /login and /dashboard that ADR 020 deleted.
+# What it still cost was every hashed bundle being a Worker invocation — billed
+# at the standard request rate and writing an observability log — where a
+# request the asset store answers is free and unlimited.
+#
+# Safe because no built path can shadow a Worker route: the whole asset surface
+# is /index.html and /assets/*, while the Worker owns /, /api/*, /rpc/*,
+# /openapi.json, /doc and /.well-known/*. **A new top-level file in dist/web
+# that collides with one of those would silently win the route** — that is the
+# thing to re-check if the build output ever grows one.
 [assets]
-directory        = "./dist/web"
-binding          = "ASSETS"
-run_worker_first = true
+directory = "./dist/web"
+binding   = "ASSETS"
 # Serve files at their literal path. The default ("auto-trailing-slash") 307s
-# /index.html to /, which the Worker already owns (server-rendered home page).
+# /index.html to /, and / is the Worker's — it serves the SPA shell. Together
+# with html_handling, `not_found_handling = "none"` is what makes / match no
+# asset and reach the Worker at all.
 html_handling      = "none"
 not_found_handling = "none"
 

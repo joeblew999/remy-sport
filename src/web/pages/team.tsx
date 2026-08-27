@@ -1,4 +1,6 @@
 import { Icon } from "../components/icon";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api, orpc } from "../lib/orpc";
 import { useRoster, useTeam, useTeams } from "../lib/data";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
@@ -94,6 +96,11 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
           <div className="empty" data-testid="roster-empty">{m.roster_empty()}</div>
         )}
 
+        {/* Only for someone the server says may manage this squad — a head or
+            assistant coach, or the team's manager. MANAGE_ROSTER, asked per
+            team, not worked out from the viewer's role. */}
+        {roster?.canManage && id && <ManageRoster teamId={id} roster={roster}/>}
+
         <div className="section-h" style={{ marginTop: 48 }}><h2>Schedule · Spring 2026</h2><a className="more">{m.sample_data()}</a></div>
         <div className="dash-card">
           {schedule.map((g, i) => (
@@ -115,5 +122,86 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
         </div>
       </div>
     </>
+  );
+}
+
+
+type Roster = NonNullable<ReturnType<typeof useRoster>["data"]>;
+
+/**
+ * Adding and removing players.
+ *
+ * Removing *ends the spell* rather than deleting it — `playerTeam` carries from
+ * and to dates, and the TEAM_PLAYER relation reads `to_date`, so a departure
+ * stops granting access without making last season's team sheet wrong. The
+ * button therefore says "remove from squad", not "delete".
+ */
+function ManageRoster({ teamId, roster }: { teamId: string; roster: Roster }) {
+  const qc = useQueryClient();
+  const invalidate = () =>
+    qc.invalidateQueries({ queryKey: orpc.teams.roster.key({ input: { teamId } }) });
+
+  const add = useMutation({
+    mutationFn: (playerId: string) => api.teams.addPlayer({ teamId, playerId }),
+    onSuccess: invalidate,
+  });
+  const remove = useMutation({
+    mutationFn: (playerId: string) => api.teams.removePlayer({ teamId, playerId }),
+    onSuccess: invalidate,
+  });
+  const error = add.error ?? remove.error;
+
+  return (
+    <section className="admin-card" style={{ marginTop: 24 }} data-testid="manage-roster">
+      <h2>{m.manage_roster()}</h2>
+      {error && <div className="admin-error" data-testid="roster-error">{(error as Error).message}</div>}
+
+      {roster.players.length > 0 && (
+        <table className="admin-table" data-testid="roster-table">
+          <tbody>
+            {roster.players.map((p) => (
+              <tr key={p.playerId}>
+                <td>{p.name}</td>
+                <td className="muted">{p.position}</td>
+                <td>
+                  <button
+                    className="danger"
+                    data-testid={`remove-player-${p.playerId}`}
+                    disabled={remove.isPending}
+                    onClick={() => remove.mutate(p.playerId)}
+                  >
+                    {m.remove_from_squad()}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {roster.available.length ? (
+        <form
+          className="admin-form"
+          data-testid="add-player-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            add.mutate(String(new FormData(e.currentTarget).get("player")));
+          }}
+        >
+          <select name="player" data-testid="add-player-select">
+            {roster.available.map((p) => (
+              <option key={p.playerId} value={p.playerId}>
+                {p.jerseyNumber} · {p.name}
+              </option>
+            ))}
+          </select>
+          <button type="submit" data-testid="add-player-submit" disabled={add.isPending}>
+            {m.add_to_squad()}
+          </button>
+        </form>
+      ) : (
+        <p className="muted" data-testid="no-available-players">{m.everyone_on_squad()}</p>
+      )}
+    </section>
   );
 }

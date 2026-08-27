@@ -241,6 +241,13 @@ export const roster = viewer
         }),
       ),
       canManage: z.boolean(),
+      available: z.array(
+        z.object({
+          playerId: z.string(),
+          names: z.record(z.string(), z.string()),
+          jerseyNumber: z.number().int(),
+        }),
+      ),
     }),
   )
   .handler(async ({ context, input }) => {
@@ -265,6 +272,18 @@ export const roster = viewer
         .filter((r) => !r.toDate || r.toDate >= day)
         .map(({ toDate: _toDate, ...p }) => p),
       canManage: await can(context.db, "MANAGE_ROSTER", context.user, input.teamId),
+      /**
+       * Who could be added — every player not currently on this squad.
+       *
+       * Only sent to someone who may manage the roster. A team sheet is public;
+       * a directory of every player on the platform is not, and returning one to
+       * a spectator would be a privacy decision made by accident.
+       */
+      available: (await can(context.db, "MANAGE_ROSTER", context.user, input.teamId))
+        ? (await context.db.query.player.findMany({ columns: { id: true, names: true, jerseyNumber: true } }))
+            .filter((p) => !rows.some((r) => r.playerId === p.id && (!r.toDate || r.toDate >= day)))
+            .map((p) => ({ playerId: p.id, names: p.names, jerseyNumber: p.jerseyNumber }))
+        : [],
     }
   })
 

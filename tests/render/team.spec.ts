@@ -88,6 +88,7 @@ test.describe("Team page, the rest", () => {
       entry(orpc.teams.get, { id: "team_002" }, team()),
       entry(orpc.teams.roster, { teamId: "team_002" }, {
         canManage: false,
+        available: [],
         players: [
           { playerId: "ply_002", names: { en: "Kanya T." }, jerseyNumber: 7, positionCode: "SG", fromDate: "2026-01-01" },
         ],
@@ -106,7 +107,7 @@ test.describe("Team page, the rest", () => {
   test("an empty roster says so rather than rendering nothing", async ({ page }) => {
     await seedCache(page, [
       entry(orpc.teams.get, { id: "team_002" }, team()),
-      entry(orpc.teams.roster, { teamId: "team_002" }, { canManage: false, players: [] } as never),
+      entry(orpc.teams.roster, { teamId: "team_002" }, { canManage: false, available: [], players: [] } as never),
     ])
     await page.goto("/#/team/team_002")
     await expect(page.getByTestId("roster-empty")).toBeVisible()
@@ -117,5 +118,49 @@ test.describe("Team page, the rest", () => {
     await page.goto("/#/team/team_002")
     // The schedule section on this page has no endpoint yet.
     await expect(page.locator(".section-h", { hasText: "Schedule" })).toContainText("SAMPLE DATA")
+  })
+})
+
+
+/**
+ * Managing the squad. The controls appear on the server's word — MANAGE_ROSTER
+ * asked per team — not on anything the page works out about the viewer.
+ */
+test.describe("Squad management", () => {
+  const roster = (over: Record<string, unknown>) => ({
+    canManage: false,
+    players: [{ playerId: "ply_002", names: { en: "Kanya T." }, jerseyNumber: 7, positionCode: "SG", fromDate: "2026-01-01" }],
+    available: [],
+    ...over,
+  })
+
+  const show = async (page: Parameters<typeof seedCache>[0], data: unknown) => {
+    await seedCache(page, [
+      entry(orpc.teams.get, { id: "team_002" }, team()),
+      entry(orpc.teams.roster, { teamId: "team_002" }, data as never),
+    ])
+    await page.goto("/#/team/team_002")
+  }
+
+  test("a reader who may not manage sees no controls at all", async ({ page }) => {
+    await show(page, roster({}))
+    await expect(page.getByTestId("roster")).toBeVisible()
+    await expect(page.getByTestId("manage-roster")).toHaveCount(0)
+  })
+
+  test("a coach can remove a player and add one who is not on the squad", async ({ page }) => {
+    await show(page, roster({
+      canManage: true,
+      available: [{ playerId: "ply_003", names: { en: "Nong P." }, jerseyNumber: 11 }],
+    }))
+    await expect(page.getByTestId("manage-roster")).toBeVisible()
+    await expect(page.getByTestId("remove-player-ply_002")).toBeVisible()
+    await expect(page.getByTestId("add-player-select")).toContainText("Nong P.")
+  })
+
+  test("says so when there is nobody left to add", async ({ page }) => {
+    await show(page, roster({ canManage: true, available: [] }))
+    await expect(page.getByTestId("no-available-players")).toBeVisible()
+    await expect(page.getByTestId("add-player-form")).toHaveCount(0)
   })
 })

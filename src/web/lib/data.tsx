@@ -119,6 +119,7 @@ export function useRoster(teamId: string | undefined) {
           name: loc.name(p.names),
           position: loc.label("positions", p.positionCode),
         })),
+        available: r.available.map((p) => ({ ...p, name: loc.name(p.names) })),
       }),
     }),
   );

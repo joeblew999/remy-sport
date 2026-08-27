@@ -105,5 +105,9 @@
   "withdraw": "Withdraw",
   "entries_empty": "No teams entered yet.",
   "enter_a_team": "Enter a team",
-  "no_matching_division": "No division matches this team's age group and gender."
+  "no_matching_division": "No division matches this team's age group and gender.",
+  "manage_roster": "Manage squad",
+  "remove_from_squad": "Remove",
+  "add_to_squad": "Add to squad",
+  "everyone_on_squad": "Every player is already on this squad."
 }

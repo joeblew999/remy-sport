@@ -49,6 +49,8 @@ const SCREENS: { name: string; path: string; as: string | null; open?: string }[
   // A coach with a team still to enter: the entry form is the half a spectator
   // never sees.
   { name: "entries", path: "/#/event/evt_004", as: COACH, open: "teams" },
+  // The coach's own team page, where the squad is editable.
+  { name: "roster", path: "/#/team/team_001", as: COACH },
   { name: "admin", path: "/#/admin", as: ADMIN },
   { name: "devices", path: "/#/devices", as: COACH },
   { name: "profile", path: "/#/profile", as: COACH },
