@@ -20,8 +20,8 @@
 import { sqliteTable, text, integer, uniqueIndex } from "drizzle-orm/sqlite-core"
 import { createSelectSchema } from "drizzle-zod"
 import type { Names } from "../domain/names"
-import { INVITE_STATUS_CODES } from "../domain/vocabularies"
-import { user, organization } from "./auth-schema"
+import { INVITE_STATUS_CODES, ORG_ROLE_CODES } from "../domain/vocabularies"
+import { user } from "./auth-schema"
 import { event, team } from "./app-schema"
 import { inviteStatus } from "./vocabularies-schema"
 import { objectType } from "./vocabularies-schema"
@@ -79,6 +79,23 @@ export const venue = sqliteTable("venue", {
   provinceCode: text("province_code").notNull().references(() => province.code),
   names: text("names", { mode: "json" }).$type<Names>().notNull(),
 })
+
+/**
+ * Who may act for an organisation.
+ *
+ * Ours, not the authentication library's. Better Auth's organization plugin had
+ * a `member` table and the ORG relations derived from it — which meant the
+ * Product Owner's model reached into an implementation detail, and the app
+ * needed a members-to-member table mapping and a role-casing mapping to read it.
+ * Better Auth owns authentication; this is not that.
+ */
+export const orgMember = sqliteTable("org_member", {
+  orgId: text("org_id").notNull().references(() => org.id),
+  userId: text("user_id").notNull().references(() => user.id),
+  orgRoleCode: text("org_role_code", { enum: ORG_ROLE_CODES })
+    .notNull()
+    .references(() => orgRole.code),
+}, (t) => [uniqueIndex("org_member_key").on(t.orgId, t.userId)])
 
 export const eventCoOrganizer = sqliteTable("eventCoOrganizer", {
   eventId: text("event_id").notNull().references(() => event.id),
@@ -163,6 +180,7 @@ export const userNotificationPreference = sqliteTable("userNotificationPreferenc
  * mechanical consequence of the table existing.
  */
 export const FIXTURE_TABLES = {
+  orgMembers: orgMember,
   divisions: division,
   orgs: org,
   players: player,
@@ -180,6 +198,7 @@ export const FIXTURE_TABLES = {
 } as const
 
 export const FIXTURE_SCHEMAS = {
+  orgMembers: createSelectSchema(orgMember),
   divisions: createSelectSchema(division),
   orgs: createSelectSchema(org),
   players: createSelectSchema(player),

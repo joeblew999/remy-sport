@@ -1,4 +1,33 @@
+import { existsSync, readdirSync } from "node:fs"
+import { join } from "node:path"
 import { defineConfig } from "drizzle-kit"
+
+/**
+ * Where miniflare keeps the local D1 database.
+ *
+ * The filename is a hash wrangler derives, not something this project chooses,
+ * and `mise run cf:d1:reset` deletes the directory outright — so it is found at
+ * load time rather than written down. `metadata.sqlite` is wrangler's own
+ * bookkeeping and is not the database.
+ */
+const D1_STATE_DIR = ".wrangler/state/v3/d1/miniflare-D1DatabaseObject"
+
+function localD1(): string | undefined {
+  if (!existsSync(D1_STATE_DIR)) return undefined
+  const file = readdirSync(D1_STATE_DIR).find(
+    (f) => f.endsWith(".sqlite") && f !== "metadata.sqlite",
+  )
+  return file ? join(D1_STATE_DIR, file) : undefined
+}
+
+/**
+ * `generate` diffs the schema against the snapshot and never opens a database,
+ * so it must keep working on a checkout that has never run wrangler. `studio`
+ * is the only command here that needs a connection, which is why dbCredentials
+ * is present only when there is something to connect to — an empty url fails
+ * config validation for *every* command, `generate` included.
+ */
+const url = localD1()
 
 /**
  * drizzle-kit generates the schema migrations; the fixtures generate the rows.
@@ -23,4 +52,5 @@ export default defineConfig({
   dialect: "sqlite",
   schema: "./src/db/schema.ts",
   out: "./src/db/migrations",
+  ...(url ? { dbCredentials: { url } } : {}),
 })

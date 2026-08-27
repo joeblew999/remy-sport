@@ -419,52 +419,7 @@ describe("Team writes — refusals", () => {
   })
 })
 
-describe("Organization roles resolve", () => {
-  it("the owner role granted at creation actually resolves to permissions", async () => {
-    // Regression guard for the bug ADR 009 fixed. auth.config.ts used to hand
-    // the six *domain* roles to the organization plugin, so "owner" — the role
-    // createOrganization actually writes — matched no role in the map, and
-    // every org-scoped check for the creator denied.
-    //
-    // Asserting the role *string* is "owner" passed throughout that bug: the
-    // string was always written correctly, what failed was resolving it. This
-    // asks the plugin to resolve it.
-    const cookie = await signIn(ORGANIZER)
-    const created = await post(
-      "/api/auth/organization/create",
-      { name: "Role Resolve Check", slug: "role-resolve-check" },
-      cookie,
-    )
-    expect(created.status).toBe(200)
-    const org = (await created.json()) as { id: string }
 
-    const res = await post(
-      "/api/auth/organization/has-permission",
-      { organizationId: org.id, permissions: { organization: ["update"] } },
-      cookie,
-    )
-    expect(res.status, "has-permission should not error").toBe(200)
-    expect(((await res.json()) as { success: boolean }).success, "an owner may update their own org").toBe(true)
-
-    // No cleanup. The old spec had to delete the org because every spec shared
-    // one database and they accumulated; this file's storage is discarded.
-  })
-})
-
-describe("Org teams are a separate noun from roster teams", () => {
-  it("leaves the domain team table untouched by the plugin's org_team", async () => {
-    // Both tables exist; both are "team" in their own vocabulary. /api/teams
-    // must keep serving rosters, with age group and gender — fields the
-    // plugin's org_team does not have and never will.
-    const { teams } = (await (await api("/api/teams")).json()) as {
-      teams: { id: string; ageGroupCode: string; genderCode: string; orgName: string }[]
-    }
-    const roster = teams.find((t) => t.id === "team_002")!
-    expect(roster.ageGroupCode).toBe("U18")
-    expect(roster.genderCode).toBe("F")
-    expect(roster.orgName).toBe("Triam Udom Suksa School")
-  })
-})
 
 describe("Co-organizers — the relation nothing used to create", () => {
   /**
@@ -586,7 +541,10 @@ describe("Organisations — the actions ORG was declared for", () => {
 
     const added = await post("/api/orgs/org_001/members", { userId: newcomer.id }, admin)
     expect(added.status).toBe(201)
-    expect((await added.json()).role, "the PO says MEMBER; the column holds member").toBe("member")
+    // The model's own code, stored as the model spells it. It was lowercased
+    // while membership lived in Better Auth's table, which is one translation
+    // fewer now.
+    expect((await added.json()).role).toBe("MEMBER")
 
     // A plain member cannot edit the profile — that is ORG_ADMIN and above.
     const member = await signIn(newcomer.email)

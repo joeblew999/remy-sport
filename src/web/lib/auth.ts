@@ -126,15 +126,6 @@ export function useAdminAction() {
   });
 }
 
-export function useAcceptInvitation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (invitationId: string) =>
-      call("/api/auth/organization/accept-invitation", { invitationId }),
-    // Joining sets the active organization on the session.
-    onSuccess: () => identityChanged(qc),
-  });
-}
 
 // ── Dev-only reads ─────────────────────────────────────────────────────────
 // Both 404 unless MAIL_TRANSPORT=outbox, which is the point: they cannot work
@@ -222,25 +213,6 @@ export type InvitationResult =
   | { state: "wrong-account" }
   | { state: "invalid" };
 
-export function useInvitation(id: string | undefined, ready: boolean) {
-  return useQuery({
-    queryKey: ["invitation", id],
-    // Waits for the session: answering "not signed in" before it resolves shows
-    // the sign-in prompt to someone who is already signed in.
-    enabled: Boolean(id) && ready,
-    retry: false,
-    queryFn: async (): Promise<InvitationResult> => {
-      const res = await fetch(
-        `/api/auth/organization/get-invitation?id=${encodeURIComponent(id!)}`,
-        { credentials: "include" },
-      );
-      if (res.status === 401) return { state: "needs-signin" };
-      if (res.status === 403) return { state: "wrong-account" };
-      if (!res.ok) return { state: "invalid" };
-      return { state: "ok", invitation: await res.json() };
-    },
-  });
-}
 
 /**
  * The account list, from Better Auth's admin plugin.

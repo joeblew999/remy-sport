@@ -50,7 +50,7 @@ const localeNames = () => text("names", { mode: "json" }).$type<Names>().notNull
  * enums still match their rows. Seeded in the migration rather than /api/seed,
  * because the foreign keys have to be satisfiable the moment they exist.
  */
-import { user, organization } from "./auth-schema"
+import { user } from "./auth-schema"
 
 /**
  * Application tables — hand-written, and the only schema file that is.

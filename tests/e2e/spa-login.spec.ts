@@ -36,15 +36,15 @@ test.describe("SPA sign-in", () => {
     // Lands back in the app, not on a server-rendered page.
     await expect(page.getByTestId("spa-login")).toHaveCount(0)
 
-    const session = await page.evaluate(async () => {
+    const email = await page.evaluate(async () => {
       const r = await fetch("/api/auth/get-session")
-      const s = await r.json()
-      return { email: s?.user?.email ?? null, org: s?.session?.activeOrganizationId ?? null }
+      return (await r.json())?.user?.email ?? null
     })
-    expect(session.email).toBe(COACH)
-    // The coach is seeded into Assumption College, so the session hook that
-    // ADR 011 added should have picked an active organization.
-    expect(session.org).toBeTruthy()
+    expect(email).toBe(COACH)
+    // No active organization on the session any more: that was the organization
+    // plugin's hook, and membership is the domain's `org_member` now. Whether
+    // this coach is in a school is the ORG_ADMIN relation, asserted directly in
+    // the worker tier against the row itself.
   })
 
   test("a wrong code keeps you on the code step", async ({ page }) => {
@@ -109,14 +109,4 @@ test.describe("SPA sign-in", () => {
     await expect(page.getByTestId("topbar-role")).toHaveText("referee")
   })
 
-  test("an invitee is offered sign-in inside the SPA, not sent to the harness", async ({ page }) => {
-    // The hand-off ADR 011 called jarring: this used to be an <a href="/login">
-    // into the other stack.
-    await page.goto("/#/accept-invitation/some-invitation-id")
-    const prompt = page.getByTestId("invitation-needs-signin")
-    await expect(prompt).toBeVisible()
-    await expect(prompt.locator('a[href="/login"]')).toHaveCount(0)
-    await prompt.getByRole("button", { name: "Sign in" }).click()
-    await expect(page.getByTestId("spa-login")).toBeVisible()
-  })
 })

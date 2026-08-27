@@ -12,7 +12,6 @@ import { EventPage } from "./pages/event";
 import { LivePage } from "./pages/live";
 import { TeamPage } from "./pages/team";
 import { ProfilePage } from "./pages/profile";
-import { AcceptInvitationPage } from "./pages/accept-invitation";
 import { LoginPage } from "./pages/login";
 import { DevicesPage } from "./pages/devices";
 import { AdminPage } from "./pages/admin";
@@ -96,7 +95,6 @@ function App() {
             {route.page === "live" && <LivePage goto={goto} spoiler={spoiler} setSpoiler={handleSpoilerSet}/>}
             {route.page === "team" && <TeamPage id={route.id} goto={goto}/>}
             {route.page === "profile" && <ProfilePage goto={goto}/>}
-            {route.page === "accept-invitation" && <AcceptInvitationPage id={route.id} goto={goto}/>}
             {route.page === "login" && <LoginPage goto={goto}/>}
             {route.page === "devices" && <DevicesPage goto={goto}/>}
             {route.page === "admin" && <AdminPage goto={goto}/>}

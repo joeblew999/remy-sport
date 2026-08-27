@@ -132,18 +132,6 @@ export function createAuth(c: AuthHost) {
           }
         : {}),
 
-      // First organization the user belongs to, oldest first so the choice is
-      // stable across sign-ins rather than depending on row order. A user in
-      // several orgs can switch with the plugin's set-active-organization.
-      resolveActiveOrganizationId: async (userId) => {
-        const row = await db
-          .select({ organizationId: schema.member.organizationId })
-          .from(schema.member)
-          .where(eq(schema.member.userId, userId))
-          .orderBy(schema.member.createdAt)
-          .get()
-        return row?.organizationId ?? null
-      },
     }),
     database: drizzleAdapter(db, { provider: "sqlite", schema }),
     // Fetch session+user in one query instead of two. Stable in 1.7 (it was

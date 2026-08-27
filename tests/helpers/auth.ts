@@ -342,35 +342,4 @@ function requireTestOtp(): string {
   return otp
 }
 
-/**
- * Delete an organization created by a test.
- *
- * Specs that create organizations must call this. Without it local D1 grew to
- * 126 organizations, and the accumulation eventually broke an unrelated
- * assertion: `organization/list` returns a bounded set, so a freshly created
- * org stopped appearing in it. That failure looked like a bug in listing and
- * was really a bug in cleanup — the worst kind to chase.
- *
- * Best-effort: a test that already failed should not fail again in teardown.
- */
-export async function deleteOrg(request: APIRequestContext, organizationId: string): Promise<void> {
-  await request
-    .post("/api/auth/organization/delete", {
-      data: { organizationId },
-      headers: { Origin: BASE },
-    })
-    .catch(() => undefined)
-}
 
-/** Page-driven variant, for specs that work through the browser context. */
-export async function deleteOrgViaPage(page: Page, organizationId: string): Promise<void> {
-  await page
-    .evaluate(async (id) => {
-      await fetch("/api/auth/organization/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ organizationId: id }),
-      })
-    }, organizationId)
-    .catch(() => undefined)
-}

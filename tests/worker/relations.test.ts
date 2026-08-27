@@ -37,12 +37,6 @@ function seededTuple(code: string): { userId: string; objectId: string } | null 
   const r = RELATION.find((x) => x.code === code)!
   if (r.via !== "table") return null
 
-  if (r.sourceTable === "members") {
-    const row = SEED_RELATIONSHIPS.orgMembers.find(
-      (m) => m.orgRoleCode.toLowerCase() === r.filterValue,
-    )
-    return row ? { userId: row.userId, objectId: row.orgId } : null
-  }
 
   const key = r.sourceTable!.replace(/_(\w)/g, (_, c: string) => c.toUpperCase())
   const rows = ((SEED_RELATIONSHIPS as Record<string, unknown>)[key] ??

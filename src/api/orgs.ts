@@ -17,7 +17,7 @@ import { z } from "zod"
 import * as schema from "../db/schema"
 import { OrgSchema, UpdateOrgInput } from "../domain/api"
 import { clean } from "../domain/names"
-import { ORG_ROLE_CODES, STORED_ORG_ROLE } from "../domain/vocabularies"
+import { ORG_ROLE_CODES } from "../domain/vocabularies"
 import { authed, authedRoute, pub, requireAction } from "./base"
 
 const IdInput = z.object({ id: z.string() })
@@ -57,9 +57,11 @@ export const update = authed
   })
 
 /**
- * Membership rows live in Better Auth's `member` table, which is where the
- * `ORG_OWNER`/`ORG_ADMIN` relations derive from — so this writes the tuple those
- * relations read, and the role has to be stored the way that library stores it.
+ * Writes the tuple the `ORG_OWNER`/`ORG_ADMIN` relations read.
+ *
+ * `org_member` is ours, with the Product Owner's own column names and role
+ * codes. It was Better Auth's `member` table until the organization plugin was
+ * removed, which is why this used to need a role-casing translation.
  */
 export const addMember = authed
   .route({
@@ -70,7 +72,7 @@ export const addMember = authed
     ...authedRoute,
   })
   .input(IdInput.extend({ userId: z.string(), orgRoleCode: z.enum(ORG_ROLE_CODES).optional() }))
-  .output(z.object({ orgId: z.string(), userId: z.string(), role: z.string() }))
+  .output(z.object({ orgId: z.string(), userId: z.string(), role: z.enum(ORG_ROLE_CODES) }))
   .use(requireAction("INVITE_ORG_MEMBER"))
   .handler(async ({ context, input }) => {
     const person = await context.db
@@ -81,19 +83,13 @@ export const addMember = authed
     if (!person) throw new ORPCError("NOT_FOUND", { message: "Unknown user" })
 
     // The PO says ADMIN; the column holds admin. One mapping, generated.
-    const role = STORED_ORG_ROLE[input.orgRoleCode ?? "MEMBER"]
+    const orgRoleCode = input.orgRoleCode ?? "MEMBER"
     await context.db
-      .insert(schema.member)
-      .values({
-        id: `mem_${input.id}_${input.userId}`,
-        organizationId: input.id,
-        userId: input.userId,
-        role,
-        createdAt: new Date(),
-      })
+      .insert(schema.orgMember)
+      .values({ orgId: input.id, userId: input.userId, orgRoleCode })
       .onConflictDoNothing()
 
-    return { orgId: input.id, userId: input.userId, role }
+    return { orgId: input.id, userId: input.userId, role: orgRoleCode }
   })
 
 export const removeMember = authed
@@ -108,9 +104,9 @@ export const removeMember = authed
   .use(requireAction("REMOVE_ORG_MEMBER"))
   .handler(async ({ context, input }) => {
     const res = await context.db
-      .delete(schema.member)
+      .delete(schema.orgMember)
       .where(
-        and(eq(schema.member.organizationId, input.id), eq(schema.member.userId, input.userId)),
+        and(eq(schema.orgMember.orgId, input.id), eq(schema.orgMember.userId, input.userId)),
       )
     if (res.meta.changes === 0) throw new ORPCError("NOT_FOUND", { message: "Not a member" })
     return { removed: input.userId }

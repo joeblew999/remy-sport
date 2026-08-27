@@ -1,8 +1,6 @@
 import type { BetterAuthOptions } from "better-auth"
 import { admin } from "better-auth/plugins/admin"
-import { organization } from "better-auth/plugins/organization"
 import { emailOTP } from "better-auth/plugins/email-otp"
-import { orgAc, orgRoles } from "./auth/org-access-control"
 import { adminAc, adminRoles } from "./auth/admin-access-control"
 
 /**
@@ -214,43 +212,17 @@ export function buildAuthOptions(deps: AuthDeps = {}) {
       // Declared here rather than bolted on in a migration so the generated
       // src/db/auth-schema.ts knows about them — a hand-added column Better Auth
       // cannot see is exactly the drift `auth:schema:check` exists to catch.
-      organization({
-        // orgAc/orgRoles, NOT the platform ac/roles. Passing the six domain roles
-        // here made "owner" — the role createOrganization actually writes —
-        // resolve to nothing. See org-access-control.ts and ADR 009.
-        ac: orgAc,
-        roles: orgRoles,
-        // Org membership grouping. See ADR 009 for why these are `orgTeam` and
-        // not `team`, and why rosters cannot live here.
-        teams: { enabled: true },
-        // Undefined when the caller supplied no mailer (the CLI). Better Auth
-        // then simply creates the invitation row and sends nothing, which is
-        // the pre-ADR-010 behaviour.
-        sendInvitationEmail: deps.sendInvitationEmail,
-        // Lets an org define extra roles at runtime, on top of the six fixed
-        // domain roles. Additive — the `ac` above is still the base statement
-        // set, and a dynamic role can only ever grant a subset of it.
-        dynamicAccessControl: { enabled: true },
-        schema: {
-          organization: {
-            // No additionalFields, deliberately.
-            //
-            // `names`, `orgTypeCode`, `cityCode` and `provinceCode` lived here
-            // and were the PO's model stored inside an auth library's table.
-            // additionalFields has no JSON type, so `names` — a JSON column by
-            // design since migration 0010 — was a string that src/api/teams.ts
-            // parsed by hand. They are columns on the generated `org` table now.
-            // Better Auth keeps id, name and slug, which is all its plugin
-            // needs.
-          },
-          // `team` is already taken by the domain roster table (migration 0006,
-          // ADR 008). Both tables are real and both are needed; renaming the
-          // plugin's avoids an ambiguous `export *` through src/db/schema.ts and
-          // a CREATE TABLE that would hit the existing roster table.
-          team: { modelName: "orgTeam" },
-          teamMember: { modelName: "orgTeamMember" },
-        },
-      }),
+      // No organization plugin, deliberately.
+      //
+      // It owned six tables — organization, member, invitation, organizationRole,
+      // orgTeam and orgTeamMember — and all six are the domain's. Better Auth
+      // owns authentication: user, session, account, verification. Membership is
+      // `org_member`, from the Product Owner's model, and the ORG relations
+      // derive from it by the columns that model already declares.
+      //
+      // What went with it was an invitation flow no part of the product could
+      // start — there was never a way to send one — and a shadow `organization`
+      // table carrying the same ids as `org`.
     ],
     // `satisfies`, not a type annotation: an annotation would widen the plugins
     // array and `createAuth` spreads this object, so Better Auth would lose the

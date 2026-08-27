@@ -21,7 +21,11 @@ import {
 } from "./model/vocabularies"
 
 /**
- * A fixture's name, and the table its rows actually live in.
+ * A fixture's name, and the SQL table its rows live in.
+ *
+ * Authored, like the tables themselves. The relation resolver builds SQL from
+ * the model's `sourceTable`, so these must be the names the database uses — not
+ * the drizzle identifiers, which differ wherever a table is snake_case.
  *
  * `team_coaches` is `teamCoach`; `members` is Better Auth's `member`. The rule is
  * mechanical, which is exactly why it kept being re-implemented — this file, the
@@ -40,9 +44,7 @@ export const FIXTURE_TABLE: Record<string, string> = {
   "event_venues": "eventVenue",
   "events": "event",
   "guardians": "guardian",
-  "members": "member",
-  "org_members": "orgMember",
-  "organizations": "organization",
+  "org_members": "org_member",
   "orgs": "org",
   "player_teams": "playerTeam",
   "players": "player",

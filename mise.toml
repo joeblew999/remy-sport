@@ -371,6 +371,7 @@ mise run check:docs
 mise run check:conventions
 mise run check:seed
 mise run check:domain
+mise run check:tables
 """
 
 [tasks."test:unit"]
@@ -520,6 +521,35 @@ depends     = ["install"]
 # capability the old generate-the-whole-migration approach never had.
 run = "bun x drizzle-kit generate"
 
+[tasks."db:studio"]
+description = "Browse the local D1 database in Drizzle Studio (developer tool; read-write)"
+# Depends on the migrations because Studio reads the schema from the database,
+# not from src/db/schema.ts — against a checkout that has never run wrangler
+# there is no .sqlite file for drizzle.config.ts to find, and Studio starts with
+# no tables and no explanation. Applying migrations is idempotent, so this costs
+# nothing once the database exists.
+depends = ["install", "cf:d1:migrations:apply"]
+#
+# Two things this is not:
+#
+#   - It is not in VS Code. Studio's UI is served from https://local.drizzle.studio
+#     and only the data stays local, so this opens a browser tab and needs
+#     working internet. There is no first-party Drizzle extension for VS Code.
+#   - It is not the remote database. This reads the miniflare file under
+#     .wrangler/; production D1 is the Cloudflare dashboard.
+#
+# Edits made here are real writes to the local database, and they survive
+# exactly until the next `mise run cf:d1:reset` or re-seed. Nothing reaches biz.
+run = "bun x drizzle-kit studio"
+
+[tasks."check:tables"]
+description = "Fail if the model names a table this schema does not have"
+depends     = ["install"]
+# FIXTURE_TABLE and an object type's table_name are authored, and a wrong entry
+# is not a type error — it is a query against a table that does not exist, on
+# the one path that uses it. ORG named `organizations` after that table was
+# dropped, and every write to an organisation answered 500.
+run = "bun scripts/check-tables.ts"
 
 [tasks."check:seed"]
 description = "Fail if src/db/seed.sql is stale against the fixtures"
