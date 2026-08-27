@@ -13,7 +13,13 @@
     "jsx": "react-jsx",
     "jsxImportSource": "react",
     "strict": true,
-    "noUnusedLocals": false,
+    // On since 2026-08-27, along with the Worker's. It found nine dead imports
+    // here, all of them left behind by the react-query refactor that deleted the
+    // useState/useEffect they belonged to. knip checks orphan FILES, not unused
+    // imports inside a live one, and there is no linter in this repo.
+    // noUnusedParameters stays off: a React handler that ignores its event
+    // argument is normal, and the noise would bury the signal above.
+    "noUnusedLocals": true,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
     "allowJs": true

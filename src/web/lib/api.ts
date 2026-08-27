@@ -2,10 +2,10 @@
 // [assets] binding, so every path here is relative — which is also what Tauri
 // needs (biz decision-003: "asset paths must stay relative").
 
-import type { Crest, Event, EventStatus, EventType, Team } from "../data";
+import type { Crest, Event, EventStatus, Team } from "../data";
 import type { RouterClient } from "@orpc/server";
 import type { Router } from "../../api/index";
-import type { Localizer, Names } from "./localizer";
+import type { Localizer } from "./localizer";
 
 /**
  * One event, as the contract declares it. Inferred, never written out — the

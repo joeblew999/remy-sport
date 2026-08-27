@@ -16,7 +16,6 @@
  */
 
 import { z } from "zod"
-import * as schema from "../db/schema"
 import { StandingsSchema } from "../domain/api"
 import { STANDINGS_POINTS } from "../domain/vocabularies"
 import { pub } from "./base"

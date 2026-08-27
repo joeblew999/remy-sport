@@ -374,6 +374,7 @@ mise run check:domain
 mise run check:tables
 mise run check:assets
 mise run check:messages
+mise run check:deps
 """
 
 [tasks."test:unit"]
@@ -552,6 +553,19 @@ depends     = ["install"]
 # passes. Verified by deleting one. The model's own values are checked upstream
 # by `data:check` in remy-sport-biz; these 113 had nothing.
 run = "bun scripts/check-messages.ts"
+
+[tasks."check:deps"]
+description = "Fail if a module imports across a layer boundary, or two modules import each other"
+depends     = ["install"]
+# The rules are in .dependency-cruiser.cjs with the reasoning beside each one.
+# Not a script in scripts/: this is a solved problem, and every other check here
+# is bespoke because nothing off the shelf knew about the PO's model. This one
+# is a config file and someone else's graph walker.
+#
+# It found a real cycle the day it was added — src/api/base.ts and
+# src/api/relations.ts imported each other, invisible because one side was
+# `import type`, which erases before tsc ever forms an opinion.
+run = "bun x depcruise src --config .dependency-cruiser.cjs"
 
 [tasks."check:assets"]
 description = "Fail if a built asset would shadow a Worker route"

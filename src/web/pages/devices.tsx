@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
 import { useSession } from "../lib/session";
 import { useDevices, useRevokeDevice } from "../lib/auth";
-import { toDevices, formatWhen, type Device, type RawSession } from "../lib/devices";
+import { toDevices, formatWhen, type RawSession } from "../lib/devices";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
 

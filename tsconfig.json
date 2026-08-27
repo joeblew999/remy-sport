@@ -8,6 +8,11 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "strict": true,
+    // Catches the import left behind when the thing it imported moves. `drizzle`
+    // sat unused in src/api/base.ts after `database` moved to db.ts, and nothing
+    // said so: knip checks orphan FILES and unlisted deps, not unused imports
+    // inside a live one, and there is no linter here.
+    "noUnusedLocals": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,

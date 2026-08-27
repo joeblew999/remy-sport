@@ -15,10 +15,10 @@
 
 import { ORPCError, os } from "@orpc/server"
 import type { OpenAPIV3_1 } from "openapi-types"
-import { drizzle } from "drizzle-orm/d1"
 import { eq } from "drizzle-orm"
 import * as schema from "../db/schema"
 import { GRANTS } from "../domain/vocabularies"
+import { database, type Db } from "./db"
 import { eventIdFor, holds, objectExists, objectTableFor } from "./relations"
 import { createAuth } from "../auth"
 import type { Bindings } from "../types"
@@ -48,8 +48,10 @@ export function viewerTimezone(request: Request): string | null {
   return cf?.timezone ?? null
 }
 
-export type Db = ReturnType<typeof database>
-const database = (env: Bindings) => drizzle(env.DB, { schema })
+// Re-exported so the `type Db` imports across src/api keep pointing at
+// src/api/base — the type moved to break a cycle, not to be relocated in every
+// caller.
+export { database, type Db }
 
 const base = os.$context<ApiContext>()
 

@@ -26,7 +26,9 @@
 
 import { sql } from "drizzle-orm"
 import { ACTION, FIXTURE_TABLE, OBJECT_TYPE, RELATION, STORED_ROLE } from "../domain/vocabularies"
-import type { Db } from "./base"
+// From ./db, not ./base: base imports this module, and importing back — even
+// as a type — is the cycle check:deps now refuses.
+import type { Db } from "./db"
 
 type RelationRow = (typeof RELATION)[number]
 

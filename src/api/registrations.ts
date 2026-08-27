@@ -16,7 +16,6 @@
  * closed: no coach could register a team, and only a platform admin could.
  */
 
-import { ORPCError } from "@orpc/server"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import * as schema from "../db/schema"

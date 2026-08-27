@@ -1,6 +1,17 @@
 /**
  * Every released locale carries every message.
  *
+ * TEMPORARY — delete this file when inlang ships validation rules.
+ *
+ * Paraglide v2 removed lint rules outright, `@inlang/message-lint-rule-missing-
+ * translation` among them, and removed `inlang lint` from the CLI. The v2
+ * changelog says they are to come back as lix validation rules and points at
+ * https://github.com/opral/lix/issues/239, which is open. So the tool that used
+ * to answer this question upstream does not currently exist, and this file is
+ * standing in for it rather than being a thing we decided to own. When that
+ * issue closes, check whether a rule covers the first half of this file and
+ * delete it if so — the ERRORS check at the bottom is ours and stays.
+ *
  * Paraglide compiles messages into functions, so a *missing key* is a compile
  * error — `m.nope()` does not exist. A missing *translation* is not: the
  * compiler emits `if (locale === "th") return th_x(...)` and falls through to

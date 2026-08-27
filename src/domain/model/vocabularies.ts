@@ -12,7 +12,6 @@
 // disagree. The schema is authored in remy-sport/src/db/, and everything above
 // it derives from there — zod row schemas, the oRPC contract, the React types.
 
-import type { Names } from "./names"
 
 export const ALL_LOCALES = ["th", "en", "ja"] as const
 

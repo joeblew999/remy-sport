@@ -103,7 +103,6 @@ export function useVerifyCode() {
 
 /** Admin plugin writes — set-role, ban-user, impersonate-user, and friends. */
 export function useAdminAction() {
-  const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ path, body }: { path: string; body: unknown }) =>
       call(`/api/auth/admin/${path}`, body),

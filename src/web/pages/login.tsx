@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { useSession } from "../lib/session";
+import { useState } from "react";
 import { useDevAccounts, useRequestCode, useVerifyCode, codeFromOutbox } from "../lib/auth";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";

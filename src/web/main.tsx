@@ -16,7 +16,6 @@ import { LoginPage } from "./pages/login";
 import { DevicesPage } from "./pages/devices";
 import { AdminPage } from "./pages/admin";
 import { OrgsPage, OrgPage } from "./pages/org";
-import { m } from "./lib/i18n";
 
 interface TweakDefaults {
   accentColor?: string;

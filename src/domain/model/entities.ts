@@ -5,7 +5,6 @@
 // fixture row joins to a Better Auth user on the same column rather than through
 // a bridge. Stable ids are the whole reason a re-seed is safe.
 
-import type { Names } from "./names"
 
 export const SEED_ENTITIES = {
   divisions: [

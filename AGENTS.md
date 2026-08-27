@@ -64,6 +64,7 @@ is a tax. `## Next` below is where the ones worth keeping are written down.
 ```
 mise tasks                what you can run, and what each does
 mise run check            types + unit + worker + dead code + docs + these rules
+mise run check:deps       layer boundaries and import cycles (.dependency-cruiser.cjs)
 mise run test:all         every tier, with the seconds each one costs
 mise run test:tiers       where the tests are, and which are in the wrong tier
 mise run test:render      rendering tests, no Worker, no database
@@ -200,6 +201,12 @@ Update it when you finish something; delete the line when it is done.
    values that used to live in `translations.jsonl` and `entity_names.jsonl`.
    The only differences are this week's deliberate ones, each in its own commit.
    The old files are safe to delete; they are already gone from biz `HEAD`.
+12. **`event.province_code` is the one `*_code` column with no constraint.** The
+    other nineteen either have a `.references()` into a vocabulary or a drizzle
+    `enum`; this one has a comment. Inert today because only the seed writes it —
+    but `events.update` is on the list of writes with no GUI yet, and the day it
+    gets one, a typo becomes a row. Give it `.references(() => province.code)`
+    when you touch that table, not before: it is a migration for no live gain.
 
 The test classification is **done**. `mise run test:all` for the numbers; the
 25 left in e2e are genuine round trips and belong there. Do not "optimise the
@@ -249,6 +256,27 @@ they have not drifted.
 **biz wins unless the code here says otherwise, with the reason in the commit.**
 
 ## Traps
+
+**Four import rules, and `mise run check:deps` enforces them.** They were
+enforced by hoping until 2026-08-27; the reasoning for each sits beside it in
+[.dependency-cruiser.cjs](.dependency-cruiser.cjs).
+
+- The Worker must not import `src/web`. This one actually happened: sending the
+  sign-in email from the product's own messages meant importing the SPA, which
+  typechecks only by accident because the Worker's tsconfig excludes `src/web`.
+  Shared code goes below both — `src/domain` for the model, `src/paraglide` for
+  copy, which is why the messages compile there.
+- The SPA may import **types** from the API and nothing else. `import type
+  { Router }` is how the client is typed and types erase; importing the
+  implementation pulls drizzle, Better Auth and the D1 bindings into the browser
+  bundle.
+- No cycles. It found one immediately: `src/api/base.ts` imported the relation
+  resolver while `relations.ts` imported `type Db` back out of `base`. Invisible
+  to tsc, because a type import erases before it forms an opinion — `Db` is
+  [src/api/db.ts](src/api/db.ts) now. The two drizzle schema files are exempt
+  and say why: `references(() => org.id)` takes a thunk *so that* tables can
+  point at each other.
+- `src/domain` imports nothing above it. It is the bottom of the chain below.
 
 **The schema is the root, and everything derives upward from it.**
 
