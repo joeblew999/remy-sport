@@ -99,7 +99,7 @@ function GameRow({
     <div className="device-row" data-testid={`game-${game.id}`}>
       <div>
         <div className="device-label">
-          {game.homeTeam} <span className="muted">v</span> {game.awayTeam}
+          {game.homeTeam} <span className="muted">{m.versus()}</span> {game.awayTeam}
         </div>
         <div className="device-meta">
           {/* The venue's clock is the primary one: it is the time printed on a

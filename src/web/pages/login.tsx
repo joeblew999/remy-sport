@@ -77,9 +77,9 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
   return (
     <div className="page-inner" data-testid="spa-login">
       <div className="page-header">
-        <div className="crumbs">SIGN IN</div>
+        <div className="crumbs">{m.sign_in_crumb()}</div>
         <h1>{m.welcome()}</h1>
-        <div className="sub">We'll email you a code — no password needed</div>
+        <div className="sub">{m.sign_in_sub()}</div>
       </div>
 
       {error && (
@@ -91,30 +91,30 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
       {step === "email" ? (
         <form onSubmit={submitEmail} className="dash-card" style={{ padding: 24, maxWidth: 420 }}>
           <label htmlFor="spa-email" style={{ display: "block", marginBottom: 8 }}>
-            Email
+            {m.email_label()}
           </label>
           <input
             id="spa-email"
             type="email"
             required
             autoComplete="email"
-            placeholder="you@example.com"
+            placeholder={m.email_placeholder()}
             data-testid="spa-email-input"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             style={{ width: "100%", padding: "10px 12px", marginBottom: 16 }}
           />
           <button className="btn primary" type="submit" disabled={busy} data-testid="spa-send-code">
-            {busy ? "Sending…" : "Email me a code"}
+            {busy ? m.sending() : m.email_me_a_code()}
           </button>
         </form>
       ) : (
         <form onSubmit={submitCode} className="dash-card" style={{ padding: 24, maxWidth: 420 }}>
           <p style={{ marginBottom: 12 }}>
-            Code sent to <b>{email}</b>. It expires in 10 minutes.
+            {m.code_sent_to({ email })}
           </p>
           <label htmlFor="spa-otp" style={{ display: "block", marginBottom: 8 }}>
-            6-digit code
+            {m.six_digit_code()}
           </label>
           <input
             id="spa-otp"
@@ -155,7 +155,7 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
               verifyCode.reset();
             }}
           >
-            Use a different email
+            {m.use_different_email()}
           </button>
         </form>
       )}

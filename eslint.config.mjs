@@ -49,7 +49,15 @@ export default [
         "error",
         {
           noStrings: true,
-          allowedStrings: ["—", "–", "·", "/", "|", ":", "×", "→", "←", "↗", "↻", "+", "-", "?", "*"],
+          // Glyphs and separators that are the same in every language — an em
+          // dash is not English — plus the product's own name. "Remy Sport" and
+          // "เรมีสปอร์ต" are the brand in two scripts, shown together on
+          // purpose in the sidebar: a proper noun is not a string to translate,
+          // and wrapping it in a message would invite somebody to.
+          allowedStrings: [
+            "—", "–", "·", "/", "|", ":", "×", "→", "←", "↗", "↻", "+", "-", "?", "*",
+            "Remy Sport", "เรมีสปอร์ต",
+          ],
           ignoreProps: true,
           noAttributeStrings: false,
         },

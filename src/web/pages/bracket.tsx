@@ -1,3 +1,4 @@
+import { m } from "../lib/i18n";
 import { useBracket } from "../lib/data";
 import { SampleData } from "../components/sample";
 import type { Route } from "../lib/router";
@@ -10,9 +11,9 @@ export function BracketView({ goto }: { goto: (r: Route) => void }) {
       <div className="legend">
         <span style={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--ink-3)" }}>FORMAT · SINGLE-ELIMINATION · 16 TEAMS</span>
         <span style={{ marginLeft: "auto" }}/>
-        <span className="swatch live"><span className="dot"/>LIVE</span>
-        <span className="swatch done"><span className="dot"/>FINAL</span>
-        <span className="swatch upcoming"><span className="dot"/>UPCOMING</span>
+        <span className="swatch live"><span className="dot"/>{m.status_live()}</span>
+        <span className="swatch done"><span className="dot"/>{m.status_final()}</span>
+        <span className="swatch upcoming"><span className="dot"/>{m.status_upcoming()}</span>
       </div>
       <div className="bracket">
         {B.rounds.map((r, ri) => (

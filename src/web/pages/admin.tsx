@@ -23,6 +23,8 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { formErrors } from "../lib/form-errors";
+import { m } from "../lib/i18n";
+import { useLocale } from "../lib/locale";
 import { api, orpc } from "../lib/orpc";
 import { useAccounts, useAdminAction, useDevAccounts, useRequestCode, useVerifyCode, codeFromOutbox, signOutSilently } from "../lib/auth";
 import { useSession } from "../lib/session";
@@ -88,15 +90,14 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
     onError: (e: Error) => setError(formErrors(e).form),
   });
 
-  if (loading || !user) return <div className="page-header"><h1>Loading…</h1></div>;
+  if (loading || !user) return <div className="page-header"><h1>{m.loading()}</h1></div>;
 
   return (
     <div className="admin">
       {impersonatedBy && (
         <div className="admin-banner" data-testid="impersonation-banner">
           <span>
-            You are viewing the platform as <strong>{user.email}</strong>. Your own admin
-            session is intact.
+            {m.impersonating_as({ email: user.email })}
           </span>
           <button
             data-testid="stop-impersonating"
@@ -104,14 +105,14 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
               adminAction.mutate({ path: "stop-impersonating", body: {} })
             }
           >
-            Stop impersonating
+            {m.stop_impersonating()}
           </button>
         </div>
       )}
 
       <div className="page-header">
-        <div className="crumbs">ADMIN</div>
-        <h1>Dashboard</h1>
+        <div className="crumbs">{m.admin_crumb()}</div>
+        <h1>{m.dashboard()}</h1>
         <div className="sub">
           {user.name || user.email} ·{" "}
           <span className="badge" data-testid="role-badge">
@@ -123,7 +124,7 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
       {error && <div className="admin-error">{error}</div>}
 
       <section className="admin-card">
-        <h2>Your permissions (event)</h2>
+        <h2>{m.your_permissions()}</h2>
         <div className="admin-perms" data-testid="permissions">
           {["create", "read", "update", "delete"].map((p) => (
             <span
@@ -140,13 +141,13 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
       </section>
 
       <section className="admin-card">
-        <h2>Events</h2>
+        <h2>{m.events()}</h2>
         <table className="admin-table" data-testid="events-table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Type</th>
-              <th>Description</th>
+              <th>{m.name()}</th>
+              <th>{m.type()}</th>
+              <th>{m.description()}</th>
               <th />
             </tr>
           </thead>
@@ -165,7 +166,7 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
                         className="danger"
                         onClick={() => deleteEvent.mutate(e.id)}
                       >
-                        Delete
+                        {m.delete()}
                       </button>
                     )}
                   </td>
@@ -186,9 +187,9 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
         <CreateEvent onError={setError} />
       ) : (
         <section className="admin-card dim" data-testid="create-event-denied">
-          <h2>Create event</h2>
+          <h2>{m.create_event()}</h2>
           <p className="muted">
-            Your role (<strong>{role}</strong>) does not have permission to create events.
+            {m.create_event_denied({ role })}
           </p>
         </section>
       )}
@@ -197,17 +198,16 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
           not model a nested impersonation, and the way out is the banner. */}
       {isAdmin && !impersonatedBy && (
         <section className="admin-card" data-testid="admin-console">
-          <h2>Accounts</h2>
+          <h2>{m.accounts()}</h2>
           <p className="muted">
-            Platform administration, via Better Auth's admin plugin. Impersonation keeps
-            your admin identity — the session records who is behind it.
+            {m.accounts_note()}
           </p>
           <table className="admin-table" data-testid="accounts-table">
             <thead>
               <tr>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Status</th>
+                <th>{m.email_column()}</th>
+                <th>{m.role()}</th>
+                <th>{m.status()}</th>
                 <th />
               </tr>
             </thead>
@@ -239,15 +239,15 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
                   <td>
                     {a.banned ? (
                       <span className="badge badge-danger" data-testid={`banned-${a.email}`}>
-                        banned
+                        {m.banned()}
                       </span>
                     ) : (
-                      <span className="badge">active</span>
+                      <span className="badge">{m.active()}</span>
                     )}
                   </td>
                   <td>
                     {a.id === user.id ? (
-                      <span className="muted small">you</span>
+                      <span className="muted small">{m.you()}</span>
                     ) : (
                       <>
                         <button
@@ -259,7 +259,7 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
                             })
                           }
                         >
-                          Impersonate
+                          {m.impersonate()}
                         </button>
                         <button
                           data-testid={`ban-${a.email}`}
@@ -289,6 +289,7 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
 
 function CreateEvent({ onError }: { onError: (m: string | null) => void }) {
   const qc = useQueryClient();
+  const { reference, name } = useLocale();
   const [done, setDone] = useState(false);
 
   const create = useMutation({
@@ -309,8 +310,8 @@ function CreateEvent({ onError }: { onError: (m: string | null) => void }) {
 
   return (
     <section className="admin-card" data-testid="create-event-form">
-      <h2>Create event</h2>
-      {done && <div className="admin-ok">Event created.</div>}
+      <h2>{m.create_event()}</h2>
+      {done && <div className="admin-ok">{m.event_created()}</div>}
       {createErr.form && (
         <div className="admin-error" data-testid="create-event-error">{createErr.form}</div>
       )}
@@ -335,11 +336,17 @@ function CreateEvent({ onError }: { onError: (m: string | null) => void }) {
             {createErr.field("names[en]")}
           </p>
         )}
+        {/* From the PO's vocabulary, not four hardcoded English strings. The
+            same shape GameStatus uses: an event type added upstream appears
+            here, already translated, with nothing edited in this file. The
+            hardcoded version was also a second place for the code list to
+            drift from the model. */}
         <select name="type" required defaultValue="tournament">
-          <option value="tournament">Tournament</option>
-          <option value="league">League</option>
-          <option value="camp">Camp / Clinic</option>
-          <option value="showcase">Showcase</option>
+          {(reference?.eventTypes ?? []).map((t) => (
+            <option key={t.code} value={t.code}>
+              {name(t.names, t.code)}
+            </option>
+          ))}
         </select>
         <input name="description" placeholder="Description (optional)" autoComplete="off" />
         {createErr.field("description") && (
@@ -410,7 +417,7 @@ function RoleSwitcher({ current }: { current: string }) {
 
   return (
     <section className="admin-card">
-      <h2>Sign in as (dev, local only)</h2>
+      <h2>{m.sign_in_as_dev()}</h2>
       <p className="muted small" data-testid="switch-status">
         {status}
       </p>

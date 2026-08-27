@@ -1,9 +1,11 @@
 import { useEvents, useFeed } from "../lib/data";
+import { useSession } from "../lib/session";
 import { SampleData } from "../components/sample";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
 
 export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
+  const { user } = useSession();
   const { data: events = [], isPending: eventsLoading } = useEvents({ limit: 4 });
   const feed = useFeed();
   const quickActions: [string, string, string][] = [
@@ -15,9 +17,14 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
   return (
     <>
       <div className="page-header">
-        <div className="crumbs">PROFILE / COACH</div>
-        <h1>Welcome back, Sukasem.</h1>
-        <div className="sub">Saint Gabriel's College · U16 Boys · Head Coach since 2019</div>
+        {/* The signed-in person, not a fixture. This greeted everybody as
+            "Welcome back, Sukasem." — hardcoded fake identity on the page whose
+            entire job is to show you yourself, with no SAMPLE DATA label
+            because it did not look like sample data. The same bug the live
+            page had. */}
+        <div className="crumbs">{m.profile_crumb()}</div>
+        <h1>{m.welcome_back({ name: user?.name || user?.email || "" })}</h1>
+        <div className="sub">{user?.email ?? ""}</div>
       </div>
 
       <div className="page-inner">

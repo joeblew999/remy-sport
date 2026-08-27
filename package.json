@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "@inlang/cli": "^3.3.3",
     "@inlang/paraglide-js": "2.24.1",
     "@playwright/test": "^1.62.1",
     "@tauri-apps/cli": "^2.11.4",

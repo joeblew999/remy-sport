@@ -112,7 +112,7 @@ export function DiscoverPage({ goto, spoiler }: DiscoverProps) {
           </button>
         ))}
         {isPending && <div className="empty">{m.loading_events()}</div>}
-        {error && <div className="empty">Could not load events. Check your connection and retry.</div>}
+        {error && <div className="empty">{m.events_load_failed()}</div>}
         {!isPending && !error && events.length === 0 && (
           <div className="empty">
             {allEvents.length === 0 ? "No events yet." : "No events match your filters."}
@@ -130,12 +130,12 @@ function LiveBanner({ goto, spoiler }: { goto: (r: Route) => void; spoiler: bool
   const aLeading = sa > sb;
   return (
     <div className="live-banner">
-      <div className="pill"><span className="dot"/>LIVE NOW</div>
+      <div className="pill"><span className="dot"/>{m.live_now_badge()}</div>
       <div>
         <div className="label">{G.event}</div>
         <div className="matchup">
           <span>{G.teamA.name}</span>
-          <span className="vs">vs</span>
+          <span className="vs">{m.versus()}</span>
           <span>{G.teamB.name}</span>
         </div>
       </div>

@@ -33,7 +33,7 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
     return (
       <div className="empty">
         <p>{m.not_found_team()}</p>
-        <button onClick={() => goto({ page: "discover" })}>← Back to discover</button>
+        <button onClick={() => goto({ page: "discover" })}>{m.back_to_discover()}</button>
       </div>
     );
   }
@@ -68,7 +68,7 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
             would read as fact rather than as the placeholder it is. */}
         <div style={{ display: "flex", gap: 32, alignItems: "baseline" }}>
           <div style={{ textAlign: "right" }}>
-            <div style={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.14em", textTransform: "uppercase" }}>RECORD</div>
+            <div style={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.14em", textTransform: "uppercase" }}>{m.record()}</div>
             <div style={{ fontFamily: "Space Grotesk, sans-serif", fontWeight: 600, fontSize: 32, letterSpacing: "-0.02em", color: "var(--ink-3)" }}>{t.record ?? "—"}</div>
           </div>
         </div>
@@ -107,7 +107,7 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
           {schedule.map((g, i) => (
             <div key={i} style={{ display: "grid", gridTemplateColumns: "90px 1fr 80px 100px 80px", padding: "14px 18px", borderBottom: "1px solid var(--rule)", alignItems: "center", background: g.live ? "var(--accent-soft)" : "transparent" }}>
               <span style={{ fontFamily: "Space Grotesk, sans-serif", fontWeight: 500, fontSize: 14 }}>{g.date}</span>
-              <span style={{ fontSize: 14 }}>vs <b>{g.vs}</b></span>
+              <span style={{ fontSize: 14 }}>{m.versus()} <b>{g.vs}</b></span>
               <span style={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.1em", textTransform: "uppercase" }}>{g.type}</span>
               <span style={{ fontFamily: "Space Grotesk, sans-serif", fontWeight: 600, fontSize: 16, textAlign: "right" }}>
                 {g.sa !== null ? `${g.sa}–${g.sb}` : <span style={{ color: "var(--ink-3)", fontWeight: 400 }}>—</span>}

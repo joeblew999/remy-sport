@@ -37,9 +37,9 @@ export function DevicesPage({ goto }: { goto: (r: Route) => void }) {
   if (!user) {
     return (
       <div className="empty" data-testid="devices-signed-out">
-        <p>Sign in to see where your account is being used.</p>
+        <p>{m.sign_in_to_see_devices()}</p>
         <button className="btn primary" onClick={() => goto({ page: "login" })}>
-          Sign in
+          {m.sign_in()}
         </button>
       </div>
     );
@@ -50,10 +50,10 @@ export function DevicesPage({ goto }: { goto: (r: Route) => void }) {
   return (
     <div className="page-inner" data-testid="devices-page">
       <div className="page-header">
-        <div className="crumbs">SECURITY</div>
+        <div className="crumbs">{m.security()}</div>
         <h1>{m.signed_in_devices()}</h1>
         <div className="sub">
-          Sessions last 30 days. Sign out anything you don't recognise.
+          {m.sessions_note()}
         </div>
       </div>
 
@@ -75,14 +75,14 @@ export function DevicesPage({ goto }: { goto: (r: Route) => void }) {
                     {d.label}
                     {d.current && (
                       <span className="device-tag" data-testid="device-current">
-                        this device
+                        {m.this_device()}
                       </span>
                     )}
                     {/* Worth surfacing: an admin viewing as you produces a real
                         session on your account, and you should be able to see it. */}
                     {d.impersonated && (
                       <span className="device-tag warn" data-testid="device-impersonated">
-                        admin session
+                        {m.admin_session()}
                       </span>
                     )}
                   </div>

@@ -43,7 +43,7 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
     return (
       <div className="empty">
         <p>{m.not_found_event()}</p>
-        <button onClick={() => goto({ page: "discover" })}>← Back to discover</button>
+        <button onClick={() => goto({ page: "discover" })}>{m.back_to_discover()}</button>
       </div>
     );
   }
@@ -79,7 +79,7 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
           <>{e.title.split(" — ")[0]}{e.title.includes(" — ") && <em>— {e.title.split(" — ")[1]}</em>}</>
         </h1>
         <div className="tagline">{e.date} · {e.loc} · {e.city} · {e.div}</div>
-        <div className="tagline thai" style={{ fontSize: 14 }}>จัดโดย {e.organizer}</div>
+        <div className="tagline">{m.organised_by({ name: e.organizer })}</div>
 
         <div className="event-stats">
           <div className="stat-cell">
@@ -146,7 +146,7 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
       {tab === "standings" && <StandingsTable eventId={e.id}/>}
       {tab === "teams" && <div className="page-inner"><Entries eventId={e.id}/></div>}
       {!["overview", "bracket", "schedule", "standings", "teams"].includes(tab) && (
-        <div className="page-inner"><div className="empty">{tab.toUpperCase()} view — not part of this hi-fi pass.</div></div>
+        <div className="page-inner"><div className="empty">{m.tab_not_built()}</div></div>
       )}
     </>
   );

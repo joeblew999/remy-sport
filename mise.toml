@@ -233,6 +233,23 @@ fi
 # kept rendering a field that had been deleted from its type.
 # UI copy is compiled, so it has to exist before anything typechecks it. The
 # Vite plugin does this during a build; this task is for everything else.
+[tasks."i18n:validate"]
+description = "Validate project.inlang/settings.json with the inlang CLI"
+depends     = ["install"]
+# The CLI is pinned in package.json rather than run through `bun x @inlang/cli@latest`,
+# which downloaded a fresh unpinned copy on every call — the same rule that puts
+# wrangler and the Tauri CLI there.
+#
+# `validate` checks the SETTINGS file, not the messages. That is still worth
+# running: domain:sync writes project.inlang/settings.json from the model's
+# locale vocabulary, so a malformed locale added upstream breaks the compiler
+# with an error that points at the wrong thing.
+#
+# `inlang lint` would be the one that checks messages, and it is gone — v3
+# removed lint rules pending https://github.com/opral/lix/issues/239. That is
+# why scripts/check-messages.ts exists and is marked temporary.
+run = "bun x inlang validate --project ./project.inlang"
+
 [tasks."i18n:generate"]
 description = "Compile messages/*.json into typed message functions (Paraglide). The locale list comes from project.inlang/settings.json, which domain:sync derives from the model's ALL_LOCALES."
 depends     = ["install"]
@@ -376,6 +393,7 @@ mise run check:assets
 mise run check:messages
 mise run check:deps
 mise run check:i18n
+mise run i18n:validate
 """
 
 [tasks."test:unit"]
