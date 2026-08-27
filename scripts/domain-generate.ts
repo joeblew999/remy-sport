@@ -164,37 +164,58 @@ const pascal = (snake: string) => {
 }
 
 /**
- * The column type schema.md declares, keyed `table.column`.
+ * The schema contract, as data.
  *
- * The declaration wins over what the values happen to look like. Inferring from
- * a sample means a text column whose fixture rows are all digits becomes
- * INTEGER — remy-sport-biz's own validator carries a note about that happening
- * once, to a phone number in E.164 form. The document says `text`; the data
- * said otherwise; the data was wrong.
- *
- * Upstream already validates the values against these declarations, so trusting
- * them here removes a third opinion rather than adding one.
+ * remy-sport-biz publishes `schema.json` from the same parse its own validator
+ * runs on schema.md — the document stays the contract and stays executed, and
+ * this stops being a second interpretation of it. Two regex parsers lived here
+ * until 2026-08-27, one for column types and one for uniqueness, and a second
+ * reading of one document is a second chance to read it differently.
  */
-const DECLARED_TYPE: Map<string, "TEXT" | "INTEGER"> = (() => {
-  const out = new Map<string, "TEXT" | "INTEGER">()
-  const doc = resolve(BIZ, "schema.md")
-  if (!existsSync(doc)) return out
-  let table: string | null = null
-  for (const line of readFileSync(doc, "utf8").split("\n")) {
-    const heading = line.match(/^##\s+(\w+)\.jsonl/)
-    if (heading) {
-      table = heading[1]!
-      continue
-    }
-    const col = line.match(/^\|\s*`([a-z_]+)`\s*\|\s*(\w+)\s*\|/)
-    if (table && col) {
-      const declared = col[2]!.toLowerCase()
-      // `FK` and `date` are text in SQLite; only these two are stored as numbers.
-      out.set(`${table}.${col[1]}`, declared === "integer" || declared === "boolean" ? "INTEGER" : "TEXT")
-    }
+interface SchemaContract {
+  tables: {
+    name: string
+    columns: { name: string; type: string; required: boolean; references: string | null }[]
+    uniqueness: string[]
+  }[]
+}
+
+const CONTRACT: SchemaContract = (() => {
+  const p = resolve(BIZ, "schema.json")
+  if (!existsSync(p)) {
+    return fail(
+      `domain-generate: ${p} not found. It is published by\n` +
+        `  mise run data:schema-json  (in remy-sport-biz)\n` +
+        `and is the schema contract this generator reads instead of parsing schema.md.`,
+    )
   }
-  return out
+  return JSON.parse(readFileSync(p, "utf8")) as SchemaContract
 })()
+
+/** Column type per `table.column`. Only these two are stored as numbers. */
+const DECLARED_TYPE = new Map<string, "TEXT" | "INTEGER">(
+  CONTRACT.tables.flatMap((t) =>
+    t.columns.map(
+      (c) =>
+        [`${t.name}.${c.name}`, c.type === "integer" || c.type === "boolean" ? "INTEGER" : "TEXT"] as [
+          string,
+          "TEXT" | "INTEGER",
+        ],
+    ),
+  ),
+)
+
+/**
+ * Composite uniqueness per table.
+ *
+ * Not decoration: migration 0014 added these after a re-seed silently duplicated
+ * all 58 join rows, because `INSERT OR IGNORE` has nothing to conflict on
+ * without a constraint. Declaring them in the drizzle schema is what stops a
+ * generated migration dropping them.
+ */
+const UNIQUENESS = new Map<string, string[]>(
+  CONTRACT.tables.filter((t) => t.uniqueness.length > 1).map((t) => [t.name, t.uniqueness]),
+)
 
 /** The declared type, or the inferred one, and a loud failure if they disagree. */
 function columnType(source: string, key: string, sample: unknown): "TEXT" | "INTEGER" {
@@ -535,38 +556,6 @@ const GENERATED_ENTITIES = Object.entries(ENTITIES).filter(([source]) => !APP_OW
  * columns to the entity, so the database carries the PO's model with its real
  * constraints rather than a hand-typed approximation of it.
  */
-/**
- * The uniqueness each table declares, read from the PO's schema.md.
- *
- * The document is the source, exactly as it is upstream: remy-sport-biz's
- * validate-seed.nu parses these same lines to check the fixtures actually hold
- * the keys they claim. Any backticked name on a `**Uniqueness**:` line is a
- * column — the same rule, so the two repos cannot read it differently.
- *
- * These are not decoration. Migration 0014 added them after a re-seed silently
- * duplicated all 58 join rows, because `INSERT OR IGNORE` has nothing to conflict
- * on without a constraint. They were missing from the drizzle schema, which
- * meant the schema-of-record did not know the database's own constraints — and
- * anything regenerating DDL from it would have dropped them.
- */
-const UNIQUENESS: Map<string, string[]> = (() => {
-  const out = new Map<string, string[]>()
-  const doc = resolve(BIZ, "schema.md")
-  if (!existsSync(doc)) return out
-  let table: string | null = null
-  for (const line of readFileSync(doc, "utf8").split("\n")) {
-    const heading = line.match(/^##\s+(\w+)\.jsonl/)
-    if (heading) table = heading[1]!
-    else if (table && line.startsWith("**Uniqueness**:")) {
-      const cols = [...line.matchAll(/`([a-z_]+)`/g)].map((m) => m[1]!)
-      // "`code` globally" is the primary key already; only composites need one.
-      if (cols.length > 1) out.set(table, cols)
-      table = null
-    }
-  }
-  return out
-})()
-
 function emitFixtureTable(source: string, rows: Json[], byEntity: Map<string, string>): string {
   const table = singular(source)
   const keys = Object.keys(rows[0]!)
