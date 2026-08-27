@@ -98,6 +98,8 @@ export const ACTION = [
   { code: "VIEW_BRACKET", objectTypeCode: "EVENT", category: "Schedules", names: {"th":"ดูสายแข่งขัน","en":"View bracket"} },
   { code: "VIEW_FIXTURE_SCHEDULE", objectTypeCode: "EVENT", category: "Schedules", names: {"th":"ดูตารางแข่งขัน","en":"View fixture schedule"} },
   { code: "VIEW_COURT_ASSIGNMENTS", objectTypeCode: "EVENT", category: "Schedules", names: {"th":"ดูการจัดสนาม","en":"View court assignments"} },
+  { code: "MANAGE_FIXTURES", objectTypeCode: "EVENT", category: "Schedules", names: {"th":"จัดการตารางแข่งขัน","en":"Add, edit and remove fixtures"}, descriptions: {"th":"สร้างหรือแก้ไขการแข่งขันทีละนัด ต่างจากการสร้างอัตโนมัติทั้งตาราง","en":"Create or change one game at a time — as distinct from generating a whole schedule at once"} },
+  { code: "ASSIGN_REFEREE", objectTypeCode: "GAME", category: "Schedules", names: {"th":"มอบหมายผู้ตัดสิน","en":"Assign a referee to a game"}, descriptions: {"th":"เลือกผู้ตัดสินสำหรับการแข่งขันนัดหนึ่ง ซึ่งเป็นสิ่งที่ทำให้การบันทึกคะแนนปลอดภัย","en":"Choose who officiates one game — the assignment that makes score entry safe"} },
   { code: "GENERATE_BRACKETS", objectTypeCode: "EVENT", category: "Schedules", names: {"th":"สร้างสายแข่งขัน","en":"Generate brackets"} },
   { code: "GENERATE_FIXTURES", objectTypeCode: "EVENT", category: "Schedules", names: {"th":"สร้างตารางแข่งขัน","en":"Generate fixtures"} },
   { code: "DEFINE_SESSION_SCHEDULE", objectTypeCode: "EVENT", category: "Schedules", names: {"th":"กำหนดตารางเซสชัน","en":"Define session schedule"} },
@@ -174,6 +176,8 @@ export const ACTION_CODES = ACTION.map((t) => t.code) as unknown as [
   "VIEW_BRACKET",
   "VIEW_FIXTURE_SCHEDULE",
   "VIEW_COURT_ASSIGNMENTS",
+  "MANAGE_FIXTURES",
+  "ASSIGN_REFEREE",
   "GENERATE_BRACKETS",
   "GENERATE_FIXTURES",
   "DEFINE_SESSION_SCHEDULE",
@@ -822,6 +826,23 @@ export const GRANTS = {
   ],
   VIEW_COURT_ASSIGNMENTS: [
     { relation: "PUBLIC", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+  ],
+  // One fixture at a time — what an organiser does before any generator exists,
+  // and what they fall back to when a generated schedule needs a change. Mirrors
+  // GENERATE_FIXTURES, plus SHOWCASE: a showcase has games and no draw.
+  MANAGE_FIXTURES: [
+    { relation: "OWNER", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+    { relation: "CO_ORGANIZER", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+    { relation: "PLATFORM_ADMIN", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+  ],
+  // Scoped to the GAME, like ENTER_SCORES, and granted to whoever runs the event
+  // above it. Deliberately NOT granted to referees: choosing who officiates is
+  // not a referee's decision, and a referee who could assign themselves would
+  // undo the point of assigning anyone.
+  ASSIGN_REFEREE: [
+    { relation: "GAME_EVENT_OWNER", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+    { relation: "GAME_EVENT_CO_ORGANIZER", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+    { relation: "PLATFORM_ADMIN", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
   ],
   GENERATE_BRACKETS: [
     { relation: "OWNER", eventTypes: ["TOURNAMENT", "SHOWCASE"] },

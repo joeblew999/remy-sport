@@ -40,8 +40,13 @@ export const router = {
   games: {
     list: games.list,
     get: games.get,
+    create: games.create,
+    update: games.update,
+    delete: games.remove,
     enterScore: games.enterScore,
     setStatus: games.setStatus,
+    assignReferee: games.assignReferee,
+    unassignReferee: games.unassignReferee,
   },
   teams: {
     list: teams.list,

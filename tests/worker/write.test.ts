@@ -832,3 +832,125 @@ describe("Rosters", () => {
     expect(res.status).toBe(404)
   })
 })
+
+describe("Fixtures — the half of scheduling that did not exist", () => {
+  /**
+   * There was no way to create a game at all before 2026-08-27. An organiser
+   * could create an event and register teams, then schedule nothing: the only
+   * games in the database came from the seed.
+   */
+  const niran = () => signIn(SEED_ENTITIES.users.find((u) => u.id === "usr_org_002")!.email)
+
+  it("the event's organiser adds a fixture between two registered teams", async () => {
+    const organiser = await niran() // owns evt_002
+    const res = await post(
+      "/api/events/evt_002/games",
+      {
+        eventId: "evt_002",
+        homeTeamId: "team_001",
+        awayTeamId: "team_003",
+        startsAt: "2026-09-20T10:00:00Z",
+      },
+      organiser,
+    )
+    expect(res.status).toBe(201)
+    const game = (await res.json()) as { id: string; statusCode: string; canEnterScore: boolean }
+    expect(game.statusCode, "a new fixture has not been played").toBe("SCHEDULED")
+    expect(game.canEnterScore, "the organiser may score it too").toBe(true)
+
+    // And it is in the schedule immediately.
+    const { games } = (await (await api("/api/games?eventId=evt_002")).json()) as {
+      games: { id: string }[]
+    }
+    expect(games.map((g) => g.id)).toContain(game.id)
+
+    await api(`/api/events/evt_002/games/${game.id}`, { method: "DELETE", cookie: organiser })
+  })
+
+  it("refuses a fixture with a team that never entered", async () => {
+    const organiser = await niran()
+    // evt_001's teams are 001, 003, 004 — team_002 is not among them, and it is
+    // not in evt_002 either... it is. Use evt_001 where it genuinely is not.
+    const res = await post(
+      "/api/events/evt_001/games",
+      { eventId: "evt_001", homeTeamId: "team_001", awayTeamId: "team_002", startsAt: "2026-06-12T10:00:00Z" },
+      await signIn(SEED_ENTITIES.users.find((u) => u.id === "usr_org_001")!.email),
+    )
+    expect(res.status).toBe(400)
+    expect((await res.json()).message).toContain("not registered")
+    expect(organiser).toBeTruthy()
+  })
+
+  it("refuses a team playing itself", async () => {
+    const organiser = await niran()
+    const res = await post(
+      "/api/events/evt_002/games",
+      { eventId: "evt_002", homeTeamId: "team_001", awayTeamId: "team_001", startsAt: "2026-09-20T10:00:00Z" },
+      organiser,
+    )
+    expect(res.status).toBe(400)
+  })
+
+  it("a coach cannot schedule fixtures in someone else's event", async () => {
+    const coach = await signIn(actorFor("COACH"))
+    const res = await post(
+      "/api/events/evt_002/games",
+      { eventId: "evt_002", homeTeamId: "team_001", awayTeamId: "team_003", startsAt: "2026-09-20T10:00:00Z" },
+      coach,
+    )
+    expect(res.status).toBe(403)
+  })
+
+  it("removing a fixture takes its referee assignments with it", async () => {
+    const organiser = await niran()
+    const created = await post(
+      "/api/events/evt_002/games",
+      { eventId: "evt_002", homeTeamId: "team_001", awayTeamId: "team_003", startsAt: "2026-09-21T10:00:00Z" },
+      organiser,
+    )
+    const { id } = (await created.json()) as { id: string }
+
+    expect((await post(`/api/games/${id}/referees`, { id, userId: "usr_referee_001" }, organiser)).status)
+      .toBe(201)
+    expect((await api(`/api/events/evt_002/games/${id}`, { method: "DELETE", cookie: organiser })).status)
+      .toBe(200)
+    // The assignment pointed at the game and would otherwise orphan.
+    expect((await api(`/api/games/${id}`)).status).toBe(404)
+  })
+})
+
+describe("Referee assignment", () => {
+  const niran = () => signIn(SEED_ENTITIES.users.find((u) => u.id === "usr_org_002")!.email)
+
+  it("the organiser puts a referee on a game, and takes them off", async () => {
+    const organiser = await niran()
+    // gam_003 has usr_referee_002; add the other one.
+    expect((await post("/api/games/gam_003/referees", { id: "gam_003", userId: "usr_referee_001" }, organiser)).status)
+      .toBe(201)
+    expect(
+      (await api("/api/games/gam_003/referees/usr_referee_001", { method: "DELETE", cookie: organiser })).status,
+    ).toBe(200)
+  })
+
+  it("refuses an account that is not a referee", async () => {
+    const organiser = await niran()
+    const res = await post(
+      "/api/games/gam_003/referees",
+      { id: "gam_003", userId: "usr_coach_001" },
+      organiser,
+    )
+    expect(res.status).toBe(400)
+    expect((await res.json()).message).toContain("not a referee")
+  })
+
+  it("a referee cannot assign themselves — that would undo the point", async () => {
+    const adisorn = await signIn("adisorn.b@bat.test")
+    // He is on gam_001 and gam_002, not gam_003.
+    const res = await post(
+      "/api/games/gam_003/referees",
+      { id: "gam_003", userId: "usr_referee_001" },
+      adisorn,
+    )
+    expect(res.status).toBe(403)
+  })
+})

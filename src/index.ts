@@ -17,8 +17,19 @@ import type { AppEnv } from "./types"
 
 const app = new Hono<AppEnv>()
 
-// Global middleware
-app.use(logger())
+// Request logging, scoped to the API rather than mounted on everything.
+//
+// `run_worker_first = true` plus the catch-all at the bottom of this file means
+// every hashed JS and CSS bundle is a Worker invocation, and hono's logger
+// writes two console lines per request — so an unscoped `app.use(logger())`
+// buried each API call under a page's worth of asset fetches.
+//
+// Nothing is lost by scoping it. `[observability]` already records method,
+// path, status and timing for every invocation, asset requests included, which
+// is the same information these lines carry; what they add over it is the local
+// `wrangler dev` terminal, and that is API traffic too.
+app.use("/api/*", logger())
+app.use("/rpc/*", logger())
 
 // CORS applies only to /api/*, and only for anonymous cross-origin reads.
 // `origin: "*"` with `credentials: true` is rejected by browsers, so credentials
