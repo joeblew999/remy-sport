@@ -176,31 +176,13 @@ await check("a wrong sign-in code is refused", async () => {
     : "4xx, but not a Better Auth error body — is that route actually mounted?"
 })
 
-await check("re-seeding creates nothing", async () => {
-  // The one write, and it must create nothing. Not "write nothing": the two
-  // halves of seed.sql are deliberately different, and the difference is the
-  // whole point of the check.
-  //
-  // Vocabularies are the Product Owner's absolutely — a renamed province is a
-  // correction — so they `ON CONFLICT DO UPDATE`, and SQLite reports a change
-  // for each one whether or not the value moved. Entities are `INSERT OR
-  // IGNORE`, because an event's name can be edited in the product and
-  // re-seeding must not overwrite what somebody changed.
-  //
-  // So the expected count is exactly the number of upserts: every entity insert
-  // was a no-op. One more than that means an entity row was created twice —
-  // which is what silently duplicated rows on past deploys, and what the join
-  // table constraints exist to prevent.
-  const seedSql = await Bun.file(new URL("../src/db/seed.sql", import.meta.url)).text()
-  const upserts = seedSql.match(/ON CONFLICT[^;]*?DO UPDATE/g)?.length ?? 0
-
+await check("the seed route does NOT exist", async () => {
+  // It used to, and unauthenticated: 330 D1 statements to anyone who found it,
+  // plus vocabulary upserts that re-asserted the PO's labels over edited ones.
+  // Seeding is an operator action now — `mise run seed:remote` applies the SQL
+  // through wrangler — so on a deployment this must be as absent as the outbox.
   const res = await fetch(`${BASE}/api/seed`, { method: "POST" })
-  if (!res.ok) return `expected 200, got ${res.status}`
-  const body = (await res.json()) as { statements: number; written: number }
-  if (!body.statements) return "the seed reported no statements"
-  return body.written === upserts
-    ? null
-    : `re-seeding wrote ${body.written} rows; expected ${upserts} (the vocabulary upserts, and no entity)`
+  return res.status === 404 ? null : `expected 404, got ${res.status}`
 })
 
 if (failed) {

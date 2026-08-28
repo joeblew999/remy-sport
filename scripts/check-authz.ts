@@ -104,9 +104,63 @@ if (problems.length) {
   process.exit(1)
 }
 
+/**
+ * The routes that are not oRPC procedures at all.
+ *
+ * The walk above covers the router, and I claimed that was the whole API
+ * surface. It was not: five Hono sub-routers are mounted alongside it, and one
+ * of them — `POST /api/seed` — was an unauthenticated write on a public domain.
+ * A check that enumerates only the easy half is worse than none, because it
+ * reads as a clean bill of health.
+ *
+ * These cannot carry a policy: they are not procedures, and several exist
+ * precisely to sit outside the model (Better Auth's own routes, `.well-known`).
+ * So they are listed here by hand and the list is asserted — a new one appears
+ * as a failure rather than as silence.
+ */
+const HONO_ROUTES: Record<string, string> = {
+  "POST /api/seed": "dev only — 404s unless MAIL_TRANSPORT=outbox; deploys seed via wrangler",
+  "GET /api/dev/outbox": "dev only — 404s on a deployment; would expose sign-in codes",
+  "DELETE /api/dev/outbox": "dev only — same gate",
+  "GET /api/dev/accounts": "the demo picker; gated on TEST_OTP and never offers the admin",
+  "POST /api/dev/prune-sessions": "dev only — 404s on a deployment; bulk session delete",
+  "ALL /api/auth/*": "Better Auth owns its own authorisation, including the admin plugin",
+  "GET /.well-known/apple-app-site-association": "public by specification; 404s until configured",
+  "GET /.well-known/assetlinks.json": "public by specification; 404s until configured",
+  "GET /api/versions": "build metadata — the commit and time this Worker was built from",
+  "GET /openapi.json": "the published contract, which documents its own security schemes",
+  "GET /doc": "Swagger UI over the above",
+  "GET /": "the SPA shell",
+  "ALL /*": "SPA fallback — static assets and hash routes, no database access",
+  // The two the procedure walk above already covers in full: every oRPC
+  // procedure is served through these, and each one declares its own policy.
+  "ALL /api/*": "the oRPC handler — every procedure under it is policied above",
+  "ALL /rpc/*": "the same handler, on the SPA's transport",
+}
+
+const { default: app } = await import("../src/index")
+const live = new Set(
+  (app as unknown as { routes: { method: string; path: string }[] }).routes.map(
+    (r) => `${r.method} ${r.path}`,
+  ),
+)
+const undeclared = [...live].filter((r) => !(r in HONO_ROUTES))
+const stale = Object.keys(HONO_ROUTES).filter((r) => !live.has(r))
+
+if (undeclared.length) {
+  console.error("check-authz: routes mounted outside the oRPC router with no note:\n")
+  for (const r of undeclared) console.error(`  ${r}`)
+  console.error(
+    "\nAdd it to HONO_ROUTES in this file with a sentence on how it is guarded. " +
+      "`POST /api/seed` sat here unauthenticated for months because nothing listed it.",
+  )
+  process.exit(1)
+}
+
 console.log(
   `check-authz: ${found.length} procedures, ${enforced} enforced by the model, ` +
-    `${escapes.length} declared otherwise`,
+    `${escapes.length} declared otherwise; ${live.size} non-procedure routes accounted for`,
 )
+if (stale.length) console.log(`  (no longer mounted: ${stale.join(", ")})`)
 // Printed rather than hidden: these are the ones a person should re-read.
 for (const line of escapes.sort()) console.log(line)

@@ -494,6 +494,21 @@ because an unreviewed exception is the failure mode:
 cannot become an endpoint without one. That factory is how personal data gets
 published by accident.
 
+**The check covers the Hono routes too, and that was an afterthought that
+mattered.** The first version walked only the oRPC router and reported a clean
+53 of 53 — while five sub-routers sat alongside it unexamined, one of them
+`POST /api/seed`: an unauthenticated write on a public domain, 330 D1
+statements to anyone who found it. A check that enumerates the easy half is
+worse than none, because it reads as a clean bill of health. Every non-procedure
+route is now listed in `HONO_ROUTES` with a sentence on how it is guarded, and
+a new one fails the build until somebody writes that sentence.
+
+Seeding is an operator action: `/api/seed` 404s on a deployment like the outbox
+does, and `mise run seed:remote` applies `src/db/seed.sql` through wrangler. A
+token was the first fix and the wrong one — `wrangler secret` values cannot be
+read back, so the pipeline would have needed its own copy of a secret the
+platform already held.
+
 **Authorisation is the model's answer, never a role string compared in a
 handler.** Two of these on 2026-08-28, both failing open and silently. Web Push
 resolved its audience by reading the `subscription` table — everyone who had
