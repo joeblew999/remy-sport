@@ -206,6 +206,20 @@ export function objectTableFor(action: string): string | null {
   return type?.tableName ? tableFor(type.tableName) : null
 }
 
+/**
+ * The table an OBJECT_TYPE's rows live in — the same lookup as above, asked
+ * directly rather than by way of an action.
+ *
+ * `subscription.object_id` is a polymorphic reference: it points at six
+ * different tables, so it cannot carry a foreign key, and this is what stands
+ * in for one when someone follows something. PLATFORM has no table and returns
+ * null, which is the honest answer — you cannot follow the platform.
+ */
+export function tableForObjectType(objectTypeCode: string): string | null {
+  const type = OBJECT_TYPE.find((t) => t.code === objectTypeCode)
+  return type?.tableName ? tableFor(type.tableName) : null
+}
+
 /** Does a row with this id exist in that table? A missing object is a 404, not a 403. */
 export async function objectExists(db: Db, table: string, id: string): Promise<boolean> {
   const row = await db.get(

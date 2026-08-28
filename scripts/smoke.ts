@@ -72,6 +72,38 @@ await check("the SPA is served", async () => {
     : "response did not look like the app shell"
 })
 
+await check("every installable icon the manifest names is served", async () => {
+  const res = await get("/manifest.webmanifest")
+  if (!res.ok) return `expected 200, got ${res.status}`
+  const { icons } = (await res.json()) as { icons?: { src: string }[] }
+  if (!icons?.length) return "the manifest declares no icons"
+  // The manifest names its icons unhashed, so they only resolve if vite copied
+  // them verbatim from src/web/public. Authored one directory up they were
+  // treated as source, content-hashed into /assets, and every one of these
+  // 404'd — through a deploy, because a browser fetches a manifest icon only
+  // when someone installs the app. Nothing else here would have noticed.
+  const missing: string[] = []
+  for (const { src } of icons) {
+    const icon = await get(new URL(src, `${BASE}/manifest.webmanifest`).pathname)
+    if (!icon.ok) missing.push(`${src} → ${icon.status}`)
+  }
+  return missing.length ? `not served: ${missing.join(", ")}` : null
+})
+
+await check("Web Push is configured and offering a usable key", async () => {
+  const res = await get("/api/push/key")
+  if (!res.ok) return `expected 200, got ${res.status}`
+  const { publicKey } = (await res.json()) as { publicKey: string | null }
+  if (!publicKey) return "no VAPID key — `mise run push:secret:set` has not run"
+  // 65 bytes base64url: an uncompressed P-256 point. A key of the wrong length
+  // is accepted by `subscribe()` on some browsers and rejected on others, so
+  // the shape is checked here rather than discovered on somebody's phone.
+  const bytes = atob(publicKey.replace(/-/g, "+").replace(/_/g, "/"))
+  return bytes.length === 65 && bytes.charCodeAt(0) === 4
+    ? null
+    : `key is ${bytes.length} bytes, expected a 65-byte uncompressed point`
+})
+
 await check("the events read path returns the PO's data", async () => {
   const res = await get("/api/events")
   if (!res.ok) return `expected 200, got ${res.status}`

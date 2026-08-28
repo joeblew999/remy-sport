@@ -1,7 +1,7 @@
 import { defineConfig, minimal2023Preset } from "@vite-pwa/assets-generator/config"
 
 /**
- * Which icons to cut from `src/web/brand.svg`, and nothing else.
+ * Which icons to cut from `src/web/public/brand.svg`, and nothing else.
  *
  * The preset is the whole configuration. A first version of this file also set
  * an opaque background on the apple and maskable icons to stop iOS drawing a
@@ -20,5 +20,9 @@ import { defineConfig, minimal2023Preset } from "@vite-pwa/assets-generator/conf
  */
 export default defineConfig({
   preset: minimal2023Preset,
-  images: ["src/web/brand.svg"],
+  // Written into src/web/public so vite copies them verbatim to the site root.
+  // Under src/web they were treated as source and content-hashed into /assets,
+  // and the manifest — which names them unhashed — 404'd on every one. That is
+  // invisible locally, because nothing loads a manifest icon until an install.
+  images: ["src/web/public/brand.svg"],
 })

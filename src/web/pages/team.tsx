@@ -1,4 +1,4 @@
-import { Icon } from "../components/icon";
+import { FollowButton } from "../components/follow";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, orpc } from "../lib/orpc";
 import { useRoster, useTeam, useTeams } from "../lib/data";
@@ -57,7 +57,7 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
           </div>
           <div className="meta">{t.ageGroupCode} {t.genderLabel} · {t.short}</div>
           <div className="event-actions" style={{ marginTop: 16 }}>
-            <button className="btn primary"><Icon name="follow"/>{m.follow()}</button>
+            {t.id && <FollowButton objectTypeCode="TEAM" objectId={t.id} />}
             <button className="btn">{m.roster()}</button>
             <button className="btn">{m.stats()}</button>
             <button className="btn">{m.schedule()}</button>

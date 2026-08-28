@@ -23,8 +23,14 @@
   // `*.shots.ts` for the same reason as the configs: playwright.shots.config.ts
   // selects it with a regex rather than importing it, so nothing in the graph
   // points at it and knip reads that as dead.
+  //
+  // `src/web/sw.ts` is an entry for the same reason once removed: it is named
+  // as a string in vite.config.ts (`filename: "sw.ts"`) and compiled as its own
+  // bundle by vite-plugin-pwa's injectManifest, so nothing imports it either.
+  // It is the service worker — the app's push handler and offline cache.
   "entry": [
     "src/web/main.tsx",
+    "src/web/sw.ts",
     "src/web/vite.config.ts",
     "src/auth.cli.ts",
     "scripts/*.ts",

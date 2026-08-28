@@ -1,6 +1,7 @@
 import { useEvents, useFeed, useLiveGame } from "../lib/data";
 import { useSession } from "../lib/session";
 import { SampleData } from "../components/sample";
+import { NotificationSettings } from "../components/notification-settings";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
 
@@ -119,6 +120,8 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
                 </button>
               ))}
             </div>
+
+            <NotificationSettings />
           </div>
         </div>
       </div>

@@ -241,7 +241,7 @@ fi
 # UI copy is compiled, so it has to exist before anything typechecks it. The
 # Vite plugin does this during a build; this task is for everything else.
 [tasks."brand:icons"]
-description = "Regenerate every app icon — web, desktop, iOS, Android — from src/web/brand.svg"
+description = "Regenerate every app icon — web, desktop, iOS, Android — from src/web/public/brand.svg"
 depends     = ["install"]
 # One drawing, two generators, every platform.
 #
@@ -266,7 +266,7 @@ depends     = ["install"]
 run = """
 set -e
 bun x pwa-assets-generator
-bun x tauri icon src/web/brand.svg
+bun x tauri icon src/web/public/brand.svg
 """
 
 [tasks."i18n:validate"]
@@ -943,8 +943,15 @@ mise run test
 mise run versions
 mise run cf:env:bootstrap
 mise run cf:d1:migrations:apply:remote
-mise run cf:deploy
+# Secrets before the code, so the version cf:deploy publishes is the last one
+# and is already complete. Putting a `wrangler secret put` *after* the deploy
+# publishes a further version, and for a few seconds the edge still answers from
+# the one before it — which failed the push smoke check on a deploy where the
+# keys had in fact been set correctly. Both tasks skip cleanly when the Worker
+# does not exist yet, which is the case they used to be ordered for.
 mise run cf:secret:set
+mise run push:secret:set
+mise run cf:deploy
 mise run cf:wait
 mise run seed:remote
 mise run cf:smoke
@@ -1079,6 +1086,41 @@ fi
 SECRET="${BETTER_AUTH_SECRET:-$(openssl rand -base64 32)}"
 printf '%s' "$SECRET" | bun x wrangler secret put BETTER_AUTH_SECRET
 echo "cf:secret:set: BETTER_AUTH_SECRET set"
+"""
+
+[tasks."push:keys"]
+description = "Generate a VAPID keypair for Web Push (prints three lines; does not store them)"
+depends     = ["install"]
+# Prints rather than writes, because where the three lines go depends on which
+# environment they are for: `.dev.vars` locally, `wrangler secret put` on a
+# deployment. Writing them somewhere on the caller's behalf would put a
+# production private key in a file by accident.
+run = "bun scripts/vapid.ts"
+
+[tasks."push:secret:set"]
+description = "Set the VAPID keys on the deployed worker, generating a pair on first run"
+depends     = ["install"]
+# Runs as part of `deploy`, and is a no-op once set.
+#
+# It generates rather than asking, because the pair has no meaning outside this
+# deployment — nothing needs to know it, and a key nobody chose is one nobody
+# can leak by pasting. What matters is that it is stable: **rotating it
+# invalidates every subscription** the browsers have already pinned it into, so
+# once one exists this leaves it alone.
+run = """
+if ! SECRETS=$(mise run -q cf:secret:list 2>&1); then
+  echo "push:secret:set: worker not deployed yet — skipping (deploy runs this again afterwards)"
+  exit 0
+fi
+if echo "$SECRETS" | grep -q VAPID_PRIVATE_KEY; then
+  echo "push:secret:set: VAPID keys already set, no change"
+  exit 0
+fi
+KEYS=$(VAPID_SUBJECT="${VAPID_SUBJECT:-mailto:admin@ubuntusoftware.net}" bun scripts/vapid.ts)
+for NAME in VAPID_SUBJECT VAPID_PUBLIC_KEY VAPID_PRIVATE_KEY; do
+  printf '%s' "$(echo "$KEYS" | grep "^$NAME=" | cut -d= -f2-)" | bun x wrangler secret put "$NAME"
+done
+echo "push:secret:set: VAPID keys set — Web Push is on"
 """
 
 [tasks."dev:vars"]

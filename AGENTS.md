@@ -474,6 +474,37 @@ or project ordering; a whole session went that way and stopped dead.
 `useSession` does not refetch, so a page renders against whoever was signed in
 before. Any test that changes identity uses `gotoFresh()`.
 
+**Every Web Push library on npm is a decade out of date.** The obvious pick —
+`@block65/webcrypto-web-push`, the one that advertises Workers support — puts
+`content-encoding: aesgcm` and `Authorization: WebPush <jwt>` on the wire. Both
+are drafts that were superseded in 2017 by `aes128gcm` and `vapid t=,k=`. Chrome
+and Firefox still accept the old ones; **Apple does not**, and on iOS a web app
+is the only way we reach a phone at all. So it would have failed on the one
+platform the feature exists for, as a 400 nobody was watching. `src/api/webpush.ts`
+implements both RFCs directly over WebCrypto — no dependency — and
+`tests/worker/push.test.ts` implements the *receiving* half from the same specs
+so a mistake fails a test instead of reaching nobody. **Check what a push
+library emits before trusting it.**
+
+**Rotating the VAPID pair silently breaks every existing subscription.** The
+browser pins the public key at `subscribe()` time, so a new key cannot sign for
+endpoints the old one created — they fail 403 forever, and no reader is told.
+`mise run push:secret:set` therefore generates a pair only when none exists and
+never replaces one.
+
+**PWA icons must live in `src/web/public/`.** Anywhere else under `src/web`,
+vite treats them as source and content-hashes them into `/assets` — while the
+manifest names them unhashed, so every icon 404s. It survives a deploy because
+nothing fetches a manifest icon until somebody installs the app. `mise run
+cf:smoke` now follows the manifest to each icon.
+
+**Notifications are three separate things, and it matters.** Following an object
+(`subscription`), a reachable browser (`userNotificationChannel`), and a per-type
+preference (`userNotificationPreference`) fail independently and are fixed
+independently. No table was added for push — the PO's model already had all
+three. Following is the opt-in; a preference row is how a reader turns one type
+off.
+
 ## Don't write documents
 
 The ADRs are deleted. Fourteen of them, ~2,500 lines, and by the end four

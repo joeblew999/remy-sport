@@ -52,7 +52,14 @@ export default defineConfig({
     VitePWA({
       injectRegister: null,
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "apple-touch-icon-180x180.png"],
+      // `injectManifest`, not the default `generateSW`, because a push handler
+      // cannot be expressed as Workbox config. `generateSW` writes the whole
+      // service worker from the options below, so there is nowhere to put a
+      // `push` listener; this strategy takes sw.ts as the source and only
+      // substitutes the precache manifest into it.
+      strategies: "injectManifest",
+      srcDir: ".",
+      filename: "sw.ts",
       manifest: {
         name: "Remy Sport",
         short_name: "Remy",
@@ -78,12 +85,14 @@ export default defineConfig({
           },
         ],
       },
-      workbox: {
-        // The API is never cached. A stale score is worse than a slow one, and
-        // /api/dev/* must not survive into a cached response at all.
-        navigateFallbackDenylist: [/^\/api/, /^\/rpc/],
+      injectManifest: {
         globPatterns: ["**/*.{js,css,html,woff2,png,svg,ico}"],
       },
+      // The dev server serves a real service worker too, so push can be tested
+      // against `mise run dev` instead of only against a deploy. Without this,
+      // `navigator.serviceWorker.register` 404s in dev and every push feature
+      // is untestable until it is live — which is how you ship a broken one.
+      devOptions: { enabled: true, type: "module" },
     }),
   ],
   base: "./",

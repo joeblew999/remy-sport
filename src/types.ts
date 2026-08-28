@@ -36,6 +36,23 @@ export type Bindings = {
    * the platform has real users.
    */
   TEST_OTP?: string
+  /**
+   * Web Push identity — `mise run push:keys` generates the pair, and all three
+   * are secrets.
+   *
+   * Optional together: with none of them set the app runs and simply never
+   * pushes, which is what tests and a fresh clone want. src/api/push.ts checks
+   * for all three rather than assuming, so a half-configured deployment sends
+   * nothing instead of throwing inside whatever write triggered it.
+   *
+   * **Rotating the pair invalidates every existing subscription.** The public
+   * key is pinned into each subscription by the browser at subscribe() time, so
+   * a new key cannot sign for endpoints the old one created — they fail 403
+   * until each reader re-subscribes.
+   */
+  VAPID_SUBJECT?: string
+  VAPID_PUBLIC_KEY?: string
+  VAPID_PRIVATE_KEY?: string
 }
 
 export type Variables = {

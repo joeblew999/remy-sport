@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Icon } from "../components/icon";
+import { FollowButton } from "../components/follow";
 import { Schedule, AddFixture } from "../components/schedule";
 import { Entries } from "../components/entries";
 import { useEvent, useEvents, useGames, useLiveGame, useNextGame, useStandings } from "../lib/data";
@@ -112,7 +113,7 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
 
         <div className="event-actions">
           {e.status === "open" && <button className="btn accent">{m.register_team()}</button>}
-          <button className="btn primary"><Icon name="follow"/>{m.follow_event()}</button>
+          <FollowButton objectTypeCode="EVENT" objectId={e.id} />
           <button className="btn">{m.add_to_calendar()}</button>
           <button className="btn"><Icon name="share"/>{m.share()}</button>
         </div>

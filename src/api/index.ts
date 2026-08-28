@@ -16,8 +16,24 @@ import * as teams from "./teams"
 import * as reference from "./reference"
 import * as health from "./health"
 import * as domain from "./domain"
+import * as notifications from "./notifications"
 
 export const router = {
+  /**
+   * Push, following, and muting. See src/api/notifications.ts for why these
+   * are three separate ideas rather than one "notifications on" switch.
+   */
+  notifications: {
+    key: notifications.key,
+    subscribe: notifications.subscribe,
+    unsubscribe: notifications.unsubscribe,
+    devices: notifications.devices,
+    follow: notifications.follow,
+    unfollow: notifications.unfollow,
+    following: notifications.following,
+    setPreference: notifications.setPreference,
+    sendTest: notifications.sendTest,
+  },
   events: {
     list: events.list,
     get: events.get,
