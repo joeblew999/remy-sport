@@ -95,18 +95,51 @@ async function pan(page: import("@playwright/test").Page) {
   })
 }
 
-test.describe("no screen pans sideways on a phone", () => {
+/**
+ * Every route the SPA can render, at every phone width.
+ *
+ * `/live`, `/profile` and the event overview render from fixtures baked into
+ * the bundle, so they need no seeding — which is why covering them costs a line
+ * each rather than a block of setup. The two that read the API get the same
+ * event the rest of this file uses.
+ */
+const ROUTES = [
+  "/",
+  "/orgs",
+  "/org/org_001",
+  "/event/evt_001",
+  "/event/evt_002",
+  "/team/team_001",
+  "/live",
+  "/profile",
+  "/devices",
+  "/login",
+  "/admin",
+]
+
+test.describe("no screen overflows on a phone", () => {
   for (const width of WIDTHS) {
-    test(`discover at ${width}px`, async ({ page }) => {
+    test(`every route fits at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 844 })
       await seedCache(page, [entry(orpc.events.list, undefined, { events: [event] } as never)])
-      await page.goto("/#/")
-      await expect(page.locator(".event-list")).toBeVisible()
 
-      expect(await offenders(page), "elements wider than the viewport that neither clip nor scroll").toEqual([])
-      const { pannable, docPannable } = await pan(page)
-      expect(pannable, ".page must not scroll horizontally").toBe(0)
-      expect(docPannable, "the document must not scroll horizontally").toBe(0)
+      const failures: string[] = []
+      for (const route of ROUTES) {
+        await page.goto(`/#${route}`)
+        await page.waitForFunction(() => !!document.querySelector(".page"))
+        // The view swaps on hash change; give React a frame to commit it.
+        await page.waitForTimeout(250)
+
+        const over = await page.evaluate(() => {
+          const p = document.querySelector(".page")!
+          return p.scrollWidth - p.clientWidth
+        })
+        if (over > 1) {
+          const worst = await offenders(page)
+          failures.push(`${route} overflows by ${over}px — ${worst[0] ?? "cause not isolated"}`)
+        }
+      }
+      expect(failures, "routes whose content is wider than the viewport").toEqual([])
     })
   }
 
@@ -120,9 +153,29 @@ test.describe("no screen pans sideways on a phone", () => {
 
     const scrolls = await page.evaluate(() => {
       const el = document.querySelector(".tab-row")!
-      return { inner: el.scrollWidth > el.clientWidth, fitsParent: el.getBoundingClientRect().width <= document.querySelector(".page")!.clientWidth + 1 }
+      return {
+        inner: el.scrollWidth > el.clientWidth,
+        fitsParent: el.getBoundingClientRect().width <= document.querySelector(".page")!.clientWidth + 1,
+      }
     })
     expect(scrolls.inner, "the tab row scrolls its own content").toBe(true)
     expect(scrolls.fitsParent, "and does not push its parent wider").toBe(true)
+  })
+
+  test("the shell cannot be panned by a reader", async ({ page }) => {
+    // `.page` has `overflow-y: auto`, and CSS computes `overflow-x: visible` to
+    // `auto` beside it — which is what let a too-wide child slide the whole
+    // content area under a topbar that stayed put. `overflow-x: clip` is the
+    // floor that makes that impossible; this pins it.
+    await page.setViewportSize({ width: 390, height: 844 })
+    await seedCache(page, [entry(orpc.events.list, undefined, { events: [event] } as never)])
+    await page.goto("/#/")
+    const overflowX = await page.evaluate(
+      () => getComputedStyle(document.querySelector(".page")!).overflowX,
+    )
+    // `clip` computes to `hidden` when the other axis is not visible. Either
+    // value means a reader cannot drag the shell sideways; `visible` or `auto`
+    // means they can.
+    expect(["clip", "hidden"]).toContain(overflowX)
   })
 })

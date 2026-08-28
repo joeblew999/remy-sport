@@ -236,6 +236,25 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .page {
   flex: 1;
   overflow-y: auto;
+  /* The app shell must never pan sideways. This is the structural fix for a
+     class of bug that was found three times by eye and never by a check.
+     
+     `overflow-y: auto` alone is not enough: CSS computes `overflow-x: visible`
+     to `auto` when the other axis is not visible, so this element silently
+     became horizontally scrollable and any too-wide descendant made the whole
+     content area slide — under a topbar that stayed put, because the topbar is
+     outside `.page`. Every document-level check passed throughout, because the
+     document genuinely does not scroll: `.app` is a viewport-height grid.
+     
+     `clip` is the only value that does NOT force the other axis. So vertical
+     scrolling still works and horizontal panning is impossible.
+     
+     This is deliberately a floor, not a cure. Anything too wide is now clipped
+     rather than reachable by dragging, which is worse-looking and therefore
+     better: it turns a silent layout escape hatch into a visible defect, and
+     tests/render/mobile-layout.spec.ts names the element responsible. Fix the
+     widget; do not reach for a wider container. */
+  overflow-x: clip;
   padding: 0;
 }
 .page-inner { max-width: 1280px; margin: 0 auto; padding: 32px 32px 80px 32px;}
@@ -781,15 +800,41 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 /* ---------- Profile / dashboard ---------- */
 .section-h {
   display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px;
   margin: 32px 0 12px 0;
 }
+
+/* One fixture on the team page. Was an inline `gridTemplateColumns` in
+   team.tsx — 350px of fixed tracks plus 1fr — which no media query could
+   reach, because an inline style always wins. Same defect as the standings
+   grid: layout belongs in the stylesheet. */
+.fixture-row {
+  display: grid;
+  grid-template-columns: 90px 1fr 80px 100px 80px;
+  gap: 8px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--rule);
+  align-items: center;
+}
+.fixture-row.live { background: var(--accent-soft); }
+.fixture-row .date { font-family: 'Space Grotesk', sans-serif; font-weight: 500; font-size: 14px; }
+.fixture-row .opponent { font-size: 14px; }
+.fixture-row .kind { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink-3); letter-spacing: 0.1em; text-transform: uppercase; }
+.fixture-row .result { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 16px; text-align: right; }
+.fixture-row .outcome { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; text-align: right; }
 .section-h h2 {
   font-family:'Space Grotesk', sans-serif; font-weight: 600; font-size: 22px; letter-spacing: -0.02em;
 }
 .section-h .more { font-size: 13px; color: var(--ink-3); font-family:'IBM Plex Mono',monospace; letter-spacing: 0.04em;}
 .section-h .more:hover { color: var(--accent);}
 
-.dash-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 32px;}
+/* `minmax(0, …)` on every track, not a bare `fr`.
+   A grid item defaults to `min-width: auto`, which is its min-content width, so
+   a bare `1fr` track cannot shrink below the widest thing inside it — the track
+   grows past the grid instead. On the event page that made a 362px grid resolve
+   a 406.5px column, and everything in it overflowed by 31px. `minmax(0, 1fr)`
+   is the standard fix and the same defect as `min-width: 0` on a flex child. */
+.dash-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 32px;}
 .dash-card {
   border: 1px solid var(--rule);
   padding: 0;
@@ -805,7 +850,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 
 .next-game {
   padding: 22px 24px;
-  display: grid; grid-template-columns: 1fr auto 1fr;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   gap: 24px;
   align-items: center;
 }
@@ -923,7 +968,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   .app { grid-template-columns: 220px 1fr; }
   .page-inner { padding: 24px 24px 64px; }
   .page-header { padding: 24px 24px 18px; }
-  .dash-grid { grid-template-columns: 1fr; gap: 24px; }
+  .dash-grid { grid-template-columns: minmax(0, 1fr); gap: 24px; }
   .live-side-grid { grid-template-columns: 1fr; }
   .roster-grid { grid-template-columns: repeat(2, 1fr); }
   .event-stats { grid-template-columns: repeat(3, 1fr); }
@@ -1085,7 +1130,15 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   .spoiler-bar { flex-direction: column; align-items: flex-start; gap: 10px; }
   .spoiler-bar .toggle { align-self: stretch; justify-content: space-between; }
   .live-clock { padding: 14px; }
-  .quarters-table { font-size: 12px; }
+  /* `1fr repeat(5, 80px) 100px` is 500px of fixed tracks, so `1fr` collapsed
+     and the table ran 633px wide inside 390. Q1–Q4 plus the total still fit
+     when the columns are sized for a phone. */
+  .quarters-table {
+    font-size: 11px;
+    grid-template-columns: minmax(0, 1fr) repeat(5, 34px) 44px;
+  }
+  .quarters-table .cell { padding: 8px 2px; }
+  .quarters-table .cell.total { font-size: 14px; }
   .live-header { flex-direction: column; align-items: flex-start; gap: 8px; }
 
   /* Event hero */
@@ -1104,6 +1157,25 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   /* Bracket: switch to vertical list of rounds */
   .bracket { flex-direction: column; gap: 16px; }
   .bracket-round { min-width: 0; }
+
+  /* A fixture is five columns of 350px on the desktop. On a phone it becomes
+     two rows: who and when on the first, the outcome on the second. */
+  .fixture-row {
+    grid-template-columns: 64px minmax(0, 1fr) auto;
+    gap: 4px 10px;
+    padding: 12px 14px;
+  }
+  .fixture-row .kind { grid-column: 2 / -1; }
+  .fixture-row .outcome { grid-column: 3; grid-row: 1; }
+  .fixture-row .result { grid-column: 3; grid-row: 2; }
+
+  /* Two teams and a score, on a phone. `1fr auto 1fr` plus 24px gaps and 48px
+     of padding does not fit at 360, and a bare `fr` cannot shrink below its
+     content — a seed line like "SEED 3 · 1–0" set the track width. Tighter and
+     with minmax(0, …) so the names wrap instead. */
+  .next-game { padding: 16px 14px; gap: 10px; }
+  .next-game .team .name { font-size: 16px; }
+  .next-game .when .countdown { font-size: 24px; }
 
   /* Team hero: stack */
   .team-hero { grid-template-columns: 1fr; gap: 16px; padding: 18px 14px; }

@@ -105,19 +105,22 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
         <div className="section-h" style={{ marginTop: 48 }}><h2>{m.schedule()}</h2><a className="more">{m.sample_data()}</a></div>
         <div className="dash-card">
           {schedule.map((g, i) => (
-            <div key={i} style={{ display: "grid", gridTemplateColumns: "90px 1fr 80px 100px 80px", padding: "14px 18px", borderBottom: "1px solid var(--rule)", alignItems: "center", background: g.live ? "var(--accent-soft)" : "transparent" }}>
-              <span style={{ fontFamily: "Space Grotesk, sans-serif", fontWeight: 500, fontSize: 14 }}>{g.date}</span>
-              <span style={{ fontSize: 14 }}>{m.versus()} <b>{g.vs}</b></span>
-              <span style={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.1em", textTransform: "uppercase" }}>{g.type}</span>
-              <span style={{ fontFamily: "Space Grotesk, sans-serif", fontWeight: 600, fontSize: 16, textAlign: "right" }}>
-                {g.sa !== null ? `${g.sa}–${g.sb}` : <span style={{ color: "var(--ink-3)", fontWeight: 400 }}>—</span>}
+            <div key={i} className={`fixture-row${g.live ? " live" : ""}`}>
+              <span className="date">{g.date}</span>
+              <span className="opponent">{m.versus()} <b>{g.vs}</b></span>
+              <span className="kind">{g.type}</span>
+              <span className="result">
+                {g.sa !== null ? `${g.sa}–${g.sb}` : <span className="muted">—</span>}
               </span>
-              <span style={{
-                fontFamily: "IBM Plex Mono, monospace", fontSize: 11, letterSpacing: "0.1em",
-                textAlign: "right",
-                color: g.live ? "var(--live)" : (g.w === true ? "var(--good)" : "var(--ink-3)"),
-                fontWeight: g.live || g.w === true ? 500 : 400,
-              }}>{g.live ? "● LIVE Q3" : (g.w === true ? "WIN" : (g.w === false ? "LOSS" : "UPCOMING"))}</span>
+              <span
+                className="outcome"
+                style={{
+                  color: g.live ? "var(--live)" : g.w === true ? "var(--good)" : "var(--ink-3)",
+                  fontWeight: g.live || g.w === true ? 500 : 400,
+                }}
+              >
+                {g.live ? m.status_live() : g.w === true ? m.col_won() : g.w === false ? m.col_lost() : m.status_upcoming()}
+              </span>
             </div>
           ))}
         </div>

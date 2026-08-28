@@ -359,33 +359,36 @@ echo "Playwright chromium v$CHROMIUM_REV installed successfully"
 """
 
 [tasks.dev]
-description = "Local dev server: seeded, and reachable from a phone on the same wifi"
+description = "The dev server: one port, always current, seeded, reachable from a phone"
 depends     = ["setup"]
-# One task, because there were three and they differed in ways nobody could
-# remember: `dev` bound loopback only, `dev:seed` bound loopback and seeded, and
-# a `dev:lan` bound every interface and did not seed. Locally you always want
-# all three things — a server, data in it, and the ability to open it on a
-# phone — so this does all three.
+# One command, one port, and dist/web is never stale.
 #
-# --ip 0.0.0.0 binds every interface; --host is the LAN address rather than
-# localhost because wrangler rewrites the Host, Origin and Referer the Worker
-# sees, and Better Auth derives trustedOrigins from that (src/auth.ts). Setting
-# it to the LAN address serves BOTH — verified by signing in over each in turn,
-# which is worth stating because the obvious guess is that it can only serve
-# one. Order matters when testing that by hand: an OTP is single-use, so the
-# second attempt fails as INVALID_OTP and looks like an origin refusal.
+# This used to be three tasks and a footgun. `dev` served the built bundle, so
+# every CSS or component change needed a manual `mise run web:build` first —
+# which is exactly the mistake that had me measuring a stale stylesheet and
+# concluding a fix had not worked. `web:dev` ran a second server on :5175 with
+# HMR and a proxy back here, so the two ports disagreed about what the app was.
+# `dev:seed` was a third variant that seeded and the others did not.
 #
-# The address is looked up, not written down — it changes with the network, and
-# a stale IP in a task serves nothing while looking fine.
+# `vite build --watch` writes into dist/web on every save, and wrangler serves
+# that directory, so :8787 is the only address and it is always the current
+# code. A change is live on the next page load — no HMR, and that is the trade:
+# one honest port beats two that can disagree.
+#
+# --ip 0.0.0.0 binds every interface; --host is the LAN address so a phone on
+# the same wifi can reach it. Sign-in works from localhost and from the LAN
+# because trustedOrigins derives from the request URL (src/auth.ts) — the
+# convention check requires the flag, not a particular value.
 run = """
 set -e
 IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)
-HOSTARG="localhost"
-[ -n "$IP" ] && HOSTARG="$IP"
+HOSTARG="${IP:-localhost}"
 
+bun x vite build --config src/web/vite.config.ts --watch --logLevel warn &
+WATCH=$!
 bun x wrangler dev --ip 0.0.0.0 --host "$HOSTARG" --port 8787 &
 SERVER=$!
-trap 'kill $SERVER 2>/dev/null || true' EXIT INT TERM
+trap 'kill $WATCH $SERVER 2>/dev/null || true' EXIT INT TERM
 
 for _ in $(seq 1 40); do
   curl -sf -o /dev/null http://127.0.0.1:8787/api/health && break
@@ -394,9 +397,10 @@ done
 curl -sf -X POST http://127.0.0.1:8787/api/seed >/dev/null 2>&1 && echo "  seeded" || echo "  seed failed"
 
 echo ""
-echo "  this machine   http://localhost:8787"
-[ -n "$IP" ] && echo "  same wifi      http://$IP:8787" || echo "  (no wifi address — localhost only)"
-echo "  sign in        #/login lists all twelve seeded people, one click, no inbox"
+echo "  http://localhost:8787            this machine"
+[ -n "$IP" ] && echo "  http://$IP:8787      same wifi"
+echo "  #/login                          twelve seeded people, one click"
+echo "  rebuilds on save — reload to see changes"
 echo ""
 wait $SERVER
 """
@@ -1173,21 +1177,6 @@ depends     = ["install"]
 run         = "bun x wrangler r2 object list {{env.CF_R2_NAME}}"
 
 # ── Web app (src/web/) ──────────────────────────────────────────────────────
-
-[tasks."web:dev"]
-description = "SPA only, with HMR (port 5175) — REQUIRES `mise run dev` alongside it"
-# NOT the normal way to run this project. Vite serves the SPA and nothing else,
-# so /api/* has no backend here — the vite.config.ts proxy forwards it to the
-# Worker on :8787, which you have to start yourself in another terminal.
-#
-# Without that Worker the SPA loads and then fails at everything: no session,
-# sign-in 404s, every page empty. It looks like the SPA is broken when it simply
-# has no API.
-#
-# Use `mise run dev:seed` (one server, http://localhost:8787/app) unless you
-# specifically want hot reload while editing components.
-depends     = ["install"]
-run         = "bun x vite --config src/web/vite.config.ts"
 
 [tasks."web:build"]
 description = "Production build → dist/web/"
