@@ -23,7 +23,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { drizzle } from "drizzle-orm/d1"
 import { eq } from "drizzle-orm"
 import * as schema from "../../src/db/schema"
-import { encodeAddress, notify } from "../../src/api/push"
+import { notify } from "../../src/api/push"
 import { actorFor, api, signIn } from "./helpers"
 
 const b64url = {
@@ -193,7 +193,11 @@ async function registerDevice(userId: string, sub: Subscriber, locale: string) {
     .values({
       userId,
       channelCode: "PUSH",
-      address: encodeAddress(sub.subscription, locale),
+      // Three columns now, not one JSON blob: the endpoint is the row's
+      // identity and has to be queryable.
+      address: sub.endpoint,
+      secret: JSON.stringify(sub.subscription.keys),
+      localeCode: locale,
       addressLabel: `${userId}-${locale}`,
       isEnabled: true,
       verifiedAt: new Date().toISOString(),

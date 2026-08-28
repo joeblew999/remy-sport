@@ -34,6 +34,7 @@ import { coachRole } from "./vocabularies-schema"
 import { gender } from "./vocabularies-schema"
 import { guardianType } from "./vocabularies-schema"
 import { notificationChannel } from "./vocabularies-schema"
+import { locale } from "./vocabularies-schema"
 import { notificationType } from "./vocabularies-schema"
 import { orgRole } from "./vocabularies-schema"
 import { orgType } from "./vocabularies-schema"
@@ -202,14 +203,53 @@ export const teamCoach = sqliteTable("teamCoach", {
   coachRoleCode: text("coach_role_code").notNull().references(() => coachRole.code),
 }, (t) => [uniqueIndex("teamCoach_key").on(t.teamId, t.userId)])
 
+/**
+ * Where one person can be reached on one channel.
+ *
+ * `address` is the address and nothing else: an email address, a phone number,
+ * a LINE id — or, for PUSH, the endpoint URL a push service routes on. The
+ * first version of Web Push stored the whole `PushSubscription` here as JSON,
+ * which broke the one property that makes this table useful: the address is the
+ * identity, and an identity buried inside a blob cannot be queried. Registering
+ * a browser meant reading every row a user had and matching in JavaScript, and
+ * so did unsubscribing.
+ *
+ * `channel_address` makes it an identity again. A push endpoint is unique to
+ * one browser, so the index also states the rule that used to be hand-rolled:
+ * one row per browser, no matter how often it re-subscribes.
+ */
 export const userNotificationChannel = sqliteTable("userNotificationChannel", {
   userId: text("user_id").notNull().references(() => user.id),
   channelCode: text("channel_code").notNull().references(() => notificationChannel.code),
   address: text("address").notNull(),
   addressLabel: text("address_label").notNull(),
+  /**
+   * Credentials for reaching that address, where the channel needs them.
+   *
+   * Null for email and SMS, which need nothing beyond the address. For PUSH it
+   * is the subscription's `p256dh` and `auth` keys — the material the payload is
+   * encrypted to. Separate from `address` because they are secret and it is not:
+   * `address` is safe to show a reader in a list of their devices, and these
+   * would let anyone holding them send to that browser.
+   */
+  secret: text("secret"),
+  /**
+   * Which language to write to this address in.
+   *
+   * Per address rather than per person on purpose: the same reader has a phone
+   * in Thai and a laptop in English, and each one told us which when it
+   * registered. Null means the product's base locale.
+   */
+  localeCode: text("locale_code").references(() => locale.code),
   isEnabled: integer("is_enabled", { mode: "boolean" }).notNull(),
   verifiedAt: text("verified_at"),
-}, (t) => [uniqueIndex("userNotificationChannel_key").on(t.userId, t.channelCode, t.addressLabel)])
+}, (t) => [
+  uniqueIndex("userNotificationChannel_key").on(t.userId, t.channelCode, t.addressLabel),
+  // One row per address per channel, across all users. A push endpoint belongs
+  // to exactly one browser, so this is what makes `subscribe` an upsert instead
+  // of a read-then-decide.
+  uniqueIndex("userNotificationChannel_address").on(t.channelCode, t.address),
+])
 
 export const userNotificationPreference = sqliteTable("userNotificationPreference", {
   userId: text("user_id").notNull().references(() => user.id),

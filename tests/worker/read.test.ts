@@ -9,6 +9,13 @@ import {
   ORG_TYPE_CODES,
 } from "../../src/domain/vocabularies"
 import { actorFor, api, post, signIn } from "./helpers"
+import { SEED_ENTITIES } from "../../src/domain/model/entities"
+import {
+  aTeamWithNoGamesIn,
+  teamById,
+  teamsCoachedBy,
+  teamsRegisteredTo,
+} from "../helpers/fixtures"
 
 /**
  * Everything the API serves without writing: reads, the vocabularies, the
@@ -393,8 +400,11 @@ describe("Standings are derived from the games, never stored", () => {
     expect(standings.map((s) => s.teamId).sort()).toEqual(
       entered.registered.map((r) => r.teamId).sort(),
     )
-    // At least one has not played, which is the case this test exists for.
-    expect(standings.some((s) => s.played === 0)).toBe(true)
+    // The registered-but-unplayed team, which is the case this test exists for.
+    // aTeamWithNoGamesIn throws if the fixtures stop covering it, rather than
+    // letting this quietly assert nothing.
+    const idle = aTeamWithNoGamesIn("evt_002")
+    expect(standings.find((s) => s.teamId === idle)!.played).toBe(0)
     // Ranks are dense and start at 1, however many teams there are.
     expect(standings.map((s) => s.rank)).toEqual(standings.map((_, i) => i + 1))
   })
@@ -493,26 +503,38 @@ describe("An event's entries — who is in, and what you could enter", () => {
   })
 
   it("offers a coach only the teams they may enter, and none already in", async () => {
-    // Wichai head-coaches team_001 and team_004. Both are already in evt_002,
-    // so there is nothing left for him to enter there.
+    // Which teams Wichai coaches is the fixtures' business, not this test's —
+    // it is about withdrawal rights, and used to fail whenever the PO gave him
+    // another team.
     const coach = await signIn(actorFor("COACH"))
+    const wichai = SEED_ENTITIES.users.find((u) => u.email === actorFor("COACH"))!
+    const hisTeams = teamsCoachedBy(wichai.id)
     const evt002 = (await (await api("/api/events/evt_002/teams", { cookie: coach })).json()) as {
       registered: { teamId: string; canWithdraw: boolean }[]
       registrable: { teamId: string }[]
     }
-    expect(evt002.registrable, "both his teams are already entered").toEqual([])
-    // But he may withdraw the ones he coaches, and only those.
-    const his = evt002.registered.filter((r) => r.canWithdraw).map((r) => r.teamId).sort()
-    expect(his).toEqual(["team_001", "team_004"])
+    // Everything he coaches is already in, so there is nothing left to enter.
+    expect(evt002.registrable, "his teams are all already entered").toEqual([])
+    // He may withdraw exactly the teams he coaches — no more, and no fewer.
+    const withdrawable = evt002.registered.filter((r) => r.canWithdraw).map((r) => r.teamId).sort()
+    expect(withdrawable).toEqual(hisTeams.filter((t) => teamsRegisteredTo("evt_002").includes(t)))
 
-    // evt_004 is a SHOWCASE with team_001 and team_002 entered, so team_004 is
-    // his to enter.
+    // evt_004 is a SHOWCASE he has teams left to enter: whatever he coaches
+    // that is not already registered there.
     const evt004 = (await (await api("/api/events/evt_004/teams", { cookie: coach })).json()) as {
       registrable: { teamId: string; ageGroupCode: string; genderCode: string }[]
     }
-    expect(evt004.registrable.map((t) => t.teamId)).toEqual(["team_004"])
-    // Carries what the page needs to offer only matching divisions.
-    expect(evt004.registrable[0]).toMatchObject({ ageGroupCode: "U18", genderCode: "M" })
+    const entered = teamsRegisteredTo("evt_004")
+    expect(evt004.registrable.map((t) => t.teamId).sort()).toEqual(
+      hisTeams.filter((t) => !entered.includes(t)),
+    )
+    // Carries what the page needs to offer only matching divisions — read off
+    // the team rather than restated, so it stays true if the fixture changes.
+    const offered = evt004.registrable[0]!
+    expect(offered).toMatchObject({
+      ageGroupCode: teamById(offered.teamId).ageGroupCode,
+      genderCode: teamById(offered.teamId).genderCode,
+    })
   })
 
   it("offers nothing for a camp — teams do not enter camps", async () => {

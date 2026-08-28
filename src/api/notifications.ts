@@ -21,7 +21,7 @@ import { ORPCError } from "@orpc/server"
 import { z } from "zod"
 import * as schema from "../db/schema"
 import { authed, authedRoute, pub, type Db } from "./base"
-import { encodeAddress, sendToAddresses, vapidFrom } from "./push"
+import { sendToRows, vapidFrom } from "./push"
 import {
   LOCALES,
   NOTIFICATION_TYPE_CODES,
@@ -80,54 +80,42 @@ export const subscribe = authed
   )
   .output(z.object({ ok: z.literal(true) }))
   .handler(async ({ context, input }) => {
-    const address = encodeAddress(
-      {
-        endpoint: input.subscription.endpoint,
-        expirationTime: input.subscription.expirationTime ?? null,
-        keys: input.subscription.keys,
-      },
-      input.locale ?? LOCALES[0],
-    )
-
-    // Same browser, new session: replace whatever was stored for this endpoint
-    // rather than adding a row. Deleting by endpoint prefix is not possible, so
-    // the address is matched whole — which works because the endpoint is inside
-    // it and the rest is derived from the same subscribe() call.
-    const mine = await context.db
-      .select({ address: schema.userNotificationChannel.address })
-      .from(schema.userNotificationChannel)
-      .where(
-        and(
-          eq(schema.userNotificationChannel.userId, context.user.id),
-          eq(schema.userNotificationChannel.channelCode, "PUSH"),
-        ),
-      )
-    const existing = mine.find((row) => row.address.includes(input.subscription.endpoint))
-
-    if (existing) {
-      await context.db
-        .update(schema.userNotificationChannel)
-        .set({ address, addressLabel: input.label, isEnabled: true })
-        .where(
-          and(
-            eq(schema.userNotificationChannel.userId, context.user.id),
-            eq(schema.userNotificationChannel.channelCode, "PUSH"),
-            eq(schema.userNotificationChannel.address, existing.address),
-          ),
-        )
-    } else {
-      await context.db.insert(schema.userNotificationChannel).values({
+    // One statement, because the endpoint is the row's identity and the
+    // database enforces it. This was a select of every row the user had, an
+    // `.includes()` scan in JavaScript, and then a branch into an update or an
+    // insert — all of it standing in for a unique index that did not exist.
+    //
+    // `onConflictDoUpdate` also gets the transfer case right, which the old
+    // branch did not: if a browser was registered to one account and someone
+    // else signs in on it, the row moves rather than colliding.
+    await context.db
+      .insert(schema.userNotificationChannel)
+      .values({
         userId: context.user.id,
         channelCode: "PUSH",
-        address,
+        address: input.subscription.endpoint,
         addressLabel: input.label,
+        secret: JSON.stringify(input.subscription.keys),
+        localeCode: input.locale ?? null,
         isEnabled: true,
         // Nothing to verify: the browser handed us the endpoint directly and a
         // push either reaches it or 410s. Unlike email or SMS there is no
         // address a reader could mistype into someone else's inbox.
         verifiedAt: new Date().toISOString(),
       })
-    }
+      .onConflictDoUpdate({
+        target: [
+          schema.userNotificationChannel.channelCode,
+          schema.userNotificationChannel.address,
+        ],
+        set: {
+          userId: context.user.id,
+          addressLabel: input.label,
+          secret: JSON.stringify(input.subscription.keys),
+          localeCode: input.locale ?? null,
+          isEnabled: true,
+        },
+      })
     return { ok: true as const }
   })
 
@@ -137,28 +125,19 @@ export const unsubscribe = authed
   .input(z.object({ endpoint: z.string().url() }))
   .output(z.object({ removed: z.number() }))
   .handler(async ({ context, input }) => {
-    const mine = await context.db
-      .select({ address: schema.userNotificationChannel.address })
-      .from(schema.userNotificationChannel)
+    // Scoped to the caller as well as the endpoint: holding somebody else's
+    // endpoint must not let you switch their notifications off.
+    const removed = await context.db
+      .delete(schema.userNotificationChannel)
       .where(
         and(
           eq(schema.userNotificationChannel.userId, context.user.id),
           eq(schema.userNotificationChannel.channelCode, "PUSH"),
+          eq(schema.userNotificationChannel.address, input.endpoint),
         ),
       )
-    const hit = mine.filter((row) => row.address.includes(input.endpoint))
-    for (const row of hit) {
-      await context.db
-        .delete(schema.userNotificationChannel)
-        .where(
-          and(
-            eq(schema.userNotificationChannel.userId, context.user.id),
-            eq(schema.userNotificationChannel.channelCode, "PUSH"),
-            eq(schema.userNotificationChannel.address, row.address),
-          ),
-        )
-    }
-    return { removed: hit.length }
+      .returning({ address: schema.userNotificationChannel.address })
+    return { removed: removed.length }
   })
 
 /** The devices this reader has registered, for a list they can prune. */
@@ -355,7 +334,11 @@ export const sendTest = authed
   .output(z.object({ sent: z.number(), gone: z.number() }))
   .handler(async ({ context, input }) => {
     const rows = await context.db
-      .select({ address: schema.userNotificationChannel.address })
+      .select({
+        address: schema.userNotificationChannel.address,
+        secret: schema.userNotificationChannel.secret,
+        localeCode: schema.userNotificationChannel.localeCode,
+      })
       .from(schema.userNotificationChannel)
       .where(
         and(
@@ -366,19 +349,14 @@ export const sendTest = authed
       )
 
     const locale = input.locale ?? (LOCALES[0] as (typeof LOCALES)[number])
-    return sendToAddresses(
-      context.db,
-      context.env,
-      rows.map((r) => r.address),
-      {
+    return sendToRows(context.db, context.env, rows, {
         title: m.test_notification_title({}, { locale }),
         body: m.test_notification_body({}, { locale }),
         url: "#/profile",
-        // A fixed tag, so pressing the button twice replaces the first card
-        // rather than leaving a pile of identical ones to clear.
-        tag: "test",
-      },
-    )
+      // A fixed tag, so pressing the button twice replaces the first card
+      // rather than leaving a pile of identical ones to clear.
+      tag: "test",
+    })
   })
 
 /** Mute or unmute one notification type on push. */

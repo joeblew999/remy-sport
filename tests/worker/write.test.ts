@@ -2,6 +2,7 @@ import { SELF } from "cloudflare:test"
 import { describe, expect, it } from "vitest"
 import { SEED_ENTITIES } from "../../src/domain/model/entities"
 import { ORIGIN, actorFor, api, post, signIn } from "./helpers"
+import { gamesIn } from "../helpers/fixtures"
 
 /**
  * Everything that writes, and everything that decides who may.
@@ -666,9 +667,9 @@ describe("Games — the object type ENTER_SCORES was missing", () => {
     const { games } = (await res.json()) as {
       games: { id: string; statusCode: string; homeScore: number | null; canEnterScore: boolean }[]
     }
-    // The two originals are still there, among the league's other fixtures.
-    // Listing every id would re-break whenever the PO schedules another round.
-    expect(games.map((g) => g.id)).toEqual(expect.arrayContaining(["gam_002", "gam_003"]))
+    // As many as the fixtures schedule for this event — derived, not typed
+    // here, so another round of matches does not fail a test about visibility.
+    expect(games.map((g) => g.id).sort()).toEqual(gamesIn("evt_002").map((g) => g.id).sort())
     expect(games.find((g) => g.id === "gam_002")!.statusCode).toBe("LIVE")
     // Nobody is signed in, so nobody may score — for any of them.
     expect(games.every((g) => !g.canEnterScore)).toBe(true)

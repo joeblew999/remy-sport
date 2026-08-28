@@ -12,6 +12,7 @@
 
 import { describe, expect, it } from "vitest"
 import { actorFor, api, post, signIn } from "./helpers"
+import { NO_SUCH_TEAM, gamesFor } from "../helpers/fixtures"
 
 const SPECTATOR = actorFor("SPECTATOR")
 const COACH = actorFor("COACH")
@@ -256,7 +257,8 @@ describe("A team's schedule comes from the games table", () => {
       games: { homeTeamId: string; awayTeamId: string }[]
     }
 
-    expect(theirs.length).toBeGreaterThan(0)
+    // The count the fixtures say, not a number typed here.
+    expect(theirs).toHaveLength(gamesFor(teamId).length)
     // Every returned game involves them.
     for (const g of theirs) {
       expect([g.homeTeamId, g.awayTeamId]).toContain(teamId)
@@ -269,11 +271,51 @@ describe("A team's schedule comes from the games table", () => {
     // does not exist has no fixtures, not everybody's. Asserted with an unknown
     // id because every seeded team now plays — which is the point of the
     // fixtures having grown.
-    const idle = await api("/api/games?teamId=team_not_real")
+    const idle = await api(`/api/games?teamId=${NO_SUCH_TEAM}`)
     const { games: none } = (await idle.json()) as { games: unknown[] }
     expect(none).toHaveLength(0)
 
     // And it is a real subset: this team's games are fewer than all of them.
     expect(theirs.length).toBeLessThan(games.length)
+  })
+})
+
+describe("One row per browser, enforced by the database", () => {
+  it("moves a browser to whoever signed in on it last", async () => {
+    const subscription = fakeSubscription("shared-laptop")
+
+    const spectator = await signIn(SPECTATOR)
+    await post("/api/push/subscribe", { subscription, label: "The laptop" }, spectator)
+
+    // Somebody else signs in on the same browser. Its endpoint is unchanged —
+    // it belongs to the browser, not the account — so the row must move rather
+    // than duplicate. The old shape branched on "does this user already have
+    // this address", so it silently created a second row here and the previous
+    // owner kept receiving notifications on a machine they had signed out of.
+    const coach = await signIn(COACH)
+    await post("/api/push/subscribe", { subscription, label: "The laptop" }, coach)
+
+    const theirs = await api("/api/push/devices", { cookie: coach })
+    expect(((await theirs.json()) as { devices: unknown[] }).devices).toHaveLength(1)
+
+    const formerly = await api("/api/push/devices", { cookie: spectator })
+    const { devices } = (await formerly.json()) as { devices: { label: string }[] }
+    expect(devices.map((d) => d.label)).not.toContain("The laptop")
+  })
+
+  it("refuses to forget a browser on someone else's say-so", async () => {
+    const subscription = fakeSubscription("not-yours")
+    const spectator = await signIn(SPECTATOR)
+    await post("/api/push/subscribe", { subscription, label: "Mine" }, spectator)
+
+    // Knowing an endpoint must not be enough to switch off someone's
+    // notifications — the delete is scoped to the caller as well.
+    const coach = await signIn(COACH)
+    const res = await post("/api/push/unsubscribe", { endpoint: subscription.endpoint }, coach)
+    expect(((await res.json()) as { removed: number }).removed).toBe(0)
+
+    const mine = await api("/api/push/devices", { cookie: spectator })
+    const { devices } = (await mine.json()) as { devices: { label: string }[] }
+    expect(devices.map((d) => d.label)).toContain("Mine")
   })
 })

@@ -42,31 +42,45 @@ export type PushBody = {
 export type Target = { objectTypeCode: ObjectTypeCode; objectId: string }
 
 /**
- * A device row's `address`: the browser's PushSubscription plus the locale it
- * was registered in.
+ * One registered browser, read back off its row.
  *
- * The locale lives on the device rather than the user on purpose — the same
- * person may read Thai on a phone and English on a laptop, and each device
- * subscribed from a browser that already knew which. There is no `user.locale`
- * column for this to disagree with.
+ * `address` is the endpoint, `secret` the two keys the payload is encrypted to,
+ * and `localeCode` the language that device asked for. Three columns, because
+ * the endpoint is the row's identity and an identity has to be queryable — the
+ * first version packed all of it into `address` as JSON, which meant finding a
+ * browser was a table read and a scan in JavaScript.
+ *
+ * The locale is per device rather than per person on purpose: the same reader
+ * has a phone in Thai and a laptop in English, and each told us which when it
+ * registered.
  */
-type StoredAddress = PushSubscription & { locale?: string }
+type Device = { subscription: PushSubscription; locale: string | null }
 
-export function encodeAddress(subscription: PushSubscription, locale: string): string {
-  return JSON.stringify({ ...subscription, locale })
-}
-
-export function decodeAddress(address: string): StoredAddress | null {
+/** Null when the row is not usable — a PUSH row with no keys cannot be sent to. */
+export function toDevice(row: {
+  address: string
+  secret: string | null
+  localeCode: string | null
+}): Device | null {
+  if (!row.secret) return null
   try {
-    const parsed = JSON.parse(address) as StoredAddress
-    return parsed?.endpoint && parsed?.keys?.auth && parsed?.keys?.p256dh ? parsed : null
+    const keys = JSON.parse(row.secret) as { p256dh?: string; auth?: string }
+    if (!keys.p256dh || !keys.auth) return null
+    return {
+      subscription: {
+        endpoint: row.address,
+        expirationTime: null,
+        keys: { p256dh: keys.p256dh, auth: keys.auth },
+      },
+      locale: row.localeCode,
+    }
   } catch {
     return null
   }
 }
 
 const released = new Set<string>(LOCALES)
-const asLocale = (raw: string | undefined): ReleasedLocale =>
+const asLocale = (raw: string | null): ReleasedLocale =>
   raw && released.has(raw) ? (raw as ReleasedLocale) : (FALLBACK as ReleasedLocale)
 
 /**
@@ -119,6 +133,8 @@ async function audience(
       .select({
         userId: schema.userNotificationChannel.userId,
         address: schema.userNotificationChannel.address,
+        secret: schema.userNotificationChannel.secret,
+        localeCode: schema.userNotificationChannel.localeCode,
       })
       .from(schema.userNotificationChannel)
       .where(
@@ -145,8 +161,8 @@ async function audience(
   return devices
     .filter((d) => !silenced.has(d.userId))
     .flatMap((d) => {
-      const parsed = decodeAddress(d.address)
-      return parsed ? [{ address: d.address, subscription: parsed }] : []
+      const device = toDevice(d)
+      return device ? [{ address: d.address, ...device }] : []
     })
 }
 
@@ -184,7 +200,7 @@ export async function notify(
   // Rendered once per locale, not once per device: an arena full of followers
   // is still at most three strings.
   const rendered = new Map<ReleasedLocale, PushBody>()
-  const bodyFor = (raw: string | undefined) => {
+  const bodyFor = (raw: string | null) => {
     const locale = asLocale(raw)
     const hit = rendered.get(locale)
     if (hit) return hit
@@ -196,7 +212,11 @@ export async function notify(
   return deliver(
     db,
     env,
-    devices.map((d) => ({ address: d.address, body: bodyFor(d.subscription.locale) })),
+    devices.map((d) => ({
+      address: d.address,
+      subscription: d.subscription,
+      body: bodyFor(d.locale),
+    })),
     args.tag,
   )
 }
@@ -211,7 +231,7 @@ export async function notify(
 async function deliver(
   db: Db,
   env: Bindings,
-  targets: { address: string; body: PushBody }[],
+  targets: { address: string; subscription: PushSubscription; body: PushBody }[],
   tag: string,
 ): Promise<{ sent: number; gone: number }> {
   const vapid = vapidFrom(env)
@@ -219,10 +239,8 @@ async function deliver(
 
   const dead: string[] = []
   const results = await Promise.allSettled(
-    targets.map(async (target) => {
-      const subscription = decodeAddress(target.address)
-      if (!subscription) return false
-      const payload = await buildPush(subscription, target.body, vapid, {
+    targets.map(async ({ address, subscription, body }) => {
+      const payload = await buildPush(subscription, body, vapid, {
         topic: tag,
         urgency: "high",
       })
@@ -234,7 +252,7 @@ async function deliver(
       // 404/410 is the push service saying this endpoint is permanently gone —
       // uninstalled, or expired. Anything else may be transient and is left be,
       // because deleting a device on a 500 loses a reader for good.
-      if (res.status === 404 || res.status === 410) dead.push(target.address)
+      if (res.status === 404 || res.status === 410) dead.push(address)
       return res.ok
     }),
   )
@@ -256,17 +274,23 @@ async function deliver(
   }
 }
 
-/** `deliver`, for a caller that already knows exactly which addresses it means. */
-export function sendToAddresses(
+/**
+ * `deliver`, for a caller that already knows which rows it means — the test
+ * button, which deliberately bypasses following and mutes.
+ *
+ * Rows that cannot be sent to (a PUSH row with no keys) are dropped here rather
+ * than counted as failures: they are not a delivery problem, they are a row
+ * that predates the keys having a column of their own.
+ */
+export function sendToRows(
   db: Db,
   env: Bindings,
-  addresses: string[],
+  rows: { address: string; secret: string | null; localeCode: string | null }[],
   body: PushBody,
 ): Promise<{ sent: number; gone: number }> {
-  return deliver(
-    db,
-    env,
-    addresses.map((address) => ({ address, body })),
-    body.tag,
-  )
+  const targets = rows.flatMap((row) => {
+    const device = toDevice(row)
+    return device ? [{ address: row.address, subscription: device.subscription, body }] : []
+  })
+  return deliver(db, env, targets, body.tag)
 }
