@@ -13,13 +13,12 @@ mise run dev
 ```
 
 One command. It seeds the database, rebuilds on every save, and serves the same
-built bundle at three addresses:
+built bundle on every interface:
 
 | | |
 |---|---|
 | `http://localhost:8787` | this machine — 7ms, and what the tests run against |
-| `http://<lan-ip>:8787` | same wifi, for a phone. Printed on startup |
-| `https://dev-remy.ubuntusoftware.net` | fixed HTTPS, works anywhere — ~1.4s, so not for iterating |
+| `http://<lan-ip>:8787` | same wifi, for a phone. The address is printed on startup |
 
 **Reload to see a change.** The rebuild is automatic and takes a few seconds;
 the page in front of you is not. There is deliberately no live reload — a poller
@@ -29,11 +28,20 @@ never lets `networkidle` settle, which would hang all 92 screenshots in
 Sign in at `#/login`: all twelve seeded people, one click, no inbox. Ctrl-C
 stops everything.
 
-The tunnel is one-off `mise run tunnel:setup`, and exists because iOS Safari
-with HTTPS-Only refuses a plain `http://` address outright — so a LAN IP cannot
-be opened on a phone at all. Pair it with
+### A fixed public URL, optionally
+
+`mise run tunnel:setup` once, and from then on `mise run dev` also brings up a
+Cloudflare tunnel on `TUNNEL_HOSTNAME` (see `[env]` in `mise.toml`). Without it
+`dev` starts fine and simply says there is no tunnel.
+
+It exists because iOS Safari with HTTPS-Only refuses a plain `http://` address
+outright, so a LAN IP cannot be opened on a phone at all. Pair it with
 [Remote Control](https://code.claude.com/docs/en/remote-control) to drive a
 session and watch the result on the same handset.
+
+Roughly 1.4s per request against 7ms on localhost, so it is for looking, not for
+iterating. `TUNNEL_HOSTNAME` is a single name — two people cannot serve it at
+once, so give yourself your own before sharing a machine.
 
 Everything else is a task. `mise tasks` lists them with what each one does —
 that is the documentation, because it cannot go stale the way a list here would.
