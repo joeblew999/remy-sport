@@ -19,6 +19,15 @@ import { adminAc, adminRoles } from "./auth/admin-access-control"
  * prevent.
  */
 export interface AuthDeps {
+  /**
+   * Where this session is being created, as Cloudflare's edge already knows it.
+   *
+   * A closure like the others here, because `request.cf` exists per request and
+   * `buildAuthOptions` is called per request. The Better Auth CLI calls it with
+   * no deps and gets undefined, which is what keeps schema generation free of
+   * runtime concerns.
+   */
+  sessionPlace?: () => { city?: string; country?: string; network?: string }
   sendInvitationEmail?: (data: {
     id: string
     email: string
@@ -75,6 +84,24 @@ export function buildAuthOptions(deps: AuthDeps = {}) {
     },
 
     session: {
+      /**
+       * Where and on whose network, so a row is recognisable.
+       *
+       * The devices page exists to answer one question — "was that me?" — and
+       * an IP address cannot answer it. `103.214.20.169` means nothing;
+       * "Bangkok, Thailand · AIS Fibre" means everything, and someone can act
+       * on it. Cloudflare resolves all three at the edge on every request, so
+       * this costs no lookup, no geo-IP database and no third party.
+       *
+       * Optional because they are: a request that never crossed Cloudflare —
+       * `wrangler dev` on a laptop — has no `cf` at all, and a row without a
+       * place is better than a row with an invented one.
+       */
+      additionalFields: {
+        city: { type: "string", required: false },
+        country: { type: "string", required: false },
+        network: { type: "string", required: false },
+      },
       // 30 days, not Better Auth's default 7.
       //
       // Re-authenticating costs more than it used to: a password lives in a
@@ -136,7 +163,19 @@ export function buildAuthOptions(deps: AuthDeps = {}) {
             const activeOrganizationId = deps.resolveActiveOrganizationId
               ? await deps.resolveActiveOrganizationId(session.userId)
               : null
-            return { data: { ...session, activeOrganizationId: activeOrganizationId ?? undefined } }
+            // Captured at creation, not resolved at read time: this is where
+            // the session was *started*, which is the question the devices page
+            // asks. Looking it up later would answer a different one.
+            const place = deps.sessionPlace?.() ?? {}
+            return {
+              data: {
+                ...session,
+                activeOrganizationId: activeOrganizationId ?? undefined,
+                city: place.city,
+                country: place.country,
+                network: place.network,
+              },
+            }
           },
         },
       },

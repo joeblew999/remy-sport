@@ -86,9 +86,14 @@ export function DevicesPage({ goto }: { goto: (r: Route) => void }) {
                       </span>
                     )}
                   </div>
-                  <div className="device-meta">
+                  {/* Place before time, and the address only as a fallback: a
+                      person scanning this page is asking "was that me?", and
+                      "Bangkok, TH · AIS Fibre" answers it where an IP never
+                      does. The address stays reachable in the title for the
+                      rare case where somebody genuinely needs it. */}
+                  <div className="device-meta" title={d.ipAddress ?? undefined}>
                     {[
-                      d.ipAddress ?? m.ip_not_recorded(),
+                      d.place ?? d.ipAddress ?? m.ip_not_recorded(),
                       m.last_active({ when: formatWhen(locale, d.lastSeen) }),
                     ].join(" · ")}
                   </div>

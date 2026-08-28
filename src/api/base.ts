@@ -97,6 +97,7 @@ export const authed = pub.use(async ({ context, next }) => {
     env: context.env,
     req: { url: context.request.url },
     headers: context.request.headers,
+    cf: (context.request as Request & { cf?: { city?: string; country?: string; region?: string; asOrganization?: string } }).cf,
   })
   const session = await auth.api.getSession({ headers: context.request.headers })
   const user = session?.user as SessionUser | undefined
@@ -120,6 +121,7 @@ export const viewer = pub.use(async ({ context, next }) => {
     env: context.env,
     req: { url: context.request.url },
     headers: context.request.headers,
+    cf: (context.request as Request & { cf?: { city?: string; country?: string; region?: string; asOrganization?: string } }).cf,
   })
   const session = await auth.api.getSession({ headers: context.request.headers })
   return next({ context: { ...context, user: (session?.user as SessionUser) ?? null } })

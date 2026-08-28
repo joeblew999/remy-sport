@@ -22,6 +22,10 @@ export interface RawSession {
   expiresAt: string
   userAgent: string | null
   ipAddress: string | null
+  /** Captured from Cloudflare's edge when the session was created. */
+  city?: string | null
+  country?: string | null
+  network?: string | null
   impersonatedBy?: string | null
 }
 
@@ -32,6 +36,12 @@ export interface Device {
   browser: string
   platform: string
   ipAddress: string | null
+  /**
+   * "Bangkok, TH · AIS Fibre" — where this session started, and on whose
+   * network. Null when nothing is known, which is every session created under
+   * `wrangler dev`, because a local request never crosses Cloudflare.
+   */
+  place: string | null
   createdAt: string
   lastSeen: string
   expiresAt: string
@@ -86,11 +96,34 @@ export function describeDevice(ua: string | null): { browser: string; platform: 
  * and refuse to offer "revoke" on it without warning — signing yourself out
  * from a device-management screen is a surprise, not a feature.
  */
+/**
+ * Where a session started, as a person would say it.
+ *
+ * The devices page answers one question — "was that me?" — and an IP address
+ * cannot answer it. `103.214.20.169` is unrecognisable; "Bangkok, TH · AIS
+ * Fibre" is either obviously you or obviously not, which is the whole point of
+ * the screen.
+ *
+ * Every part is optional and any part is worth showing: a country with no city
+ * still rules things in or out. Null when there is nothing at all, so the caller
+ * can fall back to the address rather than render an empty separator.
+ */
+export function describePlace(s: {
+  city?: string | null
+  country?: string | null
+  network?: string | null
+}): string | null {
+  const where = [s.city, s.country].filter(Boolean).join(", ")
+  const parts = [where, s.network].filter((p) => p && p.length > 0)
+  return parts.length ? parts.join(" · ") : null
+}
+
 export function toDevices(sessions: RawSession[], currentToken: string | null): Device[] {
   return sessions
     .map((s) => {
       const { browser, platform, label } = describeDevice(s.userAgent)
       return {
+        place: describePlace(s),
         id: s.id,
         token: s.token,
         label,

@@ -76,6 +76,16 @@ export type AuthHost = {
    * and taking the Context would make this depend on the web framework.
    */
   headers?: Headers
+  /**
+   * Cloudflare's edge data for this request, when there is any.
+   *
+   * `request.cf` rather than headers: Cloudflare sends `cf-ipcountry` but there
+   * is no `cf-city` or `cf-region` header — city, region and the network name
+   * live only on this object. Absent under `wrangler dev` and in the test pool,
+   * and absent is a real answer: a session with no place recorded beats one
+   * with a place invented.
+   */
+  cf?: { city?: string; country?: string; region?: string; asOrganization?: string }
 }
 
 /**
@@ -182,6 +192,22 @@ export function createAuth(c: AuthHost) {
     // sendInvitationEmail needs `env` — the EMAIL binding and the base URL —
     // which exists only per request. Nothing passed here changes the schema.
     ...buildAuthOptions({
+      /**
+       * Where this session is starting, for the devices page.
+       *
+       * Captured at creation because that is the question being asked — "where
+       * was this signed in from" — not "where is that IP now". Cloudflare has
+       * already resolved it at the edge, so there is no lookup, no geo-IP
+       * database and no third party in the path.
+       */
+      sessionPlace: () => ({
+        city: c.cf?.city,
+        country: c.cf?.country,
+        // `asOrganization` is the network's name — "AIS Fibre", "TrueMove H" —
+        // which is what makes a row recognisable to a person. The AS number
+        // beside it would not.
+        network: c.cf?.asOrganization,
+      }),
       sendInvitationEmail: async ({ id, email, organization, inviter }) => {
         // The accept link points at the SPA's hash route, since /app is the
         // product surface (ADR 008). Better Auth deliberately does not build
