@@ -19,7 +19,6 @@ import { OrgsPage, OrgPage } from "./pages/org";
 
 interface TweakDefaults {
   accentColor?: string;
-  showTauriChrome?: boolean;
   spoilerMode?: boolean;
   language?: Locale;
 }
@@ -32,7 +31,6 @@ declare global {
 
 const DEFAULTS: Required<TweakDefaults> = {
   accentColor: "#D17246",
-  showTauriChrome: true,
   spoilerMode: false,
   language: "en",
 };
@@ -79,13 +77,7 @@ function App() {
 
   return (
     <>
-      {tweaks.showTauriChrome && (
-        <div className="tauri-chrome">
-          <div className="traffic"><span className="red"/><span className="yellow"/><span className="green"/></div>
-          <div className="title">Remy Sport · {route.page}</div>
-        </div>
-      )}
-      <div className={`app ${navOpen ? "nav-open" : ""}`} style={tweaks.showTauriChrome ? { height: "calc(100vh - 28px)" } : {}}>
+      <div className={`app ${navOpen ? "nav-open" : ""}`}>
         <Sidebar page={sidebarPage} setPage={setPageAndCloseDrawer}/>
         {navOpen && <div className="nav-backdrop" onClick={() => setNavOpen(false)}/>}
         <div className="main">

@@ -920,25 +920,6 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 }
 
 /* ---------- Tauri-style chrome (decoration only) ---------- */
-.tauri-chrome {
-  display: flex; align-items: center;
-  height: 28px; padding: 0 12px;
-  background: var(--paper-2);
-  border-bottom: 1px solid var(--rule);
-  font-family:'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink-3); letter-spacing: 0.06em;
-  flex-shrink: 0;
-  -webkit-app-region: drag;
-  user-select: none;
-}
-.tauri-chrome .traffic { display: flex; gap: 6px; margin-right: 12px;}
-.tauri-chrome .traffic span {
-  width: 11px; height: 11px; border-radius: 50%;
-  display: inline-block;
-}
-.tauri-chrome .traffic .red { background: oklch(0.72 0.18 25);}
-.tauri-chrome .traffic .yellow { background: oklch(0.82 0.13 80);}
-.tauri-chrome .traffic .green { background: oklch(0.78 0.13 145);}
-.tauri-chrome .title { flex: 1; text-align: center;}
 
 /* ---------- Tweaks panel positioning override ---------- */
 .tweaks-panel { z-index: 9999;}
@@ -982,7 +963,6 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 /* ─── Mobile: ≤ 768px ─── */
 @media (max-width: 768px) {
   /* Hide tauri chrome on mobile; it's a desktop affordance only. */
-  .tauri-chrome { display: none; }
   .app { height: 100vh !important; }
 
   /* Off-canvas sidebar drawer */
