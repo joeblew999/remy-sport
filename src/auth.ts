@@ -67,7 +67,14 @@ const ADMIN_EMAILS: ReadonlySet<string> = new Set<string>(
 export type AuthHost = {
   env: Bindings
   req: { url: string }
-  /** The incoming request's headers, for `Accept-Language`. */
+  /**
+   * The incoming request's headers.
+   *
+   * `Accept-Language` for the OTP email's locale, and `x-forwarded-proto` for
+   * the scheme the reader actually used — see the note in `createAuth`. Still
+   * one field rather than the whole Hono Context: what is needed is headers,
+   * and taking the Context would make this depend on the web framework.
+   */
   headers?: Headers
 }
 
@@ -128,7 +135,42 @@ export function createAuth(c: AuthHost) {
   // This is safe because the GUI is served from this same Worker (see the
   // [assets] block in wrangler.toml), so a same-origin request is by
   // definition first-party — which is exactly what the check is protecting.
-  const requestOrigin = new URL(c.req.url).origin
+  /**
+   * The scheme the *browser* used, which is not always the one the Worker sees.
+   *
+   * Behind the dev tunnel, cloudflared terminates TLS and forwards plain http
+   * to the local server, and `wrangler dev --host` rewrites the Host on top of
+   * that — so `c.req.url` arrives as `http://192.168.1.100` for a request the
+   * reader made to `https://dev-remy.ubuntusoftware.net`. Believing it means
+   * Better Auth issues a non-secure cookie over a genuinely secure connection.
+   *
+   * `x-forwarded-proto` is what a reverse proxy sets for exactly this, and
+   * Cloudflare sends `cf-visitor` saying the same thing. Either is more
+   * truthful than the URL once a proxy is in front.
+   *
+   * Only the scheme is taken from headers. The host is left as the Worker sees
+   * it, because these cookies carry no `Domain` — they are host-only, so the
+   * browser scopes them to the name it asked for and the internal rewrite does
+   * not reach it.
+   */
+  const forwardedScheme = (() => {
+    const proto = c.headers?.get("x-forwarded-proto")?.split(",")[0]?.trim()
+    if (proto === "https" || proto === "http") return proto
+    try {
+      const visitor = c.headers?.get("cf-visitor")
+      if (visitor) {
+        const scheme = (JSON.parse(visitor) as { scheme?: string }).scheme
+        if (scheme === "https" || scheme === "http") return scheme
+      }
+    } catch {
+      // A malformed cf-visitor is not worth failing a request over.
+    }
+    return null
+  })()
+
+  const requestUrl = new URL(c.req.url)
+  if (forwardedScheme) requestUrl.protocol = `${forwardedScheme}:`
+  const requestOrigin = requestUrl.origin
 
   const mailer = mailerFor(c.env)
 
@@ -255,7 +297,28 @@ export function createAuth(c: AuthHost) {
       },
     },
     secret: c.env.BETTER_AUTH_SECRET,
-    baseURL: c.env.BETTER_AUTH_URL,
+    /**
+     * The origin this request arrived on, not the pinned production URL.
+     *
+     * There are three now — localhost, the dev tunnel, and production — and
+     * `baseURL` decides the session cookie's shape. Pinned to
+     * `https://remy.ubuntusoftware.net`, Better Auth saw https everywhere and
+     * always issued a `__Secure-` prefixed cookie. A browser refuses to store
+     * one of those over plain http, so signing in on http://localhost returned
+     * 200 with a token and then had no session — visible in WebKit, hidden in
+     * Chromium, which is why 35 passing e2e tests never showed it.
+     *
+     * Derived, it is correct in all three: http on localhost gets a plain
+     * cookie, both https origins get a secure one. This is the same reasoning
+     * that already governs `trustedOrigins` directly below, and the opposite of
+     * the invite email above — that one keeps BETTER_AUTH_URL on purpose,
+     * because a link in somebody's inbox outlives the request that sent it.
+     * A cookie does not.
+     *
+     * BETTER_AUTH_URL is still the canonical address and still what emails use;
+     * it is simply not what decides how a cookie is scoped.
+     */
+    baseURL: requestOrigin,
     // baseURL's own origin is added automatically by Better Auth.
     trustedOrigins: [requestOrigin],
   })

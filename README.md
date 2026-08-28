@@ -9,7 +9,7 @@ Deployed at **https://remy.ubuntusoftware.net**
 
 ```bash
 mise trust && mise install && mise run setup
-mise run dev:seed            # http://localhost:8787
+mise run dev                 # http://localhost:8787 — seeded, rebuilds on save
 ```
 
 Everything else is a task. `mise tasks` lists them with what each one does —
@@ -23,6 +23,8 @@ mise run test:render         # rendering, no backend at all    ~13s
 mise run test                # a real browser + real Worker    ~1.1m
 mise run deploy              # check -> test -> deploy -> migrate -> seed -> verify
 ```
+
+Remote-control a session from your phone: see [Claude Code's Remote Control docs](https://code.claude.com/docs/en/remote-control).
 
 ## How it fits together
 

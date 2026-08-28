@@ -67,6 +67,13 @@ COCOAPODS_VERSION = "1.17.0"
 RUBY_BIN = "{{env.HOME}}/.local/share/mise/installs/ruby/3.4.9/bin"
 _.path   = ["{{config_root}}/.gem/bin"]
 
+# The dev tunnel. `tunnel:named` referenced TUNNEL_NAME and TUNNEL_HOSTNAME and
+# neither was ever defined, so that task expanded to an empty tunnel name and
+# could not have worked. Deliberately not `remy.` — that is production.
+TUNNEL_NAME     = "remy-sport-dev"
+TUNNEL_HOSTNAME = "dev-remy.ubuntusoftware.net"
+TUNNEL_ZONE     = "ubuntusoftware.net"
+
 CF_WORKER_NAME  = "remy-sport"
 CF_SUBDOMAIN    = "gedw99"
 CF_DEPLOY_URL   = "https://remy.ubuntusoftware.net"
@@ -388,7 +395,17 @@ bun x vite build --config src/web/vite.config.ts --watch --logLevel warn &
 WATCH=$!
 bun x wrangler dev --ip 0.0.0.0 --host "$HOSTARG" --port 8787 &
 SERVER=$!
-trap 'kill $WATCH $SERVER 2>/dev/null || true' EXIT INT TERM
+
+# The fixed public URL, if `mise run tunnel:setup` has been run. Optional by
+# design: no token means no tunnel, not a broken dev server.
+TUNNEL=""
+RUNTOK=$(printenv TUNNEL_RUN_TOKEN || fnox get TUNNEL_RUN_TOKEN 2>/dev/null) || true
+if [ -n "$RUNTOK" ]; then
+  cloudflared tunnel run --token "$RUNTOK" >/dev/null 2>&1 &
+  TUNNEL=$!
+fi
+
+trap 'kill $WATCH $SERVER $TUNNEL 2>/dev/null || true' EXIT INT TERM
 
 for _ in $(seq 1 40); do
   curl -sf -o /dev/null http://127.0.0.1:8787/api/health && break
@@ -399,6 +416,11 @@ curl -sf -X POST http://127.0.0.1:8787/api/seed >/dev/null 2>&1 && echo "  seede
 echo ""
 echo "  http://localhost:8787            this machine"
 [ -n "$IP" ] && echo "  http://$IP:8787      same wifi"
+if [ -n "$TUNNEL" ]; then
+  echo "  https://{{env.TUNNEL_HOSTNAME}}   fixed URL, works anywhere"
+else
+  echo "  (no tunnel — 'mise run tunnel:setup' once for a fixed public URL)"
+fi
 echo "  #/login                          twelve seeded people, one click"
 echo "  rebuilds on save — reload to see changes"
 echo ""
@@ -1156,7 +1178,7 @@ depends     = ["install"]
 run = """
 rm -rf .wrangler/state/v3/d1
 bun x wrangler d1 migrations apply {{env.CF_D1_NAME}} --local
-echo "cf:d1:reset: local D1 rebuilt — run 'mise run dev:seed' for test data"
+echo "cf:d1:reset: local D1 rebuilt — run 'mise run dev' for test data"
 """
 
 # ── cf:r2: storage ───────────────────────────────────────────────────────────
@@ -1298,9 +1320,11 @@ description = "Expose local Worker on a random trycloudflare URL (real-device te
 # Links — the hostname changes every run and Apple caches the AASA per domain.
 run         = "cloudflared tunnel --url {{env.DEV_URL}}"
 
-[tasks."tunnel:named"]
-description = "Expose local Worker on a stable hostname (required for Universal Links)"
-# Requires a one-off: `mise run tunnel:login`, then
-#   cloudflared tunnel create remy-sport-dev
-#   cloudflared tunnel route dns remy-sport-dev {{env.TUNNEL_HOSTNAME}}
-run = "cloudflared tunnel run --url {{env.DEV_URL}} {{env.TUNNEL_NAME}}"
+[tasks."tunnel:setup"]
+description = "Create the dev tunnel and its fixed hostname via the Cloudflare API (one-off, idempotent)"
+depends     = ["install"]
+# Replaces `tunnel:named`, which could not run: it needed `cloudflared tunnel
+# login` — a browser flow writing a cert.pem — and referenced two env vars that
+# were never defined. scripts/tunnel-setup.ts explains why the API path needs
+# no certificate.
+run = "bun scripts/tunnel-setup.ts"
