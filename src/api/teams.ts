@@ -20,6 +20,7 @@ import { z } from "zod"
 import { CreateTeamInput, TeamSchema, UpdateTeamInput } from "../domain/api"
 import { ERRORS } from "./errors"
 import { authed, authedRoute, pub, requireAction, type Db } from "./base"
+import { holds } from "./relations"
 
 const IdInput = z.object({ id: z.string() })
 
@@ -110,7 +111,13 @@ export const create = authed
     //
     // Not for platform admins: they hold PLATFORM_ADMIN on everything already,
     // and writing them into a school's coaching staff would be a lie in the data.
-    if (context.user.role !== "admin") {
+    //
+    // Asked of the model rather than compared against the string "admin". The
+    // role code lives in the PO's vocabulary and Better Auth stores its own
+    // spelling of it; a literal here is a third copy, and the one that would go
+    // stale silently — this branch failing open writes an admin into a school's
+    // staff, which nothing would catch.
+    if (!(await holds(context.db, "PLATFORM_ADMIN", context.user, null))) {
       await context.db
         .insert(schema.teamCoach)
         .values({ teamId: row.id, userId: context.user.id, coachRoleCode: "HEAD" })

@@ -474,6 +474,24 @@ or project ordering; a whole session went that way and stopped dead.
 `useSession` does not refetch, so a page renders against whoever was signed in
 before. Any test that changes identity uses `gotoFresh()`.
 
+**Authorisation is the model's answer, never a role string compared in a
+handler.** Two of these on 2026-08-28, both failing open and silently. Web Push
+resolved its audience by reading the `subscription` table — everyone who had
+pressed Follow — when the model grants `RECEIVE_TEAM_NOTIFICATIONS` to a team's
+coaches, manager and players as well as its followers. So a head coach was told
+nothing about their own game, and the model had said otherwise since before push
+existed. Separately, `teams.create` compared `user.role !== "admin"` to decide
+whether to write a coaching row: a third spelling of a code that lives in the
+PO's vocabulary and in Better Auth.
+
+Ask the model. `requireAction` on the procedure, `can()` when the action depends
+on the input, `holds(db, "PLATFORM_ADMIN", user, null)` for a role, and
+`audienceFor(db, action, objectId)` for the inverse — *who* holds this, which is
+the question a notification asks. `mise run check:conventions` enforces this for
+`src/api`. Before writing an authorisation check by hand, **grep the model for
+an action that already covers it** — there are 75, and roughly a third of what
+they describe is built.
+
 **Every Web Push library on npm is a decade out of date.** The obvious pick —
 `@block65/webcrypto-web-push`, the one that advertises Workers support — puts
 `content-encoding: aesgcm` and `Authorization: WebPush <jwt>` on the wire. Both

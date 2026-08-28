@@ -20,7 +20,7 @@ import { and, eq, sql } from "drizzle-orm"
 import { ORPCError } from "@orpc/server"
 import { z } from "zod"
 import * as schema from "../db/schema"
-import { authed, authedRoute, can, pub, type Db } from "./base"
+import { authed, authedRoute, can, pub, requireAction, type Db } from "./base"
 import { sendToRows, vapidFrom } from "./push"
 import {
   GRANTS,
@@ -71,6 +71,11 @@ export const key = pub
  */
 export const subscribe = authed
   .route({ method: "POST", path: "/push/subscribe", summary: "Register this browser for push", ...authedRoute })
+  // ANY_SIGNED_IN today, so this permits everyone `authed` already let through.
+  // Named anyway: the model is where "who may manage their own channels" is
+  // decided, and when the PO narrows it — a banned account, say — this narrows
+  // with it and nothing in this file changes.
+  .use(requireAction("MANAGE_OWN_NOTIFICATION_CHANNELS"))
   .input(
     z.object({
       subscription: SubscriptionInput,
@@ -124,6 +129,7 @@ export const subscribe = authed
 /** Forget this browser. Called when a reader turns notifications off. */
 export const unsubscribe = authed
   .route({ method: "POST", path: "/push/unsubscribe", summary: "Stop pushing to this browser", ...authedRoute })
+  .use(requireAction("MANAGE_OWN_NOTIFICATION_CHANNELS"))
   .input(z.object({ endpoint: z.string().url() }))
   .output(z.object({ removed: z.number() }))
   .handler(async ({ context, input }) => {
@@ -145,6 +151,7 @@ export const unsubscribe = authed
 /** The devices this reader has registered, for a list they can prune. */
 export const devices = authed
   .route({ method: "GET", path: "/push/devices", summary: "Browsers registered for push", ...authedRoute })
+  .use(requireAction("MANAGE_OWN_NOTIFICATION_CHANNELS"))
   .output(z.object({ devices: z.array(z.object({ label: z.string(), enabled: z.boolean() })) }))
   .handler(async ({ context }) => {
     const rows = await context.db
@@ -406,6 +413,7 @@ export const sendTest = authed
 /** Mute or unmute one notification type on push. */
 export const setPreference = authed
   .route({ method: "PUT", path: "/notification-preferences", summary: "Mute or unmute one kind of notification", ...authedRoute })
+  .use(requireAction("MANAGE_OWN_NOTIFICATION_PREFERENCES"))
   .input(
     z.object({
       notificationTypeCode: z.enum(NOTIFICATION_TYPE_CODES),

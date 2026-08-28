@@ -63,6 +63,32 @@ const grepSrc = (re: RegExp) =>
 
 const RULES: Rule[] = [
   {
+    claim:
+      '"Authorisation is the model\'s answer, never a role string compared in a handler."',
+    /**
+     * The bug this catches, twice on 2026-08-28.
+     *
+     * Web Push resolved its audience by reading the `subscription` table, when
+     * the model granted RECEIVE_TEAM_NOTIFICATIONS to a team's coaches and
+     * players as well as its followers — so a head coach was told nothing about
+     * their own game. And `teams.create` compared `user.role !== "admin"` to
+     * decide whether to write a coaching row, a third spelling of a role code
+     * that lives in the PO's vocabulary and in Better Auth.
+     *
+     * Both failed *open* and silently, which is why a rule is worth more than
+     * remembering. The model answers this: `requireAction`, `can`, or
+     * `holds(db, "PLATFORM_ADMIN", ...)`.
+     *
+     * src/api only — src/auth.config.ts configures Better Auth's own admin
+     * plugin, which necessarily names the role it stores, and relations.ts is
+     * the resolver that turns a role into an answer.
+     */
+    check: () =>
+      grepSrc(/\.role\s*(===|!==)\s*["'](admin|coach|organizer|referee|player|spectator)["']/).filter(
+        (loc) => loc.startsWith("src/api/") && !loc.startsWith("src/api/relations.ts"),
+      ),
+  },
+  {
     claim: '"There is no `translation` table." — Languages are rows',
     check: () =>
       [...migrations, ...src]
