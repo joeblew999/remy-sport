@@ -105,3 +105,43 @@ test.describe("Localisation, rendered", () => {
     for (const code of codes) expect(body).not.toContain(code)
   })
 })
+
+/**
+ * `<html lang>` matches the language on screen, from the first paint.
+ *
+ * index.html ships `lang="en"` and `setLocale` was the only thing that ever
+ * wrote the attribute, so a Thai-preferring visitor read Thai content under
+ * `lang="en"` for their whole first session — and forever if they never opened
+ * the switcher. `initialLocale()` had already resolved the right answer; nothing
+ * told the document.
+ *
+ * These assert BEFORE any interaction, which is the only place the bug lived:
+ * clicking the switcher always set it correctly, so any test that switched
+ * first would have passed on the broken code.
+ *
+ * Nothing on screen changes, which is why it survived — no CSS here keys off
+ * `:lang()`. A screen reader picks its voice from this attribute and a crawler
+ * indexes the page's language by it, and both read it on load.
+ */
+test.describe("the document's language attribute", () => {
+  for (const locale of LOCALES) {
+    test(`is '${locale}' on first load when that is the reader's language`, async ({ page }) => {
+      await seedCache(page, [entry(orpc.events.list, undefined, { events: [event] } as never)])
+      await page.addInitScript((l) => localStorage.setItem("remy.locale", l), locale)
+
+      await page.goto("/#/")
+      await expect(page.locator("html")).toHaveAttribute("lang", locale)
+    })
+  }
+
+  test("follows the switcher afterwards", async ({ page }) => {
+    await seedCache(page, [entry(orpc.events.list, undefined, { events: [event] } as never)])
+    await page.addInitScript(() => localStorage.setItem("remy.locale", "en"))
+
+    await page.goto("/#/")
+    await expect(page.locator("html")).toHaveAttribute("lang", "en")
+
+    await page.getByRole("button", { name: "TH", exact: true }).click()
+    await expect(page.locator("html")).toHaveAttribute("lang", "th")
+  })
+})

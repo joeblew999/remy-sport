@@ -383,6 +383,12 @@ bun x tsc --noEmit
 mise run web:typecheck
 mise run test:unit
 mise run test:worker
+# The render tier was in neither `check` nor `test`, so it ran only when
+# somebody typed it. That is how "APR" -> "Apr" sat broken for a day: the month
+# moved to Intl.DateTimeFormat, the assertion still expected the old hardcoded
+# uppercase, and nothing in the loop ever looked. A tier nothing runs is a tier
+# that is already failing.
+mise run test:render
 mise run check:dead
 mise run check:docs
 mise run check:conventions

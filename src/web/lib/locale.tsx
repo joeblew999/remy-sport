@@ -72,6 +72,30 @@ function initialLocale(): Locale {
 let currentLocale: Locale = initialLocale();
 overwriteGetLocale(() => currentLocale);
 
+/**
+ * `<html lang>` on first paint, not only after the switcher is touched.
+ *
+ * index.html ships `lang="en"` and `setLocale` was the only thing that ever
+ * wrote this attribute — so a Thai-preferring visitor got Thai content under
+ * `lang="en"` for their entire first session, and forever if they never opened
+ * the switcher. `initialLocale()` had already worked out the right answer one
+ * line above; nothing was telling the document.
+ *
+ * It matters because both of the things that read this attribute read it on
+ * load and not after a client-side change: a screen reader picks its voice and
+ * pronunciation rules from it, and a crawler indexes the page as English. No
+ * CSS here depends on it — the font stacks cover Thai and Japanese directly —
+ * so this was invisible on screen, which is why it survived.
+ *
+ * Guarded like the localStorage read above: this module is imported by tests
+ * that have no document.
+ */
+try {
+  document.documentElement.lang = currentLocale;
+} catch {
+  // no document — not a browser
+}
+
 export function LocaleProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(currentLocale);
 

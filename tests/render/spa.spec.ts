@@ -68,7 +68,11 @@ test.describe("Event view models are derived, not stored", () => {
     const row = page.locator(".event-row", { hasText: "Bangkok Schools Basketball League 2026" })
     await expect(row).toBeVisible()
     await expect(row.locator(".date .day")).toHaveText("15")
-    await expect(row.locator(".date .mo")).toHaveText("APR")
+    // "Apr", not "APR": the month comes from Intl.DateTimeFormat now, and the
+    // uppercase is CSS (`.mo { text-transform: uppercase }`). That is the right
+    // place for it — text-transform is a no-op for Thai and Japanese, whereas
+    // the hardcoded MONTHS array this replaced was uppercase in every language.
+    await expect(row.locator(".date .mo")).toHaveText("Apr")
     await expect(row.locator(".status")).toHaveText("Finished")
   })
 
