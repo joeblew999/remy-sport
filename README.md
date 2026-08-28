@@ -9,8 +9,17 @@ Deployed at **https://remy.ubuntusoftware.net**
 
 ```bash
 mise trust && mise install && mise run setup
-mise run dev                 # http://localhost:8787 — seeded, rebuilds on save
+mise run dev                 # seeded, rebuilds on save, serves all three below
 ```
+
+| | |
+|---|---|
+| `http://localhost:8787` | this machine. 7ms, and what the tests use |
+| `http://<lan-ip>:8787` | same wifi. The address is printed on startup |
+| `https://dev-remy.ubuntusoftware.net` | fixed, HTTPS, works anywhere. ~1.4s, so not for iterating |
+
+The tunnel needs `mise run tunnel:setup` once. iOS Safari refuses plain `http://`
+with HTTPS-Only on, which is what it is for.
 
 Everything else is a task. `mise tasks` lists them with what each one does —
 that is the documentation, because it cannot go stale the way a list here would.
@@ -19,8 +28,8 @@ that is the documentation, because it cannot go stale the way a list here would.
 mise run check               # types + unit + worker + dead code + docs + conventions
 mise run test:unit           # pure logic, no runtime          ~30ms
 mise run test:worker         # the Worker in workerd, real D1  ~1.5s
-mise run test:render         # rendering, no backend at all    ~13s
-mise run test                # a real browser + real Worker    ~1.1m
+mise run test:render         # rendering, no backend at all    ~9s
+mise run test                # a real browser + real Worker    ~11s
 mise run deploy              # check -> test -> deploy -> migrate -> seed -> verify
 ```
 
