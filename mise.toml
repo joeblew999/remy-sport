@@ -240,6 +240,35 @@ fi
 # kept rendering a field that had been deleted from its type.
 # UI copy is compiled, so it has to exist before anything typechecks it. The
 # Vite plugin does this during a build; this task is for everything else.
+[tasks."brand:icons"]
+description = "Regenerate every app icon — web, desktop, iOS, Android — from src/web/brand.svg"
+depends     = ["install"]
+# One drawing, two generators, every platform.
+#
+# src/web/brand.svg is the only place the mark exists. Before it, the sidebar
+# drew a basketball in CSS with two pseudo-elements and scaleX/scaleY, which
+# renders at 32px and produces no file — so installing the app on a phone got a
+# screenshot of the page as its icon, and src-tauri/icons held sixteen files
+# nobody could regenerate from anything.
+#
+# Neither generator is hand-rolled and neither is a size list here: the sizes
+# each OS wants change with its releases, and a list in this repo would be a
+# snapshot of what was true when somebody last looked.
+#
+#   @vite-pwa/assets-generator  favicon, maskable, apple-touch, the manifest set
+#   tauri icon                  .icns, .ico, the iOS AppIcon set, Android mipmaps
+#
+# The image and preset come from pwa-assets.config.ts, not flags: `--preset
+# minimal2023` parses and then fails with "not yet implemented".
+#
+# Both read the SVG directly, so there is no intermediate PNG to regenerate and
+# forget. Output is committed — a build must not depend on rasterising an SVG.
+run = """
+set -e
+bun x pwa-assets-generator
+bun x tauri icon src/web/brand.svg
+"""
+
 [tasks."i18n:validate"]
 description = "Validate project.inlang/settings.json with the inlang CLI"
 depends     = ["install"]

@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Remy Sport">
+  <!--
+    The one brand mark. The sidebar renders this file and the PWA icon
+    generator reads it, so there is a single source rather than a drawing that
+    exists twice and drifts.
+
+    It replaced a CSS trick: an orange circle with two pseudo-elements squeezed
+    by scaleX/scaleY into ellipse arcs. That renders fine at 32px in a sidebar
+    and produces no file at all, which is why installing the app on a phone got
+    a screenshot of the page as its icon.
+
+    Colours are literals rather than CSS custom properties. An icon generator
+    rasterises this outside the page, where those do not exist — and a home-screen
+    icon must not change with the reader's theme anyway. They are the sRGB of
+    oklch(0.62 0.18 35) and oklch(0.985 0.005 90), converted once here.
+
+    Full-bleed on purpose: iOS masks its own corner radius and adds no
+    background, so a transparent or inset icon gets a white box behind it.
+  -->
+  <circle cx="256" cy="256" r="256" fill="#dd5230"/>
+
+  <!--
+    Basketball seams. Two arcs across and one meridian each way, the same four
+    strokes the CSS drew, at a weight that survives being scaled to 48px in a
+    notification and 1024px on a splash screen.
+  -->
+  <g fill="none" stroke="#fbfaf6" stroke-width="18" stroke-linecap="round">
+    <path d="M256 0v512"/>
+    <path d="M0 256h512"/>
+    <path d="M78 78a250 250 0 0 1 0 356" transform="translate(0,-1)"/>
+    <path d="M434 78a250 250 0 0 0 0 356"/>
+  </g>
+</svg>

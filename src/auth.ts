@@ -200,6 +200,18 @@ export function createAuth(c: AuthHost) {
        * already resolved it at the edge, so there is no lookup, no geo-IP
        * database and no third party in the path.
        */
+      /**
+       * Local dev shows ONE place for everybody, and that is miniflare, not a
+       * bug here. It fetches Cloudflare's geo data once per machine into
+       * `node_modules/.mf/cf.json` and serves that blob to every request — so
+       * two phones in two countries both report whatever this laptop was when
+       * the file was written. The IP stays live because it comes from a header,
+       * which is what makes the mismatch visible: a Thai address beside an
+       * Australian city meant the cache was stale from a VPN session hours
+       * earlier. `rm node_modules/.mf/cf.json` and restart to refresh it.
+       *
+       * On the edge it is resolved per request and is correct.
+       */
       sessionPlace: () => ({
         city: c.cf?.city,
         country: c.cf?.country,
