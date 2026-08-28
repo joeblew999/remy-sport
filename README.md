@@ -19,7 +19,7 @@ built bundle at three addresses:
 |---|---|
 | `http://localhost:8787` | this machine — 7ms, and what the tests run against |
 | `http://<lan-ip>:8787` | same wifi, for a phone. Printed on startup |
-| `https://<TUNNEL_HOSTNAME>` | fixed HTTPS, works anywhere — ~1.4s, so for looking, not iterating |
+| `https://dev-remy.ubuntusoftware.net` | fixed HTTPS, works anywhere — ~1.4s, so for looking, not iterating |
 
 The tunnel creates itself on first run. There is no separate setup step and
 nothing to remember; without a `CLOUDFLARE_API_TOKEN` it is skipped and `dev`
