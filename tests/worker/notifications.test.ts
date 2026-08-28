@@ -213,3 +213,67 @@ describe("Muting a kind of notification", () => {
     expect(res.status).toBe(400)
   })
 })
+
+describe("What the following list actually says", () => {
+  it("names the thing followed, not just its type", async () => {
+    const cookie = await signIn(SPECTATOR)
+    await post("/api/follow", { objectTypeCode: "TEAM", objectId: "team_001" }, cookie)
+    await post("/api/follow", { objectTypeCode: "EVENT", objectId: "evt_001" }, cookie)
+
+    const mine = await api("/api/follow", { cookie })
+    const { following } = (await mine.json()) as {
+      following: { objectId: string; name: string; names: Record<string, string> }[]
+    }
+
+    // The whole point: a reader following three teams must not see
+    // "Team, Team, Team". Every row carries the object's own name, in every
+    // language the model has it in.
+    const team = following.find((f) => f.objectId === "team_001")!
+    expect(team.name).toBeTruthy()
+    expect(team.names.en).toBeTruthy()
+    expect(team.names.th).toBeTruthy()
+
+    const event = following.find((f) => f.objectId === "evt_001")!
+    expect(event.name).toBeTruthy()
+    expect(event.name).not.toBe(team.name)
+  })
+})
+
+describe("A team's schedule comes from the games table", () => {
+  it("returns that team's games, from both ends of the fixture", async () => {
+    const all = await api("/api/games")
+    const { games } = (await all.json()) as {
+      games: { id: string; homeTeamId: string; awayTeamId: string }[]
+    }
+    // Pick a team that plays away somewhere, so the filter is doing more than
+    // matching one column.
+    const away = games.find((g) => g.awayTeamId)!
+    const teamId = away.awayTeamId
+
+    const res = await api(`/api/games?teamId=${teamId}`)
+    expect(res.status).toBe(200)
+    const { games: theirs } = (await res.json()) as {
+      games: { homeTeamId: string; awayTeamId: string }[]
+    }
+
+    expect(theirs.length).toBeGreaterThan(0)
+    // Every returned game involves them.
+    for (const g of theirs) {
+      expect([g.homeTeamId, g.awayTeamId]).toContain(teamId)
+    }
+    // Including the away fixture we picked — a filter on `homeTeamId` alone
+    // would drop half a team's season and nobody would notice from the page.
+    expect(theirs.some((g) => g.awayTeamId === teamId)).toBe(true)
+
+    // And it genuinely filters rather than ignoring the parameter: a team that
+    // does not exist has no fixtures, not everybody's. Asserted with an unknown
+    // id because every seeded team now plays — which is the point of the
+    // fixtures having grown.
+    const idle = await api("/api/games?teamId=team_not_real")
+    const { games: none } = (await idle.json()) as { games: unknown[] }
+    expect(none).toHaveLength(0)
+
+    // And it is a real subset: this team's games are fewer than all of them.
+    expect(theirs.length).toBeLessThan(games.length)
+  })
+})

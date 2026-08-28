@@ -371,24 +371,32 @@ describe("Routing — what the Worker serves and what it refuses", () => {
 
 describe("Standings are derived from the games, never stored", () => {
   /**
-   * evt_002 has three registered teams — team_001, team_002, team_004 and
-   * team_003 — but only team_001 v team_003 have fixtures, and only gam_001 is
-   * FINISHED (in evt_001). So evt_002's table is all zeroes until a game there
-   * finishes, which is exactly the start-of-season case.
+   * A registered team appears whether or not it has played.
+   *
+   * Asserted against the registrations rather than a hardcoded list of ids:
+   * this used to name the four teams evt_002 had, and broke the day the PO's
+   * fixtures grew a real league. What the endpoint promises is "one line per
+   * registered team", and that is what is checked.
    */
   it("lists every registered team, including ones that have not played", async () => {
+    const entered = (await (await api("/api/events/evt_002/teams")).json()) as {
+      registered: { teamId: string }[]
+    }
     const res = await api("/api/standings?eventId=evt_002")
     expect(res.status).toBe(200)
     const { standings } = (await res.json()) as {
       standings: { teamId: string; played: number; rank: number }[]
     }
-    // Four registered, four lines. A table built from games alone would have
-    // shown none of them.
+
+    // Every registered team has a line — a table built from games alone would
+    // omit the ones yet to play.
     expect(standings.map((s) => s.teamId).sort()).toEqual(
-      ["team_001", "team_002", "team_003", "team_004"],
+      entered.registered.map((r) => r.teamId).sort(),
     )
-    expect(standings.every((s) => s.played === 0)).toBe(true)
-    expect(standings.map((s) => s.rank)).toEqual([1, 2, 3, 4])
+    // At least one has not played, which is the case this test exists for.
+    expect(standings.some((s) => s.played === 0)).toBe(true)
+    // Ranks are dense and start at 1, however many teams there are.
+    expect(standings.map((s) => s.rank)).toEqual(standings.map((_, i) => i + 1))
   })
 
   it("counts a finished game for both teams, and only a finished one", async () => {
@@ -471,9 +479,13 @@ describe("An event's entries — who is in, and what you could enter", () => {
       registered: { teamId: string; divisionId: string; canWithdraw: boolean }[]
       registrable: unknown[]
     }
-    expect(registered.map((r) => r.teamId).sort()).toEqual(
-      ["team_001", "team_002", "team_003", "team_004"],
+    // The four originals are still in, alongside however many the PO's league
+    // has grown to. Containment rather than equality: the point of this test is
+    // that entries are readable and carry a division, not how many there are.
+    expect(registered.map((r) => r.teamId)).toEqual(
+      expect.arrayContaining(["team_001", "team_002", "team_003", "team_004"]),
     )
+    expect(registered.every((r) => Boolean(r.divisionId))).toBe(true)
     // Signed out: nothing to withdraw, nothing to enter. The page renders the
     // list and no form, rather than a form that would be refused.
     expect(registered.every((r) => !r.canWithdraw)).toBe(true)

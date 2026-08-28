@@ -153,3 +153,15 @@ export function formatSince(locale: string, iso: string, now: number = Date.now(
     return new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }).format(value, unit);
   }
 }
+
+/**
+ * Day and month, for one row in a list of fixtures.
+ *
+ * Ordering is the locale's, not ours: "May 4" in English, "4 พ.ค." in Thai,
+ * "5月4日" in Japanese. A template of `${month} ${day}` would have produced the
+ * English order in all three, which is exactly the kind of thing that looks
+ * fine to whoever wrote it.
+ */
+export function formatDayShort(locale: string, d: Date): string {
+  return fmt(locale, { month: "short", day: "numeric" }).format(d);
+}

@@ -666,9 +666,11 @@ describe("Games — the object type ENTER_SCORES was missing", () => {
     const { games } = (await res.json()) as {
       games: { id: string; statusCode: string; homeScore: number | null; canEnterScore: boolean }[]
     }
-    expect(games.map((g) => g.id)).toEqual(["gam_002", "gam_003"])
-    expect(games[0]!.statusCode).toBe("LIVE")
-    // Nobody is signed in, so nobody may score.
+    // The two originals are still there, among the league's other fixtures.
+    // Listing every id would re-break whenever the PO schedules another round.
+    expect(games.map((g) => g.id)).toEqual(expect.arrayContaining(["gam_002", "gam_003"]))
+    expect(games.find((g) => g.id === "gam_002")!.statusCode).toBe("LIVE")
+    // Nobody is signed in, so nobody may score — for any of them.
     expect(games.every((g) => !g.canEnterScore)).toBe(true)
   })
 

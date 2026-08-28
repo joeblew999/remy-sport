@@ -265,5 +265,6 @@
   "send_test_notification": "Send a test notification",
   "test_notification_title": "Notifications are working",
   "test_notification_body": "This is what a live score will look like.",
-  "test_sent_to_devices": "Sent to {count} device(s). If nothing appears, notifications are blocked at the system level."
+  "test_sent_to_devices": "Sent to {count} device(s). If nothing appears, notifications are blocked at the system level.",
+  "no_games_yet": "No games scheduled yet."
 }

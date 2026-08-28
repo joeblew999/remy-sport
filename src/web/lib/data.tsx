@@ -102,6 +102,49 @@ export function useGames(eventId: string | undefined) {
 }
 
 /**
+ * One team's games, from both sides of the fixture, seen from that team's end.
+ *
+ * The team page showed seven invented games until 2026-08-28 — "May 4 · Triam
+ * Udom · 71–64 · WON" against a real team, on the same page as a Follow button
+ * offering notifications about real scores. It was labelled as sample data,
+ * which is not the same as being true.
+ *
+ * `opponent`, `us` and `them` are derived here rather than in the page, because
+ * "did we win" depends on which end of the fixture this team was written on,
+ * and that is exactly the sort of thing a component gets subtly wrong.
+ */
+export function useTeamGames(teamId: string | undefined) {
+  const loc = useLocalizer();
+  return useQuery(
+    orpc.games.list.queryOptions({
+      input: { teamId: teamId! },
+      enabled: teamId !== undefined,
+      select: ({ games, viewerTimezone }) => ({
+        viewerTimezone,
+        games: games.map((g) => {
+          const home = g.homeTeamId === teamId;
+          const us = home ? g.homeScore : g.awayScore;
+          const them = home ? g.awayScore : g.homeScore;
+          return {
+            ...g,
+            opponent: loc.name(home ? g.awayTeamNames : g.homeTeamNames),
+            venue: g.venueNames ? loc.name(g.venueNames) : null,
+            us,
+            them,
+            // Null until both scores exist — an unplayed game has no outcome,
+            // and treating a missing score as zero would render every fixture
+            // as a loss.
+            won: us === null || them === null ? null : us > them,
+            live: g.statusCode === "LIVE",
+            statusLabel: loc.label("gameStatuses", g.statusCode),
+          };
+        }),
+      }),
+    }),
+  );
+}
+
+/**
  * A team's current squad, with whether the viewer may change it.
  *
  * Replaces a `ROSTER` constant of six invented players with invented per-game

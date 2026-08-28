@@ -382,11 +382,16 @@ describe("Web Push delivery", () => {
   it("reaches a follower when a referee enters a live score", async () => {
     const cookie = await signIn(actorFor("ORGANIZER"))
 
-    const games = await api("/api/games")
+    // A game in an event this organiser actually runs. `canSetStatus` is the
+    // server's own answer, so picking on it cannot drift from the model — the
+    // first attempt took games[0] and got a 403 the moment the fixtures grew
+    // past one event.
+    const games = await api("/api/games", { cookie })
     const { games: all } = (await games.json()) as {
-      games: { id: string; homeTeamId: string; statusCode: string }[]
+      games: { id: string; homeTeamId: string; canSetStatus: boolean }[]
     }
-    const game = all[0]!
+    const game = all.find((g) => g.canSetStatus)!
+    expect(game, "no game this organiser may set the status of").toBeTruthy()
 
     const fan = await makeUser("push-e2e-fan")
     const device = await subscriber("https://push.test/e2e")
@@ -425,9 +430,12 @@ describe("Web Push delivery", () => {
 
   it("stays quiet when a score is corrected after the game is over", async () => {
     const cookie = await signIn(actorFor("ORGANIZER"))
-    const games = await api("/api/games")
-    const { games: all } = (await games.json()) as { games: { id: string; homeTeamId: string }[] }
-    const game = all[1] ?? all[0]!
+    const games = await api("/api/games", { cookie })
+    const { games: all } = (await games.json()) as {
+      games: { id: string; homeTeamId: string; canSetStatus: boolean }[]
+    }
+    const theirs = all.filter((g) => g.canSetStatus)
+    const game = theirs[1] ?? theirs[0]!
 
     const fan = await makeUser("push-e2e-quiet")
     const device = await subscriber("https://push.test/e2e-quiet")

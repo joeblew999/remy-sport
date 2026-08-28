@@ -33,7 +33,7 @@ const OFFERED = ["MATCH_START", "SCORE_UPDATE", "MATCH_END"] as const
 
 export function NotificationSettings() {
   const qc = useQueryClient()
-  const { locale, label } = useLocale()
+  const { locale, label, name } = useLocale()
   const [state, setState] = useState<PushState | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -154,7 +154,11 @@ export function NotificationSettings() {
         <ul className="pref-list" data-testid="following-list">
           {data.following.map((f) => (
             <li key={`${f.objectTypeCode}:${f.objectId}`}>
-              {label("objectTypes", f.objectTypeCode)}
+              {/* The thing's own name, in the reader's language — "Assumption
+                  College U16 Boys", not "Team". A list of type labels reads as
+                  "Team, Team, Team" and is not one anybody can act on. */}
+              {name(f.names, f.name) || label("objectTypes", f.objectTypeCode)}
+              <span className="meta"> · {label("objectTypes", f.objectTypeCode)}</span>
             </li>
           ))}
         </ul>

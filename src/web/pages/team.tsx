@@ -1,20 +1,12 @@
 import { FollowButton } from "../components/follow";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, orpc } from "../lib/orpc";
-import { useRoster, useTeam, useTeams } from "../lib/data";
+import { useRoster, useTeam, useTeamGames, useTeams } from "../lib/data";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
+import { useLocale } from "../lib/locale";
+import { formatDayShort } from "../lib/dates";
 import { formErrors } from "../lib/form-errors";
-
-interface ScheduleRow {
-  date: string;
-  vs: string;
-  sa: number | string | null;
-  sb: number | string | null;
-  w?: boolean | null;
-  live?: boolean;
-  type: string;
-}
 
 export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }) {
   // The sidebar's "My team" links to #/team with no id. Until the SPA knows who
@@ -23,8 +15,13 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
   const { data: team, isPending: teamLoading } = useTeam(id);
   const { data: allTeams, isPending: listLoading } = useTeams();
   const { data: roster } = useRoster(id);
+  const { locale } = useLocale();
 
   const t = id ? team : allTeams?.[0];
+  // Keyed off the *resolved* team, not the route param: #/team with no id falls
+  // back to the first team, and its schedule must be that team's.
+  const { data: teamGames, isPending: gamesLoading } = useTeamGames(t?.id);
+  const games = teamGames?.games ?? [];
 
   if (id ? teamLoading : listLoading) {
     return <div className="empty">{m.loading_team()}</div>;
@@ -37,15 +34,6 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
       </div>
     );
   }
-  const schedule: ScheduleRow[] = [
-    { date: "May 4", vs: "Triam Udom", sa: 71, sb: 64, w: true, type: "BSL" },
-    { date: "May 7", vs: "Mater Dei", sa: 82, sb: 51, w: true, type: "BSL" },
-    { date: "May 9", vs: "ISB", sa: 64, sb: 70, w: false, type: "BSL" },
-    { date: "May 12", vs: "Suankularb", sa: 71, sb: 54, w: true, type: "CUP · R16" },
-    { date: "May 13", vs: "Assumption", sa: "54", sb: "49", w: null, live: true, type: "CUP · QF" },
-    { date: "May 14", vs: "TBA", sa: null, sb: null, type: "CUP · SF" },
-    { date: "May 18", vs: "Bangkok Christian", sa: null, sb: null, type: "BSL" },
-  ];
   return (
     <>
       <div className="team-hero">
@@ -102,24 +90,38 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
             team, not worked out from the viewer's role. */}
         {roster?.canManage && id && <ManageRoster teamId={id} roster={roster}/>}
 
-        <div className="section-h" style={{ marginTop: 48 }}><h2>{m.schedule()}</h2><a className="more">{m.sample_data()}</a></div>
+        <div className="section-h" style={{ marginTop: 48 }}><h2>{m.schedule()}</h2></div>
         <div className="dash-card">
-          {schedule.map((g, i) => (
-            <div key={i} className={`fixture-row${g.live ? " live" : ""}`}>
-              <span className="date">{g.date}</span>
-              <span className="opponent">{m.versus()} <b>{g.vs}</b></span>
-              <span className="kind">{g.type}</span>
+          {gamesLoading && <div className="empty">{m.loading()}</div>}
+          {!gamesLoading && games.length === 0 && <div className="empty">{m.no_games_yet()}</div>}
+          {games.map((g) => (
+            <div key={g.id} className={`fixture-row${g.live ? " live" : ""}`}>
+              <span className="date">{formatDayShort(locale, new Date(g.startsAt))}</span>
+              <span className="opponent">{m.versus()} <b>{g.opponent}</b></span>
+              <span className="kind">{g.venue ?? ""}</span>
               <span className="result">
-                {g.sa !== null ? `${g.sa}–${g.sb}` : <span className="muted">—</span>}
+                {/* Both or neither. A played game has two scores; anything else
+                    is a fixture, and "61–" is not a result. */}
+                {g.us !== null && g.them !== null
+                  ? `${g.us}–${g.them}`
+                  : <span className="muted">—</span>}
               </span>
               <span
                 className="outcome"
                 style={{
-                  color: g.live ? "var(--live)" : g.w === true ? "var(--good)" : "var(--ink-3)",
-                  fontWeight: g.live || g.w === true ? 500 : 400,
+                  color: g.live ? "var(--live)" : g.won === true ? "var(--good)" : "var(--ink-3)",
+                  fontWeight: g.live || g.won === true ? 500 : 400,
                 }}
               >
-                {g.live ? m.status_live() : g.w === true ? m.col_won() : g.w === false ? m.col_lost() : m.status_upcoming()}
+                {/* The status the server stored, except where the result says
+                    more than "finished" does. */}
+                {g.live
+                  ? m.status_live()
+                  : g.won === true
+                    ? m.col_won()
+                    : g.won === false
+                      ? m.col_lost()
+                      : g.statusLabel}
               </span>
             </div>
           ))}

@@ -16,11 +16,11 @@
  * Sending lives in ./push.ts.
  */
 
-import { and, eq } from "drizzle-orm"
+import { and, eq, sql } from "drizzle-orm"
 import { ORPCError } from "@orpc/server"
 import { z } from "zod"
 import * as schema from "../db/schema"
-import { authed, authedRoute, pub } from "./base"
+import { authed, authedRoute, pub, type Db } from "./base"
 import { encodeAddress, sendToAddresses, vapidFrom } from "./push"
 import {
   LOCALES,
@@ -30,6 +30,7 @@ import {
 } from "../domain/vocabularies"
 import { objectExists, tableForObjectType } from "./relations"
 import { m } from "../paraglide/messages.js"
+import { pivot, type Names } from "../domain/names"
 
 /** What the browser's `PushSubscription.toJSON()` gives us. */
 const SubscriptionInput = z.object({
@@ -236,7 +237,14 @@ export const following = authed
   .route({ method: "GET", path: "/follow", summary: "What I follow, and what I have muted", ...authedRoute })
   .output(
     z.object({
-      following: z.array(ObjectRef),
+      following: z.array(
+        ObjectRef.extend({
+          /** The model's names, for the client to resolve to the reader's locale. */
+          names: z.record(z.string(), z.string()),
+          /** English pivot, as a fallback when the reader's locale is absent. */
+          name: z.string(),
+        }),
+      ),
       muted: z.array(z.enum(NOTIFICATION_TYPE_CODES)),
     }),
   )
@@ -261,10 +269,70 @@ export const following = authed
         ),
     ])
     return {
-      following: subs as z.infer<typeof ObjectRef>[],
+      following: await withNames(context.db, subs as z.infer<typeof ObjectRef>[]),
       muted: prefs.map((p) => p.typeCode) as NotificationTypeCode[],
     }
   })
+
+/**
+ * Put a name on each thing a reader follows.
+ *
+ * Without this the list is the *type* of each row — "Team, Team, Team" for
+ * somebody following three of them, which tells them nothing and is not a list
+ * they can act on. `subscription` stores only a type and an id, so the name has
+ * to be fetched from whichever table that type lives in.
+ *
+ * One query per type present, not one per row: a reader following twenty teams
+ * is one `IN`. Names come back as the model's JSON, matching every other
+ * endpoint — the client resolves the locale, so this stays the same bytes for
+ * every reader and the cache does not fragment by language.
+ */
+async function withNames(db: Db, subs: z.infer<typeof ObjectRef>[]) {
+  const byType = new Map<string, string[]>()
+  for (const sub of subs) {
+    const list = byType.get(sub.objectTypeCode) ?? []
+    list.push(sub.objectId)
+    byType.set(sub.objectTypeCode, list)
+  }
+
+  const names = new Map<string, Names>()
+  await Promise.all(
+    [...byType].map(async ([objectTypeCode, ids]) => {
+      const table = tableForObjectType(objectTypeCode)
+      // GAME has no `names` column — a fixture is named by its two teams, not
+      // by a string — so it falls through to the type label until something
+      // offers a Follow button on a game.
+      if (!table || objectTypeCode === "GAME") return
+      const rows = await db.all<{ id: string; names: string | null }>(
+        sql`SELECT ${sql.identifier("id")}, ${sql.identifier("names")}
+            FROM ${sql.identifier(table)}
+            WHERE ${sql.identifier("id")} IN (${sql.join(
+              ids.map((id) => sql`${id}`),
+              sql`, `,
+            )})`,
+      )
+      for (const row of rows) {
+        // D1 hands back a JSON column as text; drizzle only parses it when the
+        // read went through a typed table, and this one is dynamic by necessity.
+        names.set(`${objectTypeCode}:${row.id}`, parseNames(row.names))
+      }
+    }),
+  )
+
+  return subs.map((sub) => {
+    const found = names.get(`${sub.objectTypeCode}:${sub.objectId}`) ?? {}
+    return { ...sub, names: found, name: pivot(found) ?? "" }
+  })
+}
+
+function parseNames(raw: string | null): Names {
+  if (!raw) return {}
+  try {
+    return (typeof raw === "string" ? JSON.parse(raw) : raw) as Names
+  } catch {
+    return {}
+  }
+}
 
 /**
  * Push one notification to the caller's own devices, and nobody else's.

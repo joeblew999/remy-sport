@@ -94,11 +94,20 @@ async function serialize(db: Db, user: SessionUser | null, row: Row): Promise<Ap
 
 export const list = viewer
   .route({ method: "GET", path: "/games", summary: "List games, optionally for one event" })
-  .input(z.object({ eventId: z.string().optional() }))
+  .input(z.object({ eventId: z.string().optional(), teamId: z.string().optional() }))
   .output(z.object({ games: z.array(GameSchema), viewerTimezone: z.string().nullable() }))
   .handler(async ({ context, input }) => {
     const rows = await context.db.query.game.findMany({
-      where: input.eventId ? (g, { eq: is }) => is(g.eventId, input.eventId!) : undefined,
+      // `teamId` matches either side, because a team's season is its games and
+      // a team does not care which end of the fixture it was written on. Added
+      // for the team page, which showed seven invented games until 2026-08-28.
+      where: (g, { eq: is, or: either, and: both }) => {
+        const byEvent = input.eventId ? is(g.eventId, input.eventId) : undefined
+        const byTeam = input.teamId
+          ? either(is(g.homeTeamId, input.teamId), is(g.awayTeamId, input.teamId))
+          : undefined
+        return byEvent && byTeam ? both(byEvent, byTeam) : (byEvent ?? byTeam)
+      },
       with: withNames,
       // Chronological: a schedule reads forwards, and a finished game keeps its
       // place rather than sorting to the bottom.

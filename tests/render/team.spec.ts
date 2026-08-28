@@ -35,6 +35,27 @@ const team = (over: Record<string, unknown> = {}) =>
     ...over,
   }) as never
 
+/**
+ * One game as `games.list` returns it.
+ *
+ * Spread over a base of the fields the row does not read, so each test states
+ * only what it is actually about — which side this team was on, and whether the
+ * game has been played.
+ */
+const game = (over: Record<string, unknown>) =>
+  ({
+    eventId: "evt_002",
+    venueId: "ven_004",
+    venueNames: { en: "Triam Udom Indoor Court" },
+    startsAt: "2026-06-14T12:00:00Z",
+    canEnterScore: false,
+    canSetStatus: false,
+    canAssignReferee: false,
+    referees: [],
+    availableReferees: [],
+    ...over,
+  }) as never
+
 test.describe("Team page renders what the API returned", () => {
   test("shows the team, its school and its division", async ({ page }) => {
     await seedCache(page, [entry(orpc.teams.get, { id: "team_002" }, team())])
@@ -113,11 +134,69 @@ test.describe("Team page, the rest", () => {
     await expect(page.getByTestId("roster-empty")).toBeVisible()
   })
 
-  test("what is still a fixture is still labelled", async ({ page }) => {
-    await seedCache(page, [entry(orpc.teams.get, { id: "team_002" }, team())])
+  test("the schedule is this team's real games, seen from their end", async ({ page }) => {
+    await seedCache(page, [
+      entry(orpc.teams.get, { id: "team_002" }, team()),
+      entry(
+        orpc.games.list,
+        { teamId: "team_002" },
+        {
+          viewerTimezone: null,
+          games: [
+            // Away, and won: the page has to read the score off the correct end
+            // of the fixture. Home-only logic renders this as a 61-74 loss.
+            game({
+              id: "gam_101",
+              homeTeamId: "team_009",
+              awayTeamId: "team_002",
+              homeTeamNames: { en: "Satriwitthaya U18 Girls" },
+              awayTeamNames: { en: "Triam Udom U18 Girls" },
+              statusCode: "FINISHED",
+              homeScore: 61,
+              awayScore: 74,
+            }),
+            // Not played: no score, and no outcome either.
+            game({
+              id: "gam_102",
+              homeTeamId: "team_002",
+              awayTeamId: "team_010",
+              homeTeamNames: { en: "Triam Udom U18 Girls" },
+              awayTeamNames: { en: "Assumption Convent U18 Girls" },
+              statusCode: "SCHEDULED",
+              homeScore: null,
+              awayScore: null,
+            }),
+          ],
+        } as never,
+      ),
+    ])
     await page.goto("/#/team/team_002")
-    // The schedule section on this page has no endpoint yet.
-    await expect(page.locator(".section-h", { hasText: "Schedule" })).toContainText("SAMPLE DATA")
+
+    const schedule = page.locator(".fixture-row")
+    await expect(schedule).toHaveCount(2)
+
+    // The opponent, not whoever happens to be the home side.
+    await expect(schedule.first()).toContainText("Satriwitthaya")
+    // Their score first, then the opponent's — 74–61, not 61–74.
+    await expect(schedule.first().locator(".result")).toHaveText("74–61")
+    // "W", the same single character the standings column uses — and a real
+    // abbreviation in each language ("ช", "勝"), not an English initial.
+    await expect(schedule.first().locator(".outcome")).toHaveText("W")
+
+    // An unplayed game has no result and no outcome to claim.
+    await expect(schedule.nth(1).locator(".result")).toHaveText("—")
+    await expect(schedule.nth(1).locator(".outcome")).not.toHaveText("W")
+    await expect(schedule.nth(1).locator(".outcome")).not.toHaveText("L")
+  })
+
+  test("says so when a team has no fixtures, rather than inventing a season", async ({ page }) => {
+    await seedCache(page, [
+      entry(orpc.teams.get, { id: "team_002" }, team()),
+      entry(orpc.games.list, { teamId: "team_002" }, { viewerTimezone: null, games: [] } as never),
+    ])
+    await page.goto("/#/team/team_002")
+    await expect(page.locator(".fixture-row")).toHaveCount(0)
+    await expect(page.getByText("No games scheduled yet.")).toBeVisible()
   })
 })
 

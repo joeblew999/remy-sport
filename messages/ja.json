@@ -265,5 +265,6 @@
   "send_test_notification": "テスト通知を送る",
   "test_notification_title": "通知は正常に動作しています",
   "test_notification_body": "ライブスコアの通知はこのように表示されます。",
-  "test_sent_to_devices": "{count} 台に送信しました。何も表示されない場合、システム側で通知がブロックされています。"
+  "test_sent_to_devices": "{count} 台に送信しました。何も表示されない場合、システム側で通知がブロックされています。",
+  "no_games_yet": "予定されている試合はまだありません。"
 }
