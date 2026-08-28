@@ -25,6 +25,8 @@ import { eq } from "drizzle-orm"
 import * as schema from "../../src/db/schema"
 import { notify } from "../../src/api/push"
 import { actorFor, api, signIn } from "./helpers"
+import { SEED_ENTITIES } from "../../src/domain/model/entities"
+import { teamsCoachedBy } from "../helpers/fixtures"
 
 const b64url = {
   encode: (bytes: ArrayBuffer | Uint8Array) =>
@@ -245,9 +247,12 @@ describe("Web Push delivery", () => {
     const user = await makeUser("push-headers")
     const device = await subscriber("https://push.test/headers")
     await registerDevice(user, device, "en")
-    await follows(user, "GAME", "game-1")
+    // A TEAM, not a GAME: the model has no RECEIVE_GAME_NOTIFICATIONS and no
+    // FOLLOWER_GAME relation, so a game reaches people through its two teams
+    // and its event — which is exactly what `announce` passes.
+    await follows(user, "TEAM", "team_002")
 
-    await send([{ objectTypeCode: "GAME", objectId: "game-1" }])
+    await send([{ objectTypeCode: "TEAM", objectId: "team_002" }])
 
     const { headers } = captured[0]!
     // `vapid t=<jwt>, k=<public key>` — without the scheme the push service
@@ -489,6 +494,45 @@ describe("Web Push delivery", () => {
     const payload = (await receive(device, captured[0]!.body)) as { title: string; tag: string }
     expect(payload.title).toBeTruthy()
     expect(payload.tag).toBe("test")
+  })
+
+  /**
+   * The bug this whole audience rewrite exists for.
+   *
+   * A head coach is not a follower — they never press Follow on the team they
+   * coach, because it is theirs. The first version selected from `subscription`
+   * and so told them nothing about their own game, while the PO's model had
+   * granted RECEIVE_TEAM_NOTIFICATIONS to HEAD_COACH all along.
+   */
+  it("tells a team's coach about their own game, with no Follow anywhere", async () => {
+    const wichai = SEED_ENTITIES.users.find((u) => u.email === actorFor("COACH"))!
+    const [coached] = teamsCoachedBy(wichai.id)
+    const device = await subscriber("https://push.test/head-coach")
+    await registerDevice(wichai.id, device, "en")
+
+    // Deliberately no `follows(...)` call: the relation is the coaching, and
+    // asserting it without one is the whole point.
+    await send([{ objectTypeCode: "TEAM", objectId: coached! }])
+
+    // Their endpoint specifically — the team has followers and players too, and
+    // a total would pass while the coach was the one left out.
+    const mine = captured.find((c) => c.endpoint === device.endpoint)
+    expect(mine, "a head coach heard nothing about their own team").toBeTruthy()
+    const payload = (await receive(device, mine!.body)) as { title: string }
+    expect(payload.title).toBeTruthy()
+  })
+
+  it("tells an event's organiser, who also never follows their own event", async () => {
+    const organiser = SEED_ENTITIES.users.find((u) => u.email === actorFor("ORGANIZER"))!
+    const owned = SEED_ENTITIES.events.find((e) => e.organizerUserId === organiser.id)!
+    const device = await subscriber("https://push.test/organiser")
+    await registerDevice(organiser.id, device, "en")
+
+    await send([{ objectTypeCode: "EVENT", objectId: owned.id }])
+    expect(
+      captured.some((c) => c.endpoint === device.endpoint),
+      "an organiser heard nothing about their own event",
+    ).toBe(true)
   })
 
   it("keeps a device when the push service merely fails", async () => {

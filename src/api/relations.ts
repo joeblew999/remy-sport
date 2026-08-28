@@ -25,7 +25,7 @@
  */
 
 import { sql } from "drizzle-orm"
-import { ACTION, FIXTURE_TABLE, OBJECT_TYPE, RELATION, STORED_ROLE } from "../domain/vocabularies"
+import { ACTION, FIXTURE_TABLE, GRANTS, OBJECT_TYPE, RELATION, STORED_ROLE } from "../domain/vocabularies"
 // From ./db, not ./base: base imports this module, and importing back — even
 // as a type — is the cycle check:deps now refuses.
 import type { Db } from "./db"
@@ -100,6 +100,81 @@ async function holdsTableRelation(
     sql`SELECT 1 AS ok FROM ${from} WHERE ${sql.join(conditions, sql` AND `)} LIMIT 1`,
   )
   return row !== undefined && row !== null
+}
+
+/**
+ * The inverse: everyone who holds this relation on this object.
+ *
+ * `holds` asks "is this one person a coach of that team". This asks "who are
+ * that team's coaches", which is the question a notification has to answer —
+ * and answering it by reading a table directly is how the first version of Web
+ * Push ended up notifying only followers. `RECEIVE_TEAM_NOTIFICATIONS` is
+ * granted to HEAD_COACH, ASSISTANT_COACH, TEAM_MANAGER and TEAM_PLAYER as well
+ * as FOLLOWER_TEAM, so a team's own coach got nothing until they pressed a
+ * Follow button — the model had said otherwise all along.
+ *
+ * Same SQL as `holdsTableRelation`, with the user condition removed and the
+ * user column selected instead. Only `via: "table"` relations can answer: a
+ * platform relation like ANY_SIGNED_IN has no bounded set of people, and
+ * treating it as an audience would mean notifying the entire platform.
+ */
+export async function usersHolding(
+  db: Db,
+  relationCode: string,
+  objectId: string,
+): Promise<string[]> {
+  const r = RELATION.find((x) => x.code === relationCode)
+  if (!r || r.via !== "table" || !r.sourceTable) return []
+
+  const src = sql.identifier(tableFor(r.sourceTable))
+  const objCol = sql.identifier(column(r.sourceTable, r.objectColumn!))
+  const userCol = sql.identifier(column(r.sourceTable, r.userColumn!))
+
+  const conditions = [sql`${src}.${objCol} = ${objectId}`]
+  let from = sql`${src}`
+  let selected = sql`${src}.${userCol}`
+
+  if (r.throughTable) {
+    const through = sql.identifier(tableFor(r.throughTable))
+    const fk = sql.identifier(r.throughColumn!)
+    from = sql`${src} JOIN ${through} ON ${through}.${sql.identifier("id")} = ${src}.${fk}`
+    selected = sql`${through}.${userCol}`
+  }
+
+  if (r.filterColumn) {
+    conditions.push(sql`${src}.${sql.identifier(r.filterColumn)} = ${r.filterValue}`)
+  }
+  if (r.activeToColumn) {
+    const to = sql.identifier(r.activeToColumn)
+    const today = new Date().toISOString().slice(0, 10)
+    conditions.push(sql`(${src}.${to} IS NULL OR ${src}.${to} >= ${today})`)
+  }
+  // A player row can have a null user: somebody on a team sheet who has never
+  // signed in. They are a real player and not a recipient.
+  conditions.push(sql`${selected} IS NOT NULL`)
+
+  const rows = await db.all<{ userId: string }>(
+    sql`SELECT DISTINCT ${selected} AS "userId" FROM ${from} WHERE ${sql.join(conditions, sql` AND `)}`,
+  )
+  return rows.map((row) => row.userId)
+}
+
+/**
+ * Everyone the model says may receive `action` about `objectId`.
+ *
+ * The union of the people holding any relation the action is granted to. This is
+ * what makes "who should hear about this" a question the Product Owner answers
+ * in remy-sport-biz rather than a table read in the notification code.
+ */
+export async function audienceFor(
+  db: Db,
+  action: string,
+  objectId: string,
+): Promise<string[]> {
+  const grants = (GRANTS as Record<string, ReadonlyArray<{ relation: string }>>)[action]
+  if (!grants?.length) return []
+  const found = await Promise.all(grants.map((g) => usersHolding(db, g.relation, objectId)))
+  return [...new Set(found.flat())]
 }
 
 /** Does this user hold this relation? `objectId` is ignored for platform relations. */

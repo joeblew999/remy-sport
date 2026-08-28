@@ -21,10 +21,11 @@
  * strings in the language its device subscribed in.
  */
 
-import { and, eq, inArray, or } from "drizzle-orm"
+import { and, eq, inArray } from "drizzle-orm"
 import { buildPush, type PushSubscription } from "./webpush"
 import * as schema from "../db/schema"
 import type { Db } from "./db"
+import { audienceFor } from "./relations"
 import type { Bindings } from "../types"
 import { LOCALES, type ReleasedLocale } from "../domain/vocabularies"
 import { FALLBACK } from "../domain/names"
@@ -40,6 +41,20 @@ export type PushBody = {
 
 /** One object a reader may follow, as stored in `subscription`. */
 export type Target = { objectTypeCode: ObjectTypeCode; objectId: string }
+
+/**
+ * The action that decides who hears about each kind of object.
+ *
+ * A GAME has no RECEIVE action of its own in the model — a game is notified
+ * about through its teams and its event, which is what `announce` passes — so
+ * a direct follow of a game reaches nobody through this map. That is the
+ * model's shape, not an omission here.
+ */
+const RECEIVE_ACTION: Partial<Record<ObjectTypeCode, string>> = {
+  TEAM: "RECEIVE_TEAM_NOTIFICATIONS",
+  EVENT: "RECEIVE_EVENT_NOTIFICATIONS",
+  PLAYER: "RECEIVE_PLAYER_NOTIFICATIONS",
+}
 
 /**
  * One registered browser, read back off its row.
@@ -107,25 +122,20 @@ async function audience(
 ) {
   if (targets.length === 0) return []
 
-  const followers = await db
-    .select({ userId: schema.subscription.userId })
-    .from(schema.subscription)
-    .where(
-      // One OR'd pair per target rather than a concatenated key: SQLite has no
-      // row-value IN, and joining the two columns into a string would only work
-      // as long as the separator never appears in an id. A handful of targets
-      // costs nothing and this cannot silently stop matching.
-      or(
-        ...targets.map((t) =>
-          and(
-            eq(schema.subscription.objectTypeCode, t.objectTypeCode),
-            eq(schema.subscription.objectId, t.objectId),
-          ),
-        ),
-      ),
-    )
+  // Who should hear about this is the model's answer, not a table read.
+  //
+  // This used to select from `subscription` — everyone who had pressed Follow —
+  // which quietly disagreed with the PO on who a team's notifications are for.
+  // `RECEIVE_TEAM_NOTIFICATIONS` is granted to HEAD_COACH, ASSISTANT_COACH,
+  // TEAM_MANAGER and TEAM_PLAYER as well as FOLLOWER_TEAM, and
+  // `RECEIVE_EVENT_NOTIFICATIONS` to OWNER and CO_ORGANIZER. So a team's own
+  // coach was told nothing about their own game until they pressed a button,
+  // and the model had said otherwise since before this feature existed.
+  const reached = await Promise.all(
+    targets.map((t) => audienceFor(db, RECEIVE_ACTION[t.objectTypeCode] ?? "", t.objectId)),
+  )
 
-  const userIds = [...new Set(followers.map((f) => f.userId))].filter((id) => id !== exclude)
+  const userIds = [...new Set(reached.flat())].filter((id) => id !== exclude)
   if (userIds.length === 0) return []
 
   const [devices, optOuts] = await Promise.all([

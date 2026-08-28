@@ -319,3 +319,26 @@ describe("One row per browser, enforced by the database", () => {
     expect(devices.map((d) => d.label)).toContain("Mine")
   })
 })
+
+describe("Following is governed by the model, not by this file", () => {
+  it("refuses an object type the model has no FOLLOW action for", async () => {
+    const cookie = await signIn(SPECTATOR)
+    // ORG is a real OBJECT_TYPE, and there is no FOLLOW_ORG. Storing the row
+    // anyway would leave a subscription that notifies nobody and a Follow
+    // button that silently does nothing.
+    const res = await post("/api/follow", { objectTypeCode: "ORG", objectId: "org_001" }, cookie)
+    expect(res.status).toBe(400)
+  })
+
+  it("still allows the three the model does define", async () => {
+    const cookie = await signIn(SPECTATOR)
+    for (const [objectTypeCode, objectId] of [
+      ["TEAM", "team_001"],
+      ["EVENT", "evt_001"],
+      ["PLAYER", "ply_001"],
+    ] as const) {
+      const res = await post("/api/follow", { objectTypeCode, objectId }, cookie)
+      expect(res.status, `${objectTypeCode} should be followable`).toBe(201)
+    }
+  })
+})

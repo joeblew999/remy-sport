@@ -20,13 +20,15 @@ import { and, eq, sql } from "drizzle-orm"
 import { ORPCError } from "@orpc/server"
 import { z } from "zod"
 import * as schema from "../db/schema"
-import { authed, authedRoute, pub, type Db } from "./base"
+import { authed, authedRoute, can, pub, type Db } from "./base"
 import { sendToRows, vapidFrom } from "./push"
 import {
+  GRANTS,
   LOCALES,
   NOTIFICATION_TYPE_CODES,
   OBJECT_TYPE_CODES,
   type NotificationTypeCode,
+  type ObjectTypeCode,
 } from "../domain/vocabularies"
 import { objectExists, tableForObjectType } from "./relations"
 import { m } from "../paraglide/messages.js"
@@ -162,18 +164,50 @@ export const devices = authed
     return { devices: rows }
   })
 
-/** Follow a team, event or game. This is the opt-in that makes push mean anything. */
+/**
+ * Which action governs following each kind of object.
+ *
+ * The model has FOLLOW_/UNFOLLOW_ for exactly three object types, so those are
+ * the three that can be followed. Anything else is refused rather than stored:
+ * a `subscription` row for a type the model does not model is a row that
+ * notifies nobody, and a Follow button that silently does nothing is worse than
+ * one that is not offered.
+ */
+const FOLLOW_ACTION = {
+  TEAM: { follow: "FOLLOW_TEAM", unfollow: "UNFOLLOW_TEAM" },
+  EVENT: { follow: "FOLLOW_EVENT", unfollow: "UNFOLLOW_EVENT" },
+  PLAYER: { follow: "FOLLOW_PLAYER", unfollow: "UNFOLLOW_PLAYER" },
+} as const satisfies Partial<Record<ObjectTypeCode, { follow: string; unfollow: string }>>
+
+const followActionFor = (code: string) =>
+  (FOLLOW_ACTION as Record<string, { follow: string; unfollow: string } | undefined>)[code]
+
+/** Follow a team, event or player. This is the opt-in that makes push mean anything. */
 export const follow = authed
   .route({ method: "POST", path: "/follow", summary: "Follow an object", successStatus: 201, ...authedRoute })
   .input(ObjectRef)
   .output(z.object({ following: z.literal(true) }))
   .handler(async ({ context, input }) => {
+    const action = followActionFor(input.objectTypeCode)
+    // Not rendered as prose — see src/api/errors.ts on why 400/403/404 stay
+    // bare. The UI only offers the three the model models, so reaching this is
+    // a caller error, not something a reader is shown.
+    if (!action) throw new ORPCError("BAD_REQUEST")
+
     // Checked rather than trusted: `subscription.objectId` has no foreign key —
     // it cannot have one, because it points at six different tables — so this
     // is the only thing standing between the table and rows pointing nowhere.
     const table = tableForObjectType(input.objectTypeCode)
     if (!table || !(await objectExists(context.db, table, input.objectId))) {
       throw new ORPCError("NOT_FOUND", { message: "Not found" })
+    }
+
+    // The model's answer, not a hand-rolled one. FOLLOW_* is granted to
+    // ANY_SIGNED_IN today, so this permits everyone who gets this far — which
+    // is the point: when the PO narrows it, this narrows with it and nothing
+    // here changes.
+    if (!(await can(context.db, action.follow as keyof typeof GRANTS, context.user, input.objectId))) {
+      throw new ORPCError("FORBIDDEN")
     }
     await context.db
       .insert(schema.subscription)
@@ -192,6 +226,16 @@ export const unfollow = authed
   .input(ObjectRef)
   .output(z.object({ following: z.literal(false) }))
   .handler(async ({ context, input }) => {
+    const action = followActionFor(input.objectTypeCode)
+    // UNFOLLOW_* is granted to FOLLOWER_* and PLATFORM_ADMIN, so this is the
+    // model saying "you may stop following what you follow" — and it is what
+    // lets an admin clear somebody's subscription without a special case here.
+    if (
+      action &&
+      !(await can(context.db, action.unfollow as keyof typeof GRANTS, context.user, input.objectId))
+    ) {
+      throw new ORPCError("FORBIDDEN")
+    }
     await context.db
       .delete(schema.subscription)
       .where(
