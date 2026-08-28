@@ -359,13 +359,47 @@ echo "Playwright chromium v$CHROMIUM_REV installed successfully"
 """
 
 [tasks.dev]
-description = "Start local dev server (port 8787)"
+description = "Local dev server: seeded, and reachable from a phone on the same wifi"
 depends     = ["setup"]
-# --host localhost stops wrangler simulating the [[routes]] custom domain
-# locally. Without it c.req.url, Host, Origin and Referer all arrive as
-# http://remy.ubuntusoftware.net, so scripting against the local API needs
-# insider knowledge of a hostname that is not the one you are talking to.
-run         = "bun x wrangler dev --host localhost"
+# One task, because there were three and they differed in ways nobody could
+# remember: `dev` bound loopback only, `dev:seed` bound loopback and seeded, and
+# a `dev:lan` bound every interface and did not seed. Locally you always want
+# all three things — a server, data in it, and the ability to open it on a
+# phone — so this does all three.
+#
+# --ip 0.0.0.0 binds every interface; --host is the LAN address rather than
+# localhost because wrangler rewrites the Host, Origin and Referer the Worker
+# sees, and Better Auth derives trustedOrigins from that (src/auth.ts). Setting
+# it to the LAN address serves BOTH — verified by signing in over each in turn,
+# which is worth stating because the obvious guess is that it can only serve
+# one. Order matters when testing that by hand: an OTP is single-use, so the
+# second attempt fails as INVALID_OTP and looks like an origin refusal.
+#
+# The address is looked up, not written down — it changes with the network, and
+# a stale IP in a task serves nothing while looking fine.
+run = """
+set -e
+IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)
+HOSTARG="localhost"
+[ -n "$IP" ] && HOSTARG="$IP"
+
+bun x wrangler dev --ip 0.0.0.0 --host "$HOSTARG" --port 8787 &
+SERVER=$!
+trap 'kill $SERVER 2>/dev/null || true' EXIT INT TERM
+
+for _ in $(seq 1 40); do
+  curl -sf -o /dev/null http://127.0.0.1:8787/api/health && break
+  sleep 1
+done
+curl -sf -X POST http://127.0.0.1:8787/api/seed >/dev/null 2>&1 && echo "  seeded" || echo "  seed failed"
+
+echo ""
+echo "  this machine   http://localhost:8787"
+[ -n "$IP" ] && echo "  same wifi      http://$IP:8787" || echo "  (no wifi address — localhost only)"
+echo "  sign in        #/login lists all twelve seeded people, one click, no inbox"
+echo ""
+wait $SERVER
+"""
 
 [tasks.check]
 description = "Type check, dead code, and documented paths — the three things that rot quietly"
@@ -752,22 +786,6 @@ run = "bun x playwright test --config playwright.shots.config.ts"
 [tasks.versions]
 description = "Generate versions.json"
 run         = "bun scripts/versions.ts"
-
-[tasks."dev:seed"]
-description = "Start dev server, wait for readiness, seed, then keep server running"
-depends     = ["setup"]
-run         = """
-bun x wrangler dev --host localhost &
-SERVER_PID=$!
-for i in $(seq 1 30); do
-  if curl -sf http://localhost:8787/ >/dev/null 2>&1; then
-    break
-  fi
-  sleep 1
-done
-curl -sf -X POST {{env.DEV_URL}}/api/seed | jq . || true
-wait $SERVER_PID
-"""
 
 [tasks."dev:ensure"]
 description = "Ensure a Worker is serving on DEV_URL, starting one in the background if not"

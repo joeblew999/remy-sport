@@ -1,16 +1,27 @@
 {
   "current": {
-    "_generated": "2026-08-27T10:12:46.261Z",
+    "_generated": "2026-08-28T02:31:47.281Z",
     "app": "0.1.0",
     "url": "https://remy.ubuntusoftware.net",
     "git": {
-      "commit": "de48a9a",
+      "commit": "9667c9e",
       "branch": "main",
-      "tag": "de48a9a",
-      "github": "https://github.com/joeblew999/remy-sport/commit/de48a9a404d045b88ea8fd9c6e284b815f5b5447"
+      "tag": "9667c9e",
+      "github": "https://github.com/joeblew999/remy-sport/commit/9667c9e2f5427d7bcb9cde76daa57588dd3347cb"
     }
   },
   "history": [
+    {
+      "_generated": "2026-08-27T10:12:46.261Z",
+      "app": "0.1.0",
+      "url": "https://remy.ubuntusoftware.net",
+      "git": {
+        "commit": "de48a9a",
+        "branch": "main",
+        "tag": "de48a9a",
+        "github": "https://github.com/joeblew999/remy-sport/commit/de48a9a404d045b88ea8fd9c6e284b815f5b5447"
+      }
+    },
     {
       "_generated": "2026-08-27T08:50:16.783Z",
       "app": "0.1.0",
@@ -219,27 +230,9 @@
         "tag": "c341b0b",
         "github": "https://github.com/joeblew999/remy-sport/commit/c341b0b856cf6c41986fd0a514c798bf10fc179c"
       }
-    },
-    {
-      "_generated": "2026-03-30T09:54:34.499Z",
-      "app": "0.1.0",
-      "url": "https://remy-sport.gedw99.workers.dev",
-      "git": {
-        "commit": "731bacb",
-        "branch": "main",
-        "tag": "731bacb",
-        "github": "https://github.com/joeblew999/remy-sport/commit/731bacb3e81035b290c0e7f5ff0ecc68099977c2"
-      }
     }
   ],
   "cf_versions": [
-    {
-      "id": "e77077d2-8560-43a1-9c23-05048771f1ed",
-      "number": 19,
-      "created": "2026-08-27T05:07:07.910108Z",
-      "source": "version_upload",
-      "url": null
-    },
     {
       "id": "6036ce43-825f-43c6-8768-0c34f6950bec",
       "number": 20,
@@ -300,6 +293,13 @@
       "id": "6b26c898-b45e-4d88-a27a-75b0dc309ddc",
       "number": 28,
       "created": "2026-08-27T08:50:45.623581Z",
+      "source": "version_upload",
+      "url": null
+    },
+    {
+      "id": "55306839-d04d-4ad9-bd8e-c26a5075b03e",
+      "number": 29,
+      "created": "2026-08-27T10:13:09.300959Z",
       "source": "version_upload",
       "url": null
     }

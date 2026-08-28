@@ -837,6 +837,10 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   padding: 0;
 }
 .standing-row {
+  /* The full table sets --standing-cols inline (event.tsx); the compact one on
+     the overview uses this default. A variable rather than an inline
+     grid-template-columns, so the mobile block below can narrow it — an inline
+     style cannot be overridden by a media query. */
   display: grid; grid-template-columns: 28px 1fr 36px 36px 36px 50px;
   gap: 10px;
   padding: 10px 18px;
@@ -844,6 +848,13 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   font-size: 13px; align-items: center;
 }
 .standing-row:last-child { border-bottom: none;}
+/* The full table on the standings tab: eight columns instead of six. Declared
+   here rather than inline on the element, because an inline style — including
+   an inline custom property — beats a media query, and the mobile block below
+   has to be able to narrow this. That was the bug twice: 410px of fixed tracks
+   in a 366px container collapses `1fr` to zero, so the team name rendered one
+   character per line. */
+.standing-row.full { grid-template-columns: 40px 1fr 50px 50px 70px 70px 70px 60px; }
 .standing-row.head {
   font-family:'IBM Plex Mono',monospace; font-size: 10px; color: var(--ink-3); letter-spacing: 0.12em; text-transform: uppercase;
 }
@@ -963,10 +974,43 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 
   /* Discover toolbar wraps; tables become scrollable cards */
   .discover-toolbar { flex-direction: column; align-items: stretch; gap: 12px; padding: 12px 14px; }
+  /* min-width: 0 on both: a flex item defaults to `min-width: auto`, which is
+     its content size, so `overflow-x: auto` cannot take effect and the item
+     pushes its parent wide instead of scrolling inside it. */
+  .tab-row, .filter-row { min-width: 0; }
   .tab-row { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
   .tab-row .tab { white-space: nowrap; }
-  .filter-row { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+  .filter-row {
+    overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; padding-bottom: 4px;
+    /* `margin-left: auto` pushes the filters right in the desktop ROW. Here the
+       toolbar is a COLUMN, so that margin is on the cross axis — where an auto
+       margin overrides `align-items: stretch` and sizes the item to its content
+       instead. It became 546px inside a 402px toolbar, pushed `.page` to 649px,
+       and `.page` pans because `overflow-y: auto` forces `overflow-x` to `auto`
+       too. The whole content area scrolled sideways under a fixed topbar. */
+    margin-left: 0;
+  }
   .filter-row .chip { white-space: nowrap; flex-shrink: 0; }
+
+  /* The live banner is five grid columns with 32px gaps — `auto 1fr auto auto
+     auto` — and had no mobile rule at all. Its children were 649px inside a
+     402px card, and because it neither clips nor scrolls that overflow
+     propagated to `.page`, which pans (its `overflow-y: auto` makes overflow-x
+     compute to `auto` too). The whole content area scrolled sideways under a
+     fixed topbar. One column here, and `min-width: 0` so a long club name wraps
+     instead of setting the width. */
+  .live-banner {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding: 16px 14px;
+  }
+  /* A one-column grid stretches its children, which turned the LIVE NOW pill
+     into a full-width bar. Only the text rows should fill. */
+  .live-banner > * { min-width: 0; justify-self: start; }
+  .live-banner .matchup { font-size: 18px; line-height: 1.25; }
+  .live-banner .matchup .vs { margin: 0 6px; }
+  .live-banner .quarter { text-align: left; }
+  .live-banner .open-btn { justify-self: start; min-height: 40px; display: inline-flex; align-items: center; }
 
   /* Event list collapses to date + name + status */
   .event-list-header { display: none; }
@@ -988,7 +1032,36 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   .event-row > :nth-child(5) { display: none; }
   .event-row > :nth-child(6) { grid-area: status; align-self: start; }
 
-  .standing-row { font-size: 12px; padding-left: 12px; padding-right: 12px; }
+  /* ── Standings: fewer columns, not smaller ones ──
+     Shrinking the font was the whole of the old mobile treatment, and it did
+     nothing about the columns: the full table declares 410px of fixed tracks
+     for rank/W/L/PF/PA/±/PTS, which on a 390px phone leaves the team name
+     column with nothing. A Thai club name rendered one character per line,
+     eight lines tall.
+
+     Stacking into cards — what .admin-table does — is wrong here. A standings
+     table is read by scanning a column down, and a card per team destroys
+     exactly that. So drop the secondary stats instead and keep the shape:
+     rank, team, won, lost, points.
+
+     The selector does both tables without knowing which is which: "from the
+     fifth cell onwards, but never the last". In the eight-column table that is
+     PF, PA and ± while PTS survives; in the six-column one it is the points
+     difference, and PTS survives there too. */
+  .standing-row,
+  .standing-row.full {
+    grid-template-columns: 26px minmax(0, 1fr) 28px 28px 44px;
+    font-size: 12px;
+    padding-left: 12px;
+    padding-right: 12px;
+    gap: 6px;
+  }
+  .standing-row > :nth-child(n+5):nth-last-child(n+2) { display: none; }
+  .standing-row .team {
+    /* Long club names wrap to two lines rather than forcing the row wider. */
+    line-height: 1.25;
+    word-break: break-word;
+  }
   .roster-grid { grid-template-columns: 1fr; }
   .player-card { padding: 12px; }
 

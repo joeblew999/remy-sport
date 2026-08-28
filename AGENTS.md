@@ -414,9 +414,15 @@ declared no such environment; wrangler only *warns*, so it would have deployed a
 second worker bound to the **production** D1 and R2. A real staging environment
 needs its own database, secrets and migrations, not a flag.
 
-**The dev tasks pass `--host localhost` and must keep doing so.** With a
+**The dev tasks pass an explicit `--host` and must keep doing so.** With a
 `[[routes]]` block, plain `wrangler dev` simulates that route and every request
-arrives as `remy.ubuntusoftware.net`. `mise run check` asserts it.
+arrives as `remy.ubuntusoftware.net`. The *value* is free: `mise run dev` passes
+the machine's LAN address so a phone on the same wifi can reach it, and sign-in
+still works from localhost as well — `trustedOrigins` derives from the request
+URL (`src/auth.ts`), so whichever host a request arrives on is trusted. Verified
+by signing in over each in turn; note an OTP is single-use, so testing that by
+hand fails on the second attempt as `INVALID_OTP` and looks like an origin
+refusal. `mise run check` asserts the flag is present.
 
 **`src/db/auth-schema.ts` is generated. Never edit it.** The hand-maintained
 version drifted once and every sign-in 500'd the moment the schema became correct.

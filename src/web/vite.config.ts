@@ -39,6 +39,11 @@ export default defineConfig({
   server: {
     port: 5175,
     strictPort: true,
+    // Bind every interface, not just loopback. The whole point of this server
+    // is a fast loop, and a layout bug you can only reproduce on a phone is not
+    // one you can iterate on from localhost — `mise run tunnel:quick` and a
+    // handset both need to reach it. Same reason `dev` passes --ip 0.0.0.0.
+    host: true,
     // Send the API to the Worker.
     //
     // Without this, `mise run web:dev` serves the SPA but every /api/* call

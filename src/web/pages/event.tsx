@@ -277,7 +277,6 @@ function EventOverview({ e, goto }: OverviewProps) {
  */
 export function StandingsTable({ eventId }: { eventId: string | undefined }) {
   const { data, isPending } = useStandings(eventId);
-  const cols = "40px 1fr 50px 50px 70px 70px 70px 60px";
 
   if (isPending) return <div className="page-inner"><div className="empty">{m.loading()}</div></div>;
   if (!data?.length) {
@@ -291,12 +290,12 @@ export function StandingsTable({ eventId }: { eventId: string | undefined }) {
   return (
     <div className="page-inner">
       <div className="dash-card" data-testid="standings">
-        <div className="standing-row head" style={{ gridTemplateColumns: cols }}>
+        <div className="standing-row full head">
           <span></span><span>{m.team()}</span><span>{m.col_won()}</span><span>{m.col_lost()}</span>
           <span>{m.col_points_for()}</span><span>{m.col_points_against()}</span><span>±</span><span>{m.col_points()}</span>
         </div>
         {data.map((s) => (
-          <div key={s.teamId} className="standing-row" style={{ gridTemplateColumns: cols }} data-testid={`standing-${s.teamId}`}>
+          <div key={s.teamId} className="standing-row full" data-testid={`standing-${s.teamId}`}>
             <span className="rank">#{s.rank}</span>
             <span className="team">{s.team}</span>
             <span className="num">{s.won}</span>

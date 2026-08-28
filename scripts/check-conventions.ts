@@ -108,16 +108,22 @@ const RULES: Rule[] = [
         .map(({ n }) => `wrangler.toml:${n}`),
   },
   {
-    claim: '"The dev tasks pass `--host localhost` and must keep doing so."',
+    claim: '"The dev tasks pass an explicit `--host` and must keep doing so."',
     check: () => {
       const mise = read("mise.toml")
-      // Named in AGENTS.md. A sixth entry point appearing without the flag is
-      // the regression this catches — a task that silently simulates the
-      // production hostname locally.
-      const required = ["dev", "dev:seed", "dev:ensure", "dev:remote"]
+      // Named in AGENTS.md. A new entry point appearing without the flag is the
+      // regression this catches — a task that silently simulates the production
+      // hostname locally.
+      //
+      // Any explicit host, not `localhost` specifically. `dev` passes the LAN
+      // address so a phone can reach it, which serves the same invariant: the
+      // point is that wrangler must not fall back to simulating the [[routes]]
+      // custom domain. Sign-in works over both, because trustedOrigins derives
+      // from the request URL (src/auth.ts) — verified over each in turn.
+      const required = ["dev", "dev:ensure", "dev:remote"]
       const missing = required.filter((task) => {
         const body = mise.split(new RegExp(`^\\[tasks\\.(?:"${task}"|${task})\\]`, "m"))[1]?.split("\n[tasks.")[0]
-        return body !== undefined && /wrangler dev/.test(body) && !/--host localhost/.test(body)
+        return body !== undefined && /wrangler dev/.test(body) && !/--host \S/.test(body)
       })
       const pw = read("playwright.config.ts")
       if (/wrangler dev/.test(pw) && !/--host localhost/.test(pw)) missing.push("playwright.config.ts webServer")
