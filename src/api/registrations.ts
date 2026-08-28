@@ -20,7 +20,7 @@ import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import * as schema from "../db/schema"
 import { ERRORS } from "./errors"
-import { authed, authedRoute, can, requireAction, viewer } from "./base"
+import { authed, authedRoute, can, openTo, requireAction, viewer } from "./base"
 
 /** ISO day. The fixtures record registration and roster dates, not timestamps. */
 const today = () => new Date().toISOString().slice(0, 10)
@@ -242,6 +242,7 @@ export const removePlayer = authed
  * date of birth are real columns and are what a roster actually is.
  */
 export const roster = viewer
+  .use(openTo("VIEW_TEAM"))
   .route({ method: "GET", path: "/teams/{teamId}/players", summary: "A team's current squad" })
   .input(z.object({ teamId: z.string() }))
   .output(
@@ -315,6 +316,7 @@ export const roster = viewer
  * spectator entering nothing sees no form rather than a form that will 403.
  */
 export const eventTeams = viewer
+  .use(openTo("VIEW_EVENT"))
   .route({ method: "GET", path: "/events/{eventId}/teams", summary: "Teams entered, and teams you could enter" })
   .input(z.object({ eventId: z.string() }))
   .output(

@@ -479,6 +479,7 @@ mise run test:worker
 mise run test:render
 mise run check:dead
 mise run check:docs
+mise run check:authz
 mise run check:conventions
 mise run check:seed
 mise run check:domain
@@ -546,6 +547,15 @@ depends     = ["install"]
 #   test:worker  the Worker, in workerd      this
 #   test         a real browser, and only that
 run = "bun x vitest run --config vitest.config.ts"
+
+[tasks."check:authz"]
+description = "Fail if any procedure does not declare how it is authorised"
+depends     = ["install"]
+# The check that would have caught Web Push shipping with no authorisation at
+# all. It walks the real router — not the source — so a procedure cannot be
+# reachable and invisible to it, and it prints every escape hatch on every run
+# because an unreviewed exception is the whole failure mode.
+run = "bun scripts/check-authz.ts"
 
 [tasks."check:conventions"]
 description = "Fail when the code stops obeying a rule AGENTS.md states"

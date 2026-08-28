@@ -27,7 +27,7 @@ import { m } from "../paraglide/messages.js"
 import { notify } from "./push"
 import type { Bindings } from "../types"
 import { ERRORS } from "./errors"
-import { can, requireAction, viewer, viewerTimezone, authed, authedRoute, type Db, type SessionUser } from "./base"
+import { authed, authedRoute, can, openTo, requireAction, viewer, viewerTimezone, type Db, type SessionUser } from "./base"
 
 const IdInput = z.object({ id: z.string() })
 
@@ -93,6 +93,7 @@ async function serialize(db: Db, user: SessionUser | null, row: Row): Promise<Ap
 }
 
 export const list = viewer
+  .use(openTo("VIEW_FIXTURE_SCHEDULE"))
   .route({ method: "GET", path: "/games", summary: "List games, optionally for one event" })
   .input(z.object({ eventId: z.string().optional(), teamId: z.string().optional() }))
   .output(z.object({ games: z.array(GameSchema), viewerTimezone: z.string().nullable() }))
@@ -123,6 +124,7 @@ export const list = viewer
   })
 
 export const get = viewer
+  .use(openTo("VIEW_GAME_RESULTS"))
   .route({ method: "GET", path: "/games/{id}", summary: "Get one game" })
   .input(IdInput)
   .output(GameSchema)

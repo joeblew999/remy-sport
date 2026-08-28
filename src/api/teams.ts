@@ -19,7 +19,7 @@ import { clean, pivot } from "../domain/names"
 import { z } from "zod"
 import { CreateTeamInput, TeamSchema, UpdateTeamInput } from "../domain/api"
 import { ERRORS } from "./errors"
-import { authed, authedRoute, pub, requireAction, type Db } from "./base"
+import { authed, authedRoute, openTo, pub, requireAction, type Db } from "./base"
 import { holds } from "./relations"
 
 const IdInput = z.object({ id: z.string() })
@@ -48,6 +48,7 @@ function serialize(
 }
 
 export const list = pub
+  .use(openTo("BROWSE_TEAMS"))
   .route({ method: "GET", path: "/teams", summary: "List all teams" })
   .output(z.object({ teams: z.array(TeamSchema) }))
   .handler(async ({ context }) => ({
@@ -60,6 +61,7 @@ const byId = (db: Db, id: string) =>
   db.query.team.findFirst({ where: (t, { eq: is }) => is(t.id, id), with: withOrg })
 
 export const get = pub
+  .use(openTo("VIEW_TEAM"))
   .route({ method: "GET", path: "/teams/{id}", summary: "Get one team" })
   .input(IdInput)
   .output(TeamSchema)

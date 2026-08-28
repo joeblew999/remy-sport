@@ -19,11 +19,12 @@ import { OrgSchema, UpdateOrgInput } from "../domain/api"
 import { clean } from "../domain/names"
 import { ORG_ROLE_CODES } from "../domain/vocabularies"
 import { ERRORS } from "./errors"
-import { authed, authedRoute, can, pub, requireAction, viewer } from "./base"
+import { authed, authedRoute, can, openTo, pub, requireAction, viewer } from "./base"
 
 const IdInput = z.object({ id: z.string() })
 
 export const list = pub
+  .use(openTo("VIEW_ORG"))
   .route({ method: "GET", path: "/orgs", summary: "List organisations" })
   .output(z.object({ orgs: z.array(OrgSchema) }))
   .handler(async ({ context }) => ({
@@ -41,6 +42,7 @@ export const list = pub
  * for a stranger it is simply false.
  */
 export const get = viewer
+  .use(openTo("VIEW_ORG"))
   .route({ method: "GET", path: "/orgs/{id}", summary: "Get one organisation" })
   .input(IdInput)
   .output(OrgSchema.extend({ canEdit: z.boolean() }))

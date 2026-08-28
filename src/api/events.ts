@@ -19,7 +19,7 @@ import { clean, pivot } from "../domain/names"
 import { z } from "zod"
 import { CreateEventInput, EventSchema, UpdateEventInput } from "../domain/api"
 import { ERRORS } from "./errors"
-import { authed, authedRoute, pub, requireAction, viewerTimezone, type Db } from "./base"
+import { authed, authedRoute, openTo, pub, requireAction, viewerTimezone, type Db } from "./base"
 
 const IdInput = z.object({ id: z.string() })
 
@@ -53,6 +53,7 @@ function serialize(row: typeof schema.event.$inferSelect & {
 }
 
 export const list = pub
+  .use(openTo("BROWSE_EVENTS"))
   .route({ method: "GET", path: "/events", summary: "List all events" })
   .output(z.object({ events: z.array(EventSchema) }))
   .handler(async ({ context }) => ({
@@ -60,6 +61,7 @@ export const list = pub
 }))
 
 export const get = pub
+  .use(openTo("VIEW_EVENT"))
   .route({ method: "GET", path: "/events/{id}", summary: "Get one event" })
   .input(IdInput)
   .output(EventSchema)

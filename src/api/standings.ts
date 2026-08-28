@@ -18,7 +18,7 @@
 import { z } from "zod"
 import { StandingsSchema } from "../domain/api"
 import { STANDINGS_POINTS } from "../domain/vocabularies"
-import { pub } from "./base"
+import { openTo, pub } from "./base"
 
 /** One team's line, before it is ranked. */
 interface Line {
@@ -47,6 +47,7 @@ const rank = (a: Line, b: Line) =>
   b.pointsFor - a.pointsFor
 
 export const list = pub
+  .use(openTo("VIEW_STANDINGS"))
   .route({ method: "GET", path: "/standings", summary: "The league table for an event" })
   .input(z.object({ eventId: z.string() }))
   .output(z.object({ standings: z.array(StandingsSchema) }))

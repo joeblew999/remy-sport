@@ -85,7 +85,34 @@ function holdsFor(userId: string): string[] {
       if (holder === userId) out.push(`${r.code} ${String(row[camel(r.objectColumn!)])}`)
     }
   }
-  return out
+  return summarise(out)
+}
+
+/**
+ * Collapse a relation held over and over into one line.
+ *
+ * A referee is assigned to every game they officiate, so once the fixtures grew
+ * into a real season the login screen listed "GAME_REFEREE gam_003 ·
+ * GAME_REFEREE gam_005 · …" sixteen times and the useful part — that this
+ * person is a referee, and those two are coaches of different teams — was
+ * buried. The list exists to show the differences *within* a role at a glance.
+ *
+ * The first two objects are always named, and the rest counted. A bare count
+ * would be tidier and useless: the reason to read this list is to pick somebody
+ * to sign in as, and that needs an id you can then go and look at. Two is
+ * enough to show that a coach's teams differ from another coach's.
+ */
+function summarise(held: string[]): string[] {
+  const byRelation = new Map<string, string[]>()
+  for (const entry of held) {
+    const [code = entry, ...rest] = entry.split(" ")
+    byRelation.set(code, [...(byRelation.get(code) ?? []), rest.join(" ")])
+  }
+  return [...byRelation].flatMap(([code, objects]) => {
+    const named = objects.slice(0, 2).map((o) => `${code} ${o}`)
+    const rest = objects.length - named.length
+    return rest > 0 ? [...named, `${code} +${rest} more`] : named
+  })
 }
 
 /**

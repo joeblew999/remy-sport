@@ -230,6 +230,111 @@ export async function can(
   return false
 }
 
+/**
+ * The mark every procedure must carry, and how `mise run check:authz` reads it.
+ *
+ * Model-driven authorisation only works if it cannot be skipped, and until
+ * 2026-08-28 it could: `requireAction` was something a person remembered to
+ * add, and forty-seven procedures declared nothing at all. Web Push shipped
+ * with no authorisation of any kind and no check noticed, because there was
+ * nothing to notice with — "protected" and "somebody forgot" looked identical.
+ *
+ * So every procedure now attaches one of these to a middleware, and the check
+ * walks the real router and fails the build on any procedure that carries
+ * none. The four kinds are exhaustive on purpose: `open` and `infrastructure`
+ * are escape hatches, and being enumerable is what makes them reviewable.
+ */
+export type Policy =
+  /** Enforced by `requireAction` against the model. The normal case. */
+  | { kind: "action"; action: string }
+  /** Public, and the model agrees: the action is granted to PUBLIC. Verified. */
+  | { kind: "open"; action: string }
+  /** The handler calls `can()` itself, because the action depends on the input. */
+  | { kind: "handler"; actions: readonly string[] }
+  /** Not a domain object at all — health, vocabularies. Named, so it is countable. */
+  | { kind: "infrastructure"; why: string }
+  /** The model permits more than we do. Deliberate, and reported every run. */
+  | { kind: "stricter"; action: string; why: string }
+
+const POLICY = Symbol.for("remy.policy")
+
+/** Attach a policy to a middleware so the router walk can find it. */
+function marked<T extends object>(middleware: T, policy: Policy): T {
+  Object.defineProperty(middleware, POLICY, { value: policy, enumerable: false })
+  return middleware
+}
+
+/** Read a policy off a middleware, for scripts/check-authz.ts. */
+export function policyOf(middleware: unknown): Policy | null {
+  return (middleware as Record<symbol, Policy> | null)?.[POLICY] ?? null
+}
+
+/**
+ * A read the model grants to PUBLIC, declared rather than assumed.
+ *
+ * Serving something without a session is a decision, and this is where it is
+ * recorded. It is checked against the model at module load, so the day the
+ * Product Owner decides events are members-only, this throws on the first
+ * request instead of continuing to serve them to everyone.
+ */
+export function openTo(action: keyof typeof GRANTS) {
+  const grants = (GRANTS as Record<string, ReadonlyArray<{ relation: string }>>)[action] ?? []
+  if (!grants.some((g) => g.relation === "PUBLIC")) {
+    throw new Error(
+      `openTo(${action}): the model does not grant this to PUBLIC, so it must not be served ` +
+        "without a session. Use requireAction instead.",
+    )
+  }
+  return marked(
+    base.$context<ApiContext>().middleware(({ next }) => next()),
+    { kind: "open", action },
+  )
+}
+
+/**
+ * We are deliberately narrower than the model, and this says so out loud.
+ *
+ * `VIEW_PLAYER` is granted to PUBLIC, but a player list names minors and their
+ * jersey numbers, so `/api/players` is behind a session. Being stricter than
+ * the model is safe; being stricter *silently* is how a model stops describing
+ * the system. `mise run check:authz` prints every one of these, so the
+ * disagreement stays in front of whoever owns the model.
+ */
+export function stricterThanModel(action: keyof typeof GRANTS, why: string) {
+  return marked(
+    base.$context<ApiContext>().middleware(({ next }) => next()),
+    { kind: "stricter", action, why },
+  )
+}
+
+/**
+ * The handler decides, because the action depends on the input.
+ *
+ * `follow` acts on a team, an event or a player, and which action governs it is
+ * only known once the input is read. Listing them here keeps the procedure
+ * countable by the check and greppable by a person.
+ */
+export function checkedInHandler(...actions: (keyof typeof GRANTS)[]) {
+  return marked(
+    base.$context<ApiContext>().middleware(({ next }) => next()),
+    { kind: "handler", actions },
+  )
+}
+
+/**
+ * Not a domain object: health, the published vocabularies, the seed route.
+ *
+ * The narrowest escape hatch, and the reason it takes a sentence rather than a
+ * boolean — an unexplained one is the thing this whole mechanism exists to
+ * prevent.
+ */
+export function infrastructure(why: string) {
+  return marked(
+    base.$context<ApiContext>().middleware(({ next }) => next()),
+    { kind: "infrastructure", why },
+  )
+}
+
 export function requireAction(
   action: keyof typeof GRANTS,
   idFrom: (input: never) => string = defaultId as (input: never) => string,
@@ -241,7 +346,7 @@ export function requireAction(
    */
   eventFrom?: (input: never) => string | null,
 ) {
-  return base
+  return marked(base
     .$context<ApiContext & { user: SessionUser }>()
     .middleware(async ({ context, next }, input: unknown) => {
       const db = database(context.env)
@@ -270,7 +375,7 @@ export function requireAction(
         : undefined
       if (await can(db, action, user, objectId, eventContext)) return next()
       throw new ORPCError("FORBIDDEN", { message: "Forbidden" })
-    })
+    }), { kind: "action", action })
 }
 
 

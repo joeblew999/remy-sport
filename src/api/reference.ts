@@ -15,9 +15,10 @@ import { asc } from "drizzle-orm"
 import type { z } from "zod"
 import { ReferenceSchema } from "../domain/api"
 import { VOCABULARY_ORDER, VOCABULARY_TABLES } from "../db/vocabularies-schema"
-import { pub } from "./base"
+import { infrastructure, pub } from "./base"
 
 export const list = pub
+  .use(infrastructure("the controlled vocabularies — the model's own labels, which every page needs to render a code"))
   .route({
     method: "GET",
     path: "/reference",

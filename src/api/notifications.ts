@@ -20,7 +20,16 @@ import { and, eq, sql } from "drizzle-orm"
 import { ORPCError } from "@orpc/server"
 import { z } from "zod"
 import * as schema from "../db/schema"
-import { authed, authedRoute, can, pub, requireAction, type Db } from "./base"
+import {
+  authed,
+  authedRoute,
+  can,
+  checkedInHandler,
+  infrastructure,
+  pub,
+  requireAction,
+  type Db,
+} from "./base"
 import { sendToRows, vapidFrom } from "./push"
 import {
   GRANTS,
@@ -56,6 +65,7 @@ const ObjectRef = z.object({
  * `null` and the UI can say so instead of failing at subscribe() time.
  */
 export const key = pub
+  .use(infrastructure("the VAPID public key — the browser pins it at subscribe() time and every push service sees it; it is not a secret"))
   .route({ method: "GET", path: "/push/key", summary: "The VAPID public key, or null if push is off" })
   .output(z.object({ publicKey: z.string().nullable() }))
   .handler(({ context }) => ({ publicKey: vapidFrom(context.env)?.publicKey ?? null }))
@@ -191,6 +201,9 @@ const followActionFor = (code: string) =>
 
 /** Follow a team, event or player. This is the opt-in that makes push mean anything. */
 export const follow = authed
+  // Which action governs this is only known once the input names an object
+  // type, so the handler asks `can()` itself. Listed so it stays countable.
+  .use(checkedInHandler("FOLLOW_TEAM", "FOLLOW_EVENT", "FOLLOW_PLAYER"))
   .route({ method: "POST", path: "/follow", summary: "Follow an object", successStatus: 201, ...authedRoute })
   .input(ObjectRef)
   .output(z.object({ following: z.literal(true) }))
@@ -229,6 +242,7 @@ export const follow = authed
   })
 
 export const unfollow = authed
+  .use(checkedInHandler("UNFOLLOW_TEAM", "UNFOLLOW_EVENT", "UNFOLLOW_PLAYER"))
   .route({ method: "DELETE", path: "/follow", summary: "Stop following an object", ...authedRoute })
   .input(ObjectRef)
   .output(z.object({ following: z.literal(false) }))
@@ -264,6 +278,7 @@ export const unfollow = authed
  * of thing that makes a phone feel slow.
  */
 export const following = authed
+  .use(requireAction("MANAGE_OWN_NOTIFICATION_PREFERENCES"))
   .route({ method: "GET", path: "/follow", summary: "What I follow, and what I have muted", ...authedRoute })
   .output(
     z.object({
@@ -380,6 +395,7 @@ function parseNames(raw: string | null): Names {
  * would tell them nothing.
  */
 export const sendTest = authed
+  .use(requireAction("MANAGE_OWN_NOTIFICATION_CHANNELS"))
   .route({ method: "POST", path: "/push/test", summary: "Push a test notification to my own devices", ...authedRoute })
   .input(z.object({ locale: z.enum(LOCALES).optional() }))
   .output(z.object({ sent: z.number(), gone: z.number() }))

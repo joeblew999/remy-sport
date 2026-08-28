@@ -25,13 +25,32 @@
 
 import { z } from "zod"
 import { FIXTURE_SCHEMAS, FIXTURE_TABLES } from "../db/fixtures-schema"
-import { authed, pub } from "./base"
+import { authed, infrastructure, openTo, pub, stricterThanModel } from "./base"
 
 type Key = keyof typeof FIXTURE_SCHEMAS & keyof typeof FIXTURE_TABLES
 
-/** A whole table, read-only: route, derived schema and query in one place. */
-const listOf = <K extends Key>(builder: typeof pub | typeof authed, key: K, path: `/${string}`) => ({
-  list: builder
+/**
+ * A whole table, read-only: route, derived schema, query and policy in one
+ * place.
+ *
+ * The policy is a required argument, not an option. This factory produces
+ * endpoints, and an endpoint factory that can produce an undeclared one is how
+ * "every generated table is an endpoint" turns into published personal data —
+ * which is exactly what the header above warns about, and what nothing checked
+ * until `mise run check:authz` existed.
+ */
+const listOf = <K extends Key>(
+  builder: typeof pub | typeof authed,
+  key: K,
+  path: `/${string}`,
+  policy: ReturnType<typeof openTo | typeof infrastructure | typeof stricterThanModel>,
+) => ({
+  // The cast is the price of `builder` being a union of two builder types with
+  // different context shapes — `.use` exists on both but TypeScript will not
+  // call it through the union. Contained to this line, and the policy it applies
+  // is fully typed at every call site below.
+  list: (builder as typeof pub)
+    .use(policy as never)
     .route({ method: "GET", path, summary: `List ${key}` })
     .output(z.object({ items: z.array(FIXTURE_SCHEMAS[key]) }))
     .handler(async ({ context }) => ({
@@ -41,16 +60,22 @@ const listOf = <K extends Key>(builder: typeof pub | typeof authed, key: K, path
 
 // Public: the PO's reference-shaped data. Nothing here identifies a person
 // beyond what a fixture list already shows on the wall of a gym.
-export const divisions = listOf(pub, "divisions", "/divisions")
-export const venues = listOf(pub, "venues", "/venues")
-export const eventTeams = listOf(pub, "eventTeams", "/event-teams")
-export const eventVenues = listOf(pub, "eventVenues", "/event-venues")
+export const divisions = listOf(pub, "divisions", "/divisions",
+  infrastructure("reference data — a division list is what is printed on a draw sheet"))
+export const venues = listOf(pub, "venues", "/venues",
+  infrastructure("reference data — the courts an event is played on, named on every fixture"))
+export const eventTeams = listOf(pub, "eventTeams", "/event-teams", openTo("VIEW_EVENT"))
+export const eventVenues = listOf(pub, "eventVenues", "/event-venues", openTo("VIEW_EVENT"))
 
 // Behind a session: these are rosters, and they name minors.
-export const players = listOf(authed, "players", "/players")
-export const playerTeams = listOf(authed, "playerTeams", "/player-teams")
-export const teamCoaches = listOf(authed, "teamCoaches", "/team-coaches")
-export const eventPlayers = listOf(authed, "eventPlayers", "/event-players")
+export const players = listOf(authed, "players", "/players",
+  stricterThanModel("VIEW_PLAYER", "the model grants this to PUBLIC; these rows name minors, so a session is required"))
+export const playerTeams = listOf(authed, "playerTeams", "/player-teams",
+  stricterThanModel("VIEW_PLAYER", "the model grants this to PUBLIC; these rows name minors, so a session is required"))
+export const teamCoaches = listOf(authed, "teamCoaches", "/team-coaches",
+  stricterThanModel("VIEW_TEAM", "the model grants this to PUBLIC; a coaching list names adults responsible for minors, so a session is required"))
+export const eventPlayers = listOf(authed, "eventPlayers", "/event-players",
+  stricterThanModel("VIEW_PLAYER", "the model grants this to PUBLIC; these rows name minors, so a session is required"))
 
 // Deliberately NOT exposed: guardians, subscriptions, userNotificationChannels
 // and userNotificationPreferences. They are about identifiable people — who a

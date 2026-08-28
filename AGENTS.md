@@ -474,6 +474,26 @@ or project ordering; a whole session went that way and stopped dead.
 `useSession` does not refetch, so a page renders against whoever was signed in
 before. Any test that changes identity uses `gotoFresh()`.
 
+**Every procedure declares how it is authorised, and `mise run check:authz`
+walks the real router to prove it.** Model-driven authorisation that a person
+has to remember is not enforcement — on 2026-08-28 all fifty-three procedures
+declared nothing inspectable, and a whole feature shipped with none, because
+"deliberately public" and "somebody forgot" were indistinguishable to every
+check here. Four declarations, and the last three are printed on every run
+because an unreviewed exception is the failure mode:
+
+| | |
+|---|---|
+| `requireAction(ACTION)` | the normal case — the model decides |
+| `openTo(ACTION)` | public, *and the model grants it to PUBLIC* — verified at load |
+| `checkedInHandler(...)` | the action depends on the input, so the handler asks `can()` |
+| `stricterThanModel(A, why)` | we permit less than the model does, said out loud |
+| `infrastructure(why)` | not a domain object — health, vocabularies |
+
+`listOf` in domain.ts takes the policy as a required argument, so a new table
+cannot become an endpoint without one. That factory is how personal data gets
+published by accident.
+
 **Authorisation is the model's answer, never a role string compared in a
 handler.** Two of these on 2026-08-28, both failing open and silently. Web Push
 resolved its audience by reading the `subscription` table — everyone who had
