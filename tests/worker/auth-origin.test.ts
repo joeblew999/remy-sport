@@ -67,3 +67,49 @@ describe("the session cookie follows the request's real origin", () => {
     expect(auth.options.baseURL).toBe("https://localhost:8787")
   })
 })
+
+/**
+ * Every origin a request can genuinely arrive on is trusted.
+ *
+ * Better Auth checks the request's own URL against `trustedOrigins`, and behind
+ * the dev tunnel that URL is `http://<lan-ip>` — the scheme lost to cloudflared
+ * terminating TLS, the host lost to `wrangler dev --host`. Correcting the
+ * scheme for the cookie's sake (see above) silently un-trusted the http form,
+ * so every sign-in through the tunnel 403'd with "Invalid origin". The reader
+ * saw "Invalid origin" the instant they picked an account, and no OTP ever
+ * appeared — because the send was the request being refused.
+ *
+ * So all three are trusted: the corrected origin, the raw one, and the tunnel's
+ * public name, which cannot be derived from the request at all.
+ */
+describe("trustedOrigins covers every form the request can take", () => {
+  it("trusts the raw URL as well as the scheme-corrected one", () => {
+    const auth = createAuth(
+      host("http://10.16.52.74/api/auth/x", { "x-forwarded-proto": "https" }),
+    )
+    const trusted = auth.options.trustedOrigins as string[]
+    expect(trusted).toContain("https://10.16.52.74")
+    expect(trusted).toContain("http://10.16.52.74")
+  })
+
+  it("trusts the tunnel's own hostname when one is configured", () => {
+    const auth = createAuth({
+      env: { ...(env as object), TUNNEL_HOSTNAME: "dev-remy.example.net" } as never,
+      req: { url: "http://10.16.52.74/api/auth/x" },
+      headers: new Headers({ "x-forwarded-proto": "https" }),
+    })
+    expect(auth.options.trustedOrigins).toContain("https://dev-remy.example.net")
+  })
+
+  it("adds nothing extra in production, where the request already tells the truth", () => {
+    // TUNNEL_HOSTNAME explicitly absent: the test runner inherits .dev.vars,
+    // so leaving it set would have this pass for the wrong reason.
+    const auth = createAuth({
+      env: { ...(env as object), TUNNEL_HOSTNAME: undefined } as never,
+      req: { url: "https://remy.example.net/api/auth/x" },
+      headers: new Headers(),
+    })
+    const trusted = auth.options.trustedOrigins as string[]
+    expect(new Set(trusted)).toEqual(new Set(["https://remy.example.net"]))
+  })
+})

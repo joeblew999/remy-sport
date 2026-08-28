@@ -4,6 +4,17 @@ export type Bindings = {
   ASSETS: Fetcher
   BETTER_AUTH_SECRET: string
   BETTER_AUTH_URL: string
+  /**
+   * The dev tunnel's hostname, local only — written into `.dev.vars` by
+   * `mise run dev` and absent everywhere else.
+   *
+   * `wrangler dev --host` rewrites the Host the Worker sees, so a request the
+   * browser made to the tunnel arrives claiming to be the LAN address. The
+   * Origin header still says the truth, and the two disagreeing is an
+   * INVALID_ORIGIN on every sign-in through the tunnel. This is the one name
+   * that cannot be derived from the request, so it is supplied.
+   */
+  TUNNEL_HOSTNAME?: string
   // Apple / Android deep-link identifiers. Optional — the .well-known routes
   // 404 until these are set, so we never serve an AASA Apple would cache wrong.
   APPLE_TEAM_ID?: string

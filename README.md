@@ -13,12 +13,24 @@ mise run dev
 ```
 
 One command. It seeds the database, rebuilds on every save, and serves the same
-built bundle on every interface:
+built bundle at three addresses:
 
 | | |
 |---|---|
 | `http://localhost:8787` | this machine — 7ms, and what the tests run against |
-| `http://<lan-ip>:8787` | same wifi, for a phone. The address is printed on startup |
+| `http://<lan-ip>:8787` | same wifi, for a phone. Printed on startup |
+| `https://<TUNNEL_HOSTNAME>` | fixed HTTPS, works anywhere — ~1.4s, so for looking, not iterating |
+
+The tunnel creates itself on first run. There is no separate setup step and
+nothing to remember; without a `CLOUDFLARE_API_TOKEN` it is skipped and `dev`
+carries on with the two local addresses. `TUNNEL_HOSTNAME` is in `[env]` in
+`mise.toml`, and it is a single name — two people cannot serve it at once, so
+take your own before sharing a machine.
+
+It exists because iOS Safari with HTTPS-Only refuses a plain `http://` address
+outright, so a LAN IP cannot be opened on a phone at all. Pair it with
+[Remote Control](https://code.claude.com/docs/en/remote-control) to drive a
+session and watch the result on the same handset.
 
 **Reload to see a change.** The rebuild is automatic and takes a few seconds;
 the page in front of you is not. There is deliberately no live reload — a poller
@@ -27,21 +39,6 @@ never lets `networkidle` settle, which would hang all 92 screenshots in
 
 Sign in at `#/login`: all twelve seeded people, one click, no inbox. Ctrl-C
 stops everything.
-
-### A fixed public URL, optionally
-
-`mise run tunnel:setup` once, and from then on `mise run dev` also brings up a
-Cloudflare tunnel on `TUNNEL_HOSTNAME` (see `[env]` in `mise.toml`). Without it
-`dev` starts fine and simply says there is no tunnel.
-
-It exists because iOS Safari with HTTPS-Only refuses a plain `http://` address
-outright, so a LAN IP cannot be opened on a phone at all. Pair it with
-[Remote Control](https://code.claude.com/docs/en/remote-control) to drive a
-session and watch the result on the same handset.
-
-Roughly 1.4s per request against 7ms on localhost, so it is for looking, not for
-iterating. `TUNNEL_HOSTNAME` is a single name — two people cannot serve it at
-once, so give yourself your own before sharing a machine.
 
 Everything else is a task. `mise tasks` lists them with what each one does —
 that is the documentation, because it cannot go stale the way a list here would.

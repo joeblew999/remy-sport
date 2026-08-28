@@ -320,6 +320,34 @@ export function createAuth(c: AuthHost) {
      */
     baseURL: requestOrigin,
     // baseURL's own origin is added automatically by Better Auth.
-    trustedOrigins: [requestOrigin],
+    /**
+     * The origin as the Worker sees it, plus the dev tunnel's own name.
+     *
+     * `wrangler dev --host` rewrites Host, so a request made to
+     * `https://dev-remy.example` reaches the Worker as the LAN address and
+     * `requestOrigin` is that — while the browser's `Origin` header still says
+     * the tunnel. Better Auth compares the two and refuses with INVALID_ORIGIN,
+     * which is what a reader saw as "Invalid origin" the moment they picked an
+     * account to sign in as.
+     *
+     * TUNNEL_HOSTNAME is set only in `.dev.vars`, so this adds nothing in
+     * production, where the Host is real and `requestOrigin` is already right.
+     */
+    trustedOrigins: [
+      requestOrigin,
+      // The raw URL's origin as well, which is not the same thing once the
+      // scheme has been corrected above. Behind the tunnel `c.req.url` is
+      // http://<lan-ip> while `requestOrigin` is https://<lan-ip>, and Better
+      // Auth checks the request's own URL — so correcting the scheme for the
+      // cookie's sake silently un-trusted the very address the request came in
+      // on, and every sign-in through the tunnel 403'd with
+      // "Invalid origin: http://<lan-ip>".
+      new URL(c.req.url).origin,
+      // And the tunnel's public name, which cannot be derived from the request
+      // at all: `wrangler dev --host` has already replaced it with the LAN
+      // address by the time the Worker sees anything. Set only in .dev.vars,
+      // so this adds nothing in production.
+      ...(c.env.TUNNEL_HOSTNAME ? [`https://${c.env.TUNNEL_HOSTNAME}`] : []),
+    ],
   })
 }

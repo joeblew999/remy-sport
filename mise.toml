@@ -370,19 +370,39 @@ set -e
 IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)
 HOSTARG="${IP:-localhost}"
 
+# The tunnel first, because wrangler reads .dev.vars once at startup and the
+# Worker needs TUNNEL_HOSTNAME from it. Writing that file after wrangler had
+# already booted meant the first run of the day always failed sign-in through
+# the tunnel with INVALID_ORIGIN, and the second run worked — which is a
+# miserable thing to debug and was mine.
+#
+# Sets itself up on first use rather than making anyone remember a separate
+# command: tunnel-setup.ts is idempotent, so this is a no-op once the tunnel
+# exists. Without a CLOUDFLARE_API_TOKEN there is simply no tunnel, and dev
+# carries on with the two local addresses.
+TUNNEL=""
+RUNTOK=$(printenv TUNNEL_RUN_TOKEN || fnox get TUNNEL_RUN_TOKEN 2>/dev/null) || true
+if [ -z "$RUNTOK" ]; then
+  bun scripts/tunnel-setup.ts >/dev/null 2>&1 \
+    && RUNTOK=$(fnox get TUNNEL_RUN_TOKEN 2>/dev/null) \
+    || echo "  (no tunnel — needs CLOUDFLARE_API_TOKEN with Cloudflare Tunnel:Edit)"
+fi
+if [ -n "$RUNTOK" ]; then
+  # `wrangler dev --host` rewrites the Host the Worker sees, so a request made
+  # to the tunnel arrives claiming to be the LAN address while the browser's
+  # Origin header still says the tunnel. Better Auth refuses that mismatch.
+  # This is the one name that cannot be derived from the request.
+  # .dev.vars is local and gitignored, so nothing reaches production.
+  grep -q '^TUNNEL_HOSTNAME=' .dev.vars 2>/dev/null \
+    || echo 'TUNNEL_HOSTNAME={{env.TUNNEL_HOSTNAME}}' >> .dev.vars
+  cloudflared tunnel run --token "$RUNTOK" >/dev/null 2>&1 &
+  TUNNEL=$!
+fi
+
 bun x vite build --config src/web/vite.config.ts --watch --logLevel warn &
 WATCH=$!
 bun x wrangler dev --ip 0.0.0.0 --host "$HOSTARG" --port 8787 &
 SERVER=$!
-
-# The fixed public URL, if `mise run tunnel:setup` has been run. Optional by
-# design: no token means no tunnel, not a broken dev server.
-TUNNEL=""
-RUNTOK=$(printenv TUNNEL_RUN_TOKEN || fnox get TUNNEL_RUN_TOKEN 2>/dev/null) || true
-if [ -n "$RUNTOK" ]; then
-  cloudflared tunnel run --token "$RUNTOK" >/dev/null 2>&1 &
-  TUNNEL=$!
-fi
 
 trap 'kill $WATCH $SERVER $TUNNEL 2>/dev/null || true' EXIT INT TERM
 
