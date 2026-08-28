@@ -813,43 +813,70 @@ description = "Generate versions.json"
 run         = "bun scripts/versions.ts"
 
 [tasks."dev:ensure"]
-description = "Ensure a Worker is serving on DEV_URL, starting one in the background if not"
+description = "Make sure the dev server is up, starting it if not. Idempotent — use this, never pkill"
 depends     = ["setup"]
-# Makes "a Worker must be running" expressible as a dependency instead of an
-# error telling you to go and start one. Idempotent: no-op when something is
-# already serving, which is also why it composes with `mise run dev` in another
-# terminal and with Playwright's reuseExistingServer.
+# The one way to get a dev server. Use this instead of starting things by hand.
 #
-# The server is detached on purpose — it has to outlive this task so whatever
-# depends on it (tauri:dev, tauri:ios:dev) can use it. Logs land in .wrangler/,
-# which is gitignored. Stop it with `mise run dev:stop`.
+# It used to launch a bare `wrangler dev --host localhost`: no SPA watcher, no
+# tunnel, no seed. So the server you got from `dev:ensure` was not the server
+# you got from `dev`, and which one was running decided whether a change
+# appeared, whether the tunnel answered, and whether there was any data. That is
+# a fourth permutation of "the dev server" and it existed only because this task
+# reimplemented a stripped-down copy of another one. It delegates now.
+#
+# Idempotent, and that is the point: it no-ops when something is already
+# serving. Reaching for `pkill` and `nohup` instead is what produced a whole day
+# of measuring stale bundles — the server would be half-replaced, or two would
+# race for the port, and the thing on screen was not the thing on disk.
+#
+# Waits for readiness by polling rather than sleeping. `mise run dev` is ready
+# in about two seconds; a fixed `sleep 40` after it turns a fast loop into a
+# slow one and teaches you the tooling is slow when it is not.
 run = """
-if curl -sf -o /dev/null {{env.DEV_URL}}/api/health; then
-  echo "dev:ensure: Worker already serving on {{env.DEV_URL}}"
+if curl -sf -o /dev/null {{env.DEV_URL}}/api/health 2>/dev/null; then
+  echo "dev:ensure: already serving on {{env.DEV_URL}}"
   exit 0
 fi
 mkdir -p .wrangler
-echo "dev:ensure: starting a Worker on {{env.DEV_URL}}..."
-nohup bun x wrangler dev --host localhost >.wrangler/dev.log 2>&1 &
-for i in $(seq 1 40); do
-  if curl -sf -o /dev/null {{env.DEV_URL}}/api/health; then
-    echo "dev:ensure: Worker is serving on {{env.DEV_URL}}"
+echo "dev:ensure: starting..."
+nohup mise run dev >.wrangler/dev.log 2>&1 &
+for _ in $(seq 1 60); do
+  if curl -sf -o /dev/null {{env.DEV_URL}}/api/health 2>/dev/null; then
+    echo "dev:ensure: serving on {{env.DEV_URL}}"
     exit 0
   fi
-  sleep 1
+  sleep 0.5
 done
-echo "dev:ensure: Worker did not become ready — see .wrangler/dev.log" >&2
+echo "dev:ensure: did not become ready — see .wrangler/dev.log" >&2
 exit 1
 """
 
-[tasks."dev:stop"]
-description = "Stop a Worker started by dev:ensure (idempotent)"
+[tasks."dev:restart"]
+description = "Stop and restart the dev server, waiting for it. For .dev.vars or mise.toml changes only"
+# The only three things that need one: editing the `dev` task itself, changing
+# .dev.vars (wrangler reads it once at boot), or a wedged process.
+#
+# A change to src/ needs NOTHING — wrangler reloads the Worker and vite rebuilds
+# the SPA, both in about a second. Restarting for a code change is the habit
+# that made a one-second loop feel like a minute.
 run = """
-if pkill -f "wrangler dev" 2>/dev/null; then
-  echo "dev:stop: stopped"
-else
-  echo "dev:stop: nothing running"
-fi
+mise run dev:stop
+mise run dev:ensure
+"""
+
+[tasks."dev:stop"]
+description = "Stop the dev server and everything it started (idempotent)"
+# All three, not just wrangler. `dev` runs a vite watcher and a cloudflared
+# tunnel beside it, and stopping only the Worker left both orphaned — a watcher
+# still writing dist/web for a server that was gone, and a tunnel still holding
+# the public hostname open. Ctrl-C on `dev` handles this through its trap; this
+# is for when the process is not in front of you.
+run = """
+STOPPED=""
+for pat in "wrangler dev" "vite build --config src/web/vite.config.ts --watch" "cloudflared tunnel run"; do
+  pkill -f "$pat" 2>/dev/null && STOPPED="yes"
+done
+[ -n "$STOPPED" ] && echo "dev:stop: stopped" || echo "dev:stop: nothing running"
 """
 
 [tasks.seed]

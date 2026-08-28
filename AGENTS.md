@@ -77,6 +77,20 @@ the form renders and surfaces anything unclaimed at form level — a wrong path
 then shows the message in the wrong place, which someone notices, instead of
 nowhere. `tests/unit/form-errors.test.ts` asserts it.
 
+**`mise run dev:ensure` — never `pkill`, never a bare `wrangler dev`.** It is
+idempotent and no-ops in a second when something is already serving. Starting
+things by hand is what produced a day of measuring stale bundles: a
+half-replaced server, or two racing for the port, and the thing on screen was
+not the thing on disk. `dev:restart` is for the only three changes that need
+one — the `dev` task itself, `.dev.vars` (wrangler reads it once at boot), or a
+wedged process.
+
+**A change to `src/` needs no restart at all.** Wrangler reloads the Worker and
+vite rebuilds the SPA, both in about a second — measured, not assumed. Restart
+for a code change and a one-second loop feels like a minute. And never pad with
+`sleep`: poll `/api/health`, which is what `dev:ensure` does. A full start is
+~2s locally, ~4s with the tunnel.
+
 **Flag architectural friction — do not just absorb it.** When a change makes you
 fight the shape of the thing, or write the same block a third time, say so to
 the Product Owner in your reply. Fix it well enough to finish the task, then
