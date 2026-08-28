@@ -1,3 +1,9 @@
+/// <reference types="vite-plugin-pwa/client" />
+// The virtual module vite-plugin-pwa emits. Declared because
+// `injectRegister: null` means main.tsx imports it by hand — see the guard
+// there for why. Must stay at the top: a triple-slash directive is ignored
+// anywhere else in the file.
+
 /**
  * Stubs for the four Worker globals `src/types.ts` names.
  *

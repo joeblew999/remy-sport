@@ -2,7 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<!-- iOS reads these from the document, not the manifest: without the
+       apple-touch-icon it puts a screenshot of the page on the home screen,
+       which is what installing this used to produce. Generated from
+       src/web/brand.svg by `mise run brand:icons`. -->
+  <link rel="icon" href="/favicon.ico" sizes="48x48"/>
+  <link rel="icon" href="/brand.svg" type="image/svg+xml"/>
+  <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png"/>
+  <meta name="theme-color" content="#dd5230"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>Remy Sport</title>
 <link rel="stylesheet" href="./styles.css"/>
 </head>

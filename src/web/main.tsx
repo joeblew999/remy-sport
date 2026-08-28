@@ -115,6 +115,35 @@ function App() {
   );
 }
 
+/**
+ * The service worker — in a browser only, never inside Tauri.
+ *
+ * Web Push on iOS requires one, and it only works for a PWA installed to the
+ * home screen. But desktop and iOS run this same bundle inside a Tauri webview
+ * (decision-003: one bundle, three targets), where a service worker is at best
+ * dead weight and at worst caches the app shell against a native build that
+ * ships its own assets.
+ *
+ * So `vite-plugin-pwa` is configured with `injectRegister: null` — it emits the
+ * worker and the manifest but writes no registration into index.html — and the
+ * decision is made here at runtime, on the same `__TAURI_INTERNALS__` check the
+ * logger below uses. A build flag could not do it: there is one bundle.
+ *
+ * Failure is silent on purpose. A browser that refuses to register a worker
+ * loses push, not the app.
+ */
+if (
+  typeof window !== "undefined" &&
+  !("__TAURI_INTERNALS__" in window) &&
+  "serviceWorker" in navigator
+) {
+  import("virtual:pwa-register")
+    .then(({ registerSW }) => registerSW({ immediate: true }))
+    .catch(() => {
+      /* no service worker: the app still works, push does not */
+    });
+}
+
 // Forward webview console output to the Rust logger when running inside Tauri.
 // src-tauri/src/lib.rs registers tauri-plugin-log for debug builds, but only
 // the Rust half was installed — so `tauri dev` and `tauri ios dev` showed

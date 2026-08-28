@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
+import { VitePWA } from "vite-plugin-pwa";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
@@ -28,6 +29,61 @@ export default defineConfig({
       // keeping a cookie of its own, so there is one source of truth for which
       // language the reader is in.
       strategy: ["globalVariable", "baseLocale"],
+    }),
+    /**
+     * The manifest and service worker, without which iOS will not install this
+     * as an app and Web Push cannot work at all.
+     *
+     * Installing it before this existed put a screenshot of the page on the
+     * home screen, because index.html referenced no manifest and no icons.
+     *
+     * `injectRegister: null` is the load-bearing option. The plugin's default
+     * writes a registration snippet into index.html — and Tauri loads that same
+     * index.html on desktop and iOS, where a service worker is at best dead
+     * weight and at worst caches the app shell against a native build. One
+     * bundle serves all three targets (decision-003), so this cannot be a build
+     * flag; registration happens in main.tsx, guarded on the same
+     * `__TAURI_INTERNALS__` check the logger already uses.
+     *
+     * The icons are the files `mise run brand:icons` cuts from brand.svg. They
+     * are listed rather than globbed so a missing one is a failed build instead
+     * of a manifest that quietly offers fewer sizes than it claims.
+     */
+    VitePWA({
+      injectRegister: null,
+      registerType: "autoUpdate",
+      includeAssets: ["favicon.ico", "apple-touch-icon-180x180.png"],
+      manifest: {
+        name: "Remy Sport",
+        short_name: "Remy",
+        description: "Basketball events, teams and live scoring for Thailand.",
+        // Hash routing, so every route is "/" plus a fragment — and a fragment
+        // is not sent to the server. See decision-003.
+        start_url: "/",
+        scope: "/",
+        display: "standalone",
+        // The brand orange, so the splash and the status bar match the mark
+        // rather than flashing white before the app paints.
+        theme_color: "#dd5230",
+        background_color: "#dd5230",
+        icons: [
+          { src: "pwa-64x64.png", sizes: "64x64", type: "image/png" },
+          { src: "pwa-192x192.png", sizes: "192x192", type: "image/png" },
+          { src: "pwa-512x512.png", sizes: "512x512", type: "image/png" },
+          {
+            src: "maskable-icon-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
+          },
+        ],
+      },
+      workbox: {
+        // The API is never cached. A stale score is worse than a slow one, and
+        // /api/dev/* must not survive into a cached response at all.
+        navigateFallbackDenylist: [/^\/api/, /^\/rpc/],
+        globPatterns: ["**/*.{js,css,html,woff2,png,svg,ico}"],
+      },
     }),
   ],
   base: "./",
