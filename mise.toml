@@ -923,13 +923,6 @@ mise run cf:smoke
 
 # ── Remote / test variants ───────────────────────────────────────────────────
 
-[tasks."dev:remote"]
-description = "Dev server against remote Cloudflare resources"
-# Not setup: the local D1 migrations and Playwright browsers are irrelevant
-# here. web:build is not — the [assets] directory must exist either way.
-depends     = ["install", "web:build"]
-run         = "bun x wrangler dev --remote --host localhost"
-
 [tasks."cf:smoke"]
 description = "Verify the deployed Worker — read-only, plus one write that must be a no-op"
 depends     = ["install"]
@@ -1061,6 +1054,9 @@ echo "cf:secret:set: BETTER_AUTH_SECRET set"
 
 [tasks."dev:vars"]
 description = "Write .dev.vars with a generated BETTER_AUTH_SECRET if absent"
+# A dependency of `setup`, never run directly. Hidden so `mise tasks` shows the
+# four dev commands somebody actually chooses between.
+hide        = true
 depends     = ["install"]
 run         = "bun scripts/dev-vars.ts"
 
