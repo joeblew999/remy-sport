@@ -41,6 +41,21 @@ export default defineConfig({
   workers: 2,
   reporter: "html",
   use: {
+    /**
+     * WebKit, not Chromium.
+     *
+     * It is the strictest engine we can run and it is what a phone actually
+     * uses, so it is the honest baseline. That is not a preference: Chromium
+     * hid a real bug for as long as this suite existed. `baseURL` was pinned to
+     * an https URL, so Better Auth issued a `__Secure-` prefixed session cookie
+     * on http://localhost — which Chromium stores and WebKit refuses. Sign-in
+     * returned 200, the session was empty, and 35 green tests said nothing.
+     *
+     * The cost is real and small: the render tier is unchanged at ~8s, and e2e
+     * goes from ~8s to ~23s. Worth it to test the browser most of these readers
+     * hold.
+     */
+    browserName: "webkit",
     baseURL,
     trace: "on-first-retry",
   },

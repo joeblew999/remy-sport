@@ -322,47 +322,26 @@ description = "Install deps, build the SPA, write .dev.vars, apply local D1 migr
 depends     = ["install", "web:build", "dev:vars", "cf:d1:migrations:apply", "playwright:install", "fonts:vendor", "seed:sql"]
 
 [tasks."playwright:install"]
-description = "Install Playwright browsers (proxy-safe, idempotent)"
+description = "Install the Playwright browser (idempotent)"
 depends     = ["install"]
-run         = """
-BROWSERS_JSON="node_modules/playwright-core/browsers.json"
-CHROMIUM_VERSION=$(node -e "const b=require('./$BROWSERS_JSON'); const c=b.browsers.find(x=>x.name==='chromium'); console.log(c.browserVersion)")
-CHROMIUM_REV=$(node -e "const b=require('./$BROWSERS_JSON'); const c=b.browsers.find(x=>x.name==='chromium'); console.log(c.revision)")
-
-# PLAYWRIGHT_BROWSERS_PATH (mise [env]) puts browsers in .playwright/ on every
-# OS. Previously this read $HOME/.cache/ms-playwright, which is the Linux path —
-# on macOS Playwright uses ~/Library/Caches, so the skip check below never
-# matched and the linux64 binaries it fetched could not run.
-PW_DIR="$PLAYWRIGHT_BROWSERS_PATH"
-
-if [ -d "$PW_DIR/chromium-$CHROMIUM_REV" ] && [ -d "$PW_DIR/chromium_headless_shell-$CHROMIUM_REV" ]; then
-  echo "Playwright chromium v$CHROMIUM_REV already installed, skipping"
-  exit 0
+# WebKit, because both browser tiers run on it — see the note in
+# playwright.config.ts for why. Chromium is no longer installed: nothing uses
+# it, and a second 80MB engine that no test runs is not worth carrying.
+#
+# `playwright install` rather than the hand-rolled curl-and-unzip this replaced.
+# That path fetched linux64 chromium builds by revision and needed a macOS
+# branch beside it, so it was two code paths for one job — and the version
+# pinning it bought is already in bun.lock, which decides the Playwright that
+# reads it. It honours PLAYWRIGHT_BROWSERS_PATH, so browsers still land in
+# .playwright/ rather than a per-OS cache outside the project.
+#
+# Idempotent on its own: it skips anything already present.
+run = """
+set -e
+bun x playwright install webkit
+if command -v apt-get >/dev/null 2>&1; then
+  bun x playwright install-deps webkit 2>/dev/null || true
 fi
-
-# The curl path below fetches linux64 builds. On macOS use Playwright's own
-# installer, which is idempotent and picks the right arch; it honours
-# PLAYWRIGHT_BROWSERS_PATH too, so both land in the same project directory.
-if [ "$(uname -s)" = "Darwin" ]; then
-  bun x playwright install chromium
-  exit 0
-fi
-
-echo "Installing Playwright chromium $CHROMIUM_VERSION (rev $CHROMIUM_REV) via curl..."
-curl -fsSL -o /tmp/chrome-linux64.zip "https://cdn.playwright.dev/builds/cft/$CHROMIUM_VERSION/linux64/chrome-linux64.zip"
-curl -fsSL -o /tmp/chrome-headless-shell-linux64.zip "https://cdn.playwright.dev/builds/cft/$CHROMIUM_VERSION/linux64/chrome-headless-shell-linux64.zip"
-
-mkdir -p "$PW_DIR/chromium-$CHROMIUM_REV" "$PW_DIR/chromium_headless_shell-$CHROMIUM_REV"
-unzip -qo /tmp/chrome-linux64.zip -d "$PW_DIR/chromium-$CHROMIUM_REV/"
-unzip -qo /tmp/chrome-headless-shell-linux64.zip -d "$PW_DIR/chromium_headless_shell-$CHROMIUM_REV/"
-rm -f /tmp/chrome-linux64.zip /tmp/chrome-headless-shell-linux64.zip
-
-# Install system deps for Chromium (if apt available)
-if command -v apt-get &>/dev/null; then
-  bun x playwright install-deps chromium 2>/dev/null || true
-fi
-
-echo "Playwright chromium v$CHROMIUM_REV installed successfully"
 """
 
 [tasks.dev]

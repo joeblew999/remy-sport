@@ -1,6 +1,6 @@
 {
   "browser": {
-    "browserName": "chromium",
+    "browserName": "webkit",
     "userDataDir": ".playwright-mcp/profile"
   }
 }

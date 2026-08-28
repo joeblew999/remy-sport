@@ -16,12 +16,30 @@ import { defineConfig, devices } from "@playwright/test"
  */
 export default defineConfig({
   testDir: "./tests/render",
+    /**
+     * WebKit, not Chromium.
+     *
+     * It is the strictest engine we can run and it is what a phone actually
+     * uses, so it is the honest baseline. That is not a preference: Chromium
+     * hid a real bug for as long as this suite existed. `baseURL` was pinned to
+     * an https URL, so Better Auth issued a `__Secure-` prefixed session cookie
+     * on http://localhost — which Chromium stores and WebKit refuses. Sign-in
+     * returned 200, the session was empty, and 35 green tests said nothing.
+     *
+     * The cost is real and small: the render tier is unchanged at ~8s, and e2e
+     * goes from ~8s to ~23s. Worth it to test the browser most of these readers
+     * hold.
+     */
   fullyParallel: true,
   reporter: process.env.CI ? "line" : "list",
   use: {
     baseURL: "http://localhost:4173",
     trace: "on-first-retry",
-    ...devices["Desktop Chrome"],
+    // `devices["Desktop Safari"]`, not Chrome — and it must come BEFORE
+    // browserName, because the device preset carries its own and would
+    // otherwise put it back.
+    ...devices["Desktop Safari"],
+    browserName: "webkit",
   },
   webServer: {
     // `--outDir` matches vite.config.ts's build output.
