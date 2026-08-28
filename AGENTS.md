@@ -85,11 +85,22 @@ not the thing on disk. `dev:restart` is for the only three changes that need
 one — the `dev` task itself, `.dev.vars` (wrangler reads it once at boot), or a
 wedged process.
 
-**A change to `src/` needs no restart at all.** Wrangler reloads the Worker and
-vite rebuilds the SPA, both in about a second — measured, not assumed. Restart
-for a code change and a one-second loop feels like a minute. And never pad with
-`sleep`: poll `/api/health`, which is what `dev:ensure` does. A full start is
-~2s locally, ~4s with the tunnel.
+**Never run `web:build` by hand.** `dev` runs `vite build --watch`, so a change
+under `src/web` is rebuilt and served in about a second. Typing `web:build`
+repeats work already done and puts a second vite alongside the watcher, both
+writing `dist/web`. It exists for `setup` and `deploy`, not for you.
+
+| edited | needed |
+|---|---|
+| `src/**` — Worker or SPA | nothing. Both reload in ~1s |
+| `vite.config.ts`, `.dev.vars`, `mise.toml` | `mise run dev:restart` |
+
+The middle row is the one that catches people: **the watcher does not re-read
+its own config**, so a vite.config.ts change appears to do nothing at all until
+a restart — verified by editing it and watching the bundle hash stay put.
+
+And never pad with `sleep`: poll `/api/health`, which is what `dev:ensure` does.
+A full start is ~2s locally, ~4s with the tunnel.
 
 **Flag architectural friction — do not just absorb it.** When a change makes you
 fight the shape of the thing, or write the same block a third time, say so to
