@@ -307,6 +307,45 @@ they have not drifted.
 
 ## Traps
 
+**A slow test suite is a bug. Fix it, do not wait it out.**
+
+This is a standing instruction, not a preference. If a tier takes longer than it
+should, stopping to find out why is the work — it is never a detour from the
+work.
+
+The failure that produced this rule: the render tier went from thirteen seconds
+to **a hundred and eighty-six** whenever a fixture drifted, and it stayed that
+way for a whole session because nobody measured it. Passing runs still reported
+thirteen seconds, so the output never looked wrong. The cost landed only on
+failures, which is exactly when a fast loop matters, and it was simply absorbed
+— run after run — as though three minutes were the price of a broken test.
+
+The cause was an inherited default. This tier has **no network at all**:
+`seedCache` answers every `/rpc` call with a 404 and fonts are blocked, so a
+test is a page load and an assertion, and the slowest one takes under a second.
+Playwright's default thirty-second timeout could therefore only ever apply to
+something that was never going to appear. Six broken assertions, thirty seconds
+each. It is now 15s per test and 5s per assertion, and a failing run costs
+twenty seconds instead of a hundred and eighty-six.
+
+Three things now make a repeat visible rather than absorbable:
+
+- **Every tier prints its time against a budget, every run.** `budget · render:
+  13.6s of 30s (45%)`. A ceiling nobody sees until it fails is a ceiling that
+  fails once and gets raised; a number on every run is what makes a jump to 25s
+  something you notice the day it happens.
+  [scripts/check-budget.ts](scripts/check-budget.ts) holds the budgets, what
+  each measured when it was set, and what dominates its time.
+- **Both Playwright configs name any file over a threshold** — three seconds in
+  the render tier, ten in e2e. The default is fifteen, which in a tier that runs
+  in fourteen can never fire.
+- **Every timeout is written down with the operation that justifies it**, rather
+  than inherited. e2e keeps thirty seconds because it signs in through a real
+  Worker against a real D1; the render tier cannot justify a second.
+
+When a budget trips, find what got slower before raising the ceiling. A tier
+allowed to creep is one nobody will ever speed up again.
+
 **Four import rules, and `mise run check:deps` enforces them.** They were
 enforced by hoping until 2026-08-27; the reasoning for each sits beside it in
 [.dependency-cruiser.cjs](.dependency-cruiser.cjs).

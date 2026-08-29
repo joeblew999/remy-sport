@@ -53,6 +53,16 @@ export default defineConfig({
    */
   timeout: 15_000,
   expect: { timeout: 5_000 },
+  /**
+   * Name any file over three seconds, every run.
+   *
+   * Playwright's default threshold is fifteen seconds, which in this tier means
+   * never — the whole suite runs in fourteen. A threshold that cannot fire is
+   * the same as no reporting at all, and it is why a six-fold slowdown went
+   * unremarked for a session. Three seconds is about four times the slowest
+   * single test here.
+   */
+  reportSlowTests: { max: 5, threshold: 3_000 },
   use: {
     baseURL: "http://localhost:4173",
     trace: "on-first-retry",

@@ -506,7 +506,14 @@ depends     = ["install"]
 #
 # `.test.ts` under tests/unit/, deliberately: Playwright owns `.spec.ts`, so the
 # two suites cannot collect each other's files.
-run = "bun test tests/unit/"
+run = """
+# Timed, and the number is printed on every run. A tier that got six times
+# slower went unnoticed for a whole session because nothing ever said how long
+# it took — see scripts/check-budget.ts.
+start=$(date +%s%N)
+bun test tests/unit/
+bun scripts/check-budget.ts unit $(( ($(date +%s%N) - start) / 1000000 ))
+"""
 
 [tasks."check:dead"]
 description = "Fail on unreachable files and on imports missing from package.json"
@@ -546,7 +553,14 @@ depends     = ["install"]
 #   test:unit    pure logic, no runtime      ~20ms
 #   test:worker  the Worker, in workerd      this
 #   test         a real browser, and only that
-run = "bun x vitest run --config vitest.config.ts"
+run = """
+# Timed, and the number is printed on every run. A tier that got six times
+# slower went unnoticed for a whole session because nothing ever said how long
+# it took — see scripts/check-budget.ts.
+start=$(date +%s%N)
+bun x vitest run --config vitest.config.ts
+bun scripts/check-budget.ts worker $(( ($(date +%s%N) - start) / 1000000 ))
+"""
 
 [tasks."data:coverage"]
 description = "Which of the model's vocabulary the fixtures exercise, and which fields have no column"
@@ -632,7 +646,14 @@ depends     = ["web:build"]
 # vite.config.ts — `preview.proxy` defaults to `server.proxy`, so this tier was
 # reaching a real Worker whenever one existed — not a separate build directory,
 # which is what I tried first and which fixed nothing.
-run = "bun x playwright test --config playwright.render.config.ts"
+run = """
+# Timed, and the number is printed on every run. A tier that got six times
+# slower went unnoticed for a whole session because nothing ever said how long
+# it took — see scripts/check-budget.ts.
+start=$(date +%s%N)
+bun x playwright test --config playwright.render.config.ts
+bun scripts/check-budget.ts render $(( ($(date +%s%N) - start) / 1000000 ))
+"""
 
 [tasks."seed:sql"]
 description = "Regenerate src/db/seed.sql from the biz fixtures — the seed as data, not an HTTP call"
@@ -796,7 +817,14 @@ run = "bun scripts/test-tiers.ts"
 [tasks.test]
 description = "Run Playwright tests locally"
 depends     = ["setup"]
-run         = "bun x playwright test"
+run = """
+# Timed, and the number is printed on every run. A tier that got six times
+# slower went unnoticed for a whole session because nothing ever said how long
+# it took — see scripts/check-budget.ts.
+start=$(date +%s%N)
+bun x playwright test
+bun scripts/check-budget.ts e2e $(( ($(date +%s%N) - start) / 1000000 ))
+"""
 
 # ── Demo sign-in ────────────────────────────────────────────────────────────
 # Lets the twelve seeded people sign in on a deployment with one click. Their
