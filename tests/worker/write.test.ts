@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import { SEED_ENTITIES } from "../../src/domain/model/entities"
 import { ORIGIN, actorFor, api, post, signIn } from "./helpers"
 import { gamesIn } from "../helpers/fixtures"
+import { isRefusedStatus } from "../../src/auth.config"
 
 /**
  * Everything that writes, and everything that decides who may.
@@ -1027,14 +1028,28 @@ describe("The seeded sign-in, and what it deliberately cannot reach", () => {
       .toBe(200)
   })
 
-  it("lists every seeded person locally, admin included", async () => {
+  it("lists everyone locally who can actually sign in, admin included", async () => {
     const res = await api("/api/dev/accounts")
     expect(res.status).toBe(200)
     const { accounts, code } = (await res.json()) as {
-      accounts: { role: string; holds: string[] }[]
+      accounts: { role: string; email: string; holds: string[] }[]
       code?: string
     }
-    expect(accounts).toHaveLength(SEED_ENTITIES.users.length)
+
+    // Everyone the guard would let through — not every seeded person. A
+    // SUSPENDED or DEACTIVATED account is offered as a one-click sign-in that
+    // then 403s and says nothing, which is the failure this list exists to
+    // avoid. Derived from the same rule the guard uses, so the two cannot drift.
+    const signable = SEED_ENTITIES.users.filter((u) => !isRefusedStatus(u.statusCode))
+    expect(accounts).toHaveLength(signable.length)
+    expect(signable.length).toBeLessThan(SEED_ENTITIES.users.length)
+
+    // And the refused ones are absent by name, so this cannot pass by counting.
+    const refused = SEED_ENTITIES.users.filter((u) => isRefusedStatus(u.statusCode))
+    for (const u of refused) {
+      expect(accounts.map((a) => a.email), `${u.id} (${u.statusCode})`).not.toContain(u.email)
+    }
+
     expect(accounts.some((a) => a.role === "admin"), "the outbox makes this safe").toBe(true)
     // No published code here: the outbox carries a real generated one instead.
     expect(code).toBeUndefined()
