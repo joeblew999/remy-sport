@@ -123,7 +123,13 @@ export const ACTOR_NAMES = {
  * much, or they are back to signing in for themselves and racing whoever else
  * wants that address.
  */
-export const EVERY_SEEDED_ACTOR = SEED_ENTITIES.users.map((u) => u.email)
+export const EVERY_SEEDED_ACTOR = SEED_ENTITIES.users
+  // Everyone who can actually hold a session. A SUSPENDED or DEACTIVATED
+  // account is refused one at `session.create.before`, so trying to save state
+  // for it fails the whole setup — which is the enforcement working, in the one
+  // place that reads as a broken suite. The fixtures gained both on 2026-08-29.
+  .filter((u) => u.statusCode !== "SUSPENDED" && u.statusCode !== "DEACTIVATED")
+  .map((u) => u.email)
 
 /**
  * Where auth.setup.ts parks each actor's cookies, and how a spec asks for one.
