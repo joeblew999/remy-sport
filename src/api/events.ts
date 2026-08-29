@@ -19,7 +19,7 @@ import { clean, pivot } from "../domain/names"
 import { z } from "zod"
 import { CreateEventInput, EventSchema, UpdateEventInput } from "../domain/api"
 import { ERRORS } from "./errors"
-import { authed, authedRoute, openTo, pub, requireAction, viewerTimezone, type Db } from "./base"
+import { authed, authedRoute, can, openTo, requireAction, viewer, viewerTimezone, type Db, type SessionUser } from "./base"
 
 const IdInput = z.object({ id: z.string() })
 
@@ -38,9 +38,11 @@ function load(db: Db) {
  * at the boundary. Values are constrained on the way in by the input schemas
  * and by the foreign keys migration 0009 added.
  */
-function serialize(row: typeof schema.event.$inferSelect & {
-  organizer?: { name: string } | null
-}): ApiEvent {
+async function serialize(
+  db: Db,
+  user: SessionUser | null,
+  row: typeof schema.event.$inferSelect & { organizer?: { name: string } | null },
+): Promise<ApiEvent> {
   const { organizer, createdAt, updatedAt, typeCode, formatCode, ...rest } = row
   return {
     ...rest,
@@ -49,18 +51,26 @@ function serialize(row: typeof schema.event.$inferSelect & {
     organizerName: organizer?.name ?? null,
     createdAt: createdAt.toISOString(),
     updatedAt: updatedAt.toISOString(),
+    // One `can` per event, the same honest cost games pays for a per-game
+    // permission. A list of a few dozen is a few dozen extra reads; a season of
+    // thousands would not be, and the fix then is to answer it in one query —
+    // the relations are all derivable in SQL — not to move the decision into
+    // the client.
+    canEdit: await can(db, "EDIT_EVENT", user, row.id),
   }
 }
 
-export const list = pub
+export const list = viewer
   .use(openTo("BROWSE_EVENTS"))
   .route({ method: "GET", path: "/events", summary: "List all events" })
   .output(z.object({ events: z.array(EventSchema) }))
   .handler(async ({ context }) => ({
-  events: (await load(context.db)).map(serialize),
-}))
+    events: await Promise.all(
+      (await load(context.db)).map((row) => serialize(context.db, context.user, row)),
+    ),
+  }))
 
-export const get = pub
+export const get = viewer
   .use(openTo("VIEW_EVENT"))
   .route({ method: "GET", path: "/events/{id}", summary: "Get one event" })
   .input(IdInput)
@@ -71,7 +81,7 @@ export const get = pub
       with: { organizer: { columns: { name: true } } },
     })
     if (!row) throw new ORPCError("NOT_FOUND", { message: "Not found" })
-    return serialize(row)
+    return serialize(context.db, context.user, row)
   })
 
 /**
@@ -128,7 +138,10 @@ export const create = authed
     }
     await context.db.insert(schema.event).values(row)
     // The creator is the organizer, so the display name needs no round trip.
-    return serialize({ ...row, organizer: context.user.name ? { name: context.user.name } : null })
+    return serialize(context.db, context.user, {
+      ...row,
+      organizer: context.user.name ? { name: context.user.name } : null,
+    })
   })
 
 export const update = authed
@@ -170,7 +183,7 @@ export const update = authed
       with: { organizer: { columns: { name: true } } },
     })
     if (!row) throw new ORPCError("NOT_FOUND", { message: "Not found" })
-    return serialize(row)
+    return serialize(context.db, context.user, row)
   })
 
 export const remove = authed

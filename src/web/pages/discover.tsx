@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Icon } from "../components/icon";
-import { useEvents, useLiveGame } from "../lib/data";
+import { useEvents, useLiveGames } from "../lib/data";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
 import { useLocale } from "../lib/locale";
@@ -123,32 +123,52 @@ export function DiscoverPage({ goto, spoiler }: DiscoverProps) {
   );
 }
 
+/**
+ * What is being played right now, at the top of the page.
+ *
+ * Was one invented game: two school names, a 54–49 scoreline, "Q3 04:21", a
+ * pulsing LIVE dot. Deployed and public, with nothing to say it was not real —
+ * and convincing precisely because somebody had written it to look like a real
+ * Bangkok quarterfinal.
+ *
+ * Now the first genuinely live game, or nothing at all. Rendering nothing is
+ * the correct answer most of the time, which is the whole difference: an empty
+ * banner is information, and an invented one is not.
+ */
 function LiveBanner({ goto, spoiler }: { goto: (r: Route) => void; spoiler: boolean }) {
-  const G = useLiveGame();
-  const sa = G.quarters.a.reduce<number>((acc, b) => acc + (b ?? 0), 0);
-  const sb = G.quarters.b.reduce<number>((acc, b) => acc + (b ?? 0), 0);
-  const aLeading = sa > sb;
+  const { data } = useLiveGames();
+  const game = (data?.games ?? [])[0];
+  if (!game) return null;
+
   return (
-    <div className="live-banner">
+    <div className="live-banner" data-testid="live-banner">
       <div className="pill"><span className="dot"/>{m.live_now_badge()}</div>
       <div>
-        <div className="label">{G.event}</div>
+        <div className="label">{game.venue ?? ""}</div>
         <div className="matchup">
-          <span>{G.teamA.name}</span>
+          <span>{game.homeTeam}</span>
           <span className="vs">{m.versus()}</span>
-          <span>{G.teamB.name}</span>
+          <span>{game.awayTeam}</span>
         </div>
       </div>
-      <div className="score-mini" style={{ display: spoiler ? "none" : "flex" }}>
-        <span className={aLeading ? "leading" : ""}>{sa}</span>
-        <span style={{ color: "oklch(0.5 0.01 270)", fontWeight: 400 }}>·</span>
-        <span className={!aLeading ? "leading" : ""}>{sb}</span>
-      </div>
+      {/* Spoiler mode hides the score and nothing else: someone avoiding the
+          result still needs to find the game. */}
+      {game.homeScore !== null && game.awayScore !== null && (
+        <div className="score-mini" style={{ display: spoiler ? "none" : "flex" }}>
+          <span className={game.homeScore >= game.awayScore ? "leading" : ""}>{game.homeScore}</span>
+          <span style={{ color: "oklch(0.5 0.01 270)", fontWeight: 400 }}>·</span>
+          <span className={game.awayScore > game.homeScore ? "leading" : ""}>{game.awayScore}</span>
+        </div>
+      )}
       <div className="quarter">
-        <div><b>{G.quarter}</b></div>
-        <div style={{ marginTop: 4 }}>{G.clock}</div>
+        <div><b>{game.statusLabel}</b></div>
       </div>
-      <button className="open-btn" onClick={() => goto({ page: "live" })}>{m.open_game()}</button>
+      <button
+        className="open-btn"
+        onClick={() => goto(game.isBroadcasting ? { page: "watch", id: game.id } : { page: "live" })}
+      >
+        {game.isBroadcasting ? m.video_watch() : m.open_game()}
+      </button>
     </div>
   );
 }

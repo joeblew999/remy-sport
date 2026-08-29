@@ -74,6 +74,19 @@ export const EventSchema = createSelectSchema(schema.event)
      * organizer's user name, joined from created_by. Null if the user is gone.
      */
     organizerName: z.string().nullable(),
+    /**
+     * May the reader edit this event?
+     *
+     * The model's answer to `EDIT_EVENT`, resolved per event and per viewer —
+     * the same shape games already use for `canEnterScore`. Two things needed
+     * it: the profile's "Your events" listed *every* event on the platform
+     * under a possessive heading, and there is no edit screen yet because
+     * nothing could say who should see one.
+     *
+     * False for a signed-out reader, which is what makes the list empty rather
+     * than wrong.
+     */
+    canEdit: z.boolean(),
   })
 
 export const CreateEventInput = z.object({

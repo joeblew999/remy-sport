@@ -129,6 +129,9 @@ export function toEvent(e: ApiEvent, loc: Localizer, today: Date = new Date()): 
     games: 0,
     gamesPlayed: 0,
     organizer: e.organizerName ?? m.unknown_organiser({}, { locale: loc.locale }),
+    // The model's answer, not the client's guess. False for a signed-out
+    // reader, which is what makes a "yours" list empty rather than wrong.
+    canEdit: e.canEdit,
   };
 }
 

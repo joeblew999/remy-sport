@@ -919,6 +919,26 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   border: 1px dashed var(--rule);
 }
 
+/* ─── A row in a dashboard card that navigates somewhere ──────────────────
+   Was four copies of the same twelve inline style properties, one per list on
+   the profile page, which is how two of them ended up differing by a pixel. */
+.row-button {
+  display: block; width: 100%; text-align: left;
+  padding: 14px 18px; border: none; border-bottom: 1px solid var(--rule);
+  background: transparent; cursor: pointer; color: inherit;
+}
+.row-button:last-child { border-bottom: none; }
+.row-button:hover { background: var(--paper-2); }
+.row-title {
+  font-family: "Space Grotesk", sans-serif; font-weight: 600;
+  font-size: 14px; letter-spacing: -0.01em;
+}
+.row-meta {
+  font-family: "IBM Plex Mono", monospace; font-size: 10px;
+  color: var(--ink-3); letter-spacing: 0.06em; margin-top: 4px;
+  text-transform: uppercase;
+}
+
 /* ─── The page that replaces a white screen ───────────────────────────────
    Deliberately centred in the viewport rather than in the app layout: the
    boundary sits outside the sidebar and topbar, so when it renders there is no

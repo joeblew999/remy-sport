@@ -3,14 +3,26 @@ import { Icon } from "../components/icon";
 import { FollowButton } from "../components/follow";
 import { Schedule, AddFixture } from "../components/schedule";
 import { Entries } from "../components/entries";
-import { useEvent, useEvents, useGames, useLiveGame, useNextGame, useStandings } from "../lib/data";
+import { useEvent, useEvents, useGames, useStandings } from "../lib/data";
 import type { Event } from "../data";
 import type { Route } from "../lib/router";
-import { BracketView } from "./bracket";
 import { useLocale } from "../lib/locale";
 import { m } from "../lib/i18n";
 
-type EventTab = "overview" | "bracket" | "schedule" | "standings" | "teams" | "venues" | "rules";
+/**
+ * No "bracket" tab.
+ *
+ * It rendered a sixteen-team knockout — seeds, byes, a final — from a constant
+ * in lib/data.tsx, behind a SAMPLE DATA banner. Nothing behind it could ever
+ * have been real: a `game` row is two teams, a time and a status, and the
+ * Product Owner's model has no round, no seed and no parent match. There is no
+ * query that could fill that screen.
+ *
+ * So it was not an unfinished feature, it was a picture of one. Making it real
+ * is a modelling decision for the PO in remy-sport-biz, and when those tables
+ * exist the tab comes back reading from them.
+ */
+type EventTab = "overview" | "schedule" | "standings" | "teams" | "venues" | "rules";
 
 interface EventProps {
   id: string | undefined;
@@ -125,7 +137,6 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
             translated. */}
         {([
           ["overview", m.tab_overview()],
-          ["bracket", m.tab_bracket()],
           ["schedule", m.schedule()],
           ["standings", m.nav_standings()],
           ["teams", m.tab_teams()],
@@ -137,7 +148,6 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
       </div>
 
       {tab === "overview" && <EventOverview e={e} goto={goto}/>}
-      {tab === "bracket" && <BracketView goto={goto}/>}
       {tab === "schedule" && (
         <div className="page-inner">
           <Schedule eventId={e.id} spoiler={spoiler} goto={goto}/>
@@ -146,7 +156,7 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
       )}
       {tab === "standings" && <StandingsTable eventId={e.id}/>}
       {tab === "teams" && <div className="page-inner"><Entries eventId={e.id}/></div>}
-      {!["overview", "bracket", "schedule", "standings", "teams"].includes(tab) && (
+      {!["overview", "schedule", "standings", "teams"].includes(tab) && (
         <div className="page-inner"><div className="empty">{m.tab_not_built()}</div></div>
       )}
     </>
@@ -155,85 +165,99 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
 
 interface OverviewProps { e: Event; goto: (r: Route) => void }
 
+/**
+ * The event at a glance, from the event's own games.
+ *
+ * Three of the four sections here were invented. A live game with a quarter, a
+ * clock and a court. A next game with a countdown. And "Top performers today" —
+ * four players with names, schools and stat lines (`24 PTS · 8 AST · 3 STL`)
+ * that were typed into this file, on a platform with no player statistics of
+ * any kind. Only the standings were real.
+ *
+ * The performers section is gone rather than labelled: there is no `points`,
+ * `assists` or `steals` anywhere in the Product Owner's model, so nothing could
+ * have filled it. A section that cannot be made real is not an unfinished
+ * feature, it is a picture of one, and it made the whole page untrustworthy —
+ * a reader with no way to tell which numbers were real has to assume none are.
+ *
+ * The rest reads `games.list` for this event, which is the same source the
+ * Schedule tab uses. Live, next and recent are three questions about one list.
+ */
 function EventOverview({ e, goto }: OverviewProps) {
-  const G = useLiveGame();
-  const N = useNextGame();
   const { data: standings } = useStandings(e.id);
-  const performers = [
-    { name: "Phongphan S.", team: "Saint Gabriel's", line: "24 PTS · 8 AST · 3 STL" },
-    { name: "Krit T.", team: "Assumption", line: "21 PTS · 6 REB · 4 3PM" },
-    { name: "Boonyarit T.", team: "Saint Gabriel's", line: "18 PTS · 11 REB · 2 BLK" },
-    { name: "Tanawat W.", team: "Bangkok Christian", line: "16 PTS · 9 AST · 2 STL" },
-  ];
-  const recents: [string, string, string, string][] = [
-    ["BKC", "SJS", "68", "51"],
-    ["SGS", "SKL", "71", "54"],
-    ["ASC", "RIS", "65", "58"],
-    ["TUS", "WCR", "67", "50"],
-  ];
+  const { data: gameData, isPending } = useGames(e.id);
+  const games = gameData?.games ?? [];
+
+  // In play now. `HALF_TIME` counts: the game has not finished and somebody
+  // watching wants to see it resume.
+  const live = games.filter((g) => g.statusCode === "LIVE" || g.statusCode === "HALF_TIME");
+  // The soonest game that has not started. `games.list` returns them in
+  // chronological order, so the first match is the next one.
+  const next = games.find((g) => g.statusCode === "SCHEDULED");
+  // Finished, most recently first — the reverse of the schedule's order,
+  // because a result list is read backwards from now.
+  const finished = games.filter((g) => g.statusCode === "FINISHED").reverse().slice(0, 6);
+
   return (
     <div className="page-inner">
       <div className="dash-grid">
         <div>
-          <div className="section-h"><h2>{m.live_and_next()}</h2><a className="more">{m.view_schedule()}</a></div>
-          <div className="dash-card" style={{ borderColor: "var(--live)", borderWidth: 1.5 }}>
-            <div className="head" style={{ color: "var(--live)" }}>
-              <span><span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--live)", marginRight: 6, animation: "pulse 1.4s infinite" }}/>{m.live_now_at({ quarter: G.quarter, clock: G.clock, court: G.court, event: G.round })}</span>
-              <a className="more" onClick={() => goto({ page: "live" })} style={{ cursor: "pointer", color: "var(--ink)" }}>{m.open_link()}</a>
-            </div>
-            <div className="next-game">
-              <div className="team">
-                <div className="name">{G.teamA.name}</div>
-                <div className="meta">{m.seed_n({ n: G.teamA.seed })} · {G.teamA.record}</div>
-              </div>
-              <div className="when">
-                <div className="countdown" style={{ color: "var(--live)", fontVariantNumeric: "tabular-nums" }}>
-                  {G.quarters.a.reduce<number>((acc, b) => acc + (b ?? 0), 0)}–{G.quarters.b.reduce<number>((acc, b) => acc + (b ?? 0), 0)}
-                </div>
-                <div className="label">{G.round}</div>
-              </div>
-              <div className="team r">
-                <div className="name">{G.teamB.name}</div>
-                <div className="meta">{m.seed_n({ n: G.teamB.seed })} · {G.teamB.record}</div>
-              </div>
-            </div>
+          <div className="section-h">
+            <h2>{m.live_and_next()}</h2>
+            <a className="more" onClick={() => goto({ page: "live" })} style={{ cursor: "pointer" }}>
+              {m.view_schedule()}
+            </a>
           </div>
 
-          <div className="dash-card" style={{ marginTop: 12 }}>
-            <div className="head"><span>{m.next_at({ time: N.time, court: N.court })}</span></div>
-            <div className="next-game">
-              <div className="team">
-                <div className="name">{N.teamA.name}</div>
-                <div className="meta">{m.seed_n({ n: N.teamA.seed })} · {N.teamA.record}</div>
-              </div>
-              <div className="when">
-                <div className="countdown">{N.countdown}</div>
-                <div className="label">{m.until_tipoff()}</div>
-              </div>
-              <div className="team r">
-                <div className="name">{N.teamB.name}</div>
-                <div className="meta">{m.seed_n({ n: N.teamB.seed })} · {N.teamB.record}</div>
-              </div>
-            </div>
-          </div>
+          <div className="dash-card" data-testid="event-live">
+            {isPending && <div className="empty">{m.loading()}</div>}
+            {!isPending && live.length === 0 && !next && (
+              <div className="empty" data-testid="event-no-games">{m.event_no_games()}</div>
+            )}
 
-          <div className="section-h"><h2>{m.top_performers_today()}</h2><a className="more">{m.all_stats()}</a></div>
-          <div className="dash-card">
-            {performers.map((p, i) => (
-              <div key={i} style={{ display: "grid", gridTemplateColumns: "32px 1fr auto", gap: 12, padding: "12px 18px", borderBottom: "1px solid var(--rule)", alignItems: "center" }}>
-                <div className="avatar" style={{ width: 32, height: 32, fontSize: 11 }}>{p.name.split(" ").map(x => x[0]).join("")}</div>
-                <div>
-                  <div style={{ fontWeight: 500, fontSize: 14 }}>{p.name}</div>
-                  <div style={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 11, color: "var(--ink-3)", letterSpacing: "0.06em", textTransform: "uppercase" }}>{p.team}</div>
+            {live.map((g) => (
+              <button
+                key={g.id}
+                className="row-button"
+                data-testid={`event-live-${g.id}`}
+                onClick={() => goto(g.isBroadcasting ? { page: "watch", id: g.id } : { page: "live" })}
+              >
+                <div className="row-title">
+                  {g.homeTeam} {m.versus()} {g.awayTeam}
+                  {g.homeScore !== null && g.awayScore !== null
+                    ? `  ${g.homeScore}–${g.awayScore}`
+                    : ""}
                 </div>
-                <div style={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 12, color: "var(--ink-2)", letterSpacing: "0.04em" }}>{p.line}</div>
-              </div>
+                <div className="row-meta" style={{ color: "var(--live)" }}>
+                  {g.statusLabel}
+                  {g.venue ? ` · ${g.venue}` : ""}
+                  {/* Only where a camera is actually pointed at it. */}
+                  {g.isBroadcasting ? ` · ${m.video_watch()}` : ""}
+                </div>
+              </button>
             ))}
+
+            {next && (
+              <button
+                key={next.id}
+                className="row-button"
+                data-testid={`event-next-${next.id}`}
+                onClick={() => goto({ page: "live" })}
+              >
+                <div className="row-title">
+                  {next.homeTeam} {m.versus()} {next.awayTeam}
+                </div>
+                <div className="row-meta">
+                  {m.event_next_up()}
+                  {next.venue ? ` · ${next.venue}` : ""}
+                </div>
+              </button>
+            )}
           </div>
         </div>
 
         <div>
-          <div className="section-h"><h2>{m.standings()}</h2><a className="more">{m.full_table()}</a></div>
+          <div className="section-h"><h2>{m.standings()}</h2></div>
           <div className="dash-card">
             <div className="standing-row head">
               <span></span><span>{m.team()}</span><span>{m.col_won()}</span><span>{m.col_lost()}</span><span></span><span>{m.col_points()}</span>
@@ -251,15 +275,20 @@ function EventOverview({ e, goto }: OverviewProps) {
           </div>
 
           <div className="section-h"><h2>{m.recent_results()}</h2></div>
-          <div className="dash-card">
-            {recents.map((r, i) => (
-              <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 50px 50px", padding: "12px 18px", borderBottom: "1px solid var(--rule)", alignItems: "center" }}>
-                <div style={{ fontSize: 13 }}>
-                  <div style={{ fontWeight: 600 }}>{r[0]}</div>
-                  <div style={{ color: "var(--ink-3)", marginTop: 2 }}>{r[1]}</div>
+          <div className="dash-card" data-testid="event-results">
+            {!isPending && finished.length === 0 && (
+              <div className="empty" data-testid="event-no-results">{m.event_no_results()}</div>
+            )}
+            {finished.map((g) => (
+              <div key={g.id} className="result-row" data-testid={`event-result-${g.id}`}>
+                <div>
+                  <div className="row-title">{g.homeTeam}</div>
+                  <div className="row-title" style={{ color: "var(--ink-3)" }}>{g.awayTeam}</div>
                 </div>
-                <div style={{ fontFamily: "Space Grotesk, sans-serif", fontWeight: 600, fontSize: 18, textAlign: "right", color: "var(--accent)" }}>{r[2]}</div>
-                <div style={{ fontFamily: "Space Grotesk, sans-serif", fontWeight: 500, fontSize: 18, textAlign: "right", color: "var(--ink-3)" }}>{r[3]}</div>
+                <div className="result-score">
+                  <div className={(g.homeScore ?? 0) >= (g.awayScore ?? 0) ? "won" : ""}>{g.homeScore ?? "—"}</div>
+                  <div className={(g.awayScore ?? 0) > (g.homeScore ?? 0) ? "won" : ""}>{g.awayScore ?? "—"}</div>
+                </div>
               </div>
             ))}
           </div>

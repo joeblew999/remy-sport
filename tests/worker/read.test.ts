@@ -545,3 +545,46 @@ describe("An event's entries — who is in, and what you could enter", () => {
     expect(registrable).toEqual([])
   })
 })
+
+describe("An event says whether you may edit it", () => {
+  /**
+   * `canEdit` is EDIT_EVENT, resolved per event and per viewer — the same shape
+   * games use for `canEnterScore`. It exists because the profile page listed
+   * *every* event on the platform under "Your events": there was no way for a
+   * client to ask whose an event was, so it did not.
+   *
+   * Derived from the fixtures rather than named here, so a re-seed cannot make
+   * this pass by coincidence.
+   */
+  const owned = SEED_ENTITIES.events[0]!
+  const organiser = SEED_ENTITIES.users.find((u) => u.id === owned.organizerUserId)!
+
+  it("says no to a reader who is not signed in", async () => {
+    // The whole list, not one event: a single false could be an accident.
+    const { events } = (await (await api("/api/events")).json()) as {
+      events: { id: string; canEdit: boolean }[]
+    }
+    expect(events.length, "the fixtures seed events").toBeGreaterThan(0)
+    expect(events.filter((e) => e.canEdit)).toHaveLength(0)
+  })
+
+  it("says yes to the organiser, and only for their own event", async () => {
+    const cookie = await signIn(organiser.email)
+    const { events } = (await (await api("/api/events", { cookie })).json()) as {
+      events: { id: string; canEdit: boolean }[]
+    }
+    const editable = events.filter((e) => e.canEdit).map((e) => e.id)
+    expect(editable, `${organiser.email} organises ${owned.id}`).toContain(owned.id)
+
+    // And not somebody else's. This is the assertion that would catch a
+    // `canEdit: true` hardcoded for any signed-in user, which is exactly the
+    // shortcut a per-viewer flag invites.
+    const someoneElses = SEED_ENTITIES.events.filter(
+      (e) => e.organizerUserId !== organiser.id,
+    )
+    expect(someoneElses.length, "the fixtures seed more than one organiser").toBeGreaterThan(0)
+    for (const e of someoneElses) {
+      expect(editable, `${e.id} belongs to ${e.organizerUserId}`).not.toContain(e.id)
+    }
+  })
+})

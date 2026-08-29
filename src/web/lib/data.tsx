@@ -19,10 +19,7 @@ import { useQuery } from "@tanstack/react-query";
 import { orpc } from "./orpc";
 import { toEvent, toTeam } from "./api";
 import { useLocalizer } from "./locale";
-import {
-  BRACKET, LIVE_GAME, NEXT_GAME, FEED,
-  type EventStatus, type EventType,
-} from "../data";
+import { type EventStatus, type EventType } from "../data";
 
 export interface EventFilters {
   status?: EventStatus;
@@ -151,7 +148,7 @@ export function useLiveGames() {
  * sidebar cannot name a game: a menu entry is a page, and `#/broadcast` has to
  * mean something on its own for a visitor trying the thing out.
  *
- * Not `useLiveGame()`, which returns a hardcoded constant from the sample data
+ * The real thing, from the database
  * and always has.
  */
 export function useDefaultGame() {
@@ -374,22 +371,3 @@ export function useTeam(id: string | undefined) {
     }),
   );
 }
-
-
-
-// ── Not yet real ───────────────────────────────────────────────────────────
-//
-// Brackets, live games and the feed have no tables and no endpoints
-// (roadmap phases 3, 4 and 6). Standings left this list on 2026-08-27: they are
-// derived from the games, so nothing had to be stored for them to become real. These return the fixtures directly and
-// are deliberately NOT dressed up as queries: a `useQuery` here would imply a
-// network call that does not exist and a loading state that never happens.
-//
-// Each one leaves this file the way events and teams did — an endpoint lands, a
-// procedure appears in src/api/, and the fixture is deleted. Anything rendered
-// from them must be labelled SAMPLE DATA (AGENTS.md).
-
-export const useBracket = (_eventId?: string) => BRACKET;
-export const useLiveGame = (_gameId?: string) => LIVE_GAME;
-export const useNextGame = () => NEXT_GAME;
-export const useFeed = () => FEED;

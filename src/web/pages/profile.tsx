@@ -1,36 +1,50 @@
-import { useEvents, useFeed, useLiveGame } from "../lib/data";
+import { useEvents, useLiveGames } from "../lib/data";
 import { useSession } from "../lib/session";
-import { SampleData } from "../components/sample";
 import { NotificationSettings } from "../components/notification-settings";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
 
+/**
+ * You, and the things that are actually yours.
+ *
+ * Most of this page used to be invented. A live game that did not exist, with a
+ * quarter, a clock and a scoreline. An activity feed of fixture strings. Four
+ * "quick actions" — Create event, Add to roster · 12 players · 3 spots open,
+ * Ask AI assistant, Export season report · PDF · spring 2026 — hardcoded in
+ * English in a three-language app, for features that do not exist and buttons
+ * that did nothing when pressed. And "Your events", which listed every event on
+ * the platform under a possessive heading.
+ *
+ * All of it is gone rather than relabelled. A SAMPLE DATA banner is the right
+ * answer for a fixture sitting beside real data; it is the wrong answer for a
+ * dashboard made mostly of fixtures, where it reads as an apology for the page
+ * rather than a warning about one section.
+ *
+ * What is left is true. Your events are the ones the model says you may edit —
+ * `canEdit`, resolved per event and per viewer, so a co-organiser sees theirs
+ * and a spectator sees none. The live section is the real broadcast list, the
+ * same source the Live page reads.
+ */
 export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
   const { user } = useSession();
-  const { data: events = [], isPending: eventsLoading } = useEvents({ limit: 4 });
-  const feed = useFeed();
-  // The same fixture the live page renders, not a second hand-typed copy of it.
-  // This block had "Saint Gabriel's", "54–49" and "SEED 4" written inline, so
-  // the two screens could disagree about the same imaginary game — and the
-  // scores had to be edited in two places to stay consistent.
-  const G = useLiveGame();
-  const [sa, sb] = [G.quarters.a, G.quarters.b].map((q) =>
-    q.reduce<number>((acc, n) => acc + (n ?? 0), 0),
-  ) as [number, number];
-  const quickActions: [string, string, string][] = [
-    ["+", "Create event", "Tournament, league, camp or showcase"],
-    ["↗", "Add to roster", "12 players · 3 spots open"],
-    ["⌘", "Ask AI assistant", "\"How are we doing this season?\""],
-    ["↓", "Export season report", "PDF · spring 2026"],
-  ];
+  const { data: events = [], isPending: eventsLoading } = useEvents();
+  const { data: live, isPending: liveLoading } = useLiveGames();
+
+  // Yours, by the model's answer rather than by a heading. `canEdit` is
+  // EDIT_EVENT resolved for this reader, so this is empty for a spectator —
+  // which is correct, and is what the old version hid by showing everybody's.
+  const mine = events.filter((e) => e.canEdit);
+  // Only what can actually be watched. A "watch" link on a game nobody is
+  // filming is a link to a black rectangle.
+  const watchable = (live?.games ?? []).filter((g) => g.isBroadcasting);
+
   return (
     <>
       <div className="page-header">
         {/* The signed-in person, not a fixture. This greeted everybody as
-            "Welcome back, Sukasem." — hardcoded fake identity on the page whose
+            "Welcome back, Sukasem." — a hardcoded identity on the page whose
             entire job is to show you yourself, with no SAMPLE DATA label
-            because it did not look like sample data. The same bug the live
-            page had. */}
+            because it did not look like sample data. */}
         <div className="crumbs">{m.profile_crumb()}</div>
         <h1>{m.welcome_back({ name: user?.name || user?.email || "" })}</h1>
         <div className="sub">{user?.email ?? ""}</div>
@@ -39,83 +53,59 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
       <div className="page-inner">
         <div className="dash-grid">
           <div>
-            <div className="section-h"><h2>{m.your_live_game()}</h2><a className="more" onClick={() => goto({ page: "live" })} style={{ cursor: "pointer" }}>{m.open_court_view()}</a></div>
-            <div className="dash-card" style={{ borderColor: "var(--live)", borderWidth: 1.5 }}>
-              <div className="head" style={{ color: "var(--live)" }}>
-                <span><span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--live)", marginRight: 6, animation: "pulse 1.4s infinite" }}/>{m.live_now_at({ quarter: G.quarter, clock: G.clock, court: G.court, event: G.eventShort })}</span>
-              </div>
-              <div className="next-game">
-                <div className="team">
-                  <div className="name">{G.teamA.name}</div>
-                  <div className="meta">{m.your_team()}</div>
-                </div>
-                <div className="when">
-                  <div className="countdown" style={{ color: "var(--live)" }}>{sa}–{sb}</div>
-                  <div className="label">{m.leading_by({ points: Math.abs(sa - sb) })}</div>
-                </div>
-                <div className="team r">
-                  <div className="name">{G.teamB.name}</div>
-                  <div className="meta">{m.seed_n({ n: G.teamB.seed })}</div>
-                </div>
-              </div>
+            <div className="section-h">
+              <h2>{m.profile_watch_now()}</h2>
+              <a className="more" onClick={() => goto({ page: "live" })} style={{ cursor: "pointer" }}>
+                {m.open_court_view()}
+              </a>
             </div>
-
-            <div className="section-h"><h2>{m.activity()}</h2><a className="more">{m.see_all()}</a></div>
-            {/* Inline, not a page banner: the events above this ARE real, so the
-                job here is to say which half is which. */}
-            <SampleData inline />
-            <div className="dash-card feed-list">
-              {feed.map((f, i) => (
-                <div key={i} className="feed-item">
-                  <div className={`dot ${f.dot === "live" ? "" : (f.dot === "on" ? "" : "muted")}`} style={f.dot === "live" ? { background: "var(--live)", animation: "pulse 1.4s infinite" } : {}}></div>
-                  <div>
-                    <div className="desc" dangerouslySetInnerHTML={{ __html: f.desc }}></div>
-                    <span className="ts">{f.ts}</span>
-                  </div>
+            <div className="dash-card" data-testid="profile-live">
+              {liveLoading && <div className="empty">{m.loading()}</div>}
+              {!liveLoading && watchable.length === 0 && (
+                <div className="empty" data-testid="profile-nothing-live">
+                  {m.profile_nothing_live()}
                 </div>
+              )}
+              {watchable.map((g) => (
+                <button
+                  key={g.id}
+                  className="row-button"
+                  data-testid={`profile-watch-${g.id}`}
+                  onClick={() => goto({ page: "watch", id: g.id })}
+                >
+                  <div className="row-title">
+                    {g.homeTeam} {m.versus()} {g.awayTeam}
+                  </div>
+                  <div className="row-meta">
+                    {g.statusLabel}
+                    {g.venue ? ` · ${g.venue}` : ""}
+                  </div>
+                </button>
               ))}
             </div>
           </div>
 
           <div>
-            <div className="section-h"><h2>{m.your_events()}</h2><a className="more">{m.new_item()}</a></div>
-            <div className="dash-card">
-              {events.map(e => (
-                <button key={e.id} onClick={() => goto({ page: "event", id: e.id })} style={{
-                  display: "block", width: "100%", textAlign: "left",
-                  padding: "14px 18px", borderBottom: "1px solid var(--rule)",
-                  background: "transparent", border: "none", cursor: "pointer",
-                  borderLeft: "none", borderRight: "none", borderTop: "none",
-                }}>
-                  <div style={{ fontFamily: "Space Grotesk, sans-serif", fontWeight: 600, fontSize: 14, letterSpacing: "-0.01em" }}>{e.title}</div>
-                  <div style={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.06em", marginTop: 4, textTransform: "uppercase" }}>
-                    {e.statusLabel} · {e.div}
-                  </div>
-                </button>
-              ))}
-              {eventsLoading && <div className="empty">{m.loading()}</div>}
-              {!eventsLoading && events.length === 0 && <div className="empty">{m.no_events_yet()}</div>}
+            <div className="section-h">
+              <h2>{m.your_events()}</h2>
             </div>
-
-            <div className="section-h"><h2>{m.quick_actions()}</h2></div>
-            <div className="dash-card">
-              {quickActions.map((a, i) => (
-                <button key={i} style={{
-                  display: "grid", gridTemplateColumns: "32px 1fr", gap: 12,
-                  width: "100%", textAlign: "left",
-                  padding: "14px 18px", borderBottom: i < 3 ? "1px solid var(--rule)" : "none",
-                  background: "transparent", border: "none", cursor: "pointer",
-                  alignItems: "center",
-                }}>
-                  <span style={{
-                    width: 32, height: 32, borderRadius: "50%",
-                    background: "var(--paper-2)",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontFamily: "Space Grotesk, sans-serif", fontWeight: 500,
-                  }}>{a[0]}</span>
-                  <div>
-                    <div style={{ fontWeight: 500, fontSize: 14 }}>{a[1]}</div>
-                    <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>{a[2]}</div>
+            <div className="dash-card" data-testid="profile-events">
+              {eventsLoading && <div className="empty">{m.loading()}</div>}
+              {!eventsLoading && mine.length === 0 && (
+                <div className="empty" data-testid="profile-no-events">
+                  {m.profile_no_events()}
+                </div>
+              )}
+              {mine.map((e) => (
+                <button
+                  key={e.id}
+                  className="row-button"
+                  data-testid={`profile-event-${e.id}`}
+                  onClick={() => goto({ page: "event", id: e.id })}
+                >
+                  <div className="row-title">{e.title}</div>
+                  <div className="row-meta">
+                    {e.statusLabel} · {e.div}
                   </div>
                 </button>
               ))}
