@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Icon } from "../components/icon";
+import { EventSettings } from "../components/event-settings";
 import { FollowButton } from "../components/follow";
 import { Schedule, AddFixture } from "../components/schedule";
 import { Entries } from "../components/entries";
@@ -22,7 +23,7 @@ import { m } from "../lib/i18n";
  * is a modelling decision for the PO in remy-sport-biz, and when those tables
  * exist the tab comes back reading from them.
  */
-type EventTab = "overview" | "schedule" | "standings" | "teams" | "venues" | "rules";
+type EventTab = "overview" | "schedule" | "standings" | "teams" | "venues" | "rules" | "settings";
 
 interface EventProps {
   id: string | undefined;
@@ -142,12 +143,17 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
           ["teams", m.tab_teams()],
           ["venues", m.tab_venues()],
           ["rules", m.tab_rules()],
+          // Only for someone the model says may edit this event. A tab everyone
+          // can see and only some can use is a 403 with extra steps, and it
+          // teaches the other readers that the app is broken.
+          ...(e.canEdit ? ([["settings", m.tab_settings()]] as [EventTab, string][]) : []),
         ] as [EventTab, string][]).map(([tabId, label]) => (
           <button key={tabId} data-testid={`tab-${tabId}`} className={`tab ${tab === tabId ? "active" : ""}`} onClick={() => setTab(tabId)}>{label}</button>
         ))}
       </div>
 
       {tab === "overview" && <EventOverview e={e} goto={goto}/>}
+      {tab === "settings" && e.canEdit && <EventSettings event={e}/>}
       {tab === "schedule" && (
         <div className="page-inner">
           <Schedule eventId={e.id} spoiler={spoiler} goto={goto}/>
@@ -156,7 +162,7 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
       )}
       {tab === "standings" && <StandingsTable eventId={e.id}/>}
       {tab === "teams" && <div className="page-inner"><Entries eventId={e.id}/></div>}
-      {!["overview", "schedule", "standings", "teams"].includes(tab) && (
+      {!["overview", "schedule", "standings", "teams", "settings"].includes(tab) && (
         <div className="page-inner"><div className="empty">{m.tab_not_built()}</div></div>
       )}
     </>

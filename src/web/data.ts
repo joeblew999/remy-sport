@@ -68,6 +68,19 @@ export interface Event {
    * platform under that heading until this existed.
    */
   canEdit: boolean;
+  /**
+   * The dates as stored, alongside `date` which is the formatted range.
+   *
+   * Both, because they answer different questions. `date` is for reading —
+   * localised, abbreviated, "10–15 Jun". These are for editing, and a form
+   * cannot round-trip a display string back into a day. Null where the
+   * organiser has not said yet, which is a real state: an event can exist
+   * before its dates are fixed.
+   */
+  startDate: string | null;
+  endDate: string | null;
+  /** The full locale map, for a form that edits one language of it. */
+  names: Record<string, string>;
 }
 
 export interface BracketTeamRef {

@@ -132,6 +132,9 @@ export function toEvent(e: ApiEvent, loc: Localizer, today: Date = new Date()): 
     // The model's answer, not the client's guess. False for a signed-out
     // reader, which is what makes a "yours" list empty rather than wrong.
     canEdit: e.canEdit,
+    startDate: e.startDate,
+    endDate: e.endDate,
+    names: e.names as Record<string, string>,
   };
 }
 
