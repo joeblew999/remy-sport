@@ -1,5 +1,6 @@
 import { test, expect } from "./fixture"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
+import { sessionKey } from "../../src/web/lib/session"
 
 /**
  * Rendering, with the cache handed its data instead of the network.
@@ -327,5 +328,68 @@ test.describe("The team hero's buttons", () => {
       "#team-schedule",
     )
     await expect(page.getByRole("button", { name: "Stats" })).toHaveCount(0)
+  })
+})
+
+test.describe("Coaching staff", () => {
+  /**
+   * `team_coaches` had this from the start and the page never showed it. The
+   * server withholds it from a signed-out reader — a roster of children is what
+   * a gym wall shows, the adults responsible for them are not — so the page has
+   * two empty states that mean different things and must not be confused.
+   */
+  const withCoaches = {
+    players: [],
+    available: [],
+    canManage: false,
+    coaches: [
+      { userId: "u1", name: "Somchai Prasert", coachRoleCode: "HEAD" },
+      { userId: "u2", name: "Nid Chaiyaporn", coachRoleCode: "ASSISTANT" },
+    ],
+  }
+
+  test("names them, with the role in the reader's language", async ({ page }) => {
+    await seedCache(page, [
+      entry(orpc.teams.get, { id: "team_002" }, team()),
+      entry(orpc.teams.roster, { teamId: "team_002" }, withCoaches as never),
+      {
+        queryKey: sessionKey as unknown as readonly unknown[],
+        data: { user: { id: "u9", email: "a@b.test", name: "A", role: "user" }, session: {} },
+      },
+    ])
+    await page.goto("/#/team/team_002")
+
+    await expect(page.getByTestId("coach-u1")).toContainText("Somchai Prasert")
+    // From the reference vocabulary, not a map of role codes in the page.
+    await expect(page.getByTestId("coach-u1")).toContainText("Head Coach")
+    await expect(page.getByTestId("coach-u2")).toContainText("Assistant Coach")
+  })
+
+  test("tells a signed-out reader why the list is empty", async ({ page }) => {
+    // Not the same as "this team has no coaches", and the page must not say
+    // that — it would be stating as fact something it was refused.
+    await seedCache(page, [
+      entry(orpc.teams.get, { id: "team_002" }, team()),
+      entry(orpc.teams.roster, { teamId: "team_002" }, { ...withCoaches, coaches: [] } as never),
+    ])
+    await page.goto("/#/team/team_002")
+
+    await expect(page.getByTestId("coaches-signin")).toBeVisible()
+    await expect(page.getByTestId("coaches-empty")).toHaveCount(0)
+  })
+
+  test("says so when a signed-in reader genuinely sees none", async ({ page }) => {
+    await seedCache(page, [
+      entry(orpc.teams.get, { id: "team_002" }, team()),
+      entry(orpc.teams.roster, { teamId: "team_002" }, { ...withCoaches, coaches: [] } as never),
+      {
+        queryKey: sessionKey as unknown as readonly unknown[],
+        data: { user: { id: "u9", email: "a@b.test", name: "A", role: "user" }, session: {} },
+      },
+    ])
+    await page.goto("/#/team/team_002")
+
+    await expect(page.getByTestId("coaches-empty")).toBeVisible()
+    await expect(page.getByTestId("coaches-signin")).toHaveCount(0)
   })
 })

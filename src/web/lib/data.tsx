@@ -256,6 +256,10 @@ export function useRoster(teamId: string | undefined) {
           position: loc.label("positions", p.positionCode),
         })),
         available: r.available.map((p) => ({ ...p, name: loc.name(p.names) })),
+        // Already named by the server — a coach is a user, not a fixture with a
+        // locale map. The role code is resolved in the page, where the label
+        // helper lives.
+        coaches: r.coaches,
       }),
     }),
   );

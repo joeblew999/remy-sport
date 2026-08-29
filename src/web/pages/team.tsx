@@ -6,6 +6,7 @@ import { useRoster, useTeam, useTeamGames, useTeams } from "../lib/data";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
 import { useLocale } from "../lib/locale";
+import { useSession } from "../lib/session";
 import { formatDayShort } from "../lib/dates";
 import { formErrors } from "../lib/form-errors";
 import type { Team } from "../data";
@@ -17,7 +18,8 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
   const { data: team, isPending: teamLoading } = useTeam(id);
   const { data: allTeams, isPending: listLoading } = useTeams();
   const { data: roster } = useRoster(id);
-  const { locale } = useLocale();
+  const { locale, label } = useLocale();
+  const { user } = useSession();
 
   const t = id ? team : allTeams?.[0];
   // Keyed off the *resolved* team, not the route param: #/team with no id falls
@@ -94,6 +96,28 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
         ) : (
           <div className="empty" data-testid="roster-empty">{m.roster_empty()}</div>
         )}
+
+        {/* Who runs the team. `team_coaches` carried this from the day the
+            fixtures were written and the page never said — a squad with no
+            staff reads as a team nobody coaches. */}
+        <div className="section-h" style={{ marginTop: 32 }}><h2>{m.coaching_staff()}</h2></div>
+        <div className="dash-card" data-testid="coaching-staff">
+          {!user && (
+            <div className="empty" data-testid="coaches-signin">{m.coaching_staff_signin()}</div>
+          )}
+          {user && (roster?.coaches.length ?? 0) === 0 && (
+            <div className="empty" data-testid="coaches-empty">{m.coaching_staff_none()}</div>
+          )}
+          {(roster?.coaches ?? []).map((c) => (
+            <div key={c.userId} className="coach-row" data-testid={`coach-${c.userId}`}>
+              <div className="ava">{c.name.split(" ").map((x) => x[0]).join("")}</div>
+              <div className="row-title">{c.name}</div>
+              {/* From the reference vocabulary, in the reader's language — not
+                  a map of role codes written out here. */}
+              <div className="row-meta">{label("coachRoles", c.coachRoleCode)}</div>
+            </div>
+          ))}
+        </div>
 
         {/* `teams.update` was enforced by EDIT_TEAM_PROFILE and unreachable, so
             a team named wrong when it was created stayed named wrong. */}

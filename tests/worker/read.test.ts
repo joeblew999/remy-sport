@@ -9,7 +9,7 @@ import {
   ORG_TYPE_CODES,
 } from "../../src/domain/vocabularies"
 import { actorFor, api, post, signIn } from "./helpers"
-import { SEED_ENTITIES } from "../../src/domain/model/entities"
+import { SEED_ENTITIES, SEED_RELATIONSHIPS } from "../../src/domain/model/entities"
 import {
   aTeamWithNoGamesIn,
   teamById,
@@ -586,5 +586,42 @@ describe("An event says whether you may edit it", () => {
     for (const e of someoneElses) {
       expect(editable, `${e.id} belongs to ${e.organizerUserId}`).not.toContain(e.id)
     }
+  })
+})
+
+describe("A team's coaching staff", () => {
+  /**
+   * `team_coaches` had carried this since the fixtures were written and the
+   * team page never showed it — a squad with no staff reads as a team nobody
+   * coaches.
+   *
+   * The interesting half is who may see it. `VIEW_TEAM` is public and a roster
+   * of children is what a gym wall shows, but a coaching list names the adults
+   * responsible for them — which is why `teamCoaches.list` was already declared
+   * stricter than the model. Same rule, enforced in the query rather than in
+   * the page.
+   */
+  const coached = SEED_RELATIONSHIPS.teamCoaches[0]!
+
+  it("is empty for a signed-out reader, who still sees the squad", async () => {
+    const res = await api(`/api/teams/${coached.teamId}/players`)
+    expect(res.status, "a team sheet is public").toBe(200)
+    const body = (await res.json()) as { players: unknown[]; coaches: unknown[] }
+    expect(body.players.length, "the squad is still there").toBeGreaterThan(0)
+    expect(body.coaches, "the adults are not").toHaveLength(0)
+  })
+
+  it("names them for anybody signed in, with the role the fixtures give", async () => {
+    const cookie = await signIn(actorFor("SPECTATOR"))
+    const { coaches } = (await (
+      await api(`/api/teams/${coached.teamId}/players`, { cookie })
+    ).json()) as { coaches: { userId: string; name: string; coachRoleCode: string }[] }
+
+    expect(coaches.map((c) => c.userId)).toContain(coached.userId)
+    const found = coaches.find((c) => c.userId === coached.userId)!
+    expect(found.coachRoleCode).toBe(coached.coachRoleCode)
+    // A name, not an id. An id in a staff list is not an answer to "who
+    // coaches this team".
+    expect(found.name.length).toBeGreaterThan(0)
   })
 })

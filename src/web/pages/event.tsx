@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Icon } from "../components/icon";
 import { EventSettings } from "../components/event-settings";
+import { EventVenues } from "../components/event-venues";
 import { downloadICS } from "../lib/calendar";
 import { FollowButton } from "../components/follow";
 import { Schedule, AddFixture } from "../components/schedule";
@@ -197,6 +198,7 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
 
       {tab === "overview" && <EventOverview e={e} goto={goto}/>}
       {tab === "settings" && e.canEdit && <EventSettings event={e}/>}
+      {tab === "venues" && <EventVenues eventId={e.id}/>}
       {tab === "schedule" && (
         <div className="page-inner">
           <Schedule eventId={e.id} spoiler={spoiler} goto={goto}/>
@@ -205,7 +207,7 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
       )}
       {tab === "standings" && <StandingsTable eventId={e.id}/>}
       {tab === "teams" && <div className="page-inner"><Entries eventId={e.id}/></div>}
-      {!["overview", "schedule", "standings", "teams", "settings"].includes(tab) && (
+      {!["overview", "schedule", "standings", "teams", "settings", "venues"].includes(tab) && (
         <div className="page-inner"><div className="empty">{m.tab_not_built()}</div></div>
       )}
     </>

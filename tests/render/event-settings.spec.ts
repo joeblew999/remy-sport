@@ -225,3 +225,69 @@ test.describe("The event hero's actions", () => {
     )
   })
 })
+
+test.describe("The Venues tab", () => {
+  /**
+   * It rendered "not built yet" while `event_venues` and `venues` had both been
+   * seeded since the fixtures were written — the address, the city, and which
+   * court is the main one. Nothing needed building; the page never asked.
+   */
+  const venues = {
+    items: [
+      { id: "ven_001", names: { en: "Nimibutr Stadium" }, address: "154 Rama I Rd", cityCode: "BANGKOK", provinceCode: "BKK" },
+      { id: "ven_002", names: { en: "Assumption Indoor Court" }, address: "23 Charoen Krung", cityCode: "BANGKOK", provinceCode: "BKK" },
+      { id: "ven_009", names: { en: "Somewhere Else" }, address: "1 Elsewhere", cityCode: "CHIANG_MAI", provinceCode: "CMI" },
+    ],
+  }
+  const links = {
+    items: [
+      { eventId: EVENT_ID, venueId: "ven_002", isPrimary: false },
+      { eventId: EVENT_ID, venueId: "ven_001", isPrimary: true },
+      { eventId: "evt_999", venueId: "ven_009", isPrimary: true },
+    ],
+  }
+
+  const seedVenues = (page: Parameters<typeof seedCache>[0]) =>
+    seedCache(page, [
+      ...seed(false),
+      entry(orpc.venues.list, undefined as never, venues as never),
+      entry(orpc.eventVenues.list, undefined as never, links as never),
+    ])
+
+  test("lists this event's venues with their address, and nobody else's", async ({ page }) => {
+    await seedVenues(page)
+    await page.goto(`/#/event/${EVENT_ID}`)
+    await page.getByTestId("tab-venues").click()
+
+    await expect(page.getByTestId("venue-ven_001")).toContainText("Nimibutr Stadium")
+    await expect(page.getByTestId("venue-ven_001")).toContainText("154 Rama I Rd")
+    await expect(page.getByTestId("venue-ven_002")).toBeVisible()
+    // Linked to another event entirely.
+    await expect(page.getByTestId("venue-ven_009")).toHaveCount(0)
+  })
+
+  test("puts the main court first and marks it", async ({ page }) => {
+    // It is the one printed on a fixture list and the one somebody asks for
+    // directions to, so a stable order is not cosmetic.
+    await seedVenues(page)
+    await page.goto(`/#/event/${EVENT_ID}`)
+    await page.getByTestId("tab-venues").click()
+
+    await expect(page.getByTestId("venue-primary-ven_001")).toBeVisible()
+    await expect(page.getByTestId("venue-primary-ven_002")).toHaveCount(0)
+    const order = await page.getByTestId("event-venues").locator(".venue-row").allTextContents()
+    expect(order[0]).toContain("Nimibutr Stadium")
+  })
+
+  test("says so when an event has none, rather than 'not built yet'", async ({ page }) => {
+    await seedCache(page, [
+      ...seed(false),
+      entry(orpc.venues.list, undefined as never, venues as never),
+      entry(orpc.eventVenues.list, undefined as never, { items: [] } as never),
+    ])
+    await page.goto(`/#/event/${EVENT_ID}`)
+    await page.getByTestId("tab-venues").click()
+
+    await expect(page.getByTestId("event-venues-empty")).toBeVisible()
+  })
+})

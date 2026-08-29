@@ -17,6 +17,7 @@
  */
 
 import { and, eq } from "drizzle-orm"
+import { COACH_ROLE_CODES, type CoachRoleCode } from "../domain/vocabularies"
 import { z } from "zod"
 import * as schema from "../db/schema"
 import { ERRORS } from "./errors"
@@ -256,6 +257,27 @@ export const roster = viewer
           fromDate: z.string(),
         }),
       ),
+      /**
+       * Who coaches this team — head, assistant, manager.
+       *
+       * The team page showed a squad and never said who ran it, while
+       * `team_coaches` had carried exactly that since the fixtures were
+       * written. It is part of a squad in the way a roster is; splitting it
+       * into its own request would be a second round trip for the same card.
+       *
+       * **Empty for a signed-out reader.** `VIEW_TEAM` is public and a roster
+       * of children is what is printed on a gym wall, but a coaching list names
+       * the adults responsible for them — which is why `teamCoaches.list` is
+       * already declared stricter than the model for exactly this reason. Same
+       * rule, same place it is enforced: the query, not the page.
+       */
+      coaches: z.array(
+        z.object({
+          userId: z.string(),
+          name: z.string(),
+          coachRoleCode: z.enum(COACH_ROLE_CODES),
+        }),
+      ),
       canManage: z.boolean(),
       available: z.array(
         z.object({
@@ -287,6 +309,24 @@ export const roster = viewer
       players: rows
         .filter((r) => !r.toDate || r.toDate >= day)
         .map(({ toDate: _toDate, ...p }) => p),
+      // Signed in only — see the note on the field. A roster of children is
+      // what a gym wall shows; the adults responsible for them are not.
+      coaches: context.user
+        ? await context.db
+            .select({
+              userId: schema.teamCoach.userId,
+              name: schema.user.name,
+              coachRoleCode: schema.teamCoach.coachRoleCode,
+            })
+            .from(schema.teamCoach)
+            .innerJoin(schema.user, eq(schema.user.id, schema.teamCoach.userId))
+            .where(eq(schema.teamCoach.teamId, input.teamId))
+            // The column is declared with the vocabulary's enum, but a select
+            // projection widens it back to `string`. The output schema checks
+            // the value at runtime either way, so this only restores what the
+            // table already guarantees.
+            .all() as { userId: string; name: string; coachRoleCode: CoachRoleCode }[]
+        : [],
       canManage: await can(context.db, "MANAGE_ROSTER", context.user, input.teamId),
       /**
        * Who could be added — every player not currently on this squad.
