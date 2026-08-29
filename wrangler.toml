@@ -1,7 +1,33 @@
 name = "remy-sport"
 main = "src/index.ts"
 compatibility_date = "2025-09-01"
-compatibility_flags = ["nodejs_compat"]
+
+# `unhandled_rejection_after_microtask_checkpoint` is not cosmetic, and it is
+# not only a test fix.
+#
+# Without it, workerd fires `unhandledrejection` before the microtask checkpoint
+# completes — so a promise that rejects on one tick and is caught on the next is
+# reported as unhandled even though nothing was ever unhandled. Better Auth
+# wraps every endpoint in `AsyncLocalStorage.run()`, which is exactly such a
+# multi-tick chain, so *every expected 4xx from sign-in* raised one: a wrong OTP,
+# an inactive account, a disabled password login.
+#
+# The cost was ten spurious errors on every `mise run test:worker`. All 222 tests
+# passed and the run still exited non-zero at random, which is worse than a
+# consistent failure — it teaches you to re-run rather than to read the output,
+# and it would have hidden a real unhandled rejection completely.
+#
+# Isolated to twelve lines: a plain rejected promise is reported correctly, and
+# the same rejection through `AsyncLocalStorage.run` is not.
+#
+# The flag rather than a compatibility_date bump. The behaviour becomes the
+# default on 2026-03-03, and bumping the date to reach it would enable every
+# other change since 2025-09-01 at the same time — a much larger blast radius
+# for one fix. It only makes rejection *reporting* accurate, so there is no
+# behaviour here to lose.
+#
+# https://developers.cloudflare.com/workers/configuration/compatibility-flags/
+compatibility_flags = ["nodejs_compat", "unhandled_rejection_after_microtask_checkpoint"]
 
 # Custom domain. Required for Apple universal links — workers.dev cannot serve
 # an Associated Domains file. Wrangler creates the DNS record on deploy.
