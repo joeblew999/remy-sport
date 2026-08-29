@@ -243,3 +243,89 @@ test.describe("Squad management", () => {
     await expect(page.getByTestId("add-player-form")).toHaveCount(0)
   })
 })
+
+test.describe("A team's details", () => {
+  /**
+   * `teams.update` was enforced by EDIT_TEAM_PROFILE and unreachable, so a team
+   * named wrong at creation stayed named wrong — and its age group and
+   * category, which decide which events it can enter, could never be corrected.
+   *
+   * Gated on `canEdit`: the server's answer for this reader on this team, not a
+   * role check here. A rule in the client could only be right by accident.
+   */
+  test("offers no form to someone who may not edit", async ({ page }) => {
+    await seedCache(page, [
+      entry(orpc.teams.get, { id: "team_002" }, team({ canEdit: false })),
+      entry(orpc.teams.roster, { teamId: "team_002" }, { players: [], available: [], canManage: false } as never),
+    ])
+    await page.goto("/#/team/team_002")
+
+    await expect(page.getByTestId("team-name")).toBeVisible()
+    await expect(page.getByTestId("team-settings")).toHaveCount(0)
+  })
+
+  test("prefills from what is stored, for a coach", async ({ page }) => {
+    await seedCache(page, [
+      entry(orpc.teams.get, { id: "team_002" }, team({ canEdit: true })),
+      entry(orpc.teams.roster, { teamId: "team_002" }, { players: [], available: [], canManage: false } as never),
+    ])
+    await page.goto("/#/team/team_002")
+
+    await expect(page.getByTestId("team-settings")).toBeVisible()
+    await expect(page.getByTestId("team-name-input")).toHaveValue("Triam Udom U18 Girls")
+    await expect(page.getByTestId("team-age-input")).toHaveValue("U18")
+    await expect(page.getByTestId("team-gender-input")).toHaveValue("F")
+  })
+
+  test("keeps the other languages when saving the English name", async ({ page }) => {
+    // Silent and permanent otherwise: sending `{ en }` alone deletes the Thai
+    // and Japanese names, and nobody reading an English page ever notices.
+    let sent = ""
+    await seedCache(page, [
+      entry(
+        orpc.teams.get,
+        { id: "team_002" },
+        team({ canEdit: true, names: { en: "Triam Udom U18 Girls", th: "เตรียมอุดม U18 หญิง" } }),
+      ),
+      entry(orpc.teams.roster, { teamId: "team_002" }, { players: [], available: [], canManage: false } as never),
+    ])
+    await page.route("**/rpc/**", async (route) => {
+      if (!route.request().url().includes("teams/update")) return route.fallback()
+      sent = route.request().postData() ?? ""
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ json: team({ canEdit: true }) }),
+      })
+    })
+
+    await page.goto("/#/team/team_002")
+    await page.getByTestId("team-name-input").fill("Triam Udom Girls")
+    await page.getByTestId("team-save").click()
+
+    await expect.poll(() => sent, { message: "save must reach the server" }).not.toBe("")
+    expect(sent).toContain("Triam Udom Girls")
+    expect(sent, "the Thai name must survive").toContain("เตรียมอุดม U18 หญิง")
+  })
+})
+
+test.describe("The team hero's buttons", () => {
+  test("go somewhere, rather than being decoration", async ({ page }) => {
+    // Three of them were `<button className="btn">` with no onClick, sitting
+    // beside a Follow button that worked. A dead control is worse than no
+    // control: pressing it and getting nothing reads as the app being broken.
+    // Stats was deleted outright — the model has no per-player statistics.
+    await seedCache(page, [
+      entry(orpc.teams.get, { id: "team_002" }, team()),
+      entry(orpc.teams.roster, { teamId: "team_002" }, { players: [], available: [], canManage: false } as never),
+    ])
+    await page.goto("/#/team/team_002")
+
+    await expect(page.getByRole("link", { name: "Roster" })).toHaveAttribute("href", "#roster")
+    await expect(page.getByRole("link", { name: "Schedule" })).toHaveAttribute(
+      "href",
+      "#team-schedule",
+    )
+    await expect(page.getByRole("button", { name: "Stats" })).toHaveCount(0)
+  })
+})

@@ -39,6 +39,10 @@ export interface Team {
   genderCode: "M" | "F" | "COED";
   /** Display form of genderCode, from /api/reference in the reader's language. */
   genderLabel: string;
+  /** The model's answer to EDIT_TEAM_PROFILE for this reader on this team. */
+  canEdit: boolean;
+  /** The full locale map, for a form that edits one language of it. */
+  names: Record<string, string>;
 }
 
 export interface Event {

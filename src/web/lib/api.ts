@@ -186,5 +186,7 @@ export function toTeam(t: ApiTeam, loc: Localizer): Team {
     // From /api/reference, not a map written out here. The hardcoded one said
     // "Mixed" where the PO says "Co-ed" — the exact drift ADR 015 was about.
     genderLabel: loc.label("genders", t.genderCode),
+    canEdit: t.canEdit,
+    names: t.names as Record<string, string>,
   };
 }

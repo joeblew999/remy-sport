@@ -138,6 +138,15 @@ export const TeamSchema = createSelectSchema(schema.team)
     orgNames: NamesSchema,
     orgCityCode: z.string().nullable(),
     orgProvinceCode: z.string().nullable(),
+    /**
+     * May the reader edit this team's profile?
+     *
+     * `EDIT_TEAM_PROFILE`, resolved per team and per viewer. Without it the
+     * page had no way to decide whether to offer a form, so it offered none —
+     * `teams.update` was enforced and unreachable, and a team named wrong at
+     * creation stayed named wrong.
+     */
+    canEdit: z.boolean(),
   })
 
 export const CreateTeamInput = z.object({

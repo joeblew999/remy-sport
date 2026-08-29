@@ -31,6 +31,17 @@ interface LocaleContextValue extends Localizer {
   /** The languages the API declares. The switcher renders from this. */
   available: Locale[];
   reference: Reference | undefined;
+  /**
+   * One vocabulary's terms, from the API if it has arrived and from the
+   * compiled fixtures if it has not.
+   *
+   * The same fallback `label` has always had, for the same reason and one level
+   * up. A `<select>` built from `reference?.ageGroups ?? []` renders *no
+   * options* until the fetch lands — so the control is empty on first paint,
+   * and permanently empty if the request fails. Labels degraded gracefully and
+   * selects did not, which is the worse half to leave undefended.
+   */
+  terms(vocabulary: string): readonly Term[];
 }
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
@@ -157,6 +168,12 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
       available: (reference?.locales.map((l) => l.code) ?? LOCALES).filter((l): l is Locale =>
         isLocale(l),
       ),
+      // The endpoint wins when it arrives; the compiled list is generated from
+      // the same fixtures, so the two cannot disagree about what exists.
+      terms: (vocabulary: string) =>
+        ((reference as Record<string, Term[]> | undefined)?.[vocabulary] ??
+          (VOCABULARY as unknown as Record<string, readonly Term[]>)[vocabulary] ??
+          []) as readonly Term[],
       reference,
     };
   }, [locale, reference]);

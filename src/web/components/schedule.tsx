@@ -335,7 +335,7 @@ function ManageFixture({ game }: { game: Game }) {
  */
 function GameStatus({ game }: { game: Game }) {
   const qc = useQueryClient();
-  const { reference, name } = useLocale();
+  const { terms, name } = useLocale();
 
   const set = useMutation({
     mutationFn: (statusCode: string) =>
@@ -352,7 +352,7 @@ function GameStatus({ game }: { game: Game }) {
       onChange={(e) => set.mutate(e.target.value)}
       style={game.statusCode === "LIVE" ? { color: "var(--live)" } : undefined}
     >
-      {(reference?.gameStatuses ?? []).map((s) => (
+      {terms("gameStatuses").map((s) => (
         <option key={s.code} value={s.code}>
           {name(s.names, s.code)}
         </option>

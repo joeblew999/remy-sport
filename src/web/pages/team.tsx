@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { FollowButton } from "../components/follow";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, orpc } from "../lib/orpc";
@@ -7,6 +8,7 @@ import { m } from "../lib/i18n";
 import { useLocale } from "../lib/locale";
 import { formatDayShort } from "../lib/dates";
 import { formErrors } from "../lib/form-errors";
+import type { Team } from "../data";
 
 export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }) {
   // The sidebar's "My team" links to #/team with no id. Until the SPA knows who
@@ -46,9 +48,17 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
           <div className="meta">{t.ageGroupCode} {t.genderLabel} · {t.short}</div>
           <div className="event-actions" style={{ marginTop: 16 }}>
             {t.id && <FollowButton objectTypeCode="TEAM" objectId={t.id} />}
-            <button className="btn">{m.roster()}</button>
-            <button className="btn">{m.stats()}</button>
-            <button className="btn">{m.schedule()}</button>
+            {/* These three were `<button className="btn">` with no onClick —
+                dead controls beside a working Follow, which is worse than no
+                control at all: pressing one and getting nothing reads as the
+                app being broken.
+
+                Roster and Schedule are real sections further down this page, so
+                they scroll to them. Stats is gone: there is no per-player
+                statistics table anywhere in the model, which is the same reason
+                this page shows no averages. */}
+            <a className="btn" href="#roster">{m.roster()}</a>
+            <a className="btn" href="#team-schedule">{m.schedule()}</a>
           </div>
         </div>
         {/* RECORD and RANK need played games and a standings table. Both are
@@ -67,7 +77,7 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
             No per-game averages: the fixture this replaced showed points,
             assists and rebounds per person and there is no stats table, so they
             are absent rather than invented a second time. */}
-        <div className="section-h"><h2>{m.roster()}</h2></div>
+        <div className="section-h" id="roster"><h2>{m.roster()}</h2></div>
         {roster?.players.length ? (
           <div className="roster-grid" data-testid="roster">
             {roster.players.map(p => (
@@ -85,12 +95,16 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
           <div className="empty" data-testid="roster-empty">{m.roster_empty()}</div>
         )}
 
+        {/* `teams.update` was enforced by EDIT_TEAM_PROFILE and unreachable, so
+            a team named wrong when it was created stayed named wrong. */}
+        {t.canEdit && <TeamSettings team={t}/>}
+
         {/* Only for someone the server says may manage this squad — a head or
             assistant coach, or the team's manager. MANAGE_ROSTER, asked per
             team, not worked out from the viewer's role. */}
         {roster?.canManage && id && <ManageRoster teamId={id} roster={roster}/>}
 
-        <div className="section-h" style={{ marginTop: 48 }}><h2>{m.schedule()}</h2></div>
+        <div className="section-h" id="team-schedule" style={{ marginTop: 48 }}><h2>{m.schedule()}</h2></div>
         <div className="dash-card">
           {gamesLoading && <div className="empty">{m.loading()}</div>}
           {!gamesLoading && games.length === 0 && <div className="empty">{m.no_games_yet()}</div>}
@@ -216,6 +230,103 @@ function ManageRoster({ teamId, roster }: { teamId: string; roster: Roster }) {
       ) : (
         <p className="muted" data-testid="no-available-players">{m.everyone_on_squad()}</p>
       )}
+    </section>
+  );
+}
+
+/**
+ * Editing the team you coach.
+ *
+ * `teams.update` has been enforced by `EDIT_TEAM_PROFILE` since teams existed
+ * and nothing could call it, so a team named wrong when it was created stayed
+ * named wrong — and the age group and category, which decide which events it
+ * can enter, could never be corrected either.
+ *
+ * Shown only where `canEdit` is true, which is the model's answer for this
+ * reader on this team. `orgId` is deliberately not offered: moving a team
+ * between schools is a transfer, needs membership of both, and the API omits
+ * it from `UpdateTeamInput` for exactly that reason. A form that offered it
+ * would be a form promising something the contract refuses.
+ *
+ * The vocabularies come from `/api/reference`, so an age group added to the
+ * model appears here without an edit — the same rule the game-status select
+ * follows.
+ */
+function TeamSettings({ team }: { team: Team }) {
+  const qc = useQueryClient();
+  const { terms, name } = useLocale();
+  const [saved, setSaved] = useState(false);
+
+  const save = useMutation({
+    mutationFn: (v: { name: string; ageGroupCode: string; genderCode: string }) =>
+      api.teams.update({
+        id: team.id,
+        // The rest of the locale map survives — sending `{ en }` alone would
+        // delete the Thai and Japanese names on the first save.
+        names: { ...team.names, en: v.name },
+        ageGroupCode: v.ageGroupCode as never,
+        genderCode: v.genderCode as never,
+      }),
+    onSuccess: () => {
+      setSaved(true);
+      qc.invalidateQueries({ queryKey: orpc.teams.key() });
+      setTimeout(() => setSaved(false), 2000);
+    },
+  });
+
+  const err = formErrors(save.error, ["names[en]"]);
+
+  return (
+    <section className="admin-card" style={{ marginTop: 24 }} data-testid="team-settings">
+      <h2>{m.team_settings()}</h2>
+      {saved && <div className="admin-ok" data-testid="team-saved">{m.event_saved()}</div>}
+      {err.form && <div className="admin-error" data-testid="team-settings-error">{err.form}</div>}
+
+      <form
+        className="admin-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const f = new FormData(e.currentTarget);
+          save.mutate({
+            name: String(f.get("name")),
+            ageGroupCode: String(f.get("ageGroupCode")),
+            genderCode: String(f.get("genderCode")),
+          });
+        }}
+      >
+        <label htmlFor="team-name">{m.team_name_label()}</label>
+        <input
+          id="team-name"
+          name="name"
+          data-testid="team-name-input"
+          defaultValue={team.names.en ?? team.name}
+          required
+          autoComplete="off"
+        />
+        {err.field("names[en]") && (
+          <p className="admin-error small" data-testid="team-name-issue">
+            {err.field("names[en]")}
+          </p>
+        )}
+
+        <label htmlFor="team-age">{m.team_age_label()}</label>
+        <select id="team-age" name="ageGroupCode" data-testid="team-age-input" defaultValue={team.ageGroupCode}>
+          {terms("ageGroups").map((a) => (
+            <option key={a.code} value={a.code}>{name(a.names, a.code)}</option>
+          ))}
+        </select>
+
+        <label htmlFor="team-gender">{m.team_gender_label()}</label>
+        <select id="team-gender" name="genderCode" data-testid="team-gender-input" defaultValue={team.genderCode}>
+          {terms("genders").map((g) => (
+            <option key={g.code} value={g.code}>{name(g.names, g.code)}</option>
+          ))}
+        </select>
+
+        <button type="submit" data-testid="team-save" disabled={save.isPending}>
+          {save.isPending ? m.event_saving() : m.event_save()}
+        </button>
+      </form>
     </section>
   );
 }

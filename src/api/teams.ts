@@ -19,7 +19,7 @@ import { clean, pivot } from "../domain/names"
 import { z } from "zod"
 import { CreateTeamInput, TeamSchema, UpdateTeamInput } from "../domain/api"
 import { ERRORS } from "./errors"
-import { authed, authedRoute, openTo, pub, requireAction, type Db } from "./base"
+import { authed, authedRoute, can, openTo, requireAction, viewer, type Db, type SessionUser } from "./base"
 import { holds } from "./relations"
 
 const IdInput = z.object({ id: z.string() })
@@ -28,11 +28,13 @@ const withOrg = {
   org: { columns: { names: true, cityCode: true, provinceCode: true } },
 } as const
 
-function serialize(
+async function serialize(
+  db: Db,
+  user: SessionUser | null,
   row: typeof schema.team.$inferSelect & {
     org?: { names: Names; cityCode: string | null; provinceCode: string | null } | null
   },
-): ApiTeam {
+): Promise<ApiTeam> {
   const { org, createdAt, updatedAt, ageGroupCode, genderCode, ...rest } = row
   return {
     ...rest,
@@ -44,23 +46,32 @@ function serialize(
     orgNames: org?.names ?? {},
     orgCityCode: org?.cityCode ?? null,
     orgProvinceCode: org?.provinceCode ?? null,
+    // The model's answer, per team. One `can` per row — the same honest cost
+    // events and games pay, and the same escape hatch if a list ever grows:
+    // answer it in one query, never in the client.
+    canEdit: await can(db, "EDIT_TEAM_PROFILE", user, row.id),
   }
 }
 
-export const list = pub
+export const list = viewer
   .use(openTo("BROWSE_TEAMS"))
   .route({ method: "GET", path: "/teams", summary: "List all teams" })
   .output(z.object({ teams: z.array(TeamSchema) }))
   .handler(async ({ context }) => ({
-    teams: (
-      await context.db.query.team.findMany({ with: withOrg, orderBy: (t, { asc }) => [asc(t.name)] })
-    ).map(serialize),
+    teams: await Promise.all(
+      (
+        await context.db.query.team.findMany({
+          with: withOrg,
+          orderBy: (t, { asc }) => [asc(t.name)],
+        })
+      ).map((row) => serialize(context.db, context.user, row)),
+    ),
   }))
 
 const byId = (db: Db, id: string) =>
   db.query.team.findFirst({ where: (t, { eq: is }) => is(t.id, id), with: withOrg })
 
-export const get = pub
+export const get = viewer
   .use(openTo("VIEW_TEAM"))
   .route({ method: "GET", path: "/teams/{id}", summary: "Get one team" })
   .input(IdInput)
@@ -68,7 +79,7 @@ export const get = pub
   .handler(async ({ context, input }) => {
     const row = await byId(context.db, input.id)
     if (!row) throw new ORPCError("NOT_FOUND", { message: "Not found" })
-    return serialize(row)
+    return serialize(context.db, context.user, row)
   })
 
 export const create = authed
@@ -126,7 +137,7 @@ export const create = authed
         .onConflictDoNothing()
     }
 
-    return serialize({ ...row, org })
+    return serialize(context.db, context.user, { ...row, org })
   })
 
 export const update = authed
@@ -149,7 +160,7 @@ export const update = authed
 
     const row = await byId(context.db, id)
     if (!row) throw new ORPCError("NOT_FOUND", { message: "Not found" })
-    return serialize(row)
+    return serialize(context.db, context.user, row)
   })
 
 export const remove = authed
