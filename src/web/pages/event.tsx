@@ -199,6 +199,7 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
       {tab === "overview" && <EventOverview e={e} goto={goto}/>}
       {tab === "settings" && e.canEdit && <EventSettings event={e}/>}
       {tab === "venues" && <EventVenues eventId={e.id}/>}
+      {tab === "rules" && <EventRules event={e}/>}
       {tab === "schedule" && (
         <div className="page-inner">
           <Schedule eventId={e.id} spoiler={spoiler} goto={goto}/>
@@ -207,7 +208,7 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
       )}
       {tab === "standings" && <StandingsTable eventId={e.id}/>}
       {tab === "teams" && <div className="page-inner"><Entries eventId={e.id}/></div>}
-      {!["overview", "schedule", "standings", "teams", "settings", "venues"].includes(tab) && (
+      {!["overview", "schedule", "standings", "teams", "settings", "venues", "rules"].includes(tab) && (
         <div className="page-inner"><div className="empty">{m.tab_not_built()}</div></div>
       )}
     </>
@@ -430,5 +431,49 @@ function ShareButton({ title }: { title: string }) {
       <Icon name="share"/>
       {copied ? m.share_copied() : m.share()}
     </button>
+  );
+}
+
+/**
+ * The terms the competition is played under.
+ *
+ * This tab said "not built yet" while three columns on `event` said exactly
+ * this and were rendered nowhere at all: `formatCode` — whether it is 5-on-5 or
+ * 3x3, which changes what a team even is — `isFibaCertified`, which decides
+ * whether a result counts for anything outside this app, and `description`,
+ * which is what the organiser wrote about their own tournament.
+ *
+ * Nothing here needed building. The page had never asked for any of it.
+ *
+ * The format reads from the reference vocabulary, so "5-on-5" and "5 ต่อ 5" are
+ * the same row rather than two strings in a component.
+ */
+function EventRules({ event }: { event: Event }) {
+  const { label } = useLocale();
+  return (
+    <div className="page-inner">
+      <div className="dash-card" data-testid="event-rules">
+        <div className="fact-row">
+          <span className="row-meta">{m.event_format()}</span>
+          <span data-testid="event-format">{label("eventFormats", event.formatCode)}</span>
+        </div>
+        <div className="fact-row">
+          <span className="row-meta">{m.event_fiba()}</span>
+          {/* A certified event is a fact worth stating and an uncertified one
+              is not an absence — most school tournaments are not certified and
+              saying nothing would read as "we did not check". */}
+          <span data-testid="event-fiba">{event.fibaCertified ? m.yes() : m.no()}</span>
+        </div>
+      </div>
+
+      <div className="section-h" style={{ marginTop: 24 }}><h2>{m.event_about()}</h2></div>
+      <div className="dash-card">
+        {event.description ? (
+          <p className="event-description" data-testid="event-description">{event.description}</p>
+        ) : (
+          <div className="empty" data-testid="event-no-details">{m.event_no_details()}</div>
+        )}
+      </div>
+    </div>
   );
 }

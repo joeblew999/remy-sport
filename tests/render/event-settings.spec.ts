@@ -291,3 +291,59 @@ test.describe("The Venues tab", () => {
     await expect(page.getByTestId("event-venues-empty")).toBeVisible()
   })
 })
+
+test.describe("The Rules tab", () => {
+  /**
+   * It said "not built yet" while three columns on `event` said exactly this
+   * and were rendered nowhere at all: the format, whether the event is FIBA
+   * certified, and what the organiser wrote about their own tournament.
+   */
+  test("shows the format and certification from the event itself", async ({ page }) => {
+    await seedCache(page, [
+      entry(
+        orpc.events.get,
+        { id: EVENT_ID },
+        apiEvent({ id: EVENT_ID, formatCode: "3x3", isFibaCertified: true }),
+      ),
+    ])
+    await page.goto(`/#/event/${EVENT_ID}`)
+    await page.getByTestId("tab-rules").click()
+
+    // From the reference vocabulary, so "3x3" and "5-on-5" are rows in the
+    // model rather than strings in a component.
+    await expect(page.getByTestId("event-format")).toHaveText("3x3")
+    await expect(page.getByTestId("event-fiba")).toHaveText("Yes")
+  })
+
+  test("says No rather than nothing for an uncertified event", async ({ page }) => {
+    // Most school tournaments are not certified. Omitting the row would read as
+    // "we did not check", which is a different claim.
+    await seedCache(page, [
+      entry(orpc.events.get, { id: EVENT_ID }, apiEvent({ id: EVENT_ID, isFibaCertified: false })),
+    ])
+    await page.goto(`/#/event/${EVENT_ID}`)
+    await page.getByTestId("tab-rules").click()
+
+    await expect(page.getByTestId("event-fiba")).toHaveText("No")
+  })
+
+  test("renders the organiser's own description, and says when there is none", async ({ page }) => {
+    await seedCache(page, [
+      entry(
+        orpc.events.get,
+        { id: EVENT_ID },
+        apiEvent({ id: EVENT_ID, description: "Round-robin group stage, then knockouts." }),
+      ),
+    ])
+    await page.goto(`/#/event/${EVENT_ID}`)
+    await page.getByTestId("tab-rules").click()
+    await expect(page.getByTestId("event-description")).toContainText("Round-robin group stage")
+
+    await seedCache(page, [
+      entry(orpc.events.get, { id: EVENT_ID }, apiEvent({ id: EVENT_ID, description: null })),
+    ])
+    await page.goto(`/#/event/${EVENT_ID}`)
+    await page.getByTestId("tab-rules").click()
+    await expect(page.getByTestId("event-no-details")).toBeVisible()
+  })
+})

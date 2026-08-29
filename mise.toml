@@ -457,38 +457,46 @@ wait $SERVER
 
 [tasks.check]
 description = "Type check, dead code, and documented paths — the three things that rot quietly"
-depends     = ["cf:types"]
+# `web:build` is a dependency rather than a line in the script, so mise builds
+# it once for this task and for `test:render`, which needs it too.
+depends     = ["cf:types", "web:build"]
 # No `sources`/`outputs`: dead-code and docs drift depend on files this task
 # does not read as inputs (a deleted importer, an edited .md), so caching this
 # would skip exactly the run that would have caught the drift.
 run = """
-bun x tsc --noEmit
-# src/web has its own tsconfig — React, different lib and jsx settings — and the
-# root one excludes it. So `tsc --noEmit` above checks the Worker and nothing
-# else, and for a long time nothing checked the GUI at all: a dead-code sweep
-# deleted `describeDevice` from src/web/lib/devices.ts while the line below it
-# still called it, and only an e2e failure noticed.
-mise run web:typecheck
-mise run test:unit
+# ── Two phases, and the split is not arbitrary ───────────────────────────────
+#
+# This was seventeen `mise run` lines in a column, executed one after another on
+# a twelve-core machine, for work that is almost entirely independent and
+# entirely on localhost. Typechecking the Worker has nothing to say to the
+# dead-code sweep. That sequence was not a decision, it was the shape a list of
+# commands happens to have. 35s -> 26s.
+#
+# `:::` is what separates tasks. Without it mise takes everything after the
+# first name as *arguments to that task* and silently runs one thing — the
+# first version of this reported eight seconds and skipped every test tier,
+# which is the kind of green nobody should trust.
+#
+# **`test:worker` gets the machine to itself.** Three of its tests ask the
+# Worker for `/` and for the hashed bundle, which go through Miniflare's local
+# ASSETS server — and that answers 404 when the box is busy. It is not one
+# conflicting task: paired with any single check it passes, and it fails
+# against the whole group. Cumulative load, nothing else.
+#
+# The failure is local infrastructure, not product behaviour: on Cloudflare,
+# ASSETS is a platform service and cannot be starved by a laptop compiling
+# TypeScript. So the tests stay honest and the schedule works around them —
+# masking it with a retry would hide a real 404 the day one appears.
+#
+# Everything else goes together, render included: it drives WebKit against a
+# static `vite preview` and touches no Worker binding, so it is happy under
+# load. It also dominates the group at ~15s, which the cheap checks fill.
+mise run test:render ::: typecheck ::: test:unit \
+  ::: check:dead ::: check:docs ::: check:authz ::: check:conventions \
+  ::: check:seed ::: check:domain ::: check:tables ::: check:assets \
+  ::: check:messages ::: check:deps ::: check:i18n ::: i18n:validate
+
 mise run test:worker
-# The render tier was in neither `check` nor `test`, so it ran only when
-# somebody typed it. That is how "APR" -> "Apr" sat broken for a day: the month
-# moved to Intl.DateTimeFormat, the assertion still expected the old hardcoded
-# uppercase, and nothing in the loop ever looked. A tier nothing runs is a tier
-# that is already failing.
-mise run test:render
-mise run check:dead
-mise run check:docs
-mise run check:authz
-mise run check:conventions
-mise run check:seed
-mise run check:domain
-mise run check:tables
-mise run check:assets
-mise run check:messages
-mise run check:deps
-mise run check:i18n
-mise run i18n:validate
 """
 
 [tasks."test:unit"]
@@ -1533,3 +1541,4 @@ depends     = ["install"]
 # were never defined. scripts/tunnel-setup.ts explains why the API path needs
 # no certificate.
 run = "bun scripts/tunnel-setup.ts"
+

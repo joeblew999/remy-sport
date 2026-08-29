@@ -919,6 +919,17 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   border: 1px dashed var(--rule);
 }
 
+/* A label and its value on one line — the shape a facts list wants. */
+.fact-row {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 16px; padding: 14px 18px; border-bottom: 1px solid var(--rule);
+}
+.fact-row:last-child { border-bottom: none; }
+.event-description {
+  padding: 18px; margin: 0; line-height: 1.6; font-size: 14px;
+  color: var(--ink-2); max-width: 68ch;
+}
+
 /* A venue on the event's Venues tab. */
 .venue-row { padding: 14px 18px; border-bottom: 1px solid var(--rule); }
 .venue-row:last-child { border-bottom: none; }

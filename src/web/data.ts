@@ -81,6 +81,17 @@ export interface Event {
   gamesPlayed: number;
   /** People following it, from `subscription`. */
   followers: number;
+  /**
+   * The competition's own terms, which no screen rendered until 2026-08-29.
+   *
+   * `formatCode` and `isFibaCertified` are columns on `event` and were shown
+   * nowhere at all; `description` is what the organiser wrote about their own
+   * tournament and went the same way. Between them they are what the Rules tab
+   * was always meant to be, and it said "not built yet" instead.
+   */
+  formatCode: string;
+  fibaCertified: boolean;
+  description: string | null;
   organizer: string;
   /**
    * May the reader edit this event?

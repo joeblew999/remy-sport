@@ -346,6 +346,23 @@ Three things now make a repeat visible rather than absorbable:
 When a budget trips, find what got slower before raising the ceiling. A tier
 allowed to creep is one nobody will ever speed up again.
 
+**`mise run check` runs in two phases, and the split is not arbitrary.**
+Everything cheap runs in parallel with the render tier; `test:worker` then gets
+the machine to itself. Three of its tests ask the Worker for `/` and for the
+hashed bundle, which go through Miniflare's *local* ASSETS server — and that
+answers 404 when the box is busy. Paired with any single check it passes; run
+against the whole group it fails every time. Cumulative load, nothing else.
+
+That is local infrastructure, not product behaviour: on Cloudflare, ASSETS is a
+platform service and cannot be starved by a laptop compiling TypeScript. So the
+tests stay honest and the schedule works around them. Do not "fix" it with a
+retry — that would hide a real 404 the day one appears.
+
+`:::` is what separates tasks in `mise run a ::: b`. Without it mise takes
+everything after the first name as *arguments to that task* and silently runs
+one thing: the first attempt at this reported eight seconds and skipped every
+test tier.
+
 **Four import rules, and `mise run check:deps` enforces them.** They were
 enforced by hoping until 2026-08-27; the reasoning for each sits beside it in
 [.dependency-cruiser.cjs](.dependency-cruiser.cjs).

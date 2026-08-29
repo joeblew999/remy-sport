@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, Suspense, lazy, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 
 import { Sidebar } from "./components/sidebar";
@@ -6,6 +6,7 @@ import { Topbar } from "./components/topbar";
 import { useRouter } from "./lib/router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LocaleProvider, useLocale, type Locale } from "./lib/locale";
+import { m } from "./lib/i18n";
 import { CrashBoundary } from "./components/crash";
 import { watchForClientErrors } from "./lib/report";
 
@@ -18,7 +19,26 @@ import { LoginPage } from "./pages/login";
 import { DevicesPage } from "./pages/devices";
 import { AdminPage } from "./pages/admin";
 import { OrgsPage, OrgPage } from "./pages/org";
-import { BroadcastPage, WatchPage } from "./pages/video";
+/**
+ * The only lazily-loaded pages, and the reason is the bundle.
+ *
+ * `@moq/watch` and `@moq/publish` pull in a WebTransport stack, a media
+ * pipeline and an Opus encoder. Imported statically they sat in the main chunk,
+ * so **every** reader downloaded and parsed them — a schedule, a league table,
+ * a team sheet — to open a page that never touches video. On a phone uplink in
+ * a school gym, which is the network this product is actually for, that is the
+ * whole point of the split.
+ *
+ * These two routes are also the only ones where a moment of loading is honest:
+ * a viewer pressing Watch expects a connection to be made.
+ *
+ * Nothing else is lazy. Splitting a page that renders a list buys a round trip
+ * and saves a few kilobytes, which is the wrong way round.
+ */
+const BroadcastPage = lazy(() =>
+  import("./pages/video").then((m) => ({ default: m.BroadcastPage })),
+);
+const WatchPage = lazy(() => import("./pages/video").then((m) => ({ default: m.WatchPage })));
 
 interface TweakDefaults {
   accentColor?: string;
@@ -47,6 +67,9 @@ const DEFAULTS: Required<TweakDefaults> = {
  * and it is cheap: the page is remounted, and the API data it needs is already
  * in the query cache, keyed independently of locale.
  */
+/** The loading line, read at render so it follows a language switch. */
+const loadingLabel = () => m.loading();
+
 function LocalisedApp() {
   const { locale } = useLocale();
   return <App key={locale}/>;
@@ -100,8 +123,15 @@ function App() {
                 camera at a game; `#/watch/<gameId>` receives it. Separate pages
                 rather than one with a mode, because they need different
                 permissions from the browser and fail in different ways. */}
-            {route.page === "broadcast" && <BroadcastPage id={route.id} goto={goto}/>}
-            {route.page === "watch" && <WatchPage id={route.id} goto={goto}/>}
+            {(route.page === "broadcast" || route.page === "watch") && (
+              /* One boundary for both, because they are one chunk. The fallback
+                 is the app's ordinary loading line rather than a spinner: this
+                 is a page arriving, which is what every other page does too. */
+              <Suspense fallback={<div className="empty">{loadingLabel()}</div>}>
+                {route.page === "broadcast" && <BroadcastPage id={route.id} goto={goto}/>}
+                {route.page === "watch" && <WatchPage id={route.id} goto={goto}/>}
+              </Suspense>
+            )}
             {route.page === "org" && <OrgPage id={route.id} goto={goto}/>}
             {/* No standalone #/standings. A league table belongs to an event —
                 there is no such thing as "the standings" across all of them —
