@@ -19,6 +19,7 @@
 import { ORPCError } from "@orpc/server"
 import { and, eq, gte } from "drizzle-orm"
 import { z } from "zod"
+import { track } from "../analytics"
 import * as schema from "../db/schema"
 import { EnterScoreInput, GameSchema, SetGameStatusInput, type ApiGame } from "../domain/api"
 import { STORED_ROLE } from "../domain/vocabularies"
@@ -433,6 +434,17 @@ export const startBroadcast = authed
   .use(requireAction("BROADCAST_GAME"))
   .handler(async ({ context, input }) => {
     const now = new Date().toISOString()
+    // Read first, so the *transition* is distinguishable from the heartbeat.
+    // This procedure is called every twenty seconds for as long as a camera is
+    // pointed at the game; recording each call would say a broadcast that ran
+    // for an hour is a hundred and eighty times more interesting than one that
+    // ran for a minute, which is backwards.
+    const [existing] = await context.db
+      .select({ startedAt: schema.gameBroadcast.startedAt })
+      .from(schema.gameBroadcast)
+      .where(eq(schema.gameBroadcast.gameId, input.id))
+      .limit(1)
+
     await context.db
       .insert(schema.gameBroadcast)
       .values({ gameId: input.id, userId: context.user.id, startedAt: now, lastSeenAt: now })
@@ -442,6 +454,8 @@ export const startBroadcast = authed
         // broadcast began, which is what a viewer joining late wants to know.
         set: { userId: context.user.id, lastSeenAt: now },
       })
+
+    if (!existing) track(context.env, "broadcast.started", { gameId: input.id })
     return { broadcasting: true as const }
   })
 
@@ -451,7 +465,23 @@ export const stopBroadcast = authed
   .output(z.object({ broadcasting: z.literal(false) }))
   .use(requireAction("BROADCAST_GAME"))
   .handler(async ({ context, input }) => {
+    const [existing] = await context.db
+      .select({ startedAt: schema.gameBroadcast.startedAt })
+      .from(schema.gameBroadcast)
+      .where(eq(schema.gameBroadcast.gameId, input.id))
+      .limit(1)
+
     await context.db.delete(schema.gameBroadcast).where(eq(schema.gameBroadcast.gameId, input.id))
+
+    // How long it ran is the number that says whether this works in a gym. A
+    // broadcast that ends after forty seconds, every time, is a story about
+    // uplinks and batteries that no error count would tell.
+    if (existing) {
+      track(context.env, "broadcast.ended", {
+        gameId: input.id,
+        seconds: Math.round((Date.now() - Date.parse(existing.startedAt)) / 1000),
+      })
+    }
     return { broadcasting: false as const }
   })
 

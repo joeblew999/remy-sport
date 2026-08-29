@@ -95,10 +95,19 @@ export interface SessionReport {
 export function reportSession(r: SessionReport): void {
   try {
     if (typeof navigator === "undefined" || !navigator.sendBeacon) return
+    // Named fields, matching the `moq.session` entry in src/analytics.ts. The
+    // server drops anything it does not recognise, so a rename there shows up
+    // as a missing column rather than as data in the wrong one.
     const body = JSON.stringify({
       event: "moq.session",
-      blobs: [r.role, r.gameId, r.transport, r.errorName ?? ""],
-      doubles: [r.errorCode ?? 0, r.seconds ?? 0],
+      fields: {
+        role: r.role,
+        gameId: r.gameId,
+        transport: r.transport,
+        errorName: r.errorName ?? "",
+        errorCode: r.errorCode ?? 0,
+        seconds: r.seconds ?? 0,
+      },
     })
     navigator.sendBeacon("/api/analytics", new Blob([body], { type: "application/json" }))
   } catch {

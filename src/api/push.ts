@@ -22,6 +22,7 @@
  */
 
 import { and, eq, inArray } from "drizzle-orm"
+import { track } from "../analytics"
 import { buildPush, type PushSubscription } from "./webpush"
 import * as schema from "../db/schema"
 import type { Db } from "./db"
@@ -258,6 +259,21 @@ async function deliver(
         method: payload.method,
         headers: payload.headers,
         body: payload.body,
+      })
+      /**
+       * Per attempt, keyed by the push service's host.
+       *
+       * The failure this exists to catch is vendor-shaped: Apple, FCM and
+       * Mozilla each enforce the RFCs differently, and the way this breaks is
+       * that one of them starts rejecting everything while the others carry on.
+       * A single `sent` count averages that away into "mostly fine". The host
+       * is the whole point of the row — without it there is nothing to notice.
+       */
+      track(env, "push.sent", {
+        host: new URL(subscription.endpoint).host,
+        status: String(res.status),
+        tag,
+        ok: res.ok ? 1 : 0,
       })
       // 404/410 is the push service saying this endpoint is permanently gone —
       // uninstalled, or expired. Anything else may be transient and is left be,

@@ -52,6 +52,34 @@ mise run test                # a real browser + real Worker    ~11s
 mise run deploy              # check -> test -> deploy -> migrate -> seed -> verify
 ```
 
+## Seeing what it did
+
+```bash
+mise run analytics           # what failed, where, how often — dev server or deployment
+mise run analytics 168       # the last week instead of the last day
+mise run analytics --remote  # the deployment, even while a dev server is up
+```
+
+**There is no Cloudflare dashboard for this.** Not an oversight and not something
+left unfinished — Workers Analytics Engine ships a write API and a SQL API and no
+UI at all. Cloudflare [say a Grafana-like view is planned](https://blog.cloudflare.com/analytics-engine-open-beta/);
+until it exists the documented options are the SQL API, which is what the task
+above uses, or [Grafana with the Altinity ClickHouse plugin](https://developers.cloudflare.com/analytics/analytics-engine/grafana/)
+pointed at the same endpoint.
+
+What *is* in the dashboard is Cloudflare's own request data, which is a different
+thing: **Workers & Pages → remy-sport → Metrics** gives requests, errors, CPU
+time and geography. It knows nothing about a push that Apple rejected or a
+broadcast that lasted forty seconds. That is what
+[src/analytics.ts](src/analytics.ts) is for.
+
+Reading the deployment needs an API token with **Account Analytics: Read** —
+`wrangler`'s own OAuth token has no analytics scope. Same convention as
+`cf:audit`: `$CLOUDFLARE_API_TOKEN`, or fnox. Reading a dev server needs
+nothing: `wrangler dev` discards Analytics Engine writes, so a dev worker keeps
+its events in memory instead and serves them at `/api/dev/events`, which 404s on
+a deployment.
+
 ## How it fits together
 
 **The schema is authored, and everything derives upward from it.**

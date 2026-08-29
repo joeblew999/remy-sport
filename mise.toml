@@ -1267,6 +1267,25 @@ fi
 bun scripts/cf-audit.ts
 """
 
+[tasks."analytics"]
+description = "Report what the deployed worker has been doing (Analytics Engine; hours as arg, default 24)"
+depends     = ["install"]
+# Analytics Engine has no dashboard. The data is reachable only over a SQL API,
+# so without this task everything src/analytics.ts writes is a write-only pipe
+# that feels like observability and is not.
+#
+# Same credential path as cf:audit, for the same reason: the wrangler OAuth
+# token has no analytics scope (`wrangler login --scopes-list` lists none), so
+# this needs a dashboard-created API token with Account Analytics: Read.
+run = """
+set -e
+if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+  CLOUDFLARE_API_TOKEN=$(fnox get CLOUDFLARE_API_TOKEN 2>/dev/null) || true
+  export CLOUDFLARE_API_TOKEN
+fi
+bun scripts/analytics.ts "$@"
+"""
+
 [tasks."cf:whoami"]
 description = "Show current Cloudflare auth info"
 depends     = ["install"]

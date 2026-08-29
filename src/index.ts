@@ -10,6 +10,7 @@ import { OpenAPIHandler } from "@orpc/openapi/fetch"
 import { OpenAPIGenerator } from "@orpc/openapi"
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4"
 import { router } from "./api"
+import { telemetryInterceptor } from "./api/telemetry"
 import analyticsRoutes from "./routes/analytics"
 import devMailRoutes from "./routes/dev-mail"
 import devSessionRoutes from "./routes/dev-sessions"
@@ -54,8 +55,14 @@ app.route("/", seedRoutes)
 // for external clients and the tests, /rpc speaks oRPC for our own SPA. The
 // SPA uses /rpc because an OpenAPI link needs the contract at runtime, and
 // importing it would pull server code into the browser bundle.
-const api = new OpenAPIHandler(router)
-const rpc = new RPCHandler(router)
+// One interceptor across both transports, so a failure is recorded once and the
+// same way whether it came from the REST surface or the SPA's own.
+// Cast because oRPC parameterises an interceptor by the router's whole merged
+// context — a type that changes with every middleware — while this reads three
+// fields. src/api/telemetry.ts names exactly what it depends on.
+const intercept = [telemetryInterceptor] as never
+const api = new OpenAPIHandler(router, { interceptors: intercept })
+const rpc = new RPCHandler(router, { interceptors: intercept })
 app.use("/api/*", async (c, next) => {
   const { matched, response } = await api.handle(c.req.raw, {
     prefix: "/api",
