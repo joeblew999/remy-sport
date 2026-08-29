@@ -16,12 +16,16 @@
  * that sets `source`, which is also what triggers `getUserMedia`, so the
  * browser's permission prompt is a direct result of the click.
  *
- * The element's signals live on the DOM node, which does not exist on first
- * render and cannot be read conditionally by a hook — hence capturing the
- * element into state in an effect.
+ * The element is captured with a **ref callback**, not an effect. The relay
+ * config is a query, so on first render there is no element to capture at all —
+ * and `useEffect(..., [])` runs exactly once, storing null and never looking
+ * again. Everything downstream then silently did nothing: the Start button
+ * returned early, and the two settings that matter were never applied. A ref
+ * callback fires whenever the node mounts, which is the only thing that is true
+ * regardless of when the config arrives.
  */
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { orpc } from "../lib/orpc"
 import { m } from "../lib/i18n"
@@ -113,10 +117,7 @@ function useMoqElement(
 /** Watch one game's broadcast. */
 export function GameVideo({ gameId }: { gameId: string }) {
   const config = useRelay("watch")
-  const ref = useRef<HTMLElement>(null)
   const [el, setEl] = useState<HTMLElement | null>(null)
-
-  useEffect(() => setEl(ref.current), [])
   useMoqElement(el, "watch", gameId, false)
 
   if (!config) return <NoRelay />
@@ -125,7 +126,7 @@ export function GameVideo({ gameId }: { gameId: string }) {
     <div className="moq-surface" data-testid="moq-watch">
       {/* Appears only when the browser is missing something it needs. */}
       <moq-watch-support show="warning" />
-      <moq-watch ref={ref} url={relayUrl(config)} name={broadcastName(gameId)}>
+      <moq-watch ref={setEl} url={relayUrl(config)} name={broadcastName(gameId)}>
         {/* The draw surface. The element has no shadow root; without this it
             subscribes successfully and paints nothing. */}
         <canvas data-testid="moq-canvas" />
@@ -138,11 +139,8 @@ export function GameVideo({ gameId }: { gameId: string }) {
 /** Broadcast this game from the device's camera. */
 export function GameBroadcast({ gameId }: { gameId: string }) {
   const config = useRelay("publish")
-  const ref = useRef<HTMLElement>(null)
   const [el, setEl] = useState<HTMLElement | null>(null)
   const [source, setSource] = useState<"camera" | "screen" | null>(null)
-
-  useEffect(() => setEl(ref.current), [])
   useMoqElement(el, "publish", gameId, true)
 
   const start = (which: "camera" | "screen") => {
@@ -170,7 +168,7 @@ export function GameBroadcast({ gameId }: { gameId: string }) {
       {/* `announce="source"` so the broadcast is not advertised before capture
           starts — otherwise a viewer sees a live game sending nothing. */}
       <moq-publish
-        ref={ref}
+        ref={setEl}
         url={relayUrl(config)}
         name={broadcastName(gameId)}
         announce="source"
