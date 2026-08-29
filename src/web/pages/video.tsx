@@ -19,7 +19,7 @@
  */
 
 import { GameBroadcast, GameVideo } from "../components/moq-video"
-import { useGame } from "../lib/data"
+import { useDefaultGame, useGame } from "../lib/data"
 import type { Route } from "../lib/router"
 import { m } from "../lib/i18n"
 
@@ -39,21 +39,11 @@ function Shell({
   gameId,
   heading,
   children,
-  goto,
 }: {
-  gameId: string | undefined
+  gameId: string
   heading: string
   children: React.ReactNode
-  goto: (r: Route) => void
 }) {
-  if (!gameId) {
-    return (
-      <div className="empty" data-testid="video-no-game">
-        <p>{m.video_no_game()}</p>
-        <button onClick={() => goto({ page: "live" })}>{m.nav_live()}</button>
-      </div>
-    )
-  }
   return (
     <>
       <div className="page-header">
@@ -67,18 +57,45 @@ function Shell({
   )
 }
 
-export function BroadcastPage({ id, goto }: { id?: string; goto: (r: Route) => void }) {
+/**
+ * Resolve the game, so a menu entry can be a page.
+ *
+ * `#/broadcast` with no id has to mean something: the sidebar links to a page,
+ * not to a fixture, and somebody in another country trying this out should not
+ * have to find a game id first. Falls back to whatever is being played now.
+ */
+function useGameId(id: string | undefined) {
+  const { data: fallback, isPending } = useDefaultGame()
+  return { gameId: id ?? fallback?.id, resolving: !id && isPending }
+}
+
+function Empty({ goto }: { goto: (r: Route) => void }) {
   return (
-    <Shell gameId={id} heading={m.video_broadcast_heading()} goto={goto}>
-      {id && <GameBroadcast gameId={id} />}
+    <div className="empty" data-testid="video-no-game">
+      <p>{m.video_no_game()}</p>
+      <button onClick={() => goto({ page: "live" })}>{m.nav_live()}</button>
+    </div>
+  )
+}
+
+export function BroadcastPage({ id, goto }: { id?: string; goto: (r: Route) => void }) {
+  const { gameId, resolving } = useGameId(id)
+  if (resolving) return <div className="empty">{m.loading()}</div>
+  if (!gameId) return <Empty goto={goto} />
+  return (
+    <Shell gameId={gameId} heading={m.video_broadcast_heading()}>
+      <GameBroadcast gameId={gameId} />
     </Shell>
   )
 }
 
 export function WatchPage({ id, goto }: { id?: string; goto: (r: Route) => void }) {
+  const { gameId, resolving } = useGameId(id)
+  if (resolving) return <div className="empty">{m.loading()}</div>
+  if (!gameId) return <Empty goto={goto} />
   return (
-    <Shell gameId={id} heading={m.video_watch_heading()} goto={goto}>
-      {id && <GameVideo gameId={id} />}
+    <Shell gameId={gameId} heading={m.video_watch_heading()}>
+      <GameVideo gameId={gameId} />
     </Shell>
   )
 }

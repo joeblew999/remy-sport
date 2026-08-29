@@ -64,6 +64,12 @@ const navItems = (): NavItem[] => [
   { id: "events",    label: m.nav_my_events() },
   { id: "team",      label: m.nav_my_team() },
   { id: "live",      label: m.nav_live() },
+  // The live-video harness, reachable without knowing a game id: both pages
+  // fall back to whatever is being played now. It is here rather than buried on
+  // a game page because the point is to have people in different countries try
+  // it and report what happened.
+  { id: "watch",     label: m.video_watch() },
+  { id: "broadcast", label: m.video_broadcast() },
   { id: "orgs",      label: m.nav_orgs() },
   { id: "profile",   label: m.nav_profile() },
 ];
@@ -78,7 +84,7 @@ export function Sidebar({ page, setPage }: { page: string; setPage: (p: string) 
       </div>
       <div className="nav-group">
         <div className="label">{m.browse()}</div>
-        {NAV_ITEMS.slice(0, 4).map(it => (
+        {NAV_ITEMS.slice(0, 6).map(it => (
           <button key={it.id} className={`nav-item ${page === it.id ? "active" : ""}`} onClick={() => setPage(it.id)}>
             <span className="ico"><Icon name={it.id === "team" ? "teams" : it.id} /></span>
             <span>{it.label}</span>
@@ -87,7 +93,7 @@ export function Sidebar({ page, setPage }: { page: string; setPage: (p: string) 
       </div>
       <div className="nav-group">
         <div className="label">{m.nav_you()}</div>
-        {NAV_ITEMS.slice(4).map(it => (
+        {NAV_ITEMS.slice(6).map(it => (
           <button key={it.id} className={`nav-item ${page === it.id ? "active" : ""}`} onClick={() => setPage(it.id)}>
             <span className="ico"><Icon name={it.id} /></span>
             <span>{it.label}</span>

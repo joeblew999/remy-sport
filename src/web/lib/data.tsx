@@ -102,6 +102,33 @@ export function useGames(eventId: string | undefined) {
 }
 
 /**
+ * The game to show somebody who did not choose one.
+ *
+ * A live game if there is one, then the next scheduled, then the most recent —
+ * which is the order a person cares about. The video pages need it because the
+ * sidebar cannot name a game: a menu entry is a page, and `#/broadcast` has to
+ * mean something on its own for a visitor trying the thing out.
+ *
+ * Not `useLiveGame()`, which returns a hardcoded constant from the sample data
+ * and always has.
+ */
+export function useDefaultGame() {
+  return useQuery(
+    orpc.games.list.queryOptions({
+      input: {},
+      select: ({ games }) => {
+        const live = games.find((g) => g.statusCode === "LIVE" || g.statusCode === "HALF_TIME")
+        if (live) return live
+        const upcoming = games
+          .filter((g) => g.statusCode === "SCHEDULED")
+          .sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0]
+        return upcoming ?? games[games.length - 1]
+      },
+    }),
+  );
+}
+
+/**
  * One game, for a page that has an id and nothing else.
  *
  * `useGames(undefined)` does not answer this: its query is disabled without an
