@@ -144,12 +144,15 @@ describe("the local ring", () => {
     // Without this the entire local loop is invisible: wrangler dev binds
     // Analytics Engine and discards every write, so the only way to see a row
     // was to deploy.
-    const before = recent().length
+    const before = recent().events.length
     track(devEnv, "broadcast.ended", { gameId: "gam_009", seconds: 61 })
-    const kept = recent().at(-1)!
-    expect(recent().length).toBe(before + 1)
+    const kept = recent().events.at(-1)!
+    expect(recent().events.length).toBe(before + 1)
     expect(kept.event).toBe("broadcast.ended")
     expect(kept.fields).toEqual({ gameId: "gam_009", seconds: 61 })
+    // The collection window, so an empty report can be told apart from a
+    // worker that was recycled a moment ago.
+    expect(Date.parse(recent().since)).not.toBeNaN()
   })
 })
 

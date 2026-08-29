@@ -76,7 +76,7 @@ analytics.post("/api/analytics", async (c) => {
  */
 analytics.get("/api/dev/events", (c) => {
   if (!keepsEventsLocally(c.env)) return c.notFound()
-  return c.json({ events: recent() })
+  return c.json(recent())
 })
 
 export default analytics

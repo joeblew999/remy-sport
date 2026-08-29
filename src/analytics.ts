@@ -98,6 +98,19 @@ export const EVENTS = {
     doubles: ["seconds"],
     dimensions: [],
   }),
+  /**
+   * One attempt to sign in, sign out, or ask for a code.
+   *
+   * The only event recorded on success as well as failure, and deliberately so:
+   * "forty invalid codes" is unreadable without knowing whether forty-two were
+   * tried or four thousand. Sign-in is the one place a rate is the answer, and
+   * the volume is small enough to afford the denominator.
+   */
+  "auth.attempt": defineEvent({
+    blobs: ["action", "status", "code"],
+    doubles: ["ms"],
+    dimensions: ["action", "status", "code"],
+  }),
   /** One viewer's or publisher's video session, reported by the browser. */
   "moq.session": defineEvent({
     blobs: ["role", "gameId", "transport", "errorName"],
@@ -247,6 +260,27 @@ function write(
 const RING_SIZE = 500
 const ring: RecordedEvent[] = []
 
+/**
+ * When this isolate started collecting.
+ *
+ * Reported alongside the events because an empty ring is ambiguous and the two
+ * meanings need opposite responses. "Nothing has failed" is good news;
+ * "wrangler reloaded the worker four seconds ago and threw the evidence away"
+ * means run it again. Without this the second reads as the first, which is how
+ * you conclude a feature works when you have simply lost the record of it —
+ * it cost a confused ten minutes the day this was written.
+ *
+ * wrangler dev recycles the isolate on any source change, and `mise run dev`
+ * has vite writing into dist/web continuously, so this happens a lot.
+ *
+ * Set on first use rather than at module load, because **a Worker's clock reads
+ * zero during module initialisation** — Cloudflare freezes time until the first
+ * I/O, so `new Date().toISOString()` at the top level of a module is 1970. The
+ * first version did exactly that and reported "collecting for 496669h", which
+ * is at least an obvious sort of wrong.
+ */
+let startedAt: string | null = null
+
 export interface RecordedEvent {
   event: EventName
   country: string
@@ -265,13 +299,17 @@ function keep(
   const kept: Record<string, string | number> = {}
   for (const k of spec.blobs) kept[k] = String(fields[k] ?? "")
   for (const k of spec.doubles) kept[k] = Number(fields[k] ?? 0)
+  startedAt ??= new Date().toISOString()
   ring.push({ event, country: country ?? "", at: new Date().toISOString(), fields: kept })
   if (ring.length > RING_SIZE) ring.shift()
 }
 
 /** What the dev endpoint serves. Oldest first, as they happened. */
-export function recent(): readonly RecordedEvent[] {
-  return ring
+export function recent(): { since: string; events: readonly RecordedEvent[] } {
+  // Nothing recorded yet, so the window starts now: an empty ring that has been
+  // empty for zero seconds is the honest answer to "did I just lose these?".
+  startedAt ??= new Date().toISOString()
+  return { since: startedAt, events: ring }
 }
 
 /**
