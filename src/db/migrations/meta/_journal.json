@@ -64,6 +64,13 @@
       "when": 1787982277968,
       "tag": "0008_user_and_event_model_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1787992813854,
+      "tag": "0009_game_broadcast",
+      "breakpoints": true
     }
   ]
 }

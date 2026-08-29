@@ -17,7 +17,7 @@
  */
 
 import { ORPCError } from "@orpc/server"
-import { and, eq } from "drizzle-orm"
+import { and, eq, gte } from "drizzle-orm"
 import { z } from "zod"
 import * as schema from "../db/schema"
 import { EnterScoreInput, GameSchema, SetGameStatusInput, type ApiGame } from "../domain/api"
@@ -30,6 +30,19 @@ import { ERRORS } from "./errors"
 import { authed, authedRoute, can, openTo, requireAction, viewer, viewerTimezone, type Db, type SessionUser } from "./base"
 
 const IdInput = z.object({ id: z.string() })
+
+/**
+ * How long a broadcast row is believed without a heartbeat.
+ *
+ * A publisher whose phone dies never sends a stop, and a row with only a start
+ * time would advertise that game as live forever — worse than showing nothing,
+ * because it sends viewers to a black rectangle and teaches them the feature is
+ * broken. The client refreshes every 20 seconds; three missed refreshes and we
+ * stop claiming it.
+ */
+const BROADCAST_STALE_SECONDS = 60
+
+const freshSince = () => new Date(Date.now() - BROADCAST_STALE_SECONDS * 1000).toISOString()
 
 type Row = typeof schema.game.$inferSelect & {
   homeTeam?: { names: Record<string, string> } | null
@@ -73,6 +86,21 @@ async function serialize(db: Db, user: SessionUser | null, row: Row): Promise<Ap
     canEnterScore: await can(db, "ENTER_SCORES", user, row.id),
     canSetStatus: await can(db, "CONFIRM_MATCH_STATUS", user, row.id),
     canAssignReferee: assign,
+    // From our table, refreshed by the publisher's heartbeat — see
+    // BROADCAST_STALE_SECONDS. A row nobody has touched is not a live game.
+    isBroadcasting: Boolean(
+      await db
+        .select({ gameId: schema.gameBroadcast.gameId })
+        .from(schema.gameBroadcast)
+        .where(
+          and(
+            eq(schema.gameBroadcast.gameId, row.id),
+            gte(schema.gameBroadcast.lastSeenAt, freshSince()),
+          ),
+        )
+        .get(),
+    ),
+    canBroadcast: await can(db, "BROADCAST_GAME", user, row.id),
     /**
      * Referees not already on this game, and only for someone who may assign
      * one. A global "list every referee" endpoint would be a directory of
@@ -387,6 +415,46 @@ export const remove = authed
  * decision, and a referee who could assign themselves would undo the point of
  * assigning anyone, which is what makes `ENTER_SCORES` safe.
  */
+/**
+ * Say that this game is being broadcast, and keep saying it.
+ *
+ * Also the heartbeat: one idempotent call rather than a start and a separate
+ * ping, so a publisher that reconnects mid-game simply resumes rather than
+ * needing to know whether it had already started.
+ *
+ * One row per game is Cloudflare's rule as much as ours — their relay allows a
+ * single publisher per path, so a second camera on the same game replaces the
+ * first here exactly as it would there.
+ */
+export const startBroadcast = authed
+  .route({ method: "PUT", path: "/games/{id}/broadcast", summary: "Start or refresh a live broadcast", ...authedRoute })
+  .input(IdInput)
+  .output(z.object({ broadcasting: z.literal(true) }))
+  .use(requireAction("BROADCAST_GAME"))
+  .handler(async ({ context, input }) => {
+    const now = new Date().toISOString()
+    await context.db
+      .insert(schema.gameBroadcast)
+      .values({ gameId: input.id, userId: context.user.id, startedAt: now, lastSeenAt: now })
+      .onConflictDoUpdate({
+        target: schema.gameBroadcast.gameId,
+        // `startedAt` is deliberately not touched on a refresh: it is when this
+        // broadcast began, which is what a viewer joining late wants to know.
+        set: { userId: context.user.id, lastSeenAt: now },
+      })
+    return { broadcasting: true as const }
+  })
+
+export const stopBroadcast = authed
+  .route({ method: "DELETE", path: "/games/{id}/broadcast", summary: "Stop a live broadcast", ...authedRoute })
+  .input(IdInput)
+  .output(z.object({ broadcasting: z.literal(false) }))
+  .use(requireAction("BROADCAST_GAME"))
+  .handler(async ({ context, input }) => {
+    await context.db.delete(schema.gameBroadcast).where(eq(schema.gameBroadcast.gameId, input.id))
+    return { broadcasting: false as const }
+  })
+
 export const assignReferee = authed
   .route({ method: "POST", path: "/games/{id}/referees", summary: "Assign a referee to a game", successStatus: 201, ...authedRoute })
   .errors({ UNKNOWN_USER: ERRORS.UNKNOWN_USER, NOT_A_REFEREE: ERRORS.NOT_A_REFEREE })

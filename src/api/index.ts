@@ -66,6 +66,8 @@ export const router = {
     delete: games.remove,
     enterScore: games.enterScore,
     setStatus: games.setStatus,
+    startBroadcast: games.startBroadcast,
+    stopBroadcast: games.stopBroadcast,
     assignReferee: games.assignReferee,
     unassignReferee: games.unassignReferee,
   },

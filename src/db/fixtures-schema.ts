@@ -135,6 +135,32 @@ export const game = sqliteTable("game", {
 })
 
 /**
+ * Who is broadcasting this game right now.
+ *
+ * This table exists because the relay cannot answer the question. `@moq/net`
+ * hardcodes `NO_DISCOVERY_HOSTS = ["mediaoverquic.com"]`, so
+ * `connection.announced()` yields nothing on Cloudflare's relay — permanently,
+ * by their design, because a consumer waiting on an announcement there would
+ * hang forever. Without a record of our own, no page can say which games are
+ * watchable and every viewer is sent to a black rectangle to find out.
+ *
+ * One row per game, so it also encodes Cloudflare's own rule: one publisher per
+ * path. A second camera on the same game replaces the first rather than both
+ * fighting over the relay's single slot.
+ *
+ * `lastSeenAt` is the part that makes it survivable. A publisher whose phone
+ * dies never sends a stop, and a row that only had `startedAt` would advertise
+ * that game as live forever. The client heartbeats; a row nobody has refreshed
+ * is treated as gone.
+ */
+export const gameBroadcast = sqliteTable("gameBroadcast", {
+  gameId: text("game_id").notNull().references(() => game.id),
+  userId: text("user_id").notNull().references(() => user.id),
+  startedAt: text("started_at").notNull(),
+  lastSeenAt: text("last_seen_at").notNull(),
+}, (t) => [uniqueIndex("gameBroadcast_key").on(t.gameId)])
+
+/**
  * Which referees are on this game.
  *
  * The `GAME_REFEREE` relation reads exactly this. Before it existed,

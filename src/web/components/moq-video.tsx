@@ -26,8 +26,9 @@
  */
 
 import { useEffect, useState } from "react"
-import { useQuery } from "@tanstack/react-query"
-import { orpc } from "../lib/orpc"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { api, orpc } from "../lib/orpc"
+import { useGame } from "../lib/data"
 import { m } from "../lib/i18n"
 import {
   ENCODER,
@@ -46,6 +47,53 @@ import "@moq/publish/element"
 function useRelay(role: "watch" | "publish") {
   const { data } = useQuery(orpc.moq.config.queryOptions({ input: { role } }))
   return data?.url && data.token ? { url: data.url, token: data.token } : undefined
+}
+
+/**
+ * What the element is actually doing, polled off its own signals.
+ *
+ * A black rectangle is the worst possible answer to "is this working?" — it
+ * looks identical whether the relay is unreachable, nobody is broadcasting, the
+ * browser cannot do WebTransport, or the picture simply has not arrived yet.
+ * Those need four different responses from whoever is standing there.
+ *
+ * Polled rather than subscribed: the signals are the package's own reactive
+ * primitives and threading them into React costs more than reading them once a
+ * second, which is well inside human patience for a status line.
+ */
+function useMoqStatus(el: HTMLElement | null) {
+  const [status, setStatus] = useState<{ connection: string; broadcast: string }>({
+    connection: "idle",
+    broadcast: "idle",
+  })
+
+  useEffect(() => {
+    if (!el) return
+    const node = el as HTMLElement & {
+      connection?: { status?: { peek?: () => unknown } }
+      broadcast?: { status?: { peek?: () => unknown } }
+    }
+    const read = () =>
+      setStatus({
+        connection: String(node.connection?.status?.peek?.() ?? "idle"),
+        broadcast: String(node.broadcast?.status?.peek?.() ?? "idle"),
+      })
+    read()
+    const timer = setInterval(read, 1000)
+    return () => clearInterval(timer)
+  }, [el])
+
+  return status
+}
+
+/** One line a person can act on, in their own language. */
+function statusLine(s: { connection: string; broadcast: string }): string {
+  if (s.connection === "disconnected" || s.connection === "connecting") {
+    return m.video_status_connecting()
+  }
+  if (s.broadcast === "offline" || s.broadcast === "idle") return m.video_status_waiting()
+  if (s.broadcast === "live" || s.broadcast === "active") return m.video_status_live()
+  return m.video_status_connecting()
 }
 
 /** Shown wherever no relay is configured. */
@@ -119,6 +167,15 @@ export function GameVideo({ gameId }: { gameId: string }) {
   const config = useRelay("watch")
   const [el, setEl] = useState<HTMLElement | null>(null)
   useMoqElement(el, "watch", gameId, false)
+  const status = useMoqStatus(el)
+  /**
+   * Whether anybody is actually broadcasting, from our own table.
+   *
+   * Polled, because the relay cannot push this — it does not support discovery
+   * at all — and because "nobody is live yet" is the answer a viewer needs
+   * within seconds of arriving, not whenever they think to reload.
+   */
+  const { data: game } = useGame(gameId, { refetchInterval: 10_000 })
 
   if (!config) return <NoRelay />
 
@@ -131,7 +188,13 @@ export function GameVideo({ gameId }: { gameId: string }) {
             subscribes successfully and paints nothing. */}
         <canvas data-testid="moq-canvas" />
       </moq-watch>
-      <div className="moq-hint">{m.video_watch_hint()}</div>
+      <div className="moq-hint" data-testid="moq-status">
+        {game && !game.isBroadcasting ? m.video_status_nobody_live() : statusLine(status)}
+        {/* The broadcast being watched, so two devices can be checked against
+            each other rather than guessed at. */}
+        <span className="moq-name"> · {broadcastName(gameId)}</span>
+        <span className="moq-name"> · {status.connection}/{status.broadcast}</span>
+      </div>
     </div>
   )
 }
@@ -142,6 +205,42 @@ export function GameBroadcast({ gameId }: { gameId: string }) {
   const [el, setEl] = useState<HTMLElement | null>(null)
   const [source, setSource] = useState<"camera" | "screen" | null>(null)
   useMoqElement(el, "publish", gameId, true)
+  const qc = useQueryClient()
+  const { data: game } = useGame(gameId)
+
+  const withdraw = useMutation({ mutationFn: () => api.games.stopBroadcast({ id: gameId }) })
+
+  /**
+   * Heartbeat while broadcasting, and withdraw on the way out.
+   *
+   * The relay cannot tell anyone that this game is live, so the server only
+   * knows because this says so — and only keeps believing it because this keeps
+   * saying so. A publisher whose battery dies stops heartbeating and the row
+   * goes stale on its own, which is the only failure mode a camera in a gym
+   * actually has.
+   */
+  useEffect(() => {
+    if (source === null) return
+    const beat = () => void api.games.startBroadcast({ id: gameId }).catch(() => undefined)
+    beat()
+    const timer = setInterval(beat, 20_000)
+    // `pagehide`, not `unload`: it is the one that fires on iOS when an app is
+    // backgrounded or the tab is closed, which is exactly when a broadcast ends
+    // without anybody pressing stop.
+    const bye = () => {
+      navigator.sendBeacon?.(`/api/games/${gameId}/broadcast`, new Blob([], { type: "text/plain" }))
+    }
+    window.addEventListener("pagehide", bye)
+    return () => {
+      clearInterval(timer)
+      window.removeEventListener("pagehide", bye)
+    }
+    // Keyed on the source and the game, which is everything that changes what
+    // is being announced. Calling the client directly rather than through a
+    // mutation object keeps this honest: a mutation is a new object each render,
+    // and depending on it would clear and restart the interval continuously — a
+    // heartbeat that never beats.
+  }, [source, gameId])
 
   const start = (which: "camera" | "screen") => {
     const node = el as (HTMLElement & { source?: unknown }) | null
@@ -158,6 +257,9 @@ export function GameBroadcast({ gameId }: { gameId: string }) {
     if (!node) return
     node.source = undefined
     setSource(null)
+    withdraw.mutate(undefined, {
+      onSuccess: () => qc.invalidateQueries({ queryKey: orpc.games.key() }),
+    })
   }
 
   if (!config) return <NoRelay />
@@ -177,7 +279,11 @@ export function GameBroadcast({ gameId }: { gameId: string }) {
       </moq-publish>
 
       <div className="moq-controls">
-        {source === null ? (
+        {game && !game.canBroadcast ? (
+          <div className="moq-hint" data-testid="moq-not-permitted">
+            {m.video_not_permitted()}
+          </div>
+        ) : source === null ? (
           <>
             <button
               className="btn primary"

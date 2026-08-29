@@ -279,5 +279,10 @@
   "video_stop": "Stop broadcasting",
   "video_broadcast_hint": "Choose a source to start. Your browser will ask for permission.",
   "video_broadcasting": "Broadcasting. Open the Watch page on another device to see it.",
-  "video_watch_hint": "Nothing appears until somebody is broadcasting this game."
+  "video_watch_hint": "Nothing appears until somebody is broadcasting this game.",
+  "video_status_connecting": "Connecting to the relay…",
+  "video_status_waiting": "Connected. Waiting for somebody to broadcast this game.",
+  "video_status_live": "Receiving video.",
+  "video_status_nobody_live": "Nobody is broadcasting this game yet.",
+  "video_not_permitted": "Only this game's referee or the people running the event can broadcast it."
 }

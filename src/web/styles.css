@@ -1431,3 +1431,11 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   color: var(--ink-3);
   background: var(--paper);
 }
+
+/* The broadcast name and raw state, small, for checking two devices against
+   each other rather than guessing which game each one picked. */
+.moq-name {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--ink-3);
+}

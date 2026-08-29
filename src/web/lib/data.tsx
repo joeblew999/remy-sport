@@ -135,12 +135,13 @@ export function useDefaultGame() {
  * event, so a page holding only a game id got an empty list and rendered no
  * heading at all.
  */
-export function useGame(gameId: string | undefined) {
+export function useGame(gameId: string | undefined, opts: { refetchInterval?: number } = {}) {
   const loc = useLocalizer();
   return useQuery(
     orpc.games.get.queryOptions({
       input: { id: gameId! },
       enabled: gameId !== undefined,
+      ...opts,
       select: (g) => ({
         ...g,
         homeTeam: loc.name(g.homeTeamNames),

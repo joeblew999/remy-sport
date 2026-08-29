@@ -103,6 +103,7 @@ export const ACTION = [
   { code: "GENERATE_FIXTURES", objectTypeCode: "EVENT", category: "Schedules", names: {"th":"สร้างตารางแข่งขัน","en":"Generate fixtures","ja":"試合日程を生成"} },
   { code: "DEFINE_SESSION_SCHEDULE", objectTypeCode: "EVENT", category: "Schedules", names: {"th":"กำหนดตารางเซสชัน","en":"Define session schedule","ja":"セッション日程を設定"} },
   { code: "ASSIGN_COURTS", objectTypeCode: "EVENT", category: "Schedules", names: {"th":"กำหนดสนาม","en":"Assign courts","ja":"コートを割り当てる"} },
+  { code: "BROADCAST_GAME", objectTypeCode: "GAME", category: "Live", names: {"th":"ถ่ายทอดสดเกม","en":"Broadcast a game","ja":"試合を配信する"}, descriptions: {"th":"เปิดกล้องถ่ายทอดสดเกมนี้","en":"Point a camera at this game and publish it live","ja":"この試合をカメラで撮影して配信する"} },
   { code: "ENTER_SCORES", objectTypeCode: "GAME", category: "Scores", names: {"th":"บันทึกคะแนน","en":"Enter scores","ja":"スコアを入力"} },
   { code: "CONFIRM_MATCH_STATUS", objectTypeCode: "GAME", category: "Scores", names: {"th":"ยืนยันสถานะการแข่งขัน","en":"Confirm match status","ja":"試合状況を確定"} },
   { code: "RECORD_ATTENDANCE", objectTypeCode: "EVENT", category: "Scores", names: {"th":"บันทึกการเข้าร่วม","en":"Record attendance","ja":"出席を記録"} },
@@ -130,6 +131,7 @@ export const ACTION = [
 ] as const
 
 export const ACTION_CODES = ACTION.map((t) => t.code) as unknown as [
+  "BROADCAST_GAME",
   "SIGN_IN_OUT",
   "SIGN_UP_AS_SPECTATOR",
   "SIGN_UP_AS_PLAYER",
@@ -871,6 +873,12 @@ export const GRANTS = {
   //
   // `eventTypes` still narrows by the parent event's subtype — a camp has no
   // games to score.
+  BROADCAST_GAME: [
+    { relation: "GAME_EVENT_OWNER", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+    { relation: "GAME_EVENT_CO_ORGANIZER", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+    { relation: "GAME_REFEREE", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+    { relation: "PLATFORM_ADMIN", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
+  ],
   ENTER_SCORES: [
     { relation: "GAME_EVENT_OWNER", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
     { relation: "GAME_EVENT_CO_ORGANIZER", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },

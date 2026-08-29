@@ -174,6 +174,17 @@ export const GameSchema = createSelectSchema(schema.game)
     timezone: z.string().nullable(),
     canAssignReferee: z.boolean(),
     /**
+     * Whether somebody is broadcasting this game right now.
+     *
+     * From our own table, not from the relay: Cloudflare's relay does not
+     * support broadcast discovery, so `announced()` there yields nothing and no
+     * client can ask "is anyone live". Without this the only way to find out is
+     * to open the player and stare at a black rectangle.
+     */
+    isBroadcasting: z.boolean(),
+    /** Whether the viewer may point a camera at this game. `BROADCAST_GAME`. */
+    canBroadcast: z.boolean(),
+    /**
      * Who is officiating. Public, and deliberately: a referee's name on a
      * fixture is what makes an assignment accountable, and it is the visible
      * half of what stops anyone else entering the score.
