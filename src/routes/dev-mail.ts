@@ -1,4 +1,7 @@
 import { Hono } from "hono"
+import { drizzle } from "drizzle-orm/d1"
+import { like } from "drizzle-orm"
+import * as schema from "../db/schema"
 import type { AppEnv } from "../types"
 import { readOutbox, clearOutbox, usesOutbox } from "../mail/mailer"
 import { SEED_ENTITIES, SEED_RELATIONSHIPS } from "../../src/domain/model/entities"
@@ -135,6 +138,32 @@ function summarise(held: string[]): string[] {
  * `/api/dev/outbox` is NOT enabled by the second case and must never be: it
  * would expose real people's sign-in codes. Only the account *list* opens up.
  */
+/**
+ * Forget a pending sign-in code, so the next request issues a fresh one.
+ *
+ * Dev and tests only, on the same gate as the outbox. Better Auth invalidates an
+ * OTP after `allowedAttempts` and throttles re-sends, so a suite that signs an
+ * actor in twice — once through the API to save a session, once through the form
+ * to test the form — races that throttle: the second request returns 200,
+ * issues nothing, and the fixed code is rejected against a spent OTP. It failed
+ * about half the time and named the identity element rather than the code.
+ */
+devMail.delete("/api/dev/otp", async (c) => {
+  if (!usesOutbox(c.env)) return c.notFound()
+  const to = c.req.query("to")
+  if (!to) return c.json({ error: "to is required" }, 400)
+  // Better Auth prefixes the purpose: `sign-in-otp-<email>`, and there are other
+  // purposes (verification, change-email) that would each have their own row.
+  // Matching the bare email deleted nothing at all, which is exactly as useless
+  // as not having this — and looked like it worked.
+  const db = drizzle(c.env.DB, { schema })
+  const removed = await db
+    .delete(schema.verification)
+    .where(like(schema.verification.identifier, `%${to}`))
+    .returning({ identifier: schema.verification.identifier })
+  return c.json({ cleared: removed.map((r) => r.identifier) })
+})
+
 devMail.get("/api/dev/accounts", (c) => {
   const outbox = usesOutbox(c.env)
   const demo = Boolean(c.env.TEST_OTP)

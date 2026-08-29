@@ -123,6 +123,7 @@ const HONO_ROUTES: Record<string, string> = {
   "POST /api/analytics": "a beacon, deliberately unauthenticated — see src/routes/analytics.ts; writes only to Analytics Engine, reads nothing, answers 204",
   "GET /api/dev/outbox": "dev only — 404s on a deployment; would expose sign-in codes",
   "DELETE /api/dev/outbox": "dev only — same gate",
+  "DELETE /api/dev/otp": "dev only — same gate as the outbox; clears a pending sign-in code so a test can request a fresh one",
   "GET /api/dev/accounts": "the demo picker; gated on TEST_OTP and never offers the admin",
   "POST /api/dev/prune-sessions": "dev only — 404s on a deployment; bulk session delete",
   "ALL /api/auth/*": "Better Auth owns its own authorisation, including the admin plugin",

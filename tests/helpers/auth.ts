@@ -310,6 +310,16 @@ export async function signInThroughLoginForm(page: Page, email: string): Promise
   // server-rendered harness this used to drive at /login. Same two steps, same
   // endpoints; the testids carry the `spa-` prefix they always had.
   await page.goto("/#/login")
+  // Clear any pending code for this address first. `auth.setup` has already
+  // signed every actor in through the API, and Better Auth both invalidates an
+  // OTP after `allowedAttempts` and throttles re-sends — so asking for a second
+  // code within the window returns 200, issues nothing, and leaves the fixed
+  // code being checked against a spent one. That failed about half the time and
+  // reported a missing identity element rather than a rejected code.
+  await page.evaluate(
+    (address) => fetch(`/api/dev/otp?to=${encodeURIComponent(address)}`, { method: "DELETE" }),
+    email,
+  )
   await page.getByTestId("spa-email-input").fill(email)
   await page.getByTestId("spa-send-code").click()
 
