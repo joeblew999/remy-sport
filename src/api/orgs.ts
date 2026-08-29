@@ -45,11 +45,29 @@ export const get = viewer
   .use(openTo("VIEW_ORG"))
   .route({ method: "GET", path: "/orgs/{id}", summary: "Get one organisation" })
   .input(IdInput)
-  .output(OrgSchema.extend({ canEdit: z.boolean() }))
+  .output(OrgSchema.extend({ canEdit: z.boolean(), canCreateTeam: z.boolean() }))
   .handler(async ({ context, input }) => {
     const row = await context.db.query.org.findFirst({ where: (o, { eq: is }) => is(o.id, input.id) })
     if (!row) throw new ORPCError("NOT_FOUND", { message: "Not found" })
-    return { ...row, canEdit: await can(context.db, "EDIT_ORG_PROFILE", context.user, input.id) }
+    return {
+      ...row,
+      canEdit: await can(context.db, "EDIT_ORG_PROFILE", context.user, input.id),
+      /**
+       * A *platform* grant, answered here because this is the page that needs
+       * it.
+       *
+       * `CREATE_TEAM` is granted to ANY_COACH with no relation to any
+       * organisation — the PO's model says a coach may create a team, full
+       * stop, and the org is chosen on the form rather than earned. So the
+       * object id is null and this is not "may you create a team *here*".
+       *
+       * It sits on the org because the only screen that creates a team is the
+       * one that already knows which school it is for. A viewer-capabilities
+       * endpoint would be the tidier home and would exist to answer one
+       * question.
+       */
+      canCreateTeam: await can(context.db, "CREATE_TEAM", context.user, null),
+    }
   })
 
 export const update = authed

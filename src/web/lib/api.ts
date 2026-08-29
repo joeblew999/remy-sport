@@ -182,6 +182,7 @@ export function toTeam(t: ApiTeam, loc: Localizer): Team {
     // fabricated "4–0" on a real team reads as fact — so leave it absent.
     record: undefined,
     orgName: orgName || "—",
+    orgId: t.orgId,
     ageGroupCode: t.ageGroupCode,
     genderCode: t.genderCode,
     // From /api/reference, not a map written out here. The hardcoded one said

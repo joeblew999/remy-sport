@@ -32,12 +32,13 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, orpc } from "../lib/orpc";
-import { useOrg, useOrgMembers, useOrgs } from "../lib/data";
+import { useOrg, useOrgMembers, useOrgs, useTeams } from "../lib/data";
 import { useSession } from "../lib/session";
 import { ORG_ROLE_CODES } from "../../domain/vocabularies";
 import type { Route } from "../lib/router";
 import { formErrors } from "../lib/form-errors";
 import { m } from "../lib/i18n";
+import { useLocale } from "../lib/locale";
 
 export function OrgsPage({ goto }: { goto: (r: Route) => void }) {
   const orgs = useOrgs();
@@ -92,6 +93,14 @@ export function OrgPage({ id, goto }: { id?: string; goto: (r: Route) => void })
       {/* Signed-out visitors are not offered a members section at all: the
           query would 403 for a reason that has nothing to do with this org. */}
       {user && <OrgMembers id={org.data.id} />}
+      {/* A school's own teams, and — for a coach — the only way to make one.
+          `teams.create` was enforced and unreachable, so a team could not be
+          created from the app at all. */}
+      <OrgTeams
+        orgId={org.data.id}
+        canCreate={org.data.canCreateTeam}
+        goto={goto}
+      />
 
       <div className="event-actions" style={{ marginTop: 16 }}>
         <button className="btn" onClick={() => goto({ page: "orgs" })}>
@@ -324,5 +333,131 @@ function OrgMembers({ id }: { id: string }) {
         </form>
       </section>
     </>
+  );
+}
+
+/**
+ * A school's teams, and adding one.
+ *
+ * The list is filtered from `teams.list` rather than fetched per org: the whole
+ * list is already in the cache for the teams page, it is small, and a second
+ * endpoint returning a subset of it would be a second thing to keep correct.
+ *
+ * `canCreate` is `CREATE_TEAM`, which the PO grants to ANY_COACH with no
+ * relation to any organisation — so this is "may you create a team", not "may
+ * you create one *here*". The org is chosen by being on this page. That is the
+ * model's shape and not this file's decision; if creating for another school
+ * should require membership, the grant is where that changes.
+ */
+function OrgTeams({
+  orgId,
+  canCreate,
+  goto,
+}: {
+  orgId: string;
+  canCreate: boolean;
+  goto: (r: Route) => void;
+}) {
+  const qc = useQueryClient();
+  const { terms, name } = useLocale();
+  const { data: teams = [], isPending } = useTeams();
+  const [created, setCreated] = useState(false);
+
+  const mine = teams.filter((t) => t.orgId === orgId);
+
+  const add = useMutation({
+    mutationFn: (v: { name: string; ageGroupCode: string; genderCode: string }) =>
+      api.teams.create({
+        orgId,
+        names: { en: v.name },
+        ageGroupCode: v.ageGroupCode as never,
+        genderCode: v.genderCode as never,
+      }),
+    onSuccess: () => {
+      setCreated(true);
+      qc.invalidateQueries({ queryKey: orpc.teams.key() });
+      setTimeout(() => setCreated(false), 2000);
+    },
+  });
+
+  const err = formErrors(add.error, ["names[en]"]);
+
+  return (
+    <section className="admin-card" style={{ marginTop: 24 }} data-testid="org-teams">
+      <h2>{m.org_teams()}</h2>
+      {isPending && <div className="empty">{m.loading()}</div>}
+      {!isPending && mine.length === 0 && (
+        <div className="empty" data-testid="org-no-teams">{m.org_no_teams()}</div>
+      )}
+      {mine.map((t) => (
+        <button
+          key={t.id}
+          className="row-button"
+          data-testid={`org-team-${t.id}`}
+          onClick={() => goto({ page: "team", id: t.id })}
+        >
+          <div className="row-title">{t.name}</div>
+          <div className="row-meta">{t.ageGroupCode} · {t.genderLabel}</div>
+        </button>
+      ))}
+
+      {canCreate && (
+        <>
+          <h2 style={{ marginTop: 24 }}>{m.org_add_team()}</h2>
+          {created && <div className="admin-ok" data-testid="org-team-created">{m.org_team_created()}</div>}
+          {err.form && <div className="admin-error" data-testid="org-team-error">{err.form}</div>}
+          <form
+            className="admin-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const form = e.currentTarget;
+              const f = new FormData(form);
+              add.mutate(
+                {
+                  name: String(f.get("name")),
+                  ageGroupCode: String(f.get("ageGroupCode")),
+                  genderCode: String(f.get("genderCode")),
+                },
+                // Cleared only on success, so a rejected name stays to be
+                // corrected rather than retyped.
+                { onSuccess: () => form.reset() },
+              );
+            }}
+          >
+            <label htmlFor="new-team-name">{m.team_name_label()}</label>
+            <input
+              id="new-team-name"
+              name="name"
+              data-testid="new-team-name"
+              required
+              autoComplete="off"
+            />
+            {err.field("names[en]") && (
+              <p className="admin-error small" data-testid="new-team-name-issue">
+                {err.field("names[en]")}
+              </p>
+            )}
+
+            <label htmlFor="new-team-age">{m.team_age_label()}</label>
+            <select id="new-team-age" name="ageGroupCode" data-testid="new-team-age">
+              {terms("ageGroups").map((a) => (
+                <option key={a.code} value={a.code}>{name(a.names, a.code)}</option>
+              ))}
+            </select>
+
+            <label htmlFor="new-team-gender">{m.team_gender_label()}</label>
+            <select id="new-team-gender" name="genderCode" data-testid="new-team-gender">
+              {terms("genders").map((g) => (
+                <option key={g.code} value={g.code}>{name(g.names, g.code)}</option>
+              ))}
+            </select>
+
+            <button type="submit" data-testid="create-team" disabled={add.isPending}>
+              {add.isPending ? m.event_saving() : m.org_add_team()}
+            </button>
+          </form>
+        </>
+      )}
+    </section>
   );
 }
