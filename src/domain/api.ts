@@ -187,6 +187,18 @@ export const GameSchema = createSelectSchema(schema.game)
     timezone: z.string().nullable(),
     canAssignReferee: z.boolean(),
     /**
+     * May the reader change or remove this fixture?
+     *
+     * `MANAGE_FIXTURES`, which is EVENT-scoped — a game belongs to an event and
+     * the right to schedule one is the right to schedule any of them. Answered
+     * per game anyway, because a schedule can span events and the client must
+     * not assume they agree.
+     *
+     * `games.update` and `games.remove` both existed with no way to reach them,
+     * so a fixture entered at the wrong time stayed at the wrong time.
+     */
+    canManageFixture: z.boolean(),
+    /**
      * Whether somebody is broadcasting this game right now.
      *
      * From our own table, not from the relay: Cloudflare's relay does not

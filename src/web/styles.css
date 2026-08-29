@@ -946,6 +946,17 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 }
 .invite-row:last-child { border-bottom: none; }
 
+/* A label a screen reader reads and nothing else shows. The datetime box in a
+   schedule row has no space for a visible one, and an input with no label at
+   all is unusable without sight. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+/* Rescheduling, inline in the row it belongs to rather than in a dialog: the
+   fixture stays visible while its time is changed. */
+.fixture-edit { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
 /* ─── The page that replaces a white screen ───────────────────────────────
    Deliberately centred in the viewport rather than in the app layout: the
    boundary sits outside the sidebar and topbar, so when it renders there is no

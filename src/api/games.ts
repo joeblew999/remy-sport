@@ -87,6 +87,10 @@ async function serialize(db: Db, user: SessionUser | null, row: Row): Promise<Ap
     canEnterScore: await can(db, "ENTER_SCORES", user, row.id),
     canSetStatus: await can(db, "CONFIRM_MATCH_STATUS", user, row.id),
     canAssignReferee: assign,
+    // Scoped to the event, not the game: MANAGE_FIXTURES is what lets somebody
+    // add a fixture, and a game that does not exist yet has no relation to be
+    // in. The same grant is what lets them fix one afterwards.
+    canManageFixture: await can(db, "MANAGE_FIXTURES", user, row.eventId),
     // From our table, refreshed by the publisher's heartbeat — see
     // BROADCAST_STALE_SECONDS. A row nobody has touched is not a live game.
     isBroadcasting: Boolean(

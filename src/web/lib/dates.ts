@@ -165,3 +165,81 @@ export function formatSince(locale: string, iso: string, now: number = Date.now(
 export function formatDayShort(locale: string, d: Date): string {
   return fmt(locale, { month: "short", day: "numeric" }).format(d);
 }
+
+/**
+ * A named clock's offset from UTC, in minutes, at a given instant.
+ *
+ * Asked of `Intl` rather than of a table, because the answer changes with the
+ * date — a zone's offset is a function of *when*, not just where, and a fixed
+ * "+7" would be wrong for every zone that has ever moved.
+ *
+ * The trick is that formatting an instant in a zone and then reading those
+ * wall-clock parts back as though they were UTC gives a number whose distance
+ * from the original instant is exactly the offset.
+ */
+function offsetMinutes(at: Date, timeZone: string): number {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      hour12: false,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    })
+      .formatToParts(at)
+      .map((p) => [p.type, p.value]),
+  ) as Record<string, string>;
+  const asIfUtc = Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day),
+    // `hour12: false` renders midnight as 24 in some ICU versions.
+    Number(parts.hour) % 24,
+    Number(parts.minute),
+    Number(parts.second),
+  );
+  return (asIfUtc - at.getTime()) / 60_000;
+}
+
+/**
+ * A UTC instant as the wall-clock string an `<input type="datetime-local">`
+ * wants — `2026-06-10T10:00` — on a named clock.
+ *
+ * The zone matters and must not be the machine's. An organiser in Bangkok
+ * editing a Bangkok fixture from a laptop still set to UTC would otherwise be
+ * shown, and would save, a time seven hours from the one printed on the
+ * schedule.
+ */
+export function toLocalInput(iso: string, timeZone: string | null): string {
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return "";
+  const zone = timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const shifted = new Date(at.getTime() + offsetMinutes(at, zone) * 60_000);
+  return shifted.toISOString().slice(0, 16);
+}
+
+/**
+ * The inverse: a wall-clock string on a named clock, back to a UTC instant.
+ *
+ * Two passes. The offset depends on the instant, and the instant is what we are
+ * solving for, so the first guess uses the offset at the wrong moment and the
+ * second corrects it. That converges immediately everywhere except inside a DST
+ * transition — an hour that either does not exist or happens twice, where no
+ * answer is fully correct and this picks one.
+ *
+ * Thailand has not observed DST since 1952, so for this product it is exact;
+ * the second pass is there because the product does not promise to stay in one
+ * country.
+ */
+export function fromLocalInput(local: string, timeZone: string | null): string {
+  if (!local) return "";
+  const zone = timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const asUtc = new Date(`${local.length === 16 ? local : local.slice(0, 16)}:00Z`);
+  if (Number.isNaN(asUtc.getTime())) return "";
+  const first = new Date(asUtc.getTime() - offsetMinutes(asUtc, zone) * 60_000);
+  const second = new Date(asUtc.getTime() - offsetMinutes(first, zone) * 60_000);
+  return second.toISOString();
+}

@@ -312,3 +312,81 @@ test.describe("Running a schedule", () => {
     await expect(page.getByTestId("referee-select-gam_001")).toContainText("Waraporn")
   })
 })
+
+test.describe("Rescheduling and removing a fixture", () => {
+  /**
+   * `games.update` and `games.remove` were both enforced by MANAGE_FIXTURES and
+   * both unreachable from the app, so a fixture entered at the wrong time
+   * stayed at the wrong time and a mistake could never be taken back.
+   *
+   * The controls are gated on `canManageFixture` — the server's answer for this
+   * reader on this game's event — for the same reason score entry is: a rule in
+   * the client could only ever be right by accident.
+   */
+  const managed = { ...upcoming, canManageFixture: true, timezone: "Asia/Bangkok" }
+
+  test("offers nothing to a reader who may not manage fixtures", async ({ page }) => {
+    await seed(page, [upcoming])
+    await page.goto("/#/event/evt_002")
+    await page.getByRole("button", { name: "Schedule" }).click()
+
+    await expect(page.getByTestId("game-gam_003")).toBeVisible()
+    await expect(page.getByTestId("edit-fixture-gam_003")).toHaveCount(0)
+    await expect(page.getByTestId("remove-fixture-gam_003")).toHaveCount(0)
+  })
+
+  test("prefills the time on the venue's clock, not the machine's", async ({ page }) => {
+    // The bug this guards is silent: 10:00 UTC is 17:00 in Bangkok, and a form
+    // that showed 10:00 would have an organiser change nothing, press Save, and
+    // move the game seven hours. Nothing errors; people just turn up wrong.
+    await seed(page, [managed])
+    await page.goto("/#/event/evt_002")
+    await page.getByRole("button", { name: "Schedule" }).click()
+    await page.getByTestId("edit-fixture-gam_003").click()
+
+    await expect(page.getByTestId("fixture-when-gam_003")).toHaveValue("2026-09-15T17:00")
+  })
+
+  test("sends back a UTC instant, whatever the box showed", async ({ page }) => {
+    let sent = ""
+    await seed(page, [managed])
+    await page.route("**/rpc/**", async (route) => {
+      const url = route.request().url()
+      if (!url.includes("games/update")) return route.fallback()
+      sent = route.request().postData() ?? ""
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ json: managed }),
+      })
+    })
+
+    await page.goto("/#/event/evt_002")
+    await page.getByRole("button", { name: "Schedule" }).click()
+    await page.getByTestId("edit-fixture-gam_003").click()
+    await page.getByTestId("fixture-when-gam_003").fill("2026-09-15T19:30")
+    await page.getByTestId("save-fixture-gam_003").click()
+
+    await expect.poll(() => sent, { message: "save must reach the server" }).not.toBe("")
+    // 19:30 in Bangkok is 12:30 UTC. Storing the wall clock would be the same
+    // bug the prefill test guards, in the other direction.
+    expect(sent).toContain("2026-09-15T12:30:00.000Z")
+  })
+
+  test("asks before removing, because the referees go with it", async ({ page }) => {
+    await seed(page, [managed])
+    let asked = ""
+    page.on("dialog", (d) => {
+      asked = d.message()
+      void d.dismiss()
+    })
+    await page.goto("/#/event/evt_002")
+    await page.getByRole("button", { name: "Schedule" }).click()
+    await page.getByTestId("remove-fixture-gam_003").click()
+
+    // Dismissed, so the fixture is still there. A delete that fires on the
+    // first click cannot be taken back — the model keeps no deleted state.
+    await expect.poll(() => asked).toContain("Remove this fixture")
+    await expect(page.getByTestId("game-gam_003")).toBeVisible()
+  })
+})

@@ -19,7 +19,7 @@ import { useLocale } from "../lib/locale";
 import { formErrors } from "../lib/form-errors";
 import { m } from "../lib/i18n";
 import type { Route } from "../lib/router";
-import { formatTimeOn } from "../lib/dates";
+import { formatTimeOn, fromLocalInput, toLocalInput } from "../lib/dates";
 
 type Game = NonNullable<ReturnType<typeof useGames>["data"]>["games"][number];
 
@@ -208,10 +208,116 @@ function GameRow({
                 {played ? m.correct_score() : m.enter_score()}
               </button>
             )}
+            {/* Both `games.update` and `games.remove` were enforced and
+                unreachable, so a fixture entered at the wrong time stayed at
+                the wrong time and a mistake could never be taken back. */}
+            {game.canManageFixture && <ManageFixture game={game} />}
           </>
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Rescheduling a fixture, or taking it back.
+ *
+ * `MANAGE_FIXTURES` is the same grant that put the game here in the first
+ * place. It is EVENT-scoped, because a game that does not exist yet has no
+ * relation to be in — and the right to schedule one is the right to fix one.
+ *
+ * ## The time is edited on the venue's clock
+ *
+ * `startsAt` is a UTC instant and `<input type="datetime-local">` holds a naive
+ * wall-clock string, so something has to say *whose* clock. It is the venue's,
+ * never the machine's: an organiser in Bangkok editing a Bangkok fixture from a
+ * laptop still set to UTC would otherwise be shown a time seven hours off the
+ * one printed on the schedule, change nothing, press Save, and move the game.
+ * Nothing would error and nobody would notice until people turned up.
+ *
+ * ## Removing asks first
+ *
+ * It cascades: the referee rows point at the game and are deleted with it, so
+ * an accidental press loses assignments as well as the fixture. `confirm` is
+ * blunt and it is honest about a thing that cannot be undone — there is no
+ * restore, because a deleted fixture is not a state the model keeps.
+ */
+function ManageFixture({ game }: { game: Game }) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const invalidate = () => qc.invalidateQueries({ queryKey: orpc.games.key() });
+
+  const move = useMutation({
+    mutationFn: (startsAt: string) =>
+      api.games.update({ id: game.id, eventId: game.eventId, startsAt }),
+    onSuccess: () => {
+      invalidate();
+      setOpen(false);
+    },
+  });
+
+  const drop = useMutation({
+    mutationFn: () => api.games.delete({ id: game.id, eventId: game.eventId }),
+    onSuccess: invalidate,
+  });
+
+  const err = formErrors(move.error, ["startsAt"]);
+
+  if (!open) {
+    return (
+      <>
+        <button
+          className="btn"
+          data-testid={`edit-fixture-${game.id}`}
+          onClick={() => setOpen(true)}
+        >
+          {m.fixture_edit()}
+        </button>
+        <button
+          className="btn"
+          data-testid={`remove-fixture-${game.id}`}
+          disabled={drop.isPending}
+          onClick={() => {
+            if (window.confirm(m.fixture_confirm_remove())) drop.mutate();
+          }}
+        >
+          {drop.isPending ? m.fixture_removing() : m.fixture_remove()}
+        </button>
+      </>
+    );
+  }
+
+  return (
+    <form
+      className="fixture-edit"
+      data-testid={`fixture-form-${game.id}`}
+      onSubmit={(e) => {
+        e.preventDefault();
+        const local = String(new FormData(e.currentTarget).get("startsAt") ?? "");
+        if (local) move.mutate(fromLocalInput(local, game.timezone));
+      }}
+    >
+      <label className="sr-only" htmlFor={`starts-${game.id}`}>{m.fixture_when()}</label>
+      <input
+        id={`starts-${game.id}`}
+        name="startsAt"
+        type="datetime-local"
+        data-testid={`fixture-when-${game.id}`}
+        defaultValue={toLocalInput(game.startsAt, game.timezone)}
+        required
+      />
+      <button type="submit" data-testid={`save-fixture-${game.id}`} disabled={move.isPending}>
+        {move.isPending ? m.event_saving() : m.event_save()}
+      </button>
+      <button type="button" className="btn" onClick={() => setOpen(false)}>
+        {m.fixture_cancel()}
+      </button>
+      {(err.form || err.field("startsAt")) && (
+        <p className="admin-error small" data-testid={`fixture-error-${game.id}`}>
+          {err.form ?? err.field("startsAt")}
+        </p>
+      )}
+    </form>
   );
 }
 
