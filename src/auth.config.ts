@@ -19,6 +19,20 @@ import { adminAc, adminRoles } from "./auth/admin-access-control"
  * the schema-shaping config drifting apart, which is what ADR 006 §9e exists to
  * prevent.
  */
+/**
+ * The statuses that are refused a session.
+ *
+ * Exported because two places need the same answer and restating it produced a
+ * wrong one: the dev account picker filtered on `=== "ACTIVE"` and dropped
+ * PENDING_APPROVAL, which *can* sign in — a referee awaiting approval has an
+ * account and needs to see that they are waiting.
+ */
+export const REFUSED_STATUSES = ["SUSPENDED", "DEACTIVATED"] as const
+
+export function isRefusedStatus(status: string | null | undefined): boolean {
+  return (REFUSED_STATUSES as readonly string[]).includes(status ?? "")
+}
+
 export interface AuthDeps {
   /**
    * Where this session is being created, as Cloudflare's edge already knows it.
@@ -207,7 +221,7 @@ export function buildAuthOptions(deps: AuthDeps = {}) {
              * bypassed by adding another.
              */
             const status = deps.userStatus ? await deps.userStatus(session.userId) : null
-            if (status === "SUSPENDED" || status === "DEACTIVATED") {
+            if (isRefusedStatus(status)) {
               throw new APIError("FORBIDDEN", { message: "ACCOUNT_NOT_ACTIVE" })
             }
 

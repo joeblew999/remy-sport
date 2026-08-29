@@ -3,6 +3,7 @@ import type { AppEnv } from "../types"
 import { readOutbox, clearOutbox, usesOutbox } from "../mail/mailer"
 import { SEED_ENTITIES, SEED_RELATIONSHIPS } from "../../src/domain/model/entities"
 import { RELATION, STORED_ROLE } from "../domain/vocabularies"
+import { isRefusedStatus } from "../auth.config"
 
 /**
  * Read back mail captured by the `outbox` transport (ADR 010).
@@ -151,9 +152,22 @@ devMail.get("/api/dev/accounts", (c) => {
    * by whoever is running the Worker, and the admin console is a thing to
    * develop against.
    */
-  const people = outbox
-    ? SEED_ENTITIES.users
-    : SEED_ENTITIES.users.filter((u) => u.roleCode !== "ADMIN")
+  /**
+   * Nobody the model does not call ACTIVE, either.
+   *
+   * The fixtures gained a SUSPENDED and a DEACTIVATED account on 2026-08-29, to
+   * exercise a lifecycle the model had always described. Both were offered here
+   * as one-click sign-ins that then failed at `session.create.before` with a
+   * 403 and no explanation — a button that cannot work, which is the thing this
+   * list exists to avoid. They are still in the fixtures and still refused;
+   * they are simply not offered.
+   *
+   * `isRefusedStatus`, not `=== "ACTIVE"`: PENDING_APPROVAL signs in, and the
+   * first version of this filter dropped a referee awaiting approval — an
+   * account the fixtures have precisely so that case is exercised.
+   */
+  const signable = SEED_ENTITIES.users.filter((u) => !isRefusedStatus(u.statusCode))
+  const people = outbox ? signable : signable.filter((u) => u.roleCode !== "ADMIN")
 
   return c.json({
     /**
