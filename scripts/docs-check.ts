@@ -96,11 +96,38 @@ function refsIn(markdown: string, adr: boolean): Ref[] {
       const p = m[1]!
       const isFile = /^[\w.@/-]+\.(ts|tsx|js|jsx|css|sql|json|toml|md|html|rs)$/.test(p)
       const isDir = /^(src|docs|tests|scripts|messages)\/[\w./-]*\/$/.test(p)
-      if ((isFile && p.includes("/")) || isDir) found.push({ path: p, line })
+      // A slash was required here until 2026-08-29, so a file named at the repo
+      // root was never checked at all — which is how AGENTS.md went on citing
+      // `eslint-suppressions.json` for weeks after the ratchet was paid off and
+      // the file deleted. The extension test is what keeps this narrow enough
+      // that `bun x tsc` and `c.get("user")` cannot match.
+      if (isFile || isDir) found.push({ path: p, line })
     }
   })
 
   return found
+}
+
+/**
+ * Every filename in the tree, so a doc can name a file without its full path.
+ *
+ * Prose says "a fetch in `api.ts`" and means it; requiring `src/web/lib/api.ts`
+ * in every sentence would make the docs unreadable to enforce a check. So a
+ * slash-less reference resolves if *any* file has that basename — which still
+ * catches the case this is for: `eslint-suppressions.json` matched nothing,
+ * because the file had been deleted.
+ */
+const basenames = new Set<string>()
+{
+  const skip = new Set(["node_modules", "dist", ".git", ".wrangler", ".playwright"])
+  const walk = (dir: string) => {
+    for (const e of readdirSync(join(ROOT, dir), { withFileTypes: true })) {
+      if (skip.has(e.name)) continue
+      if (e.isDirectory()) walk(join(dir, e.name))
+      else basenames.add(e.name)
+    }
+  }
+  walk(".")
 }
 
 let missing = 0
@@ -113,6 +140,14 @@ for (const doc of docFiles()) {
     if (!p || IGNORE.some((re) => re.test(p))) continue
 
     checked++
+    // A bare filename is prose shorthand and is judged on the basename alone.
+    if (!p.includes("/")) {
+      if (basenames.has(p)) continue
+      missing++
+      console.error(`${doc}:${line}  missing: ${p} (no file anywhere has that name)`)
+      continue
+    }
+
     const candidates = [
       resolve(ROOT, dirname(doc), p), // doc-relative, how links are written
       ...PREFIXES.map((prefix) => resolve(ROOT, prefix, p)),

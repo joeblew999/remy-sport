@@ -21,17 +21,17 @@ because a secret flips without a redeploy. **`mise run demo:off` before the
 platform has real users.**
 
 **Adding a language is one pass, and Claude does the translating.** This is how
-`ja` went from 0 to 196 messages: read `messages/en.json`, write
+`ja` went from nothing to complete: read `messages/en.json`, write
 `messages/<locale>.json`, check the placeholders, `mise run i18n:generate`.
 Nothing else is set up and nothing else is needed — inlang's own editor and its
 machine-translate CLI both exist, and neither is used here, so neither is
 described here as if it were.
 
 **`messages/en.json` is the only file written by hand.** Every other locale is a
-translation of it, so a message is added once and translated once. `ja` is
-complete and still `status: "draft"` in the PO's model — nobody who speaks
-Japanese has read it. Flipping `draft` to `released` in remy-sport-biz offers it
-to users; that is the PO's call.
+translation of it, so a message is added once and translated once. All three are
+`status: "released"` in the PO's model — `ja` was flipped in biz `a4d9c8c`, so
+the caveat that used to live here, that no Japanese speaker had read it, is the
+PO's to re-raise and not a standing warning.
 
 **Placeholders are the failure mode nothing catches.** `check:messages` counts a
 non-empty string as translated, so a translation that dropped `{days}` ships as
@@ -40,9 +40,10 @@ every `{name}` in `en.json` must appear, spelled identically, in the translation
 
 **`check:i18n` catches the other half: a string that was never a message.**
 `check:messages` cannot — it asks whether every locale has every message, and
-answers 196/196 while hardcoded English ships. The ESLint rule walks the AST
-instead, and `eslint-suppressions.json` is a ratchet holding the known 66, all
-of which are fixture copy on SAMPLE DATA screens.
+answers 100% while hardcoded English ships. The ESLint rule walks the AST
+instead. There is no suppressions file any more: it held the fixture copy on the
+SAMPLE DATA screens, and those screens are real data now, so the ratchet was
+paid off and deleted rather than carried.
 
 **Messages compile to `src/paraglide`, not `src/web/paraglide`.** They are the
 product's copy, not the SPA's — `src/auth.ts` writes the sign-in email from the

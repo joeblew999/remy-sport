@@ -95,7 +95,7 @@ What did not, so do not try again:
 - **`isolatedStorage: false`** — no faster, and it loses per-file isolation.
 - **Guarding the migration batch** on the schema already existing — no faster,
   because the cost is not SQL.
-- **A committed `snapshot.sql`** of the seeded database — `/api/seed` costs 99ms,
+- **A committed `snapshot.sql`** of the seeded database <!-- docs-check-ignore --> — `/api/seed` costs 99ms,
   so it solved nothing, and a generated dump is exactly the drifting artifact
   this repo keeps deleting.
 
