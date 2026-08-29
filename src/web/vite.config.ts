@@ -96,6 +96,21 @@ export default defineConfig({
     }),
   ],
   base: "./",
+  /**
+   * `vite preview` proxies nothing. This is not a tidy-up.
+   *
+   * Vite defaults `preview.proxy` to `server.proxy`, so the render tier — which
+   * describes itself as "no Worker, no database, no sign-in" — quietly became an
+   * integration tier whenever `mise run dev` happened to be running: `/api` and
+   * `/rpc` reached the real Worker, the profile page got a 401 from an endpoint
+   * that should not have been reachable, and the page stopped responding.
+   *
+   * It cost two rounds of chasing, because the symptom was four mobile-layout
+   * timeouts that named the layout and never the network, and the workaround was
+   * to stop the tunnel for every test run. An empty proxy makes the tier what it
+   * says it is, and makes the result the same whether or not a Worker is up.
+   */
+  preview: { proxy: {} },
   build: {
     outDir: resolve(__dirname, "../../dist/web"),
     emptyOutDir: true,

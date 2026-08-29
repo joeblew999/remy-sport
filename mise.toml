@@ -627,6 +627,11 @@ depends     = ["web:build"]
 # Own config because Playwright's webServer is config-wide: these need `vite
 # preview` over dist/web, while the e2e tier needs wrangler, a migrated D1 and
 # six signed-in actors. They were paying for all of that to check a <div>.
+#
+# These run happily while `mise run dev` is up. That took a fix in
+# vite.config.ts — `preview.proxy` defaults to `server.proxy`, so this tier was
+# reaching a real Worker whenever one existed — not a separate build directory,
+# which is what I tried first and which fixed nothing.
 run = "bun x playwright test --config playwright.render.config.ts"
 
 [tasks."seed:sql"]
