@@ -999,20 +999,21 @@ run         = "bun x playwright test --ui"
 
 [tasks."seed:remote"]
 description = "Seed remote D1 with dev users (idempotent)"
-# pipefail is required, not stylistic: a shell pipeline reports the LAST
-# command's status, so a failing command piped into `jq` still exits 0 — jq
-# simply gets empty input. That masked a failed remote seed as success once,
-# including under the deploy pipeline's `set -e`.
-#
 # Applied through wrangler, not through the app. `POST /api/seed` used to be an
 # open, unauthenticated write on a public domain — 330 D1 statements per call to
 # anyone who found it. Seeding is an operator action and the operator already
 # holds Cloudflare credentials, so the endpoint simply does not exist on a
 # deployment now, and this needs no HTTP surface to replace it.
+#
+# Not piped into `jq`, and not parsed at all. Wrangler writes progress to the
+# same stdout as its result, so piping killed the deploy with EPIPE, and its
+# `--json` output carries a preamble that is not JSON. Its exit code is the
+# signal that matters and `set -e` acts on it — which is the same property the
+# note above wanted, obtained by not building a pipeline in the first place.
 run = """
-set -o pipefail
-bun x wrangler d1 execute remy-sport-db --remote --file=src/db/seed.sql --json \
-  | jq '{ rows_written: [.[].results.meta.rows_written] | add, tables: [.[].results.meta.num_tables] | max }' 
+set -e
+bun x wrangler d1 execute remy-sport-db --remote --file=src/db/seed.sql
+
 """
 
 # ── cf:env: provisioning (ADR 006) ───────────────────────────────────────────

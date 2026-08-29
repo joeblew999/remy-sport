@@ -1,16 +1,27 @@
 {
   "current": {
-    "_generated": "2026-08-28T10:03:05.813Z",
+    "_generated": "2026-08-29T05:34:24.375Z",
     "app": "0.1.0",
     "url": "https://remy.ubuntusoftware.net",
     "git": {
-      "commit": "e876c13",
+      "commit": "cea02f9",
       "branch": "main",
-      "tag": "e876c13",
-      "github": "https://github.com/joeblew999/remy-sport/commit/e876c132278afc05629c0be3feecdb26644470ef"
+      "tag": "cea02f9",
+      "github": "https://github.com/joeblew999/remy-sport/commit/cea02f9caff4c46c1c7bd0ee67cbf856ca9f09e0"
     }
   },
   "history": [
+    {
+      "_generated": "2026-08-28T10:03:05.813Z",
+      "app": "0.1.0",
+      "url": "https://remy.ubuntusoftware.net",
+      "git": {
+        "commit": "e876c13",
+        "branch": "main",
+        "tag": "e876c13",
+        "github": "https://github.com/joeblew999/remy-sport/commit/e876c132278afc05629c0be3feecdb26644470ef"
+      }
+    },
     {
       "_generated": "2026-08-28T09:49:26.888Z",
       "app": "0.1.0",
@@ -219,34 +230,9 @@
         "tag": "4f8fb62",
         "github": "https://github.com/joeblew999/remy-sport/commit/4f8fb62e5616f176e01df613eeb7831b82a142e1"
       }
-    },
-    {
-      "_generated": "2026-08-26T08:36:16.871Z",
-      "app": "0.1.0",
-      "url": "https://remy.ubuntusoftware.net",
-      "git": {
-        "commit": "5706892",
-        "branch": "main",
-        "tag": "5706892",
-        "github": "https://github.com/joeblew999/remy-sport/commit/5706892b5f68cbb40c843a011a350ebee7849ced"
-      }
     }
   ],
   "cf_versions": [
-    {
-      "id": "bf744e2a-8320-4a0b-8805-17cf2f134ebf",
-      "number": 32,
-      "created": "2026-08-28T08:03:50.41181Z",
-      "source": "version_upload",
-      "url": null
-    },
-    {
-      "id": "5c8fcde1-710c-403f-b663-e7cb0bad06b9",
-      "number": 33,
-      "created": "2026-08-28T08:33:47.330928Z",
-      "source": "version_upload",
-      "url": null
-    },
     {
       "id": "a2fb7d46-65a2-471c-bb7c-7909f1d05d7f",
       "number": 34,
@@ -300,6 +286,20 @@
       "id": "50f10aa2-a151-4518-bc0c-fe1957a077a2",
       "number": 41,
       "created": "2026-08-28T09:50:25.878656Z",
+      "source": "version_upload",
+      "url": null
+    },
+    {
+      "id": "88e3a02c-b31e-4f81-965b-23a1fbfed50a",
+      "number": 42,
+      "created": "2026-08-28T10:04:08.600897Z",
+      "source": "version_upload",
+      "url": null
+    },
+    {
+      "id": "cd135843-d2a0-45b2-96cc-9045f1fe5c00",
+      "number": 43,
+      "created": "2026-08-28T10:14:58.965075Z",
       "source": "version_upload",
       "url": null
     }
