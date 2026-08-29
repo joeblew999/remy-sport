@@ -16,12 +16,13 @@
 
 import { useEffect, useRef, useState } from "react"
 import { m } from "../lib/i18n"
+import { useQuery } from "@tanstack/react-query"
+import { orpc } from "../lib/orpc"
 import {
   ENCODER,
   RECONNECT,
   broadcastName,
   errorName,
-  moqConfig,
   relayUrl,
   remoteErrorCode,
   reportSession,
@@ -29,6 +30,18 @@ import {
 
 import "@moq/watch/element"
 import "@moq/publish/element"
+
+/**
+ * The relay, from the server, or null.
+ *
+ * A query rather than a module-level read, because the token is a Worker secret
+ * now — which is what keeps it out of the bundle and lets it be rotated without
+ * a deploy.
+ */
+function useRelay() {
+  const { data } = useQuery(orpc.moq.config.queryOptions())
+  return data?.url && data.token ? { url: data.url, token: data.token } : undefined
+}
 
 /** Shown wherever no relay is configured, which is the default. */
 function NoRelay() {
@@ -92,7 +105,7 @@ function useMoqElement(
 
 /** Watch one game's broadcast. */
 export function GameVideo({ gameId }: { gameId: string }) {
-  const config = moqConfig()
+  const config = useRelay()
   const ref = useRef<HTMLElement>(null)
   const [el, setEl] = useState<HTMLElement | null>(null)
 
@@ -112,7 +125,7 @@ export function GameVideo({ gameId }: { gameId: string }) {
 
 /** Broadcast this game from the device's camera. */
 export function GameBroadcast({ gameId }: { gameId: string }) {
-  const config = moqConfig()
+  const config = useRelay()
   const ref = useRef<HTMLElement>(null)
   const [el, setEl] = useState<HTMLElement | null>(null)
 

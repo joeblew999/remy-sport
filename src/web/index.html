@@ -18,24 +18,6 @@
 <div id="root"></div>
 
 <script>
-/*
-  The MoQ relay, for the live-video test harness.
- 
-  Empty by default, and every video surface then renders a notice rather than
-  failing — which is the majority path until a token is provisioned. The token
-  goes in the URL *path* on Cloudflare's relay, and their own guidance is that
-  path tokens appear in server access logs: issue short-lived ones per client
-  and rotate them.
- 
-  Set here rather than through import.meta.env because this repo has no
-  vite-env.d.ts and the SPA's tsconfig excludes the Worker's types, so
-  import.meta.env does not typecheck in src/web.
-*/
-window.MOQ = {
-  url: "https://draft-16.cloudflare.mediaoverquic.com",
-  token: ""
-};
-
 window.TWEAK_DEFAULTS = {
   accentColor: "#D17246",
   spoilerMode: false,

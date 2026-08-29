@@ -58,6 +58,19 @@ export type Bindings = {
    * a new key cannot sign for endpoints the old one created — they fail 403
    * until each reader re-subscribes.
    */
+  /**
+   * The MoQ relay for the live-video harness.
+   *
+   * A Worker secret rather than a literal in `index.html`, for the reason
+   * Cloudflare states themselves: the token travels in the URL *path*, so it
+   * lands in server access logs. Baking it into the bundle would also put it in
+   * git, ship it to every visitor forever, and make rotating it a redeploy.
+   *
+   * Optional together. Absent, `/api/moq/config` answers null and every video
+   * surface renders a notice instead of failing — which is the default state.
+   */
+  MOQ_RELAY_URL?: string
+  MOQ_RELAY_TOKEN?: string
   VAPID_SUBJECT?: string
   VAPID_PUBLIC_KEY?: string
   VAPID_PRIVATE_KEY?: string

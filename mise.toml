@@ -1125,6 +1125,31 @@ depends     = ["install"]
 # production private key in a file by accident.
 run = "bun scripts/vapid.ts"
 
+[tasks."moq:relay:set"]
+description = "Point the video harness at a MoQ relay (MOQ_RELAY_URL / MOQ_RELAY_TOKEN as secrets)"
+depends     = ["install"]
+# Secrets, not a literal in index.html. Cloudflare's own warning is that the
+# token travels in the relay URL's *path* and therefore lands in server access
+# logs; a value in the bundle would additionally be in git, be served to every
+# visitor forever, and need a redeploy to rotate.
+#
+#   MOQ_RELAY_TOKEN=... mise run moq:relay:set
+#
+# The relay is created in the dashboard: Media > Realtime > MoQ Relay > Create
+# relay. The token is shown once.
+run = """
+set -e
+if [ -z "${MOQ_RELAY_TOKEN:-}" ]; then
+  echo "moq:relay:set: set MOQ_RELAY_TOKEN first — the publish+subscribe token from"
+  echo "  the dashboard at Media > Realtime > MoQ Relay. It is shown once."
+  exit 1
+fi
+printf '%s' "${MOQ_RELAY_URL:-https://draft-16.cloudflare.mediaoverquic.com}" \
+  | bun x wrangler secret put MOQ_RELAY_URL
+printf '%s' "$MOQ_RELAY_TOKEN" | bun x wrangler secret put MOQ_RELAY_TOKEN
+echo "moq:relay:set: the video harness is live — /api/moq/config now answers"
+"""
+
 [tasks."push:secret:set"]
 description = "Set the VAPID keys on the deployed worker, generating a pair on first run"
 depends     = ["install"]

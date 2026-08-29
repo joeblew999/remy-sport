@@ -7,8 +7,6 @@
  * discoverable from the error message.
  */
 
-import type { MoqConfig } from "./lib/moq"
-
 type MoqElementProps = {
   /** The relay URL, token included. Cloudflare takes it in the path. */
   url?: string
@@ -30,10 +28,6 @@ type MoqElementProps = {
 }
 
 declare global {
-  interface Window {
-    MOQ?: MoqConfig
-  }
-
   /**
    * `React.JSX`, not the global `JSX` namespace.
    *

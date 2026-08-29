@@ -11,21 +11,18 @@
 /**
  * Where the relay is, and the token that scopes us to it.
  *
- * On `window`, set in index.html beside TWEAK_DEFAULTS, rather than
- * `import.meta.env`: this repo has no `vite-env.d.ts` and the SPA's tsconfig
- * excludes the Worker's types, so `import.meta.env` does not typecheck here.
+ * Fetched from `/api/moq/config`, not read from the bundle. The token travels
+ * in the relay URL's **path**, which Cloudflare warns puts it in server access
+ * logs; a literal in index.html would also put it in git, ship it to every
+ * visitor forever, and make rotation a redeploy. As a Worker secret it is none
+ * of those.
  *
- * Undefined when unset, and every surface renders a notice instead of failing —
- * which is the majority path until a token is provisioned.
+ * Null when unset, and every surface renders a notice instead of failing —
+ * which is the state until a relay is provisioned.
  */
 export interface MoqConfig {
   url: string
   token: string
-}
-
-export function moqConfig(): MoqConfig | undefined {
-  const c = typeof window === "undefined" ? undefined : window.MOQ
-  return c?.url && c.token ? c : undefined
 }
 
 /**
