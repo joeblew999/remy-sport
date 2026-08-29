@@ -57,6 +57,9 @@ async function serialize(
     // the relations are all derivable in SQL — not to move the decision into
     // the client.
     canEdit: await can(db, "EDIT_EVENT", user, row.id),
+    // Not the same grant, and deliberately asked separately — see the note on
+    // the schema field.
+    canInviteCoOrganizer: await can(db, "INVITE_CO_ORGANIZER", user, row.id),
   }
 }
 
@@ -221,16 +224,36 @@ export const addCoOrganizer = authed
     successStatus: 201,
     ...authedRoute,
   })
-  .input(IdInput.extend({ userId: z.string() }))
+  /**
+   * By email or by id, exactly one — the same shape `orgs.addMember` takes, and
+   * for the same reason.
+   *
+   * An id is unusable from a screen: nobody knows another person's id, and the
+   * only way to offer one would be a searchable directory of everybody on the
+   * platform, which is a privacy surface this product should not grow to power
+   * an invite box. An email is what an organiser actually has.
+   *
+   * It reveals nothing the id form did not — that path already answers "Unknown
+   * user" for an id that does not exist — and it is reachable only by someone
+   * who already holds INVITE_CO_ORGANIZER on this event.
+   */
+  .input(
+    IdInput.extend({
+      userId: z.string().optional(),
+      email: z.string().email().optional(),
+    }).refine((v) => Boolean(v.userId) !== Boolean(v.email), {
+      message: "Give either userId or email, not both",
+    }),
+  )
   .output(z.object({ eventId: z.string(), userId: z.string(), addedAt: z.string() }))
   .use(requireAction("INVITE_CO_ORGANIZER"))
   .errors({ UNKNOWN_USER: ERRORS.UNKNOWN_USER })
   .handler(async ({ context, input, errors }) => {
-    // The FK would refuse an unknown user, but a 404 says which id was wrong.
+    // The FK would refuse an unknown user, but a 404 says which one was wrong.
     const invitee = await context.db
       .select({ id: schema.user.id })
       .from(schema.user)
-      .where(eq(schema.user.id, input.userId))
+      .where(input.userId ? eq(schema.user.id, input.userId) : eq(schema.user.email, input.email!))
       .get()
     if (!invitee) throw errors.UNKNOWN_USER()
 
@@ -244,10 +267,10 @@ export const addCoOrganizer = authed
     // someone who has already accepted back to pending.
     await context.db
       .insert(schema.eventCoOrganizer)
-      .values({ eventId: input.id, userId: input.userId, addedAt, statusCode: "PENDING" })
+      .values({ eventId: input.id, userId: invitee.id, addedAt, statusCode: "PENDING" })
       .onConflictDoNothing()
 
-    return { eventId: input.id, userId: input.userId, addedAt }
+    return { eventId: input.id, userId: invitee.id, addedAt }
   })
 
 /**

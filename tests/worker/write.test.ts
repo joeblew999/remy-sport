@@ -1199,3 +1199,98 @@ describe("Accepting an invitation to co-organise", () => {
     expect(invitations).toHaveLength(0)
   })
 })
+
+describe("Inviting a co-organiser by email", () => {
+  /**
+   * The invite takes an email as well as a user id, the way `orgs.addMember`
+   * does, because nobody knows another person's id — and the only way to offer
+   * one from a screen would be a searchable directory of everybody on the
+   * platform, which is not a surface this product should grow to power an
+   * invite box.
+   */
+  const owned = SEED_ENTITIES.events[0]!
+  const owner = SEED_ENTITIES.users.find((u) => u.id === owned.organizerUserId)!
+
+  /** Somebody with no relation to this event, so the invite is a real change. */
+  const outsider = SEED_ENTITIES.users.find(
+    (u) => u.roleCode === "SPECTATOR" && u.statusCode === "ACTIVE",
+  )!
+
+  it("creates a pending invitation the invitee can then see", async () => {
+    const cookie = await signIn(owner.email)
+    const res = await post(
+      `/api/events/${owned.id}/co-organizers`,
+      { email: outsider.email },
+      cookie,
+    )
+    expect(res.status, "an owner may invite").toBe(201)
+
+    // PENDING, so it grants nothing yet — and it is visible to the person it
+    // was addressed to, which is the whole point of the read added alongside.
+    const theirs = await signIn(outsider.email)
+    const { invitations } = (await (
+      await api("/api/events/invitations", { cookie: theirs })
+    ).json()) as { invitations: { eventId: string }[] }
+    expect(invitations.map((i) => i.eventId)).toContain(owned.id)
+
+    const { events } = (await (await api("/api/events", { cookie: theirs })).json()) as {
+      events: { id: string; canEdit: boolean }[]
+    }
+    expect(
+      events.find((e) => e.id === owned.id)?.canEdit,
+      "an unaccepted invitation grants nothing",
+    ).toBe(false)
+  })
+
+  it("refuses an address nobody has", async () => {
+    const cookie = await signIn(owner.email)
+    const res = await post(
+      `/api/events/${owned.id}/co-organizers`,
+      { email: "nobody@nowhere.test" },
+      cookie,
+    )
+    expect(res.status).toBe(404)
+    expect(((await res.json()) as { code: string }).code).toBe("UNKNOWN_USER")
+  })
+
+  it("refuses both an email and an id at once, rather than picking one", () => {
+    // Silently preferring one would make the other look like it worked.
+    return signIn(owner.email).then(async (cookie) => {
+      const res = await post(
+        `/api/events/${owned.id}/co-organizers`,
+        { email: outsider.email, userId: outsider.id },
+        cookie,
+      )
+      expect(res.status).toBe(400)
+    })
+  })
+
+  it("is not something a co-organiser may do", async () => {
+    /**
+     * The grant this separates. EDIT_EVENT includes CO_ORGANIZER;
+     * INVITE_CO_ORGANIZER does not — deciding who else runs an event is not
+     * delegated by having been delegated to. Without this test the two flags
+     * agree for every owner, so nothing would notice them being conflated.
+     */
+    const accepted = SEED_RELATIONSHIPS.eventCoOrganizers.find(
+      (c) => c.statusCode === "ACCEPTED",
+    )!
+    const coOrganiser = SEED_ENTITIES.users.find((u) => u.id === accepted.userId)!
+    const cookie = await signIn(coOrganiser.email)
+
+    // They really can edit — otherwise this would pass for the wrong reason.
+    const { events } = (await (await api("/api/events", { cookie })).json()) as {
+      events: { id: string; canEdit: boolean; canInviteCoOrganizer: boolean }[]
+    }
+    const row = events.find((e) => e.id === accepted.eventId)!
+    expect(row.canEdit, "a co-organiser may edit").toBe(true)
+    expect(row.canInviteCoOrganizer, "and may not recruit").toBe(false)
+
+    const res = await post(
+      `/api/events/${accepted.eventId}/co-organizers`,
+      { email: outsider.email },
+      cookie,
+    )
+    expect(res.status, "the API must agree with the flag").toBe(403)
+  })
+})

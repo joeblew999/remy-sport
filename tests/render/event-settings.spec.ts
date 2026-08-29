@@ -17,7 +17,7 @@ import { seedCache, entry, orpc } from "../helpers/seed-cache"
 
 const EVENT_ID = "evt_002"
 
-const event = (canEdit: boolean) => ({
+const event = (canEdit: boolean, canInvite = canEdit) => ({
   id: EVENT_ID,
   name: "Bangkok Schools Basketball League 2026",
   names: { en: "Bangkok Schools Basketball League 2026", th: "ลีกบาสเกตบอลโรงเรียนกรุงเทพ" },
@@ -36,11 +36,12 @@ const event = (canEdit: boolean) => ({
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",
   canEdit,
+  canInviteCoOrganizer: canInvite,
 })
 
-const seed = (canEdit: boolean) => [
-  entry(orpc.events.get, { id: EVENT_ID }, event(canEdit) as never),
-  entry(orpc.events.list, undefined as never, { events: [event(canEdit)] } as never),
+const seed = (canEdit: boolean, canInvite = canEdit) => [
+  entry(orpc.events.get, { id: EVENT_ID }, event(canEdit, canInvite) as never),
+  entry(orpc.events.list, undefined as never, { events: [event(canEdit, canInvite)] } as never),
 ]
 
 test.describe("An event's settings tab", () => {
@@ -117,5 +118,57 @@ test.describe("An event's settings tab", () => {
     // worse than a generic banner — see lib/form-errors.ts.
     await expect(page.getByTestId("event-settings-error")).toBeVisible()
     await expect(page.getByTestId("event-settings-error")).toContainText("end date")
+  })
+
+  test("offers the invite form to an owner", async ({ page }) => {
+    await seedCache(page, seed(true))
+    await page.goto(`/#/event/${EVENT_ID}`)
+    await page.getByTestId("tab-settings").click()
+
+    await expect(page.getByTestId("invite-co-organizer")).toBeVisible()
+    await expect(page.getByTestId("invite-email-input")).toBeVisible()
+  })
+
+  test("withholds it from a co-organiser, who may edit but may not recruit", async ({ page }) => {
+    /**
+     * The distinction this flag exists for. EDIT_EVENT is granted to OWNER,
+     * CO_ORGANIZER and PLATFORM_ADMIN; INVITE_CO_ORGANIZER only to OWNER and
+     * PLATFORM_ADMIN — deciding who else runs your tournament is not something
+     * you delegate by having been delegated to.
+     *
+     * Reusing `canEdit` here would have shown a form that answers 403, and the
+     * two flags agree for an owner, so nothing else in the suite would notice.
+     */
+    await seedCache(page, seed(true, false))
+    await page.goto(`/#/event/${EVENT_ID}`)
+    await page.getByTestId("tab-settings").click()
+
+    await expect(page.getByTestId("event-settings")).toBeVisible()
+    await expect(page.getByTestId("invite-co-organizer")).toHaveCount(0)
+  })
+
+  test("invites by email, because nobody knows a user id", async ({ page }) => {
+    let sent = ""
+    await seedCache(page, seed(true))
+    await page.route("**/rpc/**", async (route) => {
+      if (!route.request().url().includes("addCoOrganizer")) return route.fallback()
+      sent = route.request().postData() ?? ""
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          json: { eventId: EVENT_ID, userId: "usr_org_001", addedAt: "2026-08-29" },
+        }),
+      })
+    })
+
+    await page.goto(`/#/event/${EVENT_ID}`)
+    await page.getByTestId("tab-settings").click()
+    await page.getByTestId("invite-email-input").fill("niran.k@bat.test")
+    await page.getByTestId("invite-send").click()
+
+    await expect.poll(() => sent, { message: "invite must reach the server" }).not.toBe("")
+    expect(sent).toContain("niran.k@bat.test")
+    await expect(page.getByTestId("invite-sent")).toBeVisible()
   })
 })

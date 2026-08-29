@@ -133,6 +133,80 @@ export function EventSettings({ event }: { event: Event }) {
           </button>
         </form>
       </section>
+
+      {/* A *different* grant from the one above. EDIT_EVENT is granted to
+          OWNER, CO_ORGANIZER and PLATFORM_ADMIN; INVITE_CO_ORGANIZER only to
+          OWNER and PLATFORM_ADMIN — deciding who else runs your tournament is
+          not something you delegate by having been delegated to. Reusing
+          `canEdit` here would have offered a form that answers 403. */}
+      {event.canInviteCoOrganizer && <InviteCoOrganizer eventId={event.id} />}
     </div>
+  )
+}
+
+/**
+ * Asking somebody to help run this event.
+ *
+ * The other half of a feature whose accept side shipped first: there was a
+ * screen to take an invitation up and none to send one, so the only way to
+ * create the pending state was SQL or a fixture.
+ *
+ * By email, because nobody knows another person's user id and the only way to
+ * offer one would be a searchable directory of everybody on the platform — a
+ * privacy surface this product should not grow to power an invite box.
+ */
+function InviteCoOrganizer({ eventId }: { eventId: string }) {
+  const qc = useQueryClient()
+  const [sent, setSent] = useState(false)
+
+  const invite = useMutation({
+    mutationFn: (email: string) => api.events.addCoOrganizer({ id: eventId, email }),
+    onSuccess: () => {
+      setSent(true)
+      // The invitee's list, not ours — but a co-organiser who accepts changes
+      // who may edit, so the event list is stale either way.
+      void qc.invalidateQueries({ queryKey: orpc.events.key() })
+      setTimeout(() => setSent(false), 2500)
+    },
+  })
+
+  const err = formErrors(invite.error, ["email"])
+
+  return (
+    <section className="admin-card" style={{ marginTop: 16 }} data-testid="invite-co-organizer">
+      <h2>{m.invite_co_organizer()}</h2>
+      <p className="muted small">{m.invite_co_organizer_hint()}</p>
+      {sent && <div className="admin-ok" data-testid="invite-sent">{m.invite_sent()}</div>}
+      {err.form && <div className="admin-error" data-testid="invite-error">{err.form}</div>}
+
+      <form
+        className="admin-form"
+        onSubmit={(e) => {
+          e.preventDefault()
+          const form = e.currentTarget
+          invite.mutate(String(new FormData(form).get("email")), {
+            // Cleared only on success, so a rejected address stays in the box
+            // to be corrected rather than making the reader type it again.
+            onSuccess: () => form.reset(),
+          })
+        }}
+      >
+        <label htmlFor="invite-email">{m.invite_email()}</label>
+        <input
+          id="invite-email"
+          name="email"
+          type="email"
+          data-testid="invite-email-input"
+          required
+          autoComplete="off"
+        />
+        {err.field("email") && (
+          <p className="admin-error small" data-testid="invite-email-issue">{err.field("email")}</p>
+        )}
+        <button type="submit" data-testid="invite-send" disabled={invite.isPending}>
+          {invite.isPending ? m.invite_sending() : m.invite_send()}
+        </button>
+      </form>
+    </section>
   )
 }

@@ -87,6 +87,19 @@ export const EventSchema = createSelectSchema(schema.event)
      * than wrong.
      */
     canEdit: z.boolean(),
+    /**
+     * May the reader invite a co-organiser?
+     *
+     * A **separate** flag from `canEdit`, and the difference is the point.
+     * `EDIT_EVENT` is granted to OWNER, CO_ORGANIZER and PLATFORM_ADMIN;
+     * `INVITE_CO_ORGANIZER` only to OWNER and PLATFORM_ADMIN. So a co-organiser
+     * may change the event and may not recruit another one — deciding who else
+     * runs your tournament is not something you delegate by being delegated to.
+     *
+     * Reusing `canEdit` for the invite form would have quietly granted that,
+     * and the API would have refused with a 403 nobody could explain.
+     */
+    canInviteCoOrganizer: z.boolean(),
   })
 
 export const CreateEventInput = z.object({

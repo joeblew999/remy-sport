@@ -72,6 +72,8 @@ export interface Event {
    * platform under that heading until this existed.
    */
   canEdit: boolean;
+  /** Narrower than canEdit: a co-organiser may edit but may not invite. */
+  canInviteCoOrganizer: boolean;
   /**
    * The dates as stored, alongside `date` which is the formatted range.
    *
