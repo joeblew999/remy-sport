@@ -1439,3 +1439,9 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   font-size: 11px;
   color: var(--ink-3);
 }
+
+/* The game, above the video: score, status, and a way back to the event. */
+.video-score { display: flex; align-items: baseline; gap: 14px; margin-top: 8px; flex-wrap: wrap; }
+.video-score .score { font-family: "Space Grotesk", sans-serif; font-weight: 600; font-size: 28px; letter-spacing: -0.02em; }
+.video-score .status { font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--live); }
+.video-score .more { background: transparent; border: none; padding: 0; cursor: pointer; }

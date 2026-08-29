@@ -10,7 +10,7 @@ import { seedCache, entry, orpc } from "../helpers/seed-cache"
  * "video is not switched on here" look identical to somebody standing in a gym.
  */
 
-const liveGame = {
+const liveGame: Record<string, unknown> = {
   id: "gam_002",
   eventId: "evt_002",
   homeTeamId: "team_001",
@@ -156,5 +156,54 @@ test.describe("Finding a game to watch", () => {
     await expect(nav.filter({ hasText: "Watch" })).toHaveCount(0)
     await expect(nav.filter({ hasText: "Broadcast" })).toHaveCount(0)
     await expect(nav.filter({ hasText: "Live now" })).toBeVisible()
+  })
+})
+
+test.describe("A broadcaster starts from the fixture they are standing at", () => {
+  test("offers Broadcast on a scheduled game, before it is live", async ({ page }) => {
+    // The moment that matters: a referee arrives before tip-off, when the game
+    // is still SCHEDULED. Offering this only on Live now — which lists games
+    // already in play — is offering it after they needed it.
+    await seedCache(page, [
+      entry(orpc.events.get, { id: "evt_002" }, {
+        id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" },
+        typeCode: "LEAGUE", formatCode: "5x5", description: null,
+        startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK",
+        isFibaCertified: false, organizerUserId: "usr_org_002", orgId: null,
+        organizerName: "Niran", createdAt: "2026-04-01T00:00:00Z", updatedAt: "2026-04-01T00:00:00Z",
+      } as never),
+      entry(orpc.games.list, { eventId: "evt_002" }, {
+        viewerTimezone: null,
+        games: [
+          { ...liveGame, id: "gam_050", statusCode: "SCHEDULED", homeScore: null, awayScore: null,
+            isBroadcasting: false, canBroadcast: true },
+        ],
+      } as never),
+    ])
+    await page.goto("/#/event/evt_002")
+    await page.getByRole("button", { name: "Schedule" }).click()
+    await expect(page.getByTestId("broadcast-fixture-gam_050")).toBeVisible()
+  })
+
+  test("shows Watch on a fixture somebody is filming, to anyone reading the schedule", async ({
+    page,
+  }) => {
+    await seedCache(page, [
+      entry(orpc.events.get, { id: "evt_002" }, {
+        id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" },
+        typeCode: "LEAGUE", formatCode: "5x5", description: null,
+        startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK",
+        isFibaCertified: false, organizerUserId: "usr_org_002", orgId: null,
+        organizerName: "Niran", createdAt: "2026-04-01T00:00:00Z", updatedAt: "2026-04-01T00:00:00Z",
+      } as never),
+      entry(orpc.games.list, { eventId: "evt_002" }, {
+        viewerTimezone: null,
+        games: [{ ...liveGame, id: "gam_051", isBroadcasting: true, canBroadcast: false }],
+      } as never),
+    ])
+    await page.goto("/#/event/evt_002")
+    await page.getByRole("button", { name: "Schedule" }).click()
+    // Nobody should have to know a second page exists to find the picture.
+    await expect(page.getByTestId("watch-fixture-gam_051")).toBeVisible()
   })
 })

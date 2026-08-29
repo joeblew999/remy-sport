@@ -18,6 +18,7 @@ import { useEntries, useGames } from "../lib/data";
 import { useLocale } from "../lib/locale";
 import { formErrors } from "../lib/form-errors";
 import { m } from "../lib/i18n";
+import type { Route } from "../lib/router";
 import { formatTimeOn } from "../lib/dates";
 
 type Game = NonNullable<ReturnType<typeof useGames>["data"]>["games"][number];
@@ -59,7 +60,16 @@ function timeOf(startsAt: string, locale: string, timeZone: string | null): stri
 /** "Asia/Bangkok" reads as "Bangkok" in a line already dense with detail. */
 const shortZone = (tz: string) => tz.split("/").pop()!.replace(/_/g, " ");
 
-export function Schedule({ eventId, spoiler }: { eventId: string; spoiler: boolean }) {
+export function Schedule({
+  eventId,
+  spoiler,
+  goto,
+}: {
+  eventId: string;
+  spoiler: boolean;
+  /** Optional: a schedule rendered without navigation simply offers no video. */
+  goto?: (r: Route) => void;
+}) {
   const games = useGames(eventId);
 
   if (games.isPending) return <div className="empty">{m.loading()}</div>;
@@ -76,7 +86,13 @@ export function Schedule({ eventId, spoiler }: { eventId: string; spoiler: boole
   return (
     <div className="dash-card" data-testid="schedule">
       {games.data.games.map((g) => (
-        <GameRow key={g.id} game={g} spoiler={spoiler} viewerZone={games.data.viewerTimezone} />
+        <GameRow
+          key={g.id}
+          game={g}
+          spoiler={spoiler}
+          viewerZone={games.data.viewerTimezone}
+          goto={goto}
+        />
       ))}
     </div>
   );
@@ -86,10 +102,12 @@ function GameRow({
   game,
   spoiler,
   viewerZone,
+  goto,
 }: {
   game: Game;
   spoiler: boolean;
   viewerZone: string | null;
+  goto?: (r: Route) => void;
 }) {
   const { locale } = useLocale();
   const [editing, setEditing] = useState(false);
@@ -151,6 +169,36 @@ function GameRow({
               {spoiler && played ? m.spoiler_hidden() : played ? `${game.homeScore}–${game.awayScore}` : "—"}
             </span>
             {game.canAssignReferee && <Referees game={game} />}
+            {/*
+              Where a broadcaster actually starts.
+       
+              A referee arrives at the gym before tip-off, when their game is
+              still SCHEDULED — so offering this only on the Live page, which
+              lists games already in play, is offering it after the moment they
+              needed it. It sits on the fixture they are standing in front of.
+       
+              And Watch appears here for everyone once a camera is on it, so
+              somebody reading a schedule does not have to know a second page
+              exists.
+            */}
+            {game.isBroadcasting && (
+              <button
+                className="btn primary"
+                data-testid={`watch-fixture-${game.id}`}
+                onClick={() => goto?.({ page: "watch", id: game.id })}
+              >
+                {m.video_watch()}
+              </button>
+            )}
+            {game.canBroadcast && !game.isBroadcasting && (
+              <button
+                className="btn"
+                data-testid={`broadcast-fixture-${game.id}`}
+                onClick={() => goto?.({ page: "broadcast", id: game.id })}
+              >
+                {m.video_broadcast()}
+              </button>
+            )}
             {game.canEnterScore && (
               <button
                 className="btn"

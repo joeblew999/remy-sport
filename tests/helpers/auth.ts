@@ -316,10 +316,17 @@ export async function signInThroughLoginForm(page: Page, email: string): Promise
   // code within the window returns 200, issues nothing, and leaves the fixed
   // code being checked against a spent one. That failed about half the time and
   // reported a missing identity element rather than a rejected code.
-  await page.evaluate(
-    (address) => fetch(`/api/dev/otp?to=${encodeURIComponent(address)}`, { method: "DELETE" }),
-    email,
-  )
+  // Awaited to completion, and returning something serialisable so it actually
+  // is. Returning the `Response` meant Playwright could not serialise the
+  // result, so the clear was not reliably finished before the next request —
+  // and a delete that lands *after* the new code is issued removes the code
+  // being typed. Which is the same "Invalid OTP", from the opposite direction.
+  await page.evaluate(async (address) => {
+    const res = await fetch(`/api/dev/otp?to=${encodeURIComponent(address)}`, {
+      method: "DELETE",
+    })
+    return res.status
+  }, email)
   await page.getByTestId("spa-email-input").fill(email)
   await page.getByTestId("spa-send-code").click()
 

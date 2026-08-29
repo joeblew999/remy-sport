@@ -23,15 +23,44 @@ import { useDefaultGame, useGame } from "../lib/data"
 import type { Route } from "../lib/router"
 import { m } from "../lib/i18n"
 
-/** The game's own line, so a broadcaster can see they picked the right one. */
-function GameHeading({ gameId }: { gameId: string }) {
-  const { data: game } = useGame(gameId)
+/**
+ * The game itself, above the video.
+ *
+ * Watching a game is not a different activity from following it: the score, who
+ * is playing and where matter whether or not a picture has arrived, and they are
+ * what the page is worth reading before the first frame and after the last. A
+ * bare player is also a dead end — somebody who lands on it from a shared link
+ * has nowhere to go and nothing to see if the broadcast has ended.
+ *
+ * Polled, because the score changes while somebody is watching.
+ */
+function GameHeading({ gameId, goto }: { gameId: string; goto: (r: Route) => void }) {
+  const { data: game } = useGame(gameId, { refetchInterval: 10_000 })
   if (!game) return null
+  const played = game.homeScore !== null && game.awayScore !== null
   return (
-    <div className="tagline" data-testid="video-game">
-      {game.homeTeam} {m.versus()} {game.awayTeam}
-      {game.venue ? ` · ${game.venue}` : ""}
-    </div>
+    <>
+      <div className="tagline" data-testid="video-game">
+        {game.homeTeam} {m.versus()} {game.awayTeam}
+        {game.venue ? ` · ${game.venue}` : ""}
+      </div>
+      <div className="video-score" data-testid="video-score">
+        {played && (
+          <span className="score">
+            {game.homeScore}–{game.awayScore}
+          </span>
+        )}
+        <span className="status">{game.statusLabel}</span>
+        {/* Not a dead end: back to the event this game belongs to. */}
+        <button
+          className="more"
+          onClick={() => goto({ page: "event", id: game.eventId })}
+          data-testid="video-event-link"
+        >
+          {m.view_schedule()}
+        </button>
+      </div>
+    </>
   )
 }
 
@@ -39,18 +68,21 @@ function Shell({
   gameId,
   heading,
   children,
+  goto,
 }: {
   gameId: string
   heading: string
   children: React.ReactNode
+  goto: (r: Route) => void
 }) {
   return (
     <>
       <div className="page-header">
-        <div className="crumbs">{m.nav_live()}</div>
+        <button className="crumbs" onClick={() => goto({ page: "live" })} data-testid="video-back">
+          ← {m.nav_live()}
+        </button>
         <h1>{heading}</h1>
-        <GameHeading gameId={gameId} />
-        <p className="meta">{m.video_harness_note()}</p>
+        <GameHeading gameId={gameId} goto={goto} />
       </div>
       <div className="page-inner">{children}</div>
     </>
@@ -83,7 +115,7 @@ export function BroadcastPage({ id, goto }: { id?: string; goto: (r: Route) => v
   if (resolving) return <div className="empty">{m.loading()}</div>
   if (!gameId) return <Empty goto={goto} />
   return (
-    <Shell gameId={gameId} heading={m.video_broadcast_heading()}>
+    <Shell gameId={gameId} heading={m.video_broadcast_heading()} goto={goto}>
       <GameBroadcast gameId={gameId} />
     </Shell>
   )
@@ -94,7 +126,7 @@ export function WatchPage({ id, goto }: { id?: string; goto: (r: Route) => void 
   if (resolving) return <div className="empty">{m.loading()}</div>
   if (!gameId) return <Empty goto={goto} />
   return (
-    <Shell gameId={gameId} heading={m.video_watch_heading()}>
+    <Shell gameId={gameId} heading={m.video_watch_heading()} goto={goto}>
       <GameVideo gameId={gameId} />
     </Shell>
   )

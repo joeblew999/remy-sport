@@ -121,7 +121,16 @@ export function useLiveGames() {
       select: ({ games, viewerTimezone }) => ({
         viewerTimezone,
         games: games
-          .filter((g) => g.statusCode === "LIVE" || g.statusCode === "HALF_TIME")
+          // In play, or being filmed. A warm-up somebody has a camera on is
+          // watchable; a live game nobody is filming is not, and a viewer who
+          // came here to watch needs the first list, not the second. A
+          // broadcaster arrives before tip-off, so their game is still
+          // SCHEDULED when they start — it has to appear here the moment they
+          // do, or nobody can find it.
+          .filter(
+            (g) =>
+              g.statusCode === "LIVE" || g.statusCode === "HALF_TIME" || g.isBroadcasting,
+          )
           .map((g) => ({
             ...g,
             homeTeam: loc.name(g.homeTeamNames),

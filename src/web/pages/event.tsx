@@ -140,7 +140,7 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
       {tab === "bracket" && <BracketView goto={goto}/>}
       {tab === "schedule" && (
         <div className="page-inner">
-          <Schedule eventId={e.id} spoiler={spoiler}/>
+          <Schedule eventId={e.id} spoiler={spoiler} goto={goto}/>
           <AddFixture eventId={e.id}/>
         </div>
       )}
