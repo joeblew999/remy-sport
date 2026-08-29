@@ -111,6 +111,18 @@ export const EVENTS = {
     doubles: ["ms"],
     dimensions: ["action", "status", "code"],
   }),
+  /**
+   * The browser broke: a render that threw, or a promise nobody caught.
+   *
+   * The worst failure and, until this existed, the only one the system could
+   * not see — a white page reported nothing at all, so every lesser kind of
+   * error was better instrumented than the one that takes the app away.
+   */
+  "client.error": defineEvent({
+    blobs: ["name", "where", "route"],
+    doubles: [],
+    dimensions: ["name", "where", "route"],
+  }),
   /** One viewer's or publisher's video session, reported by the browser. */
   "moq.session": defineEvent({
     blobs: ["role", "gameId", "transport", "errorName"],

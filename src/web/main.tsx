@@ -6,6 +6,8 @@ import { Topbar } from "./components/topbar";
 import { useRouter } from "./lib/router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LocaleProvider, useLocale, type Locale } from "./lib/locale";
+import { CrashBoundary } from "./components/crash";
+import { watchForClientErrors } from "./lib/report";
 
 import { DiscoverPage } from "./pages/discover";
 import { EventPage } from "./pages/event";
@@ -157,6 +159,11 @@ if (typeof window !== "undefined" && "__TAURI_INTERNALS__" in window) {
     });
 }
 
+// Before anything renders, so a failure during the first paint is still
+// reported. Covers what a React boundary cannot see: timers, event handlers,
+// failed chunk loads and unhandled promises.
+watchForClientErrors();
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -210,12 +217,24 @@ createRoot(document.getElementById("root")!).render(
     {/* One provider. Query owns fetch state, caching and dedup for every
         resource — including who is signed in, which used to need a
         SessionProvider of its own. */}
-    <QueryClientProvider client={queryClient}>
+    {/* Outermost, above every provider, because a boundary cannot catch a
+        throw from a component rendered above it — and LocaleProvider throwing
+        was exactly that case. Untranslated, since the thing that translates is
+        one of the things it is catching. */}
+    <CrashBoundary untranslated>
+      <QueryClientProvider client={queryClient}>
       {/* Locale wraps the app because every page renders names, and the view
           models resolve them against the current locale. */}
       <LocaleProvider>
-        <LocalisedApp/>
+        {/* Inside LocaleProvider so the message it shows is in the reader's
+            language, and outside the router so a crash on any page is caught.
+            A render error used to unmount the tree and leave a white
+            rectangle: no message, no way back, and no report. */}
+        <CrashBoundary>
+          <LocalisedApp/>
+        </CrashBoundary>
       </LocaleProvider>
-    </QueryClientProvider>
+      </QueryClientProvider>
+    </CrashBoundary>
   </StrictMode>,
 );

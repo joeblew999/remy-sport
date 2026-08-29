@@ -919,6 +919,19 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   border: 1px dashed var(--rule);
 }
 
+/* ─── The page that replaces a white screen ───────────────────────────────
+   Deliberately centred in the viewport rather than in the app layout: the
+   boundary sits outside the sidebar and topbar, so when it renders there is no
+   layout to sit inside. */
+.crash {
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 16px; padding: 40px 24px; text-align: center;
+}
+.crash h1 { font-size: 20px; font-weight: 600; margin: 0; }
+.crash p { max-width: 42ch; color: var(--ink-3); font-size: 14px; margin: 0; line-height: 1.5; }
+
 /* ---------- Tauri-style chrome (decoration only) ---------- */
 
 /* ---------- Tweaks panel positioning override ---------- */
