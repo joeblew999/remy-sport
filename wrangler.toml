@@ -36,6 +36,13 @@ html_handling      = "none"
 not_found_handling = "none"
 
 # D1 Database
+# Append-only product telemetry, read by aggregation. Not D1: a D1 row is a fact
+# somebody can edit and a foreign key means something, and this is neither — it
+# is unbounded, never updated, and only ever queried in aggregate.
+[[analytics_engine_datasets]]
+binding = "ANALYTICS"
+dataset = "remy_sport_events"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "remy-sport-db"

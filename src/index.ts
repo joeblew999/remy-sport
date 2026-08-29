@@ -10,6 +10,7 @@ import { OpenAPIHandler } from "@orpc/openapi/fetch"
 import { OpenAPIGenerator } from "@orpc/openapi"
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4"
 import { router } from "./api"
+import analyticsRoutes from "./routes/analytics"
 import devMailRoutes from "./routes/dev-mail"
 import devSessionRoutes from "./routes/dev-sessions"
 import wellKnownRoutes from "./routes/well-known"
@@ -74,6 +75,7 @@ app.use("/rpc/*", async (c, next) => {
 })
 
 // Dev-only: 404s unless the outbox mail transport is active (ADR 010).
+app.route("/", analyticsRoutes)
 app.route("/", devMailRoutes)
 app.route("/", devSessionRoutes)
 

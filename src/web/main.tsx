@@ -16,6 +16,7 @@ import { LoginPage } from "./pages/login";
 import { DevicesPage } from "./pages/devices";
 import { AdminPage } from "./pages/admin";
 import { OrgsPage, OrgPage } from "./pages/org";
+import { BroadcastPage, WatchPage } from "./pages/video";
 
 interface TweakDefaults {
   accentColor?: string;
@@ -93,6 +94,12 @@ function App() {
             {route.page === "devices" && <DevicesPage goto={goto}/>}
             {route.page === "admin" && <AdminPage goto={goto}/>}
             {route.page === "orgs" && <OrgsPage goto={goto}/>}
+            {/* Two surfaces, one per direction. `#/broadcast/<gameId>` points a
+                camera at a game; `#/watch/<gameId>` receives it. Separate pages
+                rather than one with a mode, because they need different
+                permissions from the browser and fail in different ways. */}
+            {route.page === "broadcast" && <BroadcastPage id={route.id} goto={goto}/>}
+            {route.page === "watch" && <WatchPage id={route.id} goto={goto}/>}
             {route.page === "org" && <OrgPage id={route.id} goto={goto}/>}
             {/* No standalone #/standings. A league table belongs to an event —
                 there is no such thing as "the standings" across all of them —

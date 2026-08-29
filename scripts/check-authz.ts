@@ -120,6 +120,7 @@ if (problems.length) {
  */
 const HONO_ROUTES: Record<string, string> = {
   "POST /api/seed": "dev only — 404s unless MAIL_TRANSPORT=outbox; deploys seed via wrangler",
+  "POST /api/analytics": "a beacon, deliberately unauthenticated — see src/routes/analytics.ts; writes only to Analytics Engine, reads nothing, answers 204",
   "GET /api/dev/outbox": "dev only — 404s on a deployment; would expose sign-in codes",
   "DELETE /api/dev/outbox": "dev only — same gate",
   "GET /api/dev/accounts": "the demo picker; gated on TEST_OTP and never offers the admin",

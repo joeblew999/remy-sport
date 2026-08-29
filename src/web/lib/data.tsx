@@ -102,6 +102,30 @@ export function useGames(eventId: string | undefined) {
 }
 
 /**
+ * One game, for a page that has an id and nothing else.
+ *
+ * `useGames(undefined)` does not answer this: its query is disabled without an
+ * event, so a page holding only a game id got an empty list and rendered no
+ * heading at all.
+ */
+export function useGame(gameId: string | undefined) {
+  const loc = useLocalizer();
+  return useQuery(
+    orpc.games.get.queryOptions({
+      input: { id: gameId! },
+      enabled: gameId !== undefined,
+      select: (g) => ({
+        ...g,
+        homeTeam: loc.name(g.homeTeamNames),
+        awayTeam: loc.name(g.awayTeamNames),
+        venue: g.venueNames ? loc.name(g.venueNames) : null,
+        statusLabel: loc.label("gameStatuses", g.statusCode),
+      }),
+    }),
+  );
+}
+
+/**
  * One team's games, from both sides of the fixture, seen from that team's end.
  *
  * The team page showed seven invented games until 2026-08-28 — "May 4 · Triam

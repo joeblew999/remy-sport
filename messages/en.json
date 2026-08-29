@@ -266,5 +266,12 @@
   "test_notification_title": "Notifications are working",
   "test_notification_body": "This is what a live score will look like.",
   "test_sent_to_devices": "Sent to {count} device(s). If nothing appears, notifications are blocked at the system level.",
-  "no_games_yet": "No games scheduled yet."
+  "no_games_yet": "No games scheduled yet.",
+  "video_not_configured": "Live video is not switched on for this deployment yet.",
+  "video_watch": "Watch",
+  "video_broadcast": "Broadcast",
+  "video_broadcast_heading": "Broadcast this game",
+  "video_watch_heading": "Watching",
+  "video_harness_note": "A test harness. It measures how live video behaves on real phones and real networks — every session is reported, not just the ones that fail.",
+  "video_no_game": "No game chosen."
 }

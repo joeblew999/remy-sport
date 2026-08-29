@@ -37,6 +37,14 @@ export type Bindings = {
    */
   TEST_OTP?: string
   /**
+   * Product telemetry — see src/analytics.ts.
+   *
+   * Optional, and that is the contract: `wrangler dev` without the binding and
+   * every worker test run without it, so a missing dataset has to degrade to
+   * "no telemetry" and never to a failed request.
+   */
+  ANALYTICS?: AnalyticsEngineDataset
+  /**
    * Web Push identity — `mise run push:keys` generates the pair, and all three
    * are secrets.
    *

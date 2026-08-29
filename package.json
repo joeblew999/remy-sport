@@ -5,6 +5,9 @@
   "scripts": {},
   "dependencies": {
     "@hono/swagger-ui": "^0.6.1",
+    "@moq/publish": "^0.4.5",
+    "@moq/signals": "^0.2.2",
+    "@moq/watch": "^0.5.2",
     "@orpc/client": "1.15.0",
     "@orpc/openapi": "1.15.0",
     "@orpc/openapi-client": "1.15.0",

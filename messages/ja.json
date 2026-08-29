@@ -266,5 +266,12 @@
   "test_notification_title": "通知は正常に動作しています",
   "test_notification_body": "ライブスコアの通知はこのように表示されます。",
   "test_sent_to_devices": "{count} 台に送信しました。何も表示されない場合、システム側で通知がブロックされています。",
-  "no_games_yet": "予定されている試合はまだありません。"
+  "no_games_yet": "予定されている試合はまだありません。",
+  "video_not_configured": "この環境ではまだライブ映像が有効になっていません。",
+  "video_watch": "視聴",
+  "video_broadcast": "配信",
+  "video_broadcast_heading": "この試合を配信する",
+  "video_watch_heading": "視聴中",
+  "video_harness_note": "テスト用の仕組みです。実際の端末と回線でライブ映像がどう動くかを計測し、失敗したものだけでなく全セッションを記録します。",
+  "video_no_game": "試合が選ばれていません。"
 }
