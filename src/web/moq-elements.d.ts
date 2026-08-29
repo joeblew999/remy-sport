@@ -23,6 +23,7 @@ type MoqElementProps = {
   /** `"source"` so it does not advertise before camera permission is granted. */
   announce?: string
   ref?: React.Ref<HTMLElement>
+  children?: React.ReactNode
   className?: string
   style?: React.CSSProperties
 }
@@ -40,6 +41,9 @@ declare global {
     interface IntrinsicElements {
       "moq-watch": MoqElementProps
       "moq-publish": MoqElementProps
+      /** The shipped chrome — camera picker, stats, playback controls. */
+      "moq-watch-ui": { children?: React.ReactNode }
+      "moq-publish-ui": { children?: React.ReactNode }
       /** Ready-made banner; appears only when a required feature is missing. */
       "moq-watch-support": { show?: string; className?: string }
       "moq-publish-support": { show?: string; className?: string }

@@ -70,7 +70,22 @@ export type Bindings = {
    * surface renders a notice instead of failing — which is the default state.
    */
   MOQ_RELAY_URL?: string
+  /**
+   * Publish + subscribe. Handed only to the broadcast surface.
+   *
+   * Anyone who loads that page can read it and publish — which is what the
+   * harness needs and is only tolerable because nothing decides who may
+   * broadcast (src/web/pages/video.tsx says why).
+   */
   MOQ_RELAY_TOKEN?: string
+  /**
+   * Subscribe only, for watchers — who are most people.
+   *
+   * The whole point of the split: a token scraped from the watch page cannot
+   * start a broadcast. Falls back to the publish token if unset, so a
+   * deployment with one token still works rather than silently going dark.
+   */
+  MOQ_RELAY_TOKEN_SUBSCRIBE?: string
   VAPID_SUBJECT?: string
   VAPID_PUBLIC_KEY?: string
   VAPID_PRIVATE_KEY?: string

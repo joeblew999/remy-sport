@@ -26,8 +26,15 @@ export const config = pub
     ),
   )
   .route({ method: "GET", path: "/moq/config", summary: "The MoQ relay, or null if video is off" })
+  .input(z.object({ role: z.enum(["watch", "publish"]).default("watch") }))
   .output(z.object({ url: z.string().nullable(), token: z.string().nullable() }))
-  .handler(({ context }) => ({
-    url: context.env.MOQ_RELAY_URL ?? null,
-    token: context.env.MOQ_RELAY_TOKEN ?? null,
-  }))
+  .handler(({ context, input }) => {
+    // Watchers get the subscribe-only token, and they are most people. A token
+    // scraped from the watch page then cannot start a broadcast, which is the
+    // only least-privilege that is available while nothing decides who may.
+    const token =
+      input.role === "publish"
+        ? context.env.MOQ_RELAY_TOKEN
+        : (context.env.MOQ_RELAY_TOKEN_SUBSCRIBE ?? context.env.MOQ_RELAY_TOKEN)
+    return { url: context.env.MOQ_RELAY_URL ?? null, token: token ?? null }
+  })

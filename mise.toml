@@ -1152,6 +1152,13 @@ fi
 printf '%s' "${MOQ_RELAY_URL:-https://draft-16.cloudflare.mediaoverquic.com}" \
   | bun x wrangler secret put MOQ_RELAY_URL
 printf '%s' "$MOQ_RELAY_TOKEN" | bun x wrangler secret put MOQ_RELAY_TOKEN
+if [ -n "${MOQ_RELAY_TOKEN_SUBSCRIBE:-}" ]; then
+  printf '%s' "$MOQ_RELAY_TOKEN_SUBSCRIBE" | bun x wrangler secret put MOQ_RELAY_TOKEN_SUBSCRIBE
+  echo "moq:relay:set: watchers get the subscribe-only token"
+else
+  echo "moq:relay:set: no MOQ_RELAY_TOKEN_SUBSCRIBE — watchers will be handed the"
+  echo "  publish token, which lets anyone who loads the watch page broadcast."
+fi
 echo "moq:relay:set: the video harness is live — /api/moq/config now answers"
 """
 
