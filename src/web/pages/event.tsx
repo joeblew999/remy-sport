@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Icon } from "../components/icon";
 import { EventSettings } from "../components/event-settings";
+import { downloadICS } from "../lib/calendar";
 import { FollowButton } from "../components/follow";
 import { Schedule, AddFixture } from "../components/schedule";
 import { Entries } from "../components/entries";
@@ -79,7 +80,7 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
             fontFamily: "IBM Plex Mono, monospace", fontSize: 11,
             letterSpacing: "0.06em", textTransform: "uppercase",
             display: "inline-flex", alignItems: "center", gap: 6,
-            color: e.status === "live" ? "var(--live)" : (e.status === "open" ? "var(--good)" : "var(--ink-3)"),
+            color: e.status === "live" ? "var(--live)" : "var(--ink-3)",
             fontWeight: 500,
           }}>
             {e.status === "live" && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--live)", display: "inline-block" }}/>}
@@ -101,18 +102,22 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
             <div className="value">{e.teams || "—"}</div>
           </div>
           <div className="stat-cell">
-            <div className="label">{m.courts()}</div>
+            <div className="label">{m.venue_count()}</div>
             <div className="value">{e.courts || "—"}</div>
           </div>
-          {/* Real, from the games endpoint. `teams` and `courts` above are still
-              honest zeroes — no endpoint counts them yet — and render as "—"
-              rather than as a number nobody computed.
+          {/* Every cell here is now counted from the tables that hold it.
+              Teams, venues and following were hardcoded — a zero, a zero, and
+              "284 / parents, coaches, scouts" counting followers of nothing —
+              on events that had all three. `subscriptions` had existed the
+              whole time; nothing read it.
 
-              The FORMAT and FOLLOWING cells that sat here are gone: "Single-elim
-              / + 3rd-place game" was true of no event in the database, and "284
-              / parents, coaches, scouts" counted followers of nothing. The model
-              has a `subscriptions` table, so the second can come back the day an
-              endpoint reads it. */}
+              The FORMAT cell stays gone: "Single-elim / + 3rd-place game" was
+              true of no event in the database, and the model has no knockout
+              structure to derive it from. */}
+          <div className="stat-cell">
+            <div className="label">{m.followers()}</div>
+            <div className="value">{e.followers || "—"}</div>
+          </div>
           <div className="stat-cell">
             <div className="label">{m.games()}</div>
             <div className="value">
@@ -124,11 +129,49 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
           </div>
         </div>
 
+        {/* Three of these four did nothing. A dead control beside a working
+            Follow button is worse than no control: pressing it and getting
+            nothing teaches people that the app is broken, and they stop
+            trusting the ones that do work. */}
         <div className="event-actions">
-          {e.status === "open" && <button className="btn accent">{m.register_team()}</button>}
+          {/* Registration already exists, in full, on the Teams tab. This was a
+              second button for it that did not go there. It now does — and only
+              when the reader actually has a team that fits, which the server
+              answers in `registrable`. */}
+          {/* Anything not finished can still take an entry. This used to be
+              gated on `status === "open"`, which nothing could ever be. */}
+          {e.status !== "closed" && (
+            <button
+              className="btn accent"
+              data-testid="hero-register"
+              onClick={() => setTab("teams")}
+            >
+              {m.register_team()}
+            </button>
+          )}
           <FollowButton objectTypeCode="EVENT" objectId={e.id} />
-          <button className="btn">{m.add_to_calendar()}</button>
-          <button className="btn"><Icon name="share"/>{m.share()}</button>
+          {/* Only where there is a date to put in a diary. An event can exist
+              before its dates are fixed, and a file with today's date in it
+              would put a wrong entry in somebody's calendar. */}
+          {e.startDate && (
+            <button
+              className="btn"
+              data-testid="add-to-calendar"
+              onClick={() =>
+                downloadICS({
+                  id: e.id,
+                  title: e.title,
+                  startDate: e.startDate,
+                  endDate: e.endDate,
+                  location: [e.loc, e.city].filter((x) => x && x !== "—").join(", "),
+                  url: `${location.origin}/#/event/${e.id}`,
+                })
+              }
+            >
+              {m.add_to_calendar()}
+            </button>
+          )}
+          <ShareButton title={e.title} />
         </div>
       </div>
 
@@ -349,3 +392,41 @@ export function StandingsTable({ eventId }: { eventId: string | undefined }) {
   );
 }
 
+/**
+ * Share this page.
+ *
+ * `navigator.share` where the browser has it — on a phone that is the system
+ * sheet, which is what somebody means when they press Share — and the clipboard
+ * everywhere else, with a word to say it worked. A copy with no feedback is
+ * indistinguishable from a button that does nothing, which is what this
+ * replaced.
+ *
+ * An `AbortError` is the person changing their mind, not a failure, so the
+ * catch is silent rather than apologetic.
+ */
+function ShareButton({ title }: { title: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const share = async () => {
+    const url = window.location.href;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Dismissed, or a clipboard the browser will not give us. Neither is
+      // worth an error message about a link.
+    }
+  };
+
+  return (
+    <button className="btn" data-testid="share" onClick={() => void share()}>
+      <Icon name="share"/>
+      {copied ? m.share_copied() : m.share()}
+    </button>
+  );
+}

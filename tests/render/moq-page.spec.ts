@@ -1,5 +1,6 @@
 import { test, expect } from "./fixture"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
+import { apiEvent } from "../helpers/api-fixtures"
 
 /**
  * The video pages with no relay configured — which is the majority path.
@@ -165,13 +166,7 @@ test.describe("A broadcaster starts from the fixture they are standing at", () =
     // is still SCHEDULED. Offering this only on Live now — which lists games
     // already in play — is offering it after they needed it.
     await seedCache(page, [
-      entry(orpc.events.get, { id: "evt_002" }, {
-        id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" },
-        typeCode: "LEAGUE", formatCode: "5x5", description: null,
-        startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK",
-        isFibaCertified: false, organizerUserId: "usr_org_002", orgId: null,
-        organizerName: "Niran", createdAt: "2026-04-01T00:00:00Z", updatedAt: "2026-04-01T00:00:00Z",
-      } as never),
+      entry(orpc.events.get, { id: "evt_002" }, apiEvent({ id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" }, startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK", organizerUserId: "usr_org_002", orgId: null, organizerName: "Niran" }) as never),
       entry(orpc.games.list, { eventId: "evt_002" }, {
         viewerTimezone: null,
         games: [
@@ -189,13 +184,7 @@ test.describe("A broadcaster starts from the fixture they are standing at", () =
     page,
   }) => {
     await seedCache(page, [
-      entry(orpc.events.get, { id: "evt_002" }, {
-        id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" },
-        typeCode: "LEAGUE", formatCode: "5x5", description: null,
-        startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK",
-        isFibaCertified: false, organizerUserId: "usr_org_002", orgId: null,
-        organizerName: "Niran", createdAt: "2026-04-01T00:00:00Z", updatedAt: "2026-04-01T00:00:00Z",
-      } as never),
+      entry(orpc.events.get, { id: "evt_002" }, apiEvent({ id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" }, startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK", organizerUserId: "usr_org_002", orgId: null, organizerName: "Niran" }) as never),
       entry(orpc.games.list, { eventId: "evt_002" }, {
         viewerTimezone: null,
         games: [{ ...liveGame, id: "gam_051", isBroadcasting: true, canBroadcast: false }],

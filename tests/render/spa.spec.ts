@@ -1,6 +1,7 @@
 import { test, expect } from "./fixture"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { sessionKey } from "../../src/web/lib/session"
+import { apiEvent } from "../helpers/api-fixtures"
 
 /**
  * The shell and the derived view models, with the cache handed its data.
@@ -17,23 +18,15 @@ import { sessionKey } from "../../src/web/lib/session"
  * the fixture staying stale. Here the window is an argument.
  */
 
-const EVENT = {
-  id: "evt_002",
-  name: "Bangkok Schools Basketball League 2026",
+// From the shared factory, typed as the real ApiEvent — see
+// tests/helpers/api-fixtures.ts for why the hand-written literal went.
+const EVENT = apiEvent({
   names: { en: "Bangkok Schools Basketball League 2026" },
-  typeCode: "LEAGUE",
-  formatCode: "5x5",
-  description: null,
   startDate: "2026-04-15",
   endDate: "2026-04-19",
-  cityCode: "BANGKOK",
-  provinceCode: "BKK",
-  isFibaCertified: false,
   organizerUserId: "u1",
-  createdAt: "2026-01-01T00:00:00.000Z",
-  updatedAt: "2026-01-01T00:00:00.000Z",
   organizerName: "Bangkok Schools League",
-} as never
+})
 
 test.describe("The SPA shell", () => {
   test("React mounts and renders into #root", async ({ page }) => {

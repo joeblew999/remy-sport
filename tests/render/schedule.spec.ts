@@ -1,5 +1,6 @@
 import { test, expect } from "./fixture"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
+import { apiEvent } from "../helpers/api-fixtures"
 
 /**
  * The schedule, rendered against seeded games.
@@ -27,13 +28,7 @@ const upcoming = { ...base, id: "gam_003", startsAt: "2026-09-15T10:00:00Z", sta
 
 const seed = (page: Parameters<typeof seedCache>[0], games: unknown[]) =>
   seedCache(page, [
-    entry(orpc.events.get, { id: "evt_002" }, {
-      id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" },
-      typeCode: "LEAGUE", formatCode: "5x5", description: null,
-      startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK",
-      isFibaCertified: false, organizerUserId: "usr_org_002", orgId: null,
-      organizerName: "Niran", createdAt: "2026-04-01T00:00:00Z", updatedAt: "2026-04-01T00:00:00Z",
-    } as never),
+    entry(orpc.events.get, { id: "evt_002" }, apiEvent({ id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" }, startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK", organizerUserId: "usr_org_002", orgId: null, organizerName: "Niran" }) as never),
     entry(orpc.games.list, { eventId: "evt_002" }, { games } as never),
   ])
 
@@ -112,13 +107,7 @@ test.describe("Standings", () => {
 
   const seedStandings = (page: Parameters<typeof seedCache>[0], standings: unknown[]) =>
     seedCache(page, [
-      entry(orpc.events.get, { id: "evt_002" }, {
-        id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" },
-        typeCode: "LEAGUE", formatCode: "5x5", description: null,
-        startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK",
-        isFibaCertified: false, organizerUserId: "usr_org_002", orgId: null,
-        organizerName: "Niran", createdAt: "2026-04-01T00:00:00Z", updatedAt: "2026-04-01T00:00:00Z",
-      } as never),
+      entry(orpc.events.get, { id: "evt_002" }, apiEvent({ id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" }, startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK", organizerUserId: "usr_org_002", orgId: null, organizerName: "Niran" }) as never),
       entry(orpc.standings.list, { eventId: "evt_002" }, { standings } as never),
     ])
 
@@ -159,13 +148,7 @@ test.describe("Standings", () => {
  * enter — the page never works that out for itself.
  */
 test.describe("Event entries", () => {
-  const EVENT = {
-    id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" },
-    typeCode: "LEAGUE", formatCode: "5x5", description: null,
-    startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK",
-    isFibaCertified: false, organizerUserId: "usr_org_002", orgId: null,
-    organizerName: "Niran", createdAt: "2026-04-01T00:00:00Z", updatedAt: "2026-04-01T00:00:00Z",
-  }
+  const EVENT = apiEvent({ id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" }, startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK", organizerUserId: "usr_org_002", orgId: null, organizerName: "Niran" })
   const U16M = { id: "div_001", names: { en: "U16 Boys" }, ageGroupCode: "U16", genderCode: "M" }
   const U18F = { id: "div_004", names: { en: "U18 Girls" }, ageGroupCode: "U18", genderCode: "F" }
 
@@ -248,13 +231,7 @@ test.describe("Event entries", () => {
  * officiates. Both appear on the server's word and never on a role.
  */
 test.describe("Running a schedule", () => {
-  const EV = {
-    id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" },
-    typeCode: "LEAGUE", formatCode: "5x5", description: null,
-    startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK",
-    isFibaCertified: false, organizerUserId: "usr_org_002", orgId: null,
-    organizerName: "Niran", createdAt: "2026-04-01T00:00:00Z", updatedAt: "2026-04-01T00:00:00Z",
-  }
+  const EV = apiEvent({ id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" }, startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK", organizerUserId: "usr_org_002", orgId: null, organizerName: "Niran" })
   const two = [
     { teamId: "team_001", names: { en: "A" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: false },
     { teamId: "team_003", names: { en: "B" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: false },

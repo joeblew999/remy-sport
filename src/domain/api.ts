@@ -100,6 +100,30 @@ export const EventSchema = createSelectSchema(schema.event)
      * and the API would have refused with a 403 nobody could explain.
      */
     canInviteCoOrganizer: z.boolean(),
+    /**
+     * What the event actually contains, counted from the tables that hold it.
+     *
+     * The page rendered `—` for teams, `—` for courts and "Venue TBC" on events
+     * that had all three, because none of this was ever returned. The model has
+     * `eventTeam`, `eventVenue`, `division` and `subscription`; the GUI simply
+     * could not say so.
+     *
+     * Counted per request rather than stored. A denormalised `team_count` is a
+     * number that goes stale the first time somebody withdraws, and the fix for
+     * that is triggers — a much bigger commitment than four grouped queries.
+     */
+    teamCount: z.number(),
+    /** How many venues this event is played across. "Courts", on the page. */
+    venueCount: z.number(),
+    /** How many people follow it. The `subscription` table, which already existed. */
+    followerCount: z.number(),
+    gameCount: z.number(),
+    /** Finished, not merely started — which is what "3 / 12 played" means. */
+    playedCount: z.number(),
+    /** The primary venue's names, or the only one. Null where none is set. */
+    venueNames: z.record(z.string(), z.string()).nullable(),
+    /** Every division teams have entered in. Empty until somebody enters. */
+    divisionNames: z.array(z.record(z.string(), z.string())),
   })
 
 export const CreateEventInput = z.object({

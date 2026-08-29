@@ -11,7 +11,8 @@ interface DiscoverProps {
   spoiler: boolean;
 }
 
-type Tab = "all" | "live" | "open" | "upcoming" | "closed";
+// No "open" tab: nothing can have that status — see src/web/data.ts.
+type Tab = "all" | "live" | "upcoming" | "closed";
 
 export function DiscoverPage({ goto, spoiler }: DiscoverProps) {
   const { locale, reference, name } = useLocale();
@@ -29,7 +30,6 @@ export function DiscoverPage({ goto, spoiler }: DiscoverProps) {
   const counts: Record<Tab, number> = {
     all: allEvents.length,
     live: allEvents.filter(e => e.status === "live").length,
-    open: allEvents.filter(e => e.status === "open").length,
     upcoming: allEvents.filter(e => e.status === "upcoming").length,
     closed: allEvents.filter(e => e.status === "closed").length,
   };
@@ -63,7 +63,7 @@ export function DiscoverPage({ goto, spoiler }: DiscoverProps) {
 
       <div className="discover-toolbar">
         <div className="tab-row">
-          {(["all", "live", "open", "upcoming", "closed"] as Tab[]).map(id => (
+          {(["all", "live", "upcoming", "closed"] as Tab[]).map(id => (
             <button key={id} className={`tab ${tab === id ? "active" : ""}`} onClick={() => setTab(id)}>
               {{ all: m.tab_all(), live: m.tab_live(), open: m.tab_registering(), upcoming: m.tab_upcoming(), closed: m.tab_past() }[id]}
               <span className="count">{counts[id]}</span>

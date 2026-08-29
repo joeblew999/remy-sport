@@ -3,6 +3,7 @@ import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { m } from "../../src/web/lib/i18n"
 import { VOCABULARY, LOCALES } from "../../src/domain/vocabularies"
 import { VOCABULARY as REF } from "../../src/domain/vocabularies"
+import { apiEvent } from "../helpers/api-fixtures"
 
 /**
  * The bilingual chrome, rendered — with the events handed straight to the cache.
@@ -20,23 +21,17 @@ import { VOCABULARY as REF } from "../../src/domain/vocabularies"
  * tests/unit/i18n.test.ts, where they run in Node with no browser at all.
  */
 
-const event = {
+const event = apiEvent({
   id: "e1",
   name: "Bangkok Schools League",
   names: { en: "Bangkok Schools League", th: "ลีกโรงเรียนกรุงเทพ" },
-  typeCode: "LEAGUE",
-  formatCode: "5x5",
-  description: null,
   startDate: "2026-06-10",
   endDate: "2026-06-14",
   cityCode: "CHIANG_MAI",
   provinceCode: "CMI",
-  isFibaCertified: false,
   organizerUserId: "u1",
-  createdAt: "2026-01-01T00:00:00.000Z",
-  updatedAt: "2026-01-01T00:00:00.000Z",
   organizerName: "Someone",
-} as never
+})
 
 /**
  * Events AND the reference vocabularies.

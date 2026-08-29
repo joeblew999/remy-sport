@@ -15,20 +15,25 @@
  */
 import { describe, it, expect, afterAll } from "bun:test"
 import { toEvent } from "../../src/web/lib/api"
+import { apiEvent } from "../helpers/api-fixtures"
 
 const loc = { locale: "en", name: (_n: unknown, fallback: string) => fallback, label: () => "" } as never
 
+/**
+ * From the shared factory. This was a partial literal cast with `as never`, so
+ * it compiled fine and then threw the day the API grew a field it did not have.
+ */
 const event = (startDate: string) =>
-  ({
+  apiEvent({
     id: "evt",
-    typeCode: "TOURNAMENT",
+    typeCode: "TOURNAMENT" as never,
     names: {},
     name: "Test",
     cityCode: null,
     startDate,
     endDate: startDate,
     organizerName: null,
-  }) as never
+  })
 
 /** The label a viewer in `tz` sees on `today` for an event starting `start`. */
 function labelIn(tz: string, today: [number, number, number], start: string): string {

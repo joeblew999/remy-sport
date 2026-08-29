@@ -1,5 +1,6 @@
 import { test, expect } from "./fixture"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
+import { apiEvent } from "../helpers/api-fixtures"
 
 /**
  * Editing an event, and who is offered the chance.
@@ -17,30 +18,11 @@ import { seedCache, entry, orpc } from "../helpers/seed-cache"
 
 const EVENT_ID = "evt_002"
 
-const event = (canEdit: boolean, canInvite = canEdit) => ({
-  id: EVENT_ID,
-  name: "Bangkok Schools Basketball League 2026",
-  names: { en: "Bangkok Schools Basketball League 2026", th: "ลีกบาสเกตบอลโรงเรียนกรุงเทพ" },
-  typeCode: "LEAGUE",
-  formatCode: "5x5",
-  description: null,
-  startDate: "2026-05-01",
-  endDate: "2026-09-30",
-  cityCode: "BANGKOK",
-  provinceCode: "BKK",
-  isFibaCertified: false,
-  timezone: "Asia/Bangkok",
-  orgId: null,
-  organizerUserId: "usr_org_002",
-  organizerName: "Organiser",
-  createdAt: "2026-01-01T00:00:00.000Z",
-  updatedAt: "2026-01-01T00:00:00.000Z",
-  canEdit,
-  canInviteCoOrganizer: canInvite,
-})
+const event = (canEdit: boolean, canInvite = canEdit) =>
+  apiEvent({ id: EVENT_ID, organizerName: "Organiser", canEdit, canInviteCoOrganizer: canInvite })
 
 const seed = (canEdit: boolean, canInvite = canEdit) => [
-  entry(orpc.events.get, { id: EVENT_ID }, event(canEdit, canInvite) as never),
+  entry(orpc.events.get, { id: EVENT_ID }, event(canEdit, canInvite)),
   entry(orpc.events.list, undefined as never, { events: [event(canEdit, canInvite)] } as never),
 ]
 
@@ -170,5 +152,76 @@ test.describe("An event's settings tab", () => {
     await expect.poll(() => sent, { message: "invite must reach the server" }).not.toBe("")
     expect(sent).toContain("niran.k@bat.test")
     await expect(page.getByTestId("invite-sent")).toBeVisible()
+  })
+})
+
+test.describe("The event hero's actions", () => {
+  /**
+   * Three of the four did nothing at all: Register team, Add to calendar and
+   * Share were `<button className="btn">` with no handler, sitting beside a
+   * Follow button that worked. A dead control is worse than no control —
+   * pressing it and getting nothing reads as the app being broken, and it
+   * teaches people to stop trusting the ones that do work.
+   */
+  test("Register team goes to the tab where registration actually lives", async ({ page }) => {
+    // It was a second button for a feature that already exists in full on the
+    // Teams tab, and it did not go there.
+    await seedCache(page, [
+      entry(
+        orpc.events.get,
+        { id: EVENT_ID },
+        { ...event(false), startDate: "2026-01-01", endDate: "2026-12-31" } as never,
+      ),
+    ])
+    await page.goto(`/#/event/${EVENT_ID}`)
+
+    await page.getByTestId("hero-register").click()
+    await expect(page.getByTestId("tab-teams")).toHaveClass(/active/)
+  })
+
+  test("offers a calendar file only when there is a date to put in one", async ({ page }) => {
+    // An event can exist before its dates are fixed. A file with today's date
+    // would put a wrong entry in somebody's diary, which is worse than no
+    // button — see tests/unit/calendar.test.ts.
+    await seedCache(page, [
+      entry(orpc.events.get, { id: EVENT_ID }, { ...event(false), startDate: null, endDate: null } as never),
+    ])
+    await page.goto(`/#/event/${EVENT_ID}`)
+    await expect(page.getByTestId("add-to-calendar")).toHaveCount(0)
+  })
+
+  test("downloads a real .ics when it does", async ({ page }) => {
+    await seedCache(page, seed(false))
+    await page.goto(`/#/event/${EVENT_ID}`)
+
+    const download = page.waitForEvent("download")
+    await page.getByTestId("add-to-calendar").click()
+    const file = await download
+    expect(file.suggestedFilename()).toBe(`${EVENT_ID}.ics`)
+  })
+
+  test("copies the link and says so, where the browser has no share sheet", async ({ page }) => {
+    // A copy with no feedback is indistinguishable from a button that does
+    // nothing, which is exactly what this replaced.
+    await page.addInitScript(() => {
+      // Force the fallback. Chromium exposes `navigator.share` here even
+      // without a share sheet behind it, so leaving it in place tests the
+      // branch that opens a system dialog rather than the one being asserted.
+      Object.defineProperty(navigator, "share", { configurable: true, value: undefined })
+      let copied = ""
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: { writeText: async (t: string) => void (copied = t) },
+      })
+      ;(window as unknown as { __copied: () => string }).__copied = () => copied
+    })
+    await seedCache(page, seed(false))
+    await page.goto(`/#/event/${EVENT_ID}`)
+    await page.getByTestId("share").click()
+
+    await expect(page.getByTestId("share")).toContainText("Link copied")
+    expect(await page.evaluate(() => (window as unknown as { __copied: () => string }).__copied())).toContain(
+      `#/event/${EVENT_ID}`,
+    )
   })
 })

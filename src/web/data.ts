@@ -22,7 +22,20 @@ import type { EventTypeCode as EventType } from "../domain/vocabularies";
 
 export type Crest = "a" | "b";
 export type { EventType };
-export type EventStatus = "live" | "open" | "upcoming" | "closed";
+/**
+ * No `"open"`.
+ *
+ * It meant "registration open", and nothing could ever produce it: status is
+ * derived from (start, end, now) and the model has no registration window at
+ * all. So the type allowed a value the data cannot express, and three places
+ * quietly did nothing as a result — a Discover filter tab that was permanently
+ * empty, a status colour that never applied, and a "Register team" button on
+ * the event hero that never rendered.
+ *
+ * It comes back when the PO's model has a registration window to derive it
+ * from. Until then a type that admits it is a type that lies.
+ */
+export type EventStatus = "live" | "upcoming" | "closed";
 
 export interface Team {
   id: string;
@@ -60,10 +73,14 @@ export interface Event {
   date: string;
   status: EventStatus;
   statusLabel: string;
+  /** Distinct teams entered. Real, from `eventTeam`. */
   teams: number;
+  /** Venues this event is played across. Real, from `eventVenue`. */
   courts: number;
   games: number;
   gamesPlayed: number;
+  /** People following it, from `subscription`. */
+  followers: number;
   organizer: string;
   /**
    * May the reader edit this event?

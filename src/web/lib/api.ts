@@ -43,10 +43,14 @@ function formatRange(
  * Status is derived from the date window rather than stored.
  *
  * The API has no `status` column and should not grow one: it is a function of
- * (start, end, now) and would go stale the moment it was written down. "open"
- * — registration open — is the one the dates genuinely cannot express, since
- * there is no registration model yet (ADR 008, Phase 2). Undated events read as
- * "upcoming", which is what an organiser who has not set dates yet means.
+ * (start, end, now) and would go stale the moment it was written down. Undated
+ * events read as "upcoming", which is what an organiser who has not set dates
+ * yet means.
+ *
+ * `"open"` — registration open — used to be in the union and is not any more.
+ * The dates cannot express it, there is no registration window in the model, so
+ * nothing ever returned it and everything branching on it was dead. See the
+ * note on `EventStatus` in src/web/data.ts.
  */
 function deriveStatus(start: string | null, end: string | null, today: Date): EventStatus {
   if (!start) return "upcoming";
@@ -86,8 +90,6 @@ function statusLabel(
       return m.status_live({}, { locale });
     case "closed":
       return m.status_finished({}, { locale });
-    case "open":
-      return m.status_registration_open({}, { locale });
     case "upcoming": {
       if (!start) return m.dates_tbc({}, { locale });
       const days = daysBetween(today, parseDay(start));
@@ -103,9 +105,12 @@ function statusLabel(
  * Map an API event onto the shape the pages already render.
  *
  * Five fields have no backing table yet and are deliberately left as
- * placeholders rather than invented: `div` (canonical `divisions`), `loc`
- * (canonical `venues`/`event_venues`), and the `teams`/`courts`/`games`/
- * `gamesPlayed` counts. ADR 008 tracks them to roadmap Phase 2/3.
+ * Nothing here is a placeholder any more. `div`, `loc` and the four counts were
+ * all hardcoded — a dash, "Venue TBC", and zeroes — on events that had
+ * divisions, a venue and a dozen games. The tables existed the whole time
+ * (`event_teams`, `event_venues`, `divisions`, `games`, `subscriptions`); the
+ * API simply never returned them, so the GUI could not say what the database
+ * plainly did.
  */
 export function toEvent(e: ApiEvent, loc: Localizer, today: Date = new Date()): Event {
   const status = deriveStatus(e.startDate, e.endDate, today);
@@ -116,18 +121,36 @@ export function toEvent(e: ApiEvent, loc: Localizer, today: Date = new Date()): 
     // Already in the reader's language: pages render `title`, they do not
     // choose between a pair of fields.
     title: loc.name(e.names, e.name),
-    div: "—",
-    loc: m.venue_tbc({}, { locale: loc.locale }),
+    /**
+     * The divisions teams have actually entered in, not a dash.
+     *
+     * One reads as its name; several read as a count, because "U14 Boys · U16
+     * Boys · U16 Girls · U18 Boys" in a tagline is a wall rather than a fact.
+     * None reads as a dash, which is honest: an event with no entries yet has
+     * no divisions yet.
+     */
+    div:
+      e.divisionNames.length === 0
+        ? "—"
+        : e.divisionNames.length === 1
+          ? loc.name(e.divisionNames[0]!)
+          : m.divisions_n({ count: e.divisionNames.length }, { locale: loc.locale }),
+    // The primary venue, from `eventVenue`. "Venue TBC" now means nobody has
+    // set one rather than "this app cannot read the table".
+    loc: e.venueNames ? loc.name(e.venueNames) : m.venue_tbc({}, { locale: loc.locale }),
     city: loc.label("cities", e.cityCode) || "—",
     day: start ? start.getDate() : 0,
     mo: start ? formatMonthShort(loc.locale, start) : "TBC",
     date: formatRange(loc.locale, e.startDate, e.endDate),
     status,
     statusLabel: statusLabel(loc.locale, status, e.startDate, today),
-    teams: 0,
-    courts: 0,
-    games: 0,
-    gamesPlayed: 0,
+    // All four were hardcoded zeroes on events that had teams, venues and
+    // games. The model held every one of them; nothing returned them.
+    teams: e.teamCount,
+    courts: e.venueCount,
+    games: e.gameCount,
+    gamesPlayed: e.playedCount,
+    followers: e.followerCount,
     organizer: e.organizerName ?? m.unknown_organiser({}, { locale: loc.locale }),
     // The model's answer, not the client's guess. False for a signed-out
     // reader, which is what makes a "yours" list empty rather than wrong.

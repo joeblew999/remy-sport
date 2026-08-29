@@ -32,6 +32,27 @@ export default defineConfig({
      */
   fullyParallel: true,
   reporter: process.env.CI ? "line" : "list",
+  /**
+   * Fail fast, because there is nothing here that can legitimately be slow.
+   *
+   * This tier has **no network**: `seedCache` answers every `/rpc` call with a
+   * 404 and the fonts are blocked, so a passing test is a page load and an
+   * assertion — the slowest in the suite is under a second. Playwright's
+   * default 30s expect timeout therefore only ever applies to something that is
+   * never going to appear.
+   *
+   * That default was costing three minutes a run whenever a fixture drifted:
+   * six broken tests, thirty seconds each, waiting for an element that could not
+   * exist. The failure was instant and the *report* of it was not, which is the
+   * difference between a loop you can iterate in and one you go and do
+   * something else during.
+   *
+   * Five seconds is ten times the slowest real assertion here and a sixth of
+   * the cost of a wrong one. The e2e tier keeps the default: it has a real
+   * Worker, a real database and real sign-ins, where waiting is legitimate.
+   */
+  timeout: 15_000,
+  expect: { timeout: 5_000 },
   use: {
     baseURL: "http://localhost:4173",
     trace: "on-first-retry",

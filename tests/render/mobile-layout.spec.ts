@@ -30,27 +30,20 @@
  */
 import { test, expect } from "./fixture"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
+import { apiEvent } from "../helpers/api-fixtures"
 
 /** iPhone SE, iPhone 15/16, iPhone 16 Pro, Pro Max. The narrow one matters most. */
 const WIDTHS = [360, 390, 402, 430]
 
-const event = {
+const event = apiEvent({
   id: "e1",
-  name: "Bangkok Schools Basketball League 2026",
   names: { en: "Bangkok Schools Basketball League 2026" },
-  typeCode: "league",
-  formatCode: "5x5",
   startDate: "2026-05-01",
   endDate: "2026-05-30",
   cityCode: "BKK",
   provinceCode: "BKK",
-  isFibaCertified: false,
   organizerName: "Niran Wongthai",
-  description: null,
-  timezone: "Asia/Bangkok",
-  createdAt: "2026-01-01T00:00:00.000Z",
-  updatedAt: "2026-01-01T00:00:00.000Z",
-} as never
+})
 
 /**
  * Anything wider than the viewport that neither clips nor scrolls, reported

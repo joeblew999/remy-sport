@@ -14,6 +14,7 @@
 import { expect, test, describe } from "bun:test"
 import { shortCode, toEvent, type ApiEvent } from "../../src/web/lib/api"
 import type { Localizer } from "../../src/web/lib/localizer"
+import { apiEvent } from "../helpers/api-fixtures"
 
 /** Enough of a Localizer to render; the localisation itself is names.test.ts. */
 const loc: Localizer = {
@@ -22,25 +23,29 @@ const loc: Localizer = {
   label: (_vocabulary, code) => code ?? "",
 }
 
+/**
+ * From the shared factory, with this file's own defaults on top.
+ *
+ * It used to be a hand-written literal cast with `as ApiEvent`, which is how
+ * six tests here kept compiling and then threw at runtime when the contract
+ * grew `divisionNames`. One factory, one place to update.
+ */
 const event = (over: Partial<ApiEvent> = {}): ApiEvent =>
-  ({
+  apiEvent({
     id: "e1",
     name: "Spring Cup",
     names: { en: "Spring Cup" },
-    typeCode: "tournament",
-    formatCode: "5x5",
-    description: null,
+    typeCode: "tournament" as never,
+    // Undated by default: this file is about deriving a status from a date
+    // window, so "no window" is the case worth starting from.
     startDate: null,
     endDate: null,
     cityCode: null,
     provinceCode: null,
-    isFibaCertified: false,
     organizerUserId: "u1",
-    createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z",
     organizerName: "Bangkok Schools League",
     ...over,
-  }) as ApiEvent
+  })
 
 const on = (iso: string) => new Date(`${iso}T12:00:00`)
 const statusOn = (e: Partial<ApiEvent>, today: string) => toEvent(event(e), loc, on(today)).status
@@ -94,18 +99,58 @@ describe("event status is derived from the date window", () => {
   })
 })
 
-describe("fields with no table render placeholders, never invented values", () => {
-  // AGENTS.md: "Never invent a value for a field with no table." These are the
-  // placeholders that rule requires; a number appearing here would be a bug.
-  const e = toEvent(event(), loc, on("2026-06-10"))
+describe("what an event contains comes from the tables that hold it", () => {
+  /**
+   * These four used to be hardcoded — a dash, "Venue TBC", and four zeroes — on
+   * events with divisions, a venue and a dozen games. The tables existed the
+   * whole time; the API simply never returned them, and the tests here pinned
+   * the placeholders in place as though they were the rule rather than the
+   * limitation.
+   *
+   * AGENTS.md still says never to invent a value for a field with no table. The
+   * point is that these fields *have* tables, so the honest thing is to read
+   * them — a placeholder over real data is its own kind of lie.
+   */
+  const full = toEvent(event(), loc, on("2026-06-10"))
 
-  test("division and venue are placeholders", () => {
-    expect(e.div).toBe("—")
-    expect(e.loc).toBe("Venue TBC")
+  test("the counts are the server's, not zeroes", () => {
+    expect([full.teams, full.courts, full.games, full.gamesPlayed]).toEqual([15, 1, 28, 17])
+    expect(full.followers).toBe(2)
   })
 
-  test("counts are zero, not guesses", () => {
-    expect([e.teams, e.courts, e.games, e.gamesPlayed]).toEqual([0, 0, 0, 0])
+  test("the venue is named when there is one", () => {
+    expect(full.loc).toBe("Assumption College Indoor Court")
+  })
+
+  test("one division reads as its name, several as a count", () => {
+    // "U14 Boys · U16 Boys · U16 Girls · U18 Boys" in a tagline is a wall
+    // rather than a fact, so past one it collapses to a number.
+    expect(toEvent(event({ divisionNames: [{ en: "U18 Boys" }] }), loc, on("2026-06-10")).div).toBe(
+      "U18 Boys",
+    )
+    expect(full.div).toBe("3 divisions")
+  })
+
+  test("and an event with nothing in it still says so honestly", () => {
+    // Empty is a real state — an event created this morning. It renders as a
+    // dash and "Venue TBC" because that is true, not because nothing could be
+    // read.
+    const empty = toEvent(
+      event({
+        teamCount: 0,
+        venueCount: 0,
+        gameCount: 0,
+        playedCount: 0,
+        followerCount: 0,
+        venueNames: null,
+        divisionNames: [],
+      }),
+      loc,
+      on("2026-06-10"),
+    )
+    expect(empty.div).toBe("—")
+    expect(empty.loc).toBe("Venue TBC")
+    expect([empty.teams, empty.courts, empty.games, empty.gamesPlayed]).toEqual([0, 0, 0, 0])
   })
 
   test("a missing organiser says so rather than showing an id", () => {

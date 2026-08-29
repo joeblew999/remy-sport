@@ -12,7 +12,7 @@
  */
 
 import { ORPCError } from "@orpc/server"
-import { and, eq } from "drizzle-orm"
+import { and, count, eq, inArray } from "drizzle-orm"
 import * as schema from "../db/schema"
 import type { ApiEvent } from "../domain/api"
 import { clean, pivot } from "../domain/names"
@@ -22,6 +22,130 @@ import { ERRORS } from "./errors"
 import { authed, authedRoute, can, openTo, requireAction, viewer, viewerTimezone, type Db, type SessionUser } from "./base"
 
 const IdInput = z.object({ id: z.string() })
+
+/**
+ * The things an event *is*, counted from the tables that hold them.
+ *
+ * The event page's hero used to render `—` for teams, `—` for courts and
+ * "Venue TBC" for the location, on events that had all three. The model has
+ * `eventTeam`, `eventVenue`, `division` and `subscription`; the API returned
+ * none of them, so the GUI could not express what the database plainly said.
+ *
+ * **One query per fact for the whole page, not per event.** A list of a dozen
+ * events was already paying two `can` lookups each; four more apiece would have
+ * been fifty-odd round trips to render a page of headings. These group by
+ * `event_id` and are joined in memory, so the cost is four queries whether the
+ * list holds one event or a hundred.
+ */
+interface EventFacts {
+  teamCount: number
+  venueCount: number
+  followerCount: number
+  gameCount: number
+  playedCount: number
+  /** The primary venue's names, or the first one, or null where none is set. */
+  venueNames: Record<string, string> | null
+  /** Every division teams have entered in, deduplicated. */
+  divisionNames: Record<string, string>[]
+}
+
+const EMPTY: EventFacts = {
+  teamCount: 0,
+  venueCount: 0,
+  followerCount: 0,
+  gameCount: 0,
+  playedCount: 0,
+  venueNames: null,
+  divisionNames: [],
+}
+
+async function factsFor(db: Db, eventIds: string[]): Promise<Map<string, EventFacts>> {
+  const facts = new Map<string, EventFacts>()
+  if (eventIds.length === 0) return facts
+  for (const id of eventIds) facts.set(id, { ...EMPTY, divisionNames: [] })
+  const at = (id: string) => facts.get(id)!
+
+  const [teams, venues, followers, games] = await Promise.all([
+    db
+      .select({
+        eventId: schema.eventTeam.eventId,
+        teamId: schema.eventTeam.teamId,
+        divisionId: schema.eventTeam.divisionId,
+        divisionNames: schema.division.names,
+      })
+      .from(schema.eventTeam)
+      .innerJoin(schema.division, eq(schema.division.id, schema.eventTeam.divisionId))
+      .where(inArray(schema.eventTeam.eventId, eventIds))
+      .all(),
+    db
+      .select({
+        eventId: schema.eventVenue.eventId,
+        isPrimary: schema.eventVenue.isPrimary,
+        names: schema.venue.names,
+      })
+      .from(schema.eventVenue)
+      .innerJoin(schema.venue, eq(schema.venue.id, schema.eventVenue.venueId))
+      .where(inArray(schema.eventVenue.eventId, eventIds))
+      .all(),
+    db
+      .select({ objectId: schema.subscription.objectId, n: count() })
+      .from(schema.subscription)
+      .where(
+        and(
+          eq(schema.subscription.objectTypeCode, "EVENT"),
+          inArray(schema.subscription.objectId, eventIds),
+        ),
+      )
+      .groupBy(schema.subscription.objectId)
+      .all(),
+    db
+      .select({
+        eventId: schema.game.eventId,
+        statusCode: schema.game.statusCode,
+        n: count(),
+      })
+      .from(schema.game)
+      .where(inArray(schema.game.eventId, eventIds))
+      .groupBy(schema.game.eventId, schema.game.statusCode)
+      .all(),
+  ])
+
+  // A team entered in two divisions is one team. The unique index is on
+  // (event, team, division), so counting rows would say otherwise.
+  const seenTeams = new Set<string>()
+  const seenDivisions = new Set<string>()
+  for (const row of teams) {
+    const f = at(row.eventId)
+    if (!seenTeams.has(`${row.eventId}|${row.teamId}`)) {
+      seenTeams.add(`${row.eventId}|${row.teamId}`)
+      f.teamCount += 1
+    }
+    if (!seenDivisions.has(`${row.eventId}|${row.divisionId}`)) {
+      seenDivisions.add(`${row.eventId}|${row.divisionId}`)
+      f.divisionNames.push(row.divisionNames as Record<string, string>)
+    }
+  }
+
+  for (const row of venues) {
+    const f = at(row.eventId)
+    f.venueCount += 1
+    // The primary one wins; otherwise the first seen, so a single unflagged
+    // venue still names the place rather than reading "Venue TBC".
+    if (row.isPrimary || !f.venueNames) f.venueNames = row.names as Record<string, string>
+  }
+
+  for (const row of followers) at(row.objectId).followerCount = row.n
+
+  for (const row of games) {
+    const f = at(row.eventId)
+    f.gameCount += row.n
+    // Played means finished. A game in progress is not a result yet, which is
+    // the distinction "3 / 12 played" is making.
+    if (row.statusCode === "FINISHED") f.playedCount += row.n
+  }
+
+  return facts
+}
 
 function load(db: Db) {
   return db.query.event.findMany({
@@ -42,6 +166,7 @@ async function serialize(
   db: Db,
   user: SessionUser | null,
   row: typeof schema.event.$inferSelect & { organizer?: { name: string } | null },
+  facts: EventFacts = EMPTY,
 ): Promise<ApiEvent> {
   const { organizer, createdAt, updatedAt, typeCode, formatCode, ...rest } = row
   return {
@@ -60,6 +185,7 @@ async function serialize(
     // Not the same grant, and deliberately asked separately — see the note on
     // the schema field.
     canInviteCoOrganizer: await can(db, "INVITE_CO_ORGANIZER", user, row.id),
+    ...facts,
   }
 }
 
@@ -67,11 +193,18 @@ export const list = viewer
   .use(openTo("BROWSE_EVENTS"))
   .route({ method: "GET", path: "/events", summary: "List all events" })
   .output(z.object({ events: z.array(EventSchema) }))
-  .handler(async ({ context }) => ({
-    events: await Promise.all(
-      (await load(context.db)).map((row) => serialize(context.db, context.user, row)),
-    ),
-  }))
+  .handler(async ({ context }) => {
+    const rows = await load(context.db)
+    const facts = await factsFor(
+      context.db,
+      rows.map((r) => r.id),
+    )
+    return {
+      events: await Promise.all(
+        rows.map((row) => serialize(context.db, context.user, row, facts.get(row.id))),
+      ),
+    }
+  })
 
 export const get = viewer
   .use(openTo("VIEW_EVENT"))
@@ -84,7 +217,8 @@ export const get = viewer
       with: { organizer: { columns: { name: true } } },
     })
     if (!row) throw new ORPCError("NOT_FOUND", { message: "Not found" })
-    return serialize(context.db, context.user, row)
+    const facts = await factsFor(context.db, [row.id])
+    return serialize(context.db, context.user, row, facts.get(row.id))
   })
 
 /**
