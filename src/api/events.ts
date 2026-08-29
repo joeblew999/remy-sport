@@ -251,6 +251,66 @@ export const addCoOrganizer = authed
   })
 
 /**
+ * The invitations waiting for you.
+ *
+ * `addCoOrganizer` writes a PENDING row and `acceptCoOrganizerInvite` turns it
+ * into an ACCEPTED one, and between those two there was nothing — no way for
+ * the invitee to learn they had been invited. The fixtures seed a pending
+ * invitation, so the state was reachable on a fresh database and unreachable
+ * from the app: a person could be given an event to co-organise and never find
+ * out, which makes the invite half of the feature decorative.
+ *
+ * Scoped to `context.user.id` in the query rather than by an object-level
+ * relation, for the same reason accepting is: an invitee is by definition not
+ * yet in any relation to the event. `ACCEPT_CO_ORGANIZER_INVITE` is the action
+ * because this list is exactly "what may I accept" — the same permission,
+ * asked in the plural.
+ */
+export const invitations = authed
+  .route({
+    method: "GET",
+    path: "/events/invitations",
+    summary: "Events I have been invited to co-organise",
+    ...authedRoute,
+  })
+  .output(
+    z.object({
+      invitations: z.array(
+        z.object({
+          eventId: z.string(),
+          /** The model's names, for the client to resolve to the reader's locale. */
+          names: z.record(z.string(), z.string()),
+          name: z.string(),
+          addedAt: z.string(),
+        }),
+      ),
+    }),
+  )
+  .use(requireAction("ACCEPT_CO_ORGANIZER_INVITE"))
+  .handler(async ({ context }) => ({
+    invitations: (
+      await context.db
+        .select({
+          eventId: schema.eventCoOrganizer.eventId,
+          names: schema.event.names,
+          name: schema.event.name,
+          addedAt: schema.eventCoOrganizer.addedAt,
+        })
+        .from(schema.eventCoOrganizer)
+        .innerJoin(schema.event, eq(schema.event.id, schema.eventCoOrganizer.eventId))
+        .where(
+          and(
+            eq(schema.eventCoOrganizer.userId, context.user.id),
+            // Outstanding only. An accepted invitation is not a thing to act
+            // on — it is an event that now appears under "Your events".
+            eq(schema.eventCoOrganizer.statusCode, "PENDING"),
+          ),
+        )
+        .all()
+    ).map((r) => ({ ...r, names: r.names as Record<string, string> })),
+  }))
+
+/**
  * Take up an invitation to co-organise an event.
  *
  * Granted to `ANY_SIGNED_IN`, because the invitee is by definition not yet in

@@ -45,6 +45,7 @@ export const router = {
     update: events.update,
     delete: events.remove,
     addCoOrganizer: events.addCoOrganizer,
+    invitations: events.invitations,
     acceptCoOrganizerInvite: events.acceptCoOrganizerInvite,
     entries: registrations.eventTeams,
     registerTeam: registrations.registerTeam,

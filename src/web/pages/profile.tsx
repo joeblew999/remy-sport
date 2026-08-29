@@ -1,6 +1,7 @@
 import { useEvents, useLiveGames } from "../lib/data";
 import { useSession } from "../lib/session";
 import { NotificationSettings } from "../components/notification-settings";
+import { Invitations } from "../components/invitations";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
 
@@ -86,6 +87,10 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
           </div>
 
           <div>
+            {/* Above "Your events" because it is the thing to act on, and
+                because accepting one moves an event into the list below it. */}
+            <Invitations />
+
             <div className="section-h">
               <h2>{m.your_events()}</h2>
             </div>

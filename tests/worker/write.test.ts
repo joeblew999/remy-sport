@@ -1,6 +1,6 @@
 import { SELF } from "cloudflare:test"
 import { describe, expect, it } from "vitest"
-import { SEED_ENTITIES } from "../../src/domain/model/entities"
+import { SEED_ENTITIES, SEED_RELATIONSHIPS } from "../../src/domain/model/entities"
 import { ORIGIN, actorFor, api, post, signIn } from "./helpers"
 import { gamesIn } from "../helpers/fixtures"
 import { isRefusedStatus } from "../../src/auth.config"
@@ -1122,5 +1122,80 @@ describe("The sign-in email speaks the reader's language", () => {
     const code = mail!.body.match(/(\d{6})/)?.[1]
     expect(code, "the code survives translation").toBeTruthy()
     expect((await post("/api/auth/sign-in/email-otp", { email: to, otp: code })).status).toBe(200)
+  })
+})
+
+describe("Accepting an invitation to co-organise", () => {
+  /**
+   * The consequence, not the click. Accepting writes ACCEPTED, which is what
+   * the CO_ORGANIZER relation filters on, which is what makes EDIT_EVENT true,
+   * which is what puts the event under "Your events". Every step of that is the
+   * database's answer, and it is the reason a pending invitation is worth
+   * having a screen for at all.
+   *
+   * Here rather than in an e2e because `isolatedStorage` gives this file its
+   * own D1: accepting is a one-way door — the PO's model has no revoke action —
+   * so against a shared database the test would pass once and then assert
+   * nothing forever.
+   *
+   * Derived from the fixtures, so a re-seed cannot make it pass by coincidence.
+   */
+  const pending = SEED_RELATIONSHIPS.eventCoOrganizers.find((c) => c.statusCode === "PENDING")!
+  const invitee = SEED_ENTITIES.users.find((u) => u.id === pending.userId)!
+
+  const canEdit = async (cookie: string, eventId: string) => {
+    const { events } = (await (await api("/api/events", { cookie })).json()) as {
+      events: { id: string; canEdit: boolean }[]
+    }
+    return events.find((e) => e.id === eventId)?.canEdit
+  }
+
+  it("turns an invitation into the right to edit the event", async () => {
+    const cookie = await signIn(invitee.email)
+
+    // The invitation is visible to its invitee, and grants nothing yet. Both
+    // halves matter: a PENDING row that already granted EDIT_EVENT would make
+    // the accept a formality and the whole state meaningless.
+    const before = (await (await api("/api/events/invitations", { cookie })).json()) as {
+      invitations: { eventId: string }[]
+    }
+    expect(before.invitations.map((i) => i.eventId)).toContain(pending.eventId)
+    expect(await canEdit(cookie, pending.eventId)).toBe(false)
+
+    const res = await post(`/api/events/${pending.eventId}/co-organizers/accept`, {}, cookie)
+    expect(res.status, "accepting an invitation addressed to you").toBe(200)
+
+    expect(await canEdit(cookie, pending.eventId), "ACCEPTED grants CO_ORGANIZER").toBe(true)
+    // And it stops being an outstanding invitation, so the list is things to
+    // act on rather than a history.
+    const after = (await (await api("/api/events/invitations", { cookie })).json()) as {
+      invitations: { eventId: string }[]
+    }
+    expect(after.invitations.map((i) => i.eventId)).not.toContain(pending.eventId)
+  })
+
+  it("refuses an invitation addressed to somebody else", async () => {
+    // The row is what stands in for a relation here — an invitee is by
+    // definition not yet related to the event — so "only yours" is the entire
+    // authorisation, and it is enforced by the WHERE clause rather than by the
+    // model. That makes it worth an explicit test.
+    const stranger = SEED_ENTITIES.users.find(
+      (u) => u.roleCode === "SPECTATOR" && u.statusCode === "ACTIVE",
+    )!
+    const cookie = await signIn(stranger.email)
+    const res = await post(`/api/events/${pending.eventId}/co-organizers/accept`, {}, cookie)
+    expect(res.status, "there is no invitation to accept").not.toBe(200)
+    expect(await canEdit(cookie, pending.eventId)).toBe(false)
+  })
+
+  it("shows nobody else's invitations", async () => {
+    const stranger = SEED_ENTITIES.users.find(
+      (u) => u.roleCode === "SPECTATOR" && u.statusCode === "ACTIVE",
+    )!
+    const cookie = await signIn(stranger.email)
+    const { invitations } = (await (
+      await api("/api/events/invitations", { cookie })
+    ).json()) as { invitations: unknown[] }
+    expect(invitations).toHaveLength(0)
   })
 })

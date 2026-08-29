@@ -939,6 +939,13 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   text-transform: uppercase;
 }
 
+/* An invitation: what it is on the left, what to do about it on the right. */
+.invite-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--rule);
+}
+.invite-row:last-child { border-bottom: none; }
+
 /* ─── The page that replaces a white screen ───────────────────────────────
    Deliberately centred in the viewport rather than in the app layout: the
    boundary sits outside the sidebar and topbar, so when it renders there is no
