@@ -474,6 +474,28 @@ or project ordering; a whole session went that way and stopped dead.
 `useSession` does not refetch, so a page renders against whoever was signed in
 before. Any test that changes identity uses `gotoFresh()`.
 
+**Which repo a change belongs in: could a person from the business disagree
+with it?** If yes it is remy-sport-biz; if only an engineer could, it is here.
+That rule is written down because I got it wrong on 2026-08-29 — a map of which
+age groups and provinces the platform runs went into a script in *this* repo,
+where the PO would never find it, and had to move to `PILOT_SCOPE`. The split
+itself has never been the friction; re-deriving the boundary each time was.
+
+|  | belongs in biz | belongs here |
+|---|---|---|
+| a user has a lifecycle | ✓ | |
+| the `user` table has a `status_code` column | | ✓ |
+| U16 and U18 are the pilot's age groups | ✓ | |
+| suspended accounts are refused at session creation | | ✓ |
+| who may enter a score | ✓ (GRANTS) | |
+| how that grant is executed as SQL | | ✓ (relations.ts) |
+
+`mise run data:coverage` reports the three ways the two can disagree: a code the
+model defines and no fixture uses, a code outside `PILOT_SCOPE`, and — the one
+that bites — **a field the fixtures carry that no column stores**. That last
+found four on 2026-08-29, including a user lifecycle the model had always
+described and the database had no room for, so the seed dropped it in silence.
+
 **Every procedure declares how it is authorised, and `mise run check:authz`
 walks the real router to prove it.** Model-driven authorisation that a person
 has to remember is not enforcement — on 2026-08-28 all fifty-three procedures

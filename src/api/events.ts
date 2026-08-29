@@ -117,6 +117,11 @@ export const create = authed
       // clock" rather than as a zone nobody chose.
       timezone: input.timezone ?? viewerTimezone(context.request),
       isFibaCertified: input.isFibaCertified ?? false,
+      // Whose event this is, as a person. `orgId` stays null here: creating an
+      // event does not make it the creator's school's, and nothing in the input
+      // says which organisation it belongs to. The fixtures set it where the PO
+      // says an org runs the event.
+      orgId: null,
       organizerUserId: context.user.id,
       createdAt: now,
       updatedAt: now,

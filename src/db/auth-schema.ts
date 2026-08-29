@@ -27,6 +27,9 @@ export const user = sqliteTable("user", {
   banReason: text("ban_reason"),
   banExpires: integer("ban_expires", { mode: "timestamp_ms" }),
   bizId: text("biz_id"),
+  names: text("names"),
+  localeCode: text("locale_code"),
+  statusCode: text("status_code"),
 });
 
 export const session = sqliteTable(

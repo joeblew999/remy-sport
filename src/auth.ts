@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { SEED_ENTITIES } from "../src/domain/model/entities"
 import { drizzle } from "drizzle-orm/d1"
+import { eq } from "drizzle-orm"
 import type { Bindings } from "./types"
 import { buildAuthOptions } from "./auth.config"
 import { mailerFor, usesOutbox } from "./mail/mailer"
@@ -192,6 +193,21 @@ export function createAuth(c: AuthHost) {
     // sendInvitationEmail needs `env` — the EMAIL binding and the base URL —
     // which exists only per request. Nothing passed here changes the schema.
     ...buildAuthOptions({
+      /**
+       * The PO's user lifecycle, read straight off the row.
+       *
+       * One indexed lookup on the primary key, once per session creation — not
+       * per request, which is what makes it affordable at the chokepoint every
+       * way in must pass through.
+       */
+      userStatus: async (userId: string) => {
+        const row = await db
+          .select({ statusCode: schema.user.statusCode })
+          .from(schema.user)
+          .where(eq(schema.user.id, userId))
+          .get()
+        return row?.statusCode ?? null
+      },
       /**
        * Where this session is starting, for the devices page.
        *

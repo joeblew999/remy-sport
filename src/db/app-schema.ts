@@ -97,6 +97,15 @@ export const event = sqliteTable("event", {
   isFibaCertified: integer("is_fiba_certified", { mode: "boolean" })
     .notNull()
     .default(false),
+  /**
+   * The organisation running this event, where one is.
+   *
+   * The model always carried it and this table had no column, so "Assumption
+   * College runs the invitational" was dropped at seed time and the page could
+   * only name the organiser as a person. Nullable because a league can be run by
+   * an individual — evt_002 is, and its `orgId` is null in the fixtures.
+   */
+  orgId: text("org_id").references(() => org.id),
   organizerUserId: text("organizer_user_id")
     .notNull()
     .references(() => user.id),

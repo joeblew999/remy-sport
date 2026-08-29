@@ -1,4 +1,5 @@
 import type { BetterAuthOptions } from "better-auth"
+import { APIError } from "better-auth/api"
 import { admin } from "better-auth/plugins/admin"
 import { emailOTP } from "better-auth/plugins/email-otp"
 import { adminAc, adminRoles } from "./auth/admin-access-control"
@@ -52,6 +53,15 @@ export interface AuthDeps {
    * cannot live here — see the factory note above.
    */
   resolveActiveOrganizationId?: (userId: string) => Promise<string | null>
+  /**
+   * This user's lifecycle state, from the Product Owner's model.
+   *
+   * ACTIVE, PENDING_APPROVAL, SUSPENDED or DEACTIVATED — a vocabulary the model
+   * has always had and nothing implemented, because the `user` table had no
+   * column for it until migration 0008. Absent (or null) means active: Better
+   * Auth creates a row on first sign-in and knows nothing about this.
+   */
+  userStatus?: (userId: string) => Promise<string | null>
 }
 
 /**
@@ -146,6 +156,29 @@ export function buildAuthOptions(deps: AuthDeps = {}) {
     user: {
       additionalFields: {
         bizId: { type: "string", required: false },
+        /**
+         * Three fields the Product Owner's model always carried and this table
+         * had nowhere to put, so the seed dropped them silently.
+         *
+         * `names` — every other entity is multilingual and a person was not, so
+         * a Thai coach's name existed only in its English romanisation. There is
+         * no `nameTh`: it is the same `Names` JSON the rest of the model uses.
+         *
+         * `localeCode` — which language to write to this person in. Web Push
+         * stores a locale per *device* because I believed there was no user
+         * locale to fall back on; there was, in the model, with no column.
+         *
+         * `statusCode` — ACTIVE, PENDING_APPROVAL, SUSPENDED, DEACTIVATED. A
+         * lifecycle the model has always described and nothing implemented.
+         * Better Auth's `banned` is a different thing: it is the admin plugin's
+         * own switch, and it cannot express "awaiting approval".
+         *
+         * All optional: Better Auth creates a row on first sign-in and knows
+         * none of them.
+         */
+        names: { type: "string", required: false },
+        localeCode: { type: "string", required: false },
+        statusCode: { type: "string", required: false },
       },
     },
 
@@ -160,6 +193,24 @@ export function buildAuthOptions(deps: AuthDeps = {}) {
           // Returns undefined for users in no organization, which is most of
           // them — spectators never join one.
           before: async (session) => {
+            /**
+             * A suspended or deactivated person does not get a session.
+             *
+             * The model describes a user lifecycle and, until this, nothing read
+             * it: a DEACTIVATED account signed in exactly like an active one.
+             * Better Auth's `banned` is the admin plugin's own switch and is
+             * checked separately by it; this is the PO's status, and the two say
+             * different things — `banned` cannot express "awaiting approval".
+             *
+             * Refused here rather than at the sign-in endpoint because every way
+             * in creates a session, so this is the one chokepoint that cannot be
+             * bypassed by adding another.
+             */
+            const status = deps.userStatus ? await deps.userStatus(session.userId) : null
+            if (status === "SUSPENDED" || status === "DEACTIVATED") {
+              throw new APIError("FORBIDDEN", { message: "ACCOUNT_NOT_ACTIVE" })
+            }
+
             const activeOrganizationId = deps.resolveActiveOrganizationId
               ? await deps.resolveActiveOrganizationId(session.userId)
               : null

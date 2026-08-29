@@ -548,6 +548,16 @@ depends     = ["install"]
 #   test         a real browser, and only that
 run = "bun x vitest run --config vitest.config.ts"
 
+[tasks."data:coverage"]
+description = "Which of the model's vocabulary the fixtures exercise, and which fields have no column"
+depends     = ["install"]
+# Reported, not enforced. Two of the three sections are judgement calls the
+# Product Owner owns — PILOT_SCOPE says which of the sport the product runs —
+# and the third, fields with no column, is where the model and the schema
+# actually disagree. That one found four on 2026-08-29, including a user
+# lifecycle nothing implemented.
+run = "bun scripts/data-coverage.ts"
+
 [tasks."check:authz"]
 description = "Fail if any procedure does not declare how it is authorised"
 depends     = ["install"]

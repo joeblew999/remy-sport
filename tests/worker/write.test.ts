@@ -92,15 +92,52 @@ describe("seeding", () => {
     expect(await count(), "re-seeding must not duplicate a single row").toEqual(before)
   })
 
-  it("seeds every actor the fixtures define, signable-in", async () => {
+  it("seeds every active actor the fixtures define, signable-in", async () => {
     // Not a count of a response array: the fixtures' users are in the database
     // and can each authenticate, which is what "seeded" has to mean.
-    for (const u of SEED_ENTITIES.users) {
+    const active = SEED_ENTITIES.users.filter((u) => u.statusCode === "ACTIVE")
+    expect(active.length, "the fixtures should have active users").toBeGreaterThan(0)
+    for (const u of active) {
       const cookie = await signIn(u.email)
       const session = (await (await api("/api/auth/get-session", { cookie })).json()) as {
         user: { email: string } | null
       }
       expect(session.user?.email, `${u.id} should be able to sign in`).toBe(u.email)
+    }
+  })
+
+  it("refuses a session to anyone the model does not call ACTIVE", async () => {
+    // The lifecycle the model always described and nothing implemented: until
+    // migration 0008 the `user` table had no status column at all, so a
+    // DEACTIVATED account signed in exactly like a live one.
+    //
+    // Refused at session creation rather than at the sign-in endpoint, because
+    // every way in ends up creating a session — so this is the one chokepoint
+    // another entry point cannot slip past.
+    // The two that are refused, named rather than "everything that is not
+    // ACTIVE". PENDING_APPROVAL is the third non-active status and it *must*
+    // sign in: a referee awaiting approval has an account and needs to see that
+    // they are waiting. Writing the filter as `!== "ACTIVE"` swept them in and
+    // asserted the opposite of what the model means.
+    const refused = SEED_ENTITIES.users.filter(
+      (u) => u.statusCode === "SUSPENDED" || u.statusCode === "DEACTIVATED",
+    )
+    expect(refused.length, "the fixtures should exercise both refused statuses").toBe(2)
+
+    for (const u of refused) {
+      await post("/api/auth/email-otp/send-verification-otp", { email: u.email, type: "sign-in" })
+      const res = await post("/api/auth/sign-in/email-otp", { email: u.email, otp: "424242" })
+      expect(res.status, `${u.id} (${u.statusCode}) must not get a session`).toBe(403)
+    }
+
+    // And the one that is not refused, so this cannot pass by blocking everyone.
+    const waiting = SEED_ENTITIES.users.find((u) => u.statusCode === "PENDING_APPROVAL")
+    if (waiting) {
+      const cookie = await signIn(waiting.email)
+      const session = (await (await api("/api/auth/get-session", { cookie })).json()) as {
+        user: { email: string } | null
+      }
+      expect(session.user?.email, "a person awaiting approval still signs in").toBe(waiting.email)
     }
   })
 })

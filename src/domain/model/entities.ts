@@ -194,9 +194,12 @@ export const SEED_ENTITIES = {
     {"id":"usr_coach_003","roleCode":"COACH","statusCode":"ACTIVE","email":"sutee.k@montfort.test","phone":"+66812340013","lineId":"coach_sutee","localeCode":"th","names":{"th":"สุธี แก้วใจ","en":"Sutee Kaewjai"}},
     {"id":"usr_player_001","roleCode":"PLAYER","statusCode":"ACTIVE","email":"thanakorn.s@example.test","phone":"+66812340021","lineId":"thanakorn_b","localeCode":"th","names":{"th":"ธนกร สุขใส","en":"Thanakorn Suksai"}},
     {"id":"usr_player_002","roleCode":"PLAYER","statusCode":"ACTIVE","email":"kanya.t@example.test","phone":"+66812340022","lineId":"kanya_g","localeCode":"th","names":{"th":"กันยา ทองดี","en":"Kanya Thongdee"}},
-    {"id":"usr_spectator_001","roleCode":"SPECTATOR","statusCode":"ACTIVE","email":"pim.s@example.test","phone":"+66812340031","lineId":"pim_mom","localeCode":"th","names":{"th":"พิมพ์ สุขใส","en":"Pim Suksai"}},
+    {"id":"usr_spectator_001","roleCode":"SPECTATOR","statusCode":"ACTIVE","email":"pim.s@example.test","phone":"+66812340031","lineId":"pim_mom","localeCode":"ja","names":{"th":"พิมพ์ สุขใส","en":"Pim Suksai"}},
     {"id":"usr_referee_001","roleCode":"REFEREE","statusCode":"ACTIVE","email":"adisorn.b@bat.test","phone":"+66812340041","lineId":"ref_adisorn","localeCode":"th","names":{"th":"อดิศร บุญชัย","en":"Adisorn Boonchai"}},
     {"id":"usr_referee_002","roleCode":"REFEREE","statusCode":"PENDING_APPROVAL","email":"waraporn.j@bat.test","phone":"+66812340042","lineId":"ref_waraporn","localeCode":"th","names":{"th":"วราภรณ์ ใจงาม","en":"Waraporn Jaingam"}},
+
+    {"id":"usr_spectator_002","roleCode":"SPECTATOR","statusCode":"SUSPENDED","email":"suspended.s@example.test","phone":"+66812340041","lineId":"suspended_s","localeCode":"th","names":{"th":"สมพร ระงับ","en":"Somporn Rangap"}},
+    {"id":"usr_spectator_003","roleCode":"SPECTATOR","statusCode":"DEACTIVATED","email":"closed.c@example.test","phone":"+66812340042","lineId":"closed_c","localeCode":"en","names":{"th":"ชนิดา ปิดบัญชี","en":"Chanida Pidbanchi"}},
   ],
   /**
    * Three games, in the three states that matter: played, in progress, and
@@ -238,7 +241,7 @@ export const SEED_ENTITIES = {
     {"id":"gam_024","eventId":"evt_002","homeTeamId":"team_004","awayTeamId":"team_012","venueId":"ven_001","startsAt":"2026-05-23T14:00:00Z","statusCode":"FINISHED","homeScore":60,"awayScore":61},
     {"id":"gam_025","eventId":"evt_002","homeTeamId":"team_004","awayTeamId":"team_013","venueId":"ven_001","startsAt":"2026-06-17T14:00:00Z","statusCode":"FINISHED","homeScore":84,"awayScore":79},
     {"id":"gam_026","eventId":"evt_002","homeTeamId":"team_004","awayTeamId":"team_014","venueId":"ven_001","startsAt":"2026-07-12T14:00:00Z","statusCode":"FINISHED","homeScore":51,"awayScore":84},
-    {"id":"gam_027","eventId":"evt_002","homeTeamId":"team_012","awayTeamId":"team_013","venueId":"ven_002","startsAt":"2026-08-28T14:00:00Z","statusCode":"LIVE","homeScore":28,"awayScore":46},
+    {"id":"gam_027","eventId":"evt_002","homeTeamId":"team_012","awayTeamId":"team_013","venueId":"ven_002","startsAt":"2026-08-28T14:00:00Z","statusCode":"HALF_TIME","homeScore":28,"awayScore":46},
     {"id":"gam_028","eventId":"evt_002","homeTeamId":"team_012","awayTeamId":"team_014","venueId":"ven_002","startsAt":"2026-09-01T14:00:00Z","statusCode":"SCHEDULED","homeScore":null,"awayScore":null},
     {"id":"gam_029","eventId":"evt_002","homeTeamId":"team_013","awayTeamId":"team_014","venueId":"ven_001","startsAt":"2026-09-26T14:00:00Z","statusCode":"SCHEDULED","homeScore":null,"awayScore":null},
   ],
@@ -254,6 +257,8 @@ export const SEED_ENTITIES = {
 export const SEED_RELATIONSHIPS = {
   eventCoOrganizers: [
     {"eventId":"evt_001","userId":"usr_org_002","addedAt":"2026-04-05","statusCode":"ACCEPTED"},
+
+    {"eventId":"evt_002","userId":"usr_org_001","addedAt":"2026-08-20","statusCode":"PENDING"},
   ],
   eventPlayers: [
     {"eventId":"evt_003","playerId":"ply_001","registeredAt":"2026-03-20"},
@@ -336,6 +341,10 @@ export const SEED_RELATIONSHIPS = {
   ],
   guardians: [
     {"userId":"usr_spectator_001","playerId":"ply_001","guardianTypeCode":"PARENT"},
+
+    {"playerId":"ply_002","userId":"usr_spectator_001","guardianTypeCode":"GRANDPARENT"},
+    {"playerId":"ply_003","userId":"usr_spectator_001","guardianTypeCode":"LEGAL_GUARDIAN"},
+    {"playerId":"ply_006","userId":"usr_spectator_001","guardianTypeCode":"OTHER"},
   ],
   orgMembers: [
     {"orgId":"org_001","userId":"usr_org_001","orgRoleCode":"OWNER"},
@@ -498,6 +507,9 @@ export const SEED_RELATIONSHIPS = {
     {"userId":"usr_spectator_001","channelCode":"EMAIL","address":"pim.s@example.test","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-04-01"},
     {"userId":"usr_referee_001","channelCode":"LINE","address":"ref_adisorn","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-03-10"},
     {"userId":"usr_referee_002","channelCode":"LINE","address":"ref_waraporn","addressLabel":"primary","isEnabled":true,"verifiedAt":null},
+
+    {"userId":"usr_spectator_001","channelCode":"SMS","address":"+66812340031","addressLabel":"mobile","isEnabled":true,"verifiedAt":"2026-04-12"},
+    {"userId":"usr_coach_002","channelCode":"IN_APP","address":"usr_coach_002","addressLabel":"in-app","isEnabled":true,"verifiedAt":"2026-03-05"},
   ],
   userNotificationPreferences: [
     {"userId":"usr_spectator_001","notificationTypeCode":"SCORE_UPDATE","channelCode":"LINE","isEnabled":true},
@@ -508,5 +520,14 @@ export const SEED_RELATIONSHIPS = {
     {"userId":"usr_coach_001","notificationTypeCode":"ROSTER_CHANGE","channelCode":"LINE","isEnabled":true},
     {"userId":"usr_player_001","notificationTypeCode":"MATCH_START","channelCode":"LINE","isEnabled":true},
     {"userId":"usr_player_001","notificationTypeCode":"DAILY_DIGEST","channelCode":"LINE","isEnabled":false},
+
+    {"userId":"usr_spectator_001","notificationTypeCode":"MATCH_END","channelCode":"LINE","isEnabled":true},
+    {"userId":"usr_spectator_001","notificationTypeCode":"EVENT_REMINDER","channelCode":"EMAIL","isEnabled":true},
+    {"userId":"usr_player_001","notificationTypeCode":"EVENT_CREATED","channelCode":"LINE","isEnabled":false},
+    {"userId":"usr_coach_001","notificationTypeCode":"REGISTRATION_OPEN","channelCode":"EMAIL","isEnabled":true},
+    {"userId":"usr_coach_001","notificationTypeCode":"REGISTRATION_CLOSING","channelCode":"EMAIL","isEnabled":true},
+    {"userId":"usr_org_001","notificationTypeCode":"ANNOUNCEMENT","channelCode":"EMAIL","isEnabled":true},
+    {"userId":"usr_org_002","notificationTypeCode":"APPROVAL_GRANTED","channelCode":"LINE","isEnabled":true},
+    {"userId":"usr_org_002","notificationTypeCode":"INVITATION","channelCode":"EMAIL","isEnabled":true},
   ],
 } as const

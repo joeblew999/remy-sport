@@ -1032,3 +1032,39 @@ export const GRANTS = {
     { relation: "ORG_OWNER", eventTypes: [] },
   ],
 } as const
+
+/**
+ * What the pilot actually runs.
+ *
+ * The vocabularies above describe Thai school basketball: eight age groups,
+ * fifteen provinces, two competition formats. That is the sport. This is the
+ * product — which of it the platform is deployed for today.
+ *
+ * The distinction has to live here rather than in remy-sport, because it is a
+ * business decision and not an implementation one. Without it, a tool counting
+ * which codes the fixtures exercise cannot tell a **hole** (a feature is built
+ * and its data is missing) from **scope** (the model describes more sport than
+ * the product runs) — and the only way to make the numbers go green is to
+ * invent teams in provinces nobody sells to. `mise run data:coverage` in
+ * remy-sport reads this and reports the two separately.
+ *
+ * Widening the pilot is an edit here, and the fixtures then have somewhere to
+ * grow into. Anything absent from a list below is deliberately not served yet;
+ * anything present must have fixtures, or it is a hole.
+ *
+ * `LOCALE` is not listed: it already carries `status` per term, which says the
+ * same thing in the place a locale needs it.
+ */
+export const PILOT_SCOPE = {
+  /** U16 and U18 boys and girls — the age groups the launch competitions use. */
+  ageGroups: ["U16", "U18"],
+  /** Bangkok and Chiang Mai. CITY only defines these two, and they move together. */
+  provinces: ["BKK", "CMI"],
+  cities: ["BANGKOK", "CHIANG_MAI"],
+  /** 5x5 only. 3x3 is a different competition, not a missing fixture. */
+  eventFormats: ["5x5"],
+  /** Coed competitions need a coed division to exist first. */
+  genders: ["M", "F"],
+  /** Schools, clubs and the federation. Grassroots clubs are not onboarded. */
+  orgTypes: ["SCHOOL", "CLUB", "FEDERATION"],
+} as const satisfies Record<string, readonly string[]>
