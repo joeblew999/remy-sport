@@ -102,6 +102,39 @@ export function useGames(eventId: string | undefined) {
 }
 
 /**
+ * The games being played right now, with whether anyone is broadcasting them.
+ *
+ * The discovery path for live video, and the reason it has to exist: Cloudflare's
+ * relay does not support broadcast discovery, so no client can ask it what is
+ * live. `isBroadcasting` comes from our own table, refreshed by the publisher's
+ * heartbeat, and this is the only place a viewer can find out that a camera is
+ * pointed at a game without opening the player and staring at black.
+ *
+ * Polled, because a game goes live while somebody is looking at the page.
+ */
+export function useLiveGames() {
+  const loc = useLocalizer();
+  return useQuery(
+    orpc.games.list.queryOptions({
+      input: {},
+      refetchInterval: 10_000,
+      select: ({ games, viewerTimezone }) => ({
+        viewerTimezone,
+        games: games
+          .filter((g) => g.statusCode === "LIVE" || g.statusCode === "HALF_TIME")
+          .map((g) => ({
+            ...g,
+            homeTeam: loc.name(g.homeTeamNames),
+            awayTeam: loc.name(g.awayTeamNames),
+            venue: g.venueNames ? loc.name(g.venueNames) : null,
+            statusLabel: loc.label("gameStatuses", g.statusCode),
+          })),
+      }),
+    }),
+  );
+}
+
+/**
  * The game to show somebody who did not choose one.
  *
  * A live game if there is one, then the next scheduled, then the most recent —

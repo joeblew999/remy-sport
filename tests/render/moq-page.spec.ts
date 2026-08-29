@@ -86,3 +86,75 @@ test.describe("Live video, before a relay exists", () => {
     await expect(page.getByTestId("video-no-game")).toBeVisible()
   })
 })
+
+/**
+ * Where a person actually finds a game to watch.
+ *
+ * The Live page is the discovery path, and it has to be: Cloudflare's relay
+ * does not support broadcast discovery, so nothing can ask it what is being
+ * published. A Watch button therefore appears only where our own data says a
+ * camera is pointed at that game.
+ */
+const liveGameRow = (over: Record<string, unknown>) => ({
+  ...liveGame,
+  isBroadcasting: false,
+  canBroadcast: false,
+  ...over,
+})
+
+test.describe("Finding a game to watch", () => {
+  test("offers Watch only on a game somebody is broadcasting", async ({ page }) => {
+    await seedCache(page, [
+      entry(orpc.games.list, {}, {
+        viewerTimezone: null,
+        games: [
+          liveGameRow({ id: "gam_002", isBroadcasting: true }),
+          liveGameRow({ id: "gam_014", isBroadcasting: false }),
+        ],
+      } as never),
+    ])
+    await page.goto("/#/live")
+
+    await expect(page.getByTestId("watch-gam_002")).toBeVisible()
+    // A Watch link on a game nobody is broadcasting is a link to a black
+    // rectangle, which is how a feature earns a reputation.
+    await expect(page.getByTestId("watch-gam_014")).toHaveCount(0)
+  })
+
+  test("offers Broadcast only to somebody the model permits", async ({ page }) => {
+    await seedCache(page, [
+      entry(orpc.games.list, {}, {
+        viewerTimezone: null,
+        games: [
+          liveGameRow({ id: "gam_002", canBroadcast: true }),
+          liveGameRow({ id: "gam_014", canBroadcast: false }),
+        ],
+      } as never),
+    ])
+    await page.goto("/#/live")
+
+    await expect(page.getByTestId("broadcast-gam_002")).toBeVisible()
+    await expect(page.getByTestId("broadcast-gam_014")).toHaveCount(0)
+  })
+
+  test("says so when nothing is being played, rather than showing an empty box", async ({
+    page,
+  }) => {
+    await seedCache(page, [
+      entry(orpc.games.list, {}, { viewerTimezone: null, games: [] } as never),
+    ])
+    await page.goto("/#/live")
+    await expect(page.getByTestId("no-live-games")).toBeVisible()
+  })
+
+  test("keeps Watch and Broadcast out of the sidebar", async ({ page }) => {
+    // Video belongs to a game. "Watch" with no game is a question the nav
+    // cannot answer, and when it was there it guessed — sending two devices to
+    // whatever each thought was the current game.
+    await page.goto("/#/live")
+    const nav = page.locator(".sidebar .nav-item")
+    await expect(nav.filter({ hasText: "Watch" })).toHaveCount(0)
+    await expect(nav.filter({ hasText: "Broadcast" })).toHaveCount(0)
+    await expect(nav.filter({ hasText: "Live now" })).toBeVisible()
+  })
+})

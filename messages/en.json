@@ -284,5 +284,6 @@
   "video_status_waiting": "Connected. Waiting for somebody to broadcast this game.",
   "video_status_live": "Receiving video.",
   "video_status_nobody_live": "Nobody is broadcasting this game yet.",
-  "video_not_permitted": "Only this game's referee or the people running the event can broadcast it."
+  "video_not_permitted": "Only this game's referee or the people running the event can broadcast it.",
+  "no_live_games": "No games are being played right now."
 }

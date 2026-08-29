@@ -284,5 +284,6 @@
   "video_status_waiting": "接続済み。誰かがこの試合を配信するのを待っています。",
   "video_status_live": "映像を受信中です。",
   "video_status_nobody_live": "まだ誰もこの試合を配信していません。",
-  "video_not_permitted": "この試合を配信できるのは、担当審判と大会の運営者だけです。"
+  "video_not_permitted": "この試合を配信できるのは、担当審判と大会の運営者だけです。",
+  "no_live_games": "現在プレー中の試合はありません。"
 }
