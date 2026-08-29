@@ -1376,3 +1376,58 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 }
 .status-select:hover { text-decoration: underline; }
 .status-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/*
+ * The live-video surfaces.
+ *
+ * A custom element is `display: inline` with no intrinsic size, so the player
+ * and the camera preview render at 0×0 unless told otherwise — the connection
+ * succeeds, the catalog arrives, and the page stays blank. The child `<video>`
+ * and `<canvas>` are the actual draw surfaces (the elements have no shadow
+ * root), so they carry the aspect ratio.
+ */
+.moq-surface {
+  margin-top: 16px;
+  background: var(--ink);
+  border: 1px solid var(--rule);
+  overflow: hidden;
+}
+
+.moq-surface moq-publish-ui,
+.moq-surface moq-watch-ui,
+.moq-surface moq-publish,
+.moq-surface moq-watch {
+  display: block;
+  width: 100%;
+}
+
+/*
+ * The element sets `display: none` on its child until capture starts, and that
+ * inline style beats a stylesheet rule — so this only shapes the surface once
+ * the element has revealed it. `!important` is not the fix: an always-visible
+ * black box before a source exists would be a worse lie than an empty one.
+ */
+.moq-surface video,
+.moq-surface canvas {
+  width: 100%;
+  /* 16:9, so the box holds its shape before any frame has arrived. */
+  aspect-ratio: 16 / 9;
+  background: #000;
+  object-fit: contain;
+}
+
+.moq-controls {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  flex-wrap: wrap;
+  background: var(--paper);
+  border-top: 1px solid var(--rule);
+}
+
+.moq-hint {
+  padding: 0 12px 12px;
+  font-size: 12px;
+  color: var(--ink-3);
+  background: var(--paper);
+}

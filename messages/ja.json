@@ -273,5 +273,11 @@
   "video_broadcast_heading": "この試合を配信する",
   "video_watch_heading": "視聴中",
   "video_harness_note": "テスト用の仕組みです。実際の端末と回線でライブ映像がどう動くかを計測し、失敗したものだけでなく全セッションを記録します。",
-  "video_no_game": "試合が選ばれていません。"
+  "video_no_game": "試合が選ばれていません。",
+  "video_start_camera": "カメラを開始",
+  "video_start_screen": "画面を共有",
+  "video_stop": "配信を停止",
+  "video_broadcast_hint": "ソースを選ぶと開始します。ブラウザが許可を求めます。",
+  "video_broadcasting": "配信中です。別の端末で視聴ページを開くと見られます。",
+  "video_watch_hint": "誰かがこの試合を配信するまで何も表示されません。"
 }

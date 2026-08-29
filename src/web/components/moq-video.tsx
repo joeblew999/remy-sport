@@ -1,23 +1,30 @@
 /**
  * The two MoQ surfaces: watch a game, or broadcast one.
  *
- * The React integration has one shape that is not obvious and is worth stating
- * before the code. The elements expose their state as **signals on the DOM
- * node**, and that node does not exist on the first render. `useValue` is a
- * hook, so it cannot be called conditionally on `ref.current` either. So the
- * element is captured into state in an effect, and a *child* component takes it
- * as a prop and calls `useValue` inside — where it is unconditional and the
- * element is guaranteed to exist. Inlining it does not work.
+ * Two things about these elements are not obvious and cost a blank page each.
  *
- * Object-valued settings are assigned imperatively for the same reason JSX
- * cannot express them: an attribute carries a string, and the encoder config and
- * reconnect delay are objects.
+ * **They have no shadow root and draw into a child you supply** — a `<video>`
+ * for publish, a `<canvas>` for watch. Without one the element is 0×0: it
+ * connects to the relay, exchanges a catalog, and shows nothing at all.
+ *
+ * **That child starts `display: none`.** The publish element reveals its preview
+ * only once a source is actually capturing, so a page with no way to choose a
+ * source stays empty however well the connection works — which is exactly what
+ * this was.
+ *
+ * The controls are therefore ours rather than the package's chrome: a button
+ * that sets `source`, which is also what triggers `getUserMedia`, so the
+ * browser's permission prompt is a direct result of the click.
+ *
+ * The element's signals live on the DOM node, which does not exist on first
+ * render and cannot be read conditionally by a hook — hence capturing the
+ * element into state in an effect.
  */
 
 import { useEffect, useRef, useState } from "react"
-import { m } from "../lib/i18n"
 import { useQuery } from "@tanstack/react-query"
 import { orpc } from "../lib/orpc"
+import { m } from "../lib/i18n"
 import {
   ENCODER,
   RECONNECT,
@@ -30,27 +37,14 @@ import {
 
 import "@moq/watch/element"
 import "@moq/publish/element"
-// The shipped chrome: a camera/screen picker on publish, playback controls on
-// watch. Without it `<moq-publish>` renders a video area and no way to start a
-// camera — `announce="source"` waits for a source and nothing ever selects one,
-// so the broadcast connects to the relay and publishes nothing. A watcher then
-// sees `Track not found`, which is correct and useless.
-import "@moq/publish/ui"
-import "@moq/watch/ui"
 
-/**
- * The relay, from the server, or null.
- *
- * A query rather than a module-level read, because the token is a Worker secret
- * now — which is what keeps it out of the bundle and lets it be rotated without
- * a deploy.
- */
+/** The relay, from the server. Watchers get a subscribe-only token. */
 function useRelay(role: "watch" | "publish") {
   const { data } = useQuery(orpc.moq.config.queryOptions({ input: { role } }))
   return data?.url && data.token ? { url: data.url, token: data.token } : undefined
 }
 
-/** Shown wherever no relay is configured, which is the default. */
+/** Shown wherever no relay is configured. */
 function NoRelay() {
   return (
     <div className="empty" data-testid="moq-unconfigured">
@@ -62,9 +56,10 @@ function NoRelay() {
 /**
  * Settings that cannot be attributes, plus session reporting.
  *
- * Reporting lives here rather than in each page so a session is recorded once
- * per element regardless of which surface mounted it — and so "how many
- * sessions were there at all" has one answer.
+ * `connection.delay` and `video.config` are the real homes. An earlier version
+ * set `node.reload` and `node.encoder`, which do not exist — and assigning an
+ * unknown property to a custom element is silent, so both settings the
+ * integration calls essential were no-ops that read as done.
  */
 function useMoqElement(
   el: HTMLElement | null,
@@ -74,25 +69,14 @@ function useMoqElement(
 ) {
   useEffect(() => {
     if (!el) return
-    /**
-     * Both of these are set through the element's own objects, and the first
-     * version set neither.
-     *
-     * I invented `node.reload` and `node.encoder` from the shape of the
-     * settings rather than from the element's API, and assigning an unknown
-     * property on a custom element is silent — so the two settings the spec
-     * calls "not optional" were no-ops that read as done. The real homes are
-     * `connection.delay` (a plain property on `Moq.Connection.Reload`) and
-     * `video.config` (a `Signal`, so `.set`).
-     */
     const node = el as HTMLElement & {
       connection?: { delay?: unknown }
       video?: { config?: { set?: (v: unknown) => void } }
       transport?: unknown
     }
 
-    // Retry forever. Ten seconds — the default — is shorter than walking
-    // behind a bleacher, and the failure presents as the stream just ending.
+    // Retry forever. Ten seconds — the default — is shorter than walking behind
+    // a bleacher, and the failure presents as the stream simply ending.
     if (node.connection) node.connection.delay = RECONNECT
     if (encoder) node.video?.config?.set?.(ENCODER)
 
@@ -104,8 +88,6 @@ function useMoqElement(
       reportSession({
         role,
         gameId,
-        // What the connection actually used. `@moq/net` records it on the
-        // element; absent means it never got that far.
         transport: String(node.transport ?? "none"),
         errorCode: remoteErrorCode(err),
         errorName: err ? errorName(err) : undefined,
@@ -115,12 +97,14 @@ function useMoqElement(
 
     const onError = (e: Event) => report((e as CustomEvent).detail ?? e)
     el.addEventListener("error", onError)
-    // Every session, not only the broken ones: a fallback count without a
+    // Every session, not only the broken ones: a fallback count with no
     // denominator cannot be acted on.
-    window.addEventListener("pagehide", () => report())
+    const onHide = () => report()
+    window.addEventListener("pagehide", onHide)
 
     return () => {
       el.removeEventListener("error", onError)
+      window.removeEventListener("pagehide", onHide)
       report()
     }
   }, [el, role, gameId, encoder])
@@ -142,8 +126,11 @@ export function GameVideo({ gameId }: { gameId: string }) {
       {/* Appears only when the browser is missing something it needs. */}
       <moq-watch-support show="warning" />
       <moq-watch ref={ref} url={relayUrl(config)} name={broadcastName(gameId)}>
-        <moq-watch-ui />
+        {/* The draw surface. The element has no shadow root; without this it
+            subscribes successfully and paints nothing. */}
+        <canvas data-testid="moq-canvas" />
       </moq-watch>
+      <div className="moq-hint">{m.video_watch_hint()}</div>
     </div>
   )
 }
@@ -153,29 +140,68 @@ export function GameBroadcast({ gameId }: { gameId: string }) {
   const config = useRelay("publish")
   const ref = useRef<HTMLElement>(null)
   const [el, setEl] = useState<HTMLElement | null>(null)
+  const [source, setSource] = useState<"camera" | "screen" | null>(null)
 
   useEffect(() => setEl(ref.current), [])
   useMoqElement(el, "publish", gameId, true)
+
+  const start = (which: "camera" | "screen") => {
+    const node = el as (HTMLElement & { source?: unknown }) | null
+    if (!node) return
+    // Setting `source` is what calls getUserMedia, so the permission prompt is
+    // a direct result of this click — which browsers require and which is the
+    // honest moment to ask.
+    node.source = which
+    setSource(which)
+  }
+
+  const stop = () => {
+    const node = el as (HTMLElement & { source?: unknown }) | null
+    if (!node) return
+    node.source = undefined
+    setSource(null)
+  }
 
   if (!config) return <NoRelay />
 
   return (
     <div className="moq-surface" data-testid="moq-publish">
       <moq-publish-support show="warning" />
-      {/*
-        `announce="source"` so the broadcast is not advertised before the camera
-        permission is granted — otherwise a viewer sees a live game that is not
-        yet sending anything.
-      */}
+      {/* `announce="source"` so the broadcast is not advertised before capture
+          starts — otherwise a viewer sees a live game sending nothing. */}
       <moq-publish
         ref={ref}
         url={relayUrl(config)}
         name={broadcastName(gameId)}
         announce="source"
-        preview
       >
-        <moq-publish-ui />
+        <video data-testid="moq-preview" muted autoPlay playsInline />
       </moq-publish>
+
+      <div className="moq-controls">
+        {source === null ? (
+          <>
+            <button
+              className="btn primary"
+              onClick={() => start("camera")}
+              data-testid="moq-start-camera"
+            >
+              {m.video_start_camera()}
+            </button>
+            <button className="btn" onClick={() => start("screen")} data-testid="moq-start-screen">
+              {m.video_start_screen()}
+            </button>
+          </>
+        ) : (
+          <button className="btn" onClick={stop} data-testid="moq-stop">
+            {m.video_stop()}
+          </button>
+        )}
+      </div>
+
+      <div className="moq-hint">
+        {source === null ? m.video_broadcast_hint() : m.video_broadcasting()}
+      </div>
     </div>
   )
 }

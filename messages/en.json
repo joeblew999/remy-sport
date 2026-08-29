@@ -273,5 +273,11 @@
   "video_broadcast_heading": "Broadcast this game",
   "video_watch_heading": "Watching",
   "video_harness_note": "A test harness. It measures how live video behaves on real phones and real networks — every session is reported, not just the ones that fail.",
-  "video_no_game": "No game chosen."
+  "video_no_game": "No game chosen.",
+  "video_start_camera": "Start camera",
+  "video_start_screen": "Share screen",
+  "video_stop": "Stop broadcasting",
+  "video_broadcast_hint": "Choose a source to start. Your browser will ask for permission.",
+  "video_broadcasting": "Broadcasting. Open the Watch page on another device to see it.",
+  "video_watch_hint": "Nothing appears until somebody is broadcasting this game."
 }
