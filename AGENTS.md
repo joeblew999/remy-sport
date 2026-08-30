@@ -307,6 +307,39 @@ they have not drifted.
 
 ## Traps
 
+**Traceability check: the database and the GUI must agree, or the gap must be
+declared.**
+
+Whenever a table, a Drizzle schema or an oRPC contract changes, run this before
+saying the work is done:
+
+1. Identify every field added, removed or changed.
+2. Trace where it flows — procedure, contract output, view model, React
+   component. Write the trace down; do not assume it.
+3. Where a component does not yet render the new intent, **either build the UI
+   or declare the gap in one line with a reason.** A field that is deliberately
+   never shown is a decision; a field nobody noticed is the bug.
+
+Do not report a task complete while a schema change and the presentation layer
+disagree without one of those two outcomes.
+
+**Why "or declare" rather than "always build".** 22 of this schema's 282 columns
+are correctly reachable from nowhere — Better Auth's unused OAuth fields,
+`description_en` on the vocabulary tables, `notification_sent.sent_at`. A rule
+that said "bring the GUI into alignment" without an escape would demand a screen
+for `account.refresh_token`. This is the same shape `check:authz` already uses
+and the reason it has never rotted: 35 procedures enforced by the model, 26
+*declared otherwise, each with a sentence*.
+
+**And a rule is a stopgap, not the fix.** This one is written down because the
+failure it names happened repeatedly: `event.format_code`,
+`event.is_fiba_certified` and `event.description` sat in the API rendering
+nowhere while the Rules tab said "not built yet"; the `guardians` table had no
+API and no screen for months; `event_venue` and `team_coach` likewise. Every one
+was found by hand, late. A rule that has to be *remembered* is the same class of
+thing that failed — the mechanism is a build-time gate over the schema, and
+until that exists this is what stands in for it.
+
 **A slow test suite is a bug. Fix it, do not wait it out.**
 
 This is a standing instruction, not a preference. If a tier takes longer than it
