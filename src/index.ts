@@ -10,6 +10,7 @@ import { OpenAPIHandler } from "@orpc/openapi/fetch"
 import { OpenAPIGenerator } from "@orpc/openapi"
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4"
 import { router } from "./api"
+import { scheduled } from "./scheduled"
 import { telemetryInterceptor } from "./api/telemetry"
 import analyticsRoutes from "./routes/analytics"
 import devMailRoutes from "./routes/dev-mail"
@@ -171,4 +172,26 @@ app.get("/", spa)
 // Hashed JS/CSS bundles and any other static file.
 app.all("*", (c) => c.env.ASSETS.fetch(c.req.raw))
 
-export default app
+/**
+ * `fetch` and `scheduled`, rather than the Hono app on its own.
+ *
+ * The app *is* the fetch handler — exporting it directly was correct while
+ * every effect in this Worker traced to a request. `EVENT_REMINDER` is the one
+ * that cannot: its cause is the passage of time. See src/scheduled.ts for why
+ * that file is deliberately the whole of the scheduler.
+ */
+/**
+ * The Hono app by name, as well as inside the default export.
+ *
+ * `mise run check:authz` enumerates `app.routes` to prove every non-procedure
+ * route is accounted for. Wrapping the app in `{ fetch, scheduled }` hid that
+ * list behind a closure and the check died with "undefined is not an object" —
+ * a security check silently losing its subject, which is the worst way for one
+ * to break.
+ */
+export { app }
+
+export default {
+  fetch: app.fetch,
+  scheduled,
+}

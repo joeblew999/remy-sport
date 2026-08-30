@@ -161,6 +161,34 @@ export const gameBroadcast = sqliteTable("gameBroadcast", {
 }, (t) => [uniqueIndex("gameBroadcast_key").on(t.gameId)])
 
 /**
+ * What has already been announced.
+ *
+ * An app-level table, like `gameBroadcast` above: it is not the Product
+ * Owner's model, it is bookkeeping the scheduler needs in order to be safe to
+ * run twice.
+ *
+ * Cron is not exactly-once. Cloudflare may retry a firing, a deploy may overlap
+ * two runs, and a missed hour has to be recoverable on the next one without
+ * re-sending. A job that decides what to send purely from the clock survives
+ * none of those.
+ *
+ * The unique index is the mechanism, not the record: the sender inserts
+ * *before* it sends and treats a conflict as "somebody else has this". A
+ * SELECT-then-INSERT would let two concurrent runs both read nothing and both
+ * send.
+ */
+export const notificationSent = sqliteTable("notification_sent", {
+  objectTypeCode: text("object_type_code").notNull(),
+  objectId: text("object_id").notNull(),
+  typeCode: text("type_code").notNull(),
+  /** `24h` or `1h` — two announcements about one event, not one sent twice. */
+  kind: text("kind").notNull(),
+  sentAt: text("sent_at").notNull(),
+}, (t) => [
+  uniqueIndex("notification_sent_key").on(t.objectTypeCode, t.objectId, t.typeCode, t.kind),
+])
+
+/**
  * Which referees are on this game.
  *
  * The `GAME_REFEREE` relation reads exactly this. Before it existed,

@@ -48,6 +48,7 @@ export function NotificationSettings() {
   }, [])
 
   const { data } = useQuery(orpc.notifications.following.queryOptions())
+  const { data: devices } = useQuery(orpc.notifications.devices.queryOptions())
 
   const mute = useMutation({
     mutationFn: (args: { notificationTypeCode: (typeof OFFERED)[number]; isEnabled: boolean }) =>
@@ -148,6 +149,29 @@ export function NotificationSettings() {
           )
         })}
       </ul>
+
+      {/* Which browsers are actually registered.
+          `notifications.devices` existed and no screen called it, so the one
+          question a person asks when a notification does not arrive — "is this
+          browser even signed up?" — had no answer anywhere in the app. The
+          endpoint deliberately never returns the push endpoint itself: it is a
+          bearer capability, and anyone holding it can push to that browser. */}
+      <h3>{m.push_devices()}</h3>
+      {devices?.devices.length ? (
+        <ul className="pref-list" data-testid="device-list">
+          {devices.devices.map((d, i) => (
+            <li key={`${d.label}-${i}`} data-testid={`device-${i}`}>
+              {d.label}
+              {/* A registered-but-disabled browser is a real state and the
+                  reason nothing arrives on it. Silence with no explanation is
+                  what makes people conclude push is broken. */}
+              {!d.enabled && <span className="meta"> · {m.device_off()}</span>}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="empty" data-testid="devices-empty">{m.devices_none()}</div>
+      )}
 
       <h3>{m.following_label()}</h3>
       {data?.following.length ? (

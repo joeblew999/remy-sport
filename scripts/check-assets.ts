@@ -22,7 +22,10 @@
 
 import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { resolve } from "node:path"
-import app from "../src/index"
+// The named export, not the default. The Worker's default became
+// `{ fetch, scheduled }` when it grew a cron trigger, and `.routes` is not on
+// it — a check that reads a route table has to fail loudly or not at all.
+import { app } from "../src/index"
 
 const ROOT = resolve(import.meta.dir, "..")
 const DIST = resolve(ROOT, "dist/web")

@@ -71,6 +71,13 @@
       "when": 1787992813854,
       "tag": "0009_game_broadcast",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1788058132165,
+      "tag": "0010_notification_sent",
+      "breakpoints": true
     }
   ]
 }

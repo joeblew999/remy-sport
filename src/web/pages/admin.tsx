@@ -28,6 +28,7 @@ import { useLocale } from "../lib/locale";
 import { api, orpc } from "../lib/orpc";
 import { useAccounts, useAdminAction, useDevAccounts, useRequestCode, useVerifyCode, codeFromOutbox, signOutSilently } from "../lib/auth";
 import { useSession } from "../lib/session";
+import { useTeams } from "../lib/data";
 import type { Route } from "../lib/router";
 
 const ROLES = ["admin", "organizer", "coach", "player", "spectator", "referee"] as const;
@@ -193,6 +194,12 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
           </p>
         </section>
       )}
+
+      {/* `teams.delete` is granted to PLATFORM_ADMIN and to nobody else — no
+          relation to the team is required or accepted — so this is the one
+          place it can live. It had no screen at all, which meant a team created
+          by mistake stayed forever. */}
+      {isAdmin && !impersonatedBy && <DeleteTeams />}
 
       {/* Only for an admin who is not already impersonating: Better Auth does
           not model a nested impersonation, and the way out is the banner. */}
@@ -433,6 +440,55 @@ function RoleSwitcher({ current }: { current: string }) {
           </button>
         ))}
       </div>
+    </section>
+  );
+}
+
+/**
+ * Removing a team, which only a platform admin may do.
+ *
+ * `DELETE_TEAM` is granted to `PLATFORM_ADMIN` alone: a head coach may edit
+ * their team's profile and manage its roster, and may not delete it. That is
+ * the PO's line and it is why this control is here rather than beside the edit
+ * form on the team page.
+ *
+ * It cascades. Three tables carry a non-null FK to `team.id` — the roster, the
+ * coaching staff and the event entries — and the procedure clears them first,
+ * because none is declared ON DELETE CASCADE. So the confirmation names what
+ * goes with it rather than asking a bare "are you sure": somebody agreeing to
+ * delete a team is not necessarily agreeing to delete its history.
+ */
+function DeleteTeams() {
+  const qc = useQueryClient();
+  const { data: teams = [] } = useTeams();
+
+  const remove = useMutation({
+    mutationFn: (id: string) => api.teams.delete({ id }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: orpc.teams.key() }),
+  });
+
+  return (
+    <section className="admin-card" data-testid="admin-teams">
+      <h2>{m.admin_teams()}</h2>
+      {teams.length === 0 && <div className="empty" data-testid="admin-no-teams">{m.admin_no_teams()}</div>}
+      {teams.map((t) => (
+        <div key={t.id} className="invite-row" data-testid={`admin-team-${t.id}`}>
+          <div>
+            <div className="row-title">{t.name}</div>
+            <div className="row-meta">{[t.orgName, t.ageGroupCode, t.genderLabel].filter(Boolean).join(" · ")}</div>
+          </div>
+          <button
+            className="btn"
+            data-testid={`delete-team-${t.id}`}
+            disabled={remove.isPending}
+            onClick={() => {
+              if (window.confirm(m.admin_delete_team_confirm({ team: t.name }))) remove.mutate(t.id);
+            }}
+          >
+            {m.admin_delete_team()}
+          </button>
+        </div>
+      ))}
     </section>
   );
 }

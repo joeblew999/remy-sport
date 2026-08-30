@@ -65,6 +65,16 @@ not_found_handling = "none"
 # Append-only product telemetry, read by aggregation. Not D1: a D1 row is a fact
 # somebody can edit and a foreign key means something, and this is neither — it
 # is unbounded, never updated, and only ever queried in aggregate.
+# The reminder job. Hourly, because the PO's EVENT_REMINDER names a 24-hour and
+# a one-hour window and an hour is the coarsest tick that can serve both.
+#
+# Not more often. Each firing is a scan of upcoming events, the windows are
+# hours wide, and `notification_sent` makes a run idempotent — so a finer cron
+# would buy nothing and cost a scan. Not less often, because a two-hour tick
+# cannot deliver a one-hour warning at all.
+[triggers]
+crons = ["0 * * * *"]
+
 [[analytics_engine_datasets]]
 binding = "ANALYTICS"
 dataset = "remy_sport_events"

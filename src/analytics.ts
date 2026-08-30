@@ -85,6 +85,19 @@ export const EVENTS = {
     doubles: ["ok"],
     dimensions: ["host", "status"],
   }),
+  /**
+   * One pass of the reminder cron, including the passes that found nothing.
+   *
+   * "The cron fired and found nothing" and "the cron did not fire" look
+   * identical without a row for the first, and they need opposite responses. It
+   * is also the only way to see a scheduled job at all: there is no request
+   * behind it and nobody watching when it runs.
+   */
+  "reminder.run": defineEvent({
+    blobs: ["kind"],
+    doubles: ["due", "claimed", "reached"],
+    dimensions: ["kind"],
+  }),
   /** A camera started pointing at a game — the transition, not the heartbeat. */
   "broadcast.started": defineEvent({
     blobs: ["gameId"],
