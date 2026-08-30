@@ -503,6 +503,33 @@ the gate stayed green.
 - Sessions should be **net-negative on lines**.
 - Use well-known `autocomplete` attributes on form fields.
 
+### Working out what is true
+
+Five rules, each of which cost an hour or a retraction to learn.
+
+- **Measure before naming a cause.** An endpoint took 0.23s and the cause was
+  asserted, not measured: one of five `can()` calls was removed for a 4% gain,
+  and the conclusion was built on. Stubbing `can()` settled it in two minutes —
+  0.23s → 0.01s. `mise run time` and `mise run probe` exist so this is the first
+  move rather than the last.
+- **Check the harness before believing the result.** More time has gone into
+  wrong measurements than into slow code. `echo "exit=$?"` after `$(date)` reads
+  *date's* status; `mise run a b` passes `b` as an argument, not a second task,
+  so a "parallel" check ran one thing and skipped every test tier and reported
+  green; `DEV_URL=… mise run time` measured localhost, because mise's own `[env]`
+  wins. Each looked like an answer.
+- **Test the disproof too.** A correct diagnosis was publicly retracted on the
+  strength of one experiment whose premise was never checked. A result that
+  contradicts a careful finding is a claim like any other.
+- **Decide, don't ask.** Questions put to the user this session returned "not
+  sure" and "I have no idea". Choose, say what you chose and why, and move; a
+  wrong decision that is stated is cheaper than a question that stalls.
+- **Nothing speculative.** A 282-column coverage file was written, declared to
+  prove something, and deleted within the hour — it duplicated the schema and
+  could not verify its own claims. If a document cannot fail, it is not evidence.
+  The same goes for a type with no readers, a route nothing navigates to, and a
+  cast that suppresses the error its file exists to raise.
+
 ## Further reading
 
 There is almost none, on purpose.
