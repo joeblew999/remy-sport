@@ -109,77 +109,9 @@ the Product Owner in your reply. Fix it well enough to finish the task, then
 name it: what you hit, what you did instead, and what the real fix would be.
 Silently working around a bad seam is how it survives — the workaround ships,
 nobody hears about it, and the next person pays the same tax without knowing it
-is a tax. `## Next` below is where the ones worth keeping are written down.
+is a tax. `## Open` below is where the ones worth keeping are written down.
 
-```
-mise tasks                what you can run, and what each does
-mise run check            types + unit + worker + dead code + docs + these rules
-mise run check:deps       layer boundaries and import cycles (.dependency-cruiser.cjs)
-mise run test:all         every tier, with the seconds each one costs
-mise run test:tiers       where the tests are, and which are in the wrong tier
-mise run test:render      rendering tests, no Worker, no database
-mise run model:coverage   which of the PO's 75 actions the API implements, and which the GUI calls
-mise run demo:status      is seeded sign-in live on the deployment, and who does it offer
-mise run demo:on|off      turn it on or off — takes effect at once, no redeploy
-mise run probe            typecheck a snippet against the real project (WEB=1 for the SPA)
-```
-
-## Open
-
-Items with a live consequence. **Delete a line when it is done** — this section
-had grown to twelve numbered entries, of which four described finished work, one
-told the next session not to investigate a problem that had been fixed, and two
-cited triggers that had already fired. A list nobody prunes stops being read.
-
-1. **A per-object capability in a list is N queries, and the schedule has now
-   exceeded a page.** This entry used to end "revisit when a schedule first
-   exceeds a page". Measured 2026-08-30: `/api/games/gam_001` is 0.02s and
-   `/api/games?eventId=evt_002` — 28 games — is **0.25s**, because `serialize`
-   makes five `can()` calls and three queries per row. Roughly 220 round trips
-   for one page.
-   The fix is set-wise: every relation is derivable in SQL, so "which of these
-   games may this user score" is one query, not N. `objectsHeldBy` in
-   `src/api/relations.ts` is half of it already.
-   **Do not fix it by moving the decision into the client.** That is the copy of
-   the access matrix this file exists to prevent.
-2. **`can()` results are named eleven different things on the wire.**
-   `canEdit` ×13, `canEnterScore`, `canManageFixture` *and* `canManageFixtures`,
-   `canBroadcast`, `canSetStatus`, `canInviteCoOrganizer`, `canCreateTeam`,
-   `canManage`, `canWithdraw`, `canAssignReferee` — each invented at a call site.
-   The model already has a vocabulary for this: ACTION codes. Same fix as item 1;
-   a set-wise resolver has one natural shape to return.
-3. **Three representations of every domain object, hand-synced.** `EventSchema`
-   → `interface Event` → `toEvent()`. Adding `divisionNames` meant three edits
-   and broke eleven tests at once, which is what `tests/helpers/api-fixtures.ts`
-   now papers over. The view model should derive from the API type.
-4. **An action can be about a *pair*, and the model can only name one object.**
-   `REGISTER_TEAM_FOR_EVENT` named EVENT while every relation granting it is
-   about a TEAM, so the check resolved `team_coaches.team_id = <an event id>`,
-   matched nothing, and failed closed — no coach could register a team. Failing
-   closed looks like a policy rather than a defect, which is why it survived.
-   `check-tables.ts` enforces it now, and finding it exposed two more:
-   `EDIT_PLAYER_PROFILE` and `RECORD_ATTENDANCE` are granted to HEAD_COACH and
-   ASSISTANT_COACH, which are TEAM relations. **So a coach still cannot edit a
-   player's profile** — a guardian can, since GUARDIAN is a PLAYER relation, and
-   that half shipped 2026-08-30. Both are listed pair-by-pair as known
-   exceptions and both need the Product Owner: they want "a coach of the team
-   this player is on", which is PLAYER → player_teams → team_coaches, an
-   object-side hop two joins deep where the derivations reach one.
-5. **Reading a row back after a write is written out per procedure.** Both game
-   writes end with the same `reload`; `orgs.update` has its own version,
-   `teams.update` another, `players.update` a fourth. Four copies is past the
-   point where it should be one helper on the base builder.
-6. **`event.province_code` is the one `*_code` column with no constraint.** The
-   others have a `.references()` or a drizzle enum; this has a comment. It was
-   inert while only the seed wrote it — `events.update` got a GUI on 2026-08-30,
-   so a typo can now become a row. Give it `.references(() => province.code)`
-   next time that table is touched.
-7. **Two things deliberately not built, so they read as choices.** Standings are
-   one table per event rather than grouped by division — the division is on each
-   row, and grouping is a page concern the day a league needs it. And there is
-   no client-side error retry for failed writes: a refused write shows its
-   reason and stays on screen, which is the honest behaviour while every write
-   is a single request.
+`mise tasks` lists everything and what each one does.
 
 ## Companion repo
 
@@ -208,135 +140,50 @@ they have not drifted.
 
 ## Traps
 
-**The database is the source of truth, and a feature is not done until every
-layer above it agrees. Three legs, all three required.**
+**The database is the source of truth, and a feature is not finished until the
+layers above it agree.** Data exists, API carries it, GUI renders it — each
+true, or written down as a decision. When a schema or contract changes, trace
+every changed field to the component that renders it, and build it or declare
+why not. A renderer also obliges a fixture: a column no seeded row populates has
+never been seen working. Measured 2026-08-30, five columns are NULL in every
+seeded row, and one of them is `event.description`, whose section was built that
+morning and has only ever shown its empty state.
 
-A schema change is not finished when it compiles. It is finished when the data
-exists, the API carries it, the GUI renders it, and each of those is either true
-or written down as a decision. Anything else is a half-built feature that looks
-finished, which is the failure this repo keeps producing.
+Nothing enforces this yet, which is why it is written down. The mechanism would
+be a gate over the schema — 48 tables, 282 columns are enumerable — and a rule
+that must be remembered is the same class of thing that already failed.
 
-**Leg 1 — every column has a declared fate.** For each column: which procedure
-exposes it, which component renders it, or `internal` with a one-line reason.
-22 of this schema's 282 columns are correctly reachable from nowhere — Better
-Auth's unused OAuth fields, `description_en` on the vocabulary tables,
-`notification_sent.sent_at` — so the rule cannot be "everything must be shown".
-It is "nothing is undeclared". Same shape as `check:authz`, which has never
-rotted precisely because of this: 35 procedures enforced by the model, 26
-declared otherwise with a sentence each.
-
-**Leg 2 — trace every change up to React, in writing.** When a table, a Drizzle
-schema or a contract changes: name each field added, removed or altered, follow
-it through procedure → output schema → view model → component, and write the
-trace down rather than assuming it. Where a component does not render the new
-intent, build it or declare it. `event.format_code`, `event.is_fiba_certified`
-and `event.description` sat in the API rendering nowhere while the Rules tab
-said "not built yet"; the `guardians` table had no API and no screen for months;
-`event_venue` and `team_coach` the same. Every one was found by hand, late.
-
-**Leg 3 — the seed must exercise what the GUI renders.** A renderer for a column
-no fixture populates has never been seen working, and no test covers it. Measured
-on 2026-08-30, five domain columns are NULL in every seeded row:
-
-    event.description                     0 of 4
-    event.org_id                          0 of 4
-    playerTeam.to_date                    0 of 120
-    userNotificationChannel.locale_code   0 of 15
-    userNotificationChannel.secret        0 of 15
-
-The Rules tab's description section was built the same day and always shows its
-empty state. `toDevice()` returns null for every seeded channel, so the push
-audience path has never run against seed data. Both looked complete and neither
-had ever executed.
-
-So: if you add a renderer for a column, the fixtures must give that column a
-value. The fixtures live in **remy-sport-biz** — see the companion-repo section.
-Adding a value there is a Product Owner change, and if the PO says no value is
-realistic, that is the answer and the renderer should not exist either.
-
-**A rule is a stopgap; the mechanism is a gate.** All three legs are enumerable
-from the schema — 48 tables, 282 columns — so the real answer is a build-time
-`Record<TableName, Record<ColumnName, Fate>>` that stops compiling when a column
-appears with no decision, plus a seed-coverage assertion. Until that exists this
-is what stands in for it, and a rule that has to be remembered is the same class
-of thing that already failed.
-
-**A slow test suite is a bug. Fix it, do not wait it out.**
-
-This is a standing instruction, not a preference. If a tier takes longer than it
-should, stopping to find out why is the work — it is never a detour from the
+**A slow test suite is a bug. Fix it, do not wait it out.** Standing
+instruction: if a tier takes longer than it should, finding out why *is* the
 work.
 
-The failure that produced this rule: the render tier went from thirteen seconds
-to **a hundred and eighty-six** whenever a fixture drifted, and it stayed that
-way for a whole session because nobody measured it. Passing runs still reported
-thirteen seconds, so the output never looked wrong. The cost landed only on
-failures, which is exactly when a fast loop matters, and it was simply absorbed
-— run after run — as though three minutes were the price of a broken test.
+The render tier once went from 13s to **186s** whenever a fixture drifted, and
+stayed there a whole session because nothing measured it — passing runs still
+reported 13s, so the cost landed only on failures, which is exactly when a fast
+loop matters. The cause was an inherited default: that tier has no network at
+all, so Playwright's 30s timeout could only ever apply to something that was
+never going to appear. Now 15s per test, 5s per assertion, and a failing run
+costs 20s.
 
-The cause was an inherited default. This tier has **no network at all**:
-`seedCache` answers every `/rpc` call with a 404 and fonts are blocked, so a
-test is a page load and an assertion, and the slowest one takes under a second.
-Playwright's default thirty-second timeout could therefore only ever apply to
-something that was never going to appear. Six broken assertions, thirty seconds
-each. It is now 15s per test and 5s per assertion, and a failing run costs
-twenty seconds instead of a hundred and eighty-six.
+Three things make a repeat visible: every tier prints its time against a budget
+on every run ([scripts/check-budget.ts](scripts/check-budget.ts)); both
+Playwright configs name any file over a threshold the tier can actually exceed;
+and every timeout is written beside the operation that justifies it. **When a
+budget trips, find what got slower before raising the ceiling.**
 
-Three things now make a repeat visible rather than absorbable:
+Measured, so it is not re-guessed: more Playwright workers do nothing (6, 10 and
+12 are all ~14s), more vitest parallelism does nothing (10.05s vs 10.02s), and
+the render tier's cost was never `vite preview` — it starts in 338ms; it was
+Google Fonts. What works is moving tests to the right tier and merging worker
+files (~3s of workerd startup each). **Do not "optimise the runner"** — a whole
+session went into storageState, worker counts and project ordering and stopped
+dead.
 
-- **Every tier prints its time against a budget, every run.** `budget · render:
-  13.6s of 30s (45%)`. A ceiling nobody sees until it fails is a ceiling that
-  fails once and gets raised; a number on every run is what makes a jump to 25s
-  something you notice the day it happens.
-  [scripts/check-budget.ts](scripts/check-budget.ts) holds the budgets, what
-  each measured when it was set, and what dominates its time.
-- **Both Playwright configs name any file over a threshold** — three seconds in
-  the render tier, ten in e2e. The default is fifteen, which in a tier that runs
-  in fourteen can never fire.
-- **Every timeout is written down with the operation that justifies it**, rather
-  than inherited. e2e keeps thirty seconds because it signs in through a real
-  Worker against a real D1; the render tier cannot justify a second.
-
-When a budget trips, find what got slower before raising the ceiling. A tier
-allowed to creep is one nobody will ever speed up again.
-
-**`mise run check` runs in two phases, and the split is not arbitrary.**
-Everything cheap runs in parallel with the render tier; `test:worker` then gets
-the machine to itself. Three of its tests ask the Worker for `/` and for the
-hashed bundle, which go through Miniflare's *local* ASSETS server — and that
-answers 404 when the box is busy. Paired with any single check it passes; run
-against the whole group it fails every time. Cumulative load, nothing else.
-
-That is local infrastructure, not product behaviour: on Cloudflare, ASSETS is a
-platform service and cannot be starved by a laptop compiling TypeScript. So the
-tests stay honest and the schedule works around them. Do not "fix" it with a
-retry — that would hide a real 404 the day one appears.
-
-`:::` is what separates tasks in `mise run a ::: b`. Without it mise takes
-everything after the first name as *arguments to that task* and silently runs
-one thing: the first attempt at this reported eight seconds and skipped every
-test tier.
-
-**Four import rules, and `mise run check:deps` enforces them.** They were
-enforced by hoping until 2026-08-27; the reasoning for each sits beside it in
-[.dependency-cruiser.cjs](.dependency-cruiser.cjs).
-
-- The Worker must not import `src/web`. This one actually happened: sending the
-  sign-in email from the product's own messages meant importing the SPA, which
-  typechecks only by accident because the Worker's tsconfig excludes `src/web`.
-  Shared code goes below both — `src/domain` for the model, `src/paraglide` for
-  copy, which is why the messages compile there.
-- The SPA may import **types** from the API and nothing else. `import type
-  { Router }` is how the client is typed and types erase; importing the
-  implementation pulls drizzle, Better Auth and the D1 bindings into the browser
-  bundle.
-- No cycles. It found one immediately: `src/api/base.ts` imported the relation
-  resolver while `relations.ts` imported `type Db` back out of `base`. Invisible
-  to tsc, because a type import erases before it forms an opinion — `Db` is
-  [src/api/db.ts](src/api/db.ts) now. The two drizzle schema files are exempt
-  and say why: `references(() => org.id)` takes a thunk *so that* tables can
-  point at each other.
-- `src/domain` imports nothing above it. It is the bottom of the chain below.
+**Four import rules, enforced by `mise run check:deps`.** The reasoning for each
+sits beside it in [.dependency-cruiser.cjs](.dependency-cruiser.cjs), where the
+failure quotes it. The one that actually happened: the Worker importing
+`src/web` to send the sign-in email from the product's own messages, which
+typechecks only by accident.
 
 **The schema is the root, and everything derives upward from it.**
 
@@ -382,12 +229,6 @@ schema.md, parsed the same way `the model's own gate.nu` parses them upstream. T
 remain undeclared — `organization_slug_uidx` and `user_biz_id_idx`, on tables
 Better Auth generates — so never run `drizzle-kit push`, and read a generated
 migration before applying it.
-
-**Never set `TEST_OTP` on a deployed Worker.** It makes `generateOTP` return a
-constant for every address the fixtures seed, so the admin account's sign-in
-code becomes public knowledge. It is a local-dev value. `mise run deploy` ends
-with [`cf:smoke`](scripts/smoke.ts), which verifies a deployment without one;
-`test:deployed` needs it and is deliberately out of the pipeline.
 
 **Better Auth owns authentication and nothing else.** Four tables: `user`,
 `session`, `account`, `verification`. It owned six more — organization, member,
@@ -518,40 +359,29 @@ that bites — **a field the fixtures carry that no column stores**. That last
 found four on 2026-08-29, including a user lifecycle the model had always
 described and the database had no room for, so the seed dropped it in silence.
 
-**Every procedure declares how it is authorised, and `mise run check:authz`
-walks the real router to prove it.** Model-driven authorisation that a person
-has to remember is not enforcement — on 2026-08-28 all fifty-three procedures
-declared nothing inspectable, and a whole feature shipped with none, because
-"deliberately public" and "somebody forgot" were indistinguishable to every
-check here. Four declarations, and the last three are printed on every run
-because an unreviewed exception is the failure mode:
+**Every procedure declares how it is authorised, and non-procedure routes are
+inventoried.** `mise run check:authz` fails with the instruction attached.
+`POST /api/seed` sat unauthenticated for months because nothing listed it.
 
-| | |
-|---|---|
-| `requireAction(ACTION)` | the normal case — the model decides |
-| `openTo(ACTION)` | public, *and the model grants it to PUBLIC* — verified at load |
-| `checkedInHandler(...)` | the action depends on the input, so the handler asks `can()` |
-| `stricterThanModel(A, why)` | we permit less than the model does, said out loud |
-| `infrastructure(why)` | not a domain object — health, vocabularies |
+**`can()` is the entire cost of a list, and it has no set-wise form.** Proven by
+stubbing it: a 28-game schedule goes 0.23s to **0.01s**. Roughly five queries per
+call, four calls per game, 112 for one page, re-resolving the same three GAME
+relations each time. The fix is one query per relation for the whole set, then
+every action answered in memory. **Do not fix it by moving the decision into the
+client** — that is the copy of the access matrix this file exists to prevent.
+Two wrong answers preceded the right one: the cause was asserted without
+measuring, then a bad experiment (an anonymous request is equally slow) was read
+as a disproof, when `can()` does not short-circuit for anonymous either. Stub
+what you suspect; it took two minutes.
 
-`listOf` in domain.ts takes the policy as a required argument, so a new table
-cannot become an endpoint without one. That factory is how personal data gets
-published by accident.
-
-**The check covers the Hono routes too, and that was an afterthought that
-mattered.** The first version walked only the oRPC router and reported a clean
-53 of 53 — while five sub-routers sat alongside it unexamined, one of them
-`POST /api/seed`: an unauthenticated write on a public domain, 330 D1
-statements to anyone who found it. A check that enumerates the easy half is
-worse than none, because it reads as a clean bill of health. Every non-procedure
-route is now listed in `HONO_ROUTES` with a sentence on how it is guarded, and
-a new one fails the build until somebody writes that sentence.
-
-Seeding is an operator action: `/api/seed` 404s on a deployment like the outbox
-does, and `mise run seed:remote` applies `src/db/seed.sql` through wrangler. A
-token was the first fix and the wrong one — `wrangler secret` values cannot be
-read back, so the pipeline would have needed its own copy of a secret the
-platform already held.
+**An action can be about a *pair*, and the model can only name one object.**
+`REGISTER_TEAM_FOR_EVENT` named EVENT while every relation granting it is about a
+TEAM, so the check resolved `team_coaches.team_id = <an event id>`, matched
+nothing, and failed closed — no coach could register a team. **Failing closed
+looks like policy rather than a defect**, which is why it survived. `check-tables`
+enforces it now; the two remaining exceptions (`EDIT_PLAYER_PROFILE` and
+`RECORD_ATTENDANCE`, granted to coach relations about a TEAM) need the Product
+Owner, so a coach still cannot edit a player's profile while a guardian can.
 
 **Authorisation is the model's answer, never a role string compared in a
 handler.** Two of these on 2026-08-28, both failing open and silently. Web Push
@@ -588,12 +418,6 @@ browser pins the public key at `subscribe()` time, so a new key cannot sign for
 endpoints the old one created — they fail 403 forever, and no reader is told.
 `mise run push:secret:set` therefore generates a pair only when none exists and
 never replaces one.
-
-**PWA icons must live in `src/web/public/`.** Anywhere else under `src/web`,
-vite treats them as source and content-hashes them into `/assets` — while the
-manifest names them unhashed, so every icon 404s. It survives a deploy because
-nothing fetches a manifest icon until somebody installs the app. `mise run
-cf:smoke` now follows the manifest to each icon.
 
 **Notifications are three separate things, and it matters.** Following an object
 (`subscription`), a reachable browser (`userNotificationChannel`), and a per-type
@@ -652,14 +476,6 @@ If a test signs in only so a page will render, seed the cache instead —
 `tests/helpers/seed-cache.ts`, and `tests/helpers/api-fixtures.ts` for the
 payloads, which are typed against the real contract so a drifted fixture is a
 compile error rather than a browser failure thirty seconds later.
-
-**Do not "optimise the test runner".** A whole session went into storageState,
-worker counts and project ordering and it stopped dead. What works is moving
-tests to the right tier, merging worker files (~3s of workerd startup each), and
-timeouts justified by the slowest legitimate operation in that tier. Measured and
-not to be re-guessed: the render tier's cost was never `vite preview` — it starts
-in 338ms; it was Google Fonts. More Playwright workers do nothing (6, 10 and 12
-are all ~14s) and neither does more vitest parallelism (10.05s vs 10.02s).
 
 ## Conventions
 
