@@ -176,8 +176,8 @@ Measured, so it is not re-guessed: more Playwright workers do nothing (6, 10 and
 the render tier's cost was never `vite preview` — it starts in 338ms; it was
 Google Fonts. Nor does `isolatedStorage: false` help, and it costs per-file
 isolation; nor does guarding the migration batch on the schema already existing,
-because the cost is not SQL; nor does a committed `snapshot.sql` of the seeded
-database, since `/api/seed` costs 99ms. What works is moving tests to the right
+because the cost is not SQL; nor does a committed `snapshot.sql` <!-- docs-check-ignore --> of the
+seeded database, since `/api/seed` costs 99ms. What works is moving tests to the right
 tier and merging worker files (~3s of workerd startup each). **Do not "optimise
 the runner"** — a whole session went into storageState, worker counts and
 project ordering and stopped dead.
