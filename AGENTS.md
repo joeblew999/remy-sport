@@ -307,38 +307,58 @@ they have not drifted.
 
 ## Traps
 
-**Traceability check: the database and the GUI must agree, or the gap must be
-declared.**
+**The database is the source of truth, and a feature is not done until every
+layer above it agrees. Three legs, all three required.**
 
-Whenever a table, a Drizzle schema or an oRPC contract changes, run this before
-saying the work is done:
+A schema change is not finished when it compiles. It is finished when the data
+exists, the API carries it, the GUI renders it, and each of those is either true
+or written down as a decision. Anything else is a half-built feature that looks
+finished, which is the failure this repo keeps producing.
 
-1. Identify every field added, removed or changed.
-2. Trace where it flows — procedure, contract output, view model, React
-   component. Write the trace down; do not assume it.
-3. Where a component does not yet render the new intent, **either build the UI
-   or declare the gap in one line with a reason.** A field that is deliberately
-   never shown is a decision; a field nobody noticed is the bug.
+**Leg 1 — every column has a declared fate.** For each column: which procedure
+exposes it, which component renders it, or `internal` with a one-line reason.
+22 of this schema's 282 columns are correctly reachable from nowhere — Better
+Auth's unused OAuth fields, `description_en` on the vocabulary tables,
+`notification_sent.sent_at` — so the rule cannot be "everything must be shown".
+It is "nothing is undeclared". Same shape as `check:authz`, which has never
+rotted precisely because of this: 35 procedures enforced by the model, 26
+declared otherwise with a sentence each.
 
-Do not report a task complete while a schema change and the presentation layer
-disagree without one of those two outcomes.
+**Leg 2 — trace every change up to React, in writing.** When a table, a Drizzle
+schema or a contract changes: name each field added, removed or altered, follow
+it through procedure → output schema → view model → component, and write the
+trace down rather than assuming it. Where a component does not render the new
+intent, build it or declare it. `event.format_code`, `event.is_fiba_certified`
+and `event.description` sat in the API rendering nowhere while the Rules tab
+said "not built yet"; the `guardians` table had no API and no screen for months;
+`event_venue` and `team_coach` the same. Every one was found by hand, late.
 
-**Why "or declare" rather than "always build".** 22 of this schema's 282 columns
-are correctly reachable from nowhere — Better Auth's unused OAuth fields,
-`description_en` on the vocabulary tables, `notification_sent.sent_at`. A rule
-that said "bring the GUI into alignment" without an escape would demand a screen
-for `account.refresh_token`. This is the same shape `check:authz` already uses
-and the reason it has never rotted: 35 procedures enforced by the model, 26
-*declared otherwise, each with a sentence*.
+**Leg 3 — the seed must exercise what the GUI renders.** A renderer for a column
+no fixture populates has never been seen working, and no test covers it. Measured
+on 2026-08-30, five domain columns are NULL in every seeded row:
 
-**And a rule is a stopgap, not the fix.** This one is written down because the
-failure it names happened repeatedly: `event.format_code`,
-`event.is_fiba_certified` and `event.description` sat in the API rendering
-nowhere while the Rules tab said "not built yet"; the `guardians` table had no
-API and no screen for months; `event_venue` and `team_coach` likewise. Every one
-was found by hand, late. A rule that has to be *remembered* is the same class of
-thing that failed — the mechanism is a build-time gate over the schema, and
-until that exists this is what stands in for it.
+    event.description                     0 of 4
+    event.org_id                          0 of 4
+    playerTeam.to_date                    0 of 120
+    userNotificationChannel.locale_code   0 of 15
+    userNotificationChannel.secret        0 of 15
+
+The Rules tab's description section was built the same day and always shows its
+empty state. `toDevice()` returns null for every seeded channel, so the push
+audience path has never run against seed data. Both looked complete and neither
+had ever executed.
+
+So: if you add a renderer for a column, the fixtures must give that column a
+value. The fixtures live in **remy-sport-biz** — see the companion-repo section.
+Adding a value there is a Product Owner change, and if the PO says no value is
+realistic, that is the answer and the renderer should not exist either.
+
+**A rule is a stopgap; the mechanism is a gate.** All three legs are enumerable
+from the schema — 48 tables, 282 columns — so the real answer is a build-time
+`Record<TableName, Record<ColumnName, Fate>>` that stops compiling when a column
+appears with no decision, plus a seed-coverage assertion. Until that exists this
+is what stands in for it, and a rule that has to be remembered is the same class
+of thing that already failed.
 
 **A slow test suite is a bug. Fix it, do not wait it out.**
 
