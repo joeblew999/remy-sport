@@ -1,19 +1,24 @@
 /**
- * What the API did, as one event per call that failed.
+ * What the API did, as one event per call.
  *
  * An interceptor rather than a line in each handler: there are fifty-six
  * procedures, and a rule enforced in one place cannot be forgotten in the
  * fifty-seventh. It also makes the shape uniform, which is the difference
  * between a dataset you can query and a pile of strings.
  *
- * **Only failures.** A success rate needs a denominator and this deliberately
- * does not provide one by writing a row per request — Analytics Engine bills by
- * data point and this Worker serves every asset request too. The question that
- * matters is "what is failing, where, how often", and the failures answer it on
- * their own: a procedure that appears here often is one people are reaching and
- * losing.
+ * ## Failures always, successes sampled
  *
- * ## Why this is a `catch` and not a status check
+ * This recorded only failures until an hour went into guessing why one endpoint
+ * took 0.23s. Failures cannot answer "what is slow", because a slow endpoint is
+ * one that *works* — every request that mattered to that question wrote no row
+ * at all, so `mise run analytics` reported the p50 of *failures* and the only
+ * way left to measure was hand-written `curl` loops.
+ *
+ * Successes are sampled because Analytics Engine bills by data point and this
+ * Worker fronts every asset request too. The rate is not fixed: see
+ * `sampleRate` below.
+ *
+ * ## Why the failure path is a `catch` and not a status check
  *
  * oRPC's own try/catch sits *outside* the interceptor chain
  * (`StandardHandler.handle`): a procedure that throws propagates out through
@@ -28,7 +33,7 @@
  * a `FORBIDDEN` is the system working and a `TypeError` is not.
  */
 
-import { track } from "../analytics"
+import { keepsEventsLocally, track } from "../analytics"
 import type { Bindings } from "../types"
 
 /**
@@ -81,27 +86,67 @@ export function routeShape(pathname: string): string {
     .join("/")
 }
 
+/**
+ * How many requests one recorded success stands for.
+ *
+ * **One, on a dev server.** Sampling there would defeat the purpose: the whole
+ * point of the local ring is that you make a request, run `mise run analytics`,
+ * and see it. At one-in-ten you make ten requests and see nothing, decide the
+ * telemetry is broken, and go back to `curl`.
+ *
+ * Ten on a deployment, where the traffic makes a percentile out of a sample and
+ * the billing makes a row per request wasteful. Uniform, so the percentiles stay
+ * honest — the tempting alternative of "always record the slow ones, sample the
+ * rest" biases every percentile upward and quietly turns the median into a
+ * number that describes nothing.
+ */
+function sampleRate(env: Bindings | Record<string, never>): number {
+  return keepsEventsLocally(env as Bindings) ? 1 : 10
+}
+
 export function telemetryInterceptor(options: InterceptorOptions): Promise<unknown> {
   const started = Date.now()
+  const env = options.context.env ?? {}
+  const route = routeShape(options.request.url.pathname)
+  const method = options.request.method
+  const country = options.context.request?.cf?.country
 
-  return options.next().catch((err: unknown) => {
-    const { event, label, status } = classify(err)
-    track(
-      options.context.env ?? {},
-      event,
-      {
-        route: routeShape(options.request.url.pathname),
-        method: options.request.method,
-        // `code` on a refusal, `error` on a throw. Both are declared in EVENTS,
-        // so passing the wrong one for the wrong event does not compile.
-        ...(event === "api.refused" ? { code: label } : { error: label }),
-        ms: Date.now() - started,
-        status,
-      },
-      options.context.request?.cf?.country,
-    )
-    // Rethrown so oRPC's own handler still turns this into the response it
-    // would have. Telemetry observes; it must not change what the caller sees.
-    throw err
-  })
+  /**
+   * Two arguments to `then`, not `.then().catch()`.
+   *
+   * With the chained form the failure handler also catches anything the success
+   * handler throws, and would report a bug in the telemetry as an `api.threw`
+   * against the procedure — a self-inflicted error, attributed to the innocent
+   * route it was measuring. This shape can only see what `next()` rejected with.
+   */
+  return options.next().then(
+    (result) => {
+      const rate = sampleRate(env)
+      if (rate === 1 || Math.random() * rate < 1) {
+        track(env, "api.served", { route, method, ms: Date.now() - started, rate }, country)
+      }
+      return result
+    },
+    (err: unknown) => {
+      const { event, label, status } = classify(err)
+      track(
+        env,
+        event,
+        {
+          route,
+          method,
+          // `code` on a refusal, `error` on a throw. Both are declared in
+          // EVENTS, so passing the wrong one for the wrong event does not
+          // compile.
+          ...(event === "api.refused" ? { code: label } : { error: label }),
+          ms: Date.now() - started,
+          status,
+        },
+        country,
+      )
+      // Rethrown so oRPC's own handler still turns this into the response it
+      // would have. Telemetry observes; it must not change what the caller sees.
+      throw err
+    },
+  )
 }

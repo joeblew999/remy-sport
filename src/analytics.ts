@@ -79,6 +79,22 @@ export const EVENTS = {
     doubles: ["ms", "status"],
     dimensions: ["route", "method", "error"],
   }),
+  /**
+   * A procedure answered, and how long it took.
+   *
+   * The failures above cannot answer "what is slow", because a slow endpoint is
+   * one that *works*. Without this row an hour went into guessing why
+   * `/api/games` took 0.23s, and the settling experiment took two minutes.
+   *
+   * `rate` is how many requests this row stands for — see `sampleRate` in
+   * `src/api/telemetry.ts`. Multiply by it for a count; ignore it for a
+   * percentile, which sampling preserves.
+   */
+  "api.served": defineEvent({
+    blobs: ["route", "method"],
+    doubles: ["ms", "rate"],
+    dimensions: ["route", "method"],
+  }),
   /** One push, to one device, keyed by whose push service took it. */
   "push.sent": defineEvent({
     blobs: ["host", "status", "tag"],

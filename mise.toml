@@ -1303,6 +1303,22 @@ fi
 bun scripts/cf-audit.ts
 """
 
+[tasks."time"]
+description = "Time a local endpoint — min/p50/p95/max over N runs (`mise run time /api/health`)"
+depends     = ["install"]
+# The counterpart to `probe`. That one settles a question about types by writing
+# a file and typechecking it; this settles a question about speed by making the
+# request and timing it.
+#
+# It exists because an hour went into guessing why one endpoint took 0.23s — a
+# cause named without evidence, a correct diagnosis retracted on one bad
+# experiment — and the settling test took two minutes once somebody ran it.
+# Nothing in the repo measured latency, so the first move was assertion.
+#
+#   mise run time /api/games?eventId=evt_002
+#   COOKIE="$(cat .session)" mise run time /api/events 50
+run = "bun scripts/time.ts \"$@\""
+
 [tasks."analytics"]
 description = "Report what the deployed worker has been doing (Analytics Engine; hours as arg, default 24)"
 depends     = ["install"]
