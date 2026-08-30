@@ -146,7 +146,7 @@ test.describe("A school's teams", () => {
     await seedCache(page, [
       signedIn,
       entry(orpc.orgs.get, { id: "org_001" }, ORG as never),
-      entry(orpc.teams.list, undefined as never, {
+      entry(orpc.teams.list, undefined, {
         teams: [team(), team({ id: "team_009", name: "Somewhere Else U16", orgId: "org_002" })],
       } as never),
     ])
@@ -160,7 +160,7 @@ test.describe("A school's teams", () => {
     await seedCache(page, [
       signedIn,
       entry(orpc.orgs.get, { id: "org_001" }, ORG as never),
-      entry(orpc.teams.list, undefined as never, { teams: [] } as never),
+      entry(orpc.teams.list, undefined, { teams: [] } as never),
     ])
     await page.goto("/#/org/org_001")
 
@@ -171,7 +171,7 @@ test.describe("A school's teams", () => {
     await seedCache(page, [
       signedIn,
       entry(orpc.orgs.get, { id: "org_001" }, { ...ORG, canCreateTeam: false } as never),
-      entry(orpc.teams.list, undefined as never, { teams: [team()] } as never),
+      entry(orpc.teams.list, undefined, { teams: [team()] } as never),
     ])
     await page.goto("/#/org/org_001")
 
@@ -186,7 +186,7 @@ test.describe("A school's teams", () => {
     await seedCache(page, [
       signedIn,
       entry(orpc.orgs.get, { id: "org_001" }, ORG as never),
-      entry(orpc.teams.list, undefined as never, { teams: [] } as never),
+      entry(orpc.teams.list, undefined, { teams: [] } as never),
     ])
     await page.route("**/rpc/**", async (route) => {
       if (!route.request().url().includes("teams/create")) return route.fallback()

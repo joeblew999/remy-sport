@@ -38,8 +38,8 @@ const seed = (page: Parameters<typeof seedCache>[0], type: string, entered: stri
   seedCache(page, [
     signedIn,
     entry(orpc.events.get, { id: EVENT_ID }, apiEvent({ id: EVENT_ID, typeCode: type as never })),
-    entry(orpc.players.mine, undefined as never, { players: [child] } as never),
-    entry(orpc.eventPlayers.list, undefined as never, {
+    entry(orpc.players.mine, undefined, { players: [child] } as never),
+    entry(orpc.eventPlayers.list, undefined, {
       items: entered.map((playerId) => ({ eventId: EVENT_ID, playerId, registeredAt: "2026-03-20" })),
     } as never),
   ])

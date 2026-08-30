@@ -172,7 +172,7 @@ function fixedCodeFor(email: string): string | null {
 async function codeFromOutbox(request: APIRequestContext, email: string): Promise<string> {
   const res = await request.get(`/api/dev/outbox?to=${encodeURIComponent(email)}`)
   expect(res.ok(), "dev outbox should exist locally").toBeTruthy()
-  const { messages } = await res.json()
+  const { messages } = (await res.json()) as { messages: { body: string }[] }
   const match = messages.map((m: { body: string }) => m.body.match(CODE_RE)).find(Boolean)
   expect(match, `no sign-in code was emailed to ${email}`).toBeTruthy()
   return match![1]!
@@ -345,8 +345,8 @@ async function codeFromOutboxViaPage(page: Page, email: string): Promise<string>
   const body = await page.evaluate(async (address) => {
     const res = await fetch(`/api/dev/outbox?to=${encodeURIComponent(address)}`)
     if (!res.ok) return null
-    const { messages } = await res.json()
-    return (messages as { body: string }[]).map((m) => m.body).join("\n---\n")
+    const { messages } = (await res.json()) as { messages: { body: string }[] }
+    return messages.map((m) => m.body).join("\n---\n")
   }, email)
   expect(body, "dev outbox should exist locally").toBeTruthy()
   const match = body!.match(CODE_RE)

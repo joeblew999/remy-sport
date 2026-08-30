@@ -185,6 +185,9 @@ async function serialize(
     // Not the same grant, and deliberately asked separately — see the note on
     // the schema field.
     canInviteCoOrganizer: await can(db, "INVITE_CO_ORGANIZER", user, row.id),
+    // Nor this one: OWNER and PLATFORM_ADMIN, where EDIT_EVENT also admits
+    // CO_ORGANIZER.
+    canDelete: await can(db, "DELETE_EVENT", user, row.id),
     ...facts,
   }
 }
@@ -192,7 +195,16 @@ async function serialize(
 export const list = viewer
   .use(openTo("BROWSE_EVENTS"))
   .route({ method: "GET", path: "/events", summary: "List all events" })
-  .output(z.object({ events: z.array(EventSchema) }))
+  /**
+   * `canCreate` sits on the list rather than on an event, because the thing it
+   * describes has no event yet: `CREATE_EVENT` is a PLATFORM action, granted to
+   * ANY_ORGANIZER and PLATFORM_ADMIN with no object to be in a relation to.
+   *
+   * Same shape as `orgs.get`'s `canCreateTeam`, and here for the same reason —
+   * the admin console decided this from a role table copied into the client,
+   * which is a second answer to a question the model already answers.
+   */
+  .output(z.object({ events: z.array(EventSchema), canCreate: z.boolean() }))
   .handler(async ({ context }) => {
     const rows = await load(context.db)
     const facts = await factsFor(
@@ -203,6 +215,7 @@ export const list = viewer
       events: await Promise.all(
         rows.map((row) => serialize(context.db, context.user, row, facts.get(row.id))),
       ),
+      canCreate: await can(context.db, "CREATE_EVENT", context.user, null),
     }
   })
 

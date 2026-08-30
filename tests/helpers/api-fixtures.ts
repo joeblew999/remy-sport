@@ -51,6 +51,7 @@ export function apiEvent(over: Partial<ApiEvent> = {}): ApiEvent {
     updatedAt: "2026-01-01T00:00:00.000Z",
     canEdit: false,
     canInviteCoOrganizer: false,
+    canDelete: false,
     // Counted from event_teams, event_venues, games and subscriptions. These
     // were hardcoded zeroes in the client until 2026-08-29.
     teamCount: 15,

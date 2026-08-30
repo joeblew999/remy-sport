@@ -1,26 +1,29 @@
 import { test, expect } from "./fixture"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
+import { apiEvent } from "../helpers/api-fixtures"
 import { sessionKey } from "../../src/web/lib/session"
 
 /**
- * The six-role permission grid, rendered — with the session seeded.
+ * The admin console, rendered — with the session and the API's answers seeded.
  *
- * These are the UI half of the access-control matrix: does an organizer see the
- * create form, does a spectator see the denial, does the permission grid mark
- * the right actions. They assert what the page does with a role, not what the
- * API decides — the API half is tests/worker/authz.test.ts, where it belongs.
+ * These used to be "the six-role permission grid": a table of role → actions
+ * lived in admin.tsx, and these tests asserted it by seeding a role and reading
+ * the badges back. They were a faithful test of a copy. The copy agreed with
+ * the model, so they passed; had it drifted they would have kept passing, since
+ * the model was not in the loop.
  *
- * Every one of them used to complete a real OTP sign-in first: request a code,
- * read it back, redeem it, then load the page. Six sign-ins to check six
- * `<span>` classes. `useSession` is a query now (lib/session.tsx), so its key is
- * seedable like any other and the role is simply an argument.
+ * The page reads `canCreate` off `events.list` and `canEdit`/`canDelete` off
+ * each event now, all three resolved by `can()` on the server. So the input
+ * here is what the API says, and the role is only what it should always have
+ * been: the thing that decides whether the *account console* appears.
  *
- * `badge-success` is the contract here, not decoration — it is what says an
- * action is granted.
+ * `badge-success` is the contract, not decoration — it is what says an action
+ * is granted.
+ *
+ * Every fixture goes through `apiEvent()`, and none of them casts. The previous
+ * versions ended `{ events: [] } as never`, which suppressed exactly the error
+ * that would have caught `canCreate` being added to the response.
  */
-
-const WRITERS = ["admin", "organizer"]
-const READERS = ["coach", "player", "spectator", "referee"]
 
 const as = (role: string) => ({
   queryKey: sessionKey as unknown as readonly unknown[],
@@ -30,35 +33,74 @@ const as = (role: string) => ({
   },
 })
 
-const seed = (page: Parameters<typeof seedCache>[0], role: string) =>
-  seedCache(page, [as(role), entry(orpc.events.list, undefined, { events: [] } as never)])
+/** What `events.list` returns, with the permissions the server decided. */
+const events = (over: { canCreate: boolean; canEdit?: boolean; canDelete?: boolean }) =>
+  entry(orpc.events.list, undefined, {
+    events: [
+      apiEvent({
+        id: "e1",
+        name: "Visible in the table",
+        names: { en: "Visible in the table" },
+        canEdit: over.canEdit ?? false,
+        canDelete: over.canDelete ?? false,
+      }),
+    ],
+    canCreate: over.canCreate,
+  })
 
-test.describe("The permission grid reflects the viewer's role", () => {
-  for (const role of WRITERS) {
-    test(`${role} sees the create form and write permissions`, async ({ page }) => {
-      await seed(page, role)
-      await page.goto("/#/admin")
-      await expect(page.getByTestId("role-badge")).toHaveText(role)
-      await expect(page.getByTestId("create-event-form")).toBeVisible()
-      await expect(page.getByTestId("perm-create")).toHaveClass(/badge-success/)
-      await expect(page.getByTestId("perm-read")).toHaveClass(/badge-success/)
-      await expect(page.getByTestId("perm-delete")).toHaveClass(/badge-success/)
-    })
-  }
+test.describe("The permission grid reflects what the server granted", () => {
+  test("a viewer the server says may write sees the form and the badges", async ({ page }) => {
+    await seedCache(page, [
+      as("organizer"),
+      events({ canCreate: true, canEdit: true, canDelete: true }),
+    ])
+    await page.goto("/#/admin")
+    await expect(page.getByTestId("create-event-form")).toBeVisible()
+    await expect(page.getByTestId("perm-create")).toHaveClass(/badge-success/)
+    await expect(page.getByTestId("perm-read")).toHaveClass(/badge-success/)
+    await expect(page.getByTestId("perm-update")).toHaveClass(/badge-success/)
+    await expect(page.getByTestId("perm-delete")).toHaveClass(/badge-success/)
+  })
 
-  for (const role of READERS) {
-    test(`${role} sees the denial and read-only permissions`, async ({ page }) => {
-      await seed(page, role)
-      await page.goto("/#/admin")
-      await expect(page.getByTestId("role-badge")).toHaveText(role)
-      await expect(page.getByTestId("create-event-denied")).toBeVisible()
-      await expect(page.getByTestId("perm-create")).not.toHaveClass(/badge-success/)
-      await expect(page.getByTestId("perm-read")).toHaveClass(/badge-success/)
-    })
-  }
+  test("a viewer the server says may only read sees the denial", async ({ page }) => {
+    await seedCache(page, [as("coach"), events({ canCreate: false })])
+    await page.goto("/#/admin")
+    await expect(page.getByTestId("create-event-denied")).toBeVisible()
+    await expect(page.getByTestId("perm-create")).not.toHaveClass(/badge-success/)
+    await expect(page.getByTestId("perm-delete")).not.toHaveClass(/badge-success/)
+    await expect(page.getByTestId("perm-read")).toHaveClass(/badge-success/)
+  })
+
+  /**
+   * The distinction the old role table could not draw.
+   *
+   * A co-organiser holds EDIT_EVENT and not DELETE_EVENT. Under a role→actions
+   * map, "organizer" meant create+read+update+delete and there was no way to
+   * express somebody who may change an event but not destroy it — the model has
+   * always said so, and the console could not show it.
+   */
+  test("editing without deleting is expressible, and shows no Delete button", async ({ page }) => {
+    await seedCache(page, [
+      as("organizer"),
+      events({ canCreate: true, canEdit: true, canDelete: false }),
+    ])
+    await page.goto("/#/admin")
+    await expect(page.getByTestId("perm-update")).toHaveClass(/badge-success/)
+    await expect(page.getByTestId("perm-delete")).not.toHaveClass(/badge-success/)
+    await expect(page.getByTestId("events-table").locator("button.danger")).toHaveCount(0)
+  })
+
+  test("a viewer the server says may delete gets the button", async ({ page }) => {
+    await seedCache(page, [
+      as("admin"),
+      events({ canCreate: true, canEdit: true, canDelete: true }),
+    ])
+    await page.goto("/#/admin")
+    await expect(page.getByTestId("events-table").locator("button.danger")).toHaveCount(1)
+  })
 
   test("a non-admin sees no account console at all", async ({ page }) => {
-    await seed(page, "coach")
+    await seedCache(page, [as("coach"), events({ canCreate: false })])
     await page.goto("/#/admin")
     await expect(page.getByTestId("role-badge")).toHaveText("coach")
     await expect(page.getByTestId("admin-console")).toHaveCount(0)
@@ -67,7 +109,7 @@ test.describe("The permission grid reflects the viewer's role", () => {
   test("the role switcher offers all six actors", async ({ page }) => {
     await seedCache(page, [
       as("admin"),
-      entry(orpc.events.list, undefined, { events: [] } as never),
+      events({ canCreate: true }),
       {
         // `useDevAccounts` — the seeded-accounts list the switcher renders. It
         // 404s to an empty result where neither the outbox nor a fixed code is
@@ -92,30 +134,7 @@ test.describe("The permission grid reflects the viewer's role", () => {
   })
 
   test("the events table renders the events it was given", async ({ page }) => {
-    await seedCache(page, [
-      as("organizer"),
-      entry(orpc.events.list, undefined, {
-        events: [
-          {
-            id: "e1",
-            name: "Visible in the table",
-            names: { en: "Visible in the table" },
-            typeCode: "TOURNAMENT",
-            formatCode: "5x5",
-            description: null,
-            startDate: "2026-06-10",
-            endDate: "2026-06-14",
-            cityCode: "BANGKOK",
-            provinceCode: "BKK",
-            isFibaCertified: false,
-            organizerUserId: "u_organizer",
-            createdAt: "2026-01-01T00:00:00.000Z",
-            updatedAt: "2026-01-01T00:00:00.000Z",
-            organizerName: "Someone",
-          },
-        ],
-      } as never),
-    ])
+    await seedCache(page, [as("organizer"), events({ canCreate: true })])
     await page.goto("/#/admin")
     const table = page.getByTestId("events-table")
     await expect(table).toBeVisible()

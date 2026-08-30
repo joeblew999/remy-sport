@@ -52,7 +52,8 @@ test.describe.serial("SPA sign-in", () => {
 
     const email = await page.evaluate(async () => {
       const r = await fetch("/api/auth/get-session")
-      return (await r.json())?.user?.email ?? null
+      const body = (await r.json()) as { user?: { email?: string } }
+      return body?.user?.email ?? null
     })
     expect(email).toBe(COACH)
     // No active organization on the session any more: that was the organization
@@ -100,7 +101,8 @@ test.describe.serial("SPA sign-in", () => {
     // Signing out must actually end the session, not just re-render.
     const stillSignedIn = await page.evaluate(async () => {
       const r = await fetch("/api/auth/get-session")
-      return (await r.json())?.user?.email ?? null
+      const body = (await r.json()) as { user?: { email?: string } }
+      return body?.user?.email ?? null
     })
     expect(stillSignedIn).toBeNull()
   })

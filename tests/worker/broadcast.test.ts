@@ -51,7 +51,7 @@ describe("Who may broadcast a game", () => {
         .filter((r) => r.userId === refereedGame.userId)
         .map((r) => r.gameId),
     )
-    const other = SEED_ENTITIES.games.find((g) => !theirs.has(g.id))!
+    const other = SEED_ENTITIES.games.find((g) => !theirs.has(g.id as never))!
     const cookie = await signIn(refereeEmail)
     expect((await broadcast(other.id, cookie)).status).toBe(403)
   })

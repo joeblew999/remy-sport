@@ -54,7 +54,12 @@ const concat = (...parts: Uint8Array[]) => {
 }
 
 /** One HKDF expansion to `length` bytes, which is all RFC 8291 ever needs. */
-async function hkdf(ikm: Uint8Array, salt: Uint8Array, info: Uint8Array, length: number) {
+async function hkdf(
+  ikm: Uint8Array<ArrayBuffer>,
+  salt: Uint8Array<ArrayBuffer>,
+  info: Uint8Array<ArrayBuffer>,
+  length: number,
+) {
   const key = await crypto.subtle.importKey("raw", ikm, "HKDF", false, ["deriveBits"])
   return new Uint8Array(
     await crypto.subtle.deriveBits({ name: "HKDF", hash: "SHA-256", salt, info }, key, length * 8),
@@ -542,7 +547,7 @@ describe("Web Push delivery", () => {
     await follows(user, "TEAM", "team-8")
 
     // A 500 is the push service having a bad day, not the reader uninstalling.
-    globalThis.fetch = (async () => new Response(null, { status: 500 })) as typeof fetch
+    globalThis.fetch = (async () => new Response(null, { status: 500 })) as unknown as typeof fetch
     const result = await send([{ objectTypeCode: "TEAM", objectId: "team-8" }])
 
     expect(result.sent).toBe(0)

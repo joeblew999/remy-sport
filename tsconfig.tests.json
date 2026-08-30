@@ -1,0 +1,39 @@
+{
+  // A third config, because tests/ was in neither of the other two.
+  //
+  // `tsconfig.json` includes `src/**` and `src/web/tsconfig.json` includes
+  // `src/web/**`. Fifty-four files under tests/ were in no config at all, so
+  // `mise run typecheck` reported both halves clean while nothing had ever
+  // looked at a single test.
+  //
+  // What that cost: tests/helpers/api-fixtures.ts exists to make the contract's
+  // shape a compile error — its docstring says "these are typed as the real
+  // ApiEvent and ApiTeam **with no cast**, so the next field added to the
+  // contract is a compile error here and nowhere else". Adding `canDelete` to
+  // ApiEvent proved otherwise: typecheck stayed green, and the fixture kept
+  // returning an object missing a required field. The file's whole purpose was
+  // unenforced, and its docstring described a guarantee no tool provided.
+  //
+  // React's JSX, not Hono's: the render specs import from src/web (session
+  // keys, component props) and the worker specs import plain .ts modules that
+  // carry no JSX either way. The one runtime that has to be right is React's.
+  "extends": "./src/web/tsconfig.json",
+  "compilerOptions": {
+    // `@types/bun` is what makes `import { test } from "bun:test"` resolve —
+    // the unit tier runs on bun's own runner, and without it fifteen files
+    // failed to find their own test framework.
+    "types": [
+      "@types/node",
+      "@types/bun",
+      "@cloudflare/workers-types",
+      "@cloudflare/vitest-pool-workers/types"
+    ],
+    // ES2022 for `.at()`. The SPA config this extends targets ES2020 because a
+    // browser bundle has a floor to respect; tests run in bun, workerd and a
+    // current WebKit, none of which do.
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "noEmit": true
+  },
+  "include": ["tests/**/*.ts", "tests/**/*.tsx", "worker-configuration.d.ts"]
+}

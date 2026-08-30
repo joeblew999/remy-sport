@@ -40,7 +40,7 @@ const event = apiEvent({
   names: { en: "Bangkok Schools Basketball League 2026" },
   startDate: "2026-05-01",
   endDate: "2026-05-30",
-  cityCode: "BKK",
+  cityCode: "BANGKOK",
   provinceCode: "BKK",
   organizerName: "Niran Wongthai",
 })
@@ -73,20 +73,6 @@ async function offenders(page: import("@playwright/test").Page) {
   })
 }
 
-/** How far the scroll container can actually be panned sideways. */
-async function pan(page: import("@playwright/test").Page) {
-  return page.evaluate(() => {
-    const el = document.querySelector(".page")
-    if (!el) return { pannable: 0, docPannable: 0 }
-    el.scrollLeft = 9999
-    const pannable = el.scrollLeft
-    el.scrollLeft = 0
-    window.scrollTo(9999, 0)
-    const docPannable = window.scrollX
-    window.scrollTo(0, 0)
-    return { pannable, docPannable }
-  })
-}
 
 /**
  * Every route the SPA can render, at every phone width.

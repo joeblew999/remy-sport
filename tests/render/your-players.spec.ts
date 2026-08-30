@@ -34,8 +34,8 @@ const child = (over: Record<string, unknown> = {}) => ({
 const seed = (page: Parameters<typeof seedCache>[0], players: unknown[]) =>
   seedCache(page, [
     signedIn,
-    entry(orpc.players.mine, undefined as never, { players } as never),
-    entry(orpc.events.list, undefined as never, { events: [] } as never),
+    entry(orpc.players.mine, undefined, { players } as never),
+    entry(orpc.events.list, undefined, { events: [] } as never),
   ])
 
 test.describe("Your players", () => {

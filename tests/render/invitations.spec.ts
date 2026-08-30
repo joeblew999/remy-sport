@@ -35,7 +35,7 @@ test.describe("A pending co-organiser invitation", () => {
   test("appears on the profile, named, with something to press", async ({ page }) => {
     await seedCache(page, [
       signedIn,
-      entry(orpc.events.invitations, undefined as never, { invitations: [invitation] } as never),
+      entry(orpc.events.invitations, undefined, { invitations: [invitation] } as never),
     ])
     await page.goto("/#/profile")
 
@@ -55,7 +55,7 @@ test.describe("A pending co-organiser invitation", () => {
     await page.addInitScript(() => localStorage.setItem("remy.locale", "th"))
     await seedCache(page, [
       signedIn,
-      entry(orpc.events.invitations, undefined as never, { invitations: [invitation] } as never),
+      entry(orpc.events.invitations, undefined, { invitations: [invitation] } as never),
     ])
     await page.goto("/#/profile")
 
@@ -68,7 +68,7 @@ test.describe("A pending co-organiser invitation", () => {
     // is what teaches people to stop reading a section.
     await seedCache(page, [
       signedIn,
-      entry(orpc.events.invitations, undefined as never, { invitations: [] } as never),
+      entry(orpc.events.invitations, undefined, { invitations: [] } as never),
     ])
     await page.goto("/#/profile")
 
@@ -85,7 +85,7 @@ test.describe("A pending co-organiser invitation", () => {
     // to do nothing.
     await seedCache(page, [
       signedIn,
-      entry(orpc.events.invitations, undefined as never, { invitations: [invitation] } as never),
+      entry(orpc.events.invitations, undefined, { invitations: [invitation] } as never),
     ])
     await page.route("**/rpc/**", async (route) => {
       const url = route.request().url()

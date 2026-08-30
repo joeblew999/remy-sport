@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test"
+import type { ProcedureUtils } from "@orpc/tanstack-query"
 import { orpc } from "../../src/web/lib/orpc"
 
 /**
@@ -47,11 +48,20 @@ export async function seedCache(
 /**
  * One typed entry. `data` is checked against what the procedure actually
  * returns, which is the whole point — a hand-written fixture would drift.
+ *
+ * The procedure is typed as oRPC's own `ProcedureUtils` so that claim is true.
+ * The earlier signature described the argument structurally — `{ queryKey:
+ * (opts?: { input?: TInput }) => readonly unknown[] }` — and inferred `TOutput`
+ * from `data` itself, so `data` was checked against nothing at all. It was also
+ * the wrong shape: oRPC's `queryKey` takes a required argument, which made
+ * seventy of the ninety-nine errors found the first time tests/ was ever
+ * typechecked. Both faults were invisible for the same reason — no tsconfig
+ * included this file.
  */
 export function entry<TInput, TOutput>(
-  procedure: { queryKey: (opts?: { input?: TInput }) => readonly unknown[] },
+  procedure: ProcedureUtils<Record<never, never>, TInput, TOutput, Error>,
   input: TInput,
-  data: TOutput,
+  data: NoInfer<TOutput>,
 ): { queryKey: readonly unknown[]; data: TOutput } {
   return { queryKey: procedure.queryKey({ input }), data }
 }

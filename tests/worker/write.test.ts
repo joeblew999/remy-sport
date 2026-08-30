@@ -612,7 +612,7 @@ describe("Organisations — the actions ORG was declared for", () => {
     // The model's own code, stored as the model spells it. It was lowercased
     // while membership lived in Better Auth's table, which is one translation
     // fewer now.
-    expect((await added.json()).role).toBe("MEMBER")
+    expect(((await added.json()) as Record<string, unknown>).role).toBe("MEMBER")
 
     // A plain member cannot edit the profile — that is ORG_ADMIN and above.
     const member = await signIn(newcomer.email)
@@ -664,7 +664,7 @@ describe("Organisations — the actions ORG was declared for", () => {
     expect(added.status).toBe(201)
     // Resolved to the id, so the tuple the relations read is the same one the
     // userId form writes.
-    expect((await added.json()).userId).toBe(newcomer.id)
+    expect(((await added.json()) as Record<string, unknown>).userId).toBe(newcomer.id)
 
     const listed = await api("/api/orgs/org_001/members", { cookie: admin })
     const { members } = (await listed.json()) as { members: { email: string }[] }
@@ -761,7 +761,7 @@ describe("Games — the object type ENTER_SCORES was missing", () => {
     const adisorn = await signIn("adisorn.b@bat.test")
     const res = await put("/api/games/gam_002/status", { statusCode: "FINISHED" }, adisorn)
     expect(res.status).toBe(200)
-    expect((await res.json()).statusCode).toBe("FINISHED")
+    expect(((await res.json()) as Record<string, unknown>).statusCode).toBe("FINISHED")
   })
 
   it("an unknown game is 404, not 403 — it must not leak which ids exist", async () => {
@@ -866,7 +866,7 @@ describe("Rosters", () => {
     const removed = await api("/api/teams/team_001/players/ply_003", { method: "DELETE", cookie: coach })
     expect(removed.status).toBe(200)
     // An end date, not a deletion — last season's team sheet stays true.
-    expect((await removed.json()).toDate).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(((await removed.json()) as Record<string, unknown>).toDate).toMatch(/^\d{4}-\d{2}-\d{2}$/)
   })
 
   it("a coach of another team may not touch this roster", async () => {
@@ -926,7 +926,7 @@ describe("Fixtures — the half of scheduling that did not exist", () => {
       await signIn(SEED_ENTITIES.users.find((u) => u.id === "usr_org_001")!.email),
     )
     expect(res.status).toBe(400)
-    expect((await res.json()).code).toBe("TEAM_NOT_ENTERED")
+    expect(((await res.json()) as Record<string, unknown>).code).toBe("TEAM_NOT_ENTERED")
     expect(organiser).toBeTruthy()
   })
 
@@ -989,7 +989,7 @@ describe("Referee assignment", () => {
       organiser,
     )
     expect(res.status).toBe(400)
-    expect((await res.json()).code).toBe("NOT_A_REFEREE")
+    expect(((await res.json()) as Record<string, unknown>).code).toBe("NOT_A_REFEREE")
   })
 
   it("a referee cannot assign themselves — that would undo the point", async () => {

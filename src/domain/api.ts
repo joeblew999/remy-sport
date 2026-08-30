@@ -101,6 +101,19 @@ export const EventSchema = createSelectSchema(schema.event)
      */
     canInviteCoOrganizer: z.boolean(),
     /**
+     * May the reader delete this event?
+     *
+     * A third flag rather than a reuse, for the same reason as the second.
+     * `DELETE_EVENT` is granted to OWNER and PLATFORM_ADMIN — not to
+     * CO_ORGANIZER, who may edit the event but not destroy it.
+     *
+     * The admin console used to answer this itself, from a role table copied
+     * into the client and an `organizerUserId === user.id` test written beside
+     * it. That is the OWNER relation, reimplemented in a component, next to a
+     * comment claiming the copy decided nothing.
+     */
+    canDelete: z.boolean(),
+    /**
      * What the event actually contains, counted from the tables that hold it.
      *
      * The page rendered `—` for teams, `—` for courts and "Venue TBC" on events

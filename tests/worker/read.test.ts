@@ -343,7 +343,7 @@ describe("Associated Domains / App Links", () => {
     // Without the vars set this is still 404 — asserted so the test states the
     // precondition rather than silently passing if it ever changes.
     expect([200, 404]).toContain(res.status)
-    expect(env.APPLE_TEAM_ID ?? null).toBeNull()
+    expect((env as unknown as Record<string, unknown>).APPLE_TEAM_ID ?? null).toBeNull()
   })
 
   it("never redirects the AASA path — Apple's crawler does not follow", async () => {
@@ -589,6 +589,62 @@ describe("An event says whether you may edit it", () => {
   })
 })
 
+describe("The event list says what you may create and destroy", () => {
+  /**
+   * The two answers the admin console used to work out for itself.
+   *
+   * It kept a `Record<role, actions[]>` in the component — admin and organizer
+   * get create and delete, everyone else gets read — and a Delete button gated
+   * on `canDelete && (e.organizerUserId === user.id || isAdmin)`, which is the
+   * OWNER relation written a second time in a browser. It agreed with the model
+   * by coincidence and nothing could have told us when it stopped.
+   *
+   * These assert the model's own answer: `CREATE_EVENT` to ANY_ORGANIZER and
+   * PLATFORM_ADMIN, `DELETE_EVENT` to OWNER and PLATFORM_ADMIN. Derived from the
+   * fixtures, so a re-seed cannot make them pass by accident.
+   */
+  const owned = SEED_ENTITIES.events[0]!
+  const organiser = SEED_ENTITIES.users.find((u) => u.id === owned.organizerUserId)!
+  const coach = SEED_ENTITIES.users.find(
+    (u) => u.roleCode === "COACH" && u.statusCode === "ACTIVE",
+  )!
+
+  const listFor = async (cookie?: string) =>
+    (await (await api("/api/events", cookie ? { cookie } : {})).json()) as {
+      events: { id: string; canDelete: boolean }[]
+      canCreate: boolean
+    }
+
+  it("offers a coach neither — the console showed them neither, for the wrong reason", async () => {
+    const { events, canCreate } = await listFor(await signIn(coach.email))
+    expect(canCreate, "CREATE_EVENT is ANY_ORGANIZER and PLATFORM_ADMIN").toBe(false)
+    expect(events.filter((e) => e.canDelete)).toHaveLength(0)
+  })
+
+  it("offers a signed-out reader neither", async () => {
+    const { events, canCreate } = await listFor()
+    expect(canCreate).toBe(false)
+    expect(events.filter((e) => e.canDelete)).toHaveLength(0)
+  })
+
+  it("lets an organiser create, and delete only what they own", async () => {
+    const { events, canCreate } = await listFor(await signIn(organiser.email))
+    expect(canCreate).toBe(true)
+
+    const deletable = events.filter((e) => e.canDelete).map((e) => e.id)
+    expect(deletable).toContain(owned.id)
+
+    // The half that matters. DELETE_EVENT is OWNER, not "any organizer" — the
+    // client's role table said the latter and leaned on a hand-written owner
+    // check beside it to make up the difference.
+    const someoneElses = SEED_ENTITIES.events.filter((e) => e.organizerUserId !== organiser.id)
+    expect(someoneElses.length, "the fixtures seed more than one organiser").toBeGreaterThan(0)
+    for (const e of someoneElses) {
+      expect(deletable, `${e.id} belongs to ${e.organizerUserId}`).not.toContain(e.id)
+    }
+  })
+})
+
 describe("A team's coaching staff", () => {
   /**
    * `team_coaches` had carried this since the fixtures were written and the
@@ -666,7 +722,9 @@ describe("The players you are responsible for", () => {
     const { players } = (await (await api("/api/players/mine", { cookie })).json()) as {
       players: { playerId: string }[]
     }
-    const others = guardianships.filter((g) => g.userId !== stranger.id).map((g) => g.playerId)
+    const others = guardianships
+      .filter((g) => (g.userId as string) !== stranger.id)
+      .map((g) => g.playerId)
     for (const id of others) expect(players.map((p) => p.playerId)).not.toContain(id)
   })
 

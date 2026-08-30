@@ -23,7 +23,7 @@ const event = (canEdit: boolean, canInvite = canEdit) =>
 
 const seed = (canEdit: boolean, canInvite = canEdit) => [
   entry(orpc.events.get, { id: EVENT_ID }, event(canEdit, canInvite)),
-  entry(orpc.events.list, undefined as never, { events: [event(canEdit, canInvite)] } as never),
+  entry(orpc.events.list, undefined, { events: [event(canEdit, canInvite)] } as never),
 ]
 
 test.describe("An event's settings tab", () => {
@@ -43,7 +43,7 @@ test.describe("An event's settings tab", () => {
     await expect(page.getByTestId("event-settings")).toBeVisible()
     // Prefilled, not blank. A form that starts empty invites someone to save a
     // partial record over a complete one.
-    await expect(page.getByTestId("event-name-input")).toHaveValue(event(true).names.en)
+    await expect(page.getByTestId("event-name-input")).toHaveValue(event(true).names.en!)
     await expect(page.getByTestId("event-start-input")).toHaveValue("2026-05-01")
     await expect(page.getByTestId("event-end-input")).toHaveValue("2026-09-30")
   })
@@ -250,8 +250,8 @@ test.describe("The Venues tab", () => {
   const seedVenues = (page: Parameters<typeof seedCache>[0]) =>
     seedCache(page, [
       ...seed(false),
-      entry(orpc.venues.list, undefined as never, venues as never),
-      entry(orpc.eventVenues.list, undefined as never, links as never),
+      entry(orpc.venues.list, undefined, venues as never),
+      entry(orpc.eventVenues.list, undefined, links as never),
     ])
 
   test("lists this event's venues with their address, and nobody else's", async ({ page }) => {
@@ -282,8 +282,8 @@ test.describe("The Venues tab", () => {
   test("says so when an event has none, rather than 'not built yet'", async ({ page }) => {
     await seedCache(page, [
       ...seed(false),
-      entry(orpc.venues.list, undefined as never, venues as never),
-      entry(orpc.eventVenues.list, undefined as never, { items: [] } as never),
+      entry(orpc.venues.list, undefined, venues as never),
+      entry(orpc.eventVenues.list, undefined, { items: [] } as never),
     ])
     await page.goto(`/#/event/${EVENT_ID}`)
     await page.getByTestId("tab-venues").click()

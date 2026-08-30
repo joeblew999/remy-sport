@@ -292,12 +292,22 @@ depends     = ["install"]
 run         = "bun x paraglide-js compile --project ./project.inlang --outdir ./src/paraglide"
 
 [tasks."typecheck"]
-description = "Typecheck the Worker and the SPA. Both, because they use different JSX runtimes and so need separate tsconfigs."
+description = "Typecheck the Worker, the SPA and the tests. Three, because they need three different tsconfigs."
 depends     = ["install", "i18n:generate"]
+# The third one is tests/, and it was in neither of the other two: `tsconfig.json`
+# includes src/**, src/web/tsconfig.json includes src/web/**, and fifty-four test
+# files were in no config at all. This task reported both halves clean while
+# nothing had ever typechecked a single test.
+#
+# The first run found 99 errors, and one of them was the point: adding a field
+# to `ApiEvent` left tests/helpers/api-fixtures.ts returning an object without
+# it, while the file's own docstring promised "the next field added to the
+# contract is a compile error here and nowhere else".
 run = """
 bun x tsc --noEmit
 bun x tsc --noEmit -p src/web/tsconfig.json
-echo "typecheck: worker and SPA both clean"
+bun x tsc --noEmit -p tsconfig.tests.json
+echo "typecheck: worker, SPA and tests all clean"
 """
 
 [tasks."domain:sync"]

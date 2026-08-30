@@ -40,7 +40,8 @@ test.describe.serial("Admin console", () => {
     // never written until now.
     const impersonatedBy = await page.evaluate(async () => {
       const r = await fetch("/api/auth/get-session")
-      return (await r.json())?.session?.impersonatedBy ?? null
+      const body = (await r.json()) as { session?: { impersonatedBy?: string } }
+      return body?.session?.impersonatedBy ?? null
     })
     expect(impersonatedBy).toBeTruthy()
   })

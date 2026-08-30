@@ -34,23 +34,23 @@ import type { Route } from "../lib/router";
 const ROLES = ["admin", "organizer", "coach", "player", "spectator", "referee"] as const;
 
 /**
- * Which actions each role holds over an event.
+ * There is no role→permission table here any more.
  *
- * A copy of the platform access-control model, for display only — the real
- * answer is enforced in `src/api/base.ts` and asserted by the 20 request-level
- * tests in authz.spec.ts. Rendering it here is how a person sees what their
- * role means; it is not what decides anything.
+ * There was one, and its docstring said it was "for display only — it is not
+ * what decides anything". Twenty lines further down it decided two things:
+ * whether the create form appeared, and whether a Delete button did. Beside the
+ * second it also tested `e.organizerUserId === user.id`, which is the OWNER
+ * relation reimplemented in a component.
+ *
+ * It happened to agree with the model, so nothing was visibly broken — which is
+ * the failure mode a second copy has. It agrees until the model changes, and
+ * then it is a screen offering a control the API refuses, or hiding one the
+ * viewer is entitled to, with no test able to tell.
+ *
+ * Every flag below is the server's answer now: `canCreate` on the list
+ * (`CREATE_EVENT` is a PLATFORM action, so it belongs to the list and not to an
+ * event), `canDelete` per event, `canEdit` per event.
  */
-const ROLE_PERMISSIONS: Record<string, string[]> = {
-  admin: ["create", "read", "update", "delete"],
-  organizer: ["create", "read", "update", "delete"],
-  coach: ["read"],
-  player: ["read"],
-  spectator: ["read"],
-  referee: ["read"],
-  user: ["read"],
-};
-
 export function AdminPage({ goto }: { goto: (r: Route) => void }) {
   const { user, impersonatedBy, loading } = useSession();
   const qc = useQueryClient();
@@ -63,12 +63,28 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
   }, [loading, user, goto]);
 
   const role = user?.role || "user";
-  const perms = ROLE_PERMISSIONS[role] || ["read"];
-  const canCreate = perms.includes("create");
-  const canDelete = perms.includes("delete");
   const isAdmin = role === "admin";
 
   const events = useQuery(orpc.events.list.queryOptions());
+
+  /**
+   * What the viewer may do, as the server reports it.
+   *
+   * `read` is true by definition — this list is what they are reading. `update`
+   * and `delete` are "on at least one event you can see", because that is the
+   * only honest role-level reading of a permission the model resolves per
+   * object: a co-organiser holds EDIT_EVENT on one tournament and nothing on
+   * the rest, and a single badge cannot say more than whether they hold it
+   * anywhere.
+   */
+  const rows = events.data?.events ?? [];
+  const canCreate = events.data?.canCreate ?? false;
+  const held: Record<string, boolean> = {
+    create: canCreate,
+    read: true,
+    update: rows.some((e) => e.canEdit),
+    delete: rows.some((e) => e.canDelete),
+  };
 
   /**
    * The account list comes from Better Auth's admin plugin, so the plugin's own
@@ -130,9 +146,9 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
           {["create", "read", "update", "delete"].map((p) => (
             <span
               key={p}
-              // `badge-success` is asserted directly by authz.spec.ts for all
-              // six roles. The class name is the contract, not decoration.
-              className={`badge ${perms.includes(p) ? "badge-success" : "badge-off"}`}
+              // `badge-success` is asserted directly by the render specs. The
+              // class name is the contract, not decoration.
+              className={`badge ${held[p] ? "badge-success" : "badge-off"}`}
               data-testid={`perm-${p}`}
             >
               {p}
@@ -162,7 +178,7 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
                   </td>
                   <td className="muted">{e.description || "—"}</td>
                   <td>
-                    {canDelete && (e.organizerUserId === user.id || isAdmin) && (
+                    {e.canDelete && (
                       <button
                         className="danger"
                         onClick={() => deleteEvent.mutate(e.id)}
