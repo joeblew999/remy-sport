@@ -8,6 +8,11 @@
 // left on 2026-08-29, the way EVENTS and TEAMS did before them: the last page
 // rendering each one started reading the database instead.
 //
+// Their *types* outlived them by a day — ten interfaces describing the shape of
+// data that no longer existed, imported by nothing. A type with no values and
+// no readers is a description of a screen somebody might build, which is what
+// the deleted fixtures were too.
+//
 // The bracket was the only one that did not leave by getting an endpoint. A
 // `game` row is two teams, a time and a status; the Product Owner's model has
 // no round, no seed and no parent match, so nothing could ever have filled that
@@ -117,94 +122,4 @@ export interface Event {
   endDate: string | null;
   /** The full locale map, for a form that edits one language of it. */
   names: Record<string, string>;
-}
-
-export interface BracketTeamRef {
-  seed?: number;
-  name: string;
-  short: string;
-  score?: number;
-  win?: boolean;
-  live?: boolean;
-  tba?: boolean;
-}
-
-export interface BracketMatch {
-  id: string;
-  a: BracketTeamRef;
-  b: BracketTeamRef;
-  status: "done" | "live" | "upcoming";
-  label?: string;
-}
-
-export interface BracketRound {
-  label: string;
-  matches: BracketMatch[];
-}
-
-export interface Bracket {
-  rounds: BracketRound[];
-}
-
-export interface LiveGameTeam {
-  id: string;
-  name: string;
-  short: string;
-  crest: Crest;
-  seed: number;
-  record: string;
-}
-
-export interface PlayByPlayItem {
-  ts: string;
-  desc: string;
-  score?: boolean;
-}
-
-export interface LiveGame {
-  id: string;
-  court: string;
-  event: string;
-  /** Invented, like everything else here — see the SAMPLE DATA banner on the
-   *  page. These used to be typed straight into live.tsx, which made a fixture
-   *  look like UI copy and put it in front of the translator. */
-  eventShort: string;
-  round: string;
-  venue: string;
-  scorer: string;
-  quarter: string;
-  clock: string;
-  teamA: LiveGameTeam;
-  teamB: LiveGameTeam;
-  quarters: { a: (number | null)[]; total: number; b: (number | null)[] };
-  watching: number;
-  pbp: PlayByPlayItem[];
-}
-
-export interface RosterPlayer {
-  num: number;
-  name: string;
-  pos: "PG" | "SG" | "SF" | "PF" | "C";
-  height: string;
-  pts: number;
-  ast: number;
-  reb: number;
-}
-
-export interface Standing {
-  rank: number;
-  team: string;
-  short: string;
-  w: number;
-  l: number;
-  pf: number;
-  pa: number;
-  pts: number;
-  you?: boolean;
-}
-
-export interface FeedItem {
-  desc: string;
-  ts: string;
-  dot?: "live" | "on" | "muted";
 }

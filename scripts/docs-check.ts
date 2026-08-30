@@ -23,18 +23,6 @@ import { join, resolve, dirname } from "path"
 
 const ROOT = resolve(import.meta.dir, "..")
 
-/**
- * ADRs are checked differently, and the distinction is the whole design.
- *
- * AGENTS.md and friends describe what IS, so every path they name must exist.
- * An ADR is a dated decision record: it legitimately names files that do not
- * exist yet (the ones it proposes) and files that no longer do (the ones it
- * replaced). ADR 004 describes a UI that was never built, and that is the ADR
- * being correct, not stale. So for ADRs only the markdown LINKS are checked —
- * navigation has to work — and paths mentioned in prose are left alone.
- */
-const isAdr = (doc: string) => doc.includes("/adr/")
-
 function docFiles(): string[] {
   const out = ["AGENTS.md", "CLAUDE.md", "GEMINI.md", "README.md"]
   const walk = (dir: string) => {
@@ -73,7 +61,7 @@ interface Ref {
   line: number
 }
 
-function refsIn(markdown: string, adr: boolean): Ref[] {
+function refsIn(markdown: string): Ref[] {
   const found: Ref[] = []
 
   markdown.split("\n").forEach((text, i) => {
@@ -87,8 +75,6 @@ function refsIn(markdown: string, adr: boolean): Ref[] {
       found.push({ path: m[1]!, line })
       rest = rest.replace(m[0]!, "")
     }
-
-    if (adr) return // ADRs: links only. See isAdr above.
 
     // Backticked strings that look like repo paths. Deliberately narrow, so
     // `c.get("user")` and `bun x tsc` cannot match.
@@ -134,8 +120,7 @@ let missing = 0
 let checked = 0
 
 for (const doc of docFiles()) {
-  const adr = isAdr(doc)
-  for (const { path: raw, line } of refsIn(readFileSync(join(ROOT, doc), "utf-8"), adr)) {
+  for (const { path: raw, line } of refsIn(readFileSync(join(ROOT, doc), "utf-8"))) {
     const p = raw.split("#")[0]!.trim()
     if (!p || IGNORE.some((re) => re.test(p))) continue
 
