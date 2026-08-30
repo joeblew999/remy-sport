@@ -10,7 +10,7 @@ work rather than a confused reader. It has done exactly that twice.
 What is left is the set of things that have already cost a real bug.
 
 **Seeded sign-in on the deployment is a switch, and the admin is never on it.**
-`mise run demo:on` publishes a fixed code so the twelve seeded people can sign in
+`mise run demo:on` publishes a fixed code so the seeded people can sign in
 with one click — their addresses are `.test` and nothing delivers to them. The
 seeded **admin** is excluded on any deployment: it holds ban, set-role and
 impersonate, and impersonation is the one power that reaches a real person.
@@ -124,161 +124,62 @@ mise run demo:on|off      turn it on or off — takes effect at once, no redeplo
 mise run probe            typecheck a snippet against the real project (WEB=1 for the SPA)
 ```
 
-## Next
+## Open
 
-Kept here because this file is the one thing read at the start of every session.
-Update it when you finish something; delete the line when it is done.
+Items with a live consequence. **Delete a line when it is done** — this section
+had grown to twelve numbered entries, of which four described finished work, one
+told the next session not to investigate a problem that had been fixed, and two
+cited triggers that had already fired. A list nobody prunes stops being read.
 
-1. **A page must not carry its own copy of the access matrix.**
-   [`src/web/pages/org.tsx`](src/web/pages/org.tsx) is the shape to copy: it
-   never asks what the viewer's role is. It asks the server for the member list,
-   and a 403 renders as "not yours". Every relation is derived upstream from the
-   PO's model, so a mirror in the client is the second answer to "may you" that
-   drifts from the first — `admin.tsx`'s ROLE_PERMISSIONS is careful to label
-   itself display-only for the same reason.
-   Built 2026-08-27 with the primitives that already existed — `.admin-card` +
-   `.admin-table` + `.badge` + `.btn` + `.muted` + `.empty` — and no new
-   dependency; see item 2.
-   [`src/web/components/schedule.tsx`](src/web/components/schedule.tsx) is the
-   sharper case: the answer is per *row*. A referee is assigned to one game and
-   not the next, so `canEnterScore` and `canSetStatus` arrive per game and the
-   component reads them. No rule in a client could have got that right.
-   **Sign in as any seeded person to check the GUI against the matrix.** `#/login`
-   lists all twelve with the relations each holds — `ORG_ADMIN org_001`,
-   `GAME_REFEREE gam_002` — derived from the model server-side, so it is the same
-   answer the API gives when you act as them. One click, no inbox, local only.
-   Two gaps it exposed, both closed: there was no procedure to *list* an org's
-   members, and `addMember` took only a `userId` nobody can discover, so it now
-   takes an email too.
-2. **Do not install shadcn/ui + Tailwind.** This file used to call
-   `src/web/styles.css` "the largest remaining source of per-page boilerplate".
-   Measured 2026-08-27, that is false. It is 1093 lines defining **100 classes
-   for 9 pages**, and essentially all of them are live — the first audit called
-   9 dead and was wrong about 5, which are composed in template literals
-   (`` className={`tab ${...}`} ``). It is a design system with an OKLCH token
-   palette, not accumulated boilerplate.
-   - **71 of the 100 classes are used on exactly one page**, and they are the
-     bespoke product: brackets, live score cells, standings rows, team hero.
-     shadcn/ui has no bracket component. It would replace maybe 5–8 of the 20
-     shared classes — `.btn`, `.badge`, `.dash-card`, a table, tabs.
-   - The bundle is **105 KiB gzipped**. Radix, shadcn's foundation, is not free,
-     and it buys components that already exist.
-   - `body`'s font stack tail is load-bearing: it is what renders Japanese,
-     Korean and Chinese, and a declared locale becomes tofu without it.
-     Tailwind's preflight is a live hazard to that, for no gain.
-   - shadcn's default look is the generic one. Trading a deliberate identity for
-     it is a downgrade, not a cleanup.
-3. **Never renumber a migration that has been deployed.** wrangler tracks them
-   by *filename*: squashing `0001`–`0015` into `0000_init` left production
-   recording fifteen names the repo no longer had, so the chain would have
-   replayed `0000_init` against a database that already had every table.
-   Production was rebuilt from the chain on 2026-08-27 (deleted, recreated,
-   migrated, seeded — it had no users) and now matches local exactly: 43 tables,
-   ledger `0000`–`0003`, `foreign_key_check` clean. From here the chain is
-   append-only. Check with
-   `wrangler d1 execute remy-sport-db --remote --command "SELECT name FROM d1_migrations"`.
-4. **`test:worker` prints five unhandled rejections on purpose — do not go
-   hunting them.** They come from the four tests that assert a *refusal* (wrong
-   OTP, reused OTP, superseded OTP, password sign-in). Better Auth returns the
-   400 the test asserts and separately leaves the `APIError` floating inside its
-   own dispatch; `better-call`'s router catches and converts the error on the
-   response path, so this is a second promise, not that one. `withSpan` and
-   `runWithEndpointContext` both chain correctly, so it is not either of those.
-   `vitest.config.ts` already sets `dangerouslyIgnoreUnhandledErrors` with the
-   reasoning written out — the run stays green by decision, not by accident.
-   **The residual cost is the part worth knowing:** that flag is all-or-nothing,
-   so an unhandled rejection in *our* Worker code would be ignored just as
-   quietly. Narrowing it to Better Auth's is not reachable from the setup file —
-   vitest intercepts these itself, so an `unhandledrejection` listener in
-   `apply-migrations.ts` never fires (probed 2026-08-27). It would take an
-   upstream fix or a vitest option that does not exist yet.
-5. **Do not re-derive team permissions from org membership.** That was the shape
-   this repo had, and it disagreed with the Product Owner's matrix in two
-   directions at once — an org member who coached nothing could edit any team,
-   and a head coach outside the org was refused. Team writes are scoped by
-   `team_coaches`, which is what the model always granted. Resolved 2026-08-27;
-   kept here so the next session does not rebuild it.
-6. **An action can be about a *pair*, and the model can only name one object.**
-   Registering a team asks two things of two different objects: are you this
-   team's coach, and is this event one you may enter. `REGISTER_TEAM_FOR_EVENT`
-   named EVENT while every relation granting it is about a TEAM, so the check
-   resolved `team_coaches.team_id = <an event id>`, matched nothing, and failed
-   closed — **no coach could register a team**, only a platform admin. Same class
-   as the GAME bug: a relation resolved against the wrong object type is silent,
-   because failing closed looks like a policy rather than a defect.
-   The action is TEAM-scoped now and `requireAction` takes an event context for
-   the `eventTypes` narrowing. **`mise run check` enforces it now** — see
-   `check-tables.ts`, which fails if an action is granted to a relation about a
-   different object type. Writing that check found two more instances the same
-   minute: `EDIT_PLAYER_PROFILE` and `RECORD_ATTENDANCE` are both granted to
-   HEAD_COACH and ASSISTANT_COACH, which are about a TEAM. **So a coach cannot
-   edit their own player's profile, and cannot record attendance.** Both are
-   listed pair-by-pair as known exceptions rather than exempted wholesale, and
-   both need the Product Owner: they want "a coach of the team this player is
-   on", which is PLAYER → player_teams → team_coaches — an object-side hop two
-   joins deep, where the derivation shapes reach one.
-7. **Two things I decided not to build, so the next session knows they are
-   choices rather than oversights.** Standings are one table per event, not
-   grouped by division — the division is on each row, and grouping is a page
-   concern the day a league needs it. And **referee assignment has no screen**:
-   `game_referees` is what makes score entry safe, and the only way to assign
-   one is the seed, so an organiser running a real tournament cannot yet put a
-   referee on a game.
-8. **No write action is granted to `PUBLIC`, and `mise run check` keeps it that
-   way.** I claimed `CREATE_PLAYER` was, on 2026-08-27, and it is not — the
-   claim came from a `grep -A 8` whose context ran into the next action's
-   grants. `CREATE_PLAYER` is `ANY_COACH` / `ANY_PLAYER` / `PLATFORM_ADMIN`,
-   `DELETE_PLAYER` is admin-only, and a full audit found no public write
-   anywhere. `check-tables.ts` now asserts that, so the next person does not
-   have to trust either the model or me. **Read a grant block whole** — the
-   blocks are adjacent and eight lines of context crosses into the next one.
-9. **A per-object capability in a list is N queries. Known, accepted, bounded.**
-   `games.list` returns `canEnterScore` per row, and each one is a `can()` —
-   about two reads for an inherited relation. Three games is six reads; a season
-   of three hundred is not acceptable. The right fix is to answer it set-wise:
-   every relation is derivable in SQL, so "which of these games may this user
-   score" is one query, not N. **Do not fix it by moving the decision into the
-   client** — that is the copy of the access matrix items 1 and 2 exist to
-   prevent. Revisit when a schedule first exceeds a page.
-10. **Reading a row back after a write is written out per procedure.** Both game
-   writes end with the same `reload` because the update returns nothing useful
-   and the response must carry the joined names and the capability. `orgs.update`
-   does its own version, `teams.update` another. Three copies is the point at
-   which it should be one helper on the base builder; it is at three now.
-11. **The JSONL seed data is fully ported and verified.** All 298 rows of the 42
-   deleted `.jsonl` files have an identical counterpart in
-   `domain/model/*.ts`, field by field, including every one of the 582 locale
-   values that used to live in `translations.jsonl` and `entity_names.jsonl`.
-   The only differences are this week's deliberate ones, each in its own commit.
-   The old files are safe to delete; they are already gone from biz `HEAD`.
-12. **`event.province_code` is the one `*_code` column with no constraint.** The
-    other nineteen either have a `.references()` into a vocabulary or a drizzle
-    `enum`; this one has a comment. Inert today because only the seed writes it —
-    but `events.update` is on the list of writes with no GUI yet, and the day it
-    gets one, a typo becomes a row. Give it `.references(() => province.code)`
-    when you touch that table, not before: it is a migration for no live gain.
-
-The test classification is **done**. `mise run test:all` for the numbers; the
-25 left in e2e are genuine round trips and belong there. Do not "optimise the
-runner" — a whole session went into storageState, worker counts and project
-ordering and it stopped dead. What worked was moving tests to the right tier and
-merging worker files (~3s of workerd startup per file, measured).
-
-Two measurements, so they are not guessed at again: the render tier's cost was
-**never `vite preview`** — it starts in 338ms; it was Google Fonts. And
-`isolatedStorage: false` and guarding the migration batch each bought nothing.
-
-> Four tiers, and the rule for choosing one:
->
-> | Asserts | Goes in |
-> |---|---|
-> | a pure function | `tests/unit/` — `mise run test:unit` |
-> | what the **API returns** | `tests/worker/` — `mise run test:worker` |
-> | what the **UI renders** given data | `tests/render/` — `mise run test:render` |
-> | a **real round trip** | `tests/e2e/` — `mise run test` |
->
-> If a test signs in only so a page will render, seed the cache instead
-> (`tests/helpers/seed-cache.ts`). Plan: [docs/dev/test-migration.md](docs/dev/test-migration.md).
+1. **A per-object capability in a list is N queries, and the schedule has now
+   exceeded a page.** This entry used to end "revisit when a schedule first
+   exceeds a page". Measured 2026-08-30: `/api/games/gam_001` is 0.02s and
+   `/api/games?eventId=evt_002` — 28 games — is **0.25s**, because `serialize`
+   makes five `can()` calls and three queries per row. Roughly 220 round trips
+   for one page.
+   The fix is set-wise: every relation is derivable in SQL, so "which of these
+   games may this user score" is one query, not N. `objectsHeldBy` in
+   `src/api/relations.ts` is half of it already.
+   **Do not fix it by moving the decision into the client.** That is the copy of
+   the access matrix this file exists to prevent.
+2. **`can()` results are named eleven different things on the wire.**
+   `canEdit` ×13, `canEnterScore`, `canManageFixture` *and* `canManageFixtures`,
+   `canBroadcast`, `canSetStatus`, `canInviteCoOrganizer`, `canCreateTeam`,
+   `canManage`, `canWithdraw`, `canAssignReferee` — each invented at a call site.
+   The model already has a vocabulary for this: ACTION codes. Same fix as item 1;
+   a set-wise resolver has one natural shape to return.
+3. **Three representations of every domain object, hand-synced.** `EventSchema`
+   → `interface Event` → `toEvent()`. Adding `divisionNames` meant three edits
+   and broke eleven tests at once, which is what `tests/helpers/api-fixtures.ts`
+   now papers over. The view model should derive from the API type.
+4. **An action can be about a *pair*, and the model can only name one object.**
+   `REGISTER_TEAM_FOR_EVENT` named EVENT while every relation granting it is
+   about a TEAM, so the check resolved `team_coaches.team_id = <an event id>`,
+   matched nothing, and failed closed — no coach could register a team. Failing
+   closed looks like a policy rather than a defect, which is why it survived.
+   `check-tables.ts` enforces it now, and finding it exposed two more:
+   `EDIT_PLAYER_PROFILE` and `RECORD_ATTENDANCE` are granted to HEAD_COACH and
+   ASSISTANT_COACH, which are TEAM relations. **So a coach still cannot edit a
+   player's profile** — a guardian can, since GUARDIAN is a PLAYER relation, and
+   that half shipped 2026-08-30. Both are listed pair-by-pair as known
+   exceptions and both need the Product Owner: they want "a coach of the team
+   this player is on", which is PLAYER → player_teams → team_coaches, an
+   object-side hop two joins deep where the derivations reach one.
+5. **Reading a row back after a write is written out per procedure.** Both game
+   writes end with the same `reload`; `orgs.update` has its own version,
+   `teams.update` another, `players.update` a fourth. Four copies is past the
+   point where it should be one helper on the base builder.
+6. **`event.province_code` is the one `*_code` column with no constraint.** The
+   others have a `.references()` or a drizzle enum; this has a comment. It was
+   inert while only the seed wrote it — `events.update` got a GUI on 2026-08-30,
+   so a typo can now become a row. Give it `.references(() => province.code)`
+   next time that table is touched.
+7. **Two things deliberately not built, so they read as choices.** Standings are
+   one table per event rather than grouped by division — the division is on each
+   row, and grouping is a page concern the day a league needs it. And there is
+   no client-side error retry for failed writes: a refused write shows its
+   reason and stays on screen, which is the honest behaviour while every write
+   is a single request.
 
 ## Companion repo
 
@@ -531,8 +432,19 @@ Names are a `names` JSON column on the row with a NOT NULL English pivot beside
 it. There is no `nameTh` field and there should never be one again. Helpers:
 [`src/domain/names.ts`](src/domain/names.ts).
 
-**Never invent a value for a field with no table.** Render `—` or "Venue TBC", and
-label a fixture-backed section beside real data as `SAMPLE DATA`.
+**Never invent a value for a field with no table.** Render `—` or "Venue TBC".
+
+The `SAMPLE DATA` banner that used to be the escape hatch is gone, and so is
+every screen that needed it — the invented live game, the bracket, the activity
+feed, "Top performers". A banner made a fixture *admissible*, and what it
+actually bought was a page that stayed fake for months because it was labelled.
+If a field has no table, show nothing; if a section can only be filled by
+invention, it is not a section yet.
+
+Two of those could never have been real and were deleted rather than labelled: a
+bracket needs rounds and seeds the model does not have, and "Top performers"
+needs per-player statistics that exist nowhere. **A screen that cannot be filled
+from the schema is a picture of a feature.**
 
 **Derive, don't store, anything that is a function of other columns.** Event
 status comes from the date window; a stored `status` is wrong the moment an event
@@ -709,6 +621,45 @@ drifting from it.
 Before writing "because X" anywhere: **measure X this session** — `mise run
 probe` takes two seconds — or write "unverified". When a grep says a file is
 unused, run `mise run check:dead` first.
+
+## Decisions that look like omissions
+
+**Do not install shadcn/ui + Tailwind.** `src/web/styles.css` is a design system
+with an OKLCH token palette, not accumulated boilerplate: most of its classes are
+used on exactly one page and are the bespoke product — live score cells,
+standings rows, the team hero. shadcn would replace a handful of the shared ones
+(`.btn`, `.badge`, `.dash-card`, a table, tabs) and has no component for any of
+the rest.
+
+Two specifics that outlast any measurement. `body`'s font-stack tail is
+load-bearing — it is what renders Japanese, Korean and Chinese, and a declared
+locale becomes tofu without it; Tailwind's preflight is a live hazard to that for
+no gain. And shadcn's default look is the generic one, so adopting it trades a
+deliberate identity for a downgrade.
+
+**Four test tiers, and the rule for choosing one.** A test in the wrong tier is
+slow for no reason, and the render tier exists so that asserting what a component
+draws never needs a database.
+
+| Asserts | Goes in |
+|---|---|
+| a pure function | `tests/unit/` — `mise run test:unit` |
+| what the **API returns** | `tests/worker/` — `mise run test:worker` |
+| what the **UI renders** given data | `tests/render/` — `mise run test:render` |
+| a **real round trip** | `tests/e2e/` — `mise run test` |
+
+If a test signs in only so a page will render, seed the cache instead —
+`tests/helpers/seed-cache.ts`, and `tests/helpers/api-fixtures.ts` for the
+payloads, which are typed against the real contract so a drifted fixture is a
+compile error rather than a browser failure thirty seconds later.
+
+**Do not "optimise the test runner".** A whole session went into storageState,
+worker counts and project ordering and it stopped dead. What works is moving
+tests to the right tier, merging worker files (~3s of workerd startup each), and
+timeouts justified by the slowest legitimate operation in that tier. Measured and
+not to be re-guessed: the render tier's cost was never `vite preview` — it starts
+in 338ms; it was Google Fonts. More Playwright workers do nothing (6, 10 and 12
+are all ~14s) and neither does more vitest parallelism (10.05s vs 10.02s).
 
 ## Conventions
 

@@ -65,18 +65,26 @@ export default defineConfig({
     setupFiles: ["./tests/worker/apply-migrations.ts"],
 
     /**
-     * Better Auth rejects internally on refused requests, and workerd reports
-     * it where a Node runner would not.
+     * No `dangerouslyIgnoreUnhandledErrors`, and that is now a fixed bug rather
+     * than a tolerated one.
      *
-     * Asserting that password sign-in is gone means making a request Better
-     * Auth refuses; it answers 400 correctly — which is what the test checks —
-     * and separately leaves an unhandled rejection behind, inside its own
-     * dispatch. The same happens seeding an existing user. Neither is our code
-     * and neither changes a response.
+     * It used to be set, with a page of reasoning: Better Auth answered 400
+     * correctly and separately left an unhandled rejection behind, so ten of
+     * them printed on every run and the suite exited non-zero at random. The
+     * flag made the run green by decision.
      *
-     * Scoped deliberately: this ignores unhandled REJECTIONS, not failing
-     * assertions. A test that actually fails still fails.
+     * The cost was in that reasoning too, honestly stated and never paid off:
+     * the flag is all-or-nothing, so an unhandled rejection in **our** Worker
+     * code was ignored just as quietly.
+     *
+     * The cause was never Better Auth. workerd fired `unhandledrejection`
+     * before the microtask checkpoint completed, so a promise that rejects on
+     * one tick and is caught on the next was reported as unhandled when nothing
+     * ever was — and Better Auth wraps every endpoint in
+     * `AsyncLocalStorage.run()`, which is exactly such a chain.
+     * `unhandled_rejection_after_microtask_checkpoint` in wrangler.toml fixes
+     * it at the runtime. With the cause gone the suppression is not a trade any
+     * more, so it is deleted and a real unhandled rejection fails the run again.
      */
-    dangerouslyIgnoreUnhandledErrors: true,
   },
 })
