@@ -1,6 +1,7 @@
 import { test, expect } from "./fixture"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { sessionKey } from "../../src/web/lib/session"
+import { apiTeam } from "../helpers/api-fixtures"
 
 /**
  * Rendering, with the cache handed its data instead of the network.
@@ -21,20 +22,14 @@ import { sessionKey } from "../../src/web/lib/session"
  * not a browser run three minutes later.
  */
 
-const team = (over: Record<string, unknown> = {}) =>
-  ({
-    id: "team_002",
-    name: "Triam Udom U18 Girls",
-    names: { en: "Triam Udom U18 Girls" },
-    orgId: "org_002",
-    ageGroupCode: "U18",
-    genderCode: "F",
-    orgName: "Triam Udom Suksa School",
-    orgNames: { en: "Triam Udom Suksa School" },
-    orgCityCode: "BANGKOK",
-    orgProvinceCode: "BKK",
-    ...over,
-  }) as never
+/**
+ * From the shared factory, typed, no cast.
+ *
+ * This was a character-for-character copy of `apiTeam`'s body ending in
+ * `as never` — so the factory written to stop fixture drift was dead code while
+ * the drift it prevents sat in the file next door.
+ */
+const team = (over: Partial<Parameters<typeof apiTeam>[0]> = {}) => apiTeam(over)
 
 /**
  * One game as `games.list` returns it.

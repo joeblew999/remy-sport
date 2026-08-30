@@ -228,7 +228,27 @@ export function GameBroadcast({ gameId }: { gameId: string }) {
     // backgrounded or the tab is closed, which is exactly when a broadcast ends
     // without anybody pressing stop.
     const bye = () => {
-      navigator.sendBeacon?.(`/api/games/${gameId}/broadcast`, new Blob([], { type: "text/plain" }))
+      /**
+       * `fetch(..., { keepalive: true })`, not `sendBeacon`.
+       *
+       * A beacon is always a POST, and this path only answers PUT (start) and
+       * DELETE (stop) — so the request fell through `app.all("*")` to the asset
+       * store, 404'd, and withdrew nothing. The page looked like it was tidying
+       * up after itself and was not.
+       *
+       * It was not stuck forever: the heartbeat stops with the page and the row
+       * goes stale after BROADCAST_STALE_SECONDS, so the game un-advertised
+       * itself a minute later. This makes it immediate, which is the difference
+       * between a viewer seeing a dead broadcast and not.
+       *
+       * `keepalive` is what lets a request outlive the document, which is the
+       * one thing `sendBeacon` was being used for.
+       */
+      void fetch(`/api/games/${gameId}/broadcast`, {
+        method: "DELETE",
+        keepalive: true,
+        credentials: "same-origin",
+      }).catch(() => undefined)
     }
     window.addEventListener("pagehide", bye)
     return () => {

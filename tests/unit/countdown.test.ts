@@ -37,18 +37,29 @@ const event = (startDate: string) =>
 
 /** The label a viewer in `tz` sees on `today` for an event starting `start`. */
 function labelIn(tz: string, today: [number, number, number], start: string): string {
+  /**
+   * Restore by deleting when there was nothing, not by assigning `undefined`.
+   *
+   * `process.env.TZ = undefined` does not put the zone back — Bun leaves the
+   * process on whatever was set last, so every unit file running after this one
+   * saw Australia/Melbourne as local time. Latent today because nothing after
+   * it depends on the machine zone; a trap for whatever is added next.
+   */
   const was = process.env.TZ
   process.env.TZ = tz
   try {
     return toEvent(event(start), loc, new Date(today[0], today[1], today[2])).statusLabel
   } finally {
-    process.env.TZ = was
+    if (was === undefined) delete process.env.TZ
+    else process.env.TZ = was
   }
 }
 
 const ORIGINAL_TZ = process.env.TZ
 afterAll(() => {
-  process.env.TZ = ORIGINAL_TZ
+  // Delete, do not assign undefined — see the note in `labelIn`.
+  if (ORIGINAL_TZ === undefined) delete process.env.TZ
+  else process.env.TZ = ORIGINAL_TZ
 })
 
 describe("the countdown", () => {

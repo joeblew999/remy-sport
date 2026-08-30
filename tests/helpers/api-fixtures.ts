@@ -8,8 +8,13 @@
  * failing in a browser thirty seconds later — for a mismatch a type-checker
  * could have named instantly.
  *
- * These are typed as the real `ApiEvent` and `ApiTeam` with no cast, so the next
- * field added to the contract is a compile error here and nowhere else.
+ * These are typed as the real `ApiEvent` and `ApiTeam` **with no cast**, so the
+ * next field added to the contract is a compile error here and nowhere else.
+ *
+ * The first version ended each literal with `as ApiEvent`, which suppresses
+ * exactly the missing-property error the declared return type would have
+ * raised — the file defeated its own purpose in its last two characters, while
+ * the docstring claimed otherwise.
  */
 
 import type { ApiEvent, ApiTeam } from "../../src/domain/api"
@@ -56,7 +61,7 @@ export function apiEvent(over: Partial<ApiEvent> = {}): ApiEvent {
     venueNames: { en: "Assumption College Indoor Court" },
     divisionNames: [{ en: "U16 Boys" }, { en: "U16 Girls" }, { en: "U18 Boys" }],
     ...over,
-  } as ApiEvent
+  }
 }
 
 /** One team, complete. Same reasoning as `apiEvent`. */
@@ -74,5 +79,5 @@ export function apiTeam(over: Partial<ApiTeam> = {}): ApiTeam {
     orgProvinceCode: "BKK",
     canEdit: false,
     ...over,
-  } as ApiTeam
+  }
 }

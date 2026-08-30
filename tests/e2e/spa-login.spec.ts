@@ -8,7 +8,21 @@ import { ACTOR_NAMES, ADMIN, COACH, EVERY_SEEDED_ACTOR, IS_LOCAL, actor } from "
 
 const LOCAL_CODE = "424242" // fixed for @remy.dev — see tests/helpers/auth.ts
 
-test.describe("SPA sign-in", () => {
+/**
+ * Serial, because these tests sign in as the same people.
+ *
+ * `TEST_OTP` stops the *code* rotating, but Better Auth still writes and
+ * consumes a verification row per request — so two tests requesting a code for
+ * the same address invalidate each other, and the loser fails with INVALID_OTP.
+ * That surfaces as a **locator timeout**, not an auth error, which is why it
+ * reads as a broken page rather than a race.
+ *
+ * `tests/helpers/auth.ts` documents this and every other spec avoids it by
+ * adopting a saved `storageState`. This file cannot: signing in *is* its
+ * subject. Two tests here use ADMIN and two use COACH, and with
+ * `fullyParallel: true` and `workers: 2` any two of them could overlap.
+ */
+test.describe.serial("SPA sign-in", () => {
   test.skip(!IS_LOCAL, "signing in needs the fixed dev code")
 
   test("the SPA has its own login screen, with no password field", async ({ page }) => {
