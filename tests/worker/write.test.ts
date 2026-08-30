@@ -1294,3 +1294,73 @@ describe("Inviting a co-organiser by email", () => {
     expect(res.status, "the API must agree with the flag").toBe(403)
   })
 })
+
+describe("Entering a player into an event", () => {
+  /**
+   * `eventPlayer` was the only table in the model with neither an API nor a
+   * screen, and `REGISTER_PLAYER_FOR_EVENT` had nothing behind it.
+   *
+   * The grant is **conditional** and that is the whole reason this describe
+   * block is worth its length: SELF and GUARDIAN hold it only for CAMP and
+   * SHOWCASE. A tournament or a league is entered by a *team* — a parent cannot
+   * put their child into the Bangkok Schools League, because the league plays
+   * teams and the team's coach enters it.
+   *
+   * The types come from the fixtures rather than being written here, so a PO
+   * who reclassifies an event moves this test with it.
+   */
+  const guardianship = SEED_RELATIONSHIPS.guardians[0]!
+  const parent = SEED_ENTITIES.users.find((u) => u.id === guardianship.userId)!
+  const byType = (t: string) => SEED_ENTITIES.events.find((e) => e.typeCode === t)!
+
+  const register = (eventId: string, cookie: string) =>
+    post(`/api/events/${eventId}/players`, { eventId, playerId: guardianship.playerId }, cookie)
+
+  it("lets a guardian enter their child in a camp", async () => {
+    const cookie = await signIn(parent.email)
+    const res = await register(byType("CAMP").id, cookie)
+    expect(res.status, "CAMP is in the grant's eventTypes").toBe(201)
+  })
+
+  it("and in a showcase", async () => {
+    const cookie = await signIn(parent.email)
+    expect((await register(byType("SHOWCASE").id, cookie)).status).toBe(201)
+  })
+
+  it("refuses a tournament, which teams enter and individuals do not", async () => {
+    // The conditional half. If `eventFrom` were omitted the resolver would have
+    // no event to narrow against, every eventTypes grant would be skipped, and
+    // this would pass for the wrong reason — by denying everybody, everywhere.
+    const cookie = await signIn(parent.email)
+    expect((await register(byType("TOURNAMENT").id, cookie)).status).toBe(403)
+  })
+
+  it("refuses a league for the same reason", async () => {
+    const cookie = await signIn(parent.email)
+    expect((await register(byType("LEAGUE").id, cookie)).status).toBe(403)
+  })
+
+  it("refuses somebody who is not this child's guardian, even for a camp", async () => {
+    const stranger = SEED_ENTITIES.users.find(
+      (u) => u.roleCode === "REFEREE" && u.statusCode === "ACTIVE",
+    )!
+    const cookie = await signIn(stranger.email)
+    expect((await register(byType("CAMP").id, cookie)).status).toBe(403)
+  })
+
+  it("is idempotent, and withdrawing puts it back", async () => {
+    const cookie = await signIn(parent.email)
+    const camp = byType("CAMP").id
+    expect((await register(camp, cookie)).status).toBe(201)
+    // The unique index is on (event, player): pressing twice is a no-op rather
+    // than a second row or a 500.
+    expect((await register(camp, cookie)).status).toBe(201)
+
+    const res = await api(`/api/events/${camp}/players/${guardianship.playerId}`, {
+      method: "DELETE",
+      cookie,
+    })
+    expect(res.status).toBe(200)
+    expect(((await res.json()) as { withdrawn: boolean }).withdrawn).toBe(true)
+  })
+})

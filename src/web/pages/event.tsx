@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Icon } from "../components/icon";
 import { EventSettings } from "../components/event-settings";
 import { EventVenues } from "../components/event-venues";
+import { EventPlayers } from "../components/event-players";
 import { downloadICS } from "../lib/calendar";
 import { FollowButton } from "../components/follow";
 import { Schedule, AddFixture } from "../components/schedule";
@@ -25,7 +26,7 @@ import { m } from "../lib/i18n";
  * is a modelling decision for the PO in remy-sport-biz, and when those tables
  * exist the tab comes back reading from them.
  */
-type EventTab = "overview" | "schedule" | "standings" | "teams" | "venues" | "rules" | "settings";
+type EventTab = "overview" | "schedule" | "standings" | "teams" | "players" | "venues" | "rules" | "settings";
 
 interface EventProps {
   id: string | undefined;
@@ -185,6 +186,13 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
           ["schedule", m.schedule()],
           ["standings", m.nav_standings()],
           ["teams", m.tab_teams()],
+          // Individuals enter camps and showcases; teams enter tournaments and
+          // leagues. That is the PO's grant — `REGISTER_PLAYER_FOR_EVENT` reads
+          // `eventTypes: ["CAMP", "SHOWCASE"]` — and offering the tab anywhere
+          // else would be a form that answers 403.
+          ...((e.type === "CAMP" || e.type === "SHOWCASE"
+            ? [["players", m.tab_players()]]
+            : []) as [EventTab, string][]),
           ["venues", m.tab_venues()],
           ["rules", m.tab_rules()],
           // Only for someone the model says may edit this event. A tab everyone
@@ -199,6 +207,7 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
       {tab === "overview" && <EventOverview e={e} goto={goto}/>}
       {tab === "settings" && e.canEdit && <EventSettings event={e}/>}
       {tab === "venues" && <EventVenues eventId={e.id}/>}
+      {tab === "players" && <EventPlayers eventId={e.id}/>}
       {tab === "rules" && <EventRules event={e}/>}
       {tab === "schedule" && (
         <div className="page-inner">
@@ -208,7 +217,7 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
       )}
       {tab === "standings" && <StandingsTable eventId={e.id}/>}
       {tab === "teams" && <div className="page-inner"><Entries eventId={e.id}/></div>}
-      {!["overview", "schedule", "standings", "teams", "settings", "venues", "rules"].includes(tab) && (
+      {!["overview", "schedule", "standings", "teams", "settings", "venues", "rules", "players"].includes(tab) && (
         <div className="page-inner"><div className="empty">{m.tab_not_built()}</div></div>
       )}
     </>

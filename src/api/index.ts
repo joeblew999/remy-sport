@@ -100,6 +100,9 @@ export const router = {
      * 2026-08-30. See src/api/players.ts.
      */
     mine: playersApi.mine,
+    update: playersApi.update,
+    registerForEvent: playersApi.registerForEvent,
+    withdrawFromEvent: playersApi.withdrawFromEvent,
   },
   playerTeams: domain.playerTeams,
   teamCoaches: domain.teamCoaches,
