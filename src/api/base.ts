@@ -75,6 +75,23 @@ export const authedRoute = {
   }),
 }
 
+/**
+ * The row, or a 404 — written once instead of nine times.
+ *
+ * Every handler that reads a row back after a write repeated
+ * `if (!row) throw new ORPCError("NOT_FOUND", { message: "Not found" })`, and a
+ * repeated literal is a place for one of them to word it differently. It also
+ * narrows the type, which is the reason the line existed at all.
+ *
+ * Deliberately says nothing about *why*. Whether the id never existed or the
+ * caller may not see it is a question the authorisation layer has already
+ * answered; a handler that distinguished them here would leak the difference.
+ */
+export function found<T>(row: T | null | undefined): T {
+  if (!row) throw new ORPCError("NOT_FOUND", { message: "Not found" })
+  return row
+}
+
 /** Adds `db` so no handler repeats `drizzle(c.env.DB, { schema })`. */
 export const pub = base.use(async ({ context, next }) =>
   next({ context: { ...context, db: database(context.env) } }),

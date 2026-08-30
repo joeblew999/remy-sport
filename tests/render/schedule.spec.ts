@@ -26,8 +26,26 @@ const base = {
 const finished = { ...base, id: "gam_001", startsAt: "2026-06-10T10:00:00Z", statusCode: "FINISHED", homeScore: 68, awayScore: 54, venueId: "ven_002" }
 const upcoming = { ...base, id: "gam_003", startsAt: "2026-09-15T10:00:00Z", statusCode: "SCHEDULED", homeScore: null, awayScore: null, venueId: null, venueNames: null }
 
-const seed = (page: Parameters<typeof seedCache>[0], games: unknown[]) =>
+/**
+ * `canManage` says whether the reader may reschedule or remove a fixture.
+ *
+ * It is seeded on `events.entries`, not on the game, because MANAGE_FIXTURES is
+ * EVENT-scoped — the schedule asks once for the event rather than once per row.
+ */
+const seed = (
+  page: Parameters<typeof seedCache>[0],
+  games: unknown[],
+  canManage = false,
+) =>
   seedCache(page, [
+    entry(orpc.events.entries, { eventId: "evt_002" }, {
+      registered: [],
+      registrable: [],
+      // `divisions` is not optional: useEntries maps it, so omitting it made
+      // the query throw and the permission silently read false.
+      divisions: [],
+      canManageFixtures: canManage,
+    } as never),
     entry(orpc.events.get, { id: "evt_002" }, apiEvent({ id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" }, startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK", organizerUserId: "usr_org_002", orgId: null, organizerName: "Niran" }) as never),
     entry(orpc.games.list, { eventId: "evt_002" }, { games } as never),
   ])
@@ -300,7 +318,12 @@ test.describe("Rescheduling and removing a fixture", () => {
    * reader on this game's event — for the same reason score entry is: a rule in
    * the client could only ever be right by accident.
    */
-  const managed = { ...upcoming, canManageFixture: true, timezone: "Asia/Bangkok" }
+  /**
+ *  is gone from the game — MANAGE_FIXTURES is EVENT-scoped,
+ * so the answer was the same value once per row. The schedule asks the event
+ * once, through `events.entries`, and passes it down.
+ */
+const managed = { ...upcoming, timezone: "Asia/Bangkok" }
 
   test("offers nothing to a reader who may not manage fixtures", async ({ page }) => {
     await seed(page, [upcoming])
@@ -316,7 +339,7 @@ test.describe("Rescheduling and removing a fixture", () => {
     // The bug this guards is silent: 10:00 UTC is 17:00 in Bangkok, and a form
     // that showed 10:00 would have an organiser change nothing, press Save, and
     // move the game seven hours. Nothing errors; people just turn up wrong.
-    await seed(page, [managed])
+    await seed(page, [managed], true)
     await page.goto("/#/event/evt_002")
     await page.getByRole("button", { name: "Schedule" }).click()
     await page.getByTestId("edit-fixture-gam_003").click()
@@ -326,7 +349,7 @@ test.describe("Rescheduling and removing a fixture", () => {
 
   test("sends back a UTC instant, whatever the box showed", async ({ page }) => {
     let sent = ""
-    await seed(page, [managed])
+    await seed(page, [managed], true)
     await page.route("**/rpc/**", async (route) => {
       const url = route.request().url()
       if (!url.includes("games/update")) return route.fallback()
@@ -351,7 +374,7 @@ test.describe("Rescheduling and removing a fixture", () => {
   })
 
   test("asks before removing, because the referees go with it", async ({ page }) => {
-    await seed(page, [managed])
+    await seed(page, [managed], true)
     let asked = ""
     page.on("dialog", (d) => {
       asked = d.message()

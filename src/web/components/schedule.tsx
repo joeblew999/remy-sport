@@ -71,6 +71,10 @@ export function Schedule({
   goto?: (r: Route) => void;
 }) {
   const games = useGames(eventId);
+  // Asked once for the event, not once per game. `MANAGE_FIXTURES` is
+  // EVENT-scoped, so the per-row answer was the same value twenty-eight times.
+  const { data: entries } = useEntries(eventId);
+  const canManage = Boolean(entries?.canManageFixtures);
 
   if (games.isPending) return <div className="empty">{m.loading()}</div>;
   if (!games.data?.games.length) {
@@ -91,6 +95,7 @@ export function Schedule({
           game={g}
           spoiler={spoiler}
           viewerZone={games.data.viewerTimezone}
+          canManage={canManage}
           goto={goto}
         />
       ))}
@@ -102,11 +107,14 @@ function GameRow({
   game,
   spoiler,
   viewerZone,
+  canManage,
   goto,
 }: {
   game: Game;
   spoiler: boolean;
   viewerZone: string | null;
+  /** The event's answer to MANAGE_FIXTURES, resolved once by the parent. */
+  canManage: boolean;
   goto?: (r: Route) => void;
 }) {
   const { locale } = useLocale();
@@ -211,7 +219,7 @@ function GameRow({
             {/* Both `games.update` and `games.remove` were enforced and
                 unreachable, so a fixture entered at the wrong time stayed at
                 the wrong time and a mistake could never be taken back. */}
-            {game.canManageFixture && <ManageFixture game={game} />}
+            {canManage && <ManageFixture game={game} />}
           </>
         )}
       </div>

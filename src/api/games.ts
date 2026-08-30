@@ -17,7 +17,7 @@
  */
 
 import { ORPCError } from "@orpc/server"
-import { and, eq, gte } from "drizzle-orm"
+import { and, eq, gte, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { track } from "../analytics"
 import * as schema from "../db/schema"
@@ -28,7 +28,7 @@ import { m } from "../paraglide/messages.js"
 import { notify } from "./push"
 import type { Bindings } from "../types"
 import { ERRORS } from "./errors"
-import { authed, authedRoute, can, openTo, requireAction, viewer, viewerTimezone, type Db, type SessionUser } from "./base"
+import { authed, authedRoute, can, found, openTo, requireAction, viewer, viewerTimezone, type Db, type SessionUser } from "./base"
 
 const IdInput = z.object({ id: z.string() })
 
@@ -69,15 +69,90 @@ const withNames = {
  * be. When that day comes the fix is to answer it in one query — the relations
  * are all derivable in SQL — not to move the decision into the client.
  */
-async function serialize(db: Db, user: SessionUser | null, row: Row): Promise<ApiGame> {
+/**
+ * The three things a game needs that are not on its own row, fetched for the
+ * whole list at once.
+ *
+ * This was two queries *per game* inside `serialize` — the referee join and the
+ * broadcast check — so one event's schedule of twenty-nine games made
+ * fifty-eight round trips before any permission was resolved.
+ *
+ * Worth recording how that was found, because the first diagnosis was wrong.
+ * The obvious suspect was the five `can()` calls per row, and removing one of
+ * them moved 0.25s to 0.23s — eight per cent, when a fifth of the cost should
+ * have moved a fifth. The measurement that settled it: an **anonymous** request
+ * takes the same 0.24s, and for an anonymous caller every `can()` returns false
+ * without touching a relation table. So `can()` was never the cost, and an hour
+ * went into optimising it on an assertion nobody had tested.
+ *
+ * `availableReferees` is here too. It read every REFEREE user *per game* and
+ * then filtered in memory — the same list, twenty-nine times.
+ */
+interface GameContext {
+  /** gameId -> the officials on it. */
+  referees: Map<string, { userId: string; name: string }[]>
+  /** The games somebody is broadcasting right now. */
+  broadcasting: Set<string>
+  /** Every referee on the platform, read once. Empty when nobody may assign. */
+  allReferees: { userId: string; name: string }[]
+}
+
+const NO_CONTEXT: GameContext = { referees: new Map(), broadcasting: new Set(), allReferees: [] }
+
+async function contextFor(db: Db, gameIds: string[], anyAssign: boolean): Promise<GameContext> {
+  if (gameIds.length === 0) return NO_CONTEXT
+
+  const [refs, live, all] = await Promise.all([
+    db
+      .select({
+        gameId: schema.gameReferee.gameId,
+        userId: schema.gameReferee.userId,
+        name: schema.user.name,
+      })
+      .from(schema.gameReferee)
+      .innerJoin(schema.user, eq(schema.user.id, schema.gameReferee.userId))
+      .where(inArray(schema.gameReferee.gameId, gameIds))
+      .all(),
+    db
+      .select({ gameId: schema.gameBroadcast.gameId })
+      .from(schema.gameBroadcast)
+      .where(
+        and(
+          inArray(schema.gameBroadcast.gameId, gameIds),
+          gte(schema.gameBroadcast.lastSeenAt, freshSince()),
+        ),
+      )
+      .all(),
+    // Only for somebody who may assign one. A global "list every referee" read
+    // is a directory of people; this stays scoped to the decision it serves.
+    anyAssign
+      ? db
+          .select({ userId: schema.user.id, name: schema.user.name })
+          .from(schema.user)
+          .where(eq(schema.user.role, STORED_ROLE.REFEREE))
+          .all()
+      : Promise.resolve([]),
+  ])
+
+  const referees = new Map<string, { userId: string; name: string }[]>()
+  for (const r of refs) {
+    const list = referees.get(r.gameId)
+    if (list) list.push({ userId: r.userId, name: r.name })
+    else referees.set(r.gameId, [{ userId: r.userId, name: r.name }])
+  }
+
+  return { referees, broadcasting: new Set(live.map((l) => l.gameId)), allReferees: all }
+}
+
+async function serialize(
+  db: Db,
+  user: SessionUser | null,
+  row: Row,
+  ctx: GameContext = NO_CONTEXT,
+): Promise<ApiGame> {
   const { homeTeam, awayTeam, venue, event, ...rest } = row
   const assign = await can(db, "ASSIGN_REFEREE", user, row.id)
-  const onThisGame = await db
-    .select({ userId: schema.gameReferee.userId, name: schema.user.name })
-    .from(schema.gameReferee)
-    .innerJoin(schema.user, eq(schema.user.id, schema.gameReferee.userId))
-    .where(eq(schema.gameReferee.gameId, row.id))
-    .all()
+  const onThisGame = ctx.referees.get(row.id) ?? []
   return {
     ...rest,
     homeTeamNames: homeTeam?.names ?? {},
@@ -87,42 +162,25 @@ async function serialize(db: Db, user: SessionUser | null, row: Row): Promise<Ap
     canEnterScore: await can(db, "ENTER_SCORES", user, row.id),
     canSetStatus: await can(db, "CONFIRM_MATCH_STATUS", user, row.id),
     canAssignReferee: assign,
-    // Scoped to the event, not the game: MANAGE_FIXTURES is what lets somebody
-    // add a fixture, and a game that does not exist yet has no relation to be
-    // in. The same grant is what lets them fix one afterwards.
-    canManageFixture: await can(db, "MANAGE_FIXTURES", user, row.eventId),
     // From our table, refreshed by the publisher's heartbeat — see
     // BROADCAST_STALE_SECONDS. A row nobody has touched is not a live game.
-    isBroadcasting: Boolean(
-      await db
-        .select({ gameId: schema.gameBroadcast.gameId })
-        .from(schema.gameBroadcast)
-        .where(
-          and(
-            eq(schema.gameBroadcast.gameId, row.id),
-            gte(schema.gameBroadcast.lastSeenAt, freshSince()),
-          ),
-        )
-        .get(),
-    ),
+    isBroadcasting: ctx.broadcasting.has(row.id),
     canBroadcast: await can(db, "BROADCAST_GAME", user, row.id),
     /**
      * Referees not already on this game, and only for someone who may assign
-     * one. A global "list every referee" endpoint would be a directory of
-     * people, readable by anyone who found it; this is the same list scoped to
-     * the one decision it exists for.
+     * one — a global list would be a directory of people.
      */
     availableReferees: assign
-      ? (
-          await db
-            .select({ userId: schema.user.id, name: schema.user.name })
-            .from(schema.user)
-            .where(eq(schema.user.role, STORED_ROLE.REFEREE))
-            .all()
-        ).filter((c) => !onThisGame.some((r) => r.userId === c.userId))
+      ? ctx.allReferees.filter((c) => !onThisGame.some((r) => r.userId === c.userId))
       : [],
-    referees: onThisGame.map((r) => ({ userId: r.userId, name: r.name })),
+    referees: onThisGame,
   }
+}
+
+/** One game, with its context fetched for a list of one. */
+async function serializeOne(db: Db, user: SessionUser | null, row: Row): Promise<ApiGame> {
+  const assign = await can(db, "ASSIGN_REFEREE", user, row.id)
+  return serialize(db, user, row, await contextFor(db, [row.id], assign))
 }
 
 export const list = viewer
@@ -148,7 +206,13 @@ export const list = viewer
       orderBy: (g, { asc }) => [asc(g.startsAt)],
     })
     return {
-      games: await Promise.all(rows.map((r) => serialize(context.db, context.user, r))),
+      // One context for the whole list, not two queries per row.
+      games: await (async () => {
+        const ids = rows.map((r) => r.id)
+        const assign = ids.length > 0 && (await can(context.db, "ASSIGN_REFEREE", context.user, ids[0]!))
+        const ctx = await contextFor(context.db, ids, assign)
+        return Promise.all(rows.map((r) => serialize(context.db, context.user, r, ctx)))
+      })(),
       // Resolved at the edge, so a page can show "18:00 your time" without
       // asking the browser and without a library. Null under wrangler dev and
       // in tests, which the page treats as "show the venue clock alone".
@@ -162,12 +226,13 @@ export const get = viewer
   .input(IdInput)
   .output(GameSchema)
   .handler(async ({ context, input }) => {
-    const row = await context.db.query.game.findFirst({
-      where: (g, { eq: is }) => is(g.id, input.id),
-      with: withNames,
-    })
-    if (!row) throw new ORPCError("NOT_FOUND", { message: "Not found" })
-    return serialize(context.db, context.user, row)
+    const row = found(
+      await context.db.query.game.findFirst({
+        where: (g, { eq: is }) => is(g.id, input.id),
+        with: withNames,
+      }),
+    )
+    return serializeOne(context.db, context.user, row)
   })
 
 /**
@@ -311,12 +376,10 @@ async function announce(
 
 /** Read back what was written, so the client never guesses the new row. */
 async function reload(db: Db, user: SessionUser, id: string): Promise<ApiGame> {
-  const row = await db.query.game.findFirst({
-    where: (g, { eq: is }) => is(g.id, id),
-    with: withNames,
-  })
-  if (!row) throw new ORPCError("NOT_FOUND", { message: "Not found" })
-  return serialize(db, user, row)
+  const row = found(
+    await db.query.game.findFirst({ where: (g, { eq: is }) => is(g.id, id), with: withNames }),
+  )
+  return serializeOne(db, user, row)
 }
 
 /**

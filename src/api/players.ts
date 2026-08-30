@@ -29,9 +29,8 @@ import { and, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import * as schema from "../db/schema"
 import { GUARDIAN_TYPE_CODES, POSITION_CODES, type GuardianTypeCode } from "../domain/vocabularies"
-import { authed, authedRoute, can, checkedInHandler, requireAction } from "./base"
+import { authed, authedRoute, can, checkedInHandler, requireAction , found } from "./base"
 import { clean } from "../domain/names"
-import { ORPCError } from "@orpc/server"
 import { objectsHeldBy } from "./relations"
 
 /** The relations that make a player yours. See the note above. */
@@ -199,7 +198,7 @@ export const update = authed
       .set({ ...columns, ...(names ? { names: clean(names) } : {}) })
       .where(eq(schema.player.id, id))
 
-    const row = await context.db
+    const row = found(await context.db
       .select({
         id: schema.player.id,
         names: schema.player.names,
@@ -208,8 +207,7 @@ export const update = authed
       })
       .from(schema.player)
       .where(eq(schema.player.id, id))
-      .get()
-    if (!row) throw new ORPCError("NOT_FOUND", { message: "Not found" })
+      .get())
     return { playerId: row.id, names: row.names as Record<string, string>, jerseyNumber: row.jerseyNumber, positionCode: row.positionCode }
   })
 

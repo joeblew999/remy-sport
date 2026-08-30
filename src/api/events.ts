@@ -19,7 +19,7 @@ import { clean, pivot } from "../domain/names"
 import { z } from "zod"
 import { CreateEventInput, EventSchema, UpdateEventInput } from "../domain/api"
 import { ERRORS } from "./errors"
-import { authed, authedRoute, can, openTo, requireAction, viewer, viewerTimezone, type Db, type SessionUser } from "./base"
+import { authed, authedRoute, can, found, openTo, requireAction, viewer, viewerTimezone, type Db, type SessionUser } from "./base"
 
 const IdInput = z.object({ id: z.string() })
 
@@ -212,11 +212,12 @@ export const get = viewer
   .input(IdInput)
   .output(EventSchema)
   .handler(async ({ context, input }) => {
-    const row = await context.db.query.event.findFirst({
-      where: (event, { eq: is }) => is(event.id, input.id),
-      with: { organizer: { columns: { name: true } } },
-    })
-    if (!row) throw new ORPCError("NOT_FOUND", { message: "Not found" })
+    const row = found(
+      await context.db.query.event.findFirst({
+        where: (event, { eq: is }) => is(event.id, input.id),
+        with: { organizer: { columns: { name: true } } },
+      }),
+    )
     const facts = await factsFor(context.db, [row.id])
     return serialize(context.db, context.user, row, facts.get(row.id))
   })
@@ -315,12 +316,18 @@ export const update = authed
       })
       .where(eq(schema.event.id, id))
 
-    const row = await context.db.query.event.findFirst({
-      where: (event, { eq: is }) => is(event.id, id),
-      with: { organizer: { columns: { name: true } } },
-    })
-    if (!row) throw new ORPCError("NOT_FOUND", { message: "Not found" })
-    return serialize(context.db, context.user, row)
+    const row = found(
+      await context.db.query.event.findFirst({
+        where: (event, { eq: is }) => is(event.id, id),
+        with: { organizer: { columns: { name: true } } },
+      }),
+    )
+    // With the facts, not without. `serialize` defaults them to zero, so an
+    // update used to answer with `teamCount: 0` for an event with fifteen
+    // teams — invisible on screen because the client refetches, and wrong in
+    // the response an API consumer would read.
+    const facts = await factsFor(context.db, [row.id])
+    return serialize(context.db, context.user, row, facts.get(row.id))
   })
 
 export const remove = authed

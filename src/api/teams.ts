@@ -19,7 +19,7 @@ import { clean, pivot } from "../domain/names"
 import { z } from "zod"
 import { CreateTeamInput, TeamSchema, UpdateTeamInput } from "../domain/api"
 import { ERRORS } from "./errors"
-import { authed, authedRoute, can, openTo, requireAction, viewer, type Db, type SessionUser } from "./base"
+import { authed, authedRoute, can, openTo, requireAction, viewer, type Db, type SessionUser , found } from "./base"
 import { holds } from "./relations"
 
 const IdInput = z.object({ id: z.string() })
@@ -77,8 +77,7 @@ export const get = viewer
   .input(IdInput)
   .output(TeamSchema)
   .handler(async ({ context, input }) => {
-    const row = await byId(context.db, input.id)
-    if (!row) throw new ORPCError("NOT_FOUND", { message: "Not found" })
+    const row = found(await byId(context.db, input.id))
     return serialize(context.db, context.user, row)
   })
 
@@ -158,8 +157,7 @@ export const update = authed
       })
       .where(eq(schema.team.id, id))
 
-    const row = await byId(context.db, id)
-    if (!row) throw new ORPCError("NOT_FOUND", { message: "Not found" })
+    const row = found(await byId(context.db, id))
     return serialize(context.db, context.user, row)
   })
 

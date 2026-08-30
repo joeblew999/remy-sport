@@ -11,7 +11,6 @@
  * accept because the model has one for that.
  */
 
-import { ORPCError } from "@orpc/server"
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import * as schema from "../db/schema"
@@ -19,7 +18,7 @@ import { OrgSchema, UpdateOrgInput } from "../domain/api"
 import { clean } from "../domain/names"
 import { ORG_ROLE_CODES } from "../domain/vocabularies"
 import { ERRORS } from "./errors"
-import { authed, authedRoute, can, openTo, pub, requireAction, viewer } from "./base"
+import { authed, authedRoute, can, openTo, pub, requireAction, viewer , found } from "./base"
 
 const IdInput = z.object({ id: z.string() })
 
@@ -47,8 +46,7 @@ export const get = viewer
   .input(IdInput)
   .output(OrgSchema.extend({ canEdit: z.boolean(), canCreateTeam: z.boolean() }))
   .handler(async ({ context, input }) => {
-    const row = await context.db.query.org.findFirst({ where: (o, { eq: is }) => is(o.id, input.id) })
-    if (!row) throw new ORPCError("NOT_FOUND", { message: "Not found" })
+    const row = found(await context.db.query.org.findFirst({ where: (o, { eq: is }) => is(o.id, input.id) }))
     return {
       ...row,
       canEdit: await can(context.db, "EDIT_ORG_PROFILE", context.user, input.id),
@@ -82,8 +80,7 @@ export const update = authed
       .set({ ...columns, ...(names ? { names: clean(names) } : {}) })
       .where(eq(schema.org.id, id))
 
-    const row = await context.db.query.org.findFirst({ where: (o, { eq: is }) => is(o.id, id) })
-    if (!row) throw new ORPCError("NOT_FOUND", { message: "Not found" })
+    const row = found(await context.db.query.org.findFirst({ where: (o, { eq: is }) => is(o.id, id) }))
     return row
   })
 
