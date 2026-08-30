@@ -455,6 +455,30 @@ echo ""
 wait $SERVER
 """
 
+[tasks.verify]
+description = "The fast loop: typecheck and unit tests, in parallel, in about six seconds"
+# The rung that was missing. There was the 28s gate or the tiers by hand, and
+# nothing in between — so the inner loop was either expensive or improvised, and
+# improvised mostly meant skipped.
+#
+# Typecheck is 6.3s and carries most of the signal in a codebase this typed;
+# unit is 0.4s. In parallel that is the length of the typecheck, which is the
+# floor. `test:worker` (11s) and `test:render` (18s) would each more than double
+# it, so this names the one you owe rather than running it — a fast check you
+# actually run beats a thorough one you avoid.
+#
+# `check` is still the pre-commit gate. This is for the thirty times before it.
+run = """
+mise run typecheck ::: test:unit
+
+changed=$(git diff --name-only HEAD 2>/dev/null; git diff --name-only --cached 2>/dev/null)
+tier=""
+case "$changed" in *src/web/*) tier="test:render" ;; esac
+case "$changed" in *src/api/*|*src/db/*|*src/domain/*) tier="test:worker" ;; esac
+[ -n "$tier" ] && echo "  verify: you touched code $tier covers — run it before you commit"
+exit 0
+"""
+
 [tasks.check]
 description = "Type check, dead code, and documented paths — the three things that rot quietly"
 # `web:build` is a dependency rather than a line in the script, so mise builds
@@ -551,7 +575,14 @@ run = "bun scripts/docs-check.ts"
 
 [tasks."test:worker"]
 description = "Worker tests in workerd — real D1, no wrangler dev, no browser"
-depends     = ["install"]
+# `web:build`, not just `install`. These tests reach the SPA through Miniflare's
+# ASSETS binding, which reads dist/web off the disk — so with no bundle, or a
+# bundle half-written by the dev server's watcher, they fail on a missing asset
+# and look like a real regression. That happened three times in one session and
+# cost a debugging detour each time.
+#
+# It is a cached task, so this is free when the bundle is current.
+depends     = ["install", "web:build"]
 # The tier this repo was missing. 61 of the 151 Playwright specs never opened a
 # browser: they were HTTP calls against the Worker, paying for a wrangler dev
 # server and a Playwright runner to make them. Here the Worker is loaded into
@@ -634,11 +665,23 @@ echo "--- done (nothing above = it typechecks) ---"
 description = "Every tier, with the wall-clock time each one costs"
 # The number that matters is where the seconds go. Anything that grows here is
 # a test in the wrong tier — `mise run test:tiers` says which.
+#
+# Output is captured rather than discarded, and replayed when a tier fails. The
+# earlier `>/dev/null 2>&1` printed nothing but `test:worker FAILED`, so finding
+# out *which* test failed meant running the tier again by hand — the timing
+# report cost you the failure report.
 run = """
 set -e
+log="$(mktemp -t test-all)"
+trap 'rm -f "$log"' EXIT
 for t in test:unit test:worker test:render test; do
   start=$(date +%s)
-  mise run $t >/dev/null 2>&1 || { echo "  $t FAILED"; exit 1; }
+  if ! mise run $t >"$log" 2>&1; then
+    echo "  $t FAILED"
+    echo
+    cat "$log"
+    exit 1
+  fi
   printf "  %-14s %ss\n" "$t" "$(( $(date +%s) - start ))"
 done
 """
@@ -904,7 +947,15 @@ run         = "bun scripts/versions.ts"
 
 [tasks."dev:ensure"]
 description = "Make sure the dev server is up, starting it if not. Idempotent — use this, never pkill"
-depends     = ["setup"]
+# No `depends` on purpose. It used to declare `setup` and then run `mise run
+# dev`, which declares `setup` as well — and only 3 of setup's 7 dependencies
+# are cached, so migrations and `playwright install` ran twice on every restart.
+# The `dev` it delegates to still resolves `setup`, so nothing is skipped; it is
+# resolved once instead of twice.
+#
+# The early exit matters more: when a server is already up this now does one
+# curl, where before it ran the whole of `setup` before discovering there was
+# nothing to do.
 # The one way to get a dev server. Use this instead of starting things by hand.
 #
 # It used to launch a bare `wrangler dev --host localhost`: no SPA watcher, no
@@ -961,12 +1012,25 @@ description = "Stop the dev server and everything it started (idempotent)"
 # still writing dist/web for a server that was gone, and a tunnel still holding
 # the public hostname open. Ctrl-C on `dev` handles this through its trap; this
 # is for when the process is not in front of you.
+#
+# Scoped to this checkout by working directory, because `pkill -f "wrangler
+# dev"` matches every wrangler on the machine: another project's dev server, and
+# — worse, because it looks like a flaky test — the one Playwright starts for
+# itself as its `webServer`. Killing that mid-run fails the e2e tier for reasons
+# that have nothing to do with the code.
 run = """
 STOPPED=""
 for pat in "wrangler dev" "vite build --config src/web/vite.config.ts --watch" "cloudflared tunnel run"; do
-  pkill -f "$pat" 2>/dev/null && STOPPED="yes"
+  for pid in $(pgrep -f "$pat" 2>/dev/null); do
+    # The process's own cwd, which is the only reliable way to tell whose
+    # wrangler this is — the command line does not name the project.
+    cwd=$(lsof -a -p "$pid" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -1)
+    case "$cwd" in
+      "{{config_root}}"|"{{config_root}}"/*) kill "$pid" 2>/dev/null && STOPPED="yes" ;;
+    esac
+  done
 done
-[ -n "$STOPPED" ] && echo "dev:stop: stopped" || echo "dev:stop: nothing running"
+[ -n "$STOPPED" ] && echo "dev:stop: stopped" || echo "dev:stop: nothing running here"
 """
 
 [tasks.seed]
