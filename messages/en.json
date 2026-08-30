@@ -207,6 +207,8 @@
   "orgs_sub": "Schools, clubs and federations. Open one to edit its profile or manage who belongs to it.",
   "parents_family": "Parents & family",
   "play_by_play": "Play-by-play",
+  "player_jersey": "#{n}",
+  "player_no_team": "Not on a team",
   "player_stats": "Player stats →",
   "profile_crumb": "PROFILE",
   "profile_no_events": "You are not organising any events yet.",
@@ -340,6 +342,8 @@
   "your_events": "Your events",
   "your_live_game": "Your live game",
   "your_permissions": "Your permissions (event)",
+  "your_players": "Your players",
+  "your_players_none": "You are not listed as a guardian for anyone.",
   "your_team": "Your team",
   "your_time": "{time} your time"
 }

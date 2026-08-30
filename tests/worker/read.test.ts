@@ -625,3 +625,52 @@ describe("A team's coaching staff", () => {
     expect(found.name.length).toBeGreaterThan(0)
   })
 })
+
+describe("The players you are responsible for", () => {
+  /**
+   * The `guardians` table has been seeded since the fixtures were written and
+   * nothing read it. The PO grants a guardian three things — register their
+   * child for an event, edit their profile, hear about them — and not one was
+   * reachable, because no screen knew a guardian existed.
+   */
+  const guardianships = SEED_RELATIONSHIPS.guardians
+  const parent = SEED_ENTITIES.users.find((u) => u.id === guardianships[0]!.userId)!
+
+  it("returns every player a guardian is responsible for, and their relationship", async () => {
+    const cookie = await signIn(parent.email)
+    const { players } = (await (await api("/api/players/mine", { cookie })).json()) as {
+      players: { playerId: string; guardianTypeCode: string | null; canEdit: boolean }[]
+    }
+
+    const mine = guardianships.filter((g) => g.userId === parent.id)
+    expect(mine.length, "the fixtures seed more than one child").toBeGreaterThan(1)
+    for (const g of mine) {
+      const found = players.find((p) => p.playerId === g.playerId)
+      expect(found, `${g.playerId} is missing`).toBeTruthy()
+      // Parent, grandparent, legal guardian — the model distinguishes them and
+      // so does this. A list that flattened them would lose what the table says.
+      expect(found!.guardianTypeCode).toBe(g.guardianTypeCode)
+      // The grant the list exists to lead to, asked per player rather than
+      // assumed from being on it.
+      expect(found!.canEdit, "a guardian may edit their child's profile").toBe(true)
+    }
+  })
+
+  it("returns nobody else's children", async () => {
+    // The authorisation is the query — every row is one the caller holds
+    // GUARDIAN or SELF on. This is what proves that rather than assuming it.
+    const stranger = SEED_ENTITIES.users.find(
+      (u) => u.roleCode === "REFEREE" && u.statusCode === "ACTIVE",
+    )!
+    const cookie = await signIn(stranger.email)
+    const { players } = (await (await api("/api/players/mine", { cookie })).json()) as {
+      players: { playerId: string }[]
+    }
+    const others = guardianships.filter((g) => g.userId !== stranger.id).map((g) => g.playerId)
+    for (const id of others) expect(players.map((p) => p.playerId)).not.toContain(id)
+  })
+
+  it("refuses a caller with no session at all", async () => {
+    expect((await api("/api/players/mine")).status).not.toBe(200)
+  })
+})

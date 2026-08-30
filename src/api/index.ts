@@ -18,6 +18,7 @@ import * as health from "./health"
 import * as domain from "./domain"
 import * as moq from "./moq"
 import * as notifications from "./notifications"
+import * as playersApi from "./players"
 
 export const router = {
   /**
@@ -92,7 +93,14 @@ export const router = {
   venues: domain.venues,
   eventTeams: domain.eventTeams,
   eventVenues: domain.eventVenues,
-  players: domain.players,
+  players: {
+    ...domain.players,
+    /**
+     * Whose players they are — the guardians table, which nothing read until
+     * 2026-08-30. See src/api/players.ts.
+     */
+    mine: playersApi.mine,
+  },
   playerTeams: domain.playerTeams,
   teamCoaches: domain.teamCoaches,
   eventPlayers: domain.eventPlayers,

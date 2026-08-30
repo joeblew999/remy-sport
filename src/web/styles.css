@@ -919,6 +919,15 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   border: 1px dashed var(--rule);
 }
 
+/* A jersey number beside a name — monospace so two digits do not shift the
+   name, which is what a column of them looks wrong without. */
+.player-jersey {
+  margin-left: 8px; font-family: "IBM Plex Mono", monospace;
+  font-size: 11px; color: var(--ink-3); font-weight: 400;
+}
+.row-button:disabled { cursor: default; }
+.row-button:disabled:hover { background: transparent; }
+
 /* A label and its value on one line — the shape a facts list wants. */
 .fact-row {
   display: flex; align-items: baseline; justify-content: space-between;

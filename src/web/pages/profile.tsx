@@ -2,6 +2,7 @@ import { useEvents, useLiveGames } from "../lib/data";
 import { useSession } from "../lib/session";
 import { NotificationSettings } from "../components/notification-settings";
 import { Invitations } from "../components/invitations";
+import { YourPlayers } from "../components/your-players";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
 
@@ -90,6 +91,11 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
             {/* Above "Your events" because it is the thing to act on, and
                 because accepting one moves an event into the list below it. */}
             <Invitations />
+
+            {/* The `guardians` table, which no screen had ever read. A parent
+                signing in wants to know which team their child is on — this is
+                the first thing on this page that answers it. */}
+            <YourPlayers goto={goto} />
 
             <div className="section-h">
               <h2>{m.your_events()}</h2>

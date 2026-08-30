@@ -160,6 +160,62 @@ export async function usersHolding(
 }
 
 /**
+ * The other way round: which objects does *this user* hold `relationCode` on?
+ *
+ * `holds` answers it for one object and `usersHolding` inverts it for one
+ * relation; this is the third face of the same query and the one every "yours"
+ * list in the GUI actually wants. Without it a page asking "which players am I
+ * guardian to" had to fetch every player and ask `can` about each — a table
+ * scan and N round trips to answer a question SQL can answer in one.
+ *
+ * The same builder as `usersHolding`, with the two conditions swapped: filter
+ * on the user column, select the object column. Sharing the shape matters more
+ * than the six lines it saves — a relation's `throughTable`, `filterColumn` and
+ * `activeToColumn` have to be interpreted identically in all three, or the
+ * model means different things depending on which direction you ask from.
+ *
+ * Empty for a platform relation, which has no object to return.
+ */
+export async function objectsHeldBy(
+  db: Db,
+  relationCode: string,
+  userId: string,
+): Promise<string[]> {
+  const r = RELATION.find((x) => x.code === relationCode)
+  if (!r || r.via !== "table" || !r.sourceTable || !r.userColumn || !r.objectColumn) return []
+
+  const src = sql.identifier(tableFor(r.sourceTable))
+  const objCol = sql.identifier(column(r.sourceTable, r.objectColumn))
+  const userCol = sql.identifier(column(r.sourceTable, r.userColumn))
+
+  let from = sql`${src}`
+  let userSide = sql`${src}.${userCol}`
+  const selected = sql`${src}.${objCol}`
+
+  if (r.throughTable) {
+    const through = sql.identifier(tableFor(r.throughTable))
+    const fk = sql.identifier(r.throughColumn!)
+    from = sql`${src} JOIN ${through} ON ${through}.${sql.identifier("id")} = ${src}.${fk}`
+    userSide = sql`${through}.${userCol}`
+  }
+
+  const conditions = [sql`${userSide} = ${userId}`]
+  if (r.filterColumn) {
+    conditions.push(sql`${src}.${sql.identifier(r.filterColumn)} = ${r.filterValue}`)
+  }
+  if (r.activeToColumn) {
+    const to = sql.identifier(r.activeToColumn)
+    const today = new Date().toISOString().slice(0, 10)
+    conditions.push(sql`(${src}.${to} IS NULL OR ${src}.${to} >= ${today})`)
+  }
+
+  const rows = await db.all<{ objectId: string }>(
+    sql`SELECT DISTINCT ${selected} AS "objectId" FROM ${from} WHERE ${sql.join(conditions, sql` AND `)}`,
+  )
+  return rows.map((row) => row.objectId)
+}
+
+/**
  * Everyone the model says may receive `action` about `objectId`.
  *
  * The union of the people holding any relation the action is granted to. This is

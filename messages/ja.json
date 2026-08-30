@@ -207,6 +207,8 @@
   "orgs_sub": "学校・クラブ・連盟。開くとプロフィールの編集や所属メンバーの管理ができます。",
   "parents_family": "保護者・ご家族",
   "play_by_play": "実況",
+  "player_jersey": "#{n}",
+  "player_no_team": "チーム未所属",
   "player_stats": "選手成績 →",
   "profile_crumb": "プロフィール",
   "profile_no_events": "主催しているイベントはまだありません。",
@@ -340,6 +342,8 @@
   "your_events": "あなたの大会",
   "your_live_game": "あなたの試合",
   "your_permissions": "あなたの権限（大会）",
+  "your_players": "あなたの選手",
+  "your_players_none": "保護者として登録されている選手はいません。",
   "your_team": "あなたのチーム",
   "your_time": "{time}（あなたの現地時刻）"
 }
