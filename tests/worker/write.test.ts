@@ -1364,3 +1364,66 @@ describe("Entering a player into an event", () => {
     expect(((await res.json()) as { withdrawn: boolean }).withdrawn).toBe(true)
   })
 })
+
+describe("Correcting a player's profile", () => {
+  const guardianship = SEED_RELATIONSHIPS.guardians[0]!
+  const parent = SEED_ENTITIES.users.find((u) => u.id === guardianship.userId)!
+
+  it("lets a guardian change the squad number and position", async () => {
+    const cookie = await signIn(parent.email)
+    const res = await api(`/api/players/${guardianship.playerId}`, {
+      method: "PUT",
+      body: JSON.stringify({ id: guardianship.playerId, jerseyNumber: 42, positionCode: "SG" }),
+      cookie,
+    })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { jerseyNumber: number; positionCode: string }
+    expect(body.jerseyNumber).toBe(42)
+    expect(body.positionCode).toBe("SG")
+  })
+
+  it("refuses somebody with no relation to the player", async () => {
+    const stranger = SEED_ENTITIES.users.find(
+      (u) => u.roleCode === "REFEREE" && u.statusCode === "ACTIVE",
+    )!
+    const cookie = await signIn(stranger.email)
+    const res = await api(`/api/players/${guardianship.playerId}`, {
+      method: "PUT",
+      body: JSON.stringify({ id: guardianship.playerId, jerseyNumber: 1 }),
+      cookie,
+    })
+    expect(res.status).toBe(403)
+  })
+
+  it("refuses a squad number that is not one", async () => {
+    // FIBA allows 0-99 and the column is a plain integer, so the schema is the
+    // only place that rule exists.
+    const cookie = await signIn(parent.email)
+    for (const n of [-1, 100]) {
+      const res = await api(`/api/players/${guardianship.playerId}`, {
+        method: "PUT",
+        body: JSON.stringify({ id: guardianship.playerId, jerseyNumber: n }),
+        cookie,
+      })
+      expect(res.status, `jersey ${n}`).toBe(400)
+    }
+  })
+
+  it("keeps the other languages when only one name is sent", async () => {
+    // `player` has no `name` pivot column — event, team and org all do — so an
+    // earlier version wrote one by habit and would have failed at the database.
+    const cookie = await signIn(parent.email)
+    const res = await api(`/api/players/${guardianship.playerId}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        id: guardianship.playerId,
+        names: { en: "Renamed Player", th: "ชื่อไทย" },
+      }),
+      cookie,
+    })
+    expect(res.status).toBe(200)
+    const { names } = (await res.json()) as { names: Record<string, string> }
+    expect(names.en).toBe("Renamed Player")
+    expect(names.th).toBe("ชื่อไทย")
+  })
+})

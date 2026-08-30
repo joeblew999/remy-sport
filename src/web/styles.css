@@ -919,6 +919,33 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   border: 1px dashed var(--rule);
 }
 
+/* Editing a player, inline in the row it replaces. */
+.player-edit {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 14px 18px; border-bottom: 1px solid var(--rule);
+}
+.player-edit input[type="number"] { width: 5em; }
+/* A row that navigates, with a second control beside it — siblings, because
+   interactive content cannot nest. */
+.player-row {
+  display: flex; align-items: stretch;
+  border-bottom: 1px solid var(--rule);
+}
+.player-row:last-child { border-bottom: none; }
+.row-main {
+  flex: 1; text-align: left; padding: 14px 18px;
+  background: transparent; border: none; cursor: pointer; color: inherit;
+}
+.row-main:hover:not(:disabled) { background: var(--paper-2); }
+.row-main:disabled { cursor: default; }
+.row-edit {
+  flex: none; padding: 0 18px; background: transparent; border: none;
+  font-family: "IBM Plex Mono", monospace; font-size: 10px;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent);
+  cursor: pointer;
+}
+.row-edit:hover { background: var(--paper-2); }
+
 /* A jersey number beside a name — monospace so two digits do not shift the
    name, which is what a column of them looks wrong without. */
 .player-jersey {
