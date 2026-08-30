@@ -554,3 +554,90 @@ describe("Web Push delivery", () => {
     expect(left).toHaveLength(1)
   })
 })
+
+describe("A guardian hears about their own child", () => {
+  /**
+   * `RECEIVE_PLAYER_NOTIFICATIONS` is granted to GUARDIAN and, until roster
+   * changes started announcing, a guardian received nothing about their child
+   * ever: they are not a follower of the team, not a coach and not on the
+   * squad, so every audience the system computed excluded them. The model had
+   * said for months that a parent should hear about their own child and no code
+   * had asked.
+   *
+   * This is the whole point of `notify` taking targets rather than a team —
+   * "who follows this team" and "who is responsible for this player" are
+   * different questions that overlap only by accident.
+   *
+   * **Asserted on endpoints, not on `sent`.** `isolatedStorage` is per file, so
+   * a guardianship created by one test here is still in the database for the
+   * next one; a count is therefore the sum of everything the file has set up so
+   * far. The first version of these asserted counts and failed for exactly that
+   * reason, which reads as a privacy bug and is not one. Who received it is the
+   * real question anyway.
+   */
+  async function makePlayer(id: string) {
+    await db()
+      .insert(schema.player)
+      .values({
+        id,
+        userId: null,
+        jerseyNumber: 1,
+        positionCode: "PG",
+        dob: "2010-01-01",
+        names: { en: "Child" },
+      })
+      .onConflictDoNothing()
+  }
+
+  async function guards(userId: string, playerId: string) {
+    await db()
+      .insert(schema.guardian)
+      .values({ userId, playerId, guardianTypeCode: "PARENT" })
+      .onConflictDoNothing()
+  }
+
+  const reached = () => captured.map((c) => c.endpoint)
+
+  it("reaches a guardian who follows nothing and coaches nobody", async () => {
+    const parent = await makeUser("push-guardian")
+    const device = await subscriber("https://push.test/guardian")
+    await registerDevice(parent, device, "en")
+    await makePlayer("child-a")
+    await guards(parent, "child-a")
+    // Deliberately no `follows(...)`: the guardianship is the only relation,
+    // and before this every audience the system computed excluded them.
+
+    await send([{ objectTypeCode: "PLAYER", objectId: "child-a" }])
+    expect(reached(), "a guardian is the player's audience").toContain(
+      "https://push.test/guardian",
+    )
+  })
+
+  it("does not reach somebody who is guardian to a different child", async () => {
+    const other = await makeUser("push-other-guardian")
+    const device = await subscriber("https://push.test/other-guardian")
+    await registerDevice(other, device, "en")
+    await makePlayer("child-b")
+    await guards(other, "child-b")
+
+    await send([{ objectTypeCode: "PLAYER", objectId: "child-a" }])
+    expect(reached()).not.toContain("https://push.test/other-guardian")
+  })
+
+  it("sends one notification to a coach who is also the parent", async () => {
+    // Two targets, one person. `notify` unions the audiences — without that a
+    // parent who follows the team gets the same card twice.
+    const both = await makeUser("push-coach-parent")
+    const device = await subscriber("https://push.test/coach-parent")
+    await registerDevice(both, device, "en")
+    await makePlayer("child-c")
+    await guards(both, "child-c")
+    await follows(both, "TEAM", "team-both")
+
+    await send([
+      { objectTypeCode: "TEAM", objectId: "team-both" },
+      { objectTypeCode: "PLAYER", objectId: "child-c" },
+    ])
+    expect(reached().filter((e) => e === "https://push.test/coach-parent")).toHaveLength(1)
+  })
+})

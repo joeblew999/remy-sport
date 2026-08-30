@@ -21,7 +21,11 @@ import { COACH_ROLE_CODES, type CoachRoleCode } from "../domain/vocabularies"
 import { z } from "zod"
 import * as schema from "../db/schema"
 import { ERRORS } from "./errors"
-import { authed, authedRoute, can, openTo, requireAction, viewer } from "./base"
+import { authed, authedRoute, can, openTo, requireAction, viewer, type Db } from "./base"
+import { notify } from "./push"
+import { pick, type Names } from "../domain/names"
+import { m } from "../paraglide/messages.js"
+import type { Bindings } from "../types"
 
 /** ISO day. The fixtures record registration and roster dates, not timestamps. */
 const today = () => new Date().toISOString().slice(0, 10)
@@ -198,6 +202,7 @@ export const addPlayer = authed
       .values({ teamId: input.teamId, playerId: input.playerId, fromDate, toDate: null })
       .onConflictDoNothing()
 
+    await announceRoster(context.db, context.env, "added", input, context.user.id)
     return { teamId: input.teamId, playerId: input.playerId, fromDate }
   })
 
@@ -226,8 +231,76 @@ export const removePlayer = authed
         ),
       )
     if (res.meta.changes === 0) throw errors.NOT_ON_ROSTER()
+    await announceRoster(context.db, context.env, "removed", input, context.user.id)
     return { playerId: input.playerId, toDate }
   })
+
+/**
+ * Tell the team *and the player* that the squad changed.
+ *
+ * `ROSTER_CHANGE` has been a declared notification type since the fixtures were
+ * written and nothing ever sent one. The team half is the obvious audience —
+ * followers, coaches, the manager.
+ *
+ * **The player half is the one that matters.** `RECEIVE_PLAYER_NOTIFICATIONS`
+ * is granted to GUARDIAN, and until this existed a guardian received nothing
+ * about their child, ever: they are not a follower of the team, not a coach and
+ * not on the squad, so every audience the system computed excluded them. The
+ * model had said for months that a parent should hear about their own child and
+ * no code had ever asked.
+ *
+ * Two targets rather than one, because they are different questions. "Who
+ * follows this team" and "who is responsible for this player" overlap only by
+ * accident, and `notify` unions them — so a coach who is also a parent gets one
+ * notification rather than two.
+ *
+ * Never throws. A roster edit that fails because a push service is down would
+ * be a worse product than one that goes unannounced.
+ */
+async function announceRoster(
+  db: Db,
+  env: Bindings,
+  change: "added" | "removed",
+  input: { teamId: string; playerId: string },
+  actorId: string,
+): Promise<void> {
+  const [team, player] = await Promise.all([
+    db
+      .select({ names: schema.team.names })
+      .from(schema.team)
+      .where(eq(schema.team.id, input.teamId))
+      .get(),
+    db
+      .select({ names: schema.player.names })
+      .from(schema.player)
+      .where(eq(schema.player.id, input.playerId))
+      .get(),
+  ])
+  if (!team || !player) return
+
+  await notify(db, env, {
+    typeCode: "ROSTER_CHANGE",
+    targets: [
+      { objectTypeCode: "TEAM", objectId: input.teamId },
+      { objectTypeCode: "PLAYER", objectId: input.playerId },
+    ],
+    // One collapse key per team: three players added in a row replaces rather
+    // than stacking three cards a coach has to dismiss one at a time.
+    tag: `roster:${input.teamId}`,
+    exclude: actorId,
+    render: (locale) => ({
+      title: (change === "added" ? m.push_roster_added_title : m.push_roster_removed_title)(
+        {
+          player: pick(player.names as Names, locale),
+          team: pick(team.names as Names, locale),
+        },
+        { locale },
+      ),
+      body: m.push_roster_body({}, { locale }),
+      url: `/#/team/${input.teamId}`,
+    }),
+  })
+}
 
 /**
  * The current squad.
