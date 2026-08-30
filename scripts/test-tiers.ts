@@ -5,7 +5,7 @@
  * the runner is configured — optimising the runner bought 2.8m -> 1.6m and
  * then stopped dead. This makes the only number that matters visible.
  *
- * Plan: docs/dev/test-migration.md
+ * The tier rule is in AGENTS.md; this reports where the tests actually are.
  */
 import { readdirSync, readFileSync } from "fs"
 import { join, resolve } from "path"
@@ -47,4 +47,4 @@ if (browserless.length) {
   console.log("\nstill browserless in the e2e tier — convert these first:\n")
   for (const [f, n] of browserless) row(f.replace("tests/e2e/", ""), n)
 }
-console.log("\nplan: docs/dev/test-migration.md\n")
+console.log("\nthe rule for choosing a tier is in AGENTS.md\n")

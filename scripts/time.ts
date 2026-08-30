@@ -30,16 +30,30 @@
  * costs; the spread between it and p95 is whether that number can be trusted.
  */
 
-const BASE = process.env.DEV_URL ?? "http://127.0.0.1:8787"
-
 const args = process.argv.slice(2)
-const path = args.find((a) => a.startsWith("/"))
+
+/**
+ * A path against the dev server, or a whole URL against anything.
+ *
+ * The URL form is not a convenience. mise sets `DEV_URL` in its own `[env]`,
+ * which beats an exported one — so `DEV_URL=https://... mise run time /api/health`
+ * silently measured localhost and reported the tunnel at 2.2ms. It is under
+ * 100ms, and the README had been claiming 1.4s. Three numbers, no two agreeing,
+ * from a tool whose entire job is to settle that kind of question.
+ *
+ *   mise run time /api/health
+ *   mise run time https://dev-remy.ubuntusoftware.net/api/health
+ */
+const target = args.find((a) => a.startsWith("/") || a.startsWith("http"))
 const runs = Number(args.find((a) => /^\d+$/.test(a)) ?? 10)
 
-if (!path) {
-  console.error("usage: mise run time <path> [runs]   e.g. mise run time /api/health 20")
+if (!target) {
+  console.error("usage: mise run time <path|url> [runs]   e.g. mise run time /api/health 20")
   process.exit(2)
 }
+
+const BASE = process.env.DEV_URL ?? "http://127.0.0.1:8787"
+const path = target
 
 /**
  * A cookie, when the endpoint needs one.
@@ -58,7 +72,8 @@ const headers: Record<string, string> = process.env.COOKIE
   ? { cookie: process.env.COOKIE }
   : {}
 
-const url = `${BASE}${path}`
+// An absolute URL is used as given; a path hangs off the dev server.
+const url = path.startsWith("http") ? path : `${BASE}${path}`
 const ms: number[] = []
 const statuses = new Map<number, number>()
 let bytes = 0

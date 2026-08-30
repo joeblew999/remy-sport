@@ -174,10 +174,13 @@ budget trips, find what got slower before raising the ceiling.**
 Measured, so it is not re-guessed: more Playwright workers do nothing (6, 10 and
 12 are all ~14s), more vitest parallelism does nothing (10.05s vs 10.02s), and
 the render tier's cost was never `vite preview` — it starts in 338ms; it was
-Google Fonts. What works is moving tests to the right tier and merging worker
-files (~3s of workerd startup each). **Do not "optimise the runner"** — a whole
-session went into storageState, worker counts and project ordering and stopped
-dead.
+Google Fonts. Nor does `isolatedStorage: false` help, and it costs per-file
+isolation; nor does guarding the migration batch on the schema already existing,
+because the cost is not SQL; nor does a committed `snapshot.sql` of the seeded
+database, since `/api/seed` costs 99ms. What works is moving tests to the right
+tier and merging worker files (~3s of workerd startup each). **Do not "optimise
+the runner"** — a whole session went into storageState, worker counts and
+project ordering and stopped dead.
 
 **Four import rules, enforced by `mise run check:deps`.** The reasoning for each
 sits beside it in [.dependency-cruiser.cjs](.dependency-cruiser.cjs), where the
@@ -477,6 +480,15 @@ If a test signs in only so a page will render, seed the cache instead —
 payloads, which are typed against the real contract so a drifted fixture is a
 compile error rather than a browser failure thirty seconds later.
 
+**Nothing is mocked in `tests/worker/`** — real Better Auth, real OTP, real D1
+with the real migrations. Those tests assert authorization, and a mocked session
+would assert only that the mock was written correctly.
+
+All three tsconfigs are typechecked, `tsconfig.tests.json` included. Tests were
+in none of them until 2026-08-30, so the compile-error promise above was not
+kept by anything; adding a field to `ApiEvent` left the fixtures short of it and
+the gate stayed green.
+
 ## Conventions
 
 - **If you change your mind while building, re-read the section of this file it
@@ -495,7 +507,6 @@ compile error rather than a browser failure thirty seconds later.
 
 There is almost none, on purpose.
 
-- [docs/dev/test-migration.md](docs/dev/test-migration.md) — the unfinished work
 - [docs/dev/roadmap.md](docs/dev/roadmap.md) — what is being built, in what order
 - biz [data/access/matrix.md](https://github.com/joeblew999/remy-sport-biz/blob/main/data/access/matrix.md)
   — who may do what

@@ -17,9 +17,9 @@ built bundle at three addresses:
 
 | | |
 |---|---|
-| `http://localhost:8787` | this machine — 7ms, and what the tests run against |
+| `http://localhost:8787` | this machine — a few ms, and what the tests run against |
 | `http://<lan-ip>:8787` | same wifi, for a phone. Printed on startup |
-| `https://dev-remy.ubuntusoftware.net` | fixed HTTPS, works anywhere — ~1.4s, so for looking, not iterating |
+| `https://dev-remy.ubuntusoftware.net` | fixed HTTPS, works anywhere. ~30× localhost, so for looking as much as iterating |
 
 The tunnel creates itself on first run. There is no separate setup step and
 nothing to remember; without a `CLOUDFLARE_API_TOKEN` it is skipped and `dev`
@@ -34,7 +34,7 @@ session and watch the result on the same handset.
 
 **Reload to see a change.** The rebuild is automatic and takes a few seconds;
 the page in front of you is not. There is deliberately no live reload — a poller
-never lets `networkidle` settle, which would hang all 92 screenshots in
+never lets `networkidle` settle, which would hang every screenshot in
 `mise run shots`.
 
 Sign in at `#/login`: all twelve seeded people, one click, no inbox. Ctrl-C
@@ -44,13 +44,19 @@ Everything else is a task. `mise tasks` lists them with what each one does —
 that is the documentation, because it cannot go stale the way a list here would.
 
 ```bash
-mise run check               # types + unit + worker + dead code + docs + conventions
-mise run test:unit           # pure logic, no runtime          ~30ms
-mise run test:worker         # the Worker in workerd, real D1  ~1.5s
-mise run test:render         # rendering, no backend at all    ~9s
-mise run test                # a real browser + real Worker    ~11s
+mise run verify              # the fast loop: types + unit, in parallel
+mise run check               # the gate: types + every tier + dead code + docs
+mise run test:unit           # pure logic, no runtime
+mise run test:worker         # the Worker in workerd, real D1
+mise run test:render         # rendering, no backend at all
+mise run test                # a real browser + real Worker
+mise run time /api/health    # min/p50/p95/max over N runs
 mise run deploy              # check -> test -> deploy -> migrate -> seed -> verify
 ```
+
+No timings here. Every tier prints its own against a budget on each run, and
+`mise run test:all` prints all four — which is why the numbers that used to sit
+in this block had drifted to between two and seven times wrong.
 
 ## Seeing what it did
 
