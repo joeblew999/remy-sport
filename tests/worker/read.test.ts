@@ -151,26 +151,6 @@ describe("Session listing is per-user", () => {
   })
 })
 
-describe("The Worker serves the SPA shell", () => {
-  it("returns the document at /", async () => {
-    const res = await api("/")
-    expect(res.status).toBe(200)
-    const body = await res.text()
-    expect(body).toContain('<div id="root">')
-    expect(body).toContain("TWEAK_DEFAULTS")
-  })
-
-  it("serves the hashed JS bundle with the right content type", async () => {
-    const shell = await (await api("/")).text()
-    const src = shell.match(/src="\.\/(assets\/[^"]+\.js)"/)?.[1]
-    expect(src, "the shell should reference a hashed JS bundle").toBeTruthy()
-
-    const res = await api(`/${src}`)
-    expect(res.status).toBe(200)
-    expect(res.headers.get("content-type")).toContain("javascript")
-  })
-})
-
 /**
  * ADR 015. The controlled vocabularies were Zod enums hand-copied from
  * remy-sport-biz into route files with nothing checking the copy. They are
@@ -358,11 +338,12 @@ describe("Associated Domains / App Links", () => {
 describe("Routing — what the Worker serves and what it refuses", () => {
   // Moved from tests/home.spec.ts. These are HTTP status assertions; a browser
   // was only ever transport for them.
-  it("serves the SPA document at /", async () => {
-    const res = await api("/")
-    expect(res.status).toBe(200)
-    expect(await res.text()).toContain('<div id="root">')
-  })
+  //
+  // Serving the document at / lived here too, asserting the same 200 and the
+  // same `<div id="root">` as tests/worker/assets.test.ts does. One of the two
+  // was enough, and the one that reaches ASSETS for a 2xx belongs over there.
+  // A 404 assertion does not: a starved ASSETS answers 404 as well, so this
+  // cannot fail that way.
 
   it("does not resolve the deleted harness paths, or redirect them", async () => {
     // No aliases for /app, /login or /dashboard. There are no users, so nothing

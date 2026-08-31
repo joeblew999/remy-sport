@@ -562,12 +562,20 @@ run = """
 # Everything else goes together, render included: it drives WebKit against a
 # static `vite preview` and touches no Worker binding, so it is happy under
 # load. It also dominates the group at ~15s, which the cheap checks fill.
-mise run test:render ::: typecheck:clean ::: test:unit \
+# The two heavy tiers together, then everything cheap. Not one group of fifteen:
+# with worker and render in the same pile as thirteen other jobs the gate was
+# 33s, because both of them slowed down more than the cheap work saved. Two
+# phases is 27s, from ~37s serial.
+#
+# BUDGET_SHARED tells check-budget which ceiling applies. `test:worker` is 12.6s
+# alone and 26.8s beside render — the gate doing its job, not a regression, and
+# one ceiling cannot describe both.
+BUDGET_SHARED=1 mise run test:render ::: test:worker
+
+mise run typecheck:clean ::: test:unit ::: test:worker:assets \
   ::: check:dead ::: check:docs ::: check:authz ::: check:conventions \
   ::: check:seed ::: check:domain ::: check:tables ::: check:assets \
   ::: check:messages ::: check:deps ::: check:i18n ::: i18n:validate
-
-mise run test:worker
 """
 
 [tasks."test:unit"]
@@ -644,9 +652,28 @@ run = """
 # slower went unnoticed for a whole session because nothing ever said how long
 # it took — see scripts/check-budget.ts.
 start=$(date +%s%N)
-bun x vitest run --config vitest.config.ts
+# Everything except the three ASSETS assertions, which live in
+# tests/worker/assets.test.ts and run alone — see `test:worker:assets`. Excluded
+# rather than left in, so this tier can run beside the rest of the gate.
+bun x vitest run --config vitest.config.ts --exclude "tests/worker/assets.test.ts"
 bun scripts/check-budget.ts worker $(( ($(date +%s%N) - start) / 1000000 ))
 """
+
+[tasks."test:worker:assets"]
+description = "The two worker tests that reach the SPA through Miniflare's ASSETS server"
+depends     = ["install", "web:build"]
+# These want the machine to themselves. Miniflare's local ASSETS server answers
+# 404 under load — not one conflicting task, cumulative load — so `check` runs
+# every other tier in parallel and then this, alone.
+#
+# It used to be the whole worker tier standing aside: 13.4s of a ~37s gate, for
+# two tests in one file out of thirteen. The gate now pays one file's workerd
+# startup instead of the tier's.
+#
+# The failure is local infrastructure, not product behaviour: on Cloudflare,
+# ASSETS is a platform service and cannot be starved by a laptop compiling
+# TypeScript. Masking it with a retry would hide a real 404 the day one appears.
+run = "bun x vitest run --config vitest.config.ts tests/worker/assets.test.ts"
 
 [tasks."data:coverage"]
 description = "Which of the model's vocabulary the fixtures exercise, and which fields have no column"
