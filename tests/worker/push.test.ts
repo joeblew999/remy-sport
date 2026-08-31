@@ -27,6 +27,7 @@ import { notify } from "../../src/api/push"
 import { actorFor, api, signIn } from "./helpers"
 import { SEED_ENTITIES } from "../../src/domain/model/entities"
 import { teamsCoachedBy } from "../helpers/fixtures"
+import { recorder, type Point } from "../helpers/track-env"
 
 const b64url = {
   encode: (bytes: ArrayBuffer | Uint8Array) =>
@@ -644,5 +645,192 @@ describe("A guardian hears about their own child", () => {
       { objectTypeCode: "PLAYER", objectId: "child-c" },
     ])
     expect(reached().filter((e) => e === "https://push.test/coach-parent")).toHaveLength(1)
+  })
+})
+
+/**
+ * What a send batch reports about itself.
+ *
+ * `push.sent` has recorded one row per attempt for a while, and it cannot see
+ * two things. It is written *after* `fetch` returns, so a request that throws —
+ * DNS, refused, a service that is down — writes nothing at all: a total outage
+ * of one push service produced zero telemetry, which reads exactly like sending
+ * nothing. And it does not separate "this subscription is dead" from "this send
+ * failed", which need opposite responses.
+ *
+ * These drive the real `notify` against a stubbed push service, because the
+ * accounting only exists inside `deliver` and the counts are what matter.
+ */
+describe("Send telemetry", () => {
+  /**
+   * Vendor hostnames, answered locally.
+   *
+   * The file's own stub only intercepts `https://push.test/`, and these
+   * endpoints have to carry real vendor hostnames because the service label is
+   * the thing under test. Anything not intercepted here reaches the outer stub,
+   * which is what keeps the rest of the file working.
+   */
+  let status = new Map<string, number>()
+  let throws = new Set<string>()
+  beforeEach(() => {
+    status = new Map()
+    throws = new Set()
+    const outer = globalThis.fetch
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
+      if (/(apple|googleapis|mozilla)\.com/.test(url)) {
+        if (throws.has(url)) throw new TypeError("Network connection lost")
+        return new Response(null, { status: status.get(url) ?? 201 })
+      }
+      return outer(input as RequestInfo, init)
+    }) as typeof fetch
+  })
+
+  /** The points a deployment would have written, with a recording binding. */
+  const withRecorder = async (
+    fn: (trackEnv: Record<string, unknown>) => Promise<unknown>,
+  ): Promise<Point[]> => {
+    const { written, env: rec } = recorder()
+    await fn({ ...(env as unknown as Record<string, unknown>), ...rec })
+    return written
+  }
+
+  const batches = (written: Point[]) =>
+    written.filter((p) => p.blobs?.[0] === "push.batch")
+
+  /** blobs: [event, country, type, service] — see `write` in src/analytics.ts. */
+  const of = (p: Point) => ({
+    type: p.blobs?.[2],
+    service: p.blobs?.[3],
+    sent: p.doubles?.[0],
+    gone: p.doubles?.[1],
+    failed: p.doubles?.[2],
+  })
+
+  it("counts a delivered push against its own vendor", async () => {
+    const user = await makeUser("tel-ok")
+    await registerDevice(user, await subscriber("https://web.push.apple.com/tel-ok"), "en")
+    await follows(user, "TEAM", "team-tel")
+
+    const written = await withRecorder((e) =>
+      notify(db(), e as never, {
+        typeCode: "SCORE_UPDATE",
+        targets: [{ objectTypeCode: "TEAM", objectId: "team-tel" }],
+        tag: "score:g-tel",
+        render: () => ({ title: "t", body: "b", url: "#/live" }),
+      }),
+    )
+
+    const rows = batches(written).map(of)
+    expect(rows).toHaveLength(1)
+    // The type code, so "are reminders failing" is answerable separately from
+    // "are scores failing".
+    expect(rows[0]!.type).toBe("SCORE_UPDATE")
+    expect(rows[0]!.service).toBe("apple")
+    expect(rows[0]).toMatchObject({ sent: 1, gone: 0, failed: 0 })
+  })
+
+  it("separates a dead subscription from a failed send", async () => {
+    const dead = await makeUser("tel-dead")
+    const broken = await makeUser("tel-broken")
+    const deadSub = await subscriber("https://web.push.apple.com/tel-dead")
+    await registerDevice(dead, deadSub, "en")
+    await registerDevice(broken, await subscriber("https://web.push.apple.com/tel-500"), "en")
+    await follows(dead, "TEAM", "team-mixed")
+    await follows(broken, "TEAM", "team-mixed")
+    status.set(deadSub.endpoint, 410)
+    status.set("https://web.push.apple.com/tel-500", 503)
+
+    const written = await withRecorder((e) =>
+      notify(db(), e as never, {
+        typeCode: "SCORE_UPDATE",
+        targets: [{ objectTypeCode: "TEAM", objectId: "team-mixed" }],
+        tag: "score:g-mixed",
+        render: () => ({ title: "t", body: "b", url: "#/live" }),
+      }),
+    )
+
+    const row = batches(written).map(of)[0]!
+    // 410 is permanent and the row is deleted; 503 may be transient and is not.
+    // Averaged together they were indistinguishable.
+    expect(row).toMatchObject({ sent: 0, gone: 1, failed: 1 })
+  })
+
+  /**
+   * The gap that motivated this.
+   *
+   * `push.sent` is written after `fetch` returns, so a throwing request writes
+   * nothing — one push service going down looked identical to no sends at all.
+   */
+  it("counts a network failure, which the per-attempt row never sees", async () => {
+    const user = await makeUser("tel-net")
+    await registerDevice(user, await subscriber("https://web.push.apple.com/tel-net"), "en")
+    await follows(user, "TEAM", "team-net")
+
+    throws.add("https://web.push.apple.com/tel-net")
+
+    const written = await withRecorder((e) =>
+      notify(db(), e as never, {
+        typeCode: "SCORE_UPDATE",
+        targets: [{ objectTypeCode: "TEAM", objectId: "team-net" }],
+        tag: "score:g-net",
+        render: () => ({ title: "t", body: "b", url: "#/live" }),
+      }),
+    )
+
+    const rows = batches(written).map(of)
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ sent: 0, gone: 0, failed: 1 })
+    // And nothing per-attempt was written for it, which is the whole point.
+    expect(written.filter((p) => p.blobs?.[0] === "push.sent")).toHaveLength(0)
+  })
+
+  it("splits a mixed batch by vendor, so one failing service is visible", async () => {
+    const a = await makeUser("tel-apple")
+    const g = await makeUser("tel-fcm")
+    await registerDevice(a, await subscriber("https://web.push.apple.com/tel-a"), "en")
+    await registerDevice(g, await subscriber("https://fcm.googleapis.com/fcm/send/tel-g"), "en")
+    await follows(a, "TEAM", "team-split")
+    await follows(g, "TEAM", "team-split")
+
+    // Apple is down; Google is fine. A single row would average this into
+    // "half our pushes failed" and say nothing about which half.
+    status.set("https://web.push.apple.com/tel-a", 500)
+
+    const written = await withRecorder((e) =>
+      notify(db(), e as never, {
+        typeCode: "SCORE_UPDATE",
+        targets: [{ objectTypeCode: "TEAM", objectId: "team-split" }],
+        tag: "score:g-split",
+        render: () => ({ title: "t", body: "b", url: "#/live" }),
+      }),
+    )
+
+    const rows = new Map(batches(written).map(of).map((r) => [r.service, r]))
+    expect(rows.get("apple")).toMatchObject({ sent: 0, failed: 1 })
+    expect(rows.get("fcm")).toMatchObject({ sent: 1, failed: 0 })
+  })
+
+  it("records no endpoint, no path and no user id", async () => {
+    const user = await makeUser("tel-priv")
+    const sub = await subscriber("https://web.push.apple.com/SECRET-DEVICE-PATH")
+    await registerDevice(user, sub, "en")
+    await follows(user, "TEAM", "team-priv")
+
+    const written = await withRecorder((e) =>
+      notify(db(), e as never, {
+        typeCode: "SCORE_UPDATE",
+        targets: [{ objectTypeCode: "TEAM", objectId: "team-priv" }],
+        tag: "score:g-priv",
+        render: () => ({ title: "t", body: "b", url: "#/live" }),
+      }),
+    )
+
+    // A push endpoint is a bearer capability: the path is the secret. Every
+    // blob of every point this send produced is checked, not just the batch row.
+    const blobs = written.flatMap((p) => p.blobs ?? []).join(" | ")
+    expect(blobs).not.toContain("SECRET-DEVICE-PATH")
+    expect(blobs).not.toContain(sub.endpoint)
+    expect(blobs).not.toContain(user)
   })
 })

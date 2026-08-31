@@ -229,6 +229,7 @@ export async function notify(
       body: bodyFor(d.locale),
     })),
     args.tag,
+    args.typeCode,
   )
 }
 
@@ -239,11 +240,47 @@ export async function notify(
  * button — including the pruning of dead endpoints, which must happen wherever
  * we discover one rather than only on the path that usually does.
  */
+/**
+ * Which push service, coarsely, from the hostname and nothing else.
+ *
+ * **The endpoint is a device identifier and is never recorded.** Its path is
+ * the secret — anyone holding the full URL can push to that browser — so only
+ * the hostname is read, and only to decide which of four buckets it is. The
+ * hostname is shared by every subscriber of that vendor and identifies nobody.
+ *
+ * Coarse on purpose. FCM has answered on more than one host over the years and
+ * Mozilla's includes a region, so recording the raw host would drift into
+ * higher cardinality for no gain: the question is "is Apple failing", not
+ * "which of Apple's front-ends".
+ */
+export function pushService(endpoint: string): string {
+  let host: string
+  try {
+    host = new URL(endpoint).hostname
+  } catch {
+    return "other"
+  }
+  if (host.endsWith(".push.apple.com")) return "apple"
+  if (host.endsWith(".googleapis.com")) return "fcm"
+  if (host.endsWith(".mozilla.com")) return "mozilla"
+  if (host.endsWith(".windows.com") || host.endsWith(".notify.windows.com")) return "windows"
+  return "other"
+}
+
+/** What became of one attempt. `gone` is permanent; `failed` may not be. */
+type Outcome = "sent" | "gone" | "failed"
+
 async function deliver(
   db: Db,
   env: Bindings,
   targets: { address: string; subscription: PushSubscription; body: PushBody }[],
   tag: string,
+  /**
+   * The notification type, for telemetry only. Absent for the test button,
+   * which has no NotificationTypeCode — recorded as "test" rather than blank so
+   * a row with no type is obviously the test path and not a dropped field.
+   */
+  typeCode?: NotificationTypeCode,
 ): Promise<{ sent: number; gone: number }> {
   const vapid = vapidFrom(env)
   if (!vapid) return { sent: 0, gone: 0 }
@@ -278,10 +315,41 @@ async function deliver(
       // 404/410 is the push service saying this endpoint is permanently gone —
       // uninstalled, or expired. Anything else may be transient and is left be,
       // because deleting a device on a 500 loses a reader for good.
-      if (res.status === 404 || res.status === 410) dead.push(address)
-      return res.ok
+      if (res.status === 404 || res.status === 410) {
+        dead.push(address)
+        return "gone" as Outcome
+      }
+      return (res.ok ? "sent" : "failed") as Outcome
     }),
   )
+
+  /**
+   * One row per service in this batch, not one per batch.
+   *
+   * A batch is usually one vendor and this is usually one row. When it is
+   * mixed, a single label would have to be a lie or a blank, and the whole
+   * reason the label exists is to separate "Apple is failing" from "everything
+   * is failing" — which one row per batch cannot express. Bounded at four.
+   *
+   * `allSettled` preserves order, so results[i] is targets[i]: that is what
+   * lets a *rejected* promise still be attributed to a service. Those are the
+   * sends `push.sent` never sees, because it is written after `fetch` returns.
+   */
+  const perService = new Map<string, { sent: number; gone: number; failed: number }>()
+  results.forEach((result, i) => {
+    const service = pushService(targets[i]!.subscription.endpoint)
+    const row = perService.get(service) ?? { sent: 0, gone: 0, failed: 0 }
+    // A rejected promise is a network failure — DNS, refused, timed out. Not a
+    // dead subscription, and the distinction is the point of the row.
+    row[result.status === "fulfilled" ? result.value : "failed"] += 1
+    perService.set(service, row)
+  })
+  for (const [service, counts] of perService) {
+    // Synchronous, swallows its own errors, and writes at most four points —
+    // see `write` in src/analytics.ts. It cannot throw into the send path and
+    // adds no latency. A no-op when ANALYTICS is unbound.
+    track(env, "push.batch", { type: typeCode ?? "test", service, ...counts })
+  }
 
   if (dead.length > 0) {
     await db
@@ -294,8 +362,10 @@ async function deliver(
       )
   }
 
+  // Unchanged for callers: the shape and the meaning are what they were, and
+  // the announce paths are untouched.
   return {
-    sent: results.filter((r) => r.status === "fulfilled" && r.value).length,
+    sent: results.filter((r) => r.status === "fulfilled" && r.value === "sent").length,
     gone: dead.length,
   }
 }

@@ -102,6 +102,34 @@ export const EVENTS = {
     dimensions: ["host", "status"],
   }),
   /**
+   * One send batch, per push service, with what became of it.
+   *
+   * `push.sent` above is per attempt and cannot see two things this can.
+   *
+   * The first is a **network failure**. That row is written after `fetch`
+   * returns, so a request that throws — DNS, connection refused, a service
+   * that is simply down — writes nothing at all. A total outage of one push
+   * service produced *zero* telemetry, which reads identically to sending
+   * nothing, which is what we would be doing.
+   *
+   * The second is the difference between "the subscription is dead" and
+   * "the send failed". `gone` is a 404 or 410: the service telling us this
+   * endpoint is permanently finished, and the row is deleted. `failed` is
+   * everything else — a 5xx, a rejected promise. They need opposite responses
+   * and were indistinguishable in aggregate.
+   *
+   * `service` is coarse and derived from the endpoint's **hostname only**. A
+   * push endpoint is a device identifier and is never stored or logged; its
+   * hostname is shared by every subscriber of that vendor. This is what will
+   * answer "is Web Push failing our iOS PWA users" — which is the evidence
+   * docs/dev/native-notifications.md says we cannot currently produce.
+   */
+  "push.batch": defineEvent({
+    blobs: ["type", "service"],
+    doubles: ["sent", "gone", "failed"],
+    dimensions: ["type", "service"],
+  }),
+  /**
    * One pass of the reminder cron, including the passes that found nothing.
    *
    * "The cron fired and found nothing" and "the cron did not fire" look
