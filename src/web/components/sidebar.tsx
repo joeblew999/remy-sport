@@ -59,14 +59,14 @@ interface NavItem {
  * No "Standings" entry: a league table belongs to an event, so there is nothing
  * for a top-level one to show. It is a tab on the event page.
  */
-// No "My Events". It was here, it routed to #/events, and #/events rendered the
-// Discover page — the same component, the same props, the same four events
-// everybody sees. Two entries in one nav that go to one screen, one of them
-// named for a screen that does not exist. Removed rather than pointed somewhere
-// plausible: a real My Events is a filtered list of what you organise or
-// follow, and that is a screen to build, not a route to alias.
+// "My Events" is back, and now it goes somewhere. It was removed on 2026-08-29
+// because it routed to #/events and #/events rendered Discover — two entries
+// going to one screen, one of them named for a screen that did not exist.
+// pages/my-events.tsx is that screen: what you organise, and what you follow,
+// grouped by the relation the server says you hold.
 const navItems = (): NavItem[] => [
   { id: "discover",  label: m.nav_discover() },
+  { id: "events",    label: m.nav_my_events() },
   { id: "team",      label: m.nav_my_team() },
   // No Watch or Broadcast entries. Video belongs to a game, not to the app:
   // "Watch" with no game is a question the nav cannot answer, and it used to
@@ -88,7 +88,7 @@ export function Sidebar({ page, setPage }: { page: string; setPage: (p: string) 
       </div>
       <div className="nav-group">
         <div className="label">{m.browse()}</div>
-        {NAV_ITEMS.slice(0, 3).map(it => (
+        {NAV_ITEMS.slice(0, 4).map(it => (
           <button key={it.id} className={`nav-item ${page === it.id ? "active" : ""}`} onClick={() => setPage(it.id)}>
             <span className="ico"><Icon name={it.id === "team" ? "teams" : it.id} /></span>
             <span>{it.label}</span>
@@ -97,7 +97,7 @@ export function Sidebar({ page, setPage }: { page: string; setPage: (p: string) 
       </div>
       <div className="nav-group">
         <div className="label">{m.nav_you()}</div>
-        {NAV_ITEMS.slice(3).map(it => (
+        {NAV_ITEMS.slice(4).map(it => (
           <button key={it.id} className={`nav-item ${page === it.id ? "active" : ""}`} onClick={() => setPage(it.id)}>
             <span className="ico"><Icon name={it.id} /></span>
             <span>{it.label}</span>

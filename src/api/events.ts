@@ -19,7 +19,8 @@ import { clean, pivot } from "../domain/names"
 import { z } from "zod"
 import { CreateEventInput, EventSchema, UpdateEventInput } from "../domain/api"
 import { ERRORS } from "./errors"
-import { authed, authedRoute, can, canAll, found, openTo, requireAction, viewer, viewerTimezone, type Db, type SessionUser } from "./base"
+import { authed, authedRoute, can, canAll, checkedInHandler, found, openTo, requireAction, viewer, viewerTimezone, type Db, type SessionUser } from "./base"
+import { objectsHeldBy } from "./relations"
 
 const IdInput = z.object({ id: z.string() })
 
@@ -239,6 +240,85 @@ export const list = viewer
     return {
       events: rows.map((row) => serialize(row, facts.get(row.id), may)),
       canCreate,
+    }
+  })
+
+/**
+ * The relations that make an event yours.
+ *
+ * OWNER and CO_ORGANIZER are events you run; FOLLOWER_EVENT is one you asked to
+ * hear about. All three are `via: "table"`, so each answers in one query.
+ *
+ * Deliberately three rather than a single "mine" flag: a page that cannot tell
+ * an event you organise from one you follow has to offer the same controls for
+ * both, and the difference is exactly what the reader came to see.
+ */
+const MINE = ["OWNER", "CO_ORGANIZER", "FOLLOWER_EVENT"] as const
+
+export const mine = authed
+  .route({
+    method: "GET",
+    path: "/events/mine",
+    summary: "Events I organise or follow",
+    ...authedRoute,
+  })
+  .output(
+    z.object({
+      events: z.array(
+        EventSchema.extend({
+          /**
+           * Why this event is on your list — the strongest relation you hold.
+           * An owner who also follows their own event is an owner.
+           */
+          relation: z.enum(["OWNER", "CO_ORGANIZER", "FOLLOWER_EVENT"]),
+        }),
+      ),
+    }),
+  )
+  /**
+   * Checked in the handler, like `players.mine`, and for the same reason.
+   *
+   * There is no "list my own events" action in the model and there should not
+   * be. Every row returned is one the caller holds a relation on, found by
+   * asking the resolver which objects they hold — so the authorisation *is* the
+   * query, which is a stronger guarantee than an action check on a list. The
+   * screen this feeds replaced a nav item that pointed at Discover and showed
+   * everybody the same four events.
+   */
+  .use(checkedInHandler("VIEW_EVENT"))
+  .handler(async ({ context }) => {
+    // One query per relation, in parallel — the same shape `canAll` uses.
+    const held = await Promise.all(
+      MINE.map((r) => objectsHeldBy(context.db, r, context.user.id)),
+    )
+
+    /**
+     * Strongest first, so a later relation cannot overwrite a stronger one.
+     * MINE is ordered by strength and this walks it backwards for that reason.
+     */
+    const relationOf = new Map<string, (typeof MINE)[number]>()
+    for (let i = held.length - 1; i >= 0; i--) {
+      for (const id of held[i]!) relationOf.set(id, MINE[i]!)
+    }
+
+    const ids = [...relationOf.keys()]
+    if (ids.length === 0) return { events: [] }
+
+    const rows = await context.db.query.event.findMany({
+      where: (event, { inArray: within }) => within(event.id, ids),
+      with: { organizer: { columns: { name: true } } },
+      orderBy: (event, { asc, sql }) => [sql`${event.startDate} IS NULL`, asc(event.startDate)],
+    })
+
+    const [facts, may] = await Promise.all([
+      factsFor(context.db, ids),
+      permissionsFor(context.db, context.user, ids),
+    ])
+    return {
+      events: rows.map((row) => ({
+        ...serialize(row, facts.get(row.id), may),
+        relation: relationOf.get(row.id)!,
+      })),
     }
   })
 

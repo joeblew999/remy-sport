@@ -626,6 +626,88 @@ describe("The event list says what you may create and destroy", () => {
   })
 })
 
+describe("The events that are yours", () => {
+  /**
+   * `events.mine` is the endpoint behind the My Events screen, which replaced a
+   * nav item that pointed at Discover and showed everybody the same four
+   * events.
+   *
+   * The authorisation is the query: every row is one the caller holds OWNER,
+   * CO_ORGANIZER or FOLLOWER_EVENT on. So the assertion worth making is not
+   * "does it return something" but "does it return *only* those" — derived from
+   * the fixtures, so a re-seed cannot make it pass by coincidence.
+   */
+  const mine = async (cookie?: string) =>
+    (await (await api("/api/events/mine", cookie ? { cookie } : {})).json()) as {
+      events: { id: string; relation: string }[]
+    }
+
+  it("refuses a caller with no session", async () => {
+    expect((await api("/api/events/mine")).status).toBe(401)
+  })
+
+  it("gives an organiser the events they own, and nobody else's", async () => {
+    const owned = SEED_ENTITIES.events[0]!
+    const organiser = SEED_ENTITIES.users.find((u) => u.id === owned.organizerUserId)!
+    const { events } = await mine(await signIn(organiser.email))
+
+    const ids = events.map((e) => e.id)
+    expect(ids, `${organiser.email} organises ${owned.id}`).toContain(owned.id)
+    expect(events.find((e) => e.id === owned.id)!.relation).toBe("OWNER")
+
+    // The half that matters: somebody else's event must not appear unless a
+    // relation puts it there.
+    const theirs = new Set<string>(
+      SEED_ENTITIES.events.filter((e) => e.organizerUserId === organiser.id).map((e) => e.id),
+    )
+    const coOrganised = new Set(
+      (SEED_RELATIONSHIPS.eventCoOrganizers as readonly { userId: string; eventId: string }[])
+        .filter((c) => c.userId === organiser.id)
+        .map((c) => c.eventId),
+    )
+    const followed = new Set(
+      (SEED_RELATIONSHIPS.subscriptions as readonly {
+        userId: string
+        objectTypeCode: string
+        objectId: string
+      }[])
+        .filter((sub) => sub.userId === organiser.id && sub.objectTypeCode === "EVENT")
+        .map((sub) => sub.objectId),
+    )
+    for (const id of ids) {
+      expect(
+        theirs.has(id) || coOrganised.has(id) || followed.has(id),
+        `${id} is on the list without a relation to justify it`,
+      ).toBe(true)
+    }
+  })
+
+  it("gives a reader who organises and follows nothing an empty list", async () => {
+    // A spectator holds none of the three relations, so the query returns
+    // nothing rather than the platform's events.
+    const nobody = SEED_ENTITIES.users.find(
+      (u) => u.roleCode === "SPECTATOR" && u.statusCode === "ACTIVE",
+    )!
+    const held = new Set<string>([
+      ...(SEED_ENTITIES.events as readonly { id: string; organizerUserId: string }[])
+        .filter((e) => e.organizerUserId === nobody.id)
+        .map((e) => e.id),
+      ...(SEED_RELATIONSHIPS.eventCoOrganizers as readonly { userId: string; eventId: string }[])
+        .filter((c) => c.userId === nobody.id)
+        .map((c) => c.eventId),
+      ...(SEED_RELATIONSHIPS.subscriptions as readonly {
+        userId: string
+        objectTypeCode: string
+        objectId: string
+      }[])
+        .filter((sub) => sub.userId === nobody.id && sub.objectTypeCode === "EVENT")
+        .map((sub) => sub.objectId),
+    ])
+    const { events } = await mine(await signIn(nobody.email))
+    expect(events.map((e) => e.id).sort()).toEqual([...held].sort())
+  })
+})
+
 describe("A team's coaching staff", () => {
   /**
    * `team_coaches` had carried this since the fixtures were written and the

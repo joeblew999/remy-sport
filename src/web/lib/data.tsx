@@ -36,6 +36,30 @@ export interface EventFilters {
  * Switching language is instant and refetches nothing — keying by locale would
  * have stored the same event twice and gone to the network to change language.
  */
+/**
+ * The events you organise or follow, grouped by which.
+ *
+ * `events.mine` returns each row with the strongest relation you hold on it, so
+ * the grouping is the server's answer rather than something derived here from
+ * an organiser id — which is the mistake the deleted "My Events" nav item was a
+ * symptom of.
+ */
+export function useMyEvents() {
+  const loc = useLocalizer();
+  return useQuery(
+    orpc.events.mine.queryOptions({
+      select: ({ events }) => ({
+        organising: events
+          .filter((e) => e.relation === "OWNER" || e.relation === "CO_ORGANIZER")
+          .map((e) => ({ ...toEvent(e, loc), relation: e.relation })),
+        following: events
+          .filter((e) => e.relation === "FOLLOWER_EVENT")
+          .map((e) => ({ ...toEvent(e, loc), relation: e.relation })),
+      }),
+    }),
+  );
+}
+
 export function useEvents({ status, type, city, limit }: EventFilters = {}) {
   const loc = useLocalizer();
   return useQuery(
