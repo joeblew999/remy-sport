@@ -21,7 +21,7 @@ import { sessionKey } from "../../src/web/lib/session"
  * is granted.
  *
  * Every fixture goes through `apiEvent()`, and none of them casts. The previous
- * versions ended `{ events: [] } as never`, which suppressed exactly the error
+ * versions ended `{ events: [] }`, which suppressed exactly the error
  * that would have caught `canCreate` being added to the response.
  */
 

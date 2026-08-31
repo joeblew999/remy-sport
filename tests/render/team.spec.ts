@@ -1,5 +1,6 @@
 import { test, expect } from "./fixture"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
+import { apiGame, apiRoster, type ApiGame, type ApiRoster } from "../helpers/api-fixtures"
 import { sessionKey } from "../../src/web/lib/session"
 import { apiTeam } from "../helpers/api-fixtures"
 
@@ -37,20 +38,20 @@ const team = (over: Partial<Parameters<typeof apiTeam>[0]> = {}) => apiTeam(over
  * Spread over a base of the fields the row does not read, so each test states
  * only what it is actually about — which side this team was on, and whether the
  * game has been played.
+ *
+ * From `apiGame`, so the base is the whole response. The literal that was here
+ * had nine of the eighteen fields and took `Record<string, unknown>` overrides,
+ * so neither the missing half nor a mistyped override was ever going to be
+ * noticed.
  */
-const game = (over: Record<string, unknown>) =>
-  ({
+const game = (over: Partial<ApiGame>) =>
+  apiGame({
     eventId: "evt_002",
     venueId: "ven_004",
     venueNames: { en: "Triam Udom Indoor Court" },
     startsAt: "2026-06-14T12:00:00Z",
-    canEnterScore: false,
-    canSetStatus: false,
-    canAssignReferee: false,
-    referees: [],
-    availableReferees: [],
     ...over,
-  }) as never
+  })
 
 test.describe("Team page renders what the API returned", () => {
   test("shows the team, its school and its division", async ({ page }) => {
@@ -103,13 +104,11 @@ test.describe("Team page, the rest", () => {
   test("the roster renders the squad it was given, without inventing stats", async ({ page }) => {
     await seedCache(page, [
       entry(orpc.teams.get, { id: "team_002" }, team()),
-      entry(orpc.teams.roster, { teamId: "team_002" }, {
-        canManage: false,
-        available: [],
+      entry(orpc.teams.roster, { teamId: "team_002" }, apiRoster({
         players: [
           { playerId: "ply_002", names: { en: "Kanya T." }, jerseyNumber: 7, positionCode: "SG", fromDate: "2026-01-01" },
         ],
-      } as never),
+      })),
     ])
     await page.goto("/#/team/team_002")
 
@@ -124,7 +123,7 @@ test.describe("Team page, the rest", () => {
   test("an empty roster says so rather than rendering nothing", async ({ page }) => {
     await seedCache(page, [
       entry(orpc.teams.get, { id: "team_002" }, team()),
-      entry(orpc.teams.roster, { teamId: "team_002" }, { canManage: false, available: [], players: [] } as never),
+      entry(orpc.teams.roster, { teamId: "team_002" }, apiRoster()),
     ])
     await page.goto("/#/team/team_002")
     await expect(page.getByTestId("roster-empty")).toBeVisible()
@@ -163,7 +162,7 @@ test.describe("Team page, the rest", () => {
               awayScore: null,
             }),
           ],
-        } as never,
+        },
       ),
     ])
     await page.goto("/#/team/team_002")
@@ -188,7 +187,7 @@ test.describe("Team page, the rest", () => {
   test("says so when a team has no fixtures, rather than inventing a season", async ({ page }) => {
     await seedCache(page, [
       entry(orpc.teams.get, { id: "team_002" }, team()),
-      entry(orpc.games.list, { teamId: "team_002" }, { viewerTimezone: null, games: [] } as never),
+      entry(orpc.games.list, { teamId: "team_002" }, { viewerTimezone: null, games: [] }),
     ])
     await page.goto("/#/team/team_002")
     await expect(page.locator(".fixture-row")).toHaveCount(0)
@@ -202,17 +201,18 @@ test.describe("Team page, the rest", () => {
  * asked per team — not on anything the page works out about the viewer.
  */
 test.describe("Squad management", () => {
-  const roster = (over: Record<string, unknown>) => ({
-    canManage: false,
-    players: [{ playerId: "ply_002", names: { en: "Kanya T." }, jerseyNumber: 7, positionCode: "SG", fromDate: "2026-01-01" }],
-    available: [],
-    ...over,
-  })
+  const roster = (over: Partial<ApiRoster>) =>
+    apiRoster({
+      players: [
+        { playerId: "ply_002", names: { en: "Kanya T." }, jerseyNumber: 7, positionCode: "SG", fromDate: "2026-01-01" },
+      ],
+      ...over,
+    })
 
-  const show = async (page: Parameters<typeof seedCache>[0], data: unknown) => {
+  const show = async (page: Parameters<typeof seedCache>[0], data: ApiRoster) => {
     await seedCache(page, [
       entry(orpc.teams.get, { id: "team_002" }, team()),
-      entry(orpc.teams.roster, { teamId: "team_002" }, data as never),
+      entry(orpc.teams.roster, { teamId: "team_002" }, data),
     ])
     await page.goto("/#/team/team_002")
   }
@@ -252,7 +252,7 @@ test.describe("A team's details", () => {
   test("offers no form to someone who may not edit", async ({ page }) => {
     await seedCache(page, [
       entry(orpc.teams.get, { id: "team_002" }, team({ canEdit: false })),
-      entry(orpc.teams.roster, { teamId: "team_002" }, { players: [], available: [], canManage: false } as never),
+      entry(orpc.teams.roster, { teamId: "team_002" }, apiRoster()),
     ])
     await page.goto("/#/team/team_002")
 
@@ -263,7 +263,7 @@ test.describe("A team's details", () => {
   test("prefills from what is stored, for a coach", async ({ page }) => {
     await seedCache(page, [
       entry(orpc.teams.get, { id: "team_002" }, team({ canEdit: true })),
-      entry(orpc.teams.roster, { teamId: "team_002" }, { players: [], available: [], canManage: false } as never),
+      entry(orpc.teams.roster, { teamId: "team_002" }, apiRoster()),
     ])
     await page.goto("/#/team/team_002")
 
@@ -283,7 +283,7 @@ test.describe("A team's details", () => {
         { id: "team_002" },
         team({ canEdit: true, names: { en: "Triam Udom U18 Girls", th: "เตรียมอุดม U18 หญิง" } }),
       ),
-      entry(orpc.teams.roster, { teamId: "team_002" }, { players: [], available: [], canManage: false } as never),
+      entry(orpc.teams.roster, { teamId: "team_002" }, apiRoster()),
     ])
     await page.route("**/rpc/**", async (route) => {
       if (!route.request().url().includes("teams/update")) return route.fallback()
@@ -313,7 +313,7 @@ test.describe("The team hero's buttons", () => {
     // Stats was deleted outright — the model has no per-player statistics.
     await seedCache(page, [
       entry(orpc.teams.get, { id: "team_002" }, team()),
-      entry(orpc.teams.roster, { teamId: "team_002" }, { players: [], available: [], canManage: false } as never),
+      entry(orpc.teams.roster, { teamId: "team_002" }, apiRoster()),
     ])
     await page.goto("/#/team/team_002")
 
@@ -333,20 +333,17 @@ test.describe("Coaching staff", () => {
    * a gym wall shows, the adults responsible for them are not — so the page has
    * two empty states that mean different things and must not be confused.
    */
-  const withCoaches = {
-    players: [],
-    available: [],
-    canManage: false,
+  const withCoaches = apiRoster({
     coaches: [
       { userId: "u1", name: "Somchai Prasert", coachRoleCode: "HEAD" },
       { userId: "u2", name: "Nid Chaiyaporn", coachRoleCode: "ASSISTANT" },
     ],
-  }
+  })
 
   test("names them, with the role in the reader's language", async ({ page }) => {
     await seedCache(page, [
       entry(orpc.teams.get, { id: "team_002" }, team()),
-      entry(orpc.teams.roster, { teamId: "team_002" }, withCoaches as never),
+      entry(orpc.teams.roster, { teamId: "team_002" }, withCoaches),
       {
         queryKey: sessionKey as unknown as readonly unknown[],
         data: { user: { id: "u9", email: "a@b.test", name: "A", role: "user" }, session: {} },
@@ -365,7 +362,7 @@ test.describe("Coaching staff", () => {
     // that — it would be stating as fact something it was refused.
     await seedCache(page, [
       entry(orpc.teams.get, { id: "team_002" }, team()),
-      entry(orpc.teams.roster, { teamId: "team_002" }, { ...withCoaches, coaches: [] } as never),
+      entry(orpc.teams.roster, { teamId: "team_002" }, { ...withCoaches, coaches: [] }),
     ])
     await page.goto("/#/team/team_002")
 
@@ -376,7 +373,7 @@ test.describe("Coaching staff", () => {
   test("says so when a signed-in reader genuinely sees none", async ({ page }) => {
     await seedCache(page, [
       entry(orpc.teams.get, { id: "team_002" }, team()),
-      entry(orpc.teams.roster, { teamId: "team_002" }, { ...withCoaches, coaches: [] } as never),
+      entry(orpc.teams.roster, { teamId: "team_002" }, { ...withCoaches, coaches: [] }),
       {
         queryKey: sessionKey as unknown as readonly unknown[],
         data: { user: { id: "u9", email: "a@b.test", name: "A", role: "user" }, session: {} },

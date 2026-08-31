@@ -45,9 +45,9 @@ const seed = (
       // the query throw and the permission silently read false.
       divisions: [],
       canManageFixtures: canManage,
-    } as never),
-    entry(orpc.events.get, { id: "evt_002" }, apiEvent({ id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" }, startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK", organizerUserId: "usr_org_002", orgId: null, organizerName: "Niran" }) as never),
-    entry(orpc.games.list, { eventId: "evt_002" }, { games } as never),
+    }),
+    entry(orpc.events.get, { id: "evt_002" }, apiEvent({ id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" }, startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK", organizerUserId: "usr_org_002", orgId: null, organizerName: "Niran" })),
+    entry(orpc.games.list, { eventId: "evt_002" }, { games }),
   ])
 
 test.describe("An event's schedule", () => {
@@ -125,8 +125,8 @@ test.describe("Standings", () => {
 
   const seedStandings = (page: Parameters<typeof seedCache>[0], standings: unknown[]) =>
     seedCache(page, [
-      entry(orpc.events.get, { id: "evt_002" }, apiEvent({ id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" }, startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK", organizerUserId: "usr_org_002", orgId: null, organizerName: "Niran" }) as never),
-      entry(orpc.standings.list, { eventId: "evt_002" }, { standings } as never),
+      entry(orpc.events.get, { id: "evt_002" }, apiEvent({ id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" }, startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK", organizerUserId: "usr_org_002", orgId: null, organizerName: "Niran" })),
+      entry(orpc.standings.list, { eventId: "evt_002" }, { standings }),
     ])
 
   test("renders the table it was given, with the difference signed", async ({ page }) => {
@@ -172,8 +172,8 @@ test.describe("Event entries", () => {
 
   const seedEntries = (page: Parameters<typeof seedCache>[0], entries: unknown) =>
     seedCache(page, [
-      entry(orpc.events.get, { id: "evt_002" }, EVENT as never),
-      entry(orpc.events.entries, { eventId: "evt_002" }, entries as never),
+      entry(orpc.events.get, { id: "evt_002" }, EVENT),
+      entry(orpc.events.entries, { eventId: "evt_002" }, entries),
     ])
 
   const open = async (page: Parameters<typeof seedCache>[0]) => {
@@ -260,13 +260,13 @@ test.describe("Running a schedule", () => {
     opts: { canManageFixtures: boolean; game?: Record<string, unknown> },
   ) => {
     await seedCache(page, [
-      entry(orpc.events.get, { id: "evt_002" }, EV as never),
+      entry(orpc.events.get, { id: "evt_002" }, EV),
       entry(orpc.events.entries, { eventId: "evt_002" }, {
         registered: two, registrable: [], divisions: [], canManageFixtures: opts.canManageFixtures,
-      } as never),
+      }),
       entry(orpc.games.list, { eventId: "evt_002" }, {
         games: [{ ...finished, ...(opts.game ?? {}) }],
-      } as never),
+      }),
     ])
     await page.goto("/#/event/evt_002")
     await page.getByTestId("tab-schedule").click()

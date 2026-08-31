@@ -23,7 +23,7 @@ const event = (canEdit: boolean, canInvite = canEdit) =>
 
 const seed = (canEdit: boolean, canInvite = canEdit) => [
   entry(orpc.events.get, { id: EVENT_ID }, event(canEdit, canInvite)),
-  entry(orpc.events.list, undefined, { events: [event(canEdit, canInvite)] } as never),
+  entry(orpc.events.list, undefined, { events: [event(canEdit, canInvite)] }),
 ]
 
 test.describe("An event's settings tab", () => {
@@ -170,7 +170,7 @@ test.describe("The event hero's actions", () => {
       entry(
         orpc.events.get,
         { id: EVENT_ID },
-        { ...event(false), startDate: "2026-01-01", endDate: "2026-12-31" } as never,
+        { ...event(false), startDate: "2026-01-01", endDate: "2026-12-31" },
       ),
     ])
     await page.goto(`/#/event/${EVENT_ID}`)
@@ -184,7 +184,7 @@ test.describe("The event hero's actions", () => {
     // would put a wrong entry in somebody's diary, which is worse than no
     // button — see tests/unit/calendar.test.ts.
     await seedCache(page, [
-      entry(orpc.events.get, { id: EVENT_ID }, { ...event(false), startDate: null, endDate: null } as never),
+      entry(orpc.events.get, { id: EVENT_ID }, { ...event(false), startDate: null, endDate: null }),
     ])
     await page.goto(`/#/event/${EVENT_ID}`)
     await expect(page.getByTestId("add-to-calendar")).toHaveCount(0)
@@ -250,8 +250,8 @@ test.describe("The Venues tab", () => {
   const seedVenues = (page: Parameters<typeof seedCache>[0]) =>
     seedCache(page, [
       ...seed(false),
-      entry(orpc.venues.list, undefined, venues as never),
-      entry(orpc.eventVenues.list, undefined, links as never),
+      entry(orpc.venues.list, undefined, venues),
+      entry(orpc.eventVenues.list, undefined, links),
     ])
 
   test("lists this event's venues with their address, and nobody else's", async ({ page }) => {
@@ -282,8 +282,8 @@ test.describe("The Venues tab", () => {
   test("says so when an event has none, rather than 'not built yet'", async ({ page }) => {
     await seedCache(page, [
       ...seed(false),
-      entry(orpc.venues.list, undefined, venues as never),
-      entry(orpc.eventVenues.list, undefined, { items: [] } as never),
+      entry(orpc.venues.list, undefined, venues),
+      entry(orpc.eventVenues.list, undefined, { items: [] }),
     ])
     await page.goto(`/#/event/${EVENT_ID}`)
     await page.getByTestId("tab-venues").click()

@@ -43,8 +43,8 @@ const event = apiEvent({
  */
 const seeded = (page: Parameters<typeof seedCache>[0]) =>
   seedCache(page, [
-    entry(orpc.events.list, undefined, { events: [event] } as never),
-    entry(orpc.reference.list, undefined, REF as never),
+    entry(orpc.events.list, undefined, { events: [event] }),
+    entry(orpc.reference.list, undefined, REF),
   ])
 
 test.describe("Localisation, rendered", () => {
@@ -121,7 +121,7 @@ test.describe("Localisation, rendered", () => {
 test.describe("the document's language attribute", () => {
   for (const locale of LOCALES) {
     test(`is '${locale}' on first load when that is the reader's language`, async ({ page }) => {
-      await seedCache(page, [entry(orpc.events.list, undefined, { events: [event] } as never)])
+      await seedCache(page, [entry(orpc.events.list, undefined, { events: [event] })])
       await page.addInitScript((l) => localStorage.setItem("remy.locale", l), locale)
 
       await page.goto("/#/")
@@ -130,7 +130,7 @@ test.describe("the document's language attribute", () => {
   }
 
   test("follows the switcher afterwards", async ({ page }) => {
-    await seedCache(page, [entry(orpc.events.list, undefined, { events: [event] } as never)])
+    await seedCache(page, [entry(orpc.events.list, undefined, { events: [event] })])
     await page.addInitScript(() => localStorage.setItem("remy.locale", "en"))
 
     await page.goto("/#/")

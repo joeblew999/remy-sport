@@ -15,9 +15,26 @@
  * exactly the missing-property error the declared return type would have
  * raised — the file defeated its own purpose in its last two characters, while
  * the docstring claimed otherwise.
+ *
+ * The promise above was also unkept for a different reason: nothing compiled
+ * this file until tests/ got a tsconfig, so `ApiEvent` could grow a field and
+ * the fixture stay short of it. That is fixed; the drift it hid is what the
+ * roster and game factories below exist to stop repeating.
  */
 
+import type { RouterClient } from "@orpc/server"
+import type { Router } from "../../src/api/index"
 import type { ApiEvent, ApiTeam } from "../../src/domain/api"
+
+/**
+ * The response type of one procedure, inferred rather than written out.
+ *
+ * `ApiEvent` and `ApiTeam` are exported from the domain because the SPA needs
+ * them by name; most procedures are not, and hand-copying their shape into a
+ * test helper would recreate the duplication this file exists to remove.
+ */
+type ResponseOf<P> = P extends (...a: never[]) => Promise<infer R> ? R : never
+type Client = RouterClient<Router>
 
 /**
  * One event, complete.
@@ -79,6 +96,75 @@ export function apiTeam(over: Partial<ApiTeam> = {}): ApiTeam {
     orgCityCode: "BANGKOK",
     orgProvinceCode: "BKK",
     canEdit: false,
+    ...over,
+  }
+}
+
+/**
+ * One game, complete.
+ *
+ * `games.list` is seeded by the schedule, team and video specs, and each of
+ * them wrote a partial literal: a fixture with `eventId`, `startsAt` and the
+ * three permission flags, and none of `id`, `homeTeamId`, `awayTeamId`,
+ * `statusCode`, `homeScore`, `awayScore` or the joined name maps. The component
+ * reads several of those, so the tests were rendering against a payload the API
+ * has never returned.
+ */
+export type ApiGame = ResponseOf<Client["games"]["get"]>
+
+export function apiGame(over: Partial<ApiGame> = {}): ApiGame {
+  return {
+    id: "gam_002",
+    eventId: "evt_002",
+    homeTeamId: "team_001",
+    awayTeamId: "team_002",
+    homeTeamNames: { en: "Assumption U18 Boys" },
+    awayTeamNames: { en: "Triam Udom U18 Girls" },
+    // Null is a real state, not an empty one: a fixture exists before a court
+    // is assigned, and the product renders "Venue TBC" for it.
+    venueId: "ven_001",
+    venueNames: { en: "Assumption College Indoor Court" },
+    startsAt: "2026-06-10T09:00:00.000Z",
+    statusCode: "SCHEDULED",
+    homeScore: null,
+    awayScore: null,
+    timezone: "Asia/Bangkok",
+    canEnterScore: false,
+    canSetStatus: false,
+    canAssignReferee: false,
+    referees: [],
+    availableReferees: [],
+    // Live video. `isBroadcasting` is a fact about the game — the app owns it,
+    // because Cloudflare's relay cannot be asked. `canBroadcast` is the
+    // server's answer for this reader.
+    isBroadcasting: false,
+    canBroadcast: false,
+    ...over,
+  }
+}
+
+/**
+ * A team's roster: players, staff, and what the reader may do with them.
+ *
+ * `coaches` is the field that proves the point. Team coaching staff shipped
+ * earlier in this session, `teams.roster` grew the array, and every render
+ * fixture kept seeding the older three-field shape — passing, because the cast
+ * meant nothing checked, and because a component reading `data.coaches` off a
+ * payload that has none gets `undefined` and renders an empty list rather than
+ * throwing. The tests said the squad page worked. They were not describing this
+ * API.
+ */
+export type ApiRoster = ResponseOf<Client["teams"]["roster"]>
+
+export function apiRoster(over: Partial<ApiRoster> = {}): ApiRoster {
+  return {
+    players: [],
+    coaches: [],
+    // Who may change it — the server's answer, never derived in the page.
+    canManage: false,
+    // Players not on this team who could be added. Empty is the ordinary case
+    // for a reader who may not manage the roster anyway.
+    available: [],
     ...over,
   }
 }

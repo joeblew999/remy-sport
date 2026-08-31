@@ -35,7 +35,7 @@ const brokenPage = () =>
   entry(
     orpc.reference.list,
     undefined,
-    { cities: "not-an-array", eventTypes: [], locales: LOCALES } as never,
+    { cities: "not-an-array", eventTypes: [], locales: LOCALES },
   )
 
 /**
@@ -44,7 +44,7 @@ const brokenPage = () =>
  * the first boundary was added.
  */
 const brokenProvider = () =>
-  entry(orpc.reference.list, undefined, { cities: [], eventTypes: [] } as never)
+  entry(orpc.reference.list, undefined, { cities: [], eventTypes: [] })
 
 test.describe("When a page throws", () => {
   test("the reader gets a message and a way back, not a white screen", async ({ page }) => {

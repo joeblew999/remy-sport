@@ -56,7 +56,7 @@ test.describe("Live video, before a relay exists", () => {
     // Pointing a camera at the wrong fixture is the mistake this prevents, and
     // the id in the URL is not something a person can check at a glance.
     await seedCache(page, [
-      entry(orpc.games.get, { id: "gam_002" }, liveGame as never),
+      entry(orpc.games.get, { id: "gam_002" }, liveGame),
     ])
     await page.goto("/#/broadcast/gam_002")
 
@@ -72,8 +72,8 @@ test.describe("Live video, before a relay exists", () => {
     // The sidebar links to a page, not to a fixture, and somebody in another
     // country trying this out should not have to find a game id first.
     await seedCache(page, [
-      entry(orpc.games.list, {}, { viewerTimezone: null, games: [liveGame] } as never),
-      entry(orpc.games.get, { id: "gam_002" }, liveGame as never),
+      entry(orpc.games.list, {}, { viewerTimezone: null, games: [liveGame] }),
+      entry(orpc.games.get, { id: "gam_002" }, liveGame),
     ])
     await page.goto("/#/broadcast")
     await expect(page.getByTestId("video-game")).toContainText("Assumption U16")
@@ -81,7 +81,7 @@ test.describe("Live video, before a relay exists", () => {
 
   test("says so when there is no game at all to fall back to", async ({ page }) => {
     await seedCache(page, [
-      entry(orpc.games.list, {}, { viewerTimezone: null, games: [] } as never),
+      entry(orpc.games.list, {}, { viewerTimezone: null, games: [] }),
     ])
     await page.goto("/#/broadcast")
     await expect(page.getByTestId("video-no-game")).toBeVisible()
@@ -112,7 +112,7 @@ test.describe("Finding a game to watch", () => {
           liveGameRow({ id: "gam_002", isBroadcasting: true }),
           liveGameRow({ id: "gam_014", isBroadcasting: false }),
         ],
-      } as never),
+      }),
     ])
     await page.goto("/#/live")
 
@@ -130,7 +130,7 @@ test.describe("Finding a game to watch", () => {
           liveGameRow({ id: "gam_002", canBroadcast: true }),
           liveGameRow({ id: "gam_014", canBroadcast: false }),
         ],
-      } as never),
+      }),
     ])
     await page.goto("/#/live")
 
@@ -142,7 +142,7 @@ test.describe("Finding a game to watch", () => {
     page,
   }) => {
     await seedCache(page, [
-      entry(orpc.games.list, {}, { viewerTimezone: null, games: [] } as never),
+      entry(orpc.games.list, {}, { viewerTimezone: null, games: [] }),
     ])
     await page.goto("/#/live")
     await expect(page.getByTestId("no-live-games")).toBeVisible()
@@ -166,14 +166,14 @@ test.describe("A broadcaster starts from the fixture they are standing at", () =
     // is still SCHEDULED. Offering this only on Live now — which lists games
     // already in play — is offering it after they needed it.
     await seedCache(page, [
-      entry(orpc.events.get, { id: "evt_002" }, apiEvent({ id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" }, startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK", organizerUserId: "usr_org_002", orgId: null, organizerName: "Niran" }) as never),
+      entry(orpc.events.get, { id: "evt_002" }, apiEvent({ id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" }, startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK", organizerUserId: "usr_org_002", orgId: null, organizerName: "Niran" })),
       entry(orpc.games.list, { eventId: "evt_002" }, {
         viewerTimezone: null,
         games: [
           { ...liveGame, id: "gam_050", statusCode: "SCHEDULED", homeScore: null, awayScore: null,
             isBroadcasting: false, canBroadcast: true },
         ],
-      } as never),
+      }),
     ])
     await page.goto("/#/event/evt_002")
     await page.getByRole("button", { name: "Schedule" }).click()
@@ -184,11 +184,11 @@ test.describe("A broadcaster starts from the fixture they are standing at", () =
     page,
   }) => {
     await seedCache(page, [
-      entry(orpc.events.get, { id: "evt_002" }, apiEvent({ id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" }, startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK", organizerUserId: "usr_org_002", orgId: null, organizerName: "Niran" }) as never),
+      entry(orpc.events.get, { id: "evt_002" }, apiEvent({ id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" }, startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK", organizerUserId: "usr_org_002", orgId: null, organizerName: "Niran" })),
       entry(orpc.games.list, { eventId: "evt_002" }, {
         viewerTimezone: null,
         games: [{ ...liveGame, id: "gam_051", isBroadcasting: true, canBroadcast: false }],
-      } as never),
+      }),
     ])
     await page.goto("/#/event/evt_002")
     await page.getByRole("button", { name: "Schedule" }).click()

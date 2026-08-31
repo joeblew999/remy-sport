@@ -37,11 +37,11 @@ const child = {
 const seed = (page: Parameters<typeof seedCache>[0], type: string, entered: string[] = []) =>
   seedCache(page, [
     signedIn,
-    entry(orpc.events.get, { id: EVENT_ID }, apiEvent({ id: EVENT_ID, typeCode: type as never })),
-    entry(orpc.players.mine, undefined, { players: [child] } as never),
+    entry(orpc.events.get, { id: EVENT_ID }, apiEvent({ id: EVENT_ID, typeCode: type })),
+    entry(orpc.players.mine, undefined, { players: [child] }),
     entry(orpc.eventPlayers.list, undefined, {
       items: entered.map((playerId) => ({ eventId: EVENT_ID, playerId, registeredAt: "2026-03-20" })),
-    } as never),
+    }),
   ])
 
 test.describe("Entering a player in an event", () => {
@@ -108,7 +108,7 @@ test.describe("Entering a player in an event", () => {
     // Two different empty states again: "nobody of yours can enter this" is a
     // fact, "we do not know who you are" is not.
     await seedCache(page, [
-      entry(orpc.events.get, { id: EVENT_ID }, apiEvent({ id: EVENT_ID, typeCode: "CAMP" as never })),
+      entry(orpc.events.get, { id: EVENT_ID }, apiEvent({ id: EVENT_ID, typeCode: "CAMP" })),
     ])
     await page.goto(`/#/event/${EVENT_ID}`)
     await page.getByTestId("tab-players").click()
