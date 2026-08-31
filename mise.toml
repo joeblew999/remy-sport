@@ -526,6 +526,17 @@ case "$changed" in *src/api/*|*src/db/*|*src/domain/*) tier="test:worker" ;; esa
 exit 0
 """
 
+[tasks.watch]
+description = "Run verify on every save — the loop with no command in it"
+depends     = ["install"]
+# `verify` is 1.75s. That is the number that makes this worth having: a check you
+# have to ask for gets run at the end of a change, and a check that has already
+# run is one you read.
+#
+# Ctrl-C stops it. It ignores src/paraglide, which `verify` itself regenerates —
+# watching that is an infinite loop at full CPU.
+run = "bun scripts/watch.ts"
+
 [tasks.check]
 description = "Type check, dead code, and documented paths — the three things that rot quietly"
 # `web:build` is a dependency rather than a line in the script, so mise builds
