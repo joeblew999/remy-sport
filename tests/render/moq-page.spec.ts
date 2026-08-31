@@ -32,6 +32,34 @@ const liveGame = apiGame({
   availableReferees: [],
 })
 
+/**
+ * The native notification path must be invisible in a browser.
+ *
+ * Adding it put a `pushState()` call at the app root, which fetches the VAPID
+ * key — a round trip on every page for an answer no browser needs, and an
+ * unhandled rejection where there is no Worker. Nothing asserted that directly;
+ * it surfaced as an unrelated "an unconfigured relay must not throw" three
+ * files away, which is a bad way to find out.
+ */
+test.describe("The native notification path stays out of the browser's way", () => {
+  test("no page in a browser makes an unhandled request for the push key", async ({ page }) => {
+    const errors: string[] = []
+    const keyCalls: string[] = []
+    page.on("pageerror", (e) => errors.push(e.message))
+    page.on("request", (r) => {
+      if (/push\/key|notifications\/key/.test(r.url())) keyCalls.push(r.url())
+    })
+
+    // A page that does not render notification settings. The root-level effect
+    // ran here regardless, which was the bug.
+    await page.goto("/#/broadcast/gam_002")
+    await page.waitForTimeout(800)
+
+    expect(errors, "the app root must not reject unhandled").toEqual([])
+    expect(keyCalls, "a browser has no use for the native state").toEqual([])
+  })
+})
+
 test.describe("Live video, before a relay exists", () => {
   test("the broadcast page says video is not switched on, rather than failing", async ({
     page,

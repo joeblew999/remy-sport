@@ -16,8 +16,22 @@
 import { api } from "./orpc"
 
 export type PushState =
-  /** Not a browser that can do this — or a Tauri webview, where it is native. */
+  /** Not a browser that can do this. */
   | { status: "unsupported" }
+  /**
+   * The native app, where notifications are the OS's and not the browser's.
+   *
+   * A distinct state rather than "on", because what it offers is genuinely
+   * narrower: the app shows notifications *while it is running*. Nothing
+   * arrives when it is closed — there is no APNs or FCM registration, by
+   * decision, see docs/dev/native-notifications.md. Collapsing it into "on"
+   * would promise the reader delivery we do not have.
+   */
+  | { status: "native" }
+  /** Native, and the reader has not been asked yet. */
+  | { status: "native-off" }
+  /** Native, and the reader said no. Only the OS settings can undo it. */
+  | { status: "native-denied" }
   /** iOS Safari, in a tab. Supported, but only once added to the Home Screen. */
   | { status: "needs-install" }
   /** The deployment has no VAPID keys. Nothing the reader can do. */
@@ -27,7 +41,63 @@ export type PushState =
   | { status: "off" }
   | { status: "on" }
 
-const isTauri = () => typeof window !== "undefined" && "__TAURI_INTERNALS__" in window
+/**
+ * The native app, decided synchronously and with no network.
+ *
+ * Exported because the app root needs to know *before* asking anything:
+ * `pushState()` fetches the VAPID key, and calling it on every page load in a
+ * browser is a round trip for an answer no browser needs. It also rejected
+ * unhandled where there is no Worker, which is how the render tier found this.
+ */
+export const isNativeApp = () =>
+  typeof window !== "undefined" && "__TAURI_INTERNALS__" in window
+
+const isTauri = isNativeApp
+
+/**
+ * The notification plugin, loaded only inside the app.
+ *
+ * A static import would pull the Tauri IPC shim into the web bundle, where
+ * `__TAURI_INTERNALS__` does not exist and every call throws. Dynamic, so a
+ * browser never evaluates it — and `check:bundle` would catch it if this
+ * regressed into the service worker.
+ */
+const plugin = () => import("@tauri-apps/plugin-notification")
+
+/** What the OS will let the app do, asked without prompting anybody. */
+async function nativeState(): Promise<PushState> {
+  try {
+    const { isPermissionGranted } = await plugin()
+    return (await isPermissionGranted()) ? { status: "native" } : { status: "native-off" }
+  } catch {
+    // The plugin is not registered, or the capability is missing. Reporting
+    // "unsupported" is honest: from the reader's side there is no way to turn
+    // this on, and it is not something they did.
+    return { status: "unsupported" }
+  }
+}
+
+/**
+ * Ask the OS, once, from a user gesture.
+ *
+ * Separate from `enablePush` below because nothing about it is Web Push: no
+ * VAPID key, no subscription, no server round trip. There is nothing to tell
+ * the server — the app notifies itself, so a `userNotificationChannel` row
+ * would describe a delivery path that does not exist.
+ */
+export async function enableNative(): Promise<PushState> {
+  try {
+    const { isPermissionGranted, requestPermission } = await plugin()
+    if (await isPermissionGranted()) return { status: "native" }
+    const granted = await requestPermission()
+    // "default" means dismissed rather than refused — asking again later is
+    // legitimate, so it is not the same as denied.
+    if (granted === "granted") return { status: "native" }
+    return granted === "denied" ? { status: "native-denied" } : { status: "native-off" }
+  } catch {
+    return { status: "unsupported" }
+  }
+}
 
 /**
  * Standalone display mode — the app was installed rather than opened in a tab.
@@ -44,9 +114,18 @@ const isIos = () =>
   // iPadOS 13+ reports itself as a Mac. A Mac with a touchscreen is an iPad.
   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
 
-/** What this browser can do right now, before the reader is asked anything. */
+/**
+ * What this browser can do right now, before the reader is asked anything.
+ *
+ * The Tauri branch used to return "unsupported" and stop, which was true of
+ * `PushManager` and false of the app: a webview has no push API, and the OS
+ * underneath it has a perfectly good notification centre. So the native app
+ * reported "this browser cannot show notifications" on a machine that plainly
+ * could, and there was nothing behind the message to fix.
+ */
 export async function pushState(): Promise<PushState> {
-  if (typeof window === "undefined" || isTauri()) return { status: "unsupported" }
+  if (typeof window === "undefined") return { status: "unsupported" }
+  if (isTauri()) return nativeState()
 
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
     // On iOS the API is genuinely absent until installed, so "unsupported" here

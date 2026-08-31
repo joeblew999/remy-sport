@@ -15,11 +15,13 @@
 // contract, so a resource costs one call and nothing here can drift from the
 // API.
 
+import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "./orpc";
 import { toEvent, toTeam } from "./api";
 import { useLocalizer } from "./locale";
 import { formatIsoDay, formatMonthYear } from "./dates";
+import { changedScores, listenForTaps, notify, scoreBody } from "./native-notify";
 import { type EventStatus, type EventType } from "../data";
 
 export interface EventFilters {
@@ -27,6 +29,8 @@ export interface EventFilters {
   type?: EventType;
   city?: string;
   limit?: number;
+  /** Off entirely — the native notifier only needs these inside the app. */
+  enabled?: boolean;
 }
 
 /**
@@ -61,10 +65,11 @@ export function useMyEvents() {
   );
 }
 
-export function useEvents({ status, type, city, limit }: EventFilters = {}) {
+export function useEvents({ status, type, city, limit, enabled = true }: EventFilters = {}) {
   const loc = useLocalizer();
   return useQuery(
     orpc.events.list.queryOptions({
+      enabled,
       select: ({ events }) => {
         let r = events.map((e) => toEvent(e, loc));
         if (status) r = r.filter((e) => e.status === status);
@@ -134,11 +139,12 @@ export function useGames(eventId: string | undefined) {
  *
  * Polled, because a game goes live while somebody is looking at the page.
  */
-export function useLiveGames() {
+export function useLiveGames({ enabled = true }: { enabled?: boolean } = {}) {
   const loc = useLocalizer();
   return useQuery(
     orpc.games.list.queryOptions({
       input: {},
+      enabled,
       refetchInterval: 10_000,
       select: ({ games, viewerTimezone }) => ({
         viewerTimezone,
@@ -463,4 +469,60 @@ export function useEventVenues(eventId: string | undefined) {
     .sort((a, b) => Number(b.link.isPrimary) - Number(a.link.isPrimary));
 
   return { rows, isPending: linksLoading || venuesLoading };
+}
+
+/**
+ * Native score notifications, driven by the live-games poll.
+ *
+ * Mounted once, at the app root. Does nothing at all outside the Tauri app —
+ * the browser has Web Push and a service worker, which is a better mechanism
+ * and already works.
+ *
+ * The trigger is `useLiveGames`, the same 10-second poll the Live page renders
+ * from, because there is no socket to observe: see the note in
+ * lib/native-notify.ts. Sharing the query means this costs no extra requests,
+ * TanStack dedupes it.
+ */
+export function useNativeScoreNotifications(enabled: boolean) {
+  const { data } = useLiveGames({ enabled });
+  const { data: events } = useEvents({ enabled });
+  /**
+   * The same mute the server honours.
+   *
+   * Without this a reader who turned SCORE_UPDATE off would keep getting them
+   * natively — the preference is enforced in `audienceFor` on the *server*, and
+   * a client-generated notification never passes through it. `retry: false`
+   * because a signed-out reader gets a 401 and that is not an error worth
+   * repeating; absent means nothing is muted, which matches the opt-out shape
+   * the sender uses.
+   */
+  const { data: prefs } = useQuery(
+    orpc.notifications.following.queryOptions({ retry: false, enabled }),
+  );
+  // Not state: writing to it must not re-render, and the value is only ever
+  // read by the effect that wrote it.
+  const seen = useRef<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    if (!enabled) return;
+    void listenForTaps();
+  }, [enabled]);
+
+  useEffect(() => {
+    if (!enabled || !data) return;
+    if (prefs?.muted.includes("SCORE_UPDATE")) return;
+    const byId = new Map((events ?? []).map((e) => [e.id, e.title]));
+    const games = data.games.map((g) => ({
+      id: g.id,
+      homeTeam: g.homeTeam,
+      awayTeam: g.awayTeam,
+      homeScore: g.homeScore,
+      awayScore: g.awayScore,
+      // Resolved here rather than on the game — see LiveGame in native-notify.
+      eventName: byId.get(g.eventId) ?? null,
+    }));
+    const { games: changed, seen: next } = changedScores(seen.current, games);
+    seen.current = next;
+    for (const game of changed) void notify(scoreBody(game));
+  }, [enabled, data, events, prefs]);
 }

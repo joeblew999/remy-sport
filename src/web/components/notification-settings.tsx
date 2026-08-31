@@ -19,7 +19,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api, orpc } from "../lib/orpc"
 import { m } from "../../paraglide/messages.js"
 import { useLocale } from "../lib/locale"
-import { disablePush, enablePush, pushState, type PushState } from "../lib/push"
+import { disablePush, enableNative, enablePush, pushState, type PushState } from "../lib/push"
 
 /**
  * The types worth offering, not all fourteen.
@@ -93,7 +93,42 @@ export function NotificationSettings() {
       <h2>{m.notifications()}</h2>
       <p className="meta">{m.notifications_intro()}</p>
 
-      {state === null ? null : state.status === "on" || state.status === "off" ? (
+      {/*
+        The native app, which used to land in "this browser cannot show
+        notifications" — true of PushManager, false of the machine. It says what
+        native actually offers and, more importantly, what it does not: nothing
+        arrives while the app is closed, because there is no APNs or FCM
+        registration by decision (docs/dev/native-notifications.md). The reader
+        is pointed at the installed PWA, which does work closed.
+      */}
+      {state?.status === "native" || state?.status === "native-off" || state?.status === "native-denied" ? (
+        <div data-testid="push-native">
+          {state.status === "native-denied" ? (
+            <div className="empty" data-testid="push-native-denied">{m.push_native_denied()}</div>
+          ) : state.status === "native" ? (
+            <div className="meta" data-testid="push-native-on">{m.push_native_on()}</div>
+          ) : (
+            <button
+              type="button"
+              className="btn"
+              disabled={busy}
+              data-testid="push-native-enable"
+              onClick={() => {
+                setBusy(true)
+                void enableNative()
+                  .then(setState)
+                  .finally(() => setBusy(false))
+              }}
+            >
+              {m.push_native_enable()}
+            </button>
+          )}
+          {/* Shown in every native state, including denied: it is the answer to
+              "why did nothing arrive overnight", which is the question a reader
+              has regardless of whether they granted permission. */}
+          <p className="meta" data-testid="push-native-limit">{m.push_native_limit()}</p>
+        </div>
+      ) : state === null ? null : state.status === "on" || state.status === "off" ? (
         <button
           type="button"
           className="btn"

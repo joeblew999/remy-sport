@@ -3,6 +3,8 @@ import { createRoot } from "react-dom/client";
 
 import { Sidebar } from "./components/sidebar";
 import { Topbar } from "./components/topbar";
+import { isNativeApp, pushState } from "./lib/push";
+import { useNativeScoreNotifications } from "./lib/data";
 import { useRouter } from "./lib/router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LocaleProvider, useLocale, type Locale } from "./lib/locale";
@@ -106,6 +108,35 @@ function App() {
   const [spoiler, setSpoiler] = useState<boolean>(tweaks.spoilerMode);
   // Mobile sidebar drawer state
   const [navOpen, setNavOpen] = useState(false);
+
+  /**
+   * Score notifications in the native app.
+   *
+   * Gated on the reader having granted the OS permission, asked from the
+   * profile page — never on load. A permission prompt nobody asked for is the
+   * thing every platform penalises, and `enableNative` is behind a button for
+   * the same reason `enablePush` is.
+   *
+   * A no-op in the browser, where the service worker does this properly and
+   * works with the app closed.
+   */
+  const [nativeOn, setNativeOn] = useState(false);
+  useEffect(() => {
+    // Synchronous, and first: `pushState()` fetches the VAPID key, so asking it
+    // on every page load in a browser is a round trip for an answer no browser
+    // needs — and it rejected unhandled where there is no Worker.
+    if (!isNativeApp()) return;
+    let live = true;
+    pushState()
+      .then((s) => {
+        if (live) setNativeOn(s.status === "native");
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
+  useNativeScoreNotifications(nativeOn);
 
   useEffect(() => {
     document.documentElement.style.setProperty("--accent", tweaks.accentColor);
