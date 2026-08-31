@@ -69,9 +69,28 @@ export default defineConfig({
     { name: "auth", testMatch: /auth\.setup\.ts/, dependencies: ["seed"] },
     {
       name: "e2e",
-      testIgnore: [/.*\.setup\.ts/, /devices\.spec\.ts/],
+      testIgnore: [/.*\.setup\.ts/, /devices\.spec\.ts/, /authz\.spec\.ts/],
       dependencies: ["auth"],
     },
+    /**
+     * Also last, and for a neighbouring reason.
+     *
+     * The role switcher performs a **real OTP sign-in** as the actor whose
+     * button is clicked — that is the point of the test, since the old version
+     * asserted six buttons were visible and never clicked one, so the switcher
+     * kept posting passwords for weeks after password sign-in was removed.
+     *
+     * `spa-login.spec.ts` also signs in for real, and with `workers: 2` the two
+     * ran together and competed for the same seeded accounts' codes: the badge
+     * stayed on the previous actor and the test failed at 32 of 35. It was
+     * characterised as an occasional flake; measured, it was two runs in three.
+     *
+     * Sequencing it costs a few seconds and removes the race, which is what the
+     * `devices` project below already does for the same class of problem. The
+     * alternative — a private actor nothing else signs in as — pushes the
+     * collision one seeded account further away rather than removing it.
+     */
+    { name: "authz", testMatch: /authz\.spec\.ts/, dependencies: ["e2e"] },
     // Last, and alone. Session state is global per user, so "sign out all other
     // devices" revokes the very cookies auth.setup.ts saved for that actor —
     // which any concurrently-running file is relying on. Running it after
