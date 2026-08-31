@@ -1,5 +1,11 @@
 {
   "compilerOptions": {
+    // Incremental, so the second typecheck of a loop costs about a third of the
+    // first (measured: 2.5s -> 0.95s, 3.5s -> 1.19s, 3.0s -> 1.19s). The cache
+    // lives outside the source tree and is gitignored; `mise run typecheck:clean`
+    // ignores it, and that is what the pre-commit gate runs.
+    "incremental": true,
+    "tsBuildInfoFile": ".tsbuildinfo/worker.tsbuildinfo",
     // src/paraglide is generated JavaScript carrying JSDoc types. The Worker
     // imports it because the OTP email is written in the same messages the SPA
     // renders — see src/auth.ts. src/web/tsconfig.json has had this all along.

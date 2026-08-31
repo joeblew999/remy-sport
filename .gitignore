@@ -16,3 +16,7 @@ src/paraglide/
 .playwright-mcp/
 page-*.png
 *-402.png
+
+# TypeScript incremental caches. An optimisation, never an input to
+# correctness: `mise run typecheck:clean` ignores them and is what the gate runs.
+.tsbuildinfo/

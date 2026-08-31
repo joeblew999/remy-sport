@@ -303,11 +303,48 @@ depends     = ["install", "i18n:generate"]
 # to `ApiEvent` left tests/helpers/api-fixtures.ts returning an object without
 # it, while the file's own docstring promised "the next field added to the
 # contract is a compile error here and nowhere else".
+#
+# ## Three processes, not three lines
+#
+# They sat in a column and ran one after another for 9.0s on a twelve-core
+# machine, for three jobs that share nothing: 2.5s + 3.5s + 3.0s. In parallel it
+# is the slowest of them, ~3.5s, and warm it is ~1.2s.
+#
+# `:::` separates tasks, which is why each project is its own task rather than a
+# line here. Without it mise reads everything after the first name as arguments
+# to that task and silently runs one thing.
+run = "mise run typecheck:worker ::: typecheck:spa ::: typecheck:tests"
+
+# The three projects. Each is `--incremental` by way of its tsconfig, so the
+# second run of a loop costs about a third of the first. `typecheck:clean` below
+# is what the gate uses.
+[tasks."typecheck:worker"]
+description = "Typecheck the Worker (Hono JSX)"
+hide        = true
+run         = "bun x tsc --noEmit -p tsconfig.json"
+
+[tasks."typecheck:spa"]
+description = "Typecheck the SPA (React JSX)"
+hide        = true
+run         = "bun x tsc --noEmit -p src/web/tsconfig.json"
+
+[tasks."typecheck:tests"]
+description = "Typecheck the tests"
+hide        = true
+run         = "bun x tsc --noEmit -p tsconfig.tests.json"
+
+[tasks."typecheck:clean"]
+description = "Typecheck from scratch, ignoring the incremental caches — what the gate runs"
+depends     = ["install", "i18n:generate"]
+# The gate must not be able to pass on a stale cache. TypeScript's invalidation
+# is reliable in practice, but "reliable in practice" is not the standard for
+# the thing that decides whether a commit is safe, and here it is free: at ~3.5s
+# in parallel this sits well inside test:render's 19s, so `check` does not
+# notice the difference.
 run = """
-bun x tsc --noEmit
-bun x tsc --noEmit -p src/web/tsconfig.json
-bun x tsc --noEmit -p tsconfig.tests.json
-echo "typecheck: worker, SPA and tests all clean"
+mise run typecheck:worker --incremental false \
+  ::: typecheck:spa --incremental false \
+  ::: typecheck:tests --incremental false
 """
 
 [tasks."domain:sync"]
@@ -525,7 +562,7 @@ run = """
 # Everything else goes together, render included: it drives WebKit against a
 # static `vite preview` and touches no Worker binding, so it is happy under
 # load. It also dominates the group at ~15s, which the cheap checks fill.
-mise run test:render ::: typecheck ::: test:unit \
+mise run test:render ::: typecheck:clean ::: test:unit \
   ::: check:dead ::: check:docs ::: check:authz ::: check:conventions \
   ::: check:seed ::: check:domain ::: check:tables ::: check:assets \
   ::: check:messages ::: check:deps ::: check:i18n ::: i18n:validate

@@ -1,5 +1,11 @@
 {
   "compilerOptions": {
+    // Incremental, so the second typecheck of a loop costs about a third of the
+    // first (measured: 2.5s -> 0.95s, 3.5s -> 1.19s, 3.0s -> 1.19s). The cache
+    // lives outside the source tree and is gitignored; `mise run typecheck:clean`
+    // ignores it, and that is what the pre-commit gate runs.
+    "incremental": true,
+    "tsBuildInfoFile": "../../.tsbuildinfo/spa.tsbuildinfo",
     "target": "ES2020",
     "useDefineForClassFields": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],

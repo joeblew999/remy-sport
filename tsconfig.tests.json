@@ -19,6 +19,12 @@
   // carry no JSX either way. The one runtime that has to be right is React's.
   "extends": "./src/web/tsconfig.json",
   "compilerOptions": {
+    // Incremental, so the second typecheck of a loop costs about a third of the
+    // first (measured: 2.5s -> 0.95s, 3.5s -> 1.19s, 3.0s -> 1.19s). The cache
+    // lives outside the source tree and is gitignored; `mise run typecheck:clean`
+    // ignores it, and that is what the pre-commit gate runs.
+    "incremental": true,
+    "tsBuildInfoFile": ".tsbuildinfo/tests.tsbuildinfo",
     // `@types/bun` is what makes `import { test } from "bun:test"` resolve —
     // the unit tier runs on bun's own runner, and without it fifteen files
     // failed to find their own test framework.
