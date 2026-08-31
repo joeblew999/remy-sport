@@ -35,7 +35,9 @@ const event = (over: Partial<ApiEvent> = {}): ApiEvent =>
     id: "e1",
     name: "Spring Cup",
     names: { en: "Spring Cup" },
-    typeCode: "tournament" as never,
+    // Uppercase, because that is what the vocabulary defines. The cast that was
+    // here hid a value no EventTypeCode has.
+    typeCode: "TOURNAMENT",
     // Undated by default: this file is about deriving a status from a date
     // window, so "no window" is the case worth starting from.
     startDate: null,

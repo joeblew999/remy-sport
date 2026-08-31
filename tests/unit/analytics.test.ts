@@ -10,6 +10,7 @@ import {
   type EventName,
   type EventSpec,
 } from "../../src/analytics"
+import { devEnv, failingRecorder, recorder, unboundEnv } from "../helpers/track-env"
 
 /**
  * Two things are being protected here, and they are different in kind.
@@ -25,47 +26,16 @@ import {
  * returning strings.
  */
 
-type Point = { blobs?: unknown[]; doubles?: unknown[]; indexes?: unknown[] }
-
-/**
- * An env that behaves like a deployment.
- *
- * `MAIL_TRANSPORT: "cloudflare"` is load-bearing, not decoration: it is this
- * codebase's "this is not a dev server" flag, and without it `track` keeps the
- * event in the local ring and writes nothing — which is correct behaviour and
- * makes every assertion about `written` silently vacuous.
- */
-const recorder = () => {
-  const written: Point[] = []
-  return {
-    written,
-    env: {
-      MAIL_TRANSPORT: "cloudflare",
-      ANALYTICS: { writeDataPoint: (p: Point) => void written.push(p) },
-    } as never,
-  }
-}
-
-/** A dev server: no dataset to write to, so events are kept in memory. */
-const devEnv = {} as never
 
 describe("track", () => {
   it("never throws when the dataset is not bound", () => {
     // `wrangler dev` and every worker test run without it, so this is the
     // ordinary case rather than an edge one.
-    expect(() => track({ MAIL_TRANSPORT: "cloudflare" } as never, "moq.session", {})).not.toThrow()
+    expect(() => track(unboundEnv, "moq.session", {})).not.toThrow()
   })
 
   it("swallows a rejected write rather than failing the request", () => {
-    const env = {
-      MAIL_TRANSPORT: "cloudflare",
-      ANALYTICS: {
-        writeDataPoint: () => {
-          throw new Error("dataset unavailable")
-        },
-      },
-    } as never
-    expect(() => track(env, "moq.session", {})).not.toThrow()
+    expect(() => track(failingRecorder(), "moq.session", {})).not.toThrow()
   })
 
   it("writes the event first and the country second, for every caller", () => {

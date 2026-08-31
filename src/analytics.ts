@@ -233,7 +233,7 @@ export function trackDynamic(
  * exists. Reusing it means there is one rule to get right rather than two that
  * can disagree about which worker they are running on.
  */
-type TrackEnv = Pick<Bindings, "ANALYTICS" | "MAIL_TRANSPORT">
+export type TrackEnv = Pick<Bindings, "ANALYTICS" | "MAIL_TRANSPORT">
 
 /**
  * Whether this worker keeps its telemetry where a person can read it.

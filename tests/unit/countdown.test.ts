@@ -16,8 +16,19 @@
 import { describe, it, expect, afterAll } from "bun:test"
 import { toEvent } from "../../src/web/lib/api"
 import { apiEvent } from "../helpers/api-fixtures"
+import type { Localizer } from "../../src/web/lib/localizer"
 
-const loc = { locale: "en", name: (_n: unknown, fallback: string) => fallback, label: () => "" } as never
+/**
+ * A localizer that returns the fallback, so the assertions are about dates and
+ * not about translation. Typed as the real `Localizer` — the cast that was here
+ * also hid the signatures, and `name(names, fallback?)` has an *optional*
+ * second parameter, which a stub declaring it required cannot stand in for.
+ */
+const loc: Localizer = {
+  locale: "en",
+  name: (_names, fallback) => fallback ?? "",
+  label: () => "",
+}
 
 /**
  * From the shared factory. This was a partial literal cast with `as never`, so
@@ -26,7 +37,7 @@ const loc = { locale: "en", name: (_n: unknown, fallback: string) => fallback, l
 const event = (startDate: string) =>
   apiEvent({
     id: "evt",
-    typeCode: "TOURNAMENT" as never,
+    typeCode: "TOURNAMENT",
     names: {},
     name: "Test",
     cityCode: null,
