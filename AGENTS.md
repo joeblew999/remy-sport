@@ -350,6 +350,18 @@ the other exception: impersonation mutates the session, so those tests cannot
 share one — they are `describe.serial` instead. Do not reach for worker counts
 or project ordering; a whole session went that way and stopped dead.
 
+**`authz` and `admin-console` fail occasionally under a full parallel run and
+pass in isolation.** Shared rows, not logic — the role switcher signs in as one
+actor while another test's session is still live, and the badge reads the wrong
+role. Re-run before investigating: alone, and on a second full run, they pass.
+Playwright is held to `workers: 2` because of this.
+
+This note is here because I deleted the document that carried it. On 2026-08-29
+`docs/dev/test-migration.md` was removed as stale — most of it was, and its
+tier counts were four times wrong — but this went with it, and two days later I
+spent a diagnosis rediscovering a flake somebody had already characterised. When
+deleting a document, the known-defect list is the part to read twice.
+
 **`/` → `/#/x` is a same-document navigation.** React does not remount and
 `useSession` does not refetch, so a page renders against whoever was signed in
 before. Any test that changes identity uses `gotoFresh()`.
