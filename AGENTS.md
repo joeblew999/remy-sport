@@ -350,11 +350,16 @@ the other exception: impersonation mutates the session, so those tests cannot
 share one — they are `describe.serial` instead. Do not reach for worker counts
 or project ordering; a whole session went that way and stopped dead.
 
-**`authz` and `admin-console` fail occasionally under a full parallel run and
-pass in isolation.** Shared rows, not logic — the role switcher signs in as one
-actor while another test's session is still live, and the badge reads the wrong
-role. Re-run before investigating: alone, and on a second full run, they pass.
-Playwright is held to `workers: 2` because of this.
+**A spec that signs in for real belongs in a sequenced project, not beside the
+others.** Two do: `authz`'s role switcher and `spa-login`. At `workers: 2` they
+ran together and competed for the same seeded accounts' OTP codes — the badge
+stayed on the previous actor and e2e reported 32 of 35. `authz` is its own
+project depending on `e2e` now, the way `devices` already was, and three
+consecutive full runs pass.
+
+I first wrote this up as an occasional flake to re-run past, on the strength of
+one isolation run. Measured over full runs it was two in three, which is a bug
+and not a flake. **Count the failures before calling something intermittent.**
 
 This note is here because I deleted the document that carried it. On 2026-08-29
 `docs/dev/test-migration.md` <!-- docs-check-ignore --> was removed as stale — most of it was, and its
