@@ -1,6 +1,6 @@
 import { test, expect } from "./fixture"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { apiEvent } from "../helpers/api-fixtures"
+import { apiEntries, apiEvent, apiGame, apiStanding, type ApiEntries, type ApiGame, type ApiStanding } from "../helpers/api-fixtures"
 
 /**
  * The schedule, rendered against seeded games.
@@ -11,20 +11,18 @@ import { apiEvent } from "../helpers/api-fixtures"
  * component does not contain.
  */
 
-const base = {
-  eventId: "evt_002",
-  homeTeamNames: { en: "Assumption U16", th: "อัสสัมชัญ U16" },
-  awayTeamNames: { en: "Montfort U16", th: "มงฟอร์ต U16" },
-  venueNames: { en: "Assumption Indoor Court" },
-  canEnterScore: false,
-  canSetStatus: false,
-  canAssignReferee: false,
-  referees: [],
-  availableReferees: [],
-}
+/** Through `apiGame`, so a row here is the whole response and not nine of its fields. */
+const base = (over: Partial<ApiGame> = {}) =>
+  apiGame({
+    eventId: "evt_002",
+    homeTeamNames: { en: "Assumption U16", th: "อัสสัมชัญ U16" },
+    awayTeamNames: { en: "Montfort U16", th: "มงฟอร์ต U16" },
+    venueNames: { en: "Assumption Indoor Court" },
+    ...over,
+  })
 
-const finished = { ...base, id: "gam_001", startsAt: "2026-06-10T10:00:00Z", statusCode: "FINISHED", homeScore: 68, awayScore: 54, venueId: "ven_002" }
-const upcoming = { ...base, id: "gam_003", startsAt: "2026-09-15T10:00:00Z", statusCode: "SCHEDULED", homeScore: null, awayScore: null, venueId: null, venueNames: null }
+const finished = base({ id: "gam_001", startsAt: "2026-06-10T10:00:00Z", statusCode: "FINISHED", homeScore: 68, awayScore: 54, venueId: "ven_002" })
+const upcoming = base({ id: "gam_003", startsAt: "2026-09-15T10:00:00Z", statusCode: "SCHEDULED", homeScore: null, awayScore: null, venueId: null, venueNames: null })
 
 /**
  * `canManage` says whether the reader may reschedule or remove a fixture.
@@ -34,20 +32,13 @@ const upcoming = { ...base, id: "gam_003", startsAt: "2026-09-15T10:00:00Z", sta
  */
 const seed = (
   page: Parameters<typeof seedCache>[0],
-  games: unknown[],
+  games: ApiGame[],
   canManage = false,
 ) =>
   seedCache(page, [
-    entry(orpc.events.entries, { eventId: "evt_002" }, {
-      registered: [],
-      registrable: [],
-      // `divisions` is not optional: useEntries maps it, so omitting it made
-      // the query throw and the permission silently read false.
-      divisions: [],
-      canManageFixtures: canManage,
-    }),
+    entry(orpc.events.entries, { eventId: "evt_002" }, apiEntries({ canManageFixtures: canManage })),
     entry(orpc.events.get, { id: "evt_002" }, apiEvent({ id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" }, startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK", organizerUserId: "usr_org_002", orgId: null, organizerName: "Niran" })),
-    entry(orpc.games.list, { eventId: "evt_002" }, { games }),
+    entry(orpc.games.list, { eventId: "evt_002" }, { games, viewerTimezone: null }),
   ])
 
 test.describe("An event's schedule", () => {
@@ -115,15 +106,9 @@ test.describe("An event's schedule", () => {
  * header was equally made up. Every column is derived from the games now.
  */
 test.describe("Standings", () => {
-  const line = (over: Record<string, unknown>) => ({
-    teamId: "team_001", teamNames: { en: "Assumption U16" },
-    divisionId: "div_001", divisionNames: { en: "U16 Boys" },
-    rank: 1, played: 1, won: 1, lost: 0,
-    pointsFor: 68, pointsAgainst: 54, pointsDiff: 14, leaguePoints: 2,
-    ...over,
-  })
+  const line = (over: Partial<ApiStanding> = {}) => apiStanding(over)
 
-  const seedStandings = (page: Parameters<typeof seedCache>[0], standings: unknown[]) =>
+  const seedStandings = (page: Parameters<typeof seedCache>[0], standings: ApiStanding[]) =>
     seedCache(page, [
       entry(orpc.events.get, { id: "evt_002" }, apiEvent({ id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" }, startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK", organizerUserId: "usr_org_002", orgId: null, organizerName: "Niran" })),
       entry(orpc.standings.list, { eventId: "evt_002" }, { standings }),
@@ -170,7 +155,7 @@ test.describe("Event entries", () => {
   const U16M = { id: "div_001", names: { en: "U16 Boys" }, ageGroupCode: "U16", genderCode: "M" }
   const U18F = { id: "div_004", names: { en: "U18 Girls" }, ageGroupCode: "U18", genderCode: "F" }
 
-  const seedEntries = (page: Parameters<typeof seedCache>[0], entries: unknown) =>
+  const seedEntries = (page: Parameters<typeof seedCache>[0], entries: ApiEntries) =>
     seedCache(page, [
       entry(orpc.events.get, { id: "evt_002" }, EVENT),
       entry(orpc.events.entries, { eventId: "evt_002" }, entries),
@@ -257,7 +242,7 @@ test.describe("Running a schedule", () => {
 
   const show = async (
     page: Parameters<typeof seedCache>[0],
-    opts: { canManageFixtures: boolean; game?: Record<string, unknown> },
+    opts: { canManageFixtures: boolean; game?: Partial<ApiGame> },
   ) => {
     await seedCache(page, [
       entry(orpc.events.get, { id: "evt_002" }, EV),
@@ -266,6 +251,7 @@ test.describe("Running a schedule", () => {
       }),
       entry(orpc.games.list, { eventId: "evt_002" }, {
         games: [{ ...finished, ...(opts.game ?? {}) }],
+        viewerTimezone: null,
       }),
     ])
     await page.goto("/#/event/evt_002")

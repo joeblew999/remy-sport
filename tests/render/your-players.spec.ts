@@ -1,5 +1,6 @@
 import { test, expect } from "./fixture"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
+import { apiMyPlayer, type ApiMyPlayer } from "../helpers/api-fixtures"
 import { sessionKey } from "../../src/web/lib/session"
 
 /**
@@ -19,23 +20,27 @@ const signedIn = {
   },
 }
 
-const child = (over: Record<string, unknown> = {}) => ({
-  playerId: "ply_001",
-  names: { en: "Somchai Prasert", th: "สมชาย ประเสริฐ" },
-  jerseyNumber: 7,
-  positionCode: "PG",
-  guardianTypeCode: "PARENT",
-  teamId: "team_001",
-  teamNames: { en: "Assumption U18 Boys" },
-  canEdit: true,
-  ...over,
-})
+// Through `apiMyPlayer`, so `guardianTypeCode` and `positionCode` stay their
+// vocabularies. The `Record<string, unknown>` overrides here widened both to
+// `string`, which is what the cast at each seed site was covering.
+const child = (over: Partial<ApiMyPlayer> = {}) =>
+  apiMyPlayer({
+    playerId: "ply_001",
+    names: { en: "Somchai Prasert", th: "สมชาย ประเสริฐ" },
+    jerseyNumber: 7,
+    positionCode: "PG",
+    guardianTypeCode: "PARENT",
+    teamId: "team_001",
+    teamNames: { en: "Assumption U18 Boys" },
+    canEdit: true,
+    ...over,
+  })
 
-const seed = (page: Parameters<typeof seedCache>[0], players: unknown[]) =>
+const seed = (page: Parameters<typeof seedCache>[0], players: ApiMyPlayer[]) =>
   seedCache(page, [
     signedIn,
     entry(orpc.players.mine, undefined, { players }),
-    entry(orpc.events.list, undefined, { events: [] }),
+    entry(orpc.events.list, undefined, { events: [], canCreate: false }),
   ])
 
 test.describe("Your players", () => {

@@ -228,3 +228,58 @@ export function apiReference<T extends Record<string, readonly Record<string, un
     Object.entries(vocabulary).map(([key, list]) => [key, rows(list)]),
   ) as StoredVocabularies<T>
 }
+
+/** One standings row, complete. */
+export type ApiStanding = ResponseOf<Client["standings"]["list"]>["standings"][number]
+
+export function apiStanding(over: Partial<ApiStanding> = {}): ApiStanding {
+  return {
+    teamId: "team_001",
+    teamNames: { en: "Assumption U16" },
+    divisionId: "div_001",
+    divisionNames: { en: "U16 Boys" },
+    rank: 1,
+    played: 1,
+    won: 1,
+    lost: 0,
+    pointsFor: 68,
+    pointsAgainst: 54,
+    pointsDiff: 14,
+    leaguePoints: 2,
+    ...over,
+  }
+}
+
+/** What `events.entries` returns: who is in, who could be, and the divisions. */
+export type ApiEntries = ResponseOf<Client["events"]["entries"]>
+
+export function apiEntries(over: Partial<ApiEntries> = {}): ApiEntries {
+  return {
+    registered: [],
+    registrable: [],
+    // Not optional: `useEntries` maps it, so omitting it made the query throw
+    // and the permission below silently read false.
+    divisions: [],
+    canManageFixtures: false,
+    ...over,
+  }
+}
+
+/** One of the reader's own players, as `players.mine` returns them. */
+export type ApiMyPlayer = ResponseOf<Client["players"]["mine"]>["players"][number]
+
+export function apiMyPlayer(over: Partial<ApiMyPlayer> = {}): ApiMyPlayer {
+  return {
+    playerId: "ply_002",
+    names: { en: "Kanya T." },
+    jerseyNumber: 7,
+    positionCode: "SG",
+    // Null where the player *is* the reader — being yourself is not a
+    // guardianship, and the row renders no relationship for it.
+    guardianTypeCode: "PARENT",
+    teamId: "team_002",
+    teamNames: { en: "Triam Udom U18 Girls" },
+    canEdit: false,
+    ...over,
+  }
+}

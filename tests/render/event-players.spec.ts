@@ -1,6 +1,7 @@
 import { test, expect } from "./fixture"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { apiEvent } from "../helpers/api-fixtures"
+import { apiEvent, apiMyPlayer } from "../helpers/api-fixtures"
+import type { ApiEvent } from "../../src/domain/api"
 import { sessionKey } from "../../src/web/lib/session"
 
 /**
@@ -23,7 +24,7 @@ const signedIn = {
   },
 }
 
-const child = {
+const child = apiMyPlayer({
   playerId: "ply_001",
   names: { en: "Somchai Prasert" },
   jerseyNumber: 7,
@@ -32,9 +33,9 @@ const child = {
   teamId: "team_001",
   teamNames: { en: "Assumption U18 Boys" },
   canEdit: true,
-}
+})
 
-const seed = (page: Parameters<typeof seedCache>[0], type: string, entered: string[] = []) =>
+const seed = (page: Parameters<typeof seedCache>[0], type: ApiEvent["typeCode"], entered: string[] = []) =>
   seedCache(page, [
     signedIn,
     entry(orpc.events.get, { id: EVENT_ID }, apiEvent({ id: EVENT_ID, typeCode: type })),
@@ -45,7 +46,7 @@ const seed = (page: Parameters<typeof seedCache>[0], type: string, entered: stri
   ])
 
 test.describe("Entering a player in an event", () => {
-  for (const type of ["CAMP", "SHOWCASE"]) {
+  for (const type of ["CAMP", "SHOWCASE"] as const) {
     test(`offers the tab on a ${type}`, async ({ page }) => {
       await seed(page, type)
       await page.goto(`/#/event/${EVENT_ID}`)
@@ -53,7 +54,7 @@ test.describe("Entering a player in an event", () => {
     })
   }
 
-  for (const type of ["TOURNAMENT", "LEAGUE"]) {
+  for (const type of ["TOURNAMENT", "LEAGUE"] as const) {
     test(`withholds it on a ${type}, which teams enter`, async ({ page }) => {
       await seed(page, type)
       await page.goto(`/#/event/${EVENT_ID}`)

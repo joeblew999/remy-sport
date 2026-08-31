@@ -28,6 +28,21 @@ import { seedCache, entry, orpc } from "../helpers/seed-cache"
 const LOCALES = [{ code: "en" }, { code: "th" }, { code: "ja" }]
 
 /**
+ * The one cast in tests/ that is not a mistake, and the only one left.
+ *
+ * Every other `as never` in this suite was hiding a fixture that had drifted
+ * from the contract. These two are the opposite: the payload is *deliberately*
+ * malformed, because that is the subject — an API response that cannot be
+ * rendered, and whether the reader gets a message or a white screen. A fixture
+ * that satisfied the contract would test nothing here.
+ *
+ * `as never` would say only "stop looking". This names what is happening:
+ * a value the endpoint could never return, seeded on purpose.
+ */
+type MalformedResponse = Parameters<typeof entry<undefined, never>>[2]
+const malformed = (body: unknown) => body as MalformedResponse
+
+/**
  * `cities` as a string. Discover maps over it, so the throw is *inside*
  * LocaleProvider and the translated boundary catches it.
  */
@@ -35,7 +50,7 @@ const brokenPage = () =>
   entry(
     orpc.reference.list,
     undefined,
-    { cities: "not-an-array", eventTypes: [], locales: LOCALES },
+    malformed({ cities: "not-an-array", eventTypes: [], locales: LOCALES }),
   )
 
 /**
@@ -44,7 +59,7 @@ const brokenPage = () =>
  * the first boundary was added.
  */
 const brokenProvider = () =>
-  entry(orpc.reference.list, undefined, { cities: [], eventTypes: [] })
+  entry(orpc.reference.list, undefined, malformed({ cities: [], eventTypes: [] }))
 
 test.describe("When a page throws", () => {
   test("the reader gets a message and a way back, not a white screen", async ({ page }) => {

@@ -23,7 +23,7 @@ const event = (canEdit: boolean, canInvite = canEdit) =>
 
 const seed = (canEdit: boolean, canInvite = canEdit) => [
   entry(orpc.events.get, { id: EVENT_ID }, event(canEdit, canInvite)),
-  entry(orpc.events.list, undefined, { events: [event(canEdit, canInvite)] }),
+  entry(orpc.events.list, undefined, { events: [event(canEdit, canInvite)], canCreate: false }),
 ]
 
 test.describe("An event's settings tab", () => {
