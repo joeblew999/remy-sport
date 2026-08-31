@@ -46,12 +46,12 @@ describe("Who may broadcast a game", () => {
   it("does not let that referee broadcast a game they are not on", async () => {
     // The failure the model exists to prevent: ENTER_SCORES was once granted to
     // ANY_REFEREE, the platform role, so every referee could score every game.
-    const theirs = new Set(
+    const theirs = new Set<string>(
       SEED_RELATIONSHIPS.gameReferees
         .filter((r) => r.userId === refereedGame.userId)
         .map((r) => r.gameId),
     )
-    const other = SEED_ENTITIES.games.find((g) => !theirs.has(g.id as never))!
+    const other = SEED_ENTITIES.games.find((g) => !theirs.has(g.id))!
     const cookie = await signIn(refereeEmail)
     expect((await broadcast(other.id, cookie)).status).toBe(403)
   })

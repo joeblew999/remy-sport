@@ -74,8 +74,8 @@ export const aDivisionPair = (): [string, string] => {
  * that the table is built from the entries rather than from the games.
  */
 export const aTeamWithNoGamesIn = (eventId: string): string => {
-  const played = new Set(gamesIn(eventId).flatMap((g) => [g.homeTeamId, g.awayTeamId]))
-  const idle = teamsRegisteredTo(eventId).find((t) => !played.has(t as never))
+  const played = new Set<string>(gamesIn(eventId).flatMap((g) => [g.homeTeamId, g.awayTeamId]))
+  const idle = teamsRegisteredTo(eventId).find((t) => !played.has(t))
   if (!idle) {
     throw new Error(
       `every team in ${eventId} has played — the fixtures no longer cover ` +

@@ -347,7 +347,7 @@ describe("Web Push delivery", () => {
 
     // The final whistle is a different type and still gets through — a mute is
     // per type, not a blanket off switch.
-    const other = await notify(db(), env as never, {
+    const other = await notify(db(), env, {
       typeCode: "MATCH_END",
       targets: [{ objectTypeCode: "TEAM", objectId: "team-5" }],
       tag: "status:g5",

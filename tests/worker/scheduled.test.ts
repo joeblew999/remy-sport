@@ -51,7 +51,7 @@ async function eventOn(id: string, startDate: string) {
       organizerUserId: ORGANISER,
       createdAt: new Date(),
       updatedAt: new Date(),
-    } as never)
+    })
     .onConflictDoNothing()
 }
 
@@ -80,7 +80,7 @@ describe("The reminder job", () => {
 
   it("claims a 24-hour reminder for an event starting tomorrow", async () => {
     await eventOn("cron-tomorrow", day(1))
-    await sendDueReminders(env as never, NOW)
+    await sendDueReminders(env, NOW)
     expect((await claims("cron-tomorrow")).map((c) => c.kind)).toContain("24h")
   })
 
@@ -88,22 +88,22 @@ describe("The reminder job", () => {
     // The whole point. Cron is not exactly-once, so this is the ordinary case
     // rather than an edge one.
     await eventOn("cron-twice", day(1))
-    await sendDueReminders(env as never, NOW)
-    await sendDueReminders(env as never, NOW)
-    await sendDueReminders(env as never, NOW)
+    await sendDueReminders(env, NOW)
+    await sendDueReminders(env, NOW)
+    await sendDueReminders(env, NOW)
     expect((await claims("cron-twice")).filter((c) => c.kind === "24h")).toHaveLength(1)
   })
 
   it("leaves an event far in the future alone", async () => {
     await eventOn("cron-far", day(30))
-    await sendDueReminders(env as never, NOW)
+    await sendDueReminders(env, NOW)
     expect(await claims("cron-far")).toHaveLength(0)
   })
 
   it("leaves an event that has already started alone", async () => {
     // A reminder for something that began yesterday is not a reminder.
     await eventOn("cron-past", day(-1))
-    await sendDueReminders(env as never, NOW)
+    await sendDueReminders(env, NOW)
     expect(await claims("cron-past")).toHaveLength(0)
   })
 
@@ -111,11 +111,11 @@ describe("The reminder job", () => {
     // Two announcements about one event, not one sent twice — which is why
     // `kind` is part of the unique key.
     await eventOn("cron-both", day(1))
-    await sendDueReminders(env as never, NOW)
+    await sendDueReminders(env, NOW)
     expect((await claims("cron-both")).map((c) => c.kind)).toEqual(["24h"])
 
     // Now stand at the day itself: the 1h window covers today.
-    await sendDueReminders(env as never, Date.parse("2026-06-10T23:30:00Z"))
+    await sendDueReminders(env, Date.parse("2026-06-10T23:30:00Z"))
     expect((await claims("cron-both")).map((c) => c.kind).sort()).toEqual(["1h", "24h"])
   })
 
@@ -123,7 +123,7 @@ describe("The reminder job", () => {
     // The window is "within the next 24 hours", not "in exactly 24 hours", so a
     // job that did not run for six hours still sends — late, once.
     await eventOn("cron-late", day(1))
-    await sendDueReminders(env as never, NOW + 6 * 3_600_000)
+    await sendDueReminders(env, NOW + 6 * 3_600_000)
     expect((await claims("cron-late")).map((c) => c.kind)).toContain("24h")
   })
 })

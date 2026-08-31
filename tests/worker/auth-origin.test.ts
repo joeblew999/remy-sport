@@ -21,7 +21,7 @@ import { createAuth } from "../../src/auth"
 import { env } from "cloudflare:test"
 
 const host = (url: string, headers: Record<string, string> = {}) => ({
-  env: env as never,
+  env,
   req: { url },
   headers: new Headers(headers),
 })
@@ -94,7 +94,7 @@ describe("trustedOrigins covers every form the request can take", () => {
 
   it("trusts the tunnel's own hostname when one is configured", () => {
     const auth = createAuth({
-      env: { ...(env as object), TUNNEL_HOSTNAME: "dev-remy.example.net" } as never,
+      env: { ...env, TUNNEL_HOSTNAME: "dev-remy.example.net" },
       req: { url: "http://10.16.52.74/api/auth/x" },
       headers: new Headers({ "x-forwarded-proto": "https" }),
     })
@@ -105,7 +105,7 @@ describe("trustedOrigins covers every form the request can take", () => {
     // TUNNEL_HOSTNAME explicitly absent: the test runner inherits .dev.vars,
     // so leaving it set would have this pass for the wrong reason.
     const auth = createAuth({
-      env: { ...(env as object), TUNNEL_HOSTNAME: undefined } as never,
+      env: { ...env, TUNNEL_HOSTNAME: undefined },
       req: { url: "https://remy.example.net/api/auth/x" },
       headers: new Headers(),
     })
