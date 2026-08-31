@@ -1784,3 +1784,128 @@ describe("Generating a schedule", () => {
     expect(res.status).toBe(403)
   })
 })
+
+describe("The divisions an event runs", () => {
+  /**
+   * `MANAGE_DIVISIONS` is an EVENT action and the `division` table is global,
+   * which made it look unbuildable — "manage my event's divisions" reading as
+   * "edit rows every other event points at".
+   *
+   * It is not what the model means. A division is a classification: an age
+   * group, a gender, a skill tier and a name. "U16 Boys" is the same thing in
+   * every tournament, so that table is rightly global. What belongs to an event
+   * is which of them it *runs*, and that had nowhere to live — it was inferred
+   * from whoever registered.
+   */
+  const EVENT = "evt_002"
+  const organiser = SEED_ENTITIES.users.find(
+    (u) => u.id === SEED_ENTITIES.events.find((e) => e.id === EVENT)!.organizerUserId,
+  )!
+  const runs = [
+    ...new Set(
+      SEED_RELATIONSHIPS.eventTeams
+        .filter((t) => t.eventId === EVENT)
+        .map((t) => t.divisionId as string),
+    ),
+  ]
+
+  const entries = async (cookie: string, eventId = EVENT) =>
+    (await (await api(`/api/events/${eventId}/teams`, { cookie })).json()) as {
+      divisions: { id: string }[]
+    }
+
+  const setDivisions = (divisionIds: string[], cookie: string, eventId = EVENT) =>
+    SELF.fetch(`${ORIGIN}/api/events/${eventId}/divisions`, {
+      method: "PUT",
+      headers: { "content-type": "application/json", cookie, origin: ORIGIN },
+      body: JSON.stringify({ id: eventId, divisionIds }),
+    })
+
+  it("starts as exactly the divisions its teams are already in", async () => {
+    // The migration and the derived seed must change nothing observable: an
+    // event runs today what its registrations always implied.
+    const cookie = await signIn(organiser.email)
+    const { divisions } = await entries(cookie)
+    expect(divisions.map((d) => d.id).sort()).toEqual([...runs].sort())
+  })
+
+  it("offers registration only those, not every division on the platform", async () => {
+    // The symptom that made the design obvious: this used to be
+    // `db.query.division.findMany()`, so a Bangkok league offered divisions
+    // created for somebody else's tournament.
+    const all = (await (await api("/api/divisions")).json()) as { items: { id: string }[] }
+    expect(all.items.length, "the platform has more divisions than this event runs")
+      .toBeGreaterThan(runs.length)
+
+    const { divisions } = await entries(await signIn(organiser.email))
+    expect(divisions.length).toBe(runs.length)
+  })
+
+  it("refuses a team entered into a division the event does not run", async () => {
+    // A coach, not the organiser: REGISTER_TEAM_FOR_EVENT is granted to the
+    // team's own coaches, so the organiser gets a 403 before the division is
+    // ever looked at.
+    const coach = SEED_ENTITIES.users.find(
+      (u) => u.roleCode === "COACH" && SEED_RELATIONSHIPS.teamCoaches.some((c) => c.userId === u.id),
+    )!
+    const cookie = await signIn(coach.email)
+    const notRun = (
+      (await (await api("/api/divisions")).json()) as { items: { id: string }[] }
+    ).items.find((d) => !runs.includes(d.id))!
+    expect(notRun, "a division this event does not run").toBeTruthy()
+
+    // Every seeded team is already in this event, and `eventTeam` is keyed on
+    // (event, team, division) — so entering one of this coach's teams into a
+    // *new* division is a legitimate request, and the right one to refuse here.
+    const team = SEED_RELATIONSHIPS.teamCoaches.find((c) => c.userId === coach.id)!.teamId
+    const res = await post(
+      `/api/events/${EVENT}/teams`,
+      { eventId: EVENT, teamId: team, divisionId: notRun.id },
+      cookie,
+    )
+    expect(res.status).toBe(404)
+  })
+
+  it("lets the organiser add one, and it shows up for registration", async () => {
+    const cookie = await signIn(organiser.email)
+    const extra = (
+      (await (await api("/api/divisions")).json()) as { items: { id: string }[] }
+    ).items.find((d) => !runs.includes(d.id))!
+
+    const res = await setDivisions([...runs, extra.id], cookie)
+    expect(res.status).toBe(200)
+
+    const { divisions } = await entries(cookie)
+    expect(divisions.map((d) => d.id)).toContain(extra.id)
+  })
+
+  it("refuses to drop a division that has teams in it", async () => {
+    // Dropping it would orphan eventTeam rows — silently unregistering people
+    // from an event they entered.
+    //
+    // Reads the current set first rather than assuming it: an earlier test in
+    // this file adds a division, and tests in one worker file share a database.
+    const cookie = await signIn(organiser.email)
+    const before = (await entries(cookie)).divisions.map((d) => d.id)
+
+    const res = await setDivisions([runs[0]!], cookie)
+    expect(res.status).toBe(400)
+    expect(((await res.json()) as { code: string }).code).toBe("DIVISION_IN_USE")
+
+    // And nothing moved.
+    expect((await entries(cookie)).divisions.map((d) => d.id).sort()).toEqual(before.sort())
+  })
+
+  it("refuses somebody who does not run the event", async () => {
+    expect((await setDivisions(runs, await signIn(actorFor("COACH")))).status).toBe(403)
+  })
+
+  it("refuses a camp, which the model does not grant it for", async () => {
+    // MANAGE_DIVISIONS is TOURNAMENT, LEAGUE and SHOWCASE. A camp has
+    // DEFINE_SESSION_SCHEDULE instead — sessions, not divisions.
+    const camp = SEED_ENTITIES.events.find((e) => e.typeCode === "CAMP")!
+    const owner = SEED_ENTITIES.users.find((u) => u.id === camp.organizerUserId)!
+    const res = await setDivisions([], await signIn(owner.email), camp.id)
+    expect(res.status).toBe(403)
+  })
+})

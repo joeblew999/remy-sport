@@ -308,6 +308,31 @@ for (const [name, table] of Object.entries(FIXTURE_TABLES) as [string, SQLiteTab
   }
 }
 
+/**
+ * Which divisions each event runs, derived from the teams already in it.
+ *
+ * `eventDivision` is this repo's table, not one of the Product Owner's
+ * fixtures — the model has no `eventDivisions` list, so the loop above skips it
+ * and it is filled here instead.
+ *
+ * Derived rather than typed out, which is what makes this migration invisible:
+ * every seeded event ends up running exactly the divisions its seeded teams are
+ * registered in, so nothing that worked before behaves differently after.
+ */
+const eventDivisions = new Set(
+  SEED_RELATIONSHIPS.eventTeams.map((t) => `${t.eventId}|${t.divisionId}`),
+)
+lines.push("", "-- eventDivisions (derived from eventTeams — see the note in seed-sql.ts)")
+for (const key of [...eventDivisions].sort()) {
+  const [eventId, divisionId] = key.split("|") as [string, string]
+  lines.push(
+    insertOf(schema.eventDivision, { eventId, divisionId } satisfies Partial<
+      typeof schema.eventDivision.$inferInsert
+    >),
+  )
+  fixtureRows++
+}
+
 writeFileSync(resolve(ROOT, "src/db/seed.sql"), lines.join("\n") + "\n")
 console.log(
   `seed.sql: ${SEED_ENTITIES.users.length} users, ${SEED_ENTITIES.orgs.length} orgs, ` +

@@ -4,27 +4,52 @@
 // `usr_admin_001`, `org_001` — and they are the ids the database uses, so a
 // fixture row joins to a Better Auth user on the same column rather than through
 // a bridge. Stable ids are the whole reason a re-seed is safe.
+//
+// Names here are proper nouns — a person, a school, a venue, an event — so they
+// are written once and are not translated. The one exception was divisions,
+// whose names are not proper nouns at all but labels assembled out of
+// vocabulary values, and which had drifted: every division carried Thai and
+// English and no Japanese, while `data:check` reported the model fully
+// translated. `divisionName` composes them instead, so the three locales cannot
+// disagree and a fourth arrives already done.
+import { AGE_GROUP, GENDER, SKILL_TIER, ALL_LOCALES } from "./vocabularies"
+import type { Names } from "./names"
+
+function divisionName(
+  ageGroupCode: string,
+  genderCode: string,
+  skillTierCode: string | null,
+): Names {
+  const part = (rows: readonly { code: string; names: Names }[], code: string | null) =>
+    code === null ? null : rows.find((r) => r.code === code)?.names ?? null
+
+  // The age group is the code, not its name: it reads "Under 16" on its own,
+  // but every flyer in research/events-raw prints "U16" in a division label.
+  // Asserting it exists is still worth it — a typo'd code would otherwise
+  // produce a plausible-looking label for a division that cannot be joined.
+  if (!AGE_GROUP.some((a) => a.code === ageGroupCode)) throw new Error(`unknown age group ${ageGroupCode}`)
+
+  const gender = part(GENDER, genderCode)
+  const tier = part(SKILL_TIER, skillTierCode)
+  const names: Names = {}
+  for (const locale of ALL_LOCALES) {
+    names[locale] = [ageGroupCode, gender?.[locale] ?? genderCode, tier?.[locale]]
+      .filter(Boolean)
+      .join(" ")
+  }
+  return names
+}
 
 
 export const SEED_ENTITIES = {
   divisions: [
-    {"id":"div_001","ageGroupCode":"U16","genderCode":"M","skillTierCode":null,"names":{"th":"U16 ชาย","en":"U16 Boys"}},
-    {"id":"div_002","ageGroupCode":"U18","genderCode":"M","skillTierCode":null,"names":{"th":"U18 ชาย","en":"U18 Boys"}},
-    {"id":"div_003","ageGroupCode":"U16","genderCode":"F","skillTierCode":null,"names":{"th":"U16 หญิง","en":"U16 Girls"}},
-    {"id":"div_004","ageGroupCode":"U18","genderCode":"F","skillTierCode":null,"names":{"th":"U18 หญิง","en":"U18 Girls"}},
-    {"id":"div_005","ageGroupCode":"U18","genderCode":"M","skillTierCode":"PREMIER","names":{"th":"U18 ชาย ระดับสูง","en":"U18 Boys Premier"}},
-    {"id":"div_006","ageGroupCode":"U16","genderCode":"M","skillTierCode":"PREMIER","names":{"th":"U16 ชาย ระดับสูง","en":"U16 Boys Premier"}},
+    {"id":"div_001","ageGroupCode":"U16","genderCode":"M","skillTierCode":null,"names":divisionName("U16","M",null)},
+    {"id":"div_002","ageGroupCode":"U18","genderCode":"M","skillTierCode":null,"names":divisionName("U18","M",null)},
+    {"id":"div_003","ageGroupCode":"U16","genderCode":"F","skillTierCode":null,"names":divisionName("U16","F",null)},
+    {"id":"div_004","ageGroupCode":"U18","genderCode":"F","skillTierCode":null,"names":divisionName("U18","F",null)},
+    {"id":"div_005","ageGroupCode":"U18","genderCode":"M","skillTierCode":"PREMIER","names":divisionName("U18","M","PREMIER")},
+    {"id":"div_006","ageGroupCode":"U16","genderCode":"M","skillTierCode":"PREMIER","names":divisionName("U16","M","PREMIER")},
   ],
-  /**
-   * `timezone` is the venue's, as an IANA name — the clock the game is played
-   * on. Every seeded event is in Thailand, and the column exists so that stops
-   * being an assumption the first time one is not: a tournament in Singapore
-   * starting "10:00" means 10:00 there, not 10:00 in Bangkok.
-   *
-   * Stored on the event rather than derived from the city, because a city is
-   * where an event is *listed* and a venue is where it is *played*, and a
-   * federation running a fixture abroad breaks the shortcut.
-   */
   events: [
     {"id":"evt_001","typeCode":"TOURNAMENT","timezone":"Asia/Bangkok","formatCode":"5x5","organizerUserId":"usr_org_001","orgId":"org_001","startDate":"2026-06-10","endDate":"2026-06-15","cityCode":"BANGKOK","provinceCode":"BKK","isFibaCertified":false,"names":{"th":"การแข่งขัน Sponsor Thailand Basketball League 2026 รอบกรุงเทพ","en":"Sponsor Thailand Basketball League 2026 — Bangkok Round"}},
     {"id":"evt_002","typeCode":"LEAGUE","timezone":"Asia/Bangkok","formatCode":"5x5","organizerUserId":"usr_org_002","orgId":null,"startDate":"2026-05-01","endDate":"2026-09-30","cityCode":"BANGKOK","provinceCode":"BKK","isFibaCertified":false,"names":{"th":"ลีกบาสเกตบอลโรงเรียนกรุงเทพ ฤดูกาล 2026","en":"Bangkok Schools Basketball League 2026"}},

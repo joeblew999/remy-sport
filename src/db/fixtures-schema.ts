@@ -225,6 +225,29 @@ export const eventTeam = sqliteTable("eventTeam", {
   registeredAt: text("registered_at").notNull(),
 }, (t) => [uniqueIndex("eventTeam_key").on(t.eventId, t.teamId, t.divisionId)])
 
+/**
+ * Which divisions an event runs.
+ *
+ * `division` is a global classification — an age group, a gender, a skill tier
+ * and a name — and "U16 Boys" means the same thing in every tournament in
+ * Thailand. What is *not* global is which of them a given event runs, and that
+ * had nowhere to live: an event's divisions were derived from whichever ones its
+ * registered teams happened to be in.
+ *
+ * So an organiser could not declare them before registration opened, a division
+ * with no teams yet was invisible, and the registration form offered every
+ * division on the platform — including ones created for somebody else's
+ * tournament. `MANAGE_DIVISIONS` is granted to this event's OWNER and
+ * CO_ORGANIZER and had nothing to attach to.
+ *
+ * The fifth event-scoped link table, beside eventTeam, eventVenue, eventPlayer
+ * and eventCoOrganizer, and the same shape as the rest.
+ */
+export const eventDivision = sqliteTable("eventDivision", {
+  eventId: text("event_id").notNull().references(() => event.id),
+  divisionId: text("division_id").notNull().references(() => division.id),
+}, (t) => [uniqueIndex("eventDivision_key").on(t.eventId, t.divisionId)])
+
 export const eventVenue = sqliteTable("eventVenue", {
   eventId: text("event_id").notNull().references(() => event.id),
   venueId: text("venue_id").notNull().references(() => venue.id),
@@ -322,6 +345,11 @@ export const userNotificationPreference = sqliteTable("userNotificationPreferenc
  * mechanical consequence of the table existing.
  */
 /** Standings read the registration to learn a team's division. */
+export const eventDivisionRelations = relations(eventDivision, ({ one }) => ({
+  event: one(event, { fields: [eventDivision.eventId], references: [event.id] }),
+  division: one(division, { fields: [eventDivision.divisionId], references: [division.id] }),
+}))
+
 export const eventTeamRelations = relations(eventTeam, ({ one }) => ({
   event: one(event, { fields: [eventTeam.eventId], references: [event.id] }),
   team: one(team, { fields: [eventTeam.teamId], references: [team.id] }),

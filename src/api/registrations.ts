@@ -94,6 +94,21 @@ export const registerTeam = authed
       .get()
     if (!division) throw errors.UNKNOWN_DIVISION()
 
+    // ...and one this event actually runs. The form offers only these; the API
+    // is what makes that true rather than a convention, the same way the
+    // fixture guard backs the division filter on the schedule form.
+    const runsIt = await context.db
+      .select({ divisionId: schema.eventDivision.divisionId })
+      .from(schema.eventDivision)
+      .where(
+        and(
+          eq(schema.eventDivision.eventId, input.eventId),
+          eq(schema.eventDivision.divisionId, input.divisionId),
+        ),
+      )
+      .get()
+    if (!runsIt) throw errors.UNKNOWN_DIVISION()
+
     const team = await context.db
       .select({
         ageGroupCode: schema.team.ageGroupCode,
@@ -506,10 +521,24 @@ export const eventTeams = viewer
       }
     }
 
-    // The divisions a team can be entered into, so the page can offer only the
-    // ones that match — the API refuses a mismatch, and a form that offers an
-    // impossible choice is a form that teaches people to expect errors.
-    const divisions = await context.db.query.division.findMany()
+    /**
+     * The divisions **this event runs**, so the page can offer only those.
+     *
+     * This read every division on the platform until 2026-08-31, filtered in the
+     * browser by the team's own age and gender. A Bangkok U16 league offered
+     * divisions created for somebody else's tournament, and would offer more of
+     * them every time anyone anywhere added one.
+     *
+     * `eventDivision` is what an organiser declares through MANAGE_DIVISIONS.
+     */
+    const divisions = (
+      await context.db.query.eventDivision.findMany({
+        where: (ed, { eq: is }) => is(ed.eventId, input.eventId),
+        with: { division: true },
+      })
+    )
+      .map((ed) => ed.division)
+      .filter((d): d is NonNullable<typeof d> => Boolean(d))
 
     return {
       registered,

@@ -322,6 +322,70 @@ export const mine = authed
     }
   })
 
+/**
+ * Which divisions this event runs.
+ *
+ * `division` is a global classification — "U16 Boys" means the same thing in
+ * every tournament — and which of them an event runs is a fact about the event
+ * that had nowhere to live. It was inferred from whoever had registered, so an
+ * organiser could not declare divisions before registration opened, an empty
+ * one was invisible, and the registration form offered every division on the
+ * platform.
+ *
+ * The whole set at once, so removing is expressible. A per-division add would
+ * make "we are not running U18 Girls after all" impossible to say.
+ */
+export const setDivisions = authed
+  .route({
+    method: "PUT",
+    path: "/events/{id}/divisions",
+    summary: "Set the divisions an event runs",
+    ...authedRoute,
+  })
+  .input(z.object({ id: z.string(), divisionIds: z.array(z.string()) }))
+  .output(z.object({ divisionIds: z.array(z.string()) }))
+  .errors({ DIVISION_IN_USE: ERRORS.DIVISION_IN_USE, UNKNOWN_DIVISION: ERRORS.UNKNOWN_DIVISION })
+  .use(requireAction("MANAGE_DIVISIONS", (i: { id: string }) => i.id))
+  .handler(async ({ context, input, errors }) => {
+    const wanted = [...new Set(input.divisionIds)]
+
+    // Every id has to name a real division. The foreign key would catch it, but
+    // as a constraint violation rather than as an answer.
+    if (wanted.length > 0) {
+      const real = await context.db
+        .select({ id: schema.division.id })
+        .from(schema.division)
+        .where(inArray(schema.division.id, wanted))
+        .all()
+      if (real.length !== wanted.length) throw errors.UNKNOWN_DIVISION()
+    }
+
+    /**
+     * Removing a division that has teams in it would orphan `eventTeam` rows —
+     * silently unregistering somebody from an event they entered. Refused with
+     * the divisions at fault, so the page can say which.
+     */
+    const current = await context.db
+      .select({ divisionId: schema.eventTeam.divisionId })
+      .from(schema.eventTeam)
+      .where(eq(schema.eventTeam.eventId, input.id))
+      .all()
+    const inUse = [...new Set(current.map((r) => r.divisionId))].filter(
+      (d) => !wanted.includes(d),
+    )
+    if (inUse.length > 0) throw errors.DIVISION_IN_USE({ data: { divisionIds: inUse } })
+
+    await context.db
+      .delete(schema.eventDivision)
+      .where(eq(schema.eventDivision.eventId, input.id))
+    if (wanted.length > 0) {
+      await context.db
+        .insert(schema.eventDivision)
+        .values(wanted.map((divisionId) => ({ eventId: input.id, divisionId })))
+    }
+    return { divisionIds: wanted }
+  })
+
 export const get = viewer
   .use(openTo("VIEW_EVENT"))
   .route({ method: "GET", path: "/events/{id}", summary: "Get one event" })

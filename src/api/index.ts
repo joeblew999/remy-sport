@@ -43,6 +43,7 @@ export const router = {
   events: {
     list: events.list,
     mine: events.mine,
+    setDivisions: events.setDivisions,
     get: events.get,
     create: events.create,
     update: events.update,

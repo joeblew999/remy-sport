@@ -128,6 +128,68 @@ INSERT INTO province (code, name_en, names, sort) VALUES ('NST', 'Nakhon Si Tham
 INSERT INTO province (code, name_en, names, sort) VALUES ('SNI', 'Surat Thani', '{"th":"สุราษฎร์ธานี","en":"Surat Thani","ja":"スラートターニー"}', 13) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
 INSERT INTO province (code, name_en, names, sort) VALUES ('RBR', 'Ratchaburi', '{"th":"ราชบุรี","en":"Ratchaburi","ja":"ラーチャブリー"}', 14) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
 INSERT INTO province (code, name_en, names, sort) VALUES ('PTE', 'Pathum Thani', '{"th":"ปทุมธานี","en":"Pathum Thani","ja":"パトゥムターニー"}', 15) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('ACR', 'Amnat Charoen', '{"th":"อำนาจเจริญ","en":"Amnat Charoen","ja":"アムナートチャルーン"}', 16) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('ATG', 'Ang Thong', '{"th":"อ่างทอง","en":"Ang Thong","ja":"アーントーン"}', 17) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('AYA', 'Phra Nakhon Si Ayutthaya', '{"th":"พระนครศรีอยุธยา","en":"Phra Nakhon Si Ayutthaya","ja":"アユタヤ"}', 18) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('BKN', 'Bueng Kan', '{"th":"บึงกาฬ","en":"Bueng Kan","ja":"ブンカーン"}', 19) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('BRM', 'Buriram', '{"th":"บุรีรัมย์","en":"Buriram","ja":"ブリーラム"}', 20) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('CCO', 'Chachoengsao', '{"th":"ฉะเชิงเทรา","en":"Chachoengsao","ja":"チャチューンサオ"}', 21) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('CNT', 'Chai Nat', '{"th":"ชัยนาท","en":"Chai Nat","ja":"チャイナート"}', 22) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('CPM', 'Chaiyaphum', '{"th":"ชัยภูมิ","en":"Chaiyaphum","ja":"チャイヤプーム"}', 23) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('CPN', 'Chumphon', '{"th":"ชุมพร","en":"Chumphon","ja":"チュムポーン"}', 24) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('CTI', 'Chanthaburi', '{"th":"จันทบุรี","en":"Chanthaburi","ja":"チャンタブリー"}', 25) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('KBI', 'Krabi', '{"th":"กระบี่","en":"Krabi","ja":"クラビー"}', 26) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('KPT', 'Kamphaeng Phet', '{"th":"กำแพงเพชร","en":"Kamphaeng Phet","ja":"カムペーンペット"}', 27) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('KRI', 'Kanchanaburi', '{"th":"กาญจนบุรี","en":"Kanchanaburi","ja":"カーンチャナブリー"}', 28) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('KSN', 'Kalasin', '{"th":"กาฬสินธุ์","en":"Kalasin","ja":"カーラシン"}', 29) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('LEI', 'Loei', '{"th":"เลย","en":"Loei","ja":"ルーイ"}', 30) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('LPG', 'Lampang', '{"th":"ลำปาง","en":"Lampang","ja":"ランパーン"}', 31) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('LPN', 'Lamphun', '{"th":"ลำพูน","en":"Lamphun","ja":"ランプーン"}', 32) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('LRI', 'Lopburi', '{"th":"ลพบุรี","en":"Lopburi","ja":"ロッブリー"}', 33) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('MDH', 'Mukdahan', '{"th":"มุกดาหาร","en":"Mukdahan","ja":"ムクダーハーン"}', 34) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('MKM', 'Maha Sarakham', '{"th":"มหาสารคาม","en":"Maha Sarakham","ja":"マハーサーラカーム"}', 35) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('MSN', 'Mae Hong Son', '{"th":"แม่ฮ่องสอน","en":"Mae Hong Son","ja":"メーホンソーン"}', 36) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('NAN', 'Nan', '{"th":"น่าน","en":"Nan","ja":"ナーン"}', 37) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('NBP', 'Nong Bua Lamphu', '{"th":"หนองบัวลำภู","en":"Nong Bua Lamphu","ja":"ノーンブアラムプー"}', 38) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('NKI', 'Nong Khai', '{"th":"หนองคาย","en":"Nong Khai","ja":"ノーンカーイ"}', 39) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('NPM', 'Nakhon Phanom', '{"th":"นครพนม","en":"Nakhon Phanom","ja":"ナコンパノム"}', 40) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('NPT', 'Nakhon Pathom', '{"th":"นครปฐม","en":"Nakhon Pathom","ja":"ナコンパトム"}', 41) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('NSN', 'Nakhon Sawan', '{"th":"นครสวรรค์","en":"Nakhon Sawan","ja":"ナコンサワン"}', 42) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('NWT', 'Narathiwat', '{"th":"นราธิวาส","en":"Narathiwat","ja":"ナラーティワート"}', 43) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('NYK', 'Nakhon Nayok', '{"th":"นครนายก","en":"Nakhon Nayok","ja":"ナコンナーヨック"}', 44) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('PBI', 'Phetchaburi', '{"th":"เพชรบุรี","en":"Phetchaburi","ja":"ペッチャブリー"}', 45) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('PCT', 'Phichit', '{"th":"พิจิตร","en":"Phichit","ja":"ピチット"}', 46) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('PLG', 'Phatthalung', '{"th":"พัทลุง","en":"Phatthalung","ja":"パッタルン"}', 47) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('PLK', 'Phitsanulok', '{"th":"พิษณุโลก","en":"Phitsanulok","ja":"ピサヌローク"}', 48) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('PNA', 'Phang Nga', '{"th":"พังงา","en":"Phang Nga","ja":"パンガー"}', 49) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('PNB', 'Phetchabun', '{"th":"เพชรบูรณ์","en":"Phetchabun","ja":"ペッチャブーン"}', 50) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('PRE', 'Phrae', '{"th":"แพร่","en":"Phrae","ja":"プレー"}', 51) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('PRI', 'Prachinburi', '{"th":"ปราจีนบุรี","en":"Prachinburi","ja":"プラーチーンブリー"}', 52) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('PKN', 'Prachuap Khiri Khan', '{"th":"ประจวบคีรีขันธ์","en":"Prachuap Khiri Khan","ja":"プラチュワップキーリーカン"}', 53) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('PTN', 'Pattani', '{"th":"ปัตตานี","en":"Pattani","ja":"パッタニー"}', 54) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('PYO', 'Phayao', '{"th":"พะเยา","en":"Phayao","ja":"パヤオ"}', 55) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('RET', 'Roi Et', '{"th":"ร้อยเอ็ด","en":"Roi Et","ja":"ローイエット"}', 56) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('RNG', 'Ranong', '{"th":"ระนอง","en":"Ranong","ja":"ラノーン"}', 57) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('RYG', 'Rayong', '{"th":"ระยอง","en":"Rayong","ja":"ラヨーン"}', 58) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('SBR', 'Sing Buri', '{"th":"สิงห์บุรี","en":"Sing Buri","ja":"シンブリー"}', 59) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('SKM', 'Samut Songkhram', '{"th":"สมุทรสงคราม","en":"Samut Songkhram","ja":"サムットソンクラーム"}', 60) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('SKN', 'Samut Sakhon', '{"th":"สมุทรสาคร","en":"Samut Sakhon","ja":"サムットサーコーン"}', 61) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('SKW', 'Sa Kaeo', '{"th":"สระแก้ว","en":"Sa Kaeo","ja":"サケーオ"}', 62) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('SNK', 'Sakon Nakhon', '{"th":"สกลนคร","en":"Sakon Nakhon","ja":"サコンナコン"}', 63) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('SPB', 'Suphan Buri', '{"th":"สุพรรณบุรี","en":"Suphan Buri","ja":"スパンブリー"}', 64) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('SPK', 'Samut Prakan', '{"th":"สมุทรปราการ","en":"Samut Prakan","ja":"サムットプラーカーン"}', 65) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('SRI', 'Saraburi', '{"th":"สระบุรี","en":"Saraburi","ja":"サラブリー"}', 66) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('SRN', 'Surin', '{"th":"สุรินทร์","en":"Surin","ja":"スリン"}', 67) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('SSK', 'Sisaket', '{"th":"ศรีสะเกษ","en":"Sisaket","ja":"シーサケート"}', 68) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('STI', 'Sukhothai', '{"th":"สุโขทัย","en":"Sukhothai","ja":"スコータイ"}', 69) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('STN', 'Satun', '{"th":"สตูล","en":"Satun","ja":"サトゥーン"}', 70) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('TAK', 'Tak', '{"th":"ตาก","en":"Tak","ja":"ターク"}', 71) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('TRG', 'Trang', '{"th":"ตรัง","en":"Trang","ja":"トラン"}', 72) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('TRT', 'Trat', '{"th":"ตราด","en":"Trat","ja":"トラート"}', 73) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('UTI', 'Uthai Thani', '{"th":"อุทัยธานี","en":"Uthai Thani","ja":"ウタイターニー"}', 74) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('UTT', 'Uttaradit', '{"th":"อุตรดิตถ์","en":"Uttaradit","ja":"ウッタラディット"}', 75) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('YLA', 'Yala', '{"th":"ยะลา","en":"Yala","ja":"ヤラー"}', 76) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
+INSERT INTO province (code, name_en, names, sort) VALUES ('YST', 'Yasothon', '{"th":"ยโสธร","en":"Yasothon","ja":"ヤソートーン"}', 77) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, sort = excluded.sort;
 
 -- cities
 INSERT INTO city (code, name_en, names, province_code, sort) VALUES ('BANGKOK', 'Bangkok', '{"th":"กรุงเทพมหานคร","en":"Bangkok","ja":"バンコク"}', 'BKK', 1) ON CONFLICT(code) DO UPDATE SET name_en = excluded.name_en, names = excluded.names, province_code = excluded.province_code, sort = excluded.sort;
@@ -326,12 +388,12 @@ INSERT OR IGNORE INTO org_member (org_id, user_id, org_role_code) VALUES ('org_0
 INSERT OR IGNORE INTO org_member (org_id, user_id, org_role_code) VALUES ('org_002', 'usr_org_002', 'MEMBER');
 
 -- divisions
-INSERT OR IGNORE INTO division (id, age_group_code, gender_code, skill_tier_code, names) VALUES ('div_001', 'U16', 'M', NULL, '{"th":"U16 ชาย","en":"U16 Boys"}');
-INSERT OR IGNORE INTO division (id, age_group_code, gender_code, skill_tier_code, names) VALUES ('div_002', 'U18', 'M', NULL, '{"th":"U18 ชาย","en":"U18 Boys"}');
-INSERT OR IGNORE INTO division (id, age_group_code, gender_code, skill_tier_code, names) VALUES ('div_003', 'U16', 'F', NULL, '{"th":"U16 หญิง","en":"U16 Girls"}');
-INSERT OR IGNORE INTO division (id, age_group_code, gender_code, skill_tier_code, names) VALUES ('div_004', 'U18', 'F', NULL, '{"th":"U18 หญิง","en":"U18 Girls"}');
-INSERT OR IGNORE INTO division (id, age_group_code, gender_code, skill_tier_code, names) VALUES ('div_005', 'U18', 'M', 'PREMIER', '{"th":"U18 ชาย ระดับสูง","en":"U18 Boys Premier"}');
-INSERT OR IGNORE INTO division (id, age_group_code, gender_code, skill_tier_code, names) VALUES ('div_006', 'U16', 'M', 'PREMIER', '{"th":"U16 ชาย ระดับสูง","en":"U16 Boys Premier"}');
+INSERT OR IGNORE INTO division (id, age_group_code, gender_code, skill_tier_code, names) VALUES ('div_001', 'U16', 'M', NULL, '{"th":"U16 ชาย","en":"U16 Boys","ja":"U16 男子"}');
+INSERT OR IGNORE INTO division (id, age_group_code, gender_code, skill_tier_code, names) VALUES ('div_002', 'U18', 'M', NULL, '{"th":"U18 ชาย","en":"U18 Boys","ja":"U18 男子"}');
+INSERT OR IGNORE INTO division (id, age_group_code, gender_code, skill_tier_code, names) VALUES ('div_003', 'U16', 'F', NULL, '{"th":"U16 หญิง","en":"U16 Girls","ja":"U16 女子"}');
+INSERT OR IGNORE INTO division (id, age_group_code, gender_code, skill_tier_code, names) VALUES ('div_004', 'U18', 'F', NULL, '{"th":"U18 หญิง","en":"U18 Girls","ja":"U18 女子"}');
+INSERT OR IGNORE INTO division (id, age_group_code, gender_code, skill_tier_code, names) VALUES ('div_005', 'U18', 'M', 'PREMIER', '{"th":"U18 ชาย พรีเมียร์","en":"U18 Boys Premier","ja":"U18 男子 プレミア"}');
+INSERT OR IGNORE INTO division (id, age_group_code, gender_code, skill_tier_code, names) VALUES ('div_006', 'U16', 'M', 'PREMIER', '{"th":"U16 ชาย พรีเมียร์","en":"U16 Boys Premier","ja":"U16 男子 プレミア"}');
 
 -- orgs
 INSERT OR IGNORE INTO org (id, slug, org_type_code, city_code, province_code, names) VALUES ('org_001', 'assumption-college', 'SCHOOL', 'BANGKOK', 'BKK', '{"th":"โรงเรียนอัสสัมชัญ","en":"Assumption College"}');
@@ -754,3 +816,12 @@ INSERT OR IGNORE INTO userNotificationPreference (user_id, notification_type_cod
 INSERT OR IGNORE INTO userNotificationPreference (user_id, notification_type_code, channel_code, is_enabled) VALUES ('usr_org_001', 'ANNOUNCEMENT', 'EMAIL', 1);
 INSERT OR IGNORE INTO userNotificationPreference (user_id, notification_type_code, channel_code, is_enabled) VALUES ('usr_org_002', 'APPROVAL_GRANTED', 'LINE', 1);
 INSERT OR IGNORE INTO userNotificationPreference (user_id, notification_type_code, channel_code, is_enabled) VALUES ('usr_org_002', 'INVITATION', 'EMAIL', 1);
+
+-- eventDivisions (derived from eventTeams — see the note in seed-sql.ts)
+INSERT OR IGNORE INTO eventDivision (event_id, division_id) VALUES ('evt_001', 'div_001');
+INSERT OR IGNORE INTO eventDivision (event_id, division_id) VALUES ('evt_001', 'div_002');
+INSERT OR IGNORE INTO eventDivision (event_id, division_id) VALUES ('evt_002', 'div_001');
+INSERT OR IGNORE INTO eventDivision (event_id, division_id) VALUES ('evt_002', 'div_002');
+INSERT OR IGNORE INTO eventDivision (event_id, division_id) VALUES ('evt_002', 'div_004');
+INSERT OR IGNORE INTO eventDivision (event_id, division_id) VALUES ('evt_004', 'div_001');
+INSERT OR IGNORE INTO eventDivision (event_id, division_id) VALUES ('evt_004', 'div_004');

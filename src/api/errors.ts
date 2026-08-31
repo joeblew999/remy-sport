@@ -64,6 +64,17 @@ export const ERRORS = {
    * the page says "these teams are in different divisions" in the reader's
    * language, from the codes.
    */
+  /**
+   * A division the organiser tried to drop while teams are registered in it.
+   *
+   * Dropping it would orphan `eventTeam` rows — silently unregistering people
+   * from an event they entered — so it is refused rather than cascaded. Carries
+   * the divisions at fault so the page can name them.
+   */
+  DIVISION_IN_USE: {
+    status: 400,
+    data: z.object({ divisionIds: z.array(z.string()) }),
+  },
   TEAMS_IN_DIFFERENT_DIVISIONS: {
     status: 400,
     data: z.object({

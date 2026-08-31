@@ -78,6 +78,13 @@
       "when": 1788058132165,
       "tag": "0010_notification_sent",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1788146356090,
+      "tag": "0011_event_divisions",
+      "breakpoints": true
     }
   ]
 }
