@@ -66,12 +66,28 @@ const HOST = (() => {
 
 const SURFACE: Surface = (() => {
   if (HOST === "localhost" || HOST === "127.0.0.1") return "local"
-  // TUNNEL_HOSTNAME by name where mise exports it, rather than sniffing a
-  // "dev-" prefix — the tunnel host is configuration, and a deployment free to
-  // rename it should not silently start being treated as dev. The prefix is
-  // only a fallback for a run that does not have mise's env.
-  const tunnel = process.env.TUNNEL_HOSTNAME
-  if (tunnel ? HOST === tunnel : HOST.startsWith("dev-")) return "tunnel"
+  /**
+   * The tunnel is TUNNEL_HOSTNAME and nothing else.
+   *
+   * This had a `HOST.startsWith("dev-")` fallback for when the variable is
+   * unset, two lines under a comment saying a prefix sniff was deliberately
+   * avoided. Worse, it resolved toward the *weaker* surface: a real deployment
+   * at `dev-remy-staging.ubuntusoftware.net`, smoke-tested from anywhere mise
+   * had not exported its env — CI, a bare `bun scripts/smoke.ts`, a pipeline
+   * that does not shell through mise — classified as `tunnel` and silently
+   * skipped all three deployment-safety checks.
+   *
+   * The host that breaks it is the one that looks most like dev while being a
+   * deployment, which is exactly the host nobody would think to re-test. My own
+   * check of this used `staging.example.com` and passed for the wrong reason:
+   * it does not start with "dev-".
+   *
+   * So unset configuration means strict, not lenient. A tunnel run that has not
+   * got the variable gets the deployment checks and fails loudly — which is a
+   * false positive somebody fixes by exporting one variable, and the failure
+   * mode this file is supposed to prefer.
+   */
+  if (process.env.TUNNEL_HOSTNAME && HOST === process.env.TUNNEL_HOSTNAME) return "tunnel"
   return "deployed"
 })()
 
@@ -118,22 +134,41 @@ const skipped: string[] = []
  * exactly as it was and a new one is universal unless somebody says otherwise —
  * which is the right default for a file about what must be true.
  */
+/**
+ * A check's answer: null passed, a string is the problem, `{ skip }` is
+ * "this does not apply here and here is why".
+ *
+ * The in-function skip exists because not every condition is a surface.
+ * Whether mail is captured or really sent is `MAIL_TRANSPORT`, which this
+ * script cannot read — it is the Worker's environment, not ours — but *can*
+ * observe, because the outbox route is mounted exactly when it is set. So that
+ * check gates on a probe rather than on a tag, and still reports honestly
+ * instead of returning a pass it did not earn.
+ */
+type Result = string | null | { skip: string }
+
 async function check(
   name: string,
-  fn: () => Promise<string | null>,
+  fn: () => Promise<Result>,
   where: { on?: readonly Surface[]; why?: string } = {},
 ) {
   const on = where.on ?? ANYWHERE
-  if (!on.includes(SURFACE)) {
+  const note = (why: string) => {
     // Named and counted, never silent. A check that vanishes on some surfaces
     // is indistinguishable from one somebody deleted.
-    console.log(`  – ${name}\n      skipped on ${SURFACE}: ${where.why ?? `only applies to ${on.join(", ")}`}`)
+    console.log(`  – ${name}\n      skipped on ${SURFACE}: ${why}`)
     skipped.push(name)
+  }
+
+  if (!on.includes(SURFACE)) {
+    note(where.why ?? `only applies to ${on.join(", ")}`)
     return
   }
   try {
     const problem = await fn()
-    if (problem) {
+    if (problem && typeof problem === "object") {
+      note(problem.skip)
+    } else if (problem) {
       console.log(`  ✘ ${name}\n      ${problem}`)
       failed++
     } else {
@@ -248,6 +283,68 @@ await check("the dev outbox does NOT exist", async () => {
   const res = await get("/api/dev/outbox")
   return res.status === 404 ? null : `expected 404, got ${res.status}`
 }, { on: DEPLOYMENT_ONLY, why: WHY_DEV_DIFFERS })
+
+/**
+ * Where mail is captured, prove the capture actually works.
+ *
+ * The three deployment-safety checks are skipped on dev, correctly — but that
+ * left the two surfaces where the outbox *is* the mail path with nothing
+ * verifying it. If the outbox route broke, smoke stayed green on the tunnel and
+ * you found out when a sign-in code never arrived.
+ *
+ * ## Gated on a probe, not on the surface
+ *
+ * The condition is `MAIL_TRANSPORT=outbox`, which is the Worker's environment
+ * and not readable from here. It is observable, though: the route is mounted
+ * exactly when that is set. So this asks, and reports a skip when the answer is
+ * "mail really goes out here" rather than passing by default.
+ *
+ * ## Why an address nobody owns
+ *
+ * `example.invalid` is reserved by RFC 2606 and can never resolve, so even if
+ * this somehow ran against a host that really sends mail, there is no inbox to
+ * reach. It is deliberately not a seeded account either: Better Auth writes one
+ * verification row per request, so probing a real fixture user would invalidate
+ * a pending code a developer was in the middle of using.
+ *
+ * The captured message costs nothing to leave — the outbox is an array on
+ * `globalThis` (src/mail/mailer.ts), so it does not survive a restart and is
+ * not in the database. The verification row is real, so that is cleaned up.
+ */
+await check("where mail is captured, the outbox actually captures it", async () => {
+  const probe = await get("/api/dev/outbox")
+  if (probe.status === 404) {
+    return { skip: "mail is really sent here, so there is no outbox to verify" }
+  }
+  if (!probe.ok) return `the outbox is mounted but answered ${probe.status}`
+
+  const to = "smoke-probe@example.invalid"
+  const sent = await fetch(`${BASE}/api/auth/email-otp/send-verification-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Origin: BASE },
+    body: JSON.stringify({ email: to, type: "sign-in" }),
+  })
+  if (!sent.ok) return `could not request a code: ${sent.status}`
+
+  try {
+    const res = await get(`/api/dev/outbox?to=${encodeURIComponent(to)}`)
+    if (!res.ok) return `reading the outbox answered ${res.status}`
+    const { messages } = (await res.json()) as { messages: { subject: string; body: string }[] }
+    if (!messages.length) return "a code was requested and nothing reached the outbox"
+    // The code itself, not just that a row appeared: a message with no readable
+    // code is the same dead end as no message, and the sign-in page reads it
+    // out of the body the same way.
+    return /\b\d{6}\b/.test(messages[0]!.body) || /\b\d{6}\b/.test(messages[0]!.subject)
+      ? null
+      : "a message arrived with no six-digit code in it"
+  } finally {
+    // Targeted, so a developer's own pending sign-in survives. Never
+    // `DELETE /api/dev/outbox`, which clears everyone's.
+    await fetch(`${BASE}/api/dev/otp?to=${encodeURIComponent(to)}`, { method: "DELETE" }).catch(
+      () => undefined,
+    )
+  }
+})
 
 await check("Better Auth is mounted and reaches the database", async () => {
   // A signed-out visitor gets 200 with a null body. A 500 here is the signature

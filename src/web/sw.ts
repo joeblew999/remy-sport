@@ -1,5 +1,6 @@
 /// <reference lib="webworker" />
 import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching"
+import { notificationUrl } from "./lib/notification-url"
 
 /**
  * The service worker: the app shell's cache, and the only place a push
@@ -27,20 +28,28 @@ precacheAndRoute(self.__WB_MANIFEST)
 // the lot, taking the current one with it.
 cleanupOutdatedCaches()
 
-/** What src/api/push.ts sends. Kept in step by tests/unit/push-payload.test.ts. */
-type PushBody = {
-  title: string
-  body: string
-  /** Hash route to open on tap, e.g. "#/games/abc". */
-  url: string
-  /**
-   * Collapse key. A second SCORE_UPDATE for the same game replaces the first
-   * rather than stacking, so a close game does not leave forty notifications to
-   * dismiss. This is the browser-side half; the push service gets the same
-   * value as its `topic` header.
-   */
-  tag: string
-}
+/**
+ * What src/api/push.ts sends — the sender's own type, not a copy of it.
+ *
+ * This was a second declaration of the same four fields, under a comment
+ * saying it was "kept in step by tests/unit/push-payload.test.ts". That file
+ * has never existed, so nothing kept it in step at all: the two could drift and
+ * the only symptom would be a notification with an empty body on somebody's
+ * phone.
+ *
+ * `import type` is erased at build time, so the worker bundle gains nothing and
+ * pulls in no server code — the same reason src/web/data.ts imports the
+ * generated vocabulary this way. One definition, and drift is now a
+ * typecheck error rather than something a test would have had to notice.
+ *
+ * The fields mean:
+ *   url  hash route to open on tap, e.g. "#/games/abc"
+ *   tag  collapse key. A second SCORE_UPDATE for the same game replaces the
+ *        first rather than stacking, so a close game does not leave forty
+ *        notifications to dismiss. This is the browser-side half; the push
+ *        service gets the same value as its `topic` header.
+ */
+import type { PushBody } from "../api/push"
 
 self.addEventListener("push", (event) => {
   // A push with no payload is legal, and Apple's push service sends one to
@@ -79,7 +88,12 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close()
-  const target = (event.notification.data as { url?: string } | null)?.url ?? "/"
+  // Resolved once, for both branches. See lib/notification-url.ts for why
+  // openWindow's raw value opened /sw.js#/games/abc.
+  const target = notificationUrl(
+    (event.notification.data as { url?: string } | null)?.url,
+    self.location.origin,
+  )
 
   event.waitUntil(
     (async () => {
@@ -90,7 +104,7 @@ self.addEventListener("notificationclick", (event) => {
       for (const client of open) {
         if (new URL(client.url).origin !== self.location.origin) continue
         await client.focus()
-        if ("navigate" in client) await client.navigate(new URL(target, self.location.origin).href)
+        if ("navigate" in client) await client.navigate(target)
         return
       }
       await self.clients.openWindow(target)
@@ -98,27 +112,78 @@ self.addEventListener("notificationclick", (event) => {
   )
 })
 
-// Push services expire subscriptions on their own schedule. When that happens
-// the browser fires this event, and the old endpoint is already dead — so the
-// only fix is to subscribe again with the same key and tell the server. Without
-// this handler a user silently stops receiving anything and has no way to know.
+/**
+ * Push services expire subscriptions on their own schedule. When that happens
+ * the browser fires this event, and the old endpoint is already dead — so the
+ * only fix is to subscribe again with the same key and tell the server. Without
+ * this handler a user silently stops receiving anything and has no way to know.
+ *
+ * ## The handler used to reproduce the bug it exists to fix
+ *
+ * Telling the server ended `.catch(() => undefined)`. A single transient
+ * network failure — at the moment a push service rotates a subscription, on a
+ * device that has just been woken, so exactly when connectivity is worst — left
+ * the browser holding a live subscription the server had never heard of.
+ *
+ * And nothing anywhere would say so. `pushState()` in lib/push.ts reports "on"
+ * from `getSubscription()`, which is the *browser's* view; it never asks
+ * whether the server knows this endpoint. So the settings page said
+ * notifications were on for this device, the server pushed to a dead endpoint
+ * forever, and `enablePush()` early-returns unless the state is "off" — so the
+ * one control that would have fixed it was not even offered. The reader would
+ * have had to disable and re-enable something that claimed to be working.
+ *
+ * So: retry, because the common case is transient. Then, if it still cannot be
+ * told, drop the local subscription — a subscription the server cannot push to
+ * is worth nothing, and giving it up is what makes `pushState()` report "off"
+ * and the UI offer Enable again. One tap, instead of silence.
+ */
+const RETRY_DELAYS_MS = [1_000, 3_000]
+
 self.addEventListener("pushsubscriptionchange", (event) => {
   event.waitUntil(
     (async () => {
       const key = await fetch("/api/push/key")
         .then((r) => (r.ok ? (r.json() as Promise<{ publicKey: string | null }>) : null))
         .catch(() => null)
-      if (!key?.publicKey) return
+      if (!key?.publicKey) {
+        // Nothing to undo: the old subscription is already gone and no new one
+        // was made, so `getSubscription()` finds nothing and the UI correctly
+        // reports "off" on its own.
+        console.warn("[sw] push renewal: no VAPID key available; leaving push off")
+        return
+      }
 
       const fresh = await self.registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: key.publicKey,
       })
-      await fetch("/api/push/subscribe", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ subscription: fresh.toJSON(), label: "renewed" }),
-      }).catch(() => undefined)
+
+      const body = JSON.stringify({ subscription: fresh.toJSON(), label: "renewed" })
+      for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+        try {
+          const res = await fetch("/api/push/subscribe", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body,
+          })
+          if (res.ok) return
+          // A 4xx will not become a 2xx by being sent again — the session is
+          // gone, or the body is wrong. Only retry what retrying can fix.
+          if (res.status < 500) {
+            console.warn(`[sw] push renewal refused: ${res.status}`)
+            break
+          }
+        } catch {
+          // Network. Worth another go.
+        }
+        const wait = RETRY_DELAYS_MS[attempt]
+        if (wait !== undefined) await new Promise((r) => setTimeout(r, wait))
+      }
+
+      // Out of attempts. Better to be visibly off than invisibly broken.
+      console.warn("[sw] push renewal: could not reach the server; dropping the subscription")
+      await fresh.unsubscribe().catch(() => undefined)
     })(),
   )
 })
