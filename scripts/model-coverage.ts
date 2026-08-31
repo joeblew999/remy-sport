@@ -12,7 +12,8 @@
  *
  * Three honest buckets:
  *
- *   enforced   a procedure declares a policy naming it
+ *   enforced   a procedure declares a policy naming it, or a notification
+ *              consults it to decide who should hear
  *   public     every grant is PUBLIC, so there is nothing to enforce — a
  *              spectator reading a score needs no check, and counting these as
  *              "missing" would be a lie in the other direction
@@ -35,12 +36,27 @@
  * and now the two tools answer "is this enforced" from one source. Two
  * derivations of one fact is how they disagree, and the grep was simply the
  * worse of the two.
+ *
+ * ## Enforcement is not the only way an action is implemented
+ *
+ * That fix assumed it was, and three more actions read as unbuilt because of it:
+ * RECEIVE_TEAM_NOTIFICATIONS, RECEIVE_EVENT_NOTIFICATIONS and
+ * RECEIVE_PLAYER_NOTIFICATIONS. No procedure enforces them, because they are not
+ * permission checks — `notify()` hands them to `audienceFor` to work out **who
+ * should hear** about a write. They are as built as anything here, and reading a
+ * table directly instead of asking them is how Web Push once notified only a
+ * team's followers and not its own coaches.
+ *
+ * So the map is imported from src/api/push.ts rather than restated. A second
+ * copy of "these three actions decide an audience" is exactly the drift this
+ * report exists to catch.
  */
 
 import { readdirSync, readFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { ACTION, GRANTS } from "../src/domain/vocabularies"
 import { policyOf, type Policy } from "../src/api/base"
+import { RECEIVE_ACTION } from "../src/api/push"
 import { router } from "../src/api/index"
 
 type Node = Record<string, unknown>
@@ -79,6 +95,14 @@ function collect(node: Node) {
 }
 
 collect(router as unknown as Node)
+
+/**
+ * And the actions consulted as an audience rather than enforced as a check.
+ *
+ * From push.ts's own map, so adding a fourth object type to notifications
+ * cannot leave this report claiming the action behind it was never built.
+ */
+for (const action of Object.values(RECEIVE_ACTION)) enforced.add(action)
 
 const publicOnly = (code: string) => {
   const grants = (GRANTS as Record<string, ReadonlyArray<{ relation: string }>>)[code] ?? []

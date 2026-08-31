@@ -51,7 +51,7 @@ export type Target = { objectTypeCode: ObjectTypeCode; objectId: string }
  * a direct follow of a game reaches nobody through this map. That is the
  * model's shape, not an omission here.
  */
-const RECEIVE_ACTION: Partial<Record<ObjectTypeCode, string>> = {
+export const RECEIVE_ACTION: Partial<Record<ObjectTypeCode, string>> = {
   TEAM: "RECEIVE_TEAM_NOTIFICATIONS",
   EVENT: "RECEIVE_EVENT_NOTIFICATIONS",
   PLAYER: "RECEIVE_PLAYER_NOTIFICATIONS",
