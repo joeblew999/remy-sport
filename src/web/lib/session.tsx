@@ -19,6 +19,17 @@ export interface SessionUser {
   email: string;
   name: string | null;
   role: string | null;
+  /**
+   * The Product Owner's lifecycle state — ACTIVE, PENDING_APPROVAL, SUSPENDED,
+   * DEACTIVATED. Better Auth returns it because auth.config.ts declares it as an
+   * additional field; nothing here read it.
+   *
+   * SUSPENDED and DEACTIVATED never reach a page: they are refused at session
+   * creation. PENDING_APPROVAL deliberately is not — see the note in
+   * src/auth.config.ts, which says such a referee "has an account and needs to
+   * see that they are waiting". This is what lets a screen keep that promise.
+   */
+  statusCode?: string | null;
 }
 
 interface SessionBody {

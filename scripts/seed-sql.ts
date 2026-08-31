@@ -104,7 +104,20 @@ const lines: string[] = [
 function insertOf<T extends SQLiteTable>(
   table: T,
   row: Record<string, unknown>,
-  opts: { upsert?: boolean } = {},
+  /**
+   * `upsertOn` names the conflict column. Without it the statement is
+   * `INSERT OR IGNORE`, which is right for rows that only ever need to exist —
+   * and wrong for any row the model later gives a new column, because IGNORE
+   * cannot repair what is already there.
+   *
+   * That is not hypothetical. `status_code` arrived in migration 0008 and the
+   * generator writes it, but every user row predating it kept a null: on the
+   * development database 15 of 17 users had no lifecycle status at all,
+   * including both referees, so `PENDING_APPROVAL` did not exist anywhere and
+   * the approval console had nothing to show. Re-seeding never fixed it and
+   * never said why.
+   */
+  opts: { upsertOn?: string } = {},
 ): string {
   const cols = getTableColumns(table)
   const present = Object.keys(cols).filter((k) => k in row)
@@ -113,16 +126,17 @@ function insertOf<T extends SQLiteTable>(
     `(${present.map((k) => cols[k]!.name).join(", ")}) VALUES ` +
     `(${present.map((k) => lit(row[k])).join(", ")})`
 
-  if (!opts.upsert) return `INSERT OR IGNORE${head.slice("INSERT".length)};`
+  const key = opts.upsertOn
+  if (!key) return `INSERT OR IGNORE${head.slice("INSERT".length)};`
 
-  // Update in place rather than replace: the code is a foreign key, and
+  // Update in place rather than replace: the key is a foreign key, and
   // INSERT OR REPLACE deletes the row first, which would take its children with
   // it or fail outright.
   const set = present
-    .filter((k) => cols[k]!.name !== "code")
+    .filter((k) => cols[k]!.name !== key)
     .map((k) => `${cols[k]!.name} = excluded.${cols[k]!.name}`)
     .join(", ")
-  return `${head} ON CONFLICT(code) DO UPDATE SET ${set};`
+  return `${head} ON CONFLICT(${key}) DO UPDATE SET ${set};`
 }
 
 /**
@@ -165,7 +179,7 @@ for (const [name, table] of Object.entries(VOCABULARY_TABLES) as [string, SQLite
     // INSERT OR IGNORE no database that had already been seeded would ever see
     // it. Entities are different: an event's name can be edited in the product,
     // and re-seeding must not overwrite what somebody changed.
-    lines.push(insertOf(table, values, { upsert: true }))
+    lines.push(insertOf(table, values, { upsertOn: "code" }))
     vocabRows++
   }
 }
@@ -178,7 +192,9 @@ lines.push(
 )
 for (const u of SEED_ENTITIES.users) {
   lines.push(
-    insertOf(schema.user, {
+    insertOf(
+      schema.user,
+      {
       id: u.id,
       name: pivot(u.names)!,
       email: u.email,
@@ -194,7 +210,12 @@ for (const u of SEED_ENTITIES.users) {
       names: JSON.stringify(u.names),
       localeCode: u.localeCode,
       statusCode: u.statusCode,
-    } satisfies Partial<typeof schema.user.$inferInsert>),
+      } satisfies Partial<typeof schema.user.$inferInsert>,
+      // Upserted, not ignored. These rows outlive the schema — `status_code`
+      // was added by migration 0008 and every existing row kept a null,
+      // silently, through every re-seed.
+      { upsertOn: "id" },
+    ),
   )
   // One credential account per user, with the issuer 1.7 matches sign-in on.
   lines.push(

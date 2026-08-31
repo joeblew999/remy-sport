@@ -241,6 +241,16 @@ export interface Account {
   name: string | null;
   role?: string | null;
   banned?: boolean | null;
+  /**
+   * The Product Owner's lifecycle state — ACTIVE, PENDING_APPROVAL, SUSPENDED,
+   * DEACTIVATED. Distinct from `banned`, which is Better Auth's own flag.
+   *
+   * `list-users` has always returned it, because auth.config.ts declares it as
+   * an additional field. Nothing here read it, so the console's Status column
+   * showed "banned or active" and an administrator could not see that a referee
+   * was waiting for them.
+   */
+  statusCode?: string | null;
 }
 
 export const useAccounts = (enabled: boolean) =>

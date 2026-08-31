@@ -68,6 +68,19 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
   const events = useQuery(orpc.events.list.queryOptions());
 
   /**
+   * Approving a referee who has been waiting.
+   *
+   * `PENDING_APPROVAL` could be entered and never left: the action was granted
+   * to PLATFORM_ADMIN and had no endpoint, so a referee signed up, signed in —
+   * which is deliberate, so they can see they are waiting — and stayed there.
+   */
+  const approve = useMutation({
+    mutationFn: (id: string) => api.admin.approveReferee({ id }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["admin", "accounts"] }),
+    onError: (e: unknown) => setError(e instanceof Error ? e.message : String(e)),
+  });
+
+  /**
    * What the viewer may do, as the server reports it.
    *
    * `read` is true by definition — this list is what they are reading. `update`
@@ -260,9 +273,18 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
                     </select>
                   </td>
                   <td>
+                    {/* Banned first: it is Better Auth's own flag and overrides
+                        whatever the model's lifecycle says. Then the real
+                        status, which this column used to ignore — so a referee
+                        awaiting approval was indistinguishable from an active
+                        one. */}
                     {a.banned ? (
                       <span className="badge badge-danger" data-testid={`banned-${a.email}`}>
                         {m.banned()}
+                      </span>
+                    ) : a.statusCode === "PENDING_APPROVAL" ? (
+                      <span className="badge badge-off" data-testid={`pending-${a.email}`}>
+                        {m.awaiting_approval()}
                       </span>
                     ) : (
                       <span className="badge">{m.active()}</span>
@@ -284,6 +306,19 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
                         >
                           {m.impersonate()}
                         </button>
+                        {/* Only where it means something. APPROVE_REFEREE is
+                            "approve a referee", not "set a status", so the
+                            control exists exactly where the action does. */}
+                        {a.statusCode === "PENDING_APPROVAL" && a.role === "referee" && (
+                          <button
+                            className="primary"
+                            data-testid={`approve-${a.email}`}
+                            disabled={approve.isPending}
+                            onClick={() => approve.mutate(a.id)}
+                          >
+                            {m.approve()}
+                          </button>
+                        )}
                         <button
                           data-testid={`ban-${a.email}`}
                           onClick={() =>

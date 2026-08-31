@@ -1533,3 +1533,66 @@ describe("Creating a player", () => {
     expect(res.status).toBe(400)
   })
 })
+
+describe("Approving a referee", () => {
+  /**
+   * `PENDING_APPROVAL` has been a real state since migration 0008 and nothing
+   * could leave it. A referee signs up, can sign in — deliberately, so they can
+   * see they are waiting — and then waits forever, because `APPROVE_REFEREE`
+   * was granted to PLATFORM_ADMIN and had no endpoint at all.
+   *
+   * Derived from the fixtures rather than naming an id, so a re-seed cannot make
+   * these pass by coincidence.
+   */
+  const pending = SEED_ENTITIES.users.find(
+    (u) => u.roleCode === "REFEREE" && u.statusCode === "PENDING_APPROVAL",
+  )!
+  const approve = (id: string, cookie?: string) =>
+    post(`/api/admin/referees/${id}/approve`, {}, cookie)
+
+  it("the fixtures seed somebody actually waiting", () => {
+    // If this stops being true the rest of the describe is vacuous.
+    expect(pending, "a referee awaiting approval").toBeTruthy()
+  })
+
+  it("lets an admin approve them, and the change sticks", async () => {
+    const admin = await signIn(actorFor("ADMIN"))
+    const res = await approve(pending.id, admin)
+    expect(res.status).toBe(200)
+    expect(((await res.json()) as { statusCode: string }).statusCode).toBe("ACTIVE")
+
+    // Read back through a different route, so this asserts the write and not
+    // the handler's own return value.
+    const users = (await (
+      await api("/api/auth/admin/list-users?limit=50", { cookie: admin })
+    ).json()) as { users?: { id: string; statusCode?: string }[] }
+    const row = users.users?.find((u) => u.id === pending.id)
+    expect(row?.statusCode, "the approval should be stored, not just returned").toBe("ACTIVE")
+  })
+
+  it("refuses anyone who is not a platform admin", async () => {
+    // APPROVE_REFEREE is granted to PLATFORM_ADMIN and to nobody else — not to
+    // an organiser, and not to another referee.
+    for (const role of ["ORGANIZER", "COACH", "REFEREE"]) {
+      const res = await approve(pending.id, await signIn(actorFor(role)))
+      expect(res.status, `${role} must not approve referees`).toBe(403)
+    }
+  })
+
+  it("refuses an anonymous caller", async () => {
+    expect((await approve(pending.id)).status).toBe(401)
+  })
+
+  it("refuses an account that is not a referee", async () => {
+    // The model grants "approve a referee", not "set any account's status". A
+    // handler that took a status would be a larger power than the action names.
+    const coach = SEED_ENTITIES.users.find((u) => u.roleCode === "COACH")!
+    const res = await approve(coach.id, await signIn(actorFor("ADMIN")))
+    expect(res.status).toBe(400)
+  })
+
+  it("404s an account that does not exist", async () => {
+    const res = await approve("usr_nope", await signIn(actorFor("ADMIN")))
+    expect(res.status).toBe(404)
+  })
+})

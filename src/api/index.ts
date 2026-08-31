@@ -13,6 +13,7 @@ import * as orgs from "./orgs"
 import * as registrations from "./registrations"
 import * as standings from "./standings"
 import * as teams from "./teams"
+import * as admin from "./admin"
 import * as reference from "./reference"
 import * as health from "./health"
 import * as domain from "./domain"
@@ -114,6 +115,11 @@ export const router = {
     registerForEvent: playersApi.registerForEvent,
     withdrawFromEvent: playersApi.withdrawFromEvent,
   },
+  /**
+   * Platform administration. `APPROVE_REFEREE` is the first of the model's four
+   * Admin actions to exist — a referee could sign up, sign in, and wait forever.
+   */
+  admin: { approveReferee: admin.approveReferee },
   playerTeams: domain.playerTeams,
   teamCoaches: domain.teamCoaches,
   eventPlayers: domain.eventPlayers,

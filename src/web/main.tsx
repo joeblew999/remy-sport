@@ -6,6 +6,7 @@ import { Topbar } from "./components/topbar";
 import { useRouter } from "./lib/router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LocaleProvider, useLocale, type Locale } from "./lib/locale";
+import { useSession } from "./lib/session";
 import { m } from "./lib/i18n";
 import { CrashBoundary } from "./components/crash";
 import { watchForClientErrors } from "./lib/report";
@@ -76,6 +77,29 @@ function LocalisedApp() {
   return <App key={locale}/>;
 }
 
+/**
+ * "You are waiting for an administrator" — the promise auth.config.ts makes.
+ *
+ * SUSPENDED and DEACTIVATED accounts are refused when their session is created,
+ * so they never render a page. PENDING_APPROVAL deliberately is not, and the
+ * reason is written down at src/auth.config.ts: such a referee "has an account
+ * and needs to see that they are waiting". Nothing told them. They signed in to
+ * an ordinary-looking app and could not tell their sign-up was incomplete.
+ *
+ * Above the page rather than on one screen, because there is no screen this
+ * belongs to — it is a fact about the account, true wherever they are. Same
+ * placement and the same reasoning as the impersonation banner.
+ */
+function PendingApprovalNotice() {
+  const { user } = useSession();
+  if (user?.statusCode !== "PENDING_APPROVAL") return null;
+  return (
+    <div className="admin-banner" data-testid="pending-approval-banner">
+      <span>{m.pending_banner()}</span>
+    </div>
+  );
+}
+
 function App() {
   const tweaks = { ...DEFAULTS, ...(window.TWEAK_DEFAULTS ?? {}) } as Required<TweakDefaults>;
   const { route, goto } = useRouter();
@@ -109,6 +133,7 @@ function App() {
         {navOpen && <div className="nav-backdrop" onClick={() => setNavOpen(false)}/>}
         <div className="main">
           <Topbar spoiler={spoiler} setSpoiler={handleSpoilerSet} onMenu={() => setNavOpen(o => !o)} goto={goto}/>
+          <PendingApprovalNotice />
           <div className="page">
             {route.page === "discover" && <DiscoverPage goto={goto} spoiler={spoiler}/>}
             {route.page === "events" && <MyEventsPage goto={goto}/>}

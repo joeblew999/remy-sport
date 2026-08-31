@@ -141,6 +141,55 @@ test.describe("The permission grid reflects what the server granted", () => {
     await expect(table.locator("tbody tr")).not.toHaveCount(0)
   })
 
+  /**
+   * `PENDING_APPROVAL` could be entered and never left: `APPROVE_REFEREE` was
+   * granted to PLATFORM_ADMIN and had no endpoint. The console could not even
+   * show it — the Status column knew only "banned" and "active".
+   */
+  test("shows an admin who is waiting, and offers to approve them", async ({ page }) => {
+    await seedCache(page, [as("admin"), events({ canCreate: true })])
+    await page.route("**/api/auth/admin/list-users**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          users: [
+            { id: "u_ref", email: "ref@remy.test", name: "Waraporn", role: "referee", statusCode: "PENDING_APPROVAL" },
+            { id: "u_other", email: "coach@remy.test", name: "Wichai", role: "coach", statusCode: "ACTIVE" },
+          ],
+        }),
+      }),
+    )
+    await page.goto("/#/admin")
+
+    await expect(page.getByTestId("pending-ref@remy.test")).toBeVisible()
+    await expect(page.getByTestId("approve-ref@remy.test")).toBeVisible()
+  })
+
+  test("offers approval only where it means something", async ({ page }) => {
+    // APPROVE_REFEREE is "approve a referee", not "set a status". An active
+    // coach is neither waiting nor a referee, so there is nothing to approve —
+    // and a control that appears there would be offering a 400.
+    await seedCache(page, [as("admin"), events({ canCreate: true })])
+    await page.route("**/api/auth/admin/list-users**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          users: [
+            { id: "u_other", email: "coach@remy.test", name: "Wichai", role: "coach", statusCode: "ACTIVE" },
+            { id: "u_ref2", email: "active@remy.test", name: "Somsak", role: "referee", statusCode: "ACTIVE" },
+          ],
+        }),
+      }),
+    )
+    await page.goto("/#/admin")
+
+    await expect(page.getByTestId("accounts-table")).toBeVisible()
+    await expect(page.getByTestId("approve-coach@remy.test")).toHaveCount(0)
+    await expect(page.getByTestId("approve-active@remy.test")).toHaveCount(0)
+  })
+
   test("a signed-out visitor is sent to the login screen", async ({ page }) => {
     // Seeded as nobody: `useSession` resolves to a null user without a request,
     // so the redirect happens on first paint rather than after a round trip.
