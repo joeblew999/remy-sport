@@ -58,14 +58,14 @@ const BUDGETS: Record<string, Budget> = {
   },
   worker: {
     ceiling: 25,
-    measured: 12.6,
-    shared: { ceiling: 45, measured: 26.8 },
+    measured: 18.3,
+    shared: { ceiling: 45, measured: 34.6 },
     note: "workerd plus D1 migrations per file; isolatedStorage pays that eight times",
   },
   render: {
     ceiling: 30,
     measured: 17.0,
-    shared: { ceiling: 35, measured: 19.4 },
+    shared: { ceiling: 35, measured: 22.5 },
     note: "WebKit launch dominates; the slowest single test is under a second",
   },
   e2e: {
