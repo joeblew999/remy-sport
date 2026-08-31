@@ -44,6 +44,7 @@ Everything else is a task. `mise tasks` lists them with what each one does —
 that is the documentation, because it cannot go stale the way a list here would.
 
 ```bash
+mise run watch               # verify on every save — the loop with no command
 mise run verify              # the fast loop: types + unit, in parallel
 mise run check               # the gate: types + every tier + dead code + docs
 mise run test:unit           # pure logic, no runtime
