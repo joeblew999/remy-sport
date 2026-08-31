@@ -35,13 +35,47 @@ function docFiles(): string[] {
   return out.filter((f) => existsSync(join(ROOT, f)))
 }
 
+/**
+ * Where the Product Owner's repo is cloned, per AGENTS.md.
+ *
+ * Absent on a fresh clone, and that is fine: the companion is optional, the
+ * model copies are committed here, and nothing about building needs it. When it
+ * *is* there, every path we cite into it is checked like any other.
+ */
+const COMPANION = resolve(ROOT, "../remy-sport-biz")
+const hasCompanion = existsSync(COMPANION)
+
+/**
+ * A reference into the companion repo, as a path inside it — or null.
+ *
+ * Three spellings reach the same file, and all three have been used here: the
+ * relative path a source comment writes, the bare repo-prefixed one, and the
+ * GitHub blob URL a markdown link uses. The last is the one that rots most
+ * quietly, because it looks like an external link and every checker skips it —
+ * which is exactly what happened when `data/access/matrix.md` moved to
+ * `domain/`.
+ */
+function companionPath(ref: string): string | null {
+  const patterns = [
+    /^\.\.\/remy-sport-biz\/(.+)$/,
+    /^remy-sport-biz\/(.+)$/,
+    /^https:\/\/github\.com\/[^/]+\/remy-sport-biz\/blob\/[^/]+\/(.+)$/,
+  ]
+  for (const re of patterns) {
+    const m = re.exec(ref)
+    if (m) return m[1]!.replace(/[.,)]+$/, "")
+  }
+  return null
+}
+
 const IGNORE = [
   /^https?:/,
   /^mailto:/,
   /^#/, // in-page anchor
   /^\//, // a URL route like /openapi.json, not a file
-  /^\.\.\/remy-sport-biz/, // the companion repo, cited on purpose
-  /^remy-sport-biz\//,
+  // The companion repo is NOT ignored — see `companionPath` below. It used to
+  // be, "cited on purpose", and three source comments spent weeks pointing at
+  // `remy-sport-biz/domain/model/schema.md`, a file that had ceased to exist.
   /^(dist|node_modules)\//,
   /^\.wrangler\//,
   /\$\{/, // shell interpolation inside a fenced example
@@ -122,7 +156,21 @@ let checked = 0
 for (const doc of docFiles()) {
   for (const { path: raw, line } of refsIn(readFileSync(join(ROOT, doc), "utf-8"))) {
     const p = raw.split("#")[0]!.trim()
-    if (!p || IGNORE.some((re) => re.test(p))) continue
+    if (!p) continue
+
+    // The companion repo, in any of its three spellings. Checked when it is
+    // cloned and skipped when it is not, so a fresh clone still passes.
+    const companion = companionPath(p)
+    if (companion !== null) {
+      if (!hasCompanion) continue
+      checked++
+      if (existsSync(join(COMPANION, companion))) continue
+      missing++
+      console.error(`${doc}:${line}  missing in remy-sport-biz: ${companion}`)
+      continue
+    }
+
+    if (IGNORE.some((re) => re.test(p))) continue
 
     checked++
     // A bare filename is prose shorthand and is judged on the basename alone.

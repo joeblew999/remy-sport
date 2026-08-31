@@ -549,5 +549,5 @@ Five rules, each of which cost an hour or a retraction to learn.
 There is almost none, on purpose.
 
 - [docs/dev/roadmap.md](docs/dev/roadmap.md) — what is being built, in what order
-- biz [data/access/matrix.md](https://github.com/joeblew999/remy-sport-biz/blob/main/data/access/matrix.md)
-  — who may do what
+- biz [domain/access/matrix.md](https://github.com/joeblew999/remy-sport-biz/blob/main/domain/access/matrix.md)
+  — who may do what, generated from the model this repo syncs
