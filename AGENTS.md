@@ -120,6 +120,20 @@ Owner's source of truth, cloned at `../remy-sport-biz/`. Its `domain/model/` is
 TypeScript, and [`mise run domain:sync`](scripts/domain-sync.ts) copies it into
 [src/domain/model/](src/domain/model/) **verbatim** — nothing transforms it.
 
+**The model arrives one way: you run `domain:sync` here.** Nothing else should
+change `src/domain/model/`, and if those files show as modified when you did not
+run it, something outside this repo wrote to your working tree — check before
+committing rather than after.
+
+That is not hypothetical. On 2026-08-31 a session in the companion repo ran
+`domain:sync` *here* and `git checkout --` over these files mid-feature; the
+sync landed in an uncommitted tree and `git add -A` swept 196 lines of model
+change into commit `ce6a233`, whose message says "nothing in the PO's model
+changes". The companion repo has since written the matching rule on its side
+(never write to this one). The habit that catches it from this side is reading
+what `git status` lists before a broad `git add`, especially when a commit is
+supposed to touch a known set of files.
+
 **Never write a transform between the two.** That is what this was until
 2026-08-27: 42 JSONL files compiled by a 900-line generator, and every silent
 failure it produced was the transform going wrong quietly — a key spelled
