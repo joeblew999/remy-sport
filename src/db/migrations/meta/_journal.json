@@ -85,6 +85,13 @@
       "when": 1788146356090,
       "tag": "0011_event_divisions",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1788151784304,
+      "tag": "0012_event_sessions",
+      "breakpoints": true
     }
   ]
 }

@@ -1909,3 +1909,108 @@ describe("The divisions an event runs", () => {
     expect(res.status).toBe(403)
   })
 })
+
+describe("A camp's session schedule", () => {
+  /**
+   * A camp is skill training, not competition — the model's own description —
+   * so it has no fixtures. It has sessions, and `DEFINE_SESSION_SCHEDULE` had no
+   * endpoint: an organiser could create a camp, watch children register, and had
+   * no way to say when anyone should turn up. Three are registered to evt_003
+   * in the fixtures, so the dead end was reachable.
+   */
+  const camp = SEED_ENTITIES.events.find((e) => e.typeCode === "CAMP")!
+  const league = SEED_ENTITIES.events.find((e) => e.typeCode === "LEAGUE")!
+  const owner = (eventId: string) =>
+    SEED_ENTITIES.users.find(
+      (u) => u.id === SEED_ENTITIES.events.find((e) => e.id === eventId)!.organizerUserId,
+    )!
+
+  const session = (over: Record<string, unknown> = {}) => ({
+    eventId: camp.id,
+    names: { en: "Shooting fundamentals" },
+    startsAt: "2026-07-06T09:00:00.000Z",
+    endsAt: "2026-07-06T11:00:00.000Z",
+    ...over,
+  })
+
+  const add = (body: Record<string, unknown>, cookie?: string) =>
+    post(`/api/events/${body.eventId}/sessions`, body, cookie)
+
+  const list = async (eventId: string, cookie?: string) =>
+    (await (await api(`/api/events/${eventId}/sessions`, cookie ? { cookie } : {})).json()) as {
+      sessions: { id: string; names: Record<string, string>; startsAt: string }[]
+      canDefine: boolean
+    }
+
+  it("lets the camp's organiser add one, and anybody read it", async () => {
+    const cookie = await signIn(owner(camp.id).email)
+    const res = await add(session(), cookie)
+    expect(res.status).toBe(201)
+
+    // Public: a parent deciding whether to enter their child reads the
+    // timetable before they register, so this must answer without a session.
+    const { sessions, canDefine } = await list(camp.id)
+    expect(sessions.map((s) => s.names.en)).toContain("Shooting fundamentals")
+    expect(canDefine, "an anonymous reader may not define").toBe(false)
+  })
+
+  it("tells the organiser they may define, and a stranger they may not", async () => {
+    expect((await list(camp.id, await signIn(owner(camp.id).email))).canDefine).toBe(true)
+    expect((await list(camp.id, await signIn(actorFor("SPECTATOR")))).canDefine).toBe(false)
+  })
+
+  it("refuses a coach — they record attendance, they do not move the timetable", async () => {
+    // The model draws this line itself: DEFINE_SESSION_SCHEDULE is OWNER,
+    // CO_ORGANIZER and PLATFORM_ADMIN, while RECORD_ATTENDANCE adds HEAD_COACH
+    // and ASSISTANT_COACH. Collapsing the two would hand coaches the schedule.
+    const res = await add(session(), await signIn(actorFor("COACH")))
+    expect(res.status).toBe(403)
+  })
+
+  it("refuses a league, which has fixtures rather than sessions", async () => {
+    const res = await add(
+      session({ eventId: league.id }),
+      await signIn(owner(league.id).email),
+    )
+    expect(res.status).toBe(403)
+  })
+
+  it("refuses a block that ends before it starts", async () => {
+    const cookie = await signIn(owner(camp.id).email)
+    const res = await add(
+      session({ startsAt: "2026-07-06T11:00:00.000Z", endsAt: "2026-07-06T09:00:00.000Z" }),
+      cookie,
+    )
+    expect(res.status).toBe(400)
+  })
+
+  it("removes one, and only the organiser can", async () => {
+    const cookie = await signIn(owner(camp.id).email)
+    const created = await add(session({ names: { en: "Defence" } }), cookie)
+    const { id } = (await created.json()) as { id: string }
+
+    const asCoach = await SELF.fetch(`${ORIGIN}/api/events/${camp.id}/sessions/${id}`, {
+      method: "DELETE",
+      headers: { cookie: await signIn(actorFor("COACH")), origin: ORIGIN },
+    })
+    expect(asCoach.status).toBe(403)
+
+    const asOwner = await SELF.fetch(`${ORIGIN}/api/events/${camp.id}/sessions/${id}`, {
+      method: "DELETE",
+      headers: { cookie, origin: ORIGIN },
+    })
+    expect(asOwner.status).toBe(200)
+    expect((await list(camp.id)).sessions.map((s) => s.id)).not.toContain(id)
+  })
+
+  it("reads forwards, whatever order they were added", async () => {
+    // A timetable that is not in time order is a list.
+    const cookie = await signIn(owner(camp.id).email)
+    await add(session({ names: { en: "Late" }, startsAt: "2026-07-08T09:00:00.000Z", endsAt: "2026-07-08T11:00:00.000Z" }), cookie)
+    await add(session({ names: { en: "Early" }, startsAt: "2026-07-05T09:00:00.000Z", endsAt: "2026-07-05T11:00:00.000Z" }), cookie)
+
+    const { sessions } = await list(camp.id)
+    const times = sessions.map((s) => s.startsAt)
+    expect([...times].sort()).toEqual(times)
+  })
+})

@@ -17,7 +17,7 @@ import * as schema from "../db/schema"
 import type { ApiEvent } from "../domain/api"
 import { clean, pivot } from "../domain/names"
 import { z } from "zod"
-import { CreateEventInput, EventSchema, UpdateEventInput } from "../domain/api"
+import { CreateEventInput, EventSchema, NamesSchema, UpdateEventInput } from "../domain/api"
 import { ERRORS } from "./errors"
 import { authed, authedRoute, can, canAll, checkedInHandler, found, openTo, requireAction, viewer, viewerTimezone, type Db, type SessionUser } from "./base"
 import { objectsHeldBy } from "./relations"
@@ -384,6 +384,140 @@ export const setDivisions = authed
         .values(wanted.map((divisionId) => ({ eventId: input.id, divisionId })))
     }
     return { divisionIds: wanted }
+  })
+
+/** One block of a camp's timetable, as the contract declares it. */
+const SessionSchema = z.object({
+  id: z.string(),
+  eventId: z.string(),
+  venueId: z.string().nullable(),
+  venueNames: NamesSchema.nullable(),
+  startsAt: z.string(),
+  endsAt: z.string(),
+  names: NamesSchema,
+  /**
+   * The venue's clock, off the event — the same field a game carries and for
+   * the same reason. A camp happens at a gym in one place; a parent in another
+   * country needs to know when to be there, not when it is on their own clock.
+   */
+  timezone: z.string().nullable(),
+})
+
+const SessionInput = z.object({
+  eventId: z.string(),
+  names: z.record(z.string(), z.string()),
+  startsAt: z.string(),
+  endsAt: z.string(),
+  venueId: z.string().nullable().optional(),
+})
+
+/**
+ * A camp's timetable.
+ *
+ * Public, like the fixture list: a parent deciding whether to enter their child
+ * reads when the sessions are before they register, and there is no separate
+ * view action in the model for it — `VIEW_EVENT` is what covers reading an
+ * event, and it is granted to PUBLIC.
+ */
+export const sessions = viewer
+  .use(openTo("VIEW_EVENT"))
+  .route({
+    method: "GET",
+    path: "/events/{eventId}/sessions",
+    summary: "A camp's session schedule",
+  })
+  .input(z.object({ eventId: z.string() }))
+  .output(z.object({ sessions: z.array(SessionSchema), canDefine: z.boolean() }))
+  .handler(async ({ context, input }) => {
+    const [rows, event] = await Promise.all([
+      context.db.query.eventSession.findMany({
+        where: (s, { eq: is }) => is(s.eventId, input.eventId),
+        with: { venue: { columns: { names: true } } },
+        // A timetable reads forwards.
+        orderBy: (s, { asc }) => [asc(s.startsAt)],
+      }),
+      context.db
+        .select({ timezone: schema.event.timezone })
+        .from(schema.event)
+        .where(eq(schema.event.id, input.eventId))
+        .get(),
+    ])
+    return {
+      sessions: rows.map(({ venue, ...row }) => ({
+        ...row,
+        names: row.names as Record<string, string>,
+        venueNames: (venue?.names as Record<string, string>) ?? null,
+        timezone: event?.timezone ?? null,
+      })),
+      // On the list, because DEFINE_SESSION_SCHEDULE acts on the event and the
+      // page needs the answer before there is a session to ask about.
+      canDefine: await can(context.db, "DEFINE_SESSION_SCHEDULE", context.user, input.eventId),
+    }
+  })
+
+/**
+ * Adding a block to the timetable.
+ *
+ * `DEFINE_SESSION_SCHEDULE` is granted to a camp's OWNER and CO_ORGANIZER and to
+ * PLATFORM_ADMIN — **not** to its coaches. The model gives coaches
+ * `RECORD_ATTENDANCE` instead: they mark who turned up, and they do not move the
+ * timetable. That distinction is the model's and it is worth not collapsing.
+ *
+ * CAMP only, by the same grant. A tournament has fixtures and a showcase has
+ * brackets; neither is a session, and `requireAction` refuses the others without
+ * this handler needing to know.
+ */
+export const addSession = authed
+  .route({
+    method: "POST",
+    path: "/events/{eventId}/sessions",
+    summary: "Add a session to a camp",
+    successStatus: 201,
+    ...authedRoute,
+  })
+  .input(SessionInput)
+  .output(SessionSchema)
+  .errors({ BAD_DATE_RANGE: ERRORS.BAD_DATE_RANGE })
+  .use(requireAction("DEFINE_SESSION_SCHEDULE", (i: { eventId: string }) => i.eventId))
+  .handler(async ({ context, input, errors }) => {
+    // A block that ends before it starts is somebody's typo, and it would sort
+    // into the timetable in a place that makes no sense.
+    if (input.endsAt <= input.startsAt) {
+      throw errors.BAD_DATE_RANGE({ data: { startDate: input.startsAt, endDate: input.endsAt } })
+    }
+
+    const names = clean(input.names)
+    const row = {
+      id: `ses_${crypto.randomUUID().slice(0, 8)}`,
+      eventId: input.eventId,
+      venueId: input.venueId ?? null,
+      startsAt: input.startsAt,
+      endsAt: input.endsAt,
+      names,
+    }
+    await context.db.insert(schema.eventSession).values(row)
+    const event = await context.db
+      .select({ timezone: schema.event.timezone })
+      .from(schema.event)
+      .where(eq(schema.event.id, input.eventId))
+      .get()
+    return { ...row, venueNames: null, timezone: event?.timezone ?? null }
+  })
+
+/** Removing one. Same grant, same reasoning. */
+export const removeSession = authed
+  .route({
+    method: "DELETE",
+    path: "/events/{eventId}/sessions/{id}",
+    summary: "Remove a session from a camp",
+    ...authedRoute,
+  })
+  .input(z.object({ id: z.string(), eventId: z.string() }))
+  .output(z.object({ id: z.string() }))
+  .use(requireAction("DEFINE_SESSION_SCHEDULE", (i: { eventId: string }) => i.eventId))
+  .handler(async ({ context, input }) => {
+    await context.db.delete(schema.eventSession).where(eq(schema.eventSession.id, input.id))
+    return { id: input.id }
   })
 
 export const get = viewer

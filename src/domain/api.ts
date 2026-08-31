@@ -34,7 +34,7 @@ import {
  * partialRecord, not record: with an enum key `z.record` demands EVERY locale be
  * present, which would make an English-only name invalid.
  */
-const NamesSchema = z
+export const NamesSchema = z
   .partialRecord(z.enum(LOCALES), z.string())
   .meta({ description: "Display names keyed by locale code", examples: [{ en: "Boys", th: "ชาย" }] })
 

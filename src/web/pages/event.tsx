@@ -3,6 +3,7 @@ import { Icon } from "../components/icon";
 import { EventSettings } from "../components/event-settings";
 import { EventVenues } from "../components/event-venues";
 import { EventDivisions } from "../components/event-divisions";
+import { EventSessions } from "../components/event-sessions";
 import { EventPlayers } from "../components/event-players";
 import { downloadICS } from "../lib/calendar";
 import { FollowButton } from "../components/follow";
@@ -27,7 +28,7 @@ import { m } from "../lib/i18n";
  * is a modelling decision for the PO in remy-sport-biz, and when those tables
  * exist the tab comes back reading from them.
  */
-type EventTab = "overview" | "schedule" | "standings" | "teams" | "players" | "venues" | "divisions" | "rules" | "settings";
+type EventTab = "overview" | "schedule" | "standings" | "teams" | "players" | "venues" | "divisions" | "sessions" | "rules" | "settings";
 
 interface EventProps {
   id: string | undefined;
@@ -201,6 +202,10 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
           // MANAGE_DIVISIONS, so the tab is not offered where the action is
           // not granted.
           ...((e.type === "CAMP" ? [] : [["divisions", m.event_divisions()]]) as [EventTab, string][]),
+          // A camp trains rather than competes, so it has sessions where the
+          // others have fixtures. Same narrowing the model puts on
+          // DEFINE_SESSION_SCHEDULE, which is CAMP only.
+          ...((e.type === "CAMP" ? [["sessions", m.event_sessions()]] : []) as [EventTab, string][]),
           ["rules", m.tab_rules()],
           // Only for someone the model says may edit this event. A tab everyone
           // can see and only some can use is a 403 with extra steps, and it
@@ -215,6 +220,7 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
       {tab === "settings" && e.canEdit && <EventSettings event={e}/>}
       {tab === "venues" && <EventVenues eventId={e.id}/>}
       {tab === "divisions" && <EventDivisions eventId={e.id} canEdit={e.canEdit}/>}
+      {tab === "sessions" && <EventSessions eventId={e.id}/>}
       {tab === "players" && <EventPlayers eventId={e.id}/>}
       {tab === "rules" && <EventRules event={e}/>}
       {tab === "schedule" && (

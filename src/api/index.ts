@@ -44,6 +44,15 @@ export const router = {
     list: events.list,
     mine: events.mine,
     setDivisions: events.setDivisions,
+    /**
+     * A camp's timetable. `DEFINE_SESSION_SCHEDULE` is the model's answer for
+     * CAMP events the way MANAGE_FIXTURES is for tournaments and leagues, and it
+     * had no endpoint — a camp organiser could watch children register and then
+     * had no way to say when to turn up.
+     */
+    sessions: events.sessions,
+    addSession: events.addSession,
+    removeSession: events.removeSession,
     get: events.get,
     create: events.create,
     update: events.update,

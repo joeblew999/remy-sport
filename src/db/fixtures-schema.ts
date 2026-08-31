@@ -248,6 +248,35 @@ export const eventDivision = sqliteTable("eventDivision", {
   divisionId: text("division_id").notNull().references(() => division.id),
 }, (t) => [uniqueIndex("eventDivision_key").on(t.eventId, t.divisionId)])
 
+/**
+ * One block of a camp's timetable.
+ *
+ * A camp is skill training, not competition — the model's own words are
+ * "activities to develop ability, not a contest" — so it has no fixtures. It has
+ * sessions: a time, a place, and what that block covers. `DEFINE_SESSION_SCHEDULE`
+ * is granted to a camp's OWNER and CO_ORGANIZER and had nothing to write to, so
+ * a camp organiser could create the event, watch three children register, and
+ * then had no way to say when anyone should turn up.
+ *
+ * Shaped like `game`, which is the same idea for the other two event types: an
+ * event-scoped row with a start, an optional venue, and no status vocabulary
+ * invented for it. `endsAt` is the one difference and it is not decoration — a
+ * game ends when it ends, a training block is booked into a slot, and a parent
+ * reading a timetable needs to know when to collect their child.
+ *
+ * `names` because everything the Product Owner writes is a locale map: "Shooting
+ * fundamentals" is a label a Thai reader should see in Thai.
+ */
+export const eventSession = sqliteTable("eventSession", {
+  id: text("id").primaryKey(),
+  eventId: text("event_id").notNull().references(() => event.id),
+  venueId: text("venue_id").references(() => venue.id),
+  // ISO 8601 datetimes, like game.starts_at.
+  startsAt: text("starts_at").notNull(),
+  endsAt: text("ends_at").notNull(),
+  names: text("names", { mode: "json" }).$type<Names>().notNull(),
+})
+
 export const eventVenue = sqliteTable("eventVenue", {
   eventId: text("event_id").notNull().references(() => event.id),
   venueId: text("venue_id").notNull().references(() => venue.id),
@@ -345,6 +374,11 @@ export const userNotificationPreference = sqliteTable("userNotificationPreferenc
  * mechanical consequence of the table existing.
  */
 /** Standings read the registration to learn a team's division. */
+export const eventSessionRelations = relations(eventSession, ({ one }) => ({
+  event: one(event, { fields: [eventSession.eventId], references: [event.id] }),
+  venue: one(venue, { fields: [eventSession.venueId], references: [venue.id] }),
+}))
+
 export const eventDivisionRelations = relations(eventDivision, ({ one }) => ({
   event: one(event, { fields: [eventDivision.eventId], references: [event.id] }),
   division: one(division, { fields: [eventDivision.divisionId], references: [division.id] }),

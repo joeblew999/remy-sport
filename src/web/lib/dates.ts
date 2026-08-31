@@ -116,6 +116,26 @@ export function formatTimeOn(locale: string, at: Date, timeZone: string | null):
 }
 
 /**
+ * Just the clock time, on a named zone — "16:00", "4:00 PM".
+ *
+ * `formatTimeOn` above carries the day with it, which is right for a single
+ * fixture and wrong for a range: a camp session rendered start and end with it
+ * read "Mon, Jul 6, Jul 6 at 04:00 PM – Jul 6 at 06:00 PM". A timetable names
+ * the day once and then two times.
+ *
+ * Same rule about the zone as its neighbour: passed explicitly, never the
+ * machine's. A session at 09:00 UTC is 16:00 in Bangkok, and a parent reading
+ * their own clock would arrive five hours early.
+ */
+export function formatClockOn(locale: string, at: Date, timeZone: string | null): string {
+  return fmt(locale, {
+    hour: "2-digit",
+    minute: "2-digit",
+    ...(timeZone ? { timeZone } : {}),
+  }).format(at);
+}
+
+/**
  * "5 minutes ago", "yesterday" — in the reader's language.
  *
  * `formatWhen` in lib/devices.ts hand-rolled this and returned English:
