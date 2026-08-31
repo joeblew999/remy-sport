@@ -78,6 +78,14 @@ the form renders and surfaces anything unclaimed at form level — a wrong path
 then shows the message in the wrong place, which someone notices, instead of
 nowhere. `tests/unit/form-errors.test.ts` asserts it.
 
+**Never move or rename this directory while the dev server is running.** It
+holds `.wrangler` and `project.inlang` open and recreates them at the old path
+the moment they vanish — so a `mv` away and back lands the real repo *inside* a
+husk the server just made, and `git` reports "not a git repository" from a path
+that looks right. Recovered on 2026-08-31 by stopping the server, un-nesting and
+deleting the husk; nothing was lost, because the move was a rename and not a
+copy. `mise run dev:stop` first, or test against a copy.
+
 **`mise run dev:ensure` — never `pkill`, never a bare `wrangler dev`.** It is
 idempotent and no-ops in a second when something is already serving. Starting
 things by hand is what produced a day of measuring stale bundles: a
