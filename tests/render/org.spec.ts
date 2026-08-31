@@ -1,5 +1,7 @@
 import { test, expect } from "./fixture"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
+import { apiTeam } from "../helpers/api-fixtures"
+import type { ApiTeam } from "../../src/domain/api"
 import { sessionKey } from "../../src/web/lib/session"
 
 /**
@@ -40,7 +42,7 @@ const signedIn = {
 
 test.describe("The organisation list", () => {
   test("renders the schools it was given", async ({ page }) => {
-    await seedCache(page, [entry(orpc.orgs.list, undefined, { orgs: [ORG] } as never)])
+    await seedCache(page, [entry(orpc.orgs.list, undefined, { orgs: [ORG] })])
     await page.goto("/#/orgs")
 
     await expect(page.getByTestId("orgs-page")).toBeVisible()
@@ -48,7 +50,7 @@ test.describe("The organisation list", () => {
   })
 
   test("says so when there are none, rather than rendering an empty box", async ({ page }) => {
-    await seedCache(page, [entry(orpc.orgs.list, undefined, { orgs: [] } as never)])
+    await seedCache(page, [entry(orpc.orgs.list, undefined, { orgs: [] })])
     await page.goto("/#/orgs")
 
     await expect(page.getByTestId("orgs-list")).toBeHidden()
@@ -58,7 +60,7 @@ test.describe("The organisation list", () => {
 
 test.describe("An organisation page", () => {
   test("shows the profile form with the current name in it", async ({ page }) => {
-    await seedCache(page, [signedIn, entry(orpc.orgs.get, { id: "org_001" }, ORG as never)])
+    await seedCache(page, [signedIn, entry(orpc.orgs.get, { id: "org_001" }, ORG)])
     await page.goto("/#/org/org_001")
 
     await expect(page.getByTestId("org-page")).toContainText("Assumption College")
@@ -70,7 +72,7 @@ test.describe("An organisation page", () => {
     // — it does not know or ask what this viewer's role is.
     await seedCache(page, [
       signedIn,
-      entry(orpc.orgs.get, { id: "org_001" }, { ...ORG, canEdit: false } as never),
+      entry(orpc.orgs.get, { id: "org_001" }, { ...ORG, canEdit: false }),
     ])
     await page.goto("/#/org/org_001")
 
@@ -82,12 +84,12 @@ test.describe("An organisation page", () => {
   test("shows the roster when the members query answers", async ({ page }) => {
     await seedCache(page, [
       signedIn,
-      entry(orpc.orgs.get, { id: "org_001" }, ORG as never),
+      entry(orpc.orgs.get, { id: "org_001" }, ORG),
       entry(orpc.orgs.members, { id: "org_001" }, {
         members: [
           { userId: "usr_coach_001", email: "wichai.s@assumption.test", name: "Wichai", orgRoleCode: "ADMIN" },
         ],
-      } as never),
+      }),
     ])
     await page.goto("/#/org/org_001")
 
@@ -99,7 +101,7 @@ test.describe("An organisation page", () => {
   test("says 'not yours' when the members query is refused", async ({ page }) => {
     // No members entry — the harness answers 404, which is how a 403 reaches
     // this component: as an error, not as data.
-    await seedCache(page, [signedIn, entry(orpc.orgs.get, { id: "org_001" }, ORG as never)])
+    await seedCache(page, [signedIn, entry(orpc.orgs.get, { id: "org_001" }, ORG)])
     await page.goto("/#/org/org_001")
 
     await expect(page.getByTestId("org-members-denied")).toBeVisible()
@@ -108,7 +110,7 @@ test.describe("An organisation page", () => {
   })
 
   test("offers a signed-out visitor no members section at all", async ({ page }) => {
-    await seedCache(page, [entry(orpc.orgs.get, { id: "org_001" }, ORG as never)])
+    await seedCache(page, [entry(orpc.orgs.get, { id: "org_001" }, ORG)])
     await page.goto("/#/org/org_001")
 
     await expect(page.getByTestId("org-profile")).toBeVisible()
@@ -127,28 +129,33 @@ test.describe("A school's teams", () => {
    * already in the cache, it is small, and a second endpoint returning a subset
    * would be a second thing to keep correct.
    */
-  const team = (over: Record<string, unknown> = {}) => ({
-    id: "team_001",
-    name: "Assumption U18 Boys",
-    names: { en: "Assumption U18 Boys" },
-    orgId: "org_001",
-    ageGroupCode: "U18",
-    genderCode: "M",
-    orgName: "Assumption College",
-    orgNames: { en: "Assumption College" },
-    orgCityCode: "BKK",
-    orgProvinceCode: "BKK",
-    canEdit: false,
-    ...over,
-  })
+  // `apiTeam` from the shared fixtures, not a local literal. The version here
+  // took `Record<string, unknown>` overrides, which widened `ageGroupCode` and
+  // `genderCode` from their vocabularies to bare `string` — so the cast at each
+  // call site was covering a factory that had already thrown the types away.
+  const team = (over: Partial<ApiTeam> = {}) =>
+    apiTeam({
+      id: "team_001",
+      name: "Assumption U18 Boys",
+      names: { en: "Assumption U18 Boys" },
+      orgId: "org_001",
+      ageGroupCode: "U18",
+      genderCode: "M",
+      orgName: "Assumption College",
+      orgNames: { en: "Assumption College" },
+      // BANGKOK is the city; BKK is the province. Both were "BKK" here.
+      orgCityCode: "BANGKOK",
+      orgProvinceCode: "BKK",
+      ...over,
+    })
 
   test("lists only this school's teams", async ({ page }) => {
     await seedCache(page, [
       signedIn,
-      entry(orpc.orgs.get, { id: "org_001" }, ORG as never),
+      entry(orpc.orgs.get, { id: "org_001" }, ORG),
       entry(orpc.teams.list, undefined, {
         teams: [team(), team({ id: "team_009", name: "Somewhere Else U16", orgId: "org_002" })],
-      } as never),
+      }),
     ])
     await page.goto("/#/org/org_001")
 
@@ -159,8 +166,8 @@ test.describe("A school's teams", () => {
   test("says so when a school has none, rather than showing an empty box", async ({ page }) => {
     await seedCache(page, [
       signedIn,
-      entry(orpc.orgs.get, { id: "org_001" }, ORG as never),
-      entry(orpc.teams.list, undefined, { teams: [] } as never),
+      entry(orpc.orgs.get, { id: "org_001" }, ORG),
+      entry(orpc.teams.list, undefined, { teams: [] }),
     ])
     await page.goto("/#/org/org_001")
 
@@ -170,8 +177,8 @@ test.describe("A school's teams", () => {
   test("offers the form to a coach and not to a spectator", async ({ page }) => {
     await seedCache(page, [
       signedIn,
-      entry(orpc.orgs.get, { id: "org_001" }, { ...ORG, canCreateTeam: false } as never),
-      entry(orpc.teams.list, undefined, { teams: [team()] } as never),
+      entry(orpc.orgs.get, { id: "org_001" }, { ...ORG, canCreateTeam: false }),
+      entry(orpc.teams.list, undefined, { teams: [team()] }),
     ])
     await page.goto("/#/org/org_001")
 
@@ -185,8 +192,8 @@ test.describe("A school's teams", () => {
     let sent = ""
     await seedCache(page, [
       signedIn,
-      entry(orpc.orgs.get, { id: "org_001" }, ORG as never),
-      entry(orpc.teams.list, undefined, { teams: [] } as never),
+      entry(orpc.orgs.get, { id: "org_001" }, ORG),
+      entry(orpc.teams.list, undefined, { teams: [] }),
     ])
     await page.route("**/rpc/**", async (route) => {
       if (!route.request().url().includes("teams/create")) return route.fallback()
