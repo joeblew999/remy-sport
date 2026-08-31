@@ -61,8 +61,9 @@ import { user } from "./auth-schema"
  * and app tables can never silently drift from what Better Auth expects.
  */
 /**
- * Columns follow the canonical `events` definition in
- * remy-sport-biz/domain/model/schema.md. Migration 0005 explains the two names
+ * Columns follow the PO's canonical `events` shape — see the event entities in
+ * [src/domain/model/entities.ts](../domain/model/entities.ts), copied verbatim
+ * from remy-sport-biz. Migration 0005 explains the two names
  * that deliberately differ (`name` for `name_en`, `created_by` for
  * `organizer_user_id`) and why `org_id` is absent.
  */
@@ -117,8 +118,9 @@ export const event = sqliteTable("event", {
 ])
 
 /**
- * Team profiles, following canonical `teams` in
- * remy-sport-biz/domain/model/schema.md. Migration 0006 explains why `org_id`
+ * Team profiles, following the PO's canonical `teams` shape in
+ * [src/domain/model/entities.ts](../domain/model/entities.ts). Migration 0006
+ * explains why `org_id`
  * points at Better Auth's `organization` rather than a second orgs table, and
  * why the two `_code` columns are plain text validated at the API boundary.
  */

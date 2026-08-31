@@ -311,7 +311,8 @@ export function buildAuthOptions(deps: AuthDeps = {}) {
       // the same noun: the school a coach belongs to is the school its teams play
       // for, so modelling them separately would mean two org tables that must be
       // kept in step by hand. The extra columns below are the canonical `orgs`
-      // fields from remy-sport-biz/domain/model/schema.md (ADR 008).
+      // fields the PO's model declares for an org — see ORG_TYPE and the org
+      // entities in src/domain/model/, copied verbatim from remy-sport-biz.
       //
       // Declared here rather than bolted on in a migration so the generated
       // src/db/auth-schema.ts knows about them — a hand-added column Better Auth
