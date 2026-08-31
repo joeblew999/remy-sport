@@ -1396,23 +1396,18 @@ depends     = ["install"]
 # It generates rather than asking, because the pair has no meaning outside this
 # deployment — nothing needs to know it, and a key nobody chose is one nobody
 # can leak by pasting. What matters is that it is stable: **rotating it
-# invalidates every subscription** the browsers have already pinned it into, so
-# once one exists this leaves it alone.
-run = """
-if ! SECRETS=$(mise run -q cf:secret:list 2>&1); then
-  echo "push:secret:set: worker not deployed yet — skipping (deploy runs this again afterwards)"
-  exit 0
-fi
-if echo "$SECRETS" | grep -q VAPID_PRIVATE_KEY; then
-  echo "push:secret:set: VAPID keys already set, no change"
-  exit 0
-fi
-KEYS=$(VAPID_SUBJECT="${VAPID_SUBJECT:-mailto:admin@ubuntusoftware.net}" bun scripts/vapid.ts)
-for NAME in VAPID_SUBJECT VAPID_PUBLIC_KEY VAPID_PRIVATE_KEY; do
-  printf '%s' "$(echo "$KEYS" | grep "^$NAME=" | cut -d= -f2-)" | bun x wrangler secret put "$NAME"
-done
-echo "push:secret:set: VAPID keys set — Web Push is on"
-"""
+# invalidates every subscription** the browsers have already pinned it into.
+#
+# This was a shell block whose only guard was `grep -q VAPID_PRIVATE_KEY`. That
+# asks about one half of a keypair and substring-matches the whole listing, so a
+# deployment holding a public key and no private one generated a fresh pair,
+# put all three, and exited 0 — having silently killed every production
+# subscription. See scripts/push-secrets.ts; the three-outcome decision is
+# shared with scripts/dev-vars.ts and tested in tests/unit/vapid-decision.test.ts.
+#
+# A half-pair fails the deploy. To rotate deliberately:
+#   PUSH_ROTATE=1 mise run push:secret:set
+run = "bun scripts/push-secrets.ts"
 
 [tasks."dev:vars"]
 description = "Write .dev.vars with a generated BETTER_AUTH_SECRET if absent"

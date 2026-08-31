@@ -28,6 +28,71 @@ const b64url = (bytes: ArrayBuffer | Uint8Array) =>
  */
 export const DEFAULT_SUBJECT = "mailto:admin@ubuntusoftware.net"
 
+export const PUBLIC_KEY = "VAPID_PUBLIC_KEY"
+export const PRIVATE_KEY = "VAPID_PRIVATE_KEY"
+
+/** What to do about a keypair, given what is already there. */
+export type VapidDecision =
+  | { action: "keep" }
+  | { action: "generate" }
+  | { action: "refuse"; have: string; missing: string }
+
+/**
+ * The three-outcome rule, in one place, for `.dev.vars` and for the deployed
+ * Worker's secrets alike.
+ *
+ * The public and private keys are halves of one keypair and only mean anything
+ * together, so the question is never "is this key missing" — it is "what state
+ * is the pair in":
+ *
+ *   both present   leave it alone. **Rotating invalidates every subscription**
+ *                  a browser has already pinned at `subscribe()` time; they
+ *                  keep sending to an endpoint the new key cannot sign for and
+ *                  fail 403 forever, with nothing server-side to detect it
+ *                  except deliveries quietly starting to fail.
+ *   both absent    generate a pair.
+ *   one present    refuse. Generating the partner produces a mismatched pair
+ *                  and replacing the survivor is a full rotation; both are
+ *                  silent, and which one is wanted is a person's decision.
+ *
+ * Written here rather than twice because the mechanisms differ — a gitignored
+ * file, and `wrangler secret put` — while the decision and its consequence do
+ * not. `scripts/push-secrets.ts` had this as a bash `grep -q VAPID_PRIVATE_KEY`
+ * that saw only the private half, so a deployment holding a public key and no
+ * private one silently rotated every production subscription and exited 0.
+ */
+export function decideVapid(has: { publicKey: boolean; privateKey: boolean }): VapidDecision {
+  if (has.publicKey && has.privateKey) return { action: "keep" }
+  if (!has.publicKey && !has.privateKey) return { action: "generate" }
+  return has.publicKey
+    ? { action: "refuse", have: PUBLIC_KEY, missing: PRIVATE_KEY }
+    : { action: "refuse", have: PRIVATE_KEY, missing: PUBLIC_KEY }
+}
+
+/**
+ * The same decision, from a listing of names.
+ *
+ * `wrangler secret list` answers `[{ name, type }]` and `.dev.vars` is a set of
+ * keys, so both callers hold a set of names by the time they get here. Shared
+ * so the mapping from a listing is the tested step rather than something each
+ * caller open-codes — the bash version's `grep -q VAPID_PRIVATE_KEY` was
+ * exactly that mapping, written once, wrongly, and never exercised.
+ */
+export const decideFromNames = (names: Set<string> | ReadonlySet<string>): VapidDecision =>
+  decideVapid({ publicKey: names.has(PUBLIC_KEY), privateKey: names.has(PRIVATE_KEY) })
+
+/** What to tell somebody who has half a pair. The fix is theirs to choose. */
+export function halfPairMessage(d: { have: string; missing: string }, where: string): string {
+  return (
+    `${where} has ${d.have} but not ${d.missing}.\n` +
+    "  These are halves of one keypair. Generating the missing half would pair it with\n" +
+    "  a key it cannot sign for, and replacing the one that is there rotates it — which\n" +
+    "  invalidates every subscription a browser has already pinned, silently.\n" +
+    `  Either restore ${d.missing} from wherever it is, or delete ${d.have} and rerun to\n` +
+    "  accept a full rotation. That is a decision, not a default."
+  )
+}
+
 /**
  * One VAPID keypair, as the three variables that configure push.
  *

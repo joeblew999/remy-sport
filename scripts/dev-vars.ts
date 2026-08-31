@@ -15,7 +15,7 @@
 
 import { randomBytes } from "crypto"
 import { existsSync, readFileSync, writeFileSync } from "fs"
-import { DEFAULT_SUBJECT, generateVapid } from "./vapid"
+import { DEFAULT_SUBJECT, decideFromNames, generateVapid, halfPairMessage } from "./vapid"
 
 const DEV_VARS = ".dev.vars"
 
@@ -96,23 +96,15 @@ for (const [key, make] of Object.entries(DEFAULTS)) {
  * `VAPID_SUBJECT` is not cryptographic — it is the contact address a push
  * service complains to — so it is filled in on its own like any other scalar.
  */
-const hasPublic = present.has("VAPID_PUBLIC_KEY")
-const hasPrivate = present.has("VAPID_PRIVATE_KEY")
+const decision = decideFromNames(present)
 
-if (hasPublic !== hasPrivate) {
-  console.error(
-    `dev-vars: ${DEV_VARS} has ${hasPublic ? "VAPID_PUBLIC_KEY" : "VAPID_PRIVATE_KEY"} but not ` +
-      `${hasPublic ? "VAPID_PRIVATE_KEY" : "VAPID_PUBLIC_KEY"}.\n` +
-      "  These are halves of one keypair. Generating the missing half would pair it with\n" +
-      "  a key it cannot sign for, and replacing the one that is there rotates it — which\n" +
-      "  invalidates every subscription a browser has already pinned.\n" +
-      `  Delete both lines and rerun to get a fresh pair, or restore the missing one.`,
-  )
+if (decision.action === "refuse") {
+  console.error(`dev-vars: ${halfPairMessage(decision, DEV_VARS)}`)
   process.exit(1)
 }
 
 if (!present.has("VAPID_SUBJECT")) append("VAPID_SUBJECT", DEFAULT_SUBJECT)
-if (!hasPublic && !hasPrivate) {
+if (decision.action === "generate") {
   const { publicKey, privateKey } = await generateVapid(DEFAULT_SUBJECT)
   append("VAPID_PUBLIC_KEY", publicKey)
   append("VAPID_PRIVATE_KEY", privateKey)
