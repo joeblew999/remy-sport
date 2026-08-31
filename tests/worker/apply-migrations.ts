@@ -17,10 +17,24 @@ import { SEED_STATEMENTS } from "../../src/db/seed"
  * `batch` is one implicit transaction, so a broken migration fails the file
  * loudly instead of leaving a half-built schema behind it.
  *
- * What is left is not SQL. A worker test file costs ~3s of workerd and
- * Miniflare startup before a single assertion runs — measured with a file
- * containing one `expect(1).toBe(1)`. Six files is ~18s of that, and the only
- * lever on it is having fewer files.
+ * What is left is not SQL. A worker test file costs ~5s of workerd and
+ * Miniflare startup before a single assertion runs.
+ *
+ * ## "Six files is ~18s of that, and the only lever is having fewer files"
+ *
+ * That is what this said, and it is wrong. Vitest runs test files in *parallel*,
+ * so the startup cost is paid concurrently and the tier's wall clock is its
+ * slowest file, not the sum of them.
+ *
+ * The difference is not academic — it points at the opposite fix. Acting on the
+ * serial reading on 2026-08-31, I merged authz-equivalence.test.ts into
+ * relations.test.ts to remove a file, measured, and the tier did not move by a
+ * tenth of a second. It was 24.5s because write.test.ts had grown to 2279 lines
+ * and 21.5s on its own, while every other file finished in about five.
+ * Splitting it in two took the tier to 16.2s.
+ *
+ * So the lever is a smaller *biggest* file. Fewer files buys nothing above the
+ * ~5s floor, and merging two small ones makes the tier slower to no purpose.
  */
 const migrations = (env as unknown as { TEST_MIGRATIONS: { queries: string[] }[] }).TEST_MIGRATIONS
 

@@ -347,8 +347,14 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
 
 function CreateEvent({ onError }: { onError: (m: string | null) => void }) {
   const qc = useQueryClient();
-  const { reference, name } = useLocale();
+  const { reference, name, describe } = useLocale();
   const [done, setDone] = useState(false);
+  // The model's first type, not a literal: the PO controls the order, and the
+  // string this used to hold matched no option at all.
+  const types = reference?.eventTypes ?? [];
+  const [chosen, setChosen] = useState<string | null>(null);
+  const type = chosen ?? types[0]?.code ?? "";
+  const setType = setChosen;
 
   const create = useMutation({
     mutationFn: (input: { names: { en: string }; typeCode: string; description?: string }) =>
@@ -384,6 +390,7 @@ function CreateEvent({ onError }: { onError: (m: string | null) => void }) {
             description: String(f.get("description") || "") || undefined,
           });
           e.currentTarget.reset();
+          setChosen(null);
         }}
       >
         <input name="name" placeholder="Event name" required autoComplete="off" />
@@ -399,13 +406,33 @@ function CreateEvent({ onError }: { onError: (m: string | null) => void }) {
             here, already translated, with nothing edited in this file. The
             hardcoded version was also a second place for the code list to
             drift from the model. */}
-        <select name="type" required defaultValue="tournament">
+        {/* `defaultValue` was "tournament" and the codes are "TOURNAMENT", so
+            it matched no option and the browser fell back to whichever sorts
+            first. It happened to be the right one. Controlled now, because the
+            description below has to follow the selection anyway. */}
+        <select
+          name="type"
+          required
+          value={type}
+          onChange={(e) => setType(e.target.value)}
+          data-testid="create-event-type"
+        >
           {(reference?.eventTypes ?? []).map((t) => (
             <option key={t.code} value={t.code}>
               {name(t.names, t.code)}
             </option>
           ))}
         </select>
+        {/* What the choice actually means. It decides which tabs the event
+            gets and which actions the model grants on it — a camp has sessions
+            and no fixtures — and the four words in the dropdown say none of
+            that. The model has explained each one in three languages since the
+            fixtures were written. */}
+        {describe("eventTypes", type) && (
+          <p className="meta" data-testid="create-event-type-note">
+            {describe("eventTypes", type)}
+          </p>
+        )}
         <input name="description" placeholder="Description (optional)" autoComplete="off" />
         {createErr.field("description") && (
           <p className="admin-error small" data-testid="create-event-description-issue">

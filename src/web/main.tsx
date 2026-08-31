@@ -102,7 +102,7 @@ function PendingApprovalNotice() {
 
 function App() {
   const tweaks = { ...DEFAULTS, ...(window.TWEAK_DEFAULTS ?? {}) } as Required<TweakDefaults>;
-  const { route, goto } = useRouter();
+  const { route, goto, setParam } = useRouter();
   const [spoiler, setSpoiler] = useState<boolean>(tweaks.spoilerMode);
   // Mobile sidebar drawer state
   const [navOpen, setNavOpen] = useState(false);
@@ -135,7 +135,9 @@ function App() {
           <Topbar spoiler={spoiler} setSpoiler={handleSpoilerSet} onMenu={() => setNavOpen(o => !o)} goto={goto}/>
           <PendingApprovalNotice />
           <div className="page">
-            {route.page === "discover" && <DiscoverPage goto={goto} spoiler={spoiler}/>}
+            {route.page === "discover" && (
+              <DiscoverPage goto={goto} spoiler={spoiler} query={route.query} setParam={setParam}/>
+            )}
             {route.page === "events" && <MyEventsPage goto={goto}/>}
             {route.page === "event" && <EventPage id={route.id} goto={goto} spoiler={spoiler}/>}
             {route.page === "live" && <LivePage goto={goto} spoiler={spoiler} setSpoiler={handleSpoilerSet}/>}

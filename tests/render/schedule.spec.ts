@@ -155,10 +155,13 @@ test.describe("Event entries", () => {
   const U16M = { id: "div_001", names: { en: "U16 Boys" }, ageGroupCode: "U16", genderCode: "M" }
   const U18F = { id: "div_004", names: { en: "U18 Girls" }, ageGroupCode: "U18", genderCode: "F" }
 
-  const seedEntries = (page: Parameters<typeof seedCache>[0], entries: ApiEntries) =>
+  // `Partial`, filled in by `apiEntries`. Spelled out in full, a field added to
+  // the endpoint broke all four call sites below and taught nothing — which is
+  // what `apiEntries` exists to absorb.
+  const seedEntries = (page: Parameters<typeof seedCache>[0], entries: Partial<ApiEntries>) =>
     seedCache(page, [
       entry(orpc.events.get, { id: "evt_002" }, EVENT),
-      entry(orpc.events.entries, { eventId: "evt_002" }, entries),
+      entry(orpc.events.entries, { eventId: "evt_002" }, apiEntries(entries)),
     ])
 
   const open = async (page: Parameters<typeof seedCache>[0]) => {
@@ -246,9 +249,9 @@ test.describe("Running a schedule", () => {
   ) => {
     await seedCache(page, [
       entry(orpc.events.get, { id: "evt_002" }, EV),
-      entry(orpc.events.entries, { eventId: "evt_002" }, {
-        registered: two, registrable: [], divisions: [], canManageFixtures: opts.canManageFixtures,
-      }),
+      entry(orpc.events.entries, { eventId: "evt_002" }, apiEntries({
+        registered: two, canManageFixtures: opts.canManageFixtures,
+      })),
       entry(orpc.games.list, { eventId: "evt_002" }, {
         games: [{ ...finished, ...(opts.game ?? {}) }],
         viewerTimezone: null,

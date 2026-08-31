@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Icon } from "../components/icon";
 import { useEvents, useLiveGames } from "../lib/data";
 import type { Route } from "../lib/router";
@@ -9,23 +8,44 @@ import type { EventStatus, EventType } from "../data";
 interface DiscoverProps {
   goto: (r: Route) => void;
   spoiler: boolean;
+  /** The filters, from the address bar. See `Route.query` in lib/router.tsx. */
+  query: Record<string, string> | undefined;
+  setParam: (key: string, value: string | null) => void;
 }
 
 // No "open" tab: nothing can have that status — see src/web/data.ts.
 type Tab = "all" | "live" | "upcoming" | "closed";
 
-export function DiscoverPage({ goto, spoiler }: DiscoverProps) {
+export function DiscoverPage({ goto, spoiler, query, setParam }: DiscoverProps) {
   const { locale, reference, name, label } = useLocale();
-  const [tab, setTab] = useState<Tab>("all");
-  const [filterCity, setFilterCity] = useState<string | null>(null);
-  const [filterProvince, setFilterProvince] = useState<string | null>(null);
-  const [filterType, setFilterType] = useState<EventType | null>(null);
+
+  /**
+   * Every filter reads from the address bar, and nothing here holds state.
+   *
+   * `main.tsx` renders `<App key={locale}>`, so a language switch remounts the
+   * whole tree — which used to reset all four of these to nothing while the
+   * chips carried on looking selected. The hash survives the remount, and a
+   * filtered view becomes a link somebody can send.
+   */
+  const tab = (query?.tab as Tab | undefined) ?? "all";
+  const filterCity = query?.city ?? null;
+  const filterProvince = query?.province ?? null;
+  const filterType = (query?.type as EventType | undefined) ?? null;
+  const setTab = (next: Tab) => setParam("tab", next === "all" ? null : next);
+  const setFilterCity = (next: string | null) => setParam("city", next);
+  const setFilterProvince = (next: string | null) => setParam("province", next);
+  const setFilterType = (next: EventType | null) => setParam("type", next);
   const { data, isPending, error } = useEvents();
   const allEvents = data ?? [];
 
   let events = allEvents;
   if (tab !== "all") events = events.filter(e => e.status === (tab as EventStatus));
-  if (filterCity) events = events.filter(e => e.city === filterCity);
+  // By code, not by the label this compared before. A filter holds an identity,
+  // and `e.city` is a display string that changes with the reader's language —
+  // so the stored value and the row's value were the same thing written two
+  // ways, and only agreed by accident of locale. (It is not what broke the
+  // filter on a language switch; that was the remount, fixed above.)
+  if (filterCity) events = events.filter(e => e.cityCode === filterCity);
   if (filterProvince) events = events.filter(e => e.provinceCode === filterProvince);
   if (filterType) events = events.filter(e => e.type === filterType);
 
@@ -102,8 +122,8 @@ export function DiscoverPage({ goto, spoiler }: DiscoverProps) {
               the PO has never defined, so filtering by them could only ever
               return nothing. */}
           {CITIES.map(c => (
-            <button key={c.code} className={`chip ${filterCity === c.label ? "active" : ""}`}
-              onClick={() => setFilterCity(filterCity === c.label ? null : c.label)}>{c.label}</button>
+            <button key={c.code} className={`chip ${filterCity === c.code ? "active" : ""}`}
+              onClick={() => setFilterCity(filterCity === c.code ? null : c.code)}>{c.label}</button>
           ))}
           {/* A select rather than chips: the model defines 77 provinces, and a
               row of chips is a control for five things, not for seventy. */}
@@ -117,7 +137,9 @@ export function DiscoverPage({ goto, spoiler }: DiscoverProps) {
             >
               <option value="">{m.all_provinces()}</option>
               {PROVINCES.map(p => (
-                <option key={p.code} value={p.code}>{p.label} ({p.count})</option>
+                <option key={p.code} value={p.code}>
+                  {m.filter_option_count({ name: p.label, count: p.count })}
+                </option>
               ))}
             </select>
           )}

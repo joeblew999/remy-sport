@@ -141,6 +141,7 @@
   "events_load_failed": "大会を読み込めませんでした。接続を確認して再度お試しください。",
   "everyone_on_squad": "全選手がすでにメンバーに入っています。",
   "filter_by_province": "県で絞り込む",
+  "filter_option_count": "{name}（{count}件）",
   "first_matchday": "初戦の日",
   "fixture_cancel": "キャンセル",
   "fixture_confirm_remove": "この試合を削除しますか？割り当て済みの審判も削除されます。",

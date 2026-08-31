@@ -139,6 +139,7 @@ export function toEvent(e: ApiEvent, loc: Localizer, today: Date = new Date()): 
     // set one rather than "this app cannot read the table".
     loc: e.venueNames ? loc.name(e.venueNames) : m.venue_tbc({}, { locale: loc.locale }),
     city: loc.label("cities", e.cityCode) || "—",
+    cityCode: e.cityCode,
     province: loc.label("provinces", e.provinceCode) || "—",
     provinceCode: e.provinceCode,
     day: start ? start.getDate() : 0,

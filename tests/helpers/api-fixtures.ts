@@ -261,6 +261,7 @@ export function apiEntries(over: Partial<ApiEntries> = {}): ApiEntries {
     // and the permission below silently read false.
     divisions: [],
     canManageFixtures: false,
+    canAssignCourts: false,
     ...over,
   }
 }

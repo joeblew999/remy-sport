@@ -141,6 +141,7 @@
   "events_load_failed": "โหลดรายการแข่งขันไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อแล้วลองใหม่",
   "everyone_on_squad": "ผู้เล่นทุกคนอยู่ในทีมนี้แล้ว",
   "filter_by_province": "กรองตามจังหวัด",
+  "filter_option_count": "{name} ({count})",
   "first_matchday": "วันแข่งวันแรก",
   "fixture_cancel": "ยกเลิก",
   "fixture_confirm_remove": "ลบการแข่งขันนี้หรือไม่ ผู้ตัดสินที่มอบหมายไว้จะถูกลบไปด้วย",

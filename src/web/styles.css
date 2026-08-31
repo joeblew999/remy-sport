@@ -1600,3 +1600,11 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .video-score .score { font-family: "Space Grotesk", sans-serif; font-weight: 600; font-size: 28px; letter-spacing: -0.02em; }
 .video-score .status { font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--live); }
 .video-score .more { background: transparent; border: none; padding: 0; cursor: pointer; }
+
+/* The model's own explanation of a notification type, under its switch.
+   Indented past the checkbox so it reads as belonging to the label. */
+.pref-list .pref-note {
+  margin-left: 24px;
+  font-size: 12px;
+  color: var(--ink-3);
+}

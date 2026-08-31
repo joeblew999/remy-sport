@@ -141,6 +141,7 @@
   "events_load_failed": "Could not load events. Check your connection and retry.",
   "everyone_on_squad": "Every player is already on this squad.",
   "filter_by_province": "Filter by province",
+  "filter_option_count": "{name} ({count})",
   "first_matchday": "First matchday",
   "fixture_cancel": "Cancel",
   "fixture_confirm_remove": "Remove this fixture? Its referee assignments go with it.",

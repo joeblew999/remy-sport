@@ -28,6 +28,9 @@ const loc: Localizer = {
   locale: "en",
   name: (_names, fallback) => fallback ?? "",
   label: () => "",
+  // Descriptions are not what these assert; the empty string is what a
+  // vocabulary without one resolves to anyway.
+  describe: () => "",
 }
 
 /**

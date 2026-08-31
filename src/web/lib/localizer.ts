@@ -32,7 +32,11 @@ export type Vocabulary = keyof Reference
  */
 export type Reference = Awaited<ReturnType<RouterClient<Router>["reference"]["list"]>>
 
-export type Term = { code: string; names: Names }
+/**
+ * A vocabulary term. `descriptions` only where the Product Owner wrote one —
+ * notification types and org roles have them; cities and locales do not.
+ */
+export type Term = { code: string; names: Names; descriptions?: Names | null }
 
 
 
@@ -49,4 +53,16 @@ export interface Localizer {
   name(names: Names | undefined, fallback?: string): string;
   /** A vocabulary term's name. Falls back to the code, which is never blank. */
   label(vocabulary: Vocabulary, code: string | null | undefined): string;
+  /**
+   * A vocabulary term's description, where the model has one.
+   *
+   * Falls back to the empty string, never to the code: a description is
+   * explanatory text and a bare "SCORE_UPDATE" under a label reading "Score
+   * Update" explains nothing. Callers render it only when it is non-empty.
+   *
+   * Every vocabulary has carried these in three languages since the fixtures
+   * were written — "Score changed during a live match" — and no screen showed
+   * one, so switches were labelled with two words and no explanation.
+   */
+  describe(vocabulary: Vocabulary, code: string | null | undefined): string;
 }

@@ -58,9 +58,14 @@ const BUDGETS: Record<string, Budget> = {
   },
   worker: {
     ceiling: 25,
-    measured: 18.3,
-    shared: { ceiling: 45, measured: 34.6 },
-    note: "workerd plus D1 migrations per file; isolatedStorage pays that eight times",
+    measured: 16.2,
+    shared: { ceiling: 45, measured: 40.8 },
+    // Re-measured 2026-08-31. The old note said "isolatedStorage pays that
+    // eight times", which reads as a sum — vitest runs files in parallel, so
+    // the tier costs its slowest file, not the total. It had crept to 24.5s
+    // solo because write.test.ts alone was 21.5s; splitting it by subject took
+    // the tier to 16.2s with the same 350 tests. See tests/worker/schedule.test.ts.
+    note: "the slowest single file, not the sum — files run in parallel over a ~5s workerd floor",
   },
   render: {
     ceiling: 30,

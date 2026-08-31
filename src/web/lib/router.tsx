@@ -7,26 +7,61 @@ import { useEffect, useState } from "react";
 export interface Route {
   page: string;
   id?: string;
+  /**
+   * Everything after `?`, for state that belongs in the address bar.
+   *
+   * Discover's filters live here rather than in `useState`, for two reasons and
+   * the first one is a bug. `main.tsx` renders `<App key={locale}>` so that a
+   * language switch re-evaluates Paraglide's messages, which are plain
+   * functions nothing subscribes to. Keying remounts the tree — and remounting
+   * resets every `useState` in it. Choosing a province, then switching to Thai,
+   * silently cleared the filter and the selected tab and put every event back
+   * on the page. The chips looked untouched.
+   *
+   * The second reason is the one worth having anyway: a filtered view is a
+   * thing people send each other. "Everything in Chiang Mai this month" was not
+   * a link, and now it is.
+   */
+  query?: Record<string, string>;
 }
 
 function parseHash(): Route {
   const raw = (window.location.hash || "").replace(/^#\/?/, "");
-  if (!raw) return { page: "discover" };
-  const parts = raw.split("/").filter(Boolean);
-  if (parts.length === 0) return { page: "discover" };
-  const [page, id] = parts;
-  return id ? { page, id } : { page };
+  const [path, search] = raw.split("?");
+  const query: Record<string, string> = {};
+  if (search) {
+    for (const [key, value] of new URLSearchParams(search)) query[key] = value;
+  }
+  const parts = (path ?? "").split("/").filter(Boolean);
+  const base: Route = parts.length === 0
+    ? { page: "discover" }
+    : parts[1]
+      ? { page: parts[0]!, id: parts[1] }
+      : { page: parts[0]! };
+  return Object.keys(query).length ? { ...base, query } : base;
 }
 
 function serialize(route: Route): string {
-  if (!route || !route.page || route.page === "discover") return "#/";
-  if (route.id) return `#/${route.page}/${route.id}`;
-  return `#/${route.page}`;
+  // Empty values are dropped rather than written as `province=`: an unset
+  // filter should leave no trace in a link somebody is about to send.
+  const entries = Object.entries(route.query ?? {}).filter(([, v]) => v !== "");
+  const search = entries.length ? `?${new URLSearchParams(entries)}` : "";
+  if (!route || !route.page || route.page === "discover") return `#/${search}`;
+  if (route.id) return `#/${route.page}/${route.id}${search}`;
+  return `#/${route.page}${search}`;
 }
 
 export interface RouterAPI {
   route: Route;
   goto: (r: Route) => void;
+  /**
+   * Change one query parameter, staying on this page.
+   *
+   * Separate from `goto` because a filter is not navigation: it must not scroll
+   * the page back to the top, which is what `goto` does and what a reader
+   * halfway down a list of events does not want.
+   */
+  setParam: (key: string, value: string | null) => void;
 }
 
 export function useRouter(): RouterAPI {
@@ -36,13 +71,24 @@ export function useRouter(): RouterAPI {
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
+
+  const write = (next: Route) => {
+    setRoute(next);
+    const h = serialize(next);
+    if (window.location.hash !== h) window.location.hash = h;
+  };
+
   const goto = (r: Route) => {
-    setRoute(r);
-    const h = serialize(r);
-    if (window.location.hash !== h) {
-      window.location.hash = h;
-    }
+    write(r);
     document.querySelector(".page")?.scrollTo({ top: 0 });
   };
-  return { route, goto };
+
+  const setParam = (key: string, value: string | null) => {
+    const query = { ...(route.query ?? {}) };
+    if (value === null || value === "") delete query[key];
+    else query[key] = value;
+    write({ ...route, query });
+  };
+
+  return { route, goto, setParam };
 }

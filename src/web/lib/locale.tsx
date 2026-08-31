@@ -131,6 +131,10 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     // to see. The endpoint still wins once it arrives; this is the same data,
     // generated from the same fixtures, so the two cannot disagree.
     const index = new Map<string, Names>();
+    // Descriptions come only from the endpoint: the compiled fallback carries
+    // names so a label never renders blank, and a missing description renders
+    // as nothing anyway, so there is nothing to degrade to.
+    const described = new Map<string, Names>();
     for (const [vocabulary, terms] of Object.entries(VOCABULARY)) {
       for (const term of terms as readonly Term[]) {
         index.set(`${vocabulary}|${term.code}`, term.names);
@@ -140,7 +144,10 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
       // Every vocabulary in the payload, whatever they are — the endpoint is
       // generated from the fixtures, so listing them here would fall behind.
       for (const [vocabulary, terms] of Object.entries(reference)) {
-        for (const term of terms as Term[]) index.set(`${vocabulary}|${term.code}`, term.names);
+        for (const term of terms as Term[]) {
+          index.set(`${vocabulary}|${term.code}`, term.names);
+          if (term.descriptions) described.set(`${vocabulary}|${term.code}`, term.descriptions);
+        }
       }
     }
 
@@ -161,6 +168,8 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
       },
       name,
       label: (vocabulary, code) => (code ? name(index.get(`${vocabulary}|${code}`), code) : ""),
+      // No fallback to the code — see the note on `describe` in ./localizer.ts.
+      describe: (vocabulary, code) => (code ? name(described.get(`${vocabulary}|${code}`)) : ""),
       // Falls back to the generated list so the switcher renders before the
       // vocabularies land, and still renders if they never do.
       // The fixtures define `locales` like any other vocabulary, so the
@@ -189,6 +198,6 @@ export function useLocale(): LocaleContextValue {
 
 /** Just the resolving half, for the API mapping layer. */
 export function useLocalizer(): Localizer {
-  const { locale, name, label } = useLocale();
-  return useMemo(() => ({ locale, name, label }), [locale, name, label]);
+  const { locale, name, label, describe } = useLocale();
+  return useMemo(() => ({ locale, name, label, describe }), [locale, name, label, describe]);
 }

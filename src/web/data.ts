@@ -75,6 +75,8 @@ export interface Event {
   div: string;
   loc: string;
   city: string;
+  /** The raw code, which is what a filter compares — see `provinceCode`. */
+  cityCode: string | null;
   /**
    * Which of Thailand's 77 provinces, in the reader's language.
    *

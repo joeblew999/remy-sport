@@ -52,7 +52,7 @@ const OFFERED = [
 
 export function NotificationSettings() {
   const qc = useQueryClient()
-  const { locale, label, name } = useLocale()
+  const { locale, label, name, describe } = useLocale()
   const [state, setState] = useState<PushState | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -164,6 +164,16 @@ export function NotificationSettings() {
                     the PO's list to drift from. */}
                 {label("notificationTypes", code)}
               </label>
+              {/* And the model's own explanation of what it sends. "Score
+                  Update" is two words that could mean a push on every basket
+                  or one at full time; "Score changed during a live match" is
+                  the answer, and it has been in the fixtures in three
+                  languages the whole time. */}
+              {describe("notificationTypes", code) && (
+                <div className="pref-note" data-testid={`pref-note-${code}`}>
+                  {describe("notificationTypes", code)}
+                </div>
+              )}
             </li>
           )
         })}
