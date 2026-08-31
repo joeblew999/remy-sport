@@ -122,6 +122,8 @@
   "event_session_add": "Add a session",
   "event_session_ends": "Ends",
   "event_session_name": "What it covers",
+  "event_session_register": "Register",
+  "event_session_register_none": "Nobody is entered in this camp yet.",
   "event_session_starts": "Starts",
   "event_sessions": "Sessions",
   "event_sessions_none": "No sessions yet.",

@@ -122,6 +122,8 @@
   "event_session_add": "เพิ่มเซสชัน",
   "event_session_ends": "สิ้นสุด",
   "event_session_name": "หัวข้อที่ฝึก",
+  "event_session_register": "เช็คชื่อ",
+  "event_session_register_none": "ยังไม่มีผู้ลงทะเบียนในค่ายนี้",
   "event_session_starts": "เริ่ม",
   "event_sessions": "เซสชัน",
   "event_sessions_none": "ยังไม่มีเซสชัน",

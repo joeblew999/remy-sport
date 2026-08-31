@@ -277,6 +277,30 @@ export const eventSession = sqliteTable("eventSession", {
   names: text("names", { mode: "json" }).$type<Names>().notNull(),
 })
 
+/**
+ * Who turned up to one session.
+ *
+ * A row means "recorded as attending". There is no `present` boolean and no
+ * PRESENT/ABSENT vocabulary, because the model has neither and inventing one
+ * would put a concept the Product Owner never wrote into their schema.
+ *
+ * It is also the more honest shape. A boolean conflates "marked absent" with
+ * "not marked yet", which on a Monday morning are different facts: one says the
+ * child did not come, the other says nobody has been round with the register.
+ * A row's presence answers exactly one question, and `eventPlayer` already says
+ * who could have been there.
+ *
+ * `RECORD_ATTENDANCE` is granted to a camp's OWNER and CO_ORGANIZER *and* to its
+ * HEAD_COACH and ASSISTANT_COACH — wider than DEFINE_SESSION_SCHEDULE, which is
+ * organisers only. The coach with the register is not the person who moves the
+ * timetable.
+ */
+export const sessionAttendance = sqliteTable("sessionAttendance", {
+  sessionId: text("session_id").notNull().references(() => eventSession.id),
+  playerId: text("player_id").notNull().references(() => player.id),
+  recordedAt: text("recorded_at").notNull(),
+}, (t) => [uniqueIndex("sessionAttendance_key").on(t.sessionId, t.playerId)])
+
 export const eventVenue = sqliteTable("eventVenue", {
   eventId: text("event_id").notNull().references(() => event.id),
   venueId: text("venue_id").notNull().references(() => venue.id),
@@ -374,6 +398,11 @@ export const userNotificationPreference = sqliteTable("userNotificationPreferenc
  * mechanical consequence of the table existing.
  */
 /** Standings read the registration to learn a team's division. */
+export const sessionAttendanceRelations = relations(sessionAttendance, ({ one }) => ({
+  session: one(eventSession, { fields: [sessionAttendance.sessionId], references: [eventSession.id] }),
+  player: one(player, { fields: [sessionAttendance.playerId], references: [player.id] }),
+}))
+
 export const eventSessionRelations = relations(eventSession, ({ one }) => ({
   event: one(event, { fields: [eventSession.eventId], references: [event.id] }),
   venue: one(venue, { fields: [eventSession.venueId], references: [venue.id] }),

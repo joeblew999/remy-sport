@@ -520,6 +520,131 @@ export const removeSession = authed
     return { id: input.id }
   })
 
+/**
+ * The register for one session: who could be there, and who was.
+ *
+ * Everyone entered in the camp is a row, whether or not they were marked — a
+ * register with only the present children on it is a list, not a register, and
+ * the coach needs to see who is missing.
+ *
+ * Behind a session, because these name minors. `teamCoaches.list` and
+ * `players.list` are stricter than the model for the same reason.
+ */
+export const attendance = authed
+  .route({
+    method: "GET",
+    path: "/events/{eventId}/sessions/{sessionId}/attendance",
+    summary: "Who is entered in this camp, and who attended this session",
+    ...authedRoute,
+  })
+  .input(z.object({ eventId: z.string(), sessionId: z.string() }))
+  .output(
+    z.object({
+      players: z.array(
+        z.object({
+          playerId: z.string(),
+          names: NamesSchema,
+          attended: z.boolean(),
+        }),
+      ),
+      canRecord: z.boolean(),
+    }),
+  )
+  .use(checkedInHandler("RECORD_ATTENDANCE"))
+  .handler(async ({ context, input }) => {
+    const [entered, marked, canRecord] = await Promise.all([
+      context.db
+        .select({ playerId: schema.eventPlayer.playerId, names: schema.player.names })
+        .from(schema.eventPlayer)
+        .innerJoin(schema.player, eq(schema.player.id, schema.eventPlayer.playerId))
+        .where(eq(schema.eventPlayer.eventId, input.eventId))
+        .all(),
+      context.db
+        .select({ playerId: schema.sessionAttendance.playerId })
+        .from(schema.sessionAttendance)
+        .where(eq(schema.sessionAttendance.sessionId, input.sessionId))
+        .all(),
+      can(context.db, "RECORD_ATTENDANCE", context.user, input.eventId),
+    ])
+
+    const present = new Set(marked.map((m) => m.playerId))
+    return {
+      players: entered.map((p) => ({
+        playerId: p.playerId,
+        names: p.names as Record<string, string>,
+        attended: present.has(p.playerId),
+      })),
+      canRecord,
+    }
+  })
+
+/**
+ * Marking one child present, or undoing it.
+ *
+ * `attended: false` deletes the row rather than storing a negative. The table
+ * has no `present` column on purpose — see the note on `sessionAttendance` —
+ * because "marked absent" and "not marked yet" are different facts and a boolean
+ * cannot hold both.
+ *
+ * Granted more widely than the timetable: a camp's coaches carry the register,
+ * and the model says so.
+ */
+export const recordAttendance = authed
+  .route({
+    method: "PUT",
+    path: "/events/{eventId}/sessions/{sessionId}/attendance/{playerId}",
+    summary: "Record whether a player attended a session",
+    ...authedRoute,
+  })
+  .input(
+    z.object({
+      eventId: z.string(),
+      sessionId: z.string(),
+      playerId: z.string(),
+      attended: z.boolean(),
+    }),
+  )
+  .output(z.object({ playerId: z.string(), attended: z.boolean() }))
+  .errors({ NOT_REGISTERED: ERRORS.NOT_REGISTERED })
+  .use(requireAction("RECORD_ATTENDANCE", (i: { eventId: string }) => i.eventId))
+  .handler(async ({ context, input, errors }) => {
+    // Only somebody entered in this camp. Without it a typo writes a row for a
+    // child who is not on the course, and the register grows people nobody can
+    // explain.
+    const entered = await context.db
+      .select({ playerId: schema.eventPlayer.playerId })
+      .from(schema.eventPlayer)
+      .where(
+        and(
+          eq(schema.eventPlayer.eventId, input.eventId),
+          eq(schema.eventPlayer.playerId, input.playerId),
+        ),
+      )
+      .get()
+    if (!entered) throw errors.NOT_REGISTERED()
+
+    if (input.attended) {
+      await context.db
+        .insert(schema.sessionAttendance)
+        .values({
+          sessionId: input.sessionId,
+          playerId: input.playerId,
+          recordedAt: new Date().toISOString(),
+        })
+        .onConflictDoNothing()
+    } else {
+      await context.db
+        .delete(schema.sessionAttendance)
+        .where(
+          and(
+            eq(schema.sessionAttendance.sessionId, input.sessionId),
+            eq(schema.sessionAttendance.playerId, input.playerId),
+          ),
+        )
+    }
+    return { playerId: input.playerId, attended: input.attended }
+  })
+
 export const get = viewer
   .use(openTo("VIEW_EVENT"))
   .route({ method: "GET", path: "/events/{id}", summary: "Get one event" })

@@ -92,6 +92,13 @@
       "when": 1788151784304,
       "tag": "0012_event_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1788152304340,
+      "tag": "0013_session_attendance",
+      "breakpoints": true
     }
   ]
 }

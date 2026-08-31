@@ -53,6 +53,12 @@ export const router = {
     sessions: events.sessions,
     addSession: events.addSession,
     removeSession: events.removeSession,
+    /**
+     * The register. Granted more widely than the timetable — a camp's coaches
+     * carry it, and the model says so.
+     */
+    attendance: events.attendance,
+    recordAttendance: events.recordAttendance,
     get: events.get,
     create: events.create,
     update: events.update,

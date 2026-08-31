@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api, orpc } from "../lib/orpc"
 import { formErrors } from "../lib/form-errors"
@@ -38,6 +39,9 @@ export function EventSessions({ eventId }: { eventId: string }) {
     mutationFn: (id: string) => api.events.removeSession({ id, eventId }),
     onSuccess: invalidate,
   })
+
+  // One register open at a time.
+  const [openRegister, setOpenRegister] = useState<string | null>(null)
 
   const err = formErrors(addSession.error, ["startsAt", "endsAt"])
   const sessions = data?.sessions ?? []
@@ -87,18 +91,30 @@ export function EventSessions({ eventId }: { eventId: string }) {
                   .join(" · ")}
               </div>
             </div>
-            {canDefine && (
+            <span>
+              {/* The register, one session at a time. Two open at once is a way
+                  to tick the wrong morning. */}
               <button
                 className="btn"
-                data-testid={`remove-session-${s.id}`}
-                disabled={removeSession.isPending}
-                onClick={() => removeSession.mutate(s.id)}
+                data-testid={`register-${s.id}`}
+                onClick={() => setOpenRegister(openRegister === s.id ? null : s.id)}
               >
-                {m.fixture_remove()}
+                {m.event_session_register()}
               </button>
-            )}
+              {canDefine && (
+                <button
+                  className="btn"
+                  data-testid={`remove-session-${s.id}`}
+                  disabled={removeSession.isPending}
+                  onClick={() => removeSession.mutate(s.id)}
+                >
+                  {m.fixture_remove()}
+                </button>
+              )}
+            </span>
           </div>
         ))}
+        {openRegister && <Register eventId={eventId} sessionId={openRegister} />}
       </div>
 
       {canDefine && (
@@ -138,6 +154,63 @@ export function EventSessions({ eventId }: { eventId: string }) {
           )}
         </form>
       )}
+    </div>
+  )
+}
+
+/**
+ * Who turned up to one session.
+ *
+ * Every child entered in the camp is a row, ticked or not — a register showing
+ * only those present is a list, and the person holding it needs to see who is
+ * missing. An unticked box means "not marked", which is the same state as
+ * "absent" on purpose: the API stores a row for attendance and nothing for its
+ * absence, because "marked absent" and "nobody has been round yet" are
+ * different facts and one column cannot hold both.
+ *
+ * `canRecord` is the server's answer. It is wider than `canDefine` above — the
+ * model gives a camp's coaches the register and withholds the timetable — though
+ * today it reaches only the organisers, because HEAD_COACH is a relation to a
+ * team and this action acts on an event. `scripts/check-tables.ts` tracks that
+ * pair as a known unresolvable grant.
+ */
+function Register({ eventId, sessionId }: { eventId: string; sessionId: string }) {
+  const { name } = useLocale()
+  const qc = useQueryClient()
+  const { data, isPending } = useQuery(
+    orpc.events.attendance.queryOptions({ input: { eventId, sessionId } }),
+  )
+
+  const record = useMutation({
+    mutationFn: (v: { playerId: string; attended: boolean }) =>
+      api.events.recordAttendance({ eventId, sessionId, ...v }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: orpc.events.key() }),
+  })
+
+  const players = data?.players ?? []
+
+  return (
+    <div className="dash-card" data-testid={`register-list-${sessionId}`} style={{ marginTop: 8 }}>
+      {isPending && <div className="empty">{m.loading()}</div>}
+      {!isPending && players.length === 0 && (
+        <div className="empty" data-testid="register-empty">{m.event_session_register_none()}</div>
+      )}
+      {players.map((p) => (
+        <label key={p.playerId} className="invite-row" data-testid={`attendee-${p.playerId}`}>
+          <span>
+            <input
+              type="checkbox"
+              checked={p.attended}
+              disabled={!data?.canRecord || record.isPending}
+              data-testid={`attended-${p.playerId}`}
+              onChange={(e) =>
+                record.mutate({ playerId: p.playerId, attended: e.target.checked })
+              }
+            />{" "}
+            {name(p.names)}
+          </span>
+        </label>
+      ))}
     </div>
   )
 }

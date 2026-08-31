@@ -112,6 +112,48 @@ test.describe("A camp's sessions", () => {
     expect(sent).toContain("Z")
   })
 
+  test("opens a register showing everyone entered, ticked or not", async ({ page }) => {
+    // A register with only the present children on it is a list. Whoever is
+    // holding it needs to see who is missing.
+    await seedCache(page, [
+      entry(orpc.events.get, { id: "evt_003" }, apiEvent({
+        id: "evt_003", name: "Camp", names: { en: "Camp" }, typeCode: "CAMP",
+      })),
+      entry(orpc.events.sessions, { eventId: "evt_003" }, { sessions: SESSIONS, canDefine: true }),
+      entry(orpc.events.attendance, { eventId: "evt_003", sessionId: "ses_1" }, {
+        players: [
+          { playerId: "ply_001", names: { en: "Somchai" }, attended: true },
+          { playerId: "ply_004", names: { en: "Kanya" }, attended: false },
+        ],
+        canRecord: true,
+      }),
+    ])
+    await open(page)
+    await page.getByTestId("register-ses_1").click()
+
+    await expect(page.getByTestId("attended-ply_001")).toBeChecked()
+    await expect(page.getByTestId("attended-ply_004")).not.toBeChecked()
+    await expect(page.getByTestId("attended-ply_004")).toBeEnabled()
+  })
+
+  test("shows the register read-only to somebody who may not record", async ({ page }) => {
+    // canRecord is the server's answer and is wider than canDefine — the model
+    // gives a camp's coaches the register and withholds the timetable.
+    await seedCache(page, [
+      entry(orpc.events.get, { id: "evt_003" }, apiEvent({
+        id: "evt_003", name: "Camp", names: { en: "Camp" }, typeCode: "CAMP",
+      })),
+      entry(orpc.events.sessions, { eventId: "evt_003" }, { sessions: SESSIONS, canDefine: false }),
+      entry(orpc.events.attendance, { eventId: "evt_003", sessionId: "ses_1" }, {
+        players: [{ playerId: "ply_001", names: { en: "Somchai" }, attended: false }],
+        canRecord: false,
+      }),
+    ])
+    await open(page)
+    await page.getByTestId("register-ses_1").click()
+    await expect(page.getByTestId("attended-ply_001")).toBeDisabled()
+  })
+
   test("is not offered on a league, which has fixtures instead", async ({ page }) => {
     await seedCache(page, [
       entry(orpc.events.get, { id: "evt_002" }, apiEvent({

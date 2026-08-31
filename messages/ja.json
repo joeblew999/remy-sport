@@ -122,6 +122,8 @@
   "event_session_add": "セッションを追加",
   "event_session_ends": "終了",
   "event_session_name": "内容",
+  "event_session_register": "出席",
+  "event_session_register_none": "このキャンプにはまだ参加者がいません。",
   "event_session_starts": "開始",
   "event_sessions": "セッション",
   "event_sessions_none": "セッションはまだありません。",

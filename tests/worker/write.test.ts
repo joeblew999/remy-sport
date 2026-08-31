@@ -2014,3 +2014,145 @@ describe("A camp's session schedule", () => {
     expect([...times].sort()).toEqual(times)
   })
 })
+
+describe("The register for a camp session", () => {
+  /**
+   * `RECORD_ATTENDANCE` had no endpoint, so a camp could have a timetable and no
+   * way to say who turned up.
+   *
+   * The grant is deliberately wider than the timetable's: a camp's OWNER and
+   * CO_ORGANIZER *and* its HEAD_COACH and ASSISTANT_COACH. The coach carrying
+   * the register is not the person who moves the schedule, and both halves of
+   * that are asserted here.
+   */
+  const camp = SEED_ENTITIES.events.find((e) => e.typeCode === "CAMP")!
+  const owner = SEED_ENTITIES.users.find((u) => u.id === camp.organizerUserId)!
+  // Everything below reads the register back rather than trusting the fixtures:
+  // earlier tests in this file enter and withdraw children from this same camp,
+  // and a worker file shares one database.
+
+  const makeSession = async (cookie: string) => {
+    const res = await post(
+      `/api/events/${camp.id}/sessions`,
+      {
+        eventId: camp.id,
+        names: { en: "Register test" },
+        startsAt: "2026-07-07T09:00:00.000Z",
+        endsAt: "2026-07-07T11:00:00.000Z",
+      },
+      cookie,
+    )
+    return ((await res.json()) as { id: string }).id
+  }
+
+  const register = async (sessionId: string, cookie: string) =>
+    (await (
+      await api(`/api/events/${camp.id}/sessions/${sessionId}/attendance`, { cookie })
+    ).json()) as { players: { playerId: string; attended: boolean }[]; canRecord: boolean }
+
+  const mark = (sessionId: string, playerId: string, attended: boolean, cookie: string) =>
+    SELF.fetch(
+      `${ORIGIN}/api/events/${camp.id}/sessions/${sessionId}/attendance/${playerId}`,
+      {
+        method: "PUT",
+        headers: { "content-type": "application/json", cookie, origin: ORIGIN },
+        body: JSON.stringify({ eventId: camp.id, sessionId, playerId, attended }),
+      },
+    )
+
+  it("lists everyone entered, not only those marked", async () => {
+    // A register showing only the present children is a list. The coach needs
+    // to see who is missing, so an unmarked child is a row with attended:false.
+    const cookie = await signIn(owner.email)
+    const sessionId = await makeSession(cookie)
+    const { players } = await register(sessionId, cookie)
+
+    expect(players.length, "children are entered in the camp").toBeGreaterThan(0)
+    expect(players.every((p) => !p.attended), "a new session starts unmarked").toBe(true)
+
+    // Everyone on the register is entered in the camp, and nobody else.
+    const entered = (await (
+      await api(`/api/event-players`, { cookie })
+    ).json()) as { items: { eventId: string; playerId: string }[] }
+    const inCamp = new Set(
+      entered.items.filter((e) => e.eventId === camp.id).map((e) => e.playerId),
+    )
+    expect(players.map((p) => p.playerId).sort()).toEqual([...inCamp].sort())
+  })
+
+  it("marks one present and takes it back", async () => {
+    const cookie = await signIn(owner.email)
+    const sessionId = await makeSession(cookie)
+    const who = (await register(sessionId, cookie)).players[0]!.playerId
+
+    expect((await mark(sessionId, who, true, cookie)).status).toBe(200)
+    expect((await register(sessionId, cookie)).players.find((p) => p.playerId === who)!.attended).toBe(true)
+
+    // Undoing deletes the row rather than storing a negative — "marked absent"
+    // and "not marked yet" are the same state on purpose.
+    expect((await mark(sessionId, who, false, cookie)).status).toBe(200)
+    expect((await register(sessionId, cookie)).players.find((p) => p.playerId === who)!.attended).toBe(false)
+  })
+
+  it("marking twice is not two rows", async () => {
+    const cookie = await signIn(owner.email)
+    const sessionId = await makeSession(cookie)
+    const who = (await register(sessionId, cookie)).players[0]!.playerId
+
+    await mark(sessionId, who, true, cookie)
+    expect((await mark(sessionId, who, true, cookie)).status).toBe(200)
+    const { players } = await register(sessionId, cookie)
+    expect(players.filter((p) => p.playerId === who).length).toBe(1)
+  })
+
+  it("refuses a child who is not entered in this camp", async () => {
+    // Otherwise a typo writes a register entry for somebody not on the course.
+    const cookie = await signIn(owner.email)
+    const sessionId = await makeSession(cookie)
+    const onRegister = new Set((await register(sessionId, cookie)).players.map((p) => p.playerId))
+    const outsider = SEED_ENTITIES.players.find((p) => !onRegister.has(p.id))!
+    expect((await mark(sessionId, outsider.id, true, cookie)).status).toBe(404)
+  })
+
+  it("cannot yet reach a coach, and scripts/check-tables.ts says why", async () => {
+    /**
+     * The model grants RECORD_ATTENDANCE to a camp's HEAD_COACH and
+     * ASSISTANT_COACH as well as its organisers. Those two grants cannot be
+     * satisfied by anybody: HEAD_COACH is a **TEAM** relation resolved from
+     * `team_coaches.team_id`, and this action acts on an **EVENT**, so the
+     * lookup asks for an event id in a team column and matches nothing.
+     *
+     * Already known and deliberately tracked — `RECORD_ATTENDANCE/HEAD_COACH`
+     * and `/ASSISTANT_COACH` are two of the four pairs in KNOWN_UNRESOLVABLE in
+     * scripts/check-tables.ts, listed individually so the next mismatch is not
+     * hidden by a blanket exemption.
+     *
+     * Asserted rather than left implicit: when the model gains a way for a coach
+     * to relate to a camp, this test fails and this endpoint is one of the
+     * places that has to change.
+     */
+    const cookie = await signIn(owner.email)
+    const sessionId = await makeSession(cookie)
+    const coach = await signIn(actorFor("COACH"))
+
+    expect(
+      (await register(sessionId, coach)).canRecord,
+      "no coach can hold a TEAM relation on an EVENT — see KNOWN_UNRESOLVABLE",
+    ).toBe(false)
+
+    // The organisers, who the grant does reach.
+    expect((await register(sessionId, cookie)).canRecord).toBe(true)
+  })
+
+  it("refuses a spectator, and an anonymous caller", async () => {
+    const cookie = await signIn(owner.email)
+    const sessionId = await makeSession(cookie)
+    const who = (await register(sessionId, cookie)).players[0]!.playerId
+
+    expect((await mark(sessionId, who, true, await signIn(actorFor("SPECTATOR")))).status).toBe(403)
+    expect(
+      (await api(`/api/events/${camp.id}/sessions/${sessionId}/attendance`)).status,
+      "these rows name minors",
+    ).toBe(401)
+  })
+})
