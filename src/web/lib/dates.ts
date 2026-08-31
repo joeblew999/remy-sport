@@ -110,10 +110,25 @@ export function formatMonthShort(locale: string, d: Date): string {
  * west of London.
  */
 export function formatMonthYear(locale: string, iso: string | null): string {
+  return formatIso(locale, iso, { month: "short", year: "numeric" });
+}
+
+/** The whole day — "12 Mar 2026" — from the model's ISO day strings. */
+export function formatIsoDay(locale: string, iso: string | null): string {
+  return formatIso(locale, iso, DAY);
+}
+
+/**
+ * Shared parse for the model's `YYYY-MM-DD` columns.
+ *
+ * UTC noon rather than `new Date(iso)`, which reads a bare "2024-03-01" as
+ * midnight UTC and renders it as February in every timezone west of London.
+ */
+function formatIso(locale: string, iso: string | null, opts: Intl.DateTimeFormatOptions): string {
   if (!iso) return "";
   const [y, m, d] = iso.split("-").map(Number);
   if (!y || !m || !d) return "";
-  return fmt(locale, { month: "short", year: "numeric" }).format(new Date(Date.UTC(y, m - 1, d, 12)));
+  return fmt(locale, opts).format(new Date(Date.UTC(y, m - 1, d, 12)));
 }
 
 /**

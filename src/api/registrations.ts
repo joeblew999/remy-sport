@@ -455,6 +455,13 @@ export const eventTeams = viewer
           names: z.record(z.string(), z.string()),
           divisionId: z.string(),
           divisionNames: z.record(z.string(), z.string()),
+          /**
+           * The day this team entered. `event_team.registered_at` has been
+           * written since the fixtures and returned to nothing — so an
+           * organiser looking at a full event could not tell who entered first,
+           * which is the question behind every waiting list.
+           */
+          registeredAt: z.string().nullable(),
           canWithdraw: z.boolean(),
         }),
       ),
@@ -501,6 +508,7 @@ export const eventTeams = viewer
         names: r.team.names,
         divisionId: r.division.id,
         divisionNames: r.division.names,
+        registeredAt: r.registeredAt ?? null,
         canWithdraw: await can(
           context.db,
           "REGISTER_TEAM_FOR_EVENT",

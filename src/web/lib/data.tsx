@@ -19,7 +19,7 @@ import { useQuery } from "@tanstack/react-query";
 import { orpc } from "./orpc";
 import { toEvent, toTeam } from "./api";
 import { useLocalizer } from "./locale";
-import { formatMonthYear } from "./dates";
+import { formatIsoDay, formatMonthYear } from "./dates";
 import { type EventStatus, type EventType } from "../data";
 
 export interface EventFilters {
@@ -319,6 +319,10 @@ export function useEntries(eventId: string | undefined) {
           ...x,
           team: loc.name(x.names),
           division: loc.name(x.divisionNames),
+          // When they entered. `event_team.registered_at` has been written
+          // since the fixtures and shown nowhere, so an organiser could not
+          // tell who entered first — the question behind every waiting list.
+          entered: formatIsoDay(loc.locale, x.registeredAt),
         })),
         registrable: r.registrable.map((x) => ({ ...x, team: loc.name(x.names) })),
         divisions: r.divisions.map((d) => ({ ...d, division: loc.name(d.names) })),

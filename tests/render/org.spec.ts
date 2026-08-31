@@ -94,7 +94,13 @@ test.describe("An organisation page", () => {
     await page.goto("/#/org/org_001")
 
     await expect(page.getByTestId("org-members")).toBeVisible()
-    await expect(page.getByTestId("member-row-wichai.s@assumption.test")).toContainText("ADMIN")
+    // The model's name for the role, not the code. This asserted "ADMIN",
+    // which is what the page printed — a SCREAMING_SNAKE identifier, the same
+    // in every language, while the `orgRoles` vocabulary that names it was
+    // fetched on every page load and read by nothing.
+    await expect(page.getByTestId("member-row-wichai.s@assumption.test")).toContainText(
+      "Organisation Admin",
+    )
     await expect(page.getByTestId("add-member-form")).toBeVisible()
   })
 

@@ -53,6 +53,7 @@ const ROLES = ["admin", "organizer", "coach", "player", "spectator", "referee"] 
  */
 export function AdminPage({ goto }: { goto: (r: Route) => void }) {
   const { user, impersonatedBy, loading } = useSession();
+  const { label } = useLocale();
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
 
@@ -274,20 +275,31 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
                   </td>
                   <td>
                     {/* Banned first: it is Better Auth's own flag and overrides
-                        whatever the model's lifecycle says. Then the real
-                        status, which this column used to ignore — so a referee
-                        awaiting approval was indistinguishable from an active
-                        one. */}
+                        whatever the model's lifecycle says.
+
+                        Then the model's own status, resolved through the
+                        `userStatuses` vocabulary rather than branched on here.
+                        This tested for PENDING_APPROVAL and called everything
+                        else "Active" — and the model defines four: ACTIVE,
+                        PENDING_APPROVAL, SUSPENDED and DEACTIVATED. A suspended
+                        account read as active in the admin console, which is
+                        the one screen whose job is to say otherwise.
+
+                        The pending testid stays, because approval is a state
+                        with an action beside it and the specs hook on it. */}
                     {a.banned ? (
                       <span className="badge badge-danger" data-testid={`banned-${a.email}`}>
                         {m.banned()}
                       </span>
-                    ) : a.statusCode === "PENDING_APPROVAL" ? (
-                      <span className="badge badge-off" data-testid={`pending-${a.email}`}>
-                        {m.awaiting_approval()}
-                      </span>
                     ) : (
-                      <span className="badge">{m.active()}</span>
+                      <span
+                        className={`badge ${a.statusCode === "ACTIVE" ? "" : "badge-off"}`}
+                        data-testid={
+                          a.statusCode === "PENDING_APPROVAL" ? `pending-${a.email}` : undefined
+                        }
+                      >
+                        {label("userStatuses", a.statusCode ?? "ACTIVE")}
+                      </span>
                     )}
                   </td>
                   <td>

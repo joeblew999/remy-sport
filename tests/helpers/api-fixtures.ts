@@ -266,6 +266,26 @@ export function apiEntries(over: Partial<ApiEntries> = {}): ApiEntries {
   }
 }
 
+/**
+ * One registered team, as `events.entries` returns it.
+ *
+ * The same reason `apiEntries` exists, one level down: these rows were built
+ * inline at six call sites, so `registeredAt` broke all six and taught nothing.
+ */
+export type ApiRegistered = ApiEntries["registered"][number]
+
+export function apiRegistered(over: Partial<ApiRegistered> = {}): ApiRegistered {
+  return {
+    teamId: "team_001",
+    names: { en: "A Team" },
+    divisionId: "div_001",
+    divisionNames: { en: "U16 Boys" },
+    registeredAt: "2026-03-12",
+    canWithdraw: false,
+    ...over,
+  }
+}
+
 /** One of the reader's own players, as `players.mine` returns them. */
 export type ApiMyPlayer = ResponseOf<Client["players"]["mine"]>["players"][number]
 

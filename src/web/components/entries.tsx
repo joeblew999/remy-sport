@@ -51,7 +51,17 @@ export function Entries({ eventId }: { eventId: string }) {
             <tbody>
               {data.registered.map((r) => (
                 <tr key={r.teamId} data-testid={`entry-${r.teamId}`}>
-                  <td>{r.team}</td>
+                  <td>
+                    {r.team}
+                    {/* When they entered, which nothing showed. An organiser
+                        looking at a full event could not tell who was first —
+                        the question behind every waiting list. */}
+                    {r.entered && (
+                      <div className="muted small" data-testid={`entered-${r.teamId}`}>
+                        {m.registered_on({ date: r.entered })}
+                      </div>
+                    )}
+                  </td>
                   <td>
                     <span className="badge badge-outline">{r.division}</span>
                   </td>

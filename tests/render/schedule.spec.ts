@@ -1,6 +1,6 @@
 import { test, expect } from "./fixture"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { apiEntries, apiEvent, apiGame, apiStanding, type ApiEntries, type ApiGame, type ApiStanding } from "../helpers/api-fixtures"
+import { apiEntries, apiEvent, apiGame, apiRegistered, apiStanding, type ApiEntries, type ApiGame, type ApiStanding } from "../helpers/api-fixtures"
 
 /**
  * The schedule, rendered against seeded games.
@@ -171,7 +171,7 @@ test.describe("Event entries", () => {
 
   test("shows who is entered, and no form when there is nothing to enter", async ({ page }) => {
     await seedEntries(page, {
-      registered: [{ teamId: "team_001", names: { en: "Assumption U16" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: false }],
+      registered: [apiRegistered({ teamId: "team_001", names: { en: "Assumption U16" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: false })],
       registrable: [],
       divisions: [U16M],
       canManageFixtures: false,
@@ -218,8 +218,8 @@ test.describe("Event entries", () => {
   test("a withdraw button appears only where the server allows it", async ({ page }) => {
     await seedEntries(page, {
       registered: [
-        { teamId: "team_001", names: { en: "Mine" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: true },
-        { teamId: "team_003", names: { en: "Theirs" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: false },
+        apiRegistered({ teamId: "team_001", names: { en: "Mine" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: true }),
+        apiRegistered({ teamId: "team_003", names: { en: "Theirs" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: false }),
       ],
       registrable: [],
       divisions: [U16M],
@@ -239,8 +239,8 @@ test.describe("Event entries", () => {
 test.describe("Running a schedule", () => {
   const EV = apiEvent({ id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" }, startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK", organizerUserId: "usr_org_002", orgId: null, organizerName: "Niran" })
   const two = [
-    { teamId: "team_001", names: { en: "A" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: false },
-    { teamId: "team_003", names: { en: "B" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: false },
+    apiRegistered({ teamId: "team_001", names: { en: "A" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: false }),
+    apiRegistered({ teamId: "team_003", names: { en: "B" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: false }),
   ]
 
   const show = async (

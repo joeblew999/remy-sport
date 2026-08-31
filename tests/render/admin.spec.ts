@@ -190,6 +190,41 @@ test.describe("The permission grid reflects what the server granted", () => {
     await expect(page.getByTestId("approve-active@remy.test")).toHaveCount(0)
   })
 
+  /**
+   * The model defines four statuses and this column rendered three outcomes.
+   *
+   * It tested for PENDING_APPROVAL and called everything else "Active", so a
+   * SUSPENDED or DEACTIVATED account read as active — in the one screen whose
+   * job is to say otherwise. It goes through the `userStatuses` vocabulary now,
+   * which is also what makes it translated.
+   */
+  test("a suspended account does not read as active", async ({ page }) => {
+    await seedCache(page, [as("admin"), events({ canCreate: true })])
+    await page.route("**/api/auth/admin/list-users**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          users: [
+            { id: "u_s", email: "suspended@remy.test", name: "Nok", role: "coach", statusCode: "SUSPENDED" },
+            { id: "u_d", email: "gone@remy.test", name: "Anan", role: "coach", statusCode: "DEACTIVATED" },
+            { id: "u_a", email: "fine@remy.test", name: "Mali", role: "coach", statusCode: "ACTIVE" },
+          ],
+        }),
+      }),
+    )
+    await page.goto("/#/admin")
+
+    const table = page.getByTestId("accounts-table")
+    await expect(table).toBeVisible()
+    const rowFor = (email: string) => table.locator("tr").filter({ hasText: email })
+    await expect(rowFor("suspended@remy.test")).toContainText("Suspended")
+    await expect(rowFor("gone@remy.test")).toContainText("Deactivated")
+    await expect(rowFor("fine@remy.test")).toContainText("Active")
+    // And the one that is genuinely active is the only one not marked off.
+    await expect(rowFor("suspended@remy.test").locator(".badge-off")).toHaveCount(1)
+  })
+
   test("a signed-out visitor is sent to the login screen", async ({ page }) => {
     // Seeded as nobody: `useSession` resolves to a null user without a request,
     // so the redirect happens on first paint rather than after a round trip.

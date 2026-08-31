@@ -68,6 +68,31 @@ const OFFSCREEN: Record<string, string> = {
    */
   "divisions.list.skillTierCode": "the model composes the tier into the division's name",
   "reference.list.skillTiers": "the model composes the tier into the division's name",
+
+  /**
+   * The relation definitions — how the server resolves who holds what.
+   *
+   * `RELATION` rows say which table to read, which column holds the object,
+   * which holds the user, and how to follow a join. That is the authorisation
+   * resolver's own configuration, and `src/api/relations.ts` is its only
+   * reader. There is no screen for it and there should not be: a page that
+   * rendered `throughColumn` would be showing a person the query plan.
+   *
+   * They ride along because `/api/reference` serves every vocabulary the model
+   * defines rather than a list maintained here — which is the property that
+   * makes a vocabulary added upstream appear with nothing edited, and is worth
+   * more than trimming nine fields off one cached response.
+   */
+  "reference.list.sourceTable": "relation resolver configuration — src/api/relations.ts reads these, no screen does",
+  "reference.list.objectColumn": "relation resolver configuration",
+  "reference.list.userColumn": "relation resolver configuration",
+  "reference.list.filterColumn": "relation resolver configuration",
+  "reference.list.filterValue": "relation resolver configuration",
+  "reference.list.throughTable": "relation resolver configuration",
+  "reference.list.throughColumn": "relation resolver configuration",
+  "reference.list.activeToColumn": "relation resolver configuration",
+  "reference.list.roleCode": "relation resolver configuration",
+  "reference.list.tableName": "which table a vocabulary lives in — plumbing, not a label",
 }
 
 type Node = Record<string, unknown>

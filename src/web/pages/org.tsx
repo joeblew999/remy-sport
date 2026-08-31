@@ -200,6 +200,7 @@ function OrgProfile({
 
 function OrgMembers({ id }: { id: string }) {
   const qc = useQueryClient();
+  const { label } = useLocale();
   const members = useOrgMembers(id);
 
   const invalidate = () =>
@@ -256,7 +257,12 @@ function OrgMembers({ id }: { id: string }) {
                     <div className="muted small">{mem.email}</div>
                   </td>
                   <td>
-                    <span className="badge badge-outline">{mem.orgRoleCode}</span>
+                    {/* The model's name for the role, in the reader's
+                        language. This printed the raw code — "ORG_ADMIN" — so
+                        a Thai reader got a SCREAMING_SNAKE identifier, and the
+                        `orgRoles` vocabulary that exists to name it was
+                        fetched on every page load and read by nothing. */}
+                    <span className="badge badge-outline">{label("orgRoles", mem.orgRoleCode)}</span>
                   </td>
                   <td>
                     <button
