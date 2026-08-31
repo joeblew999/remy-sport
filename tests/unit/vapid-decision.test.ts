@@ -88,11 +88,16 @@ describe("halfPairMessage", () => {
     const d = { have: "VAPID_PUBLIC_KEY", missing: "VAPID_PRIVATE_KEY" }
     const msg = halfPairMessage(d, "the deployed worker")
     expect(msg).toContain("the deployed worker has VAPID_PUBLIC_KEY but not VAPID_PRIVATE_KEY")
-    // Both ways out, because which one is right is not ours to decide.
-    expect(msg).toContain("restore VAPID_PRIVATE_KEY")
-    expect(msg).toContain("delete VAPID_PUBLIC_KEY")
+    // Both ways out, because which one is right is not ours to decide — and
+    // which is cheaper, because under pressure that is the part that matters.
+    expect(msg).toContain("Restoring VAPID_PRIVATE_KEY costs nothing")
+    expect(msg).toContain("rotating costs every")
     // And the consequence, stated where the person deciding will read it.
     expect(msg).toContain("invalidates every subscription")
+    // No mechanism: the two callers resolve this differently, so naming one
+    // caller's fix in shared text misleads the other.
+    expect(msg).not.toContain("PUSH_ROTATE")
+    expect(msg).not.toContain("rerun")
   })
 })
 

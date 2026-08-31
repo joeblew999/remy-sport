@@ -33,14 +33,33 @@ import { DEFAULT_SUBJECT, decideFromNames, generateVapid, halfPairMessage } from
 const WORKER = "the deployed worker"
 
 /**
- * An operator saying "yes, rotate, I understand".
+ * The two ways past a refusal, and they are not equivalent.
  *
- * The refusal below fails `deploy`, which is right — a half-pair means push is
- * already broken, and proceeding would either rotate silently or ship a config
- * that cannot send. But an unrelated urgent deploy should not be stuck behind
- * it forever, and "delete the surviving key and rerun" is a worse instruction
- * than an explicit flag: it invites somebody to fix it by deleting things.
+ * A half-pair means push is *already* off: `vapidFrom` in src/api/push.ts needs
+ * all three values, so it returns null, `/api/push/key` answers null, nobody
+ * can subscribe and nothing sends. The existing subscriptions are not dead —
+ * they are rows in `userNotificationChannel`, which outlive the secrets. Put
+ * the missing half back and the same public key is served again, and every
+ * subscription a browser pinned still matches.
+ *
+ * That recoverability is the whole thing the refusal protects. So the first
+ * version of this offered only `PUSH_ROTATE` — and an operator with an urgent,
+ * unrelated deploy blocked by a half-pair had two options: find the missing key
+ * under time pressure, or set a variable that permanently kills every
+ * subscription. The only escape hatch destroyed the thing being protected, and
+ * it is the one somebody reaches for at 2am.
+ *
+ *   PUSH_SKIP=1    proceed, touch nothing. Push stays off, which it already
+ *                  was, and stays recoverable. Almost always the right answer:
+ *                  the deploy being shipped has nothing to do with push.
+ *   PUSH_ROTATE=1  generate a new pair. Fixes push immediately and costs every
+ *                  existing subscription — the browsers cannot be told, so each
+ *                  reader has to turn notifications on again.
+ *
+ * Skipping still warns, every run. An override that goes quiet is one that
+ * lives in a CI variable for a year while nobody fixes the keys.
  */
+const SKIP = process.env.PUSH_SKIP === "1"
 const ROTATE = process.env.PUSH_ROTATE === "1"
 
 /** The secret names on the Worker, exactly. Empty when it is not deployed yet. */
@@ -68,14 +87,34 @@ if (!names) {
 
 const decision = decideFromNames(names)
 
+if (decision.action === "refuse" && SKIP) {
+  // Loud, and loud every time. Push is off either way; this only declines to
+  // make that permanent by rotating.
+  console.warn(
+    `push:secret:set: PUSH_SKIP=1 — ${WORKER} has ${decision.have} and not ${decision.missing}.\n` +
+      "  Nothing was changed. Web Push is off on this deployment and stays off, and\n" +
+      `  every existing subscription stays recoverable: restore ${decision.missing} and\n` +
+      "  the same public key is served again, so browsers reconnect on their own.\n" +
+      "  This warning does not go away until the keys are whole.",
+  )
+  process.exit(0)
+}
+
 if (decision.action === "refuse" && !ROTATE) {
   console.error(`push:secret:set: ${halfPairMessage(decision, WORKER)}\n`)
   console.error(
-    "  This fails the deploy on purpose. A half-pair means Web Push is already\n" +
-      "  broken on this deployment, and continuing would either rotate silently or\n" +
-      "  ship keys that cannot send.\n\n" +
-      "  To rotate deliberately, knowing it invalidates every existing subscription:\n" +
-      "    PUSH_ROTATE=1 mise run push:secret:set",
+    "  This fails the deploy on purpose. A half-pair means Web Push is already off\n" +
+      "  here, and continuing would either rotate silently or ship keys that cannot\n" +
+      "  send.\n\n" +
+      "  Two ways past it, and they are not equivalent:\n\n" +
+      "    PUSH_SKIP=1    ship this deploy, touch no keys. Push stays off — it\n" +
+      "                   already is — and every existing subscription stays\n" +
+      `                   recoverable the moment ${decision.missing} comes back.\n` +
+      "                   This is almost certainly what you want.\n\n" +
+      "    PUSH_ROTATE=1  generate a new pair. Push works again immediately, and\n" +
+      "                   every existing subscription dies: the browsers pinned the\n" +
+      "                   old public key and cannot be told. Each reader has to turn\n" +
+      "                   notifications on again.",
   )
   process.exit(1)
 }

@@ -81,15 +81,24 @@ export function decideVapid(has: { publicKey: boolean; privateKey: boolean }): V
 export const decideFromNames = (names: Set<string> | ReadonlySet<string>): VapidDecision =>
   decideVapid({ publicKey: names.has(PUBLIC_KEY), privateKey: names.has(PRIVATE_KEY) })
 
-/** What to tell somebody who has half a pair. The fix is theirs to choose. */
+/**
+ * What is wrong, and why it is a person's decision — with no mechanism.
+ *
+ * Deliberately stops before saying *how* to resolve it, because the two callers
+ * resolve it differently: `.dev.vars` is a file you edit, and the deployed
+ * Worker has `PUSH_SKIP` and `PUSH_ROTATE`. This said "delete the surviving key
+ * and rerun", which is right for the file and became wrong advice for the
+ * Worker the moment it grew flags — a shared string that names one caller's
+ * mechanism is a shared string that misleads the other.
+ */
 export function halfPairMessage(d: { have: string; missing: string }, where: string): string {
   return (
     `${where} has ${d.have} but not ${d.missing}.\n` +
     "  These are halves of one keypair. Generating the missing half would pair it with\n" +
     "  a key it cannot sign for, and replacing the one that is there rotates it — which\n" +
     "  invalidates every subscription a browser has already pinned, silently.\n" +
-    `  Either restore ${d.missing} from wherever it is, or delete ${d.have} and rerun to\n` +
-    "  accept a full rotation. That is a decision, not a default."
+    `  Restoring ${d.missing} costs nothing and loses nothing; rotating costs every\n` +
+    "  subscription. Which one is right is a decision, not a default."
   )
 }
 

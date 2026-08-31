@@ -100,6 +100,14 @@ const decision = decideFromNames(present)
 
 if (decision.action === "refuse") {
   console.error(`dev-vars: ${halfPairMessage(decision, DEV_VARS)}`)
+  // The mechanism, which is this caller's own: .dev.vars is a file, and there
+  // is no deployment to protect — a local pair has no subscriptions pinned to
+  // it beyond this developer's own browser.
+  console.error(
+    `  Restore the ${decision.missing} line, or delete the ${decision.have} line and rerun
+` +
+      "  to get a fresh pair.",
+  )
   process.exit(1)
 }
 

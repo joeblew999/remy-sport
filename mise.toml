@@ -1405,8 +1405,12 @@ depends     = ["install"]
 # subscription. See scripts/push-secrets.ts; the three-outcome decision is
 # shared with scripts/dev-vars.ts and tested in tests/unit/vapid-decision.test.ts.
 #
-# A half-pair fails the deploy. To rotate deliberately:
-#   PUSH_ROTATE=1 mise run push:secret:set
+# A half-pair fails the deploy, with two ways past it. They are not equivalent:
+# push is already off when the pair is incomplete (vapidFrom needs all three),
+# and the subscriptions are dormant rather than dead — restore the missing half
+# and the same public key is served again.
+#   PUSH_SKIP=1    ship the deploy, touch no keys, stay recoverable
+#   PUSH_ROTATE=1  new pair; push works now, every subscription dies
 run = "bun scripts/push-secrets.ts"
 
 [tasks."dev:vars"]
