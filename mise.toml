@@ -1601,7 +1601,39 @@ sources     = [
   "bun.lock",
 ]
 outputs     = ["dist/web/index.html"]
-run         = "bun x vite build --config src/web/vite.config.ts"
+# Defers to the dev server's watcher, because both write dist/web and vite
+# empties it first.
+#
+# `mise run dev` runs `vite build --watch` against this same config and output
+# directory. Edit an SPA file with the dev server up and both builders wake:
+# `web:build` because its `sources` changed, the watcher because the file did.
+# Whichever empties the directory second leaves the other's output gone, and the
+# window is wide enough to matter — a whole e2e suite failed with "element not
+# found" on 8 specs, because the shell was being served with no bundle at all.
+# That reads as a product regression and is a build race.
+#
+# The watcher is authoritative when it exists: it is already rebuilding on every
+# save, so the bundle it produces is at least as fresh as this task's. Scoped by
+# working directory for the same reason `dev:stop` is — the config path is
+# relative, so a bare pattern matches any checkout on the machine.
+run = """
+for pid in $(pgrep -f "vite build --config src/web/vite.config.ts --watch" 2>/dev/null); do
+  cwd=$(lsof -a -p "$pid" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -1)
+  case "$cwd" in
+    "{{config_root}}"|"{{config_root}}"/*)
+      # Wait for the in-flight rebuild rather than assuming it finished.
+      for _ in $(seq 1 40); do
+        [ -f dist/web/index.html ] && exit 0
+        sleep 0.25
+      done
+      echo "web:build: the dev watcher holds dist/web and produced no index.html" >&2
+      echo "  it may have failed to build — check .wrangler/dev.log" >&2
+      exit 1
+      ;;
+  esac
+done
+bun x vite build --config src/web/vite.config.ts
+"""
 
 [tasks."web:typecheck"]
 description = "TypeScript type-check src/web/ (no emit)"
