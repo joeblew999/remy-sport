@@ -1192,6 +1192,17 @@ description = "Verify the deployed Worker — read-only, plus one write that mus
 depends     = ["install"]
 # What `deploy` ends with, instead of test:deployed. See scripts/smoke.ts for
 # why pointing the whole suite at production was both unrunnable and a bad idea.
+#
+# Defaults to production, and CF_DEPLOY_URL points it elsewhere:
+#
+#   CF_DEPLOY_URL=http://localhost:8787            mise run cf:smoke
+#   CF_DEPLOY_URL=https://$TUNNEL_HOSTNAME         mise run cf:smoke
+#
+# Those two used to be permanently three-red — the checks asserting a
+# deployment refuses the dev outbox, the seed route and an admin sign-in, all
+# of which local dev opens deliberately. They report as skipped now, with the
+# reason, so the exit code means something on every surface. An unrecognised
+# host is treated as a deployment and gets every check.
 run = "bun scripts/smoke.ts"
 
 [tasks."test:deployed"]

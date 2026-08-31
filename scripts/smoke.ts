@@ -32,42 +32,105 @@
 const BASE = process.env.CF_DEPLOY_URL ?? "https://remy.ubuntusoftware.net"
 
 /**
+ * Which of the three things this URL is.
+ *
+ * Not every check means something on every surface, and for a while this file
+ * pretended otherwise. Three of them assert what a *deployment* must refuse —
+ * no dev outbox, no seed route, no admin in the demo picker — and all three are
+ * deliberately open on local dev, where mail is captured into a table and only
+ * the person running the Worker can read it. So a smoke run against the tunnel
+ * was permanently three-red, and every one of those was the app behaving
+ * correctly.
+ *
+ * That is the same failure as the VAPID remedy below: a check reporting a state
+ * it cannot distinguish. It is worse than noise, because a run that is always
+ * red is a run nobody reads, and the next genuine failure arrives in a list
+ * somebody has already learned to skip.
+ *
+ *   local     localhost — `wrangler dev` on the machine running this
+ *   tunnel    TUNNEL_HOSTNAME — cloudflared pointed at that same wrangler dev,
+ *             so a public name serving a local Worker and a local .dev.vars
+ *   deployed  anything else, which is the safe default: an unrecognised host
+ *             gets every check rather than quietly skipping the strict ones
+ */
+const SURFACES = ["deployed", "tunnel", "local"] as const
+type Surface = (typeof SURFACES)[number]
+
+const HOST = (() => {
+  try {
+    return new URL(BASE).hostname
+  } catch {
+    return BASE
+  }
+})()
+
+const SURFACE: Surface = (() => {
+  if (HOST === "localhost" || HOST === "127.0.0.1") return "local"
+  // TUNNEL_HOSTNAME by name where mise exports it, rather than sniffing a
+  // "dev-" prefix — the tunnel host is configuration, and a deployment free to
+  // rename it should not silently start being treated as dev. The prefix is
+  // only a fallback for a run that does not have mise's env.
+  const tunnel = process.env.TUNNEL_HOSTNAME
+  if (tunnel ? HOST === tunnel : HOST.startsWith("dev-")) return "tunnel"
+  return "deployed"
+})()
+
+/** Runs everywhere. The default, and what most checks are. */
+const ANYWHERE = SURFACES
+
+/**
+ * The three that assert what a deployment must *refuse*.
+ *
+ * Skipped rather than inverted on dev. Asserting "the outbox is open here"
+ * would be testing that local dev is configured for local dev, which no deploy
+ * pipeline needs to know and which would fail for anyone who ran this against
+ * a wrangler dev started without MAIL_TRANSPORT=outbox.
+ */
+const DEPLOYMENT_ONLY = ["deployed"] as const
+const WHY_DEV_DIFFERS =
+  "local dev and the tunnel run MAIL_TRANSPORT=outbox, which mounts these on purpose"
+
+/**
  * Where the VAPID keys for *this* host are supposed to come from.
  *
  * This used to say "`mise run push:secret:set` has not run" whatever was being
  * smoke-tested, and that task sets secrets on the **deployed** Worker. The dev
- * tunnel is not a deployment: `dev-remy.ubuntusoftware.net` is TUNNEL_HOSTNAME
- * pointing cloudflared at a local `wrangler dev`, so its environment is
- * `.dev.vars` and no amount of `push:secret:set` will change what it serves.
+ * tunnel is not a deployment: its environment is `.dev.vars`, and no amount of
+ * `push:secret:set` will change what it serves.
  *
  * A remedy that names the wrong file is worse than none — it sends somebody to
- * re-run a working deploy step and conclude the bug is elsewhere. So the advice
- * follows the host actually being tested.
+ * re-run a working deploy step and conclude the bug is elsewhere.
  */
-function vapidRemedy(): string {
-  const host = (() => {
-    try {
-      return new URL(BASE).hostname
-    } catch {
-      return BASE
-    }
-  })()
-  // TUNNEL_HOSTNAME by name where mise exports it, rather than sniffing a
-  // "dev-" prefix — the tunnel host is configuration, and a deployment free to
-  // rename it should not silently start getting the wrong advice.
-  const tunnel = process.env.TUNNEL_HOSTNAME
-  const local =
-    host === "localhost" || host === "127.0.0.1" || (tunnel ? host === tunnel : host.startsWith("dev-"))
-  return local
-    ? `${host} runs from .dev.vars — run \`mise run dev:vars\` and restart wrangler dev`
-    : "`mise run push:secret:set` has not run for this deployment"
-}
+const vapidRemedy = () =>
+  SURFACE === "deployed"
+    ? "`mise run push:secret:set` has not run for this deployment"
+    : `${HOST} runs from .dev.vars — run \`mise run dev:vars\` and restart wrangler dev`
 
 const { SEED_ENTITIES } = await import("../src/domain/model/entities")
 
 let failed = 0
+const skipped: string[] = []
 
-async function check(name: string, fn: () => Promise<string | null>) {
+/**
+ * One check, and the surfaces it means anything on.
+ *
+ * `on` defaults to everywhere, so a check that applies universally is written
+ * exactly as it was and a new one is universal unless somebody says otherwise —
+ * which is the right default for a file about what must be true.
+ */
+async function check(
+  name: string,
+  fn: () => Promise<string | null>,
+  where: { on?: readonly Surface[]; why?: string } = {},
+) {
+  const on = where.on ?? ANYWHERE
+  if (!on.includes(SURFACE)) {
+    // Named and counted, never silent. A check that vanishes on some surfaces
+    // is indistinguishable from one somebody deleted.
+    console.log(`  – ${name}\n      skipped on ${SURFACE}: ${where.why ?? `only applies to ${on.join(", ")}`}`)
+    skipped.push(name)
+    return
+  }
   try {
     const problem = await fn()
     if (problem) {
@@ -84,7 +147,7 @@ async function check(name: string, fn: () => Promise<string | null>) {
 
 const get = (path: string) => fetch(`${BASE}${path}`)
 
-console.log(`smoke: ${BASE}`)
+console.log(`smoke: ${BASE} (${SURFACE})`)
 
 await check("health responds", async () => {
   const res = await get("/api/health")
@@ -166,6 +229,15 @@ await check("if seeded sign-in is on, it excludes the admin", async () => {
   if (admin) return "the seeded admin is being offered a published sign-in code"
   if (!body.code) return "seeded sign-in is on but no code was published — nobody can use it"
   return null
+}, {
+  on: DEPLOYMENT_ONLY,
+  // Both halves are deployment rules. src/routes/dev-mail.ts offers the admin
+  // exactly when `usesOutbox(env)` — locally the mail is captured and only the
+  // operator can read it, and the admin console is a thing to develop against.
+  // The published `code` is absent for the same reason: the outbox carries a
+  // real generated one instead. So on dev this check failed twice over, and the
+  // Worker was right both times.
+  why: "dev offers the admin on purpose — mail is captured and only the operator reads it",
 })
 
 await check("the dev outbox does NOT exist", async () => {
@@ -175,7 +247,7 @@ await check("the dev outbox does NOT exist", async () => {
   // sign-in deliberately does not need it — the code is published instead.
   const res = await get("/api/dev/outbox")
   return res.status === 404 ? null : `expected 404, got ${res.status}`
-})
+}, { on: DEPLOYMENT_ONLY, why: WHY_DEV_DIFFERS })
 
 await check("Better Auth is mounted and reaches the database", async () => {
   // A signed-out visitor gets 200 with a null body. A 500 here is the signature
@@ -215,10 +287,22 @@ await check("the seed route does NOT exist", async () => {
   // through wrangler — so on a deployment this must be as absent as the outbox.
   const res = await fetch(`${BASE}/api/seed`, { method: "POST" })
   return res.status === 404 ? null : `expected 404, got ${res.status}`
-})
+}, { on: DEPLOYMENT_ONLY, why: WHY_DEV_DIFFERS })
+
+// The skips are restated at the end as well as inline, because the inline note
+// scrolls past and the last line is the one a pipeline log shows.
+const tail = skipped.length ? ` (${skipped.length} skipped on ${SURFACE})` : ""
 
 if (failed) {
-  console.error(`\nsmoke: ${failed} check(s) failed against ${BASE}`)
+  console.error(`\nsmoke: ${failed} check(s) failed against ${BASE}${tail}`)
   process.exit(1)
 }
-console.log(`\nsmoke: the deployment is serving the PO's data and refusing what it should`)
+
+console.log(
+  SURFACE === "deployed"
+    ? `\nsmoke: the deployment is serving the PO's data and refusing what it should`
+    : // Deliberately does not claim the second half. The checks that prove a
+      // host refuses what it should are exactly the ones skipped here, so
+      // saying it would be the same overclaim in the opposite direction.
+      `\nsmoke: ${HOST} is serving the PO's data${tail}`,
+)
