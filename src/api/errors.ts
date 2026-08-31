@@ -50,6 +50,27 @@ export const ERRORS = {
       divisionGender: z.string(),
     }),
   },
+  /**
+   * Two teams with no division in common, put in the same fixture.
+   *
+   * A different rule from DIVISION_MISMATCH above, which is about one team
+   * against the division it is entering. This is about the pairing, and until
+   * 2026-08-31 nothing checked it: `games.create` verified that neither team
+   * was playing itself and that both were entered, and a U16 boys' team could
+   * be scheduled against a U18 girls' team in a league whose whole structure is
+   * divisions. Confirmed against a running server — the API answered 201.
+   *
+   * Carries each side's divisions rather than a sentence, like its neighbour:
+   * the page says "these teams are in different divisions" in the reader's
+   * language, from the codes.
+   */
+  TEAMS_IN_DIFFERENT_DIVISIONS: {
+    status: 400,
+    data: z.object({
+      homeDivisions: z.array(z.string()),
+      awayDivisions: z.array(z.string()),
+    }),
+  },
   NOT_REGISTERED: { status: 404 },
   NOT_ON_ROSTER: { status: 404 },
 

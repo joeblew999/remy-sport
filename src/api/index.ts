@@ -66,6 +66,7 @@ export const router = {
     list: games.list,
     get: games.get,
     create: games.create,
+    generateFixtures: games.generateFixtures,
     update: games.update,
     delete: games.remove,
     enterScore: games.enterScore,

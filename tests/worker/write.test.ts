@@ -1596,3 +1596,191 @@ describe("Approving a referee", () => {
     expect(res.status).toBe(404)
   })
 })
+
+describe("A fixture cannot cross a division", () => {
+  /**
+   * Until 2026-08-31 it could. `games.create` checked that a team was not
+   * playing itself and that both were entered, and nothing else — so a U16
+   * boys' team could be scheduled against a U18 girls' team in a league whose
+   * whole structure is divisions. Confirmed against a running server, which
+   * answered 201.
+   *
+   * Every other piece of the rule already existed: `eventTeam` is keyed on
+   * (event, team, division), and registration refuses a team whose age group or
+   * gender does not match the division it enters. Only the fixture was
+   * unguarded.
+   *
+   * Pairs are derived from the fixtures rather than named, so a re-seed cannot
+   * make this pass by picking two teams that happen to agree.
+   */
+  const EVENT = "evt_002"
+  const inEvent = SEED_RELATIONSHIPS.eventTeams.filter((t) => t.eventId === EVENT)
+  const divisionsOf = (teamId: string) =>
+    inEvent.filter((t) => t.teamId === teamId).map((t) => t.divisionId as string)
+
+  const teams = [...new Set(inEvent.map((t) => t.teamId as string))]
+  const crossing = teams
+    .flatMap((a) => teams.map((b) => [a, b] as const))
+    .find(([a, b]) => a !== b && !divisionsOf(a).some((d) => divisionsOf(b).includes(d)))
+  const sharing = teams
+    .flatMap((a) => teams.map((b) => [a, b] as const))
+    .find(([a, b]) => a !== b && divisionsOf(a).some((d) => divisionsOf(b).includes(d)))
+
+  const organiser = SEED_ENTITIES.users.find(
+    (u) => u.id === SEED_ENTITIES.events.find((e) => e.id === EVENT)!.organizerUserId,
+  )!
+
+  const fixture = (home: string, away: string, cookie: string) =>
+    post(
+      `/api/events/${EVENT}/games`,
+      { eventId: EVENT, homeTeamId: home, awayTeamId: away, startsAt: "2026-07-01T10:00:00.000Z", venueId: null },
+      cookie,
+    )
+
+  it("the fixtures give us a crossing pair and a sharing pair", () => {
+    // Without both, the two assertions below are vacuous.
+    expect(crossing, "two teams in different divisions of the same event").toBeTruthy()
+    expect(sharing, "two teams sharing a division").toBeTruthy()
+  })
+
+  it("refuses two teams with no division in common", async () => {
+    const cookie = await signIn(organiser.email)
+    const res = await fixture(crossing![0], crossing![1], cookie)
+    expect(res.status, `${crossing![0]} v ${crossing![1]} cross divisions`).toBe(400)
+    expect(((await res.json()) as { code: string }).code).toBe("TEAMS_IN_DIFFERENT_DIVISIONS")
+  })
+
+  it("still allows two teams that share one", async () => {
+    // The half that stops this passing by refusing everything.
+    const cookie = await signIn(organiser.email)
+    const res = await fixture(sharing![0], sharing![1], cookie)
+    expect(res.status).toBe(201)
+  })
+
+  it("refuses a reschedule that changes only one side into another division", async () => {
+    // The way round the rule if it were enforced on create alone: leave the
+    // fixture, swap one team. The input is partial, so the stored row supplies
+    // the side that was not sent.
+    const cookie = await signIn(organiser.email)
+    const created = await fixture(sharing![0], sharing![1], cookie)
+    expect(created.status).toBe(201)
+    const { id } = (await created.json()) as { id: string }
+
+    const res = await SELF.fetch(`${ORIGIN}/api/events/${EVENT}/games/${id}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json", cookie, origin: ORIGIN },
+      body: JSON.stringify({ id, eventId: EVENT, homeTeamId: crossing![0], awayTeamId: crossing![1] }),
+    })
+    expect(res.status).toBe(400)
+  })
+})
+
+describe("Generating a schedule", () => {
+  /**
+   * An organiser registered fifteen teams and then typed the fixtures into a
+   * form one at a time. `GENERATE_FIXTURES` is the model's answer and had no
+   * endpoint.
+   *
+   * The interesting assertions are not "it made some games" — they are that it
+   * respects divisions, that running it twice is not a double schedule, and
+   * that it is refused where the model does not grant it.
+   */
+  const EVENT = "evt_002"
+  const inEvent = SEED_RELATIONSHIPS.eventTeams.filter((t) => t.eventId === EVENT)
+  const organiser = SEED_ENTITIES.users.find(
+    (u) => u.id === SEED_ENTITIES.events.find((e) => e.id === EVENT)!.organizerUserId,
+  )!
+
+  /** What a per-division round robin comes to, from the fixtures themselves. */
+  const expectedPairs = () => {
+    const byDivision = new Map<string, Set<string>>()
+    for (const t of inEvent) {
+      const set = byDivision.get(t.divisionId as string) ?? new Set<string>()
+      set.add(t.teamId as string)
+      byDivision.set(t.divisionId as string, set)
+    }
+    const pairs = new Set<string>()
+    for (const teams of byDivision.values()) {
+      const list = [...teams]
+      for (let i = 0; i < list.length; i++) {
+        for (let j = i + 1; j < list.length; j++) pairs.add([list[i]!, list[j]!].sort().join("|"))
+      }
+    }
+    return pairs
+  }
+
+  const generate = (cookie: string, eventId = EVENT) =>
+    post(`/api/events/${eventId}/games/generate`, { eventId, startDate: "2026-10-03" }, cookie)
+
+  const gamesOf = async (eventId: string) =>
+    (
+      (await (await api(`/api/games?eventId=${eventId}`)).json()) as {
+        games: { homeTeamId: string; awayTeamId: string; startsAt: string }[]
+      }
+    ).games
+
+  it("fills the division round robins, leaving the fixtures already there alone", async () => {
+    const cookie = await signIn(organiser.email)
+    const before = await gamesOf(EVENT)
+
+    const res = await generate(cookie)
+    expect(res.status).toBe(201)
+    const { created, skipped } = (await res.json()) as { created: number; skipped: number }
+
+    const after = await gamesOf(EVENT)
+    expect(after.length).toBe(before.length + created)
+    // Every pairing the divisions imply now exists, and the count adds up
+    // against what was already there rather than against a number typed here.
+    expect(created + skipped).toBe(expectedPairs().size)
+  })
+
+  it("never pairs two teams across divisions", async () => {
+    // Read back and checked, not trusted: the generator is exactly the code
+    // that could reintroduce the bug the guard above exists for.
+    const cookie = await signIn(organiser.email)
+    await generate(cookie)
+
+    const divisionsOf = (teamId: string) =>
+      inEvent.filter((t) => t.teamId === teamId).map((t) => t.divisionId as string)
+    for (const g of await gamesOf(EVENT)) {
+      const shared = divisionsOf(g.homeTeamId).some((d) => divisionsOf(g.awayTeamId).includes(d))
+      expect(shared, `${g.homeTeamId} v ${g.awayTeamId} share no division`).toBe(true)
+    }
+  })
+
+  it("is idempotent — running it again adds nothing", async () => {
+    // The claim most likely to be wrong, so it is asserted rather than argued.
+    const cookie = await signIn(organiser.email)
+    await generate(cookie)
+    const between = (await gamesOf(EVENT)).length
+
+    const again = await generate(cookie)
+    const { created } = (await again.json()) as { created: number }
+    expect(created, "a second run should add no fixtures").toBe(0)
+    expect((await gamesOf(EVENT)).length).toBe(between)
+  })
+
+  it("spreads rounds across dates rather than stacking one day", async () => {
+    // A schedule, not a list: nobody plays twice in a round, so the rounds have
+    // to land on different days for that to mean anything.
+    const cookie = await signIn(organiser.email)
+    await generate(cookie)
+    const days = new Set((await gamesOf(EVENT)).map((g) => g.startsAt.slice(0, 10)))
+    expect(days.size).toBeGreaterThan(1)
+  })
+
+  it("refuses somebody who does not run the event", async () => {
+    const res = await generate(await signIn(actorFor("COACH")))
+    expect(res.status).toBe(403)
+  })
+
+  it("refuses a camp, which the model does not grant it for", async () => {
+    // GENERATE_FIXTURES is TOURNAMENT and LEAGUE only. A camp has
+    // DEFINE_SESSION_SCHEDULE, which is a different shape entirely.
+    const camp = SEED_ENTITIES.events.find((e) => e.typeCode === "CAMP")
+    expect(camp, "the fixtures seed a camp").toBeTruthy()
+    const owner = SEED_ENTITIES.users.find((u) => u.id === camp!.organizerUserId)!
+    const res = await generate(await signIn(owner.email), camp!.id)
+    expect(res.status).toBe(403)
+  })
+})

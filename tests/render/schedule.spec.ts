@@ -376,3 +376,72 @@ const managed = { ...upcoming, timezone: "Asia/Bangkok" }
     await expect(page.getByTestId("game-gam_003")).toBeVisible()
   })
 })
+
+test.describe("Generating a whole schedule", () => {
+  /**
+   * The control an organiser reaches for before the one-at-a-time form: fifteen
+   * registered teams meant thirty-one fixtures typed by hand.
+   */
+  test("is offered to somebody who may manage fixtures, and not to anyone else", async ({
+    page,
+  }) => {
+    // Same server answer that gates the manual form. Two teams alone is not
+    // permission.
+    await seed(page, [], false)
+    await page.goto("/#/event/evt_002")
+    await page.getByRole("button", { name: "Schedule" }).click()
+    await expect(page.getByTestId("generate-fixtures")).toHaveCount(0)
+  })
+
+  test("asks only for the first matchday", async ({ page }) => {
+    // Everything else the model or the fixtures decide: which teams, which
+    // divisions, how many rounds. The one thing only the organiser knows is
+    // when the season starts.
+    await seedCache(page, [
+      entry(orpc.events.entries, { eventId: "evt_002" }, apiEntries({
+        canManageFixtures: true,
+        registered: [
+          { teamId: "team_001", team: "A", divisionId: "div_001", division: "U16 Boys" },
+          { teamId: "team_003", team: "B", divisionId: "div_001", division: "U16 Boys" },
+        ] as never,
+      })),
+      entry(orpc.events.get, { id: "evt_002" }, apiEvent({ id: "evt_002", name: "League", names: { en: "League" } })),
+      entry(orpc.games.list, { eventId: "evt_002" }, { games: [], viewerTimezone: null }),
+    ])
+    await page.goto("/#/event/evt_002")
+    await page.getByRole("button", { name: "Schedule" }).click()
+
+    await expect(page.getByTestId("generate-start")).toHaveAttribute("type", "date")
+    await expect(page.getByTestId("generate-submit")).toBeVisible()
+  })
+
+  test("says what it did, rather than leaving the organiser to count rows", async ({ page }) => {
+    await seedCache(page, [
+      entry(orpc.events.entries, { eventId: "evt_002" }, apiEntries({
+        canManageFixtures: true,
+        registered: [
+          { teamId: "team_001", team: "A", divisionId: "div_001", division: "U16 Boys" },
+          { teamId: "team_003", team: "B", divisionId: "div_001", division: "U16 Boys" },
+        ] as never,
+      })),
+      entry(orpc.events.get, { id: "evt_002" }, apiEvent({ id: "evt_002", name: "League", names: { en: "League" } })),
+      entry(orpc.games.list, { eventId: "evt_002" }, { games: [], viewerTimezone: null }),
+    ])
+    await page.route("**/rpc/**", async (route) => {
+      if (!route.request().url().includes("generateFixtures")) return route.fallback()
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({ json: { created: 3, skipped: 28 } }),
+      })
+    })
+
+    await page.goto("/#/event/evt_002")
+    await page.getByRole("button", { name: "Schedule" }).click()
+    await page.getByTestId("generate-start").fill("2026-10-03")
+    await page.getByTestId("generate-submit").click()
+
+    await expect(page.getByTestId("generate-result")).toContainText("3")
+    await expect(page.getByTestId("generate-result")).toContainText("28")
+  })
+})

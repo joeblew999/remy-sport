@@ -440,6 +440,57 @@ async function reload(db: Db, user: SessionUser, id: string): Promise<ApiGame> {
  * create an event and register teams, then schedule nothing — the loop was
  * broken in the middle, and the only games that existed came from the seed.
  */
+/**
+ * The divisions each team is entered in, for this event.
+ *
+ * A team can hold more than one — `eventTeam` is keyed on
+ * (event, team, division) — so "same division" is a non-empty intersection
+ * rather than an equality. A club fielding one squad in two age groups is the
+ * case that makes the difference.
+ */
+async function divisionsOf(
+  db: Db,
+  eventId: string,
+  teamIds: string[],
+): Promise<Map<string, string[]>> {
+  const rows = await db
+    .select({ teamId: schema.eventTeam.teamId, divisionId: schema.eventTeam.divisionId })
+    .from(schema.eventTeam)
+    .where(
+      and(eq(schema.eventTeam.eventId, eventId), inArray(schema.eventTeam.teamId, teamIds)),
+    )
+    .all()
+  const out = new Map<string, string[]>(teamIds.map((id) => [id, []]))
+  for (const r of rows) out.get(r.teamId)?.push(r.divisionId)
+  return out
+}
+
+/**
+ * Refuse a pairing whose teams share no division.
+ *
+ * Nothing checked this until 2026-08-31. `create` verified that a team was not
+ * playing itself and that both were entered, and a U16 boys' team could be
+ * scheduled against a U18 girls' team in a league organised entirely by
+ * division — confirmed against a running server, which answered 201.
+ *
+ * The model had every other piece: `eventTeam` is keyed by division, and
+ * registration already refuses a team whose age group or gender does not match
+ * the division it enters. Only the fixture was unguarded.
+ */
+async function assertSameDivision(
+  db: Db,
+  eventId: string,
+  homeTeamId: string,
+  awayTeamId: string,
+  fail: (opts: { data: { homeDivisions: string[]; awayDivisions: string[] } }) => Error,
+): Promise<void> {
+  const divisions = await divisionsOf(db, eventId, [homeTeamId, awayTeamId])
+  const home = divisions.get(homeTeamId) ?? []
+  const away = divisions.get(awayTeamId) ?? []
+  if (home.some((d) => away.includes(d))) return
+  throw fail({ data: { homeDivisions: home, awayDivisions: away } })
+}
+
 const FixtureInput = z.object({
   eventId: z.string(),
   homeTeamId: z.string(),
@@ -455,6 +506,7 @@ export const create = authed
   .errors({
     TEAM_PLAYS_ITSELF: ERRORS.TEAM_PLAYS_ITSELF,
     TEAM_NOT_ENTERED: ERRORS.TEAM_NOT_ENTERED,
+    TEAMS_IN_DIFFERENT_DIVISIONS: ERRORS.TEAMS_IN_DIFFERENT_DIVISIONS,
   })
   .input(FixtureInput)
   .output(GameSchema)
@@ -479,6 +531,16 @@ export const create = authed
       if (!ids.has(teamId)) throw errors.TEAM_NOT_ENTERED({ data: { teamId } })
     }
 
+    // After "entered", because a team in no division of this event is not
+    // entered at all and that is the more useful thing to be told.
+    await assertSameDivision(
+      context.db,
+      input.eventId,
+      input.homeTeamId,
+      input.awayTeamId,
+      errors.TEAMS_IN_DIFFERENT_DIVISIONS,
+    )
+
     // Readable and sortable, and unique per event without a counter table.
     const id = `gam_${crypto.randomUUID().slice(0, 8)}`
     await context.db.insert(schema.game).values({
@@ -493,16 +555,176 @@ export const create = authed
     return reload(context.db, context.user, id)
   })
 
+/**
+ * Every unordered pairing, in rounds where nobody plays twice.
+ *
+ * The circle method: fix one team, rotate the rest. It matters that this yields
+ * *rounds* rather than a flat list of pairs — a league plays a matchday at a
+ * time, and a schedule that put a team in three games on one date would be a
+ * list of fixtures rather than a schedule.
+ *
+ * An odd count gets a bye, which is the standing team sitting that round out.
+ */
+function roundRobin(teamIds: string[]): [string, string][][] {
+  if (teamIds.length < 2) return []
+  const teams = [...teamIds]
+  // A phantom opponent, so an odd division still pairs cleanly. Whoever draws
+  // it has a bye that round and no fixture is emitted.
+  const bye = "__bye__"
+  if (teams.length % 2 === 1) teams.push(bye)
+
+  const rounds: [string, string][][] = []
+  const n = teams.length
+  for (let r = 0; r < n - 1; r++) {
+    const pairs: [string, string][] = []
+    for (let i = 0; i < n / 2; i++) {
+      const home = teams[i]!
+      const away = teams[n - 1 - i]!
+      if (home !== bye && away !== bye) pairs.push([home, away])
+    }
+    rounds.push(pairs)
+    // Rotate everything but the first.
+    teams.splice(1, 0, teams.pop()!)
+  }
+  return rounds
+}
+
+/** A v B and B v A are one fixture. */
+const pairKey = (a: string, b: string) => [a, b].sort().join("|")
+
+const GenerateInput = z.object({
+  eventId: z.string(),
+  /** The first matchday. ISO date — the organiser's calendar, not ours. */
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "a date, as YYYY-MM-DD"),
+  /** Days between rounds. A week by default, which is what a league is. */
+  intervalDays: z.number().int().min(1).max(365).default(7),
+  /** Kick-off, on the venue's clock. */
+  timeOfDay: z.string().regex(/^\d{2}:\d{2}$/, "a time, as HH:MM").default("10:00"),
+})
+
+/**
+ * The fixtures for a league or a tournament, one round robin per division.
+ *
+ * An organiser registered fifteen teams and then typed thirty-one fixtures into
+ * a form, one at a time. `GENERATE_FIXTURES` is the model's answer and had no
+ * endpoint.
+ *
+ * **Per division, not per event.** evt_002's fifteen teams are six U16 boys'
+ * teams, five U16 girls' and four U18 girls'; a round robin across all fifteen
+ * would schedule exactly the games the guard above now refuses. Same rule, and
+ * the reason that fix came first.
+ *
+ * **Idempotent.** It adds the pairings that do not exist and leaves the rest
+ * alone — so running it twice does not double the schedule, and running it
+ * after entering a few by hand does not duplicate them. The dates it assigns
+ * are for the fixtures it creates; an existing one keeps whatever it was given.
+ *
+ * TOURNAMENT and LEAGUE only, because that is what the model grants. A camp has
+ * `DEFINE_SESSION_SCHEDULE` and a showcase has `GENERATE_BRACKETS` — different
+ * shapes, and neither is a round robin.
+ */
+export const generateFixtures = authed
+  .route({
+    method: "POST",
+    path: "/events/{eventId}/games/generate",
+    summary: "Generate a round robin per division",
+    successStatus: 201,
+    ...authedRoute,
+  })
+  .input(GenerateInput)
+  .output(z.object({ created: z.number().int(), skipped: z.number().int() }))
+  .use(requireAction("GENERATE_FIXTURES", (i: { eventId: string }) => i.eventId))
+  .handler(async ({ context, input }) => {
+    const entries = await context.db
+      .select({ teamId: schema.eventTeam.teamId, divisionId: schema.eventTeam.divisionId })
+      .from(schema.eventTeam)
+      .where(eq(schema.eventTeam.eventId, input.eventId))
+      .all()
+
+    const byDivision = new Map<string, string[]>()
+    for (const e of entries) {
+      const list = byDivision.get(e.divisionId) ?? []
+      if (!list.includes(e.teamId)) list.push(e.teamId)
+      byDivision.set(e.divisionId, list)
+    }
+
+    const existing = new Set(
+      (
+        await context.db
+          .select({ homeTeamId: schema.game.homeTeamId, awayTeamId: schema.game.awayTeamId })
+          .from(schema.game)
+          .where(eq(schema.game.eventId, input.eventId))
+          .all()
+      ).map((g) => pairKey(g.homeTeamId, g.awayTeamId)),
+    )
+
+    const rows: (typeof schema.game.$inferInsert)[] = []
+    let skipped = 0
+    for (const teams of byDivision.values()) {
+      // Sorted, so the same registrations always produce the same schedule —
+      // a generator whose output depends on row order is one nobody can check.
+      roundRobin([...teams].sort()).forEach((round, roundIndex) => {
+        const day = new Date(`${input.startDate}T00:00:00.000Z`)
+        day.setUTCDate(day.getUTCDate() + roundIndex * input.intervalDays)
+        const startsAt = `${day.toISOString().slice(0, 10)}T${input.timeOfDay}:00.000Z`
+
+        for (const [home, away] of round) {
+          if (existing.has(pairKey(home, away))) {
+            skipped += 1
+            continue
+          }
+          existing.add(pairKey(home, away))
+          rows.push({
+            id: `gam_${crypto.randomUUID().slice(0, 8)}`,
+            eventId: input.eventId,
+            homeTeamId: home,
+            awayTeamId: away,
+            venueId: null,
+            startsAt,
+            statusCode: "SCHEDULED",
+          })
+        }
+      })
+    }
+
+    if (rows.length > 0) await context.db.insert(schema.game).values(rows)
+    return { created: rows.length, skipped }
+  })
+
 export const update = authed
   .route({ method: "PUT", path: "/events/{eventId}/games/{id}", summary: "Change a fixture", ...authedRoute })
   .input(FixtureInput.partial().extend({ id: z.string(), eventId: z.string() }))
   .output(GameSchema)
-  .errors({ TEAM_PLAYS_ITSELF: ERRORS.TEAM_PLAYS_ITSELF })
+  .errors({
+    TEAM_PLAYS_ITSELF: ERRORS.TEAM_PLAYS_ITSELF,
+    TEAMS_IN_DIFFERENT_DIVISIONS: ERRORS.TEAMS_IN_DIFFERENT_DIVISIONS,
+  })
   .use(requireAction("MANAGE_FIXTURES", (i: { eventId: string }) => i.eventId))
   .handler(async ({ context, input, errors }) => {
-    const { id, eventId: _eventId, ...columns } = input
+    const { id, eventId, ...columns } = input
     if (columns.homeTeamId && columns.awayTeamId && columns.homeTeamId === columns.awayTeamId) {
       throw errors.TEAM_PLAYS_ITSELF()
+    }
+    /**
+     * Guarded here too, against the *effective* pairing.
+     *
+     * Changing one side of an existing fixture crosses a division as easily as
+     * creating one, and this input is partial — so checking only when both ids
+     * arrive would leave "swap the home team" as the way round the rule. The
+     * stored row supplies whichever side was not sent.
+     */
+    if (columns.homeTeamId || columns.awayTeamId) {
+      const current = found(
+        await context.db
+          .select({ homeTeamId: schema.game.homeTeamId, awayTeamId: schema.game.awayTeamId })
+          .from(schema.game)
+          .where(eq(schema.game.id, id))
+          .get(),
+      )
+      const home = columns.homeTeamId ?? current.homeTeamId
+      const away = columns.awayTeamId ?? current.awayTeamId
+      if (home === away) throw errors.TEAM_PLAYS_ITSELF()
+      await assertSameDivision(context.db, eventId, home, away, errors.TEAMS_IN_DIFFERENT_DIVISIONS)
     }
     await context.db.update(schema.game).set(columns).where(eq(schema.game.id, id))
     return reload(context.db, context.user, id)

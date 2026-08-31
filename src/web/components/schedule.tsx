@@ -504,7 +504,22 @@ export function AddFixture({ eventId }: { eventId: string }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: orpc.games.key() }),
   });
 
+  /**
+   * The whole schedule at once, one round robin per division.
+   *
+   * An organiser registered fifteen teams and then typed thirty-one fixtures
+   * into the form below, one at a time. It adds only the pairings that are
+   * missing, so it is safe to press after entering a few by hand and safe to
+   * press twice.
+   */
+  const generate = useMutation({
+    mutationFn: (v: { startDate: string }) =>
+      api.games.generateFixtures({ eventId, startDate: v.startDate }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: orpc.games.key() }),
+  });
+
   const addErr = formErrors(add.error, ["startsAt"]);
+  const genErr = formErrors(generate.error, ["startDate"]);
   const teams = entries?.registered ?? [];
   // The server's answer, per event. Two teams alone is not permission.
   if (!entries?.canManageFixtures || teams.length < 2) return null;
@@ -512,6 +527,33 @@ export function AddFixture({ eventId }: { eventId: string }) {
   return (
     <section className="admin-card" style={{ marginTop: 16 }} data-testid="add-fixture">
       <h2>{m.add_fixture()}</h2>
+
+      {/* Before the one-at-a-time form, because it is the thing an organiser
+          wants first and the form is what you reach for afterwards. */}
+      <form
+        className="admin-form"
+        data-testid="generate-fixtures"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const f = new FormData(e.currentTarget);
+          generate.mutate({ startDate: String(f.get("startDate")) });
+        }}
+      >
+        <label htmlFor="gen-start">{m.first_matchday()}</label>
+        <input id="gen-start" name="startDate" type="date" required data-testid="generate-start" />
+        <button type="submit" data-testid="generate-submit" disabled={generate.isPending}>
+          {generate.isPending ? m.org_saving() : m.generate_fixtures()}
+        </button>
+        {generate.data && (
+          <p className="muted small" data-testid="generate-result">
+            {m.generate_result({ created: generate.data.created, skipped: generate.data.skipped })}
+          </p>
+        )}
+        {genErr.form && (
+          <p className="admin-error small" data-testid="generate-error">{genErr.form}</p>
+        )}
+      </form>
+
       <form
         className="admin-form"
         onSubmit={(e) => {
@@ -545,11 +587,10 @@ export function AddFixture({ eventId }: { eventId: string }) {
           {add.isPending ? m.org_saving() : m.add_fixture()}
         </button>
         {/* A refusal with no field to sit under — "that team is not registered
-            for this event", "a team cannot play itself". Those belong at the
-            bottom of the form, not beneath an input that is not the problem. */}
-        {/* A refusal with no field to sit under — "that team is not registered
-            for this event", "a team cannot play itself" — plus any issue the
-            fields above did not claim. */}
+            for this event", "a team cannot play itself", "those teams are in
+            different divisions" — plus any issue the fields above did not
+            claim. Those belong at the bottom of the form, not beneath an input
+            that is not the problem. */}
         {addErr.form && (
           <p className="admin-error small" data-testid="add-fixture-error">
             {addErr.form}
