@@ -104,6 +104,42 @@ collect(router as unknown as Node)
  */
 for (const action of Object.values(RECEIVE_ACTION)) enforced.add(action)
 
+/**
+ * Actions the product implements with no server surface at all.
+ *
+ * The third way an action gets built, and the one that made this report wrong
+ * for a third time. `SPOILER_MODE` is shipped across six components — it hides
+ * scores until a reader asks — and it has nothing to enforce, because there is
+ * no resource: it is a display preference held in the browser. No procedure can
+ * declare it and no audience consults it, so both this report and the Product
+ * Owner's `mise run built` called a working feature missing.
+ *
+ * Worth noting how that survived: the two repos derive this independently and
+ * *agreed*. Agreement is not correctness when both share an assumption — here,
+ * that a built action leaves a server-side trace.
+ *
+ * Listed rather than detected, because "we chose to do this in the client" is a
+ * decision and not a pattern. The assertion below keeps the list from rotting:
+ * an entry that gains a server marker is stale and says so.
+ */
+const CLIENT_ONLY: Record<string, string> = {
+  SPOILER_MODE:
+    "a display preference — the reader hides scores in their own browser. " +
+    "src/web/main.tsx holds it and six components read it. There is no resource " +
+    "to protect and nothing a server could check.",
+}
+
+for (const [action, why] of Object.entries(CLIENT_ONLY)) {
+  if (enforced.has(action)) {
+    console.error(
+      `model-coverage: ${action} is listed as client-only but a procedure now declares it.\n` +
+        `  Reason on file: ${why}\n` +
+        `  Remove it from CLIENT_ONLY — it has a server surface now.`,
+    )
+    process.exit(1)
+  }
+}
+
 const publicOnly = (code: string) => {
   const grants = (GRANTS as Record<string, ReadonlyArray<{ relation: string }>>)[code] ?? []
   return grants.length > 0 && grants.every((g) => g.relation === "PUBLIC")
@@ -120,15 +156,22 @@ for (const a of ACTION) {
    * "enforced", which reads as coverage the model never asked for. This report
    * measures the model, so "public" wins.
    */
-  const state = publicOnly(a.code) ? "public" : enforced.has(a.code) ? "enforced" : "missing"
+  const state = CLIENT_ONLY[a.code]
+    ? "client"
+    : publicOnly(a.code)
+      ? "public"
+      : enforced.has(a.code)
+        ? "enforced"
+        : "missing"
   const list = byCategory.get(a.category) ?? []
   list.push({ code: a.code, state })
   byCategory.set(a.category, list)
 }
 
-const MARK: Record<string, string> = { enforced: "✓", public: "·", missing: " " }
+const MARK: Record<string, string> = { enforced: "✓", public: "·", client: "◗", missing: " " }
 let enforcedN = 0
 let publicN = 0
+let clientN = 0
 let missingN = 0
 
 for (const [category, actions] of [...byCategory].sort()) {
@@ -138,12 +181,14 @@ for (const [category, actions] of [...byCategory].sort()) {
     console.log(`    ${MARK[a.state]} ${a.code}`)
     if (a.state === "enforced") enforcedN++
     else if (a.state === "public") publicN++
+    else if (a.state === "client") clientN++
     else missingN++
   }
 }
 
 console.log(
-  `\n  ${enforcedN} enforced · ${publicN} public (nothing to enforce) · ${missingN} not built` +
+  `\n  ${enforcedN} enforced · ${publicN} public (nothing to enforce) · ` +
+    `${clientN} client-only · ${missingN} not built` +
     `\n  ${ACTION.length} actions in the Product Owner's model.\n` +
     `\n  "not built" is not "wrong" — most are on the roadmap. It is the list to\n` +
     `  read before choosing what to build, and the one nothing used to show.\n`,
