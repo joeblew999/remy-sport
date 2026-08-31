@@ -586,7 +586,8 @@ BUDGET_SHARED=1 mise run test:render ::: test:worker
 mise run typecheck:clean ::: test:unit ::: test:worker:assets \
   ::: check:dead ::: check:docs ::: check:authz ::: check:conventions \
   ::: check:seed ::: check:domain ::: check:tables ::: check:assets \
-  ::: check:messages ::: check:deps ::: check:i18n ::: i18n:validate
+  ::: check:messages ::: check:deps ::: check:i18n ::: i18n:validate \
+  ::: check:notifications ::: check:gui
 """
 
 [tasks."test:unit"]
@@ -628,6 +629,23 @@ depends     = ["install"]
 # gets ignored, and then the real finding is ignored with it. Run the full
 # report by hand when you want it:  bun x knip
 run = "bun x knip --include files,unlisted --no-config-hints"
+
+[tasks."check:notifications"]
+description = "Everything the platform sends you can be turned off"
+depends     = ["install"]
+# The settings page listed three of the five notification types the Worker
+# actually sends. EVENT_REMINDER and ROSTER_CHANGE arrived on people's phones
+# with no way to stop them, because the invariant was a comment asking to be
+# remembered. See scripts/check-notifications.ts.
+run = "bun scripts/check-notifications.ts"
+
+[tasks."check:gui"]
+description = "Report how much of the API the SPA actually reaches"
+depends     = ["install"]
+# Not a threshold — it fails only on a stale exemption. The number is a report
+# to act on: a field returned on every request and rendered by nothing is work
+# that is paid for and invisible. See scripts/gui-coverage.ts.
+run = "bun scripts/gui-coverage.ts"
 
 [tasks."check:docs"]
 description = "Fail when the documentation names a file that does not exist"

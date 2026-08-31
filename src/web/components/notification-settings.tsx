@@ -24,12 +24,31 @@ import { disablePush, enablePush, pushState, type PushState } from "../lib/push"
 /**
  * The types worth offering, not all fourteen.
  *
- * NOTIFICATION_TYPE has fourteen entries and only these three have anything
- * that sends them today. Listing the rest would be a settings page full of
- * switches that do nothing — which teaches a reader that the switches do not
- * work. Each one is added here as its trigger is written.
+ * NOTIFICATION_TYPE has fourteen entries and only these have anything that
+ * sends them today. Listing the rest would be a settings page full of switches
+ * that do nothing — which teaches a reader that the switches do not work.
+ *
+ * ## It drifted, and now a check holds it
+ *
+ * This said "each one is added here as its trigger is written", and then two
+ * triggers were written and not added: `EVENT_REMINDER` sends from the cron in
+ * src/scheduled.ts and `ROSTER_CHANGE` from src/api/registrations.ts, and
+ * neither could be muted by anyone. `push.ts` honours a preference row for any
+ * type — there was simply no way to create one for these two, so the settings
+ * page quietly became a partial list of what the platform sends you.
+ *
+ * A comment asking to be remembered is not a mechanism.
+ * `mise run check:notifications` compares this list against every `typeCode:`
+ * the Worker actually sends, in both directions, and fails on either kind of
+ * drift.
  */
-const OFFERED = ["MATCH_START", "SCORE_UPDATE", "MATCH_END"] as const
+const OFFERED = [
+  "MATCH_START",
+  "SCORE_UPDATE",
+  "MATCH_END",
+  "EVENT_REMINDER",
+  "ROSTER_CHANGE",
+] as const
 
 export function NotificationSettings() {
   const qc = useQueryClient()
