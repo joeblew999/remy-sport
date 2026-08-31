@@ -43,6 +43,34 @@ function currentRoute(): string {
   return typeof location === "undefined" ? "/" : routeShape(location.hash)
 }
 
+/**
+ * The most identifying *low-cardinality* thing about a failure.
+ *
+ * `name` alone was not enough once `unhandledrejection` started arriving here.
+ * A rejected oRPC call is an `Error` whose constructor the bundler has minified
+ * to `e` — measured — so every rejection in production reported as plain
+ * "Error" and the dataset could not tell a 404 from a 500 from a bug.
+ *
+ * What it carries instead is `code` ("NOT_FOUND") and `status` (404). Those are
+ * bounded — the model's own error vocabulary plus HTTP — and they are the
+ * question. `message` and `data` are deliberately still never sent: a message
+ * is unbounded and can name a person, which is the whole reason this payload is
+ * "deliberately not much".
+ */
+export function errorName(error: unknown): string {
+  const e = error as { name?: unknown; code?: unknown; status?: unknown } | null
+  // A real subclass beats everything: TypeError and ChunkLoadError are exactly
+  // what this field was for, and they survive minification because they are the
+  // platform's own.
+  if (typeof e?.name === "string" && e.name && e.name !== "Error") return e.name.slice(0, 60)
+  if (typeof e?.code === "string" && e.code) return e.code.slice(0, 60)
+  if (typeof e?.status === "number") return `HTTP_${e.status}`
+  // Rejecting with a bare string or a number is its own class of bug, and one
+  // worth being able to see. The value itself is not recorded: it is unbounded.
+  if (error !== null && typeof error !== "object") return `non-error:${typeof error}`
+  return "Error"
+}
+
 /** Never throws, and never reports the same error twice in a row. */
 let last = ""
 
@@ -50,9 +78,8 @@ export function reportClientError(error: unknown, extra: { where?: string } = {}
   try {
     if (typeof navigator === "undefined" || !navigator.sendBeacon) return
 
-    const e = error as { name?: unknown; message?: unknown } | null
     const payload: ClientError = {
-      name: typeof e?.name === "string" ? e.name : "Error",
+      name: errorName(error),
       where: (extra.where ?? "").slice(0, 120),
       route: currentRoute(),
     }

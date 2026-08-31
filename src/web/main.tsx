@@ -261,6 +261,33 @@ if (typeof window !== "undefined" && "__TAURI_INTERNALS__" in window) {
 // failed chunk loads and unhandled promises.
 watchForClientErrors();
 
+/**
+ * And, on a developer's own machine, show them.
+ *
+ * The beacon above goes to a dataset; nobody working sees it. Both copies of
+ * the `pushState()` defect were a section that rendered as nothing with a
+ * rejection nobody noticed.
+ *
+ * ## Not `import.meta.env.DEV`, which is never true here
+ *
+ * That was the first attempt and it was dead code. `mise run dev` runs
+ * `vite build --watch` — a *production* build, watched — and the render tier
+ * serves `dist/web` through `vite preview`. This repo never runs a vite dev
+ * server, deliberately: what you develop against is the bundle you ship. So
+ * `DEV` is false in every workflow here and the panel could never have appeared.
+ *
+ * The hostname is the honest signal and it fails safe: anything that is not
+ * plainly this machine counts as not-development, so a deployment cannot show a
+ * reader a red box. That excludes the tunnel too — it is a real hostname on the
+ * public internet, and telling it from production needs configuration this
+ * bundle does not have.
+ *
+ * Imported dynamically, so it is a separate chunk that production never fetches.
+ */
+if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
+  void import("./lib/dev-rejections").then((m) => m.showRejectionsInDev());
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

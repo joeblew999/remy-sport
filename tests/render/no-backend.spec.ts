@@ -105,3 +105,95 @@ test.describe("A push state that could not be determined", () => {
     await expect(page.getByTestId("push-unknown")).toBeVisible()
   })
 })
+
+/**
+ * The dev-only surface for a rejection.
+ *
+ * Deliberately provoked here, because after the fix above no route rejects on
+ * its own — which is the point, and also means nothing else exercises this.
+ *
+ * The constraint under test is not that it looks right. It is that it renders
+ * **outside `#root`**, so the assertions at the top of this file observe
+ * exactly what they observed before it existed: a rejection that unmounted the
+ * app would collapse "nothing rejected" and "the app still rendered" into one
+ * signal and lose the by-name diagnosis.
+ */
+test.describe("Unhandled rejections in dev", () => {
+  /**
+   * A rejection the page never handles.
+   *
+   * `void`, and evaluate returns immediately — returning the promise instead
+   * makes Playwright await it, which *handles* it, and then the event never
+   * fires. That is the same shape as the bug being guarded against: `void
+   * promise` is precisely what makes a rejection unhandled.
+   */
+  const provoke = () => {
+    void Promise.reject(Object.assign(new Error("Not Found"), { code: "NOT_FOUND" }))
+  }
+
+  test("shows the rejection, outside the app's root", async ({ page }) => {
+    await page.goto("/")
+    await expect(page.locator("#root")).not.toBeEmpty()
+    await page.evaluate(provoke).catch(() => undefined)
+
+    const panel = page.locator("[data-dev-rejections]")
+    await expect(panel).toBeVisible()
+    // The code and the message: this is one developer's own browser, where the
+    // message is the useful half. ./report.ts beacons only the bounded name.
+    await expect(panel).toContainText("NOT_FOUND")
+    await expect(panel).toContainText("Not Found")
+
+    // The hard constraint. It is not in the app, so no page selector can see it
+    // and React never knows it exists.
+    await expect(page.locator("#root [data-dev-rejections]")).toHaveCount(0)
+    await expect(page.locator("#root")).not.toBeEmpty()
+  })
+
+  test("does not replace the app the way a crash boundary would", async ({ page }) => {
+    await page.goto("/")
+    await page.evaluate(provoke).catch(() => undefined)
+    await expect(page.locator("[data-dev-rejections]")).toBeVisible()
+    // Still a working page. A rejection is usually not fatal, and a crash
+    // screen for one is false severity a developer learns to dismiss.
+    await expect(page.locator(".event-list")).toBeVisible()
+    await expect(page.getByTestId("crash")).toHaveCount(0)
+  })
+
+  test("a rejection loop does not grow the DOM without bound", async ({ page }) => {
+    await page.goto("/")
+    await page.evaluate(async () => {
+      for (let i = 0; i < 25; i++) {
+        void Promise.reject(new Error(`burst ${i}`))
+        await new Promise((r) => setTimeout(r, 1))
+      }
+    })
+    // Capped, for the same reason report.ts dedupes the beacon.
+    const lines = page.locator("[data-dev-rejections] div")
+    await expect.poll(() => lines.count()).toBeLessThanOrEqual(4)
+  })
+
+  test("cannot swallow a click meant for the app", async ({ page }) => {
+    // Fixed, bottom-right, maximum z-index. Without pointer-events:none it
+    // would make whatever sits under it unclickable the moment a rejection
+    // happened — and the test that then failed would name a button, not a
+    // rejection.
+    await page.goto("/")
+    await page.evaluate(provoke)
+    await expect(page.locator("[data-dev-rejections]")).toBeVisible()
+    const swallows = await page.evaluate(() => {
+      const box = document.querySelector("[data-dev-rejections]")!
+      const r = box.getBoundingClientRect()
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+      return box.contains(hit)
+    })
+    expect(swallows, "the panel must not be the element at its own coordinates").toBe(false)
+  })
+
+  test("is absent from a production build", async ({ page }) => {
+    // The module is imported dynamically behind import.meta.env.DEV, so it is
+    // not in the shipped bundle at all — asserted against dist/ in the build,
+    // and here only that nothing renders it unprovoked.
+    await page.goto("/")
+    await expect(page.locator("[data-dev-rejections]")).toHaveCount(0)
+  })
+})
