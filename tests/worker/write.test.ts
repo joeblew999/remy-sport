@@ -1427,3 +1427,109 @@ describe("Correcting a player's profile", () => {
     expect(names.th).toBe("ชื่อไทย")
   })
 })
+
+describe("Creating a player", () => {
+  /**
+   * Until 2026-08-31 there was no way to make one.
+   *
+   * The players API was `mine`, `update`, `registerForEvent` and
+   * `withdrawFromEvent`, so every player on the platform came from the seed —
+   * and the whole guardian thread built on top of it (the Your Players card,
+   * the edit form, entering a child in a camp) sat on rows nobody could create.
+   * A real parent signed in to an empty list with no way to fill it.
+   *
+   * The model has two actions for this and grants them to different people, so
+   * these are two procedures rather than one with a flag.
+   */
+  const child = {
+    names: { en: "Ploy Suksawat" },
+    dob: "2012-04-18",
+    jerseyNumber: 12,
+    positionCode: "PG",
+  }
+
+  const myPlayers = async (cookie: string) =>
+    (await (await api("/api/players/mine", { cookie })).json()) as {
+      players: { playerId: string; guardianTypeCode: string | null }[]
+    }
+
+  it("lets a guardian sign up a child, and the child is then theirs", async () => {
+    // The round trip that matters: create, then find it through the relation.
+    // `players.mine` resolves via objectsHeldBy("GUARDIAN"), so this passes only
+    // if the guardian row was written with the player.
+    const parent = SEED_ENTITIES.users.find((u) => u.roleCode === "SPECTATOR" && u.statusCode === "ACTIVE")!
+    const cookie = await signIn(parent.email)
+
+    const before = (await myPlayers(cookie)).players.length
+    const res = await post("/api/players/mine", { ...child, guardianTypeCode: "PARENT" }, cookie)
+    expect(res.status).toBe(201)
+    const created = (await res.json()) as { playerId: string }
+
+    const after = await myPlayers(cookie)
+    expect(after.players.length).toBe(before + 1)
+    const found = after.players.find((p) => p.playerId === created.playerId)
+    expect(found, "the child they just signed up should be on their own list").toBeTruthy()
+    expect(found!.guardianTypeCode).toBe("PARENT")
+  })
+
+  it("gives the child to that guardian and to nobody else", async () => {
+    // The assertion that catches a missing guardian row, which otherwise looks
+    // exactly like success: the create returns 201 either way.
+    const parent = SEED_ENTITIES.users.find((u) => u.roleCode === "SPECTATOR" && u.statusCode === "ACTIVE")!
+    const other = SEED_ENTITIES.users.find(
+      (u) => u.roleCode === "REFEREE" && u.statusCode === "ACTIVE",
+    )!
+
+    const res = await post(
+      "/api/players/mine",
+      { ...child, names: { en: "Kan Wattana" }, guardianTypeCode: "LEGAL_GUARDIAN" },
+      await signIn(parent.email),
+    )
+    expect(res.status).toBe(201)
+    const created = (await res.json()) as { playerId: string }
+
+    const theirs = await myPlayers(await signIn(other.email))
+    expect(theirs.players.map((p) => p.playerId)).not.toContain(created.playerId)
+  })
+
+  it("lets a coach create a player without making them its guardian", async () => {
+    // CREATE_PLAYER is the coach's action: it makes the person, and putting
+    // them in a squad is MANAGE_ROSTER on a team. No guardianship is implied —
+    // a coach is not a parent.
+    const coach = await signIn(actorFor("COACH"))
+    const res = await post("/api/players", { ...child, names: { en: "Anucha P." } }, coach)
+    expect(res.status).toBe(201)
+    const created = (await res.json()) as { playerId: string }
+
+    const theirs = await myPlayers(coach)
+    expect(
+      theirs.players.map((p) => p.playerId),
+      "creating a player is not becoming their guardian",
+    ).not.toContain(created.playerId)
+  })
+
+  it("refuses a spectator the coach's action, while allowing them the parent's", async () => {
+    // The pair that proves the two actions are not interchangeable.
+    // CREATE_PLAYER is ANY_COACH / ANY_PLAYER / PLATFORM_ADMIN;
+    // SIGN_UP_PLAYER_AS_GUARDIAN is ANY_SIGNED_IN, because any parent may
+    // register their own child whatever else they are.
+    const cookie = await signIn(actorFor("SPECTATOR"))
+    expect((await post("/api/players", { ...child, names: { en: "No" } }, cookie)).status).toBe(403)
+    expect(
+      (await post("/api/players/mine", { ...child, names: { en: "Yes" }, guardianTypeCode: "PARENT" }, cookie)).status,
+    ).toBe(201)
+  })
+
+  it("refuses an anonymous caller either way", async () => {
+    expect((await post("/api/players", child)).status).toBe(401)
+    expect((await post("/api/players/mine", { ...child, guardianTypeCode: "PARENT" })).status).toBe(401)
+  })
+
+  it("will not take a birth date that is not one", async () => {
+    // `dob` decides age-group eligibility and the edit form deliberately cannot
+    // change it, so creation is the only place it is ever set.
+    const cookie = await signIn(actorFor("COACH"))
+    const res = await post("/api/players", { ...child, dob: "18/04/2012" }, cookie)
+    expect(res.status).toBe(400)
+  })
+})

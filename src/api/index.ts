@@ -101,6 +101,15 @@ export const router = {
      * 2026-08-30. See src/api/players.ts.
      */
     mine: playersApi.mine,
+    /**
+     * Two ways a player comes into existence, because the model has two
+     * actions: `CREATE_PLAYER` for a coach adding to the pool, and
+     * `SIGN_UP_PLAYER_AS_GUARDIAN` for a parent registering their own child.
+     * Until 2026-08-31 there were none, and every player on the platform came
+     * from the seed.
+     */
+    create: playersApi.create,
+    signUpAsGuardian: playersApi.signUpAsGuardian,
     update: playersApi.update,
     registerForEvent: playersApi.registerForEvent,
     withdrawFromEvent: playersApi.withdrawFromEvent,

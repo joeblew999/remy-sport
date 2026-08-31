@@ -30,6 +30,7 @@ import { z } from "zod"
 import * as schema from "../db/schema"
 import { GUARDIAN_TYPE_CODES, POSITION_CODES, type GuardianTypeCode } from "../domain/vocabularies"
 import { authed, authedRoute, can, checkedInHandler, requireAction , found } from "./base"
+import { CreatePlayerInput, SignUpPlayerInput } from "../domain/api"
 import { clean } from "../domain/names"
 import { objectsHeldBy } from "./relations"
 
@@ -161,6 +162,98 @@ export const mine = authed
  * **`userId`.** Linking a player row to a sign-in is an identity claim, not a
  * profile edit. It is how a person would attach themselves to a child's record.
  */
+/** The row every create returns, so a page can render it without a round trip. */
+const PlayerRow = z.object({
+  playerId: z.string(),
+  names: z.record(z.string(), z.string()),
+  dob: z.string(),
+  jerseyNumber: z.number().int(),
+  positionCode: z.string(),
+})
+
+/** `ply_` plus a short random suffix, like every other id this app mints. */
+const newPlayerId = () => `ply_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`
+
+const playerRow = (input: z.infer<typeof CreatePlayerInput>) => {
+  const names = clean(input.names)
+  return {
+    id: newPlayerId(),
+    // Null: a child has no account. The column is nullable precisely so a
+    // player can exist before — or without — a user ever signing in as them,
+    // which is the ordinary case for a minor.
+    userId: null,
+    names,
+    dob: input.dob,
+    jerseyNumber: input.jerseyNumber,
+    positionCode: input.positionCode,
+  }
+}
+
+/**
+ * A coach adding a player to the pool.
+ *
+ * `CREATE_PLAYER` is a PLATFORM action — the PO grants it to ANY_COACH,
+ * ANY_PLAYER and PLATFORM_ADMIN, with no relation to an object, because the
+ * player does not exist yet. Same shape as `CREATE_TEAM`.
+ *
+ * No guardian row and no team: this creates the person, and putting them in a
+ * squad is `MANAGE_ROSTER` on a team the coach holds. Doing both here would
+ * make one action stand for two the model keeps apart.
+ */
+export const create = authed
+  .route({
+    method: "POST",
+    path: "/players",
+    summary: "Create a player",
+    successStatus: 201,
+    ...authedRoute,
+  })
+  .input(CreatePlayerInput)
+  .output(PlayerRow)
+  .use(requireAction("CREATE_PLAYER"))
+  .handler(async ({ context, input }) => {
+    const row = playerRow(input)
+    await context.db.insert(schema.player).values(row)
+    return { playerId: row.id, ...row }
+  })
+
+/**
+ * A guardian signing up their own child.
+ *
+ * `SIGN_UP_PLAYER_AS_GUARDIAN` is granted to ANY_SIGNED_IN, which is the model
+ * saying any parent may do this — and it is deliberately *not* `CREATE_PLAYER`,
+ * which is a coach's action. Two actions, two procedures.
+ *
+ * **The guardian row is written with the player, not after it.** Every later
+ * action on that child is scoped by the GUARDIAN relation:
+ * `EDIT_PLAYER_PROFILE`, `REGISTER_PLAYER_FOR_EVENT`, and `players.mine` itself,
+ * which resolves through `objectsHeldBy("GUARDIAN")`. A player created without
+ * the link belongs to nobody, cannot be found by the parent who just created
+ * them, and can never be edited — a row only an admin could clean up. The same
+ * reasoning makes a team's creator its head coach in `teams.create`.
+ */
+export const signUpAsGuardian = authed
+  .route({
+    method: "POST",
+    path: "/players/mine",
+    summary: "Sign up a child you are guardian to",
+    successStatus: 201,
+    ...authedRoute,
+  })
+  .input(SignUpPlayerInput)
+  .output(PlayerRow.extend({ guardianTypeCode: z.string() }))
+  .use(requireAction("SIGN_UP_PLAYER_AS_GUARDIAN"))
+  .handler(async ({ context, input }) => {
+    const row = playerRow(input)
+    await context.db.insert(schema.player).values(row)
+    await context.db.insert(schema.guardian).values({
+      userId: context.user.id,
+      playerId: row.id,
+      guardianTypeCode: input.guardianTypeCode,
+    })
+    return { playerId: row.id, ...row, guardianTypeCode: input.guardianTypeCode }
+  })
+
 export const update = authed
   .route({ method: "PUT", path: "/players/{id}", summary: "Update a player's profile", ...authedRoute })
   .input(

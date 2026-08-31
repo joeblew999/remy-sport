@@ -23,7 +23,9 @@ import {
   EVENT_FORMAT_CODES,
   EVENT_TYPE_CODES,
   GENDER_CODES,
+  GUARDIAN_TYPE_CODES,
   LOCALES,
+  POSITION_CODES,
 } from "./vocabularies"
 
 /**
@@ -212,6 +214,46 @@ export const CreateTeamInput = z.object({
  * to be checked. Out of scope until a transfer flow exists.
  */
 export const UpdateTeamInput = CreateTeamInput.omit({ orgId: true }).partial()
+
+/**
+ * A new player.
+ *
+ * Until now there was no way to make one: the players API was `mine`, `update`,
+ * `registerForEvent` and `withdrawFromEvent`, so every player on the platform
+ * came from the seed. The whole guardian thread — the Your Players card, the
+ * edit form, entering a child in a camp — sat on top of rows nobody could
+ * create.
+ *
+ * `dob` is here and absent from `UpdatePlayerInput` on purpose. It decides
+ * age-group eligibility, so a birth date corrected from a profile form later
+ * would make the eligibility rules advisory — which is why the edit form does
+ * not offer it. Creation is therefore the only place it can be set, and it is
+ * required.
+ *
+ * `jerseyNumber` is required because the column is. FIBA allows 0-99 and no
+ * seeded player uses 0, so there is no established "unassigned" value to lean
+ * on; inventing a sentinel here would be a convention nothing else in the model
+ * shares. It is editable straight afterwards through the form that already
+ * exists.
+ */
+export const CreatePlayerInput = z.object({
+  names: NamesInput,
+  dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "a date, as YYYY-MM-DD"),
+  jerseyNumber: z.number().int().min(0).max(99),
+  positionCode: z.enum(POSITION_CODES),
+})
+
+/**
+ * A guardian signing up their own child.
+ *
+ * `CreatePlayerInput` plus how you are related to them. The model distinguishes
+ * this from `CREATE_PLAYER` — a coach adding somebody to the pool — and grants
+ * them to different people, so they are two procedures rather than one with a
+ * flag.
+ */
+export const SignUpPlayerInput = CreatePlayerInput.extend({
+  guardianTypeCode: z.enum(GUARDIAN_TYPE_CODES),
+})
 
 /**
  * One game, with the names a schedule needs and the answer to "may I score it".

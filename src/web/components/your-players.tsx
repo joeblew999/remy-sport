@@ -6,10 +6,15 @@
  * whole point: a parent in Bangkok signs in and wants to know which team their
  * child is on and where to be on Saturday.
  *
- * Renders nothing when the list is empty. Most people signing in are not
- * guardians, and a permanent "you are not a guardian to anyone" panel on every
- * profile is noise that teaches people to stop reading the page. That is the
- * same rule the invitations card follows and for the same reason.
+ * Renders nothing when the list is empty *and* the reader has not asked to add
+ * anyone. Most people signing in are not guardians, and a permanent "you are
+ * not a guardian to anyone" panel on every profile is noise that teaches people
+ * to stop reading the page — the same rule the invitations card follows.
+ *
+ * The Add control is the exception, and it has to be: until 2026-08-31 there
+ * was no way to create a player at all, so a real parent signed in to an empty
+ * list, saw nothing, and had nowhere to go. A card that hides itself when empty
+ * is right; one that hides the only way to stop being empty is a dead end.
  *
  * The relationship is shown — Parent, Grandparent, Legal Guardian — because the
  * model distinguishes them and flattening them to "guardian" would throw away
@@ -31,15 +36,27 @@ export function YourPlayers({ goto }: { goto: (r: Route) => void }) {
   // One at a time. Two open forms on one card is a way to save the wrong child's
   // number, and a guardian is editing one thing.
   const [editing, setEditing] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
 
   const players = data?.players ?? []
-  if (players.length === 0) return null
 
   return (
     <>
       <div className="section-h">
         <h2>{m.your_players()}</h2>
+        {!adding && (
+          <button className="btn" data-testid="add-player" onClick={() => setAdding(true)}>
+            {m.player_add()}
+          </button>
+        )}
       </div>
+      {adding && <AddPlayer onDone={() => setAdding(false)} />}
+      {players.length === 0 && !adding && (
+        <div className="dash-card">
+          <div className="empty" data-testid="your-players-none">{m.your_players_none()}</div>
+        </div>
+      )}
+      {players.length > 0 && (
       <div className="dash-card" data-testid="your-players">
         {players.map((p) =>
           editing === p.playerId ? (
@@ -100,7 +117,110 @@ export function YourPlayers({ goto }: { goto: (r: Route) => void }) {
           ),
         )}
       </div>
+      )}
     </>
+  )
+}
+
+/**
+ * Signing up a child.
+ *
+ * `SIGN_UP_PLAYER_AS_GUARDIAN` is granted to ANY_SIGNED_IN — the model saying
+ * any parent may do this, whatever else they are — and it is a different action
+ * from `CREATE_PLAYER`, which is a coach adding somebody to the pool. This form
+ * is the parent's one, so it writes the guardianship along with the player.
+ *
+ * The name is a single box, like the team and event forms. It is a locale map
+ * underneath, and asking a parent for three languages of their child's name at
+ * sign-up would be a worse question than the one it answers.
+ *
+ * `dob` is asked here and nowhere else. It decides age-group eligibility, so
+ * the edit form deliberately cannot change it — which makes this the only
+ * moment it can be set, and worth a clear label rather than a bare date box.
+ */
+function AddPlayer({ onDone }: { onDone: () => void }) {
+  const { terms, label } = useLocale()
+  const qc = useQueryClient()
+
+  const save = useMutation({
+    mutationFn: (v: {
+      names: Record<string, string>
+      dob: string
+      jerseyNumber: number
+      positionCode: string
+      guardianTypeCode: string
+    }) => api.players.signUpAsGuardian(v as never),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: orpc.players.key() })
+      onDone()
+    },
+  })
+
+  const err = formErrors(save.error, ["names", "dob", "jerseyNumber", "positionCode"])
+
+  return (
+    <form
+      className="dash-card player-edit"
+      data-testid="add-player-form"
+      onSubmit={(e) => {
+        e.preventDefault()
+        const f = new FormData(e.currentTarget)
+        save.mutate({
+          names: { en: String(f.get("name")) },
+          dob: String(f.get("dob")),
+          jerseyNumber: Number(f.get("jerseyNumber")),
+          positionCode: String(f.get("positionCode")),
+          guardianTypeCode: String(f.get("guardianTypeCode")),
+        })
+      }}
+    >
+      <label htmlFor="add-name">{m.player_name()}</label>
+      <input id="add-name" name="name" required data-testid="add-player-name" />
+
+      <label htmlFor="add-dob">{m.player_dob()}</label>
+      {/* A real date input: the API wants YYYY-MM-DD and a free-text box is how
+          "18/04/2012" reaches it and comes back a 400 the parent cannot read. */}
+      <input id="add-dob" name="dob" type="date" required data-testid="add-player-dob" />
+
+      <label htmlFor="add-number">{m.player_number()}</label>
+      <input
+        id="add-number"
+        name="jerseyNumber"
+        type="number"
+        min={0}
+        max={99}
+        required
+        defaultValue={0}
+        data-testid="add-player-number"
+      />
+
+      <label htmlFor="add-position">{m.player_position()}</label>
+      <select id="add-position" name="positionCode" data-testid="add-player-position">
+        {terms("positions").map((t) => (
+          <option key={t.code} value={t.code}>{label("positions", t.code)}</option>
+        ))}
+      </select>
+
+      <label htmlFor="add-relationship">{m.player_relationship()}</label>
+      {/* From the reference vocabulary — Parent, Grandparent, Legal Guardian —
+          because the model distinguishes them and the row renders which. */}
+      <select id="add-relationship" name="guardianTypeCode" data-testid="add-player-relationship">
+        {terms("guardianTypes").map((t) => (
+          <option key={t.code} value={t.code}>{label("guardianTypes", t.code)}</option>
+        ))}
+      </select>
+
+      <button type="submit" data-testid="add-player-save" disabled={save.isPending}>
+        {save.isPending ? m.event_saving() : m.player_add()}
+      </button>
+      <button type="button" className="btn" onClick={onDone}>{m.fixture_cancel()}</button>
+
+      {(err.form || err.field("dob")) && (
+        <p className="admin-error small" data-testid="add-player-error">
+          {err.form ?? err.field("dob")}
+        </p>
+      )}
+    </form>
   )
 }
 
