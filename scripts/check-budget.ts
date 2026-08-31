@@ -70,8 +70,13 @@ const BUDGETS: Record<string, Budget> = {
   render: {
     ceiling: 30,
     measured: 17.0,
-    shared: { ceiling: 35, measured: 22.5 },
-    note: "WebKit launch dominates; the slowest single test is under a second",
+    shared: { ceiling: 35, measured: 29.0 },
+    // Re-measured 2026-08-31, after tests/render/no-backend.spec.ts added a
+    // page load per route. That tier is deliberately slower than the rest: it
+    // waits a fixed moment on each route for promises to reject, which is the
+    // only way to observe an unhandled rejection. Trimmed from 700ms to 350ms
+    // once the shorter wait was shown to still catch the defect it exists for.
+    note: "WebKit launch dominates; no-backend.spec.ts adds one page load per route",
   },
   e2e: {
     ceiling: 45,

@@ -127,11 +127,19 @@ function App() {
     // needs — and it rejected unhandled where there is no Worker.
     if (!isNativeApp()) return;
     let live = true;
-    pushState()
-      .then((s) => {
-        if (live) setNativeOn(s.status === "native");
-      })
-      .catch(() => undefined);
+    /**
+     * No `.catch`. `pushState` never rejects — a failure to find out comes back
+     * as `unknown`, which is not `native`, so the notifier stays off. That is
+     * already the truthful answer here: the root has one question, "may this app
+     * notify", and "we could not find out" is a no.
+     *
+     * A swallowing catch would be worse than nothing now: it would hide a broken
+     * contract rather than the transient failure it looks like it is handling.
+     * tests/render/no-backend.spec.ts is what holds the contract.
+     */
+    void pushState().then((s) => {
+      if (live) setNativeOn(s.status === "native");
+    });
     return () => {
       live = false;
     };

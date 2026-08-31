@@ -36,6 +36,21 @@ export type PushState =
   | { status: "needs-install" }
   /** The deployment has no VAPID keys. Nothing the reader can do. */
   | { status: "not-configured" }
+  /**
+   * We could not find out.
+   *
+   * The state this union could not express, and the gap was visible: asking
+   * the server for the VAPID key is a network call, and when it failed
+   * `pushState()` rejected. The caller's `state` stayed null, and null renders
+   * the entire notifications section as nothing — no control, no message, no
+   * explanation.
+   *
+   * That is the same symptom as the bug this whole thread started from, from a
+   * different cause, and the same mistake: invisibly broken instead of visibly
+   * off. A reason the reader can act on — try again — is what the rest of this
+   * union exists for.
+   */
+  | { status: "unknown" }
   /** The reader said no. Only they can undo it, in browser settings. */
   | { status: "denied" }
   | { status: "off" }
@@ -117,6 +132,16 @@ const isIos = () =>
 /**
  * What this browser can do right now, before the reader is asked anything.
  *
+ * **This never rejects.** Every await inside it is guarded, and the failures
+ * come back as `unknown` — a state the reader can see and retry. That is a
+ * contract two call sites rely on, so neither needs a `.catch`, and a `.catch`
+ * is what hid this in the first place: `void pushState().then(...)` satisfies
+ * no-floating-promises because `void` asserts you meant to ignore it, so no
+ * lint rule was ever going to object.
+ *
+ * `tests/render/no-backend.spec.ts` is what holds it: every route, no backend,
+ * zero unhandled rejections.
+ *
  * The Tauri branch used to return "unsupported" and stop, which was true of
  * `PushManager` and false of the app: a webview has no push API, and the OS
  * underneath it has a perfectly good notification centre. So the native app
@@ -134,12 +159,32 @@ export async function pushState(): Promise<PushState> {
   }
   if (Notification.permission === "denied") return { status: "denied" }
 
-  const { publicKey } = await api.notifications.key()
+  /**
+   * Asking the server. The one network call in here, and the one that failed.
+   *
+   * "The deployment has no keys" and "we could not reach the deployment" are
+   * different answers with different fixes, so a rejection becomes `unknown`
+   * rather than `not-configured` — telling a reader push is switched off for
+   * this deployment when their wifi dropped would send them to the wrong place.
+   */
+  let publicKey: string | null
+  try {
+    ;({ publicKey } = await api.notifications.key())
+  } catch {
+    return { status: "unknown" }
+  }
   if (!publicKey) return { status: "not-configured" }
 
-  const registration = await navigator.serviceWorker.ready
-  const existing = await registration.pushManager.getSubscription()
-  return existing ? { status: "on" } : { status: "off" }
+  try {
+    const registration = await navigator.serviceWorker.ready
+    const existing = await registration.pushManager.getSubscription()
+    return existing ? { status: "on" } : { status: "off" }
+  } catch {
+    // A service worker that never becomes ready, or a push manager that
+    // refuses. Also "we could not find out" — and also worth a retry, since a
+    // registration in flight becomes ready a moment later.
+    return { status: "unknown" }
+  }
 }
 
 /**

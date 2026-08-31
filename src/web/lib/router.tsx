@@ -51,6 +51,35 @@ function serialize(route: Route): string {
   return `#/${route.page}${search}`;
 }
 
+/**
+ * Every route the app serves, as a hash a test can navigate to.
+ *
+ * Exported so `tests/render/no-backend.spec.ts` cannot fall behind the app: a
+ * page added here is covered the day it becomes routable, rather than the day
+ * somebody remembers to list it in a spec. The ids are seeded fixtures — the
+ * detail pages have to render *something* to be worth visiting.
+ *
+ * Kept beside the router rather than in the test because it is a fact about the
+ * app, and because a second list in a test file is the thing that drifts.
+ */
+export const ROUTES = [
+  "/",
+  "#/live",
+  "#/events",
+  "#/my-events",
+  "#/profile",
+  "#/team",
+  "#/orgs",
+  "#/admin",
+  "#/devices",
+  "#/login",
+  "#/event/evt_001",
+  "#/org/org_001",
+  "#/team/team_001",
+  "#/broadcast/gam_002",
+  "#/watch/gam_002",
+] as const
+
 export interface RouterAPI {
   route: Route;
   goto: (r: Route) => void;

@@ -14,7 +14,7 @@
  * leave an iPhone reader pressing a button that cannot work.
  */
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api, orpc } from "../lib/orpc"
 import { m } from "../../paraglide/messages.js"
@@ -55,6 +55,18 @@ export function NotificationSettings() {
   const { locale, label, name, describe } = useLocale()
   const [state, setState] = useState<PushState | null>(null)
   const [busy, setBusy] = useState(false)
+
+  /**
+   * Ask what the state is. Also the retry, which is why it is a callback.
+   *
+   * No `.catch`: `pushState` never rejects and reports a failure to find out as
+   * `unknown` — see the contract on it. It used to reject here, `state` stayed
+   * null, and null renders this whole section as nothing.
+   */
+  const check = useCallback(() => {
+    setState(null)
+    void pushState().then(setState)
+  }, [])
 
   useEffect(() => {
     let live = true
@@ -128,7 +140,19 @@ export function NotificationSettings() {
               has regardless of whether they granted permission. */}
           <p className="meta" data-testid="push-native-limit">{m.push_native_limit()}</p>
         </div>
-      ) : state === null ? null : state.status === "on" || state.status === "off" ? (
+      ) : state === null ? (
+        // Distinct from `unknown` on purpose: a slow network reads as waiting,
+        // a failed one reads as failed. Rendering nothing for both is what made
+        // a failure look like a section that does not exist.
+        <div className="meta" data-testid="push-checking">{m.push_checking()}</div>
+      ) : state.status === "unknown" ? (
+        <div className="empty" data-testid="push-unknown">
+          <span>{m.push_unknown()}</span>{" "}
+          <button type="button" className="btn" data-testid="push-retry" onClick={check}>
+            {m.push_retry()}
+          </button>
+        </div>
+      ) : state.status === "on" || state.status === "off" ? (
         <button
           type="button"
           className="btn"
