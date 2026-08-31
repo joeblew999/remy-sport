@@ -125,9 +125,23 @@ export const EVENTS = {
    * docs/dev/native-notifications.md says we cannot currently produce.
    */
   "push.batch": defineEvent({
-    blobs: ["type", "service"],
+    // `source` appended, not inserted: Analytics Engine matches by position, so
+    // a new blob in the middle would shift every historical row's columns.
+    blobs: ["type", "service", "source"],
     doubles: ["sent", "gone", "failed"],
-    dimensions: ["type", "service"],
+    dimensions: ["type", "service", "source"],
+  }),
+  /**
+   * A notification that could not be delivered and will not be retried.
+   *
+   * The dead letter queue's whole purpose. A message sitting unread in a DLQ is
+   * "notifications silently stopped" — so the DLQ has a consumer, and it writes
+   * this, beside push.batch, where somebody already looks.
+   */
+  "notify.dead": defineEvent({
+    blobs: ["reason", "typeCode"],
+    doubles: ["attempts"],
+    dimensions: ["reason", "typeCode"],
   }),
   /**
    * One pass of the reminder cron, including the passes that found nothing.

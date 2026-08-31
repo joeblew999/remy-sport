@@ -23,9 +23,6 @@ import { track } from "../analytics"
 import * as schema from "../db/schema"
 import { EnterScoreInput, GameSchema, SetGameStatusInput, type ApiGame } from "../domain/api"
 import { STORED_ROLE } from "../domain/vocabularies"
-import { pick, type Names } from "../domain/names"
-import { m } from "../paraglide/messages.js"
-import { notify } from "./push"
 import type { Bindings } from "../types"
 import { ERRORS } from "./errors"
 import { authed, authedRoute, canAll, found, openTo, requireAction, viewer, viewerTimezone, type Db, type SessionUser } from "./base"
@@ -305,7 +302,7 @@ export const enterScore = authed
     // people to switch notifications off — which costs us the live ones too.
     const fresh = await reload(context.db, context.user, input.id)
     if (fresh.statusCode === "LIVE") {
-      await announce(context.db, context.env, "SCORE_UPDATE", input.id, context.user.id)
+      await announce(context.env, "SCORE_UPDATE", input.id, context.user.id)
     }
     return fresh
   })
@@ -330,7 +327,7 @@ export const setStatus = authed
           ? "MATCH_END"
           : null
     if (announcement) {
-      await announce(context.db, context.env, announcement, input.id, context.user.id)
+      await announce(context.env, announcement, input.id, context.user.id)
     }
     return reload(context.db, context.user, input.id)
   })
@@ -339,85 +336,50 @@ export const setStatus = authed
  * Tell everyone following this game — or either team, or the event — what just
  * happened.
  *
- * Four targets for one game, because "follow" means different things to
- * different people: a parent follows the team, a spectator follows the game,
- * and an organiser follows the event. `notify` de-duplicates by user, so
- * someone following both the team and the event is woken once.
+ * **Enqueues and returns.** It used to be awaited here and do one `fetch` per
+ * recipient, so a coach tapping "+2" waited on N HTTP round trips to Apple and
+ * Google — and N is bounded by the Workers per-request subrequest limit, which
+ * a well-followed game walks into with nothing in the code noticing. The push
+ * simply stopped partway through the audience.
  *
- * Awaited rather than fired into `waitUntil`. It is one D1 read and a fetch per
- * device, and a score entered courtside must not report success before it has
- * gone out — a referee who sees "saved" and then finds nobody was told has no
- * way to retry. `notify` swallows its own failures, so this cannot fail the
- * write it follows.
+ * Now it is one queue send. The audience resolution, the rendering and the
+ * delivery all moved verbatim into `runNotificationJob` in ./notify-queue.ts,
+ * which also explains why the message carries the event's identity rather than
+ * rendered text, and why at-least-once redelivery is safe.
+ *
+ * The four targets stay the shape they were: "follow" means different things to
+ * different people — a parent follows the team, a spectator follows the game,
+ * an organiser follows the event — and `notify` de-duplicates by user, so
+ * somebody following both is woken once.
+ *
+ * A failure to enqueue does not fail the write it follows: the score is already
+ * saved and refusing the mutation would lose it. It is recorded rather than
+ * swallowed, which is the difference from before — "notifications stopped" used
+ * to be invisible here too.
  */
 async function announce(
-  db: Db,
   env: Bindings,
   typeCode: "MATCH_START" | "MATCH_END" | "SCORE_UPDATE",
   gameId: string,
   actorId: string,
 ): Promise<void> {
-  const row = await db.query.game.findFirst({
-    where: (g, { eq: is }) => is(g.id, gameId),
-    with: {
-      homeTeam: { columns: { names: true } },
-      awayTeam: { columns: { names: true } },
-      event: { columns: { id: true, names: true } },
-    },
-  })
-  if (!row) return
-
-  const game = row as typeof row & {
-    homeTeam?: { names: Names } | null
-    awayTeam?: { names: Names } | null
-    event?: { id: string; names: Names } | null
+  // No queue bound: the worker test tier, and a local run without one. The
+  // score still saves, which is the important half.
+  if (!env.NOTIFICATIONS) return
+  try {
+    await env.NOTIFICATIONS.send({
+      typeCode,
+      gameId,
+      actorId,
+      occurredAt: new Date().toISOString(),
+      offset: 0,
+    })
+  } catch (error) {
+    track(env, "notify.dead", {
+      reason: error instanceof Error ? error.name : "enqueue-failed",
+      typeCode,
+    })
   }
-
-  const args = {
-    homeScore: String(game.homeScore ?? 0),
-    awayScore: String(game.awayScore ?? 0),
-  }
-
-  await notify(db, env, {
-    typeCode,
-    targets: [
-      { objectTypeCode: "GAME", objectId: gameId },
-      ...(game.eventId ? [{ objectTypeCode: "EVENT" as const, objectId: game.eventId }] : []),
-      ...(game.homeTeamId ? [{ objectTypeCode: "TEAM" as const, objectId: game.homeTeamId }] : []),
-      ...(game.awayTeamId ? [{ objectTypeCode: "TEAM" as const, objectId: game.awayTeamId }] : []),
-    ],
-    // One tag per game, not per event: a live score replaces the previous score
-    // for the same game and stacks against a different one. Includes the type
-    // so the final whistle does not silently overwrite itself onto a
-    // mid-quarter update the reader has not looked at yet.
-    tag: `${typeCode === "SCORE_UPDATE" ? "score" : "status"}:${gameId}`,
-    exclude: actorId,
-    render: (locale) => {
-      const home = pick(game.homeTeam?.names, locale)
-      const away = pick(game.awayTeam?.names, locale)
-      const event = pick(game.event?.names, locale)
-      const url = `#/games/${gameId}`
-      if (typeCode === "MATCH_START") {
-        return {
-          title: m.push_match_start_title({ home, away }, { locale }),
-          body: m.push_match_start_body({ event }, { locale }),
-          url,
-        }
-      }
-      if (typeCode === "MATCH_END") {
-        return {
-          title: m.push_match_end_title({ home, away, ...args }, { locale }),
-          body: m.push_match_end_body({ event }, { locale }),
-          url,
-        }
-      }
-      return {
-        title: m.push_score_title({ home, away, ...args }, { locale }),
-        body: m.push_score_body({ event }, { locale }),
-        url,
-      }
-    },
-  })
 }
 
 /** Read back what was written, so the client never guesses the new row. */

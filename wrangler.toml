@@ -75,6 +75,47 @@ not_found_handling = "none"
 [triggers]
 crons = ["0 * * * *"]
 
+# ── Notification fan-out ─────────────────────────────────────────────────────
+#
+# Delivery moved off the request path. `announce()` used to be awaited inside
+# the score mutation and did one fetch per recipient, so a coach tapping "+2"
+# waited on N HTTP round trips to Apple and Google — and N is bounded by the
+# Workers per-request subrequest limit, which a well-followed game walks into
+# with nothing in the code noticing.
+#
+# **At-least-once redelivery is safe here, and this is the property that makes
+# it safe:** every push carries a `topic` header and a browser `tag`, and a
+# repeated push with the same tag REPLACES the previous card rather than
+# stacking. A duplicate is invisible to the reader. There is no idempotency
+# ledger and none is needed. If anyone ever makes tags unique per send — a
+# timestamp, a nonce — this design breaks silently and every retry becomes a
+# second notification. See src/api/notify-queue.ts.
+[[queues.producers]]
+queue   = "remy-notifications"
+binding = "NOTIFICATIONS"
+
+[[queues.consumers]]
+queue = "remy-notifications"
+# One job per message: a job is already a whole fan-out, and batching them would
+# put several audiences behind one subrequest budget — the thing being fixed.
+max_batch_size    = 1
+max_batch_timeout = 5
+# Three attempts, then the dead letter queue. A poisoned message must stop being
+# retried and start being visible.
+max_retries       = 3
+dead_letter_queue = "remy-notifications-dlq"
+
+# The DLQ has a consumer of its own, and that is the whole point of it.
+#
+# A message sitting unread in a dead letter queue is "notifications silently
+# stopped" — the exact failure class this session has been about. So the
+# consumer does not retry anything: it records `notify.dead` telemetry, beside
+# push.batch, so a failure shows up in the same place somebody already looks.
+[[queues.consumers]]
+queue          = "remy-notifications-dlq"
+max_batch_size = 10
+max_retries    = 0
+
 [[analytics_engine_datasets]]
 binding = "ANALYTICS"
 dataset = "remy_sport_events"

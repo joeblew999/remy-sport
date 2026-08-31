@@ -26,7 +26,7 @@ import { track } from "../analytics"
 import { buildPush, type PushSubscription } from "./webpush"
 import * as schema from "../db/schema"
 import type { Db } from "./db"
-import { audienceFor } from "./relations"
+import { audienceFor, inBatches } from "./relations"
 import type { Bindings } from "../types"
 import { LOCALES, type ReleasedLocale } from "../domain/vocabularies"
 import { FALLBACK } from "../domain/names"
@@ -139,33 +139,54 @@ async function audience(
   const userIds = [...new Set(reached.flat())].filter((id) => id !== exclude)
   if (userIds.length === 0) return []
 
+  /**
+   * Batched, because a popular game exceeds SQLite's bound-parameter limit.
+   *
+   * These were raw `inArray(...)` over every user in the audience, and D1 fails
+   * the statement outright — "too many SQL variables" — rather than returning a
+   * short answer. So a game with a hundred-odd followers notified *nobody*, and
+   * the bigger the audience the more certain the failure. Found by the chunking
+   * test written for the queue, at 111 users.
+   *
+   * The same ceiling `MAX_IN` in ./relations.ts exists for, reused rather than
+   * re-derived. Note this is a *second* limit in this path: chunking delivery
+   * does not help, because the audience query blows up before a single push
+   * goes out.
+   */
   const [devices, optOuts] = await Promise.all([
-    db
-      .select({
-        userId: schema.userNotificationChannel.userId,
-        address: schema.userNotificationChannel.address,
-        secret: schema.userNotificationChannel.secret,
-        localeCode: schema.userNotificationChannel.localeCode,
-      })
-      .from(schema.userNotificationChannel)
-      .where(
-        and(
-          inArray(schema.userNotificationChannel.userId, userIds),
-          eq(schema.userNotificationChannel.channelCode, "PUSH"),
-          eq(schema.userNotificationChannel.isEnabled, true),
+    inBatches(userIds, (batch) =>
+      db
+        .select({
+          userId: schema.userNotificationChannel.userId,
+          address: schema.userNotificationChannel.address,
+          secret: schema.userNotificationChannel.secret,
+          localeCode: schema.userNotificationChannel.localeCode,
+        })
+        .from(schema.userNotificationChannel)
+        .where(
+          and(
+            inArray(schema.userNotificationChannel.userId, batch),
+            eq(schema.userNotificationChannel.channelCode, "PUSH"),
+            eq(schema.userNotificationChannel.isEnabled, true),
+          ),
         ),
-      ),
-    db
-      .select({ userId: schema.userNotificationPreference.userId })
-      .from(schema.userNotificationPreference)
-      .where(
-        and(
-          inArray(schema.userNotificationPreference.userId, userIds),
-          eq(schema.userNotificationPreference.notificationTypeCode, typeCode),
-          eq(schema.userNotificationPreference.channelCode, "PUSH"),
-          eq(schema.userNotificationPreference.isEnabled, false),
+    ),
+    // Batched for the same reason, and it matters more here: this is the mute
+    // list, so a failed query is not "nobody is muted" — the statement throws
+    // and the whole send dies.
+    inBatches(userIds, (batch) =>
+      db
+        .select({ userId: schema.userNotificationPreference.userId })
+        .from(schema.userNotificationPreference)
+        .where(
+          and(
+            inArray(schema.userNotificationPreference.userId, batch),
+            eq(schema.userNotificationPreference.notificationTypeCode, typeCode),
+            eq(schema.userNotificationPreference.channelCode, "PUSH"),
+            eq(schema.userNotificationPreference.isEnabled, false),
+          ),
         ),
-      ),
+    ),
   ])
 
   const silenced = new Set(optOuts.map((o) => o.userId))
@@ -200,13 +221,39 @@ export async function notify(
     tag: string
     /** The actor. Nobody needs telling about the thing they just did. */
     exclude?: string
+    /**
+     * Deliver a slice, starting after this many recipients.
+     *
+     * One `fetch` goes out per recipient and the Workers subrequest limit is
+     * per request, so a large audience has to be split across messages. The
+     * caller re-enqueues while `remaining` is non-zero — see
+     * ./notify-queue.ts.
+     */
+    offset?: number
+    limit?: number
+    /** Telemetry only: which path produced this. See `push.batch`. */
+    source?: string
   },
-): Promise<{ sent: number; gone: number }> {
+): Promise<{ sent: number; gone: number; remaining: number }> {
   const vapid = vapidFrom(env)
-  if (!vapid) return { sent: 0, gone: 0 }
+  if (!vapid) return { sent: 0, gone: 0, remaining: 0 }
 
-  const devices = await audience(db, args.typeCode, args.targets, args.exclude)
-  if (devices.length === 0) return { sent: 0, gone: 0 }
+  const all = await audience(db, args.typeCode, args.targets, args.exclude)
+  if (all.length === 0) return { sent: 0, gone: 0, remaining: 0 }
+
+  /**
+   * A stable order, so slicing by offset means the same thing across messages.
+   *
+   * Without it the audience query could return rows in a different order on the
+   * second message and a slice would skip some recipients and repeat others.
+   * The repeat is harmless — the tag collapses it — but the skip is a person
+   * who never hears.
+   */
+  const ordered = [...all].sort((a, b) => (a.address < b.address ? -1 : a.address > b.address ? 1 : 0))
+  const offset = args.offset ?? 0
+  const devices = ordered.slice(offset, offset + (args.limit ?? ordered.length))
+  const remaining = Math.max(0, ordered.length - (offset + devices.length))
+  if (devices.length === 0) return { sent: 0, gone: 0, remaining: 0 }
 
   // Rendered once per locale, not once per device: an arena full of followers
   // is still at most three strings.
@@ -220,7 +267,7 @@ export async function notify(
     return made
   }
 
-  return deliver(
+  const result = await deliver(
     db,
     env,
     devices.map((d) => ({
@@ -230,7 +277,9 @@ export async function notify(
     })),
     args.tag,
     args.typeCode,
+    args.source,
   )
+  return { ...result, remaining }
 }
 
 /**
@@ -281,6 +330,8 @@ async function deliver(
    * a row with no type is obviously the test path and not a dropped field.
    */
   typeCode?: NotificationTypeCode,
+  /** Which path produced this batch — "queue" or the sync test button. */
+  source = "sync",
 ): Promise<{ sent: number; gone: number }> {
   const vapid = vapidFrom(env)
   if (!vapid) return { sent: 0, gone: 0 }
@@ -348,7 +399,7 @@ async function deliver(
     // Synchronous, swallows its own errors, and writes at most four points —
     // see `write` in src/analytics.ts. It cannot throw into the send path and
     // adds no latency. A no-op when ANALYTICS is unbound.
-    track(env, "push.batch", { type: typeCode ?? "test", service, ...counts })
+    track(env, "push.batch", { type: typeCode ?? "test", service, source, ...counts })
   }
 
   if (dead.length > 0) {

@@ -1,0 +1,247 @@
+/**
+ * Notification fan-out, off the request path.
+ *
+ * `announce()` in ./games.ts was awaited inside the score mutation, and
+ * `notify` → `deliver` does one `fetch` per recipient to Apple, Google or
+ * Mozilla. So a coach tapping "+2" waited on N HTTP round trips — and N is
+ * bounded by the Workers per-request subrequest limit. A well-followed game
+ * walks into that ceiling and nothing in the code notices: the push simply
+ * stops partway through the audience.
+ *
+ * Now `announce()` enqueues an event and returns, and this resolves the
+ * audience and delivers.
+ *
+ * ## AT-LEAST-ONCE IS SAFE, AND HERE IS WHY
+ *
+ * Queues redeliver. That is fine — and it is fine for one specific reason,
+ * which is load-bearing rather than incidental:
+ *
+ *   **Every push carries a `topic` (push service) and a `tag` (browser), and a
+ *   repeated push with the same tag REPLACES the previous card rather than
+ *   stacking.**
+ *
+ * A duplicate delivery is invisible to the reader. That property is what lets
+ * this be a queue with no idempotency ledger, no "already sent" table and no
+ * dedupe key. It is not a nice-to-have.
+ *
+ * **If anyone makes tags unique per send** — appending a timestamp, a nonce, a
+ * retry counter — this design breaks *silently*: every retry becomes a second
+ * notification on somebody's lock screen, and nothing here will fail. The tag
+ * is built in `announce()` as `score:<gameId>` / `status:<gameId>` and must stay
+ * a function of the event, never of the attempt.
+ *
+ * ## Why the message carries identity, not rendered text
+ *
+ * A queue message must be serialisable and `notify` takes a `render` closure
+ * over the game row. The alternative was to render every locale at enqueue time
+ * and carry the strings.
+ *
+ * Identity won, for three reasons.
+ *
+ * The row is read at consumption, so a `SCORE_UPDATE` renders the score as of
+ * delivery rather than as of the tap. That is *more* correct: the reader wants
+ * to know the score, not the score a few seconds ago, and topic collapsing
+ * makes a slightly-late duplicate harmless.
+ *
+ * `MATCH_END` followed by a correction is the case worth thinking about, and it
+ * lands the same way. Under this design a correction that arrives before
+ * consumption produces a final card with the *corrected* score. Under the
+ * alternative the reader keeps the wrong final permanently, because the next
+ * `status:` push that would replace it may never come.
+ *
+ * And rendering at enqueue means rendering locales nobody in the audience
+ * speaks — `notify` deliberately renders once per locale actually present, and
+ * the audience is not known at enqueue. Doing more work at the moment we are
+ * trying to do less is the wrong direction.
+ *
+ * The row being *gone* at consumption is the one real loss, and it is handled:
+ * a deleted game sends nothing, which is correct.
+ */
+
+import { z } from "zod"
+import { database, type Db } from "./base"
+import { notify } from "./push"
+import { track } from "../analytics"
+import type { Bindings } from "../types"
+import { pick, type Names } from "../domain/names"
+import { m } from "../paraglide/messages.js"
+import type { ReleasedLocale } from "../domain/vocabularies"
+
+/**
+ * One fan-out to perform.
+ *
+ * Validated rather than trusted: a message is input, it survives a deploy, and
+ * a shape from an older version of this Worker can arrive after a new one is
+ * live. A malformed one is acked and reported rather than retried forever —
+ * see `handleNotification`.
+ */
+export const NotificationJob = z.object({
+  typeCode: z.enum(["MATCH_START", "MATCH_END", "SCORE_UPDATE"]),
+  gameId: z.string().min(1),
+  /** Excluded from the audience: nobody needs telling about their own tap. */
+  actorId: z.string().min(1),
+  /** When the event happened, for telemetry. Not used for rendering. */
+  occurredAt: z.string(),
+  /**
+   * How many recipients this slice starts after.
+   *
+   * Chunking is by offset rather than by carrying the remaining addresses,
+   * because a push endpoint is a device identifier and a queue is not somewhere
+   * to put a list of them.
+   */
+  offset: z.number().int().min(0).default(0),
+})
+export type NotificationJob = z.infer<typeof NotificationJob>
+
+/**
+ * Recipients per message.
+ *
+ * The Workers subrequest limit is the thing being defended against, and one
+ * `fetch` goes out per recipient. Comfortably under it, so a slice can also
+ * afford the D1 reads and the re-enqueue.
+ */
+export const CHUNK = 100
+
+/** What one message did, so the caller can decide and the tests can assert. */
+export type JobOutcome =
+  | { done: true; sent: number; gone: number; remaining: number }
+  /** Nothing to do — a deleted game, or an audience already exhausted. */
+  | { done: true; sent: 0; gone: 0; remaining: 0; why: string }
+
+/**
+ * Perform one slice of one fan-out.
+ *
+ * A plain function taking what it needs, so it runs under vitest-pool-workers
+ * with no queue runtime: the tests drive this directly and the `queue` handler
+ * in src/index.ts is a thin shell around it.
+ *
+ * Re-enqueues the remainder itself when there is one. That keeps "how big is a
+ * slice" in one place, next to the reason it exists.
+ */
+export async function runNotificationJob(
+  db: Db,
+  env: Bindings,
+  job: NotificationJob,
+): Promise<JobOutcome> {
+  const row = await db.query.game.findFirst({
+    where: (g, { eq }) => eq(g.id, job.gameId),
+    with: {
+      homeTeam: { columns: { names: true } },
+      awayTeam: { columns: { names: true } },
+      event: { columns: { id: true, names: true } },
+    },
+  })
+  // Deleted between the tap and the delivery. Nothing to say, and retrying will
+  // not bring it back — so this is a success, not a failure.
+  if (!row) return { done: true, sent: 0, gone: 0, remaining: 0, why: "game is gone" }
+
+  const game = row as typeof row & {
+    homeTeam?: { names: Names } | null
+    awayTeam?: { names: Names } | null
+    event?: { id: string; names: Names } | null
+  }
+  const args = {
+    homeScore: String(game.homeScore ?? 0),
+    awayScore: String(game.awayScore ?? 0),
+  }
+
+  const result = await notify(db, env, {
+    typeCode: job.typeCode,
+    targets: [
+      { objectTypeCode: "GAME", objectId: job.gameId },
+      ...(game.eventId ? [{ objectTypeCode: "EVENT" as const, objectId: game.eventId }] : []),
+      ...(game.homeTeamId ? [{ objectTypeCode: "TEAM" as const, objectId: game.homeTeamId }] : []),
+      ...(game.awayTeamId ? [{ objectTypeCode: "TEAM" as const, objectId: game.awayTeamId }] : []),
+    ],
+    // A function of the event, never of the attempt — see the note at the top
+    // of this file. This is what makes redelivery invisible.
+    tag: `${job.typeCode === "SCORE_UPDATE" ? "score" : "status"}:${job.gameId}`,
+    exclude: job.actorId,
+    offset: job.offset,
+    limit: CHUNK,
+    source: "queue",
+    render: (locale: ReleasedLocale) => {
+      const home = pick(game.homeTeam?.names, locale)
+      const away = pick(game.awayTeam?.names, locale)
+      const event = pick(game.event?.names, locale)
+      const url = `#/games/${job.gameId}`
+      if (job.typeCode === "MATCH_START") {
+        return {
+          title: m.push_match_start_title({ home, away }, { locale }),
+          body: m.push_match_start_body({ event }, { locale }),
+          url,
+        }
+      }
+      if (job.typeCode === "MATCH_END") {
+        return {
+          title: m.push_match_end_title({ home, away, ...args }, { locale }),
+          body: m.push_match_end_body({ event }, { locale }),
+          url,
+        }
+      }
+      return {
+        title: m.push_score_title({ home, away, ...args }, { locale }),
+        body: m.push_score_body({ event }, { locale }),
+        url,
+      }
+    },
+  })
+
+  /**
+   * The remainder, as its own message.
+   *
+   * Re-enqueued rather than looped, so one message can never approach the
+   * subrequest limit however popular a team becomes — which is the whole reason
+   * this is a queue and not a `waitUntil`.
+   */
+  if (result.remaining > 0 && env.NOTIFICATIONS) {
+    await env.NOTIFICATIONS.send({ ...job, offset: job.offset + CHUNK })
+  }
+
+  return { done: true, sent: result.sent, gone: result.gone, remaining: result.remaining }
+}
+
+/**
+ * One message, and what to tell the queue about it.
+ *
+ * `notify` swallows its own failures so it cannot fail the write it follows.
+ * Inside a consumer that would be exactly wrong: swallowing tells the queue the
+ * message succeeded, and a transient D1 outage would silently drop every
+ * notification during it. So the decision is made explicitly here.
+ *
+ *   **ack** — the work is finished, or repeating it cannot help. A malformed
+ *             message (retrying a bad shape three times then dead-lettering it
+ *             is three wasted attempts and a delayed diagnosis), a deleted
+ *             game, and a delivered slice. Individual push failures are already
+ *             counted inside `deliver` and must NOT fail the message: one dead
+ *             endpoint out of a hundred would otherwise re-deliver to the other
+ *             ninety-nine.
+ *   **retry** — the failure is infrastructural and might not repeat: the D1
+ *             read threw, or the re-enqueue did. Redelivery is safe (see the
+ *             tag note above), so retrying costs nothing but a duplicate card
+ *             the reader never sees.
+ */
+export async function handleNotification(
+  env: Bindings,
+  body: unknown,
+): Promise<{ action: "ack" | "retry"; why: string }> {
+  const parsed = NotificationJob.safeParse(body)
+  if (!parsed.success) {
+    // Reported, not retried. A shape that is wrong now is wrong in a minute.
+    track(env, "notify.dead", { reason: "malformed", typeCode: "" })
+    return { action: "ack", why: "malformed message" }
+  }
+
+  try {
+    const outcome = await runNotificationJob(database(env), env, parsed.data)
+    return { action: "ack", why: "why" in outcome ? outcome.why : `sent ${outcome.sent}` }
+  } catch (error) {
+    // Infrastructural. Let the queue try again; after max_retries it lands in
+    // the DLQ, whose consumer makes it visible.
+    track(env, "notify.dead", {
+      reason: error instanceof Error ? error.name : "unknown",
+      typeCode: parsed.data.typeCode,
+    })
+    return { action: "retry", why: error instanceof Error ? error.message : "unknown" }
+  }
+}

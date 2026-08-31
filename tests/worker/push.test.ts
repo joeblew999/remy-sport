@@ -24,6 +24,8 @@ import { drizzle } from "drizzle-orm/d1"
 import { eq } from "drizzle-orm"
 import * as schema from "../../src/db/schema"
 import { notify } from "../../src/api/push"
+import { runNotificationJob, handleNotification, CHUNK } from "../../src/api/notify-queue"
+import type { Bindings } from "../../src/types"
 import { actorFor, api, signIn } from "./helpers"
 import { SEED_ENTITIES } from "../../src/domain/model/entities"
 import { teamsCoachedBy } from "../helpers/fixtures"
@@ -386,15 +388,22 @@ describe("Web Push delivery", () => {
   })
 
   /**
-   * The whole path, over HTTP: a referee enters a score and a spectator's phone
-   * lights up with the right words in the right language.
+   * The whole path, in the two halves it now has.
    *
-   * Everything above tests `notify` directly. This is the only test that proves
-   * the trigger is *wired* — that `enterScore` calls it, with this game's teams
-   * and event as targets, and that the copy is the model's rather than a
-   * hardcoded string. Wiring is exactly what silently goes missing.
+   * Delivery moved onto a queue, so entering a score no longer sends anything
+   * synchronously — that is the entire point of the change, and the first
+   * assertion here is the regression guard for it: a coach tapping "+2" must
+   * not wait on one HTTP round trip per follower.
+   *
+   * The second half drives `runNotificationJob` — the consumer's logic as a
+   * plain function, which is why it is a plain function — and keeps every
+   * assertion the end-to-end version made: the payload is decrypted, and the
+   * score, the route and the collapse tag are read out of it. What is no longer
+   * proved here is that the mutation calls the *queue*, because the worker tier
+   * binds none; `announce` early-returns without one, which is deliberate so a
+   * score still saves.
    */
-  it("reaches a follower when a referee enters a live score", async () => {
+  it("does not deliver on the request path, and delivers from the job", async () => {
     const cookie = await signIn(actorFor("ORGANIZER"))
 
     // A game in an event this organiser actually runs. `canSetStatus` is the
@@ -429,7 +438,25 @@ describe("Web Push delivery", () => {
     })
     expect(res.status).toBe(200)
 
-    expect(captured, "entering a live score notified nobody").toHaveLength(1)
+    // The request path is clear. One fetch per recipient used to happen here,
+    // bounded by the Workers subrequest limit.
+    expect(
+      captured,
+      "the score mutation must not deliver push synchronously any more",
+    ).toHaveLength(0)
+
+    // And the job the queue would carry does the work.
+    const outcome = await runNotificationJob(db(), env as unknown as Bindings, {
+      typeCode: "SCORE_UPDATE",
+      gameId: game.id,
+      // The organiser entered the score, so they are excluded; the fan is not.
+      actorId: "usr_org_001",
+      occurredAt: new Date().toISOString(),
+      offset: 0,
+    })
+    expect(outcome.sent, "the job notified nobody").toBe(1)
+
+    expect(captured, "the consumer delivered nothing").toHaveLength(1)
     const payload = (await receive(device, captured[0]!.body)) as {
       title: string
       url: string
@@ -470,8 +497,20 @@ describe("Web Push delivery", () => {
       cookie,
     })
 
-    // Fixing a typo in last week's result must not wake anyone at midnight.
-    expect(captured).toHaveLength(0)
+    /**
+     * Fixing a typo in last week's result must not wake anyone at midnight.
+     *
+     * Asserted by tag rather than by count, because delivery is asynchronous
+     * now: the status changes above enqueue, and miniflare runs the consumer
+     * whenever it gets round to it — which can be after the reset. A count is
+     * therefore a race, and it was one.
+     *
+     * The tag is not. A score announcement carries `score:<gameId>` and a
+     * status change carries `status:<gameId>`, so "no score push went out" is
+     * exactly what this test means and is true regardless of timing.
+     */
+    const scorePushes = captured.filter((c) => c.headers.get("topic")?.startsWith("score:"))
+    expect(scorePushes, "a correction on a finished game must announce nothing").toHaveLength(0)
   })
 
   it("sends a test notification to my devices whether or not I follow anything", async () => {
@@ -832,5 +871,163 @@ describe("Send telemetry", () => {
     expect(blobs).not.toContain("SECRET-DEVICE-PATH")
     expect(blobs).not.toContain(sub.endpoint)
     expect(blobs).not.toContain(user)
+  })
+})
+
+/**
+ * The queue consumer.
+ *
+ * Driven directly rather than through a queue runtime — which is why
+ * `runNotificationJob` and `handleNotification` are plain exported functions.
+ */
+describe("Notification fan-out as a job", () => {
+  /** A queue that records what was sent to it, standing in for the binding. */
+  const fakeQueue = () => {
+    const sent: unknown[] = []
+    return {
+      sent,
+      binding: { send: async (body: unknown) => void sent.push(body) } as unknown as Bindings["NOTIFICATIONS"],
+    }
+  }
+
+  const envWith = (q: Bindings["NOTIFICATIONS"]) =>
+    ({ ...(env as unknown as Record<string, unknown>), NOTIFICATIONS: q }) as unknown as Bindings
+
+  it("delivers a slice and re-enqueues the remainder", async () => {
+    // More followers than one message may deliver to. The subrequest limit is
+    // the thing being defended against: one fetch goes out per recipient.
+    /**
+     * Followed by TEAM, not by GAME.
+     *
+     * `RECEIVE_ACTION` in src/api/push.ts maps TEAM, EVENT and PLAYER — the
+     * model defines no RECEIVE_GAME_NOTIFICATIONS — so a direct game follow
+     * resolves to nobody and this test would have measured the seeded audience
+     * instead of its own. Worth knowing: announce()'s GAME target reaches
+     * nobody today.
+     */
+    const game = { id: "gam_001", teamId: "team_001" }
+    for (let i = 0; i < CHUNK + 5; i++) {
+      const u = await makeUser(`chunk-${i}`)
+      await registerDevice(u, await subscriber(`https://push.test/chunk-${i}`), "en")
+      await follows(u, "TEAM", game.teamId)
+    }
+
+    const q = fakeQueue()
+    captured = []
+    const first = await runNotificationJob(db(), envWith(q.binding), {
+      typeCode: "SCORE_UPDATE",
+      gameId: game.id,
+      actorId: "nobody",
+      occurredAt: new Date().toISOString(),
+      offset: 0,
+    })
+
+    // Capped, not exact: this file shares one database across its tests, so the
+    // seeded audience rides along. What matters is the cap and the remainder.
+    expect(first.sent, "one message must not exceed the chunk").toBe(CHUNK)
+    expect(first.remaining, "there must be a remainder to carry").toBeGreaterThanOrEqual(5)
+    // The remainder is a message, not a loop: one job can never approach the
+    // subrequest limit however popular a team becomes.
+    expect(q.sent).toHaveLength(1)
+    expect(q.sent[0]).toMatchObject({ gameId: game.id, offset: CHUNK })
+
+    captured = []
+    const second = await runNotificationJob(db(), envWith(q.binding), q.sent[0] as never)
+    expect(second.sent, "the second slice delivered the remainder").toBe(first.remaining)
+    expect(second.remaining).toBe(0)
+    // And no third message, because there is nothing left.
+    expect(q.sent).toHaveLength(1)
+  })
+
+  /**
+   * The property the whole design rests on.
+   *
+   * Queues redeliver, and that is safe *only* because a repeated push with the
+   * same tag replaces the previous card rather than stacking. If the tag ever
+   * becomes unique per send, every retry becomes a second notification and
+   * nothing in the code fails.
+   */
+  it("uses a tag that is a function of the event, not of the attempt", async () => {
+    await db().insert(schema.game).values({
+      id: "gam_tag",
+      eventId: "evt_001",
+      homeTeamId: "team_001",
+      awayTeamId: "team_003",
+      startsAt: new Date().toISOString(),
+      statusCode: "LIVE",
+    }).onConflictDoNothing()
+
+    const job = {
+      typeCode: "SCORE_UPDATE" as const,
+      gameId: "gam_tag",
+      actorId: "nobody",
+      occurredAt: new Date().toISOString(),
+      offset: 0,
+    }
+    captured = []
+    await runNotificationJob(db(), env as unknown as Bindings, job)
+    await runNotificationJob(db(), env as unknown as Bindings, job)
+
+    expect(captured.length, "both attempts delivered").toBeGreaterThan(0)
+    const topics = new Set(captured.map((c) => c.headers.get("topic")))
+    // One value across every delivery of both attempts. The second card
+    // replaces the first rather than stacking, which is what makes redelivery
+    // invisible and this design safe without an idempotency ledger.
+    expect([...topics]).toEqual(["score:gam_tag"])
+  })
+
+  it("says nothing about a game that was deleted before delivery", async () => {
+    const outcome = await runNotificationJob(db(), env as unknown as Bindings, {
+      typeCode: "MATCH_END",
+      gameId: "gam_does_not_exist",
+      actorId: "nobody",
+      occurredAt: new Date().toISOString(),
+      offset: 0,
+    })
+    expect(outcome.sent).toBe(0)
+    expect("why" in outcome && outcome.why).toBe("game is gone")
+  })
+})
+
+describe("What the consumer tells the queue", () => {
+  it("acks a malformed message rather than retrying a bad shape", async () => {
+    // Retrying three times and then dead-lettering it wastes two attempts and
+    // delays the diagnosis. A shape that is wrong now is wrong in a minute.
+    const { action } = await handleNotification(env as unknown as Bindings, { nonsense: true })
+    expect(action).toBe("ack")
+  })
+
+  it("acks a message it completed", async () => {
+    const { action } = await handleNotification(env as unknown as Bindings, {
+      typeCode: "SCORE_UPDATE",
+      gameId: "gam_does_not_exist",
+      actorId: "nobody",
+      occurredAt: new Date().toISOString(),
+    })
+    expect(action).toBe("ack")
+  })
+
+  /**
+   * Swallowing is what `notify` does so it cannot fail the write it follows.
+   * Inside a consumer that is exactly wrong: it tells the queue the message
+   * succeeded, and a transient D1 outage silently drops every notification
+   * during it.
+   */
+  it("retries an infrastructural failure instead of swallowing it", async () => {
+    const broken = {
+      ...(env as unknown as Record<string, unknown>),
+      DB: {
+        prepare() {
+          throw new Error("D1_ERROR: storage unavailable")
+        },
+      },
+    } as unknown as Bindings
+    const { action } = await handleNotification(broken, {
+      typeCode: "SCORE_UPDATE",
+      gameId: "gam_001",
+      actorId: "nobody",
+      occurredAt: new Date().toISOString(),
+    })
+    expect(action, "a transient failure must be retried, not acked").toBe("retry")
   })
 })

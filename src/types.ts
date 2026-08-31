@@ -45,6 +45,27 @@ export type Bindings = {
    */
   ANALYTICS?: AnalyticsEngineDataset
   /**
+   * Notification fan-out — see src/api/notify-queue.ts.
+   *
+   * Optional for the same reason ANALYTICS is: the worker test tier binds no
+   * queue, and `announce()` must degrade to "delivered nothing" rather than
+   * failing the score update it follows. A score that saved but did not notify
+   * is recoverable; a save that failed because a queue was missing is not.
+   */
+  /**
+   * Structural, not `Queue<unknown>`.
+   *
+   * This file is type-checked by the SPA project too — src/web/lib/native-notify.ts
+   * imports `PushBody` from src/api/push.ts, which imports this — and the SPA's
+   * lib has no Workers globals, so naming `Queue` broke `typecheck:spa` with
+   * "Cannot find name 'Queue'".
+   *
+   * `send` is the whole of what this Worker uses, so declaring it is not a
+   * weakening. It also lets a test hand in a recording stub without casting
+   * through the real binding.
+   */
+  NOTIFICATIONS?: { send(body: unknown): Promise<unknown> }
+  /**
    * Web Push identity — `mise run push:keys` generates the pair, and all three
    * are secrets.
    *

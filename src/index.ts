@@ -17,6 +17,9 @@ import devMailRoutes from "./routes/dev-mail"
 import devSessionRoutes from "./routes/dev-sessions"
 import wellKnownRoutes from "./routes/well-known"
 import type { AppEnv } from "./types"
+import { handleNotification } from "./api/notify-queue"
+import { track } from "./analytics"
+import type { Bindings } from "./types"
 
 const app = new Hono<AppEnv>()
 
@@ -191,7 +194,50 @@ app.all("*", (c) => c.env.ASSETS.fetch(c.req.raw))
  */
 export { app }
 
+/**
+ * Notification fan-out, and the dead letter queue that catches what it cannot
+ * do.
+ *
+ * A thin shell: the decision — what acks, what retries, why — is in
+ * `handleNotification`, so it can be driven directly under vitest-pool-workers
+ * with no queue runtime.
+ *
+ * `ack`/`retry` per message rather than letting a throw fail the batch:
+ * max_batch_size is 1 today, and a throw would still be the wrong instrument.
+ * A malformed message must not be retried three times before anyone sees it.
+ */
+async function queue(
+  batch: MessageBatch<unknown>,
+  env: Bindings,
+): Promise<void> {
+  if (batch.queue.endsWith("-dlq")) {
+    /**
+     * Nothing is retried here. This queue exists so a failure is *visible*, and
+     * the way it becomes visible is `notify.dead` beside push.batch — a message
+     * rotting unread in a DLQ is "notifications silently stopped", which is the
+     * failure class this whole design is trying not to have.
+     */
+    for (const message of batch.messages) {
+      const body = message.body as { typeCode?: unknown } | null
+      track(env, "notify.dead", {
+        reason: "dead-letter",
+        typeCode: typeof body?.typeCode === "string" ? body.typeCode : "",
+        attempts: message.attempts,
+      })
+      message.ack()
+    }
+    return
+  }
+
+  for (const message of batch.messages) {
+    const { action } = await handleNotification(env, message.body)
+    if (action === "retry") message.retry()
+    else message.ack()
+  }
+}
+
 export default {
   fetch: app.fetch,
   scheduled,
+  queue,
 }

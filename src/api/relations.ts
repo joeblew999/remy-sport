@@ -124,7 +124,7 @@ const inList = (ids: readonly string[]) =>
  * 28 games is one query, as intended. This only splits the pathological case,
  * and 90 leaves room for the other bindings a statement carries.
  */
-const MAX_IN = 90
+export const MAX_IN = 90
 
 const chunked = <T>(xs: readonly T[]): T[][] => {
   const out: T[][] = []
@@ -133,7 +133,7 @@ const chunked = <T>(xs: readonly T[]): T[][] => {
 }
 
 /** Run a set-wise read in id-sized batches and union the results. */
-async function inBatches<T>(
+export async function inBatches<T>(
   ids: readonly string[],
   read: (batch: string[]) => Promise<T[]>,
 ): Promise<T[]> {
