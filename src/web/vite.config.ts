@@ -113,7 +113,26 @@ export default defineConfig({
   preview: { proxy: {} },
   build: {
     outDir: resolve(__dirname, "../../dist/web"),
-    emptyOutDir: true,
+    /**
+     * Emptied by a one-shot build, never by the watcher.
+     *
+     * `mise run dev` runs this config with `--watch`, and every rebuild used to
+     * delete dist/web before writing it. Anything reading the directory during
+     * that window sees a shell with no bundle — which is not hypothetical: a
+     * whole e2e suite failed on eight specs, and `test:worker:assets` failed
+     * inside `check`, both with the Worker serving a document referencing a
+     * script that was not there. Both read as product regressions.
+     *
+     * `web:build` deferring to the watcher fixed the two builders racing each
+     * other; it cannot fix a reader arriving mid-rebuild, because the window
+     * belongs to the watcher alone. Not emptying removes the window entirely.
+     *
+     * Safe because assets are content-hashed: a superseded bundle keeps its own
+     * name, nothing references it, and dist/web is gitignored build output. A
+     * deploy still gets a clean directory, which is where shipping a stale file
+     * would actually matter.
+     */
+    emptyOutDir: !process.argv.includes("--watch"),
     sourcemap: true,
   },
   server: {

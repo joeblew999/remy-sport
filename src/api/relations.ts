@@ -103,6 +103,200 @@ async function holdsTableRelation(
 }
 
 /**
+ * `IN (?, ?, ?)`, with every value a bound parameter.
+ *
+ * Not `sql`IN ${ids}``: drizzle binds an array as a single parameter, so that
+ * form compiles, runs, matches nothing and fails closed — a permission bug that
+ * looks like a data problem. Written out so the expansion is visible.
+ */
+const inList = (ids: readonly string[]) =>
+  sql`IN (${sql.join(ids.map((id) => sql`${id}`), sql`, `)})`
+
+/**
+ * How many ids may go into one `IN` list.
+ *
+ * SQLite counts every bound parameter against a per-statement limit, and D1
+ * enforces it: asking about a few hundred objects at once fails with "too many
+ * SQL variables" rather than returning a wrong answer. Found by the equivalence
+ * test on the first run, over the full seeded player list.
+ *
+ * The set-wise reads are still per relation rather than per object — a list of
+ * 28 games is one query, as intended. This only splits the pathological case,
+ * and 90 leaves room for the other bindings a statement carries.
+ */
+const MAX_IN = 90
+
+const chunked = <T>(xs: readonly T[]): T[][] => {
+  const out: T[][] = []
+  for (let i = 0; i < xs.length; i += MAX_IN) out.push(xs.slice(i, i + MAX_IN))
+  return out
+}
+
+/** Run a set-wise read in id-sized batches and union the results. */
+async function inBatches<T>(
+  ids: readonly string[],
+  read: (batch: string[]) => Promise<T[]>,
+): Promise<T[]> {
+  const batches = chunked(ids)
+  if (batches.length === 1) return read(batches[0]!)
+  return (await Promise.all(batches.map(read))).flat()
+}
+
+/**
+ * Which of these objects does the user hold this relation on?
+ *
+ * The set-wise form of `holds`, and the reason `/api/games` went from 246ms to
+ * single figures. `holds` asks about one object and costs one or two queries;
+ * asking it in a loop is what a list endpoint was doing, so a schedule of 28
+ * games cost around 700 reads for four permissions.
+ *
+ * Cost here is per *relation*, not per object: one query for a table relation,
+ * two for a parent one, whether the caller passes three ids or three hundred.
+ *
+ * Bounded by `objectIds` on purpose, rather than returning everything the user
+ * holds and intersecting afterwards. A co-organiser of a long league holds the
+ * relation on thousands of games; a page showing thirty should not read them
+ * all to answer for thirty.
+ */
+export async function heldAmong(
+  db: Db,
+  relationCode: string,
+  user: { id: string; role?: string | null },
+  objectIds: readonly string[],
+): Promise<Set<string>> {
+  const r = RELATION.find((x) => x.code === relationCode)
+  if (!r || objectIds.length === 0) return new Set()
+
+  // No object condition to apply: the relation is true for all of them or none.
+  if (r.via === "everyone") return new Set(objectIds)
+  if (r.via === "role") {
+    return user.role === STORED_ROLE[r.roleCode as keyof typeof STORED_ROLE]
+      ? new Set(objectIds)
+      : new Set()
+  }
+
+  /**
+   * Inherited from the parent, in two queries instead of two per object.
+   *
+   * `holds` reads one row's parent and recurses. Here the whole parent map is
+   * read at once, the parent relation is answered set-wise over the distinct
+   * parents, and the children are mapped back — so a schedule resolves
+   * `GAME_EVENT_CO_ORGANIZER` for every game with one read of `games` and one
+   * of `event_co_organizers`, however many games there are.
+   *
+   * Depth is bounded by the model, as it is for `holds`: nothing declares a
+   * parent relation whose own parent relation is another one.
+   */
+  if (r.via === "parent") {
+    const src = sql.identifier(tableFor(r.sourceTable!))
+    const idCol = sql.identifier(r.objectColumn!)
+    const fk = sql.identifier(r.throughColumn!)
+    const rows = await inBatches(objectIds, (batch) =>
+      db.all<{ id: string; parent: string | null }>(
+        sql`SELECT ${src}.${idCol} AS "id", ${src}.${fk} AS "parent"
+            FROM ${src} WHERE ${src}.${idCol} ${inList(batch)}`,
+      ),
+    )
+    const parents = [...new Set(rows.map((row) => row.parent).filter((p): p is string => !!p))]
+    if (parents.length === 0) return new Set()
+
+    const heldParents = await heldAmong(db, r.parentRelation!, user, parents)
+    return new Set(rows.filter((row) => row.parent && heldParents.has(row.parent)).map((row) => row.id))
+  }
+
+  if (r.via !== "table" || !r.sourceTable || !r.userColumn || !r.objectColumn) return new Set()
+
+  // The same SQL `holdsTableRelation` builds, with `= ?` widened to `IN` and the
+  // object column selected rather than discarded.
+  const src = sql.identifier(tableFor(r.sourceTable))
+  const objCol = sql.identifier(column(r.sourceTable, r.objectColumn))
+  const userCol = sql.identifier(column(r.sourceTable, r.userColumn))
+
+  let from = sql`${src}`
+  const extra: ReturnType<typeof sql>[] = []
+
+  if (r.throughTable) {
+    const through = sql.identifier(tableFor(r.throughTable))
+    const fk = sql.identifier(r.throughColumn!)
+    from = sql`${src} JOIN ${through} ON ${through}.${sql.identifier("id")} = ${src}.${fk}`
+    extra.push(sql`${through}.${userCol} = ${user.id}`)
+  } else {
+    extra.push(sql`${src}.${userCol} = ${user.id}`)
+  }
+
+  if (r.filterColumn) {
+    extra.push(sql`${src}.${sql.identifier(r.filterColumn)} = ${r.filterValue}`)
+  }
+  if (r.activeToColumn) {
+    // Historic spells must not still grant the relation: empty means current.
+    const to = sql.identifier(r.activeToColumn)
+    const today = new Date().toISOString().slice(0, 10)
+    extra.push(sql`(${src}.${to} IS NULL OR ${src}.${to} >= ${today})`)
+  }
+
+  const rows = await inBatches(objectIds, (batch) =>
+    db.all<{ objectId: string }>(
+      sql`SELECT DISTINCT ${src}.${objCol} AS "objectId"
+          FROM ${from}
+          WHERE ${sql.join([sql`${src}.${objCol} ${inList(batch)}`, ...extra], sql` AND `)}`,
+    ),
+  )
+  return new Set(rows.map((row) => row.objectId))
+}
+
+/**
+ * The events these objects belong to, for the grants that narrow by subtype.
+ *
+ * `eventIdFor` one row at a time, in a single read. For an EVENT action the
+ * object is its own event and no query happens at all.
+ */
+export async function eventIdsFor(
+  db: Db,
+  action: string,
+  objectIds: readonly string[],
+): Promise<Map<string, string | null>> {
+  const a = ACTION.find((x) => x.code === action)
+  const type = OBJECT_TYPE.find((t) => t.code === a?.objectTypeCode)
+  const empty = new Map(objectIds.map((id) => [id, null as string | null]))
+  if (!type) return empty
+  if (type.code === "EVENT") return new Map(objectIds.map((id) => [id, id]))
+  if (type.parentTypeCode !== "EVENT" || !type.tableName || objectIds.length === 0) return empty
+
+  const src = sql.identifier(tableFor(type.tableName))
+  const fk = sql.identifier(type.parentColumn!)
+  const rows = await inBatches(objectIds, (batch) =>
+    db.all<{ id: string; parent: string | null }>(
+      sql`SELECT ${src}.${sql.identifier("id")} AS "id", ${src}.${fk} AS "parent"
+          FROM ${src} WHERE ${src}.${sql.identifier("id")} ${inList(batch)}`,
+    ),
+  )
+  const found = new Map(rows.map((row) => [row.id, row.parent]))
+  return new Map(objectIds.map((id) => [id, found.get(id) ?? null]))
+}
+
+/**
+ * The subtype of each of these events, in one read.
+ *
+ * The narrowing grants ask "is this a CAMP" — `eventTypes: ["CAMP", "SHOWCASE"]`
+ * on `REGISTER_PLAYER_FOR_EVENT`, for one. Resolved once for a whole list.
+ */
+export async function eventTypesOf(
+  db: Db,
+  eventIds: readonly string[],
+): Promise<Map<string, string>> {
+  if (eventIds.length === 0) return new Map()
+  const events = sql.identifier(tableFor("events"))
+  const rows = await inBatches(eventIds, (batch) =>
+    db.all<{ id: string; typeCode: string }>(
+      sql`SELECT ${events}.${sql.identifier("id")} AS "id",
+                 ${events}.${sql.identifier("type_code")} AS "typeCode"
+          FROM ${events} WHERE ${events}.${sql.identifier("id")} ${inList(batch)}`,
+    ),
+  )
+  return new Map(rows.map((row) => [row.id, row.typeCode]))
+}
+
+/**
  * The inverse: everyone who holds this relation on this object.
  *
  * `holds` asks "is this one person a coach of that team". This asks "who are

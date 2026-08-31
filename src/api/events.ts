@@ -19,7 +19,7 @@ import { clean, pivot } from "../domain/names"
 import { z } from "zod"
 import { CreateEventInput, EventSchema, UpdateEventInput } from "../domain/api"
 import { ERRORS } from "./errors"
-import { authed, authedRoute, can, found, openTo, requireAction, viewer, viewerTimezone, type Db, type SessionUser } from "./base"
+import { authed, authedRoute, can, canAll, found, openTo, requireAction, viewer, viewerTimezone, type Db, type SessionUser } from "./base"
 
 const IdInput = z.object({ id: z.string() })
 
@@ -162,12 +162,43 @@ function load(db: Db) {
  * at the boundary. Values are constrained on the way in by the input schemas
  * and by the foreign keys migration 0009 added.
  */
-async function serialize(
+/**
+ * What the reader may do with each event in a list, resolved per action.
+ *
+ * These were three `can` calls per row. The comment that used to sit beside
+ * them said a season of thousands "would not be" an honest cost, and that the
+ * fix was to answer it in one query — this is that. Four events cost three
+ * reads instead of twelve; four hundred cost the same three.
+ */
+interface EventPermissions {
+  edit: Set<string>
+  invite: Set<string>
+  remove: Set<string>
+}
+
+const NO_PERMISSIONS: EventPermissions = { edit: new Set(), invite: new Set(), remove: new Set() }
+
+async function permissionsFor(
   db: Db,
   user: SessionUser | null,
+  eventIds: string[],
+): Promise<EventPermissions> {
+  if (eventIds.length === 0) return NO_PERMISSIONS
+  const [edit, invite, remove] = await Promise.all([
+    canAll(db, "EDIT_EVENT", user, eventIds),
+    // Not the same grant, and deliberately asked separately — see the note on
+    // the schema field. EDIT_EVENT admits CO_ORGANIZER; these two do not.
+    canAll(db, "INVITE_CO_ORGANIZER", user, eventIds),
+    canAll(db, "DELETE_EVENT", user, eventIds),
+  ])
+  return { edit, invite, remove }
+}
+
+function serialize(
   row: typeof schema.event.$inferSelect & { organizer?: { name: string } | null },
   facts: EventFacts = EMPTY,
-): Promise<ApiEvent> {
+  may: EventPermissions = NO_PERMISSIONS,
+): ApiEvent {
   const { organizer, createdAt, updatedAt, typeCode, formatCode, ...rest } = row
   return {
     ...rest,
@@ -176,18 +207,10 @@ async function serialize(
     organizerName: organizer?.name ?? null,
     createdAt: createdAt.toISOString(),
     updatedAt: updatedAt.toISOString(),
-    // One `can` per event, the same honest cost games pays for a per-game
-    // permission. A list of a few dozen is a few dozen extra reads; a season of
-    // thousands would not be, and the fix then is to answer it in one query —
-    // the relations are all derivable in SQL — not to move the decision into
-    // the client.
-    canEdit: await can(db, "EDIT_EVENT", user, row.id),
-    // Not the same grant, and deliberately asked separately — see the note on
-    // the schema field.
-    canInviteCoOrganizer: await can(db, "INVITE_CO_ORGANIZER", user, row.id),
-    // Nor this one: OWNER and PLATFORM_ADMIN, where EDIT_EVENT also admits
-    // CO_ORGANIZER.
-    canDelete: await can(db, "DELETE_EVENT", user, row.id),
+    // Read from an answer prepared for the whole list — see permissionsFor.
+    canEdit: may.edit.has(row.id),
+    canInviteCoOrganizer: may.invite.has(row.id),
+    canDelete: may.remove.has(row.id),
     ...facts,
   }
 }
@@ -207,15 +230,15 @@ export const list = viewer
   .output(z.object({ events: z.array(EventSchema), canCreate: z.boolean() }))
   .handler(async ({ context }) => {
     const rows = await load(context.db)
-    const facts = await factsFor(
-      context.db,
-      rows.map((r) => r.id),
-    )
+    const ids = rows.map((r) => r.id)
+    const [facts, may, canCreate] = await Promise.all([
+      factsFor(context.db, ids),
+      permissionsFor(context.db, context.user, ids),
+      can(context.db, "CREATE_EVENT", context.user, null),
+    ])
     return {
-      events: await Promise.all(
-        rows.map((row) => serialize(context.db, context.user, row, facts.get(row.id))),
-      ),
-      canCreate: await can(context.db, "CREATE_EVENT", context.user, null),
+      events: rows.map((row) => serialize(row, facts.get(row.id), may)),
+      canCreate,
     }
   })
 
@@ -231,8 +254,11 @@ export const get = viewer
         with: { organizer: { columns: { name: true } } },
       }),
     )
-    const facts = await factsFor(context.db, [row.id])
-    return serialize(context.db, context.user, row, facts.get(row.id))
+    const [facts, may] = await Promise.all([
+      factsFor(context.db, [row.id]),
+      permissionsFor(context.db, context.user, [row.id]),
+    ])
+    return serialize(row, facts.get(row.id), may)
   })
 
 /**
@@ -289,10 +315,13 @@ export const create = authed
     }
     await context.db.insert(schema.event).values(row)
     // The creator is the organizer, so the display name needs no round trip.
-    return serialize(context.db, context.user, {
-      ...row,
-      organizer: context.user.name ? { name: context.user.name } : null,
-    })
+    // The permissions do: they are the organiser's own, and asking is cheaper
+    // than asserting them here and being wrong the day a grant changes.
+    return serialize(
+      { ...row, organizer: context.user.name ? { name: context.user.name } : null },
+      undefined,
+      await permissionsFor(context.db, context.user, [row.id]),
+    )
   })
 
 export const update = authed
@@ -339,8 +368,11 @@ export const update = authed
     // update used to answer with `teamCount: 0` for an event with fifteen
     // teams — invisible on screen because the client refetches, and wrong in
     // the response an API consumer would read.
-    const facts = await factsFor(context.db, [row.id])
-    return serialize(context.db, context.user, row, facts.get(row.id))
+    const [facts, may] = await Promise.all([
+      factsFor(context.db, [row.id]),
+      permissionsFor(context.db, context.user, [row.id]),
+    ])
+    return serialize(row, facts.get(row.id), may)
   })
 
 export const remove = authed

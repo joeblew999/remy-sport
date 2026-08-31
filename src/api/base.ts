@@ -15,11 +15,16 @@
 
 import { ORPCError, os } from "@orpc/server"
 import type { OpenAPIV3_1 } from "openapi-types"
-import { eq } from "drizzle-orm"
-import * as schema from "../db/schema"
 import { GRANTS } from "../domain/vocabularies"
 import { database, type Db } from "./db"
-import { eventIdFor, holds, objectExists, objectTableFor } from "./relations"
+import {
+  eventIdsFor,
+  eventTypesOf,
+  heldAmong,
+  holds,
+  objectExists,
+  objectTableFor,
+} from "./relations"
 import { createAuth } from "../auth"
 import type { Bindings } from "../types"
 
@@ -197,6 +202,121 @@ const defaultId = (input: { id?: string }) => input.id ?? ""
  * event that is. Where the object's own type declares an EVENT parent — a game
  * — it is derived instead and this stays undefined.
  */
+type Grant = { relation: string; eventTypes: readonly string[] }
+
+const grantsFor = (action: keyof typeof GRANTS) =>
+  (GRANTS[action] ?? []) as ReadonlyArray<Grant>
+
+/**
+ * The grants that need no object: a role comparison, no query.
+ *
+ * `CREATE_EVENT` is the shape — a PLATFORM action, granted to ANY_ORGANIZER and
+ * PLATFORM_ADMIN, with nothing to be in a relation *to*. Answered first because
+ * when it is true nothing else needs asking, whatever the object.
+ */
+async function holdsPlatformGrant(
+  db: Db,
+  action: keyof typeof GRANTS,
+  viewer: { id: string; role?: string | null },
+): Promise<boolean> {
+  for (const g of grantsFor(action)) {
+    if (!g.eventTypes.length && (await holds(db, g.relation, viewer, null))) return true
+  }
+  return false
+}
+
+/**
+ * Which of these objects may the user act on?
+ *
+ * The list form, and the one that does the work — `can` is this with a single
+ * id. Two implementations of authorisation that could disagree would be a worse
+ * outcome than any latency, so there is one.
+ *
+ * ## Why this exists
+ *
+ * `/api/games?eventId=evt_002` took **246ms** for 28 rows, against 11ms for the
+ * four rows of `/api/events`. Stubbing `can` took it to 10ms, so ~96% of it was
+ * here. The cost was structural rather than slow code: `serialize` asks four
+ * questions per game, every grant on them names `GAME_EVENT_OWNER` or
+ * `GAME_EVENT_CO_ORGANIZER` — `via: "parent"`, so a hop to the event and a join
+ * — and each also narrows by `eventTypes`, which resolved the subtype again per
+ * call. Around 700 reads to render one schedule.
+ *
+ * Nothing here is per row. The parents resolve in one query, their subtypes in
+ * one more, and each relation answers for the whole list at once through
+ * `heldAmong`. A schedule costs about six reads whatever its length.
+ *
+ * The comment this replaces said the fix "then is to answer it in one query —
+ * the relations are all derivable in SQL — not to move the decision into the
+ * client". That is what this is; the decision has not moved.
+ */
+export async function canAll(
+  db: Db,
+  action: keyof typeof GRANTS,
+  user: SessionUser | null,
+  objectIds: readonly string[],
+  eventContext?: string | null,
+): Promise<Set<string>> {
+  const grants = grantsFor(action)
+  // Fails closed: an action with no grants permits nobody.
+  if (!grants.length || objectIds.length === 0) return new Set()
+
+  const viewer = user ?? { id: "", role: null }
+
+  // True for every object or none of them, and cheapest to ask.
+  if (await holdsPlatformGrant(db, action, viewer)) return new Set(objectIds)
+
+  const ids = [...new Set(objectIds)]
+
+  /**
+   * Some grants apply only to certain event subtypes — a camp has no brackets
+   * to generate. Resolved once for the whole list, and only if one asks.
+   *
+   * The event is not always the object: a GAME action carries a game id and the
+   * subtype belongs to the event above it. `eventIdsFor` reads that hop off the
+   * model rather than assuming the two are the same, which is what once silently
+   * denied ENTER_SCORES to everybody.
+   */
+  let subtypeOf: Map<string, string | null> = new Map()
+  if (grants.some((g) => g.eventTypes.length)) {
+    const eventOf =
+      eventContext !== undefined
+        ? new Map(ids.map((id) => [id, eventContext]))
+        : await eventIdsFor(db, action, ids)
+    const eventIds = [...new Set([...eventOf.values()].filter((e): e is string => !!e))]
+    const types = await eventTypesOf(db, eventIds)
+    subtypeOf = new Map(
+      ids.map((id) => {
+        const eventId = eventOf.get(id)
+        return [id, eventId ? (types.get(eventId) ?? null) : null]
+      }),
+    )
+  }
+
+  const allowed = new Set<string>()
+  for (const g of grants) {
+    // Narrowed grants only apply to the rows whose subtype matches, so the
+    // relation is asked about those and no others.
+    const scope = g.eventTypes.length
+      ? ids.filter((id) => {
+          const subtype = subtypeOf.get(id)
+          return !!subtype && g.eventTypes.includes(subtype)
+        })
+      : ids
+    const remaining = scope.filter((id) => !allowed.has(id))
+    if (remaining.length === 0) continue
+    for (const id of await heldAmong(db, g.relation, viewer, remaining)) allowed.add(id)
+  }
+  return allowed
+}
+
+/**
+ * May this user do this to this object?
+ *
+ * `canAll` with one id, so there is a single set of rules rather than a pair
+ * that can drift. `objectId` is null for a PLATFORM action, where there is
+ * nothing to be in a relation to and only the role grants can answer.
+ */
 export async function can(
   db: Db,
   action: keyof typeof GRANTS,
@@ -204,47 +324,11 @@ export async function can(
   objectId: string | null,
   eventContext?: string | null,
 ): Promise<boolean> {
-  const grants = GRANTS[action] as ReadonlyArray<{
-    relation: string
-    eventTypes: readonly string[]
-  }>
-  // Fails closed: an action with no grants permits nobody.
-  if (!grants?.length) return false
-
-  const viewer = user ?? { id: "", role: null }
-
-  // Platform relations first: a role comparison, no object and no query.
-  for (const g of grants) {
-    if (!g.eventTypes.length && (await holds(db, g.relation, viewer, null))) return true
+  if (!objectId) {
+    if (!grantsFor(action).length) return false
+    return holdsPlatformGrant(db, action, user ?? { id: "", role: null })
   }
-  if (!objectId) return false
-
-  // Some grants apply only to certain event subtypes — a camp has no brackets
-  // to generate. Resolve the subtype once, only if one asks.
-  //
-  // The event is not always the object: a GAME action carries a game id, and the
-  // subtype belongs to the event above it. `eventIdFor` reads that hop off the
-  // model rather than assuming the two are the same, which is what silently
-  // denied ENTER_SCORES to everybody.
-  let subtype: string | null | undefined
-  if (grants.some((g) => g.eventTypes.length)) {
-    const eventId =
-      eventContext !== undefined ? eventContext : await eventIdFor(db, action, objectId)
-    const row = eventId
-      ? await db
-          .select({ typeCode: schema.event.typeCode })
-          .from(schema.event)
-          .where(eq(schema.event.id, eventId))
-          .get()
-      : undefined
-    subtype = row?.typeCode ?? null
-  }
-
-  for (const g of grants) {
-    if (g.eventTypes.length && !(subtype && g.eventTypes.includes(subtype))) continue
-    if (await holds(db, g.relation, viewer, objectId)) return true
-  }
-  return false
+  return (await canAll(db, action, user, [objectId], eventContext)).has(objectId)
 }
 
 /**

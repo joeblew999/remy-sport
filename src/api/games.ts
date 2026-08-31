@@ -28,7 +28,7 @@ import { m } from "../paraglide/messages.js"
 import { notify } from "./push"
 import type { Bindings } from "../types"
 import { ERRORS } from "./errors"
-import { authed, authedRoute, can, found, openTo, requireAction, viewer, viewerTimezone, type Db, type SessionUser } from "./base"
+import { authed, authedRoute, canAll, found, openTo, requireAction, viewer, viewerTimezone, type Db, type SessionUser } from "./base"
 
 const IdInput = z.object({ id: z.string() })
 
@@ -95,12 +95,47 @@ interface GameContext {
   broadcasting: Set<string>
   /** Every referee on the platform, read once. Empty when nobody may assign. */
   allReferees: { userId: string; name: string }[]
+  /**
+   * The four permissions, resolved for the whole list at once.
+   *
+   * These were four `can` calls *per game*, and every grant on them names a
+   * `via: "parent"` relation — so each one hopped to the event and joined, and
+   * each re-resolved the event subtype. A 28-game schedule cost around 700
+   * reads and 246ms. `canAll` answers per relation instead of per row: about
+   * six reads, whatever the length.
+   */
+  mayEnterScore: Set<string>
+  maySetStatus: Set<string>
+  mayAssignReferee: Set<string>
+  mayBroadcast: Set<string>
 }
 
-const NO_CONTEXT: GameContext = { referees: new Map(), broadcasting: new Set(), allReferees: [] }
+const NO_CONTEXT: GameContext = {
+  referees: new Map(),
+  broadcasting: new Set(),
+  allReferees: [],
+  mayEnterScore: new Set(),
+  maySetStatus: new Set(),
+  mayAssignReferee: new Set(),
+  mayBroadcast: new Set(),
+}
 
-async function contextFor(db: Db, gameIds: string[], anyAssign: boolean): Promise<GameContext> {
+async function contextFor(
+  db: Db,
+  gameIds: string[],
+  user: SessionUser | null,
+): Promise<GameContext> {
   if (gameIds.length === 0) return NO_CONTEXT
+
+  // Every permission for every game, four queries' worth rather than four per
+  // row. Asked before the rest because `allReferees` depends on the answer.
+  const [mayEnterScore, maySetStatus, mayAssignReferee, mayBroadcast] = await Promise.all([
+    canAll(db, "ENTER_SCORES", user, gameIds),
+    canAll(db, "CONFIRM_MATCH_STATUS", user, gameIds),
+    canAll(db, "ASSIGN_REFEREE", user, gameIds),
+    canAll(db, "BROADCAST_GAME", user, gameIds),
+  ])
+  const anyAssign = mayAssignReferee.size > 0
 
   const [refs, live, all] = await Promise.all([
     db
@@ -141,17 +176,27 @@ async function contextFor(db: Db, gameIds: string[], anyAssign: boolean): Promis
     else referees.set(r.gameId, [{ userId: r.userId, name: r.name }])
   }
 
-  return { referees, broadcasting: new Set(live.map((l) => l.gameId)), allReferees: all }
+  return {
+    referees,
+    broadcasting: new Set(live.map((l) => l.gameId)),
+    allReferees: all,
+    mayEnterScore,
+    maySetStatus,
+    mayAssignReferee,
+    mayBroadcast,
+  }
 }
 
-async function serialize(
-  db: Db,
-  user: SessionUser | null,
-  row: Row,
-  ctx: GameContext = NO_CONTEXT,
-): Promise<ApiGame> {
+/**
+ * Synchronous now, because every question it used to ask has been answered.
+ *
+ * It made four `can` calls per row; the context carries all four as sets. A
+ * function that reads a prepared answer cannot accidentally reintroduce a query
+ * per row, which is what this was.
+ */
+function serialize(row: Row, ctx: GameContext = NO_CONTEXT): ApiGame {
   const { homeTeam, awayTeam, venue, event, ...rest } = row
-  const assign = await can(db, "ASSIGN_REFEREE", user, row.id)
+  const assign = ctx.mayAssignReferee.has(row.id)
   const onThisGame = ctx.referees.get(row.id) ?? []
   return {
     ...rest,
@@ -159,13 +204,13 @@ async function serialize(
     awayTeamNames: awayTeam?.names ?? {},
     venueNames: venue?.names ?? null,
     timezone: event?.timezone ?? null,
-    canEnterScore: await can(db, "ENTER_SCORES", user, row.id),
-    canSetStatus: await can(db, "CONFIRM_MATCH_STATUS", user, row.id),
+    canEnterScore: ctx.mayEnterScore.has(row.id),
+    canSetStatus: ctx.maySetStatus.has(row.id),
     canAssignReferee: assign,
     // From our table, refreshed by the publisher's heartbeat — see
     // BROADCAST_STALE_SECONDS. A row nobody has touched is not a live game.
     isBroadcasting: ctx.broadcasting.has(row.id),
-    canBroadcast: await can(db, "BROADCAST_GAME", user, row.id),
+    canBroadcast: ctx.mayBroadcast.has(row.id),
     /**
      * Referees not already on this game, and only for someone who may assign
      * one — a global list would be a directory of people.
@@ -179,8 +224,7 @@ async function serialize(
 
 /** One game, with its context fetched for a list of one. */
 async function serializeOne(db: Db, user: SessionUser | null, row: Row): Promise<ApiGame> {
-  const assign = await can(db, "ASSIGN_REFEREE", user, row.id)
-  return serialize(db, user, row, await contextFor(db, [row.id], assign))
+  return serialize(row, await contextFor(db, [row.id], user))
 }
 
 export const list = viewer
@@ -208,10 +252,12 @@ export const list = viewer
     return {
       // One context for the whole list, not two queries per row.
       games: await (async () => {
-        const ids = rows.map((r) => r.id)
-        const assign = ids.length > 0 && (await can(context.db, "ASSIGN_REFEREE", context.user, ids[0]!))
-        const ctx = await contextFor(context.db, ids, assign)
-        return Promise.all(rows.map((r) => serialize(context.db, context.user, r, ctx)))
+        // One context for the whole list, permissions included. The previous
+        // version asked ASSIGN_REFEREE about `ids[0]` and applied the answer to
+        // every row — right for an organiser, wrong for a referee assigned to
+        // one game in the list.
+        const ctx = await contextFor(context.db, rows.map((r) => r.id), context.user)
+        return rows.map((r) => serialize(r, ctx))
       })(),
       // Resolved at the edge, so a page can show "18:00 your time" without
       // asking the browser and without a library. Null under wrangler dev and
