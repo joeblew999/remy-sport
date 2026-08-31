@@ -1,6 +1,6 @@
 import { test, expect } from "./fixture"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { apiEvent } from "../helpers/api-fixtures"
+import { apiEvent, apiGame, type ApiGame } from "../helpers/api-fixtures"
 
 /**
  * The video pages with no relay configured — which is the majority path.
@@ -11,7 +11,7 @@ import { apiEvent } from "../helpers/api-fixtures"
  * "video is not switched on here" look identical to somebody standing in a gym.
  */
 
-const liveGame: Record<string, unknown> = {
+const liveGame = apiGame({
   id: "gam_002",
   eventId: "evt_002",
   homeTeamId: "team_001",
@@ -30,7 +30,7 @@ const liveGame: Record<string, unknown> = {
   canAssignReferee: false,
   referees: [],
   availableReferees: [],
-}
+})
 
 test.describe("Live video, before a relay exists", () => {
   test("the broadcast page says video is not switched on, rather than failing", async ({
@@ -96,12 +96,7 @@ test.describe("Live video, before a relay exists", () => {
  * published. A Watch button therefore appears only where our own data says a
  * camera is pointed at that game.
  */
-const liveGameRow = (over: Record<string, unknown>) => ({
-  ...liveGame,
-  isBroadcasting: false,
-  canBroadcast: false,
-  ...over,
-})
+const liveGameRow = (over: Partial<ApiGame>) => ({ ...liveGame, ...over })
 
 test.describe("Finding a game to watch", () => {
   test("offers Watch only on a game somebody is broadcasting", async ({ page }) => {

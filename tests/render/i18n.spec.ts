@@ -3,7 +3,7 @@ import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { m } from "../../src/web/lib/i18n"
 import { VOCABULARY, LOCALES } from "../../src/domain/vocabularies"
 import { VOCABULARY as REF } from "../../src/domain/vocabularies"
-import { apiEvent } from "../helpers/api-fixtures"
+import { apiEvent, apiReference } from "../helpers/api-fixtures"
 
 /**
  * The bilingual chrome, rendered — with the events handed straight to the cache.
@@ -43,8 +43,8 @@ const event = apiEvent({
  */
 const seeded = (page: Parameters<typeof seedCache>[0]) =>
   seedCache(page, [
-    entry(orpc.events.list, undefined, { events: [event] }),
-    entry(orpc.reference.list, undefined, REF),
+    entry(orpc.events.list, undefined, { events: [event], canCreate: false }),
+    entry(orpc.reference.list, undefined, apiReference(REF)),
   ])
 
 test.describe("Localisation, rendered", () => {
@@ -121,7 +121,7 @@ test.describe("Localisation, rendered", () => {
 test.describe("the document's language attribute", () => {
   for (const locale of LOCALES) {
     test(`is '${locale}' on first load when that is the reader's language`, async ({ page }) => {
-      await seedCache(page, [entry(orpc.events.list, undefined, { events: [event] })])
+      await seedCache(page, [entry(orpc.events.list, undefined, { events: [event], canCreate: false })])
       await page.addInitScript((l) => localStorage.setItem("remy.locale", l), locale)
 
       await page.goto("/#/")
@@ -130,7 +130,7 @@ test.describe("the document's language attribute", () => {
   }
 
   test("follows the switcher afterwards", async ({ page }) => {
-    await seedCache(page, [entry(orpc.events.list, undefined, { events: [event] })])
+    await seedCache(page, [entry(orpc.events.list, undefined, { events: [event], canCreate: false })])
     await page.addInitScript(() => localStorage.setItem("remy.locale", "en"))
 
     await page.goto("/#/")

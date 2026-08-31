@@ -168,3 +168,63 @@ export function apiRoster(over: Partial<ApiRoster> = {}): ApiRoster {
     ...over,
   }
 }
+
+/** Same shape, without the `readonly` a generated `as const` carries. */
+type DeepMutable<T> = T extends readonly (infer U)[]
+  ? DeepMutable<U>[]
+  : T extends object
+    ? { -readonly [K in keyof T]: DeepMutable<T[K]> }
+    : T
+
+/**
+ * The controlled vocabularies, as `reference.list` actually returns them.
+ *
+ * Not `VOCABULARY` itself, which is what the specs were seeding. That constant
+ * is the *model's* shape — it carries `parentTypeCode` and `parentColumn` and
+ * no `nameEn`, `descriptionEn` or `sort`. The endpoint selects from the
+ * vocabulary *tables*, which are the model's fields plus those three. The two
+ * are close enough to look interchangeable and are not, which is why the cast
+ * hiding the difference survived so long.
+ *
+ * Derived rather than written out, so the PO adding a term to the model adds it
+ * here too. `sort` follows array order, which is what the endpoint orders by and
+ * what the model's own ordering means.
+ */
+/**
+ * One vocabulary row as the table stores it.
+ *
+ * The model writes locale maps — `names`, `descriptions`, `fullNames` — and the
+ * table stores an English column beside each of them: `nameEn`, `descriptionEn`,
+ * `fullNameEn`. The rule is uniform (drop the plural, add `En`), so it is
+ * expressed once rather than listed per vocabulary, and a fourth locale map
+ * added to the model needs nothing here.
+ */
+type EnglishOf<K extends string> = K extends `${infer Base}s` ? `${Base}En` : never
+
+type StoredTerm<T> = DeepMutable<T> & { sort: number } & {
+  [K in Extract<keyof T, string> as EnglishOf<K>]: string
+}
+
+type StoredVocabularies<T> = {
+  -readonly [K in keyof T]: T[K] extends readonly (infer U)[] ? StoredTerm<U>[] : never
+}
+
+export function apiReference<T extends Record<string, readonly Record<string, unknown>[]>>(
+  vocabulary: T,
+): StoredVocabularies<T> {
+  const rows = (list: readonly Record<string, unknown>[]) =>
+    list.map((term, i) => {
+      const english: Record<string, string> = {}
+      for (const [key, value] of Object.entries(term)) {
+        // A locale map is the only thing with an `en`. `sort` follows array
+        // order, which is what the endpoint orders by.
+        if (key.endsWith("s") && value && typeof value === "object" && "en" in value) {
+          english[`${key.slice(0, -1)}En`] = String((value as Record<string, string>).en ?? "")
+        }
+      }
+      return { ...structuredClone(term), ...english, sort: i }
+    })
+  return Object.fromEntries(
+    Object.entries(vocabulary).map(([key, list]) => [key, rows(list)]),
+  ) as StoredVocabularies<T>
+}
