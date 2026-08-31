@@ -31,6 +31,38 @@
 
 const BASE = process.env.CF_DEPLOY_URL ?? "https://remy.ubuntusoftware.net"
 
+/**
+ * Where the VAPID keys for *this* host are supposed to come from.
+ *
+ * This used to say "`mise run push:secret:set` has not run" whatever was being
+ * smoke-tested, and that task sets secrets on the **deployed** Worker. The dev
+ * tunnel is not a deployment: `dev-remy.ubuntusoftware.net` is TUNNEL_HOSTNAME
+ * pointing cloudflared at a local `wrangler dev`, so its environment is
+ * `.dev.vars` and no amount of `push:secret:set` will change what it serves.
+ *
+ * A remedy that names the wrong file is worse than none — it sends somebody to
+ * re-run a working deploy step and conclude the bug is elsewhere. So the advice
+ * follows the host actually being tested.
+ */
+function vapidRemedy(): string {
+  const host = (() => {
+    try {
+      return new URL(BASE).hostname
+    } catch {
+      return BASE
+    }
+  })()
+  // TUNNEL_HOSTNAME by name where mise exports it, rather than sniffing a
+  // "dev-" prefix — the tunnel host is configuration, and a deployment free to
+  // rename it should not silently start getting the wrong advice.
+  const tunnel = process.env.TUNNEL_HOSTNAME
+  const local =
+    host === "localhost" || host === "127.0.0.1" || (tunnel ? host === tunnel : host.startsWith("dev-"))
+  return local
+    ? `${host} runs from .dev.vars — run \`mise run dev:vars\` and restart wrangler dev`
+    : "`mise run push:secret:set` has not run for this deployment"
+}
+
 const { SEED_ENTITIES } = await import("../src/domain/model/entities")
 
 let failed = 0
@@ -94,7 +126,7 @@ await check("Web Push is configured and offering a usable key", async () => {
   const res = await get("/api/push/key")
   if (!res.ok) return `expected 200, got ${res.status}`
   const { publicKey } = (await res.json()) as { publicKey: string | null }
-  if (!publicKey) return "no VAPID key — `mise run push:secret:set` has not run"
+  if (!publicKey) return `no VAPID key — ${vapidRemedy()}`
   // 65 bytes base64url: an uncompressed P-256 point. A key of the wrong length
   // is accepted by `subscribe()` on some browsers and rejected on others, so
   // the shape is checked here rather than discovered on somebody's phone.

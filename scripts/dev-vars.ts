@@ -15,6 +15,7 @@
 
 import { randomBytes } from "crypto"
 import { existsSync, readFileSync, writeFileSync } from "fs"
+import { DEFAULT_SUBJECT, generateVapid } from "./vapid"
 
 const DEV_VARS = ".dev.vars"
 
@@ -55,11 +56,66 @@ const present = new Set(
 
 const added: string[] = []
 let out = existing
+const append = (key: string, value: string) => {
+  if (out && !out.endsWith("\n")) out += "\n"
+  out += `${key}="${value}"\n`
+  added.push(key)
+}
+
 for (const [key, make] of Object.entries(DEFAULTS)) {
   if (present.has(key)) continue
-  if (out && !out.endsWith("\n")) out += "\n"
-  out += `${key}="${make()}"\n`
-  added.push(key)
+  append(key, make())
+}
+
+/**
+ * The VAPID keypair, which the scalars above cannot express.
+ *
+ * Web Push was configured once by hand and never again: this script generated
+ * three values, none of them VAPID, and `.dev.vars` is gitignored — so push
+ * worked for whoever set it up and was silently off on every fresh checkout.
+ * `/api/push/key` answered `publicKey: null`, `pushState()` returned
+ * "not-configured", and the profile page rendered "not switched on for this
+ * deployment yet" identically signed in, signed out and in the installed PWA.
+ *
+ * ## Why this is not three entries in DEFAULTS
+ *
+ * The public and private keys are halves of one keypair and only mean anything
+ * together. Filling them in independently — which is what a per-key loop does —
+ * would pair a fresh private key with whatever public key was already there,
+ * and every push would fail to sign for the endpoints browsers had pinned.
+ *
+ * So the pair is handled as a unit, and the three states are distinguished:
+ *
+ *   both present   leave them alone. **Rotating invalidates every subscription**
+ *                  a browser has already pinned — see scripts/vapid.ts.
+ *   both absent    generate one pair and write it.
+ *   one present    refuse. Generating the partner produces a mismatched pair and
+ *                  overwriting the survivor rotates it; both are silent 403s
+ *                  later. A person has to say which they meant.
+ *
+ * `VAPID_SUBJECT` is not cryptographic — it is the contact address a push
+ * service complains to — so it is filled in on its own like any other scalar.
+ */
+const hasPublic = present.has("VAPID_PUBLIC_KEY")
+const hasPrivate = present.has("VAPID_PRIVATE_KEY")
+
+if (hasPublic !== hasPrivate) {
+  console.error(
+    `dev-vars: ${DEV_VARS} has ${hasPublic ? "VAPID_PUBLIC_KEY" : "VAPID_PRIVATE_KEY"} but not ` +
+      `${hasPublic ? "VAPID_PRIVATE_KEY" : "VAPID_PUBLIC_KEY"}.\n` +
+      "  These are halves of one keypair. Generating the missing half would pair it with\n" +
+      "  a key it cannot sign for, and replacing the one that is there rotates it — which\n" +
+      "  invalidates every subscription a browser has already pinned.\n" +
+      `  Delete both lines and rerun to get a fresh pair, or restore the missing one.`,
+  )
+  process.exit(1)
+}
+
+if (!present.has("VAPID_SUBJECT")) append("VAPID_SUBJECT", DEFAULT_SUBJECT)
+if (!hasPublic && !hasPrivate) {
+  const { publicKey, privateKey } = await generateVapid(DEFAULT_SUBJECT)
+  append("VAPID_PUBLIC_KEY", publicKey)
+  append("VAPID_PRIVATE_KEY", privateKey)
 }
 
 if (added.length === 0) {
