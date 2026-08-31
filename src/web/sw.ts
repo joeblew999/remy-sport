@@ -31,18 +31,11 @@ cleanupOutdatedCaches()
 /**
  * What src/api/push.ts sends — the sender's own type, not a copy of it.
  *
- * This was a second declaration of the same four fields, under a comment
- * saying it was "kept in step by tests/unit/push-payload.test.ts". That file
- * has never existed, so nothing kept it in step at all: the two could drift and
- * the only symptom would be a notification with an empty body on somebody's
- * phone.
+ * `import type` erases at build time, so the worker carries no server code;
+ * `mise run check:bundle` asserts that on every run, because a *value* import
+ * from the same module would not erase.
  *
- * `import type` is erased at build time, so the worker bundle gains nothing and
- * pulls in no server code — the same reason src/web/data.ts imports the
- * generated vocabulary this way. One definition, and drift is now a
- * typecheck error rather than something a test would have had to notice.
- *
- * The fields mean:
+ * The two fields that need explaining:
  *   url  hash route to open on tap, e.g. "#/games/abc"
  *   tag  collapse key. A second SCORE_UPDATE for the same game replaces the
  *        first rather than stacking, so a close game does not leave forty

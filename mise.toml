@@ -587,7 +587,7 @@ mise run typecheck:clean ::: test:unit ::: test:worker:assets \
   ::: check:dead ::: check:docs ::: check:authz ::: check:conventions \
   ::: check:seed ::: check:domain ::: check:tables ::: check:assets \
   ::: check:messages ::: check:deps ::: check:i18n ::: i18n:validate \
-  ::: check:notifications ::: check:gui
+  ::: check:notifications ::: check:gui ::: check:bundle
 """
 
 [tasks."test:unit"]
@@ -629,6 +629,18 @@ depends     = ["install"]
 # gets ignored, and then the real finding is ignored with it. Run the full
 # report by hand when you want it:  bun x knip
 run = "bun x knip --include files,unlisted --no-config-hints"
+
+[tasks."check:bundle"]
+description = "The service worker carries no server or app code"
+# depends on the build, not on install: it asserts on dist/web/sw.js.
+#
+# sw.ts imports a type from src/api/push.ts so the worker and the sender cannot
+# drift about the payload. `verbatimModuleSyntax` makes that import provably
+# erasing — but only for the type. Adding a shared *const* to the same module
+# and importing it typechecks fine, and took the worker bundle from 19,791
+# bytes to 387,122 with drizzle in it. See scripts/check-bundle.ts.
+depends     = ["web:build"]
+run         = "bun scripts/check-bundle.ts"
 
 [tasks."check:notifications"]
 description = "Everything the platform sends you can be turned off"

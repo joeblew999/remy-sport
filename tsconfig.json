@@ -24,6 +24,22 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
+    /**
+     * A type import must say `import type`, and is then provably erased.
+     *
+     * src/web/sw.ts imports `PushBody` from src/api/push.ts so the service
+     * worker and the sender cannot drift. That is safe only while the import
+     * erases — a *value* import from src/api would drag drizzle and the Worker
+     * runtime into a bundle that runs on somebody's phone.
+     *
+     * That safety was checked once, by hand, by grepping the built sw.js. This
+     * makes it a build-time invariant instead: the natural temptation is a
+     * shared const alongside the type, and without this nothing would object
+     * until the bundle grew. Zero errors when it was turned on — the codebase
+     * already wrote `import type` everywhere, so this locks in a discipline
+     * rather than imposing one.
+     */
+    "verbatimModuleSyntax": true,
     "noEmit": true,
     "jsx": "react-jsx",
     "jsxImportSource": "hono/jsx",
