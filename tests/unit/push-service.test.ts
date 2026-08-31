@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test"
-import { pushService } from "../../src/api/push"
+import { pushService } from "../../src/api/push-send"
 
 /**
  * Which push service an endpoint belongs to, from the hostname and nothing

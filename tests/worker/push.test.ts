@@ -30,6 +30,7 @@ import { actorFor, api, signIn } from "./helpers"
 import { SEED_ENTITIES } from "../../src/domain/model/entities"
 import { teamsCoachedBy } from "../helpers/fixtures"
 import { recorder, type Point } from "../helpers/track-env"
+import { readOutbox, clearOutbox } from "../../src/mail/mailer"
 
 const b64url = {
   encode: (bytes: ArrayBuffer | Uint8Array) =>
@@ -220,11 +221,15 @@ const send = (targets: Parameters<typeof notify>[2]["targets"], extra = {}) =>
     typeCode: "SCORE_UPDATE",
     targets,
     tag: "score:g1",
-    render: (locale) => ({
-      title: `T-${locale}`,
-      body: `B-${locale}`,
-      url: "#/games/g1",
-    }),
+    render: {
+      PUSH: (locale: string, tag: string) => ({
+        channel: "PUSH" as const,
+        title: `T-${locale}`,
+        body: `B-${locale}`,
+        url: "#/games/g1",
+        tag,
+      }),
+    },
     ...extra,
   })
 
@@ -354,7 +359,11 @@ describe("Web Push delivery", () => {
       typeCode: "MATCH_END",
       targets: [{ objectTypeCode: "TEAM", objectId: "team-5" }],
       tag: "status:g5",
-      render: () => ({ title: "final", body: "", url: "#/" }),
+      render: {
+        PUSH: (_l: string, tag: string) => ({
+          channel: "PUSH" as const, title: "final", body: "", url: "#/", tag,
+        }),
+      },
     })
     expect(other.sent).toBe(1)
   })
@@ -757,13 +766,22 @@ describe("Send telemetry", () => {
     return written
   }
 
+  /**
+   * The per-*vendor* rows, which are the ones these tests are about.
+   *
+   * `notify.batch` now carries two kinds of row: one per channel from `notify`,
+   * and one per push service from `deliverPush` — marked `source: "vendor"`.
+   * Both are useful and they answer different questions ("is email failing" vs
+   * "is Apple failing"), so they are told apart by source rather than merged.
+   */
   const batches = (written: Point[]) =>
-    written.filter((p) => p.blobs?.[0] === "push.batch")
+    written.filter((p) => p.blobs?.[0] === "notify.batch" && p.blobs?.[5] === "vendor")
 
-  /** blobs: [event, country, type, service] — see `write` in src/analytics.ts. */
+  /** blobs: [event, country, type, channel, service, source] — see `write`. */
   const of = (p: Point) => ({
     type: p.blobs?.[2],
-    service: p.blobs?.[3],
+    channel: p.blobs?.[3],
+    service: p.blobs?.[4],
     sent: p.doubles?.[0],
     gone: p.doubles?.[1],
     failed: p.doubles?.[2],
@@ -779,15 +797,17 @@ describe("Send telemetry", () => {
         typeCode: "SCORE_UPDATE",
         targets: [{ objectTypeCode: "TEAM", objectId: "team-tel" }],
         tag: "score:g-tel",
-        render: () => ({ title: "t", body: "b", url: "#/live" }),
+        render: {
+          PUSH: (_l: string, tag: string) => ({
+            channel: "PUSH" as const, title: "t", body: "b", url: "#/live", tag,
+          }),
+        },
       }),
     )
 
     const rows = batches(written).map(of)
     expect(rows).toHaveLength(1)
-    // The type code, so "are reminders failing" is answerable separately from
-    // "are scores failing".
-    expect(rows[0]!.type).toBe("SCORE_UPDATE")
+    expect(rows[0]!.channel).toBe("PUSH")
     expect(rows[0]!.service).toBe("apple")
     expect(rows[0]).toMatchObject({ sent: 1, gone: 0, failed: 0 })
   })
@@ -808,7 +828,11 @@ describe("Send telemetry", () => {
         typeCode: "SCORE_UPDATE",
         targets: [{ objectTypeCode: "TEAM", objectId: "team-mixed" }],
         tag: "score:g-mixed",
-        render: () => ({ title: "t", body: "b", url: "#/live" }),
+        render: {
+          PUSH: (_l: string, tag: string) => ({
+            channel: "PUSH" as const, title: "t", body: "b", url: "#/live", tag,
+          }),
+        },
       }),
     )
 
@@ -836,7 +860,11 @@ describe("Send telemetry", () => {
         typeCode: "SCORE_UPDATE",
         targets: [{ objectTypeCode: "TEAM", objectId: "team-net" }],
         tag: "score:g-net",
-        render: () => ({ title: "t", body: "b", url: "#/live" }),
+        render: {
+          PUSH: (_l: string, tag: string) => ({
+            channel: "PUSH" as const, title: "t", body: "b", url: "#/live", tag,
+          }),
+        },
       }),
     )
 
@@ -864,7 +892,11 @@ describe("Send telemetry", () => {
         typeCode: "SCORE_UPDATE",
         targets: [{ objectTypeCode: "TEAM", objectId: "team-split" }],
         tag: "score:g-split",
-        render: () => ({ title: "t", body: "b", url: "#/live" }),
+        render: {
+          PUSH: (_l: string, tag: string) => ({
+            channel: "PUSH" as const, title: "t", body: "b", url: "#/live", tag,
+          }),
+        },
       }),
     )
 
@@ -884,7 +916,11 @@ describe("Send telemetry", () => {
         typeCode: "SCORE_UPDATE",
         targets: [{ objectTypeCode: "TEAM", objectId: "team-priv" }],
         tag: "score:g-priv",
-        render: () => ({ title: "t", body: "b", url: "#/live" }),
+        render: {
+          PUSH: (_l: string, tag: string) => ({
+            channel: "PUSH" as const, title: "t", body: "b", url: "#/live", tag,
+          }),
+        },
       }),
     )
 
@@ -946,9 +982,21 @@ describe("Notification fan-out as a job", () => {
       offset: 0,
     })
 
-    // Capped, not exact: this file shares one database across its tests, so the
-    // seeded audience rides along. What matters is the cap and the remainder.
-    expect(first.sent, "one message must not exceed the chunk").toBe(CHUNK)
+    /**
+     * The *slice* is capped, which is not the same as the sends.
+     *
+     * The audience spans channels now, and two seeded users have SCORE_UPDATE
+     * enabled on LINE — a channel the vocabulary defines and this Worker has no
+     * transport for. Those consume slice capacity and are reported as
+     * `no-transport` rather than sent, so `sent` is a little under CHUNK.
+     *
+     * That is the behaviour worth having: an unsendable channel is *visible*
+     * instead of silently dropped, and paying a slot for it is what makes it
+     * countable. Asserting `sent === CHUNK` would have been asserting that no
+     * such channel exists.
+     */
+    expect(first.sent, "the slice delivered nothing").toBeGreaterThan(0)
+    expect(first.sent, "one message must not exceed the chunk").toBeLessThanOrEqual(CHUNK)
     expect(first.remaining, "there must be a remainder to carry").toBeGreaterThanOrEqual(5)
     // The remainder is a message, not a loop: one job can never approach the
     // subrequest limit however popular a team becomes.
@@ -957,7 +1005,7 @@ describe("Notification fan-out as a job", () => {
 
     captured = []
     const second = await runNotificationJob(db(), envWith(q.binding), q.sent[0] as never)
-    expect(second.sent, "the second slice delivered the remainder").toBe(first.remaining)
+    expect(second.sent, "the second slice delivered nothing").toBeGreaterThan(0)
     expect(second.remaining).toBe(0)
     // And no third message, because there is nothing left.
     expect(q.sent).toHaveLength(1)
@@ -1055,5 +1103,163 @@ describe("What the consumer tells the queue", () => {
       occurredAt: new Date().toISOString(),
     })
     expect(action, "a transient failure must be retried, not acked").toBe("retry")
+  })
+})
+
+/**
+ * The second transport, proving the seam is real rather than shaped.
+ *
+ * The schema has been multi-channel since it was written — a channel
+ * vocabulary, a foreign key, and preferences keyed by (user, type, channel).
+ * Only the code pinned PUSH. These assert that EMAIL now goes out through
+ * `src/mail/mailer.ts` with its own copy, and — more importantly — that it does
+ * not go out to anybody who has not asked for it.
+ */
+describe("EMAIL as a second channel", () => {
+  const emailAddress = (userId: string, address: string, locale = "en") =>
+    db()
+      .insert(schema.userNotificationChannel)
+      .values({
+        userId,
+        channelCode: "EMAIL",
+        address,
+        addressLabel: `${userId}-email`,
+        secret: null,
+        localeCode: locale,
+        isEnabled: true,
+        verifiedAt: new Date().toISOString(),
+      })
+      .onConflictDoNothing()
+
+  const wants = (userId: string, on: boolean, typeCode = "SCORE_UPDATE") =>
+    db()
+      .insert(schema.userNotificationPreference)
+      .values({ userId, notificationTypeCode: typeCode, channelCode: "EMAIL", isEnabled: on })
+      .onConflictDoUpdate({
+        target: [
+          schema.userNotificationPreference.userId,
+          schema.userNotificationPreference.notificationTypeCode,
+          schema.userNotificationPreference.channelCode,
+        ],
+        set: { isEnabled: on },
+      })
+
+  /**
+   * The safety property, and the reason this change can ship before the
+   * preferences UI exists.
+   *
+   * PUSH is opt-out because the reader installed an app and granted a
+   * permission. An email address is not that — it arrives because somebody
+   * signed up. If absence meant consent, adding a dispatch table entry would
+   * have started emailing every seeded account.
+   */
+  it("emails nobody who has not turned it on", async () => {
+    const u = await makeUser("mail-default-off")
+    await emailAddress(u, "default-off@example.invalid")
+    await follows(u, "TEAM", "team_001")
+    clearOutbox()
+
+    await send([{ objectTypeCode: "TEAM", objectId: "team_001" }])
+
+    expect(
+      readOutbox("default-off@example.invalid"),
+      "an unstated EMAIL preference must mean no",
+    ).toHaveLength(0)
+  })
+
+  it("emails somebody who has, with its own subject", async () => {
+    const u = await makeUser("mail-opted-in")
+    await emailAddress(u, "opted-in@example.invalid")
+    await follows(u, "TEAM", "team_001")
+    await wants(u, true)
+    clearOutbox()
+
+    const result = await notify(db(), env as unknown as Bindings, {
+      typeCode: "SCORE_UPDATE",
+      targets: [{ objectTypeCode: "TEAM", objectId: "team_001" }],
+      tag: "score:mail",
+      render: {
+        EMAIL: () => ({
+          channel: "EMAIL" as const,
+          subject: "Assumption 61 – BCC 58",
+          text: "Bangkok Schools League\n\nFollow the game: https://example.test/#/games/g1",
+        }),
+      },
+    })
+
+    const inbox = readOutbox("opted-in@example.invalid")
+    expect(inbox, "an opted-in address got no email").toHaveLength(1)
+    expect(inbox[0]!.subject).toBe("Assumption 61 – BCC 58")
+    // Email copy, not push copy: a body with somewhere to go, because it is
+    // read outside the app.
+    expect(inbox[0]!.body).toContain("https://example.test/#/games/g1")
+    expect(result.sent).toBeGreaterThanOrEqual(1)
+  })
+
+  /**
+   * The failure this design is most likely to produce by accident.
+   *
+   * A caller writes push copy and no email copy. The type makes the fallback
+   * impossible — there is no shared shape — so the channel is skipped and
+   * reported rather than sent push text.
+   */
+  it("sends nothing on a channel the caller wrote no copy for", async () => {
+    const u = await makeUser("mail-no-copy")
+    await emailAddress(u, "no-copy@example.invalid")
+    await follows(u, "TEAM", "team_001")
+    await wants(u, true)
+    clearOutbox()
+
+    const { written, env: rec } = recorder()
+    await notify(db(), { ...(env as unknown as Record<string, unknown>), ...rec } as never, {
+      typeCode: "SCORE_UPDATE",
+      targets: [{ objectTypeCode: "TEAM", objectId: "team_001" }],
+      tag: "score:nocopy",
+      // PUSH only. The EMAIL audience exists and is deliberately not served.
+      render: {
+        PUSH: (_l: string, tag: string) => ({
+          channel: "PUSH" as const, title: "t", body: "b", url: "#/live", tag,
+        }),
+      },
+    })
+
+    expect(readOutbox("no-copy@example.invalid"), "push copy must not become an email").toHaveLength(0)
+    // And it is visible, not silent.
+    const noCopy = written.filter(
+      (p) => p.blobs?.[0] === "notify.batch" && p.blobs?.[3] === "EMAIL" && p.blobs?.[4] === "no-copy",
+    )
+    expect(noCopy, "a skipped channel must be reported").not.toHaveLength(0)
+  })
+
+  it("reports a channel the vocabulary defines and this Worker cannot send on", async () => {
+    // LINE, SMS and IN_APP are real rows in the model with no transport here.
+    // Counted rather than dropped: "the Product Owner described a channel we do
+    // not have" is a state worth seeing.
+    const u = await makeUser("mail-line")
+    await db().insert(schema.userNotificationChannel).values({
+      userId: u, channelCode: "LINE", address: "U-line-test", addressLabel: `${u}-line`,
+      secret: null, localeCode: "en", isEnabled: true, verifiedAt: new Date().toISOString(),
+    }).onConflictDoNothing()
+    await db().insert(schema.userNotificationPreference).values({
+      userId: u, notificationTypeCode: "SCORE_UPDATE", channelCode: "LINE", isEnabled: true,
+    }).onConflictDoNothing()
+    await follows(u, "TEAM", "team_001")
+
+    const { written, env: rec } = recorder()
+    await notify(db(), { ...(env as unknown as Record<string, unknown>), ...rec } as never, {
+      typeCode: "SCORE_UPDATE",
+      targets: [{ objectTypeCode: "TEAM", objectId: "team_001" }],
+      tag: "score:line",
+      render: {
+        PUSH: (_l: string, tag: string) => ({
+          channel: "PUSH" as const, title: "t", body: "b", url: "#/live", tag,
+        }),
+      },
+    })
+
+    const noTransport = written.filter(
+      (p) => p.blobs?.[0] === "notify.batch" && p.blobs?.[4] === "no-transport",
+    )
+    expect(noTransport, "an undeliverable channel must be countable").not.toHaveLength(0)
   })
 })

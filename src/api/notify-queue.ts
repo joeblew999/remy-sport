@@ -61,6 +61,16 @@
 import { z } from "zod"
 import * as schema from "../db/schema"
 import { database, type Db } from "./base"
+
+/**
+ * Where a link in an email points.
+ *
+ * `BETTER_AUTH_URL` is this deployment's own public origin and is already
+ * required for sign-in to work, so it is the one value guaranteed to be right.
+ * A hash route on its own is fine in a push card, which opens inside the app,
+ * and useless in an email, which is read outside it.
+ */
+const originOf = (env: Bindings) => (env.BETTER_AUTH_URL ?? "").replace(/\/+$/, "")
 import { notify } from "./push"
 import { track } from "../analytics"
 import type { Bindings } from "../types"
@@ -192,30 +202,71 @@ async function runGameJob(db: Db, env: Bindings, job: GameJob): Promise<JobOutco
     offset: job.offset,
     limit: CHUNK,
     source: "queue:game",
-    render: (locale: ReleasedLocale) => {
-      const home = pick(game.homeTeam?.names, locale)
-      const away = pick(game.awayTeam?.names, locale)
-      const event = pick(game.event?.names, locale)
-      const url = `#/games/${job.gameId}`
-      if (job.typeCode === "MATCH_START") {
-        return {
-          title: m.push_match_start_title({ home, away }, { locale }),
-          body: m.push_match_start_body({ event }, { locale }),
-          url,
+    /**
+     * One renderer per channel, written separately on purpose.
+     *
+     * A push title has to be readable on a lock screen, so it is the score and
+     * nothing else. An email is read in a list of other email, so it says what
+     * it is about, carries a link, and tells the reader why they got it — which
+     * a push card has no room for and does not need, because the reader chose
+     * to install the app.
+     *
+     * Sending the push body as an email body would have been one line and
+     * wrong: "Live at Bangkok Schools League" is a fine second line under a
+     * score and a terrible email.
+     */
+    render: {
+      PUSH: (locale: ReleasedLocale) => {
+        const home = pick(game.homeTeam?.names, locale)
+        const away = pick(game.awayTeam?.names, locale)
+        const event = pick(game.event?.names, locale)
+        const url = `#/games/${job.gameId}`
+        const tag = `${job.typeCode === "SCORE_UPDATE" ? "score" : "status"}:${job.gameId}`
+        if (job.typeCode === "MATCH_START") {
+          return {
+            channel: "PUSH" as const,
+            title: m.push_match_start_title({ home, away }, { locale }),
+            body: m.push_match_start_body({ event }, { locale }),
+            url,
+            tag,
+          }
         }
-      }
-      if (job.typeCode === "MATCH_END") {
-        return {
-          title: m.push_match_end_title({ home, away, ...args }, { locale }),
-          body: m.push_match_end_body({ event }, { locale }),
-          url,
+        if (job.typeCode === "MATCH_END") {
+          return {
+            channel: "PUSH" as const,
+            title: m.push_match_end_title({ home, away, ...args }, { locale }),
+            body: m.push_match_end_body({ event }, { locale }),
+            url,
+            tag,
+          }
         }
-      }
-      return {
-        title: m.push_score_title({ home, away, ...args }, { locale }),
-        body: m.push_score_body({ event }, { locale }),
-        url,
-      }
+        return {
+          channel: "PUSH" as const,
+          title: m.push_score_title({ home, away, ...args }, { locale }),
+          body: m.push_score_body({ event }, { locale }),
+          url,
+          tag,
+        }
+      },
+      EMAIL: (locale: ReleasedLocale) => {
+        const home = pick(game.homeTeam?.names, locale)
+        const away = pick(game.awayTeam?.names, locale)
+        const event = pick(game.event?.names, locale)
+        // Absolute: an email is read outside the app, so a hash route on its
+        // own goes nowhere.
+        const url = `${originOf(env)}/#/games/${job.gameId}`
+        const subject =
+          job.typeCode === "MATCH_START"
+            ? m.email_game_start_subject({ home, away }, { locale })
+            : job.typeCode === "MATCH_END"
+              ? m.email_game_end_subject({ home, away, ...args }, { locale })
+              : m.email_game_subject({ home, away, ...args }, { locale })
+        return {
+          channel: "EMAIL" as const,
+          subject,
+          text: m.email_game_text({ event, home, away, url, ...args }, { locale }),
+        }
+      },
     },
   })
 
@@ -291,14 +342,29 @@ async function runReminderJob(db: Db, env: Bindings, job: ReminderJob): Promise<
     offset: job.offset,
     limit: CHUNK,
     source: "queue:reminder",
-    render: (locale: ReleasedLocale) => ({
-      title: m.push_event_reminder_title(
-        { event: pick(event.names as Names, locale) },
-        { locale },
-      ),
-      body: m.push_event_reminder_body({}, { locale }),
-      url: `#/event/${job.eventId}`,
-    }),
+    render: {
+      PUSH: (locale: ReleasedLocale) => ({
+        channel: "PUSH" as const,
+        title: m.push_event_reminder_title(
+          { event: pick(event.names as Names, locale) },
+          { locale },
+        ),
+        body: m.push_event_reminder_body({}, { locale }),
+        url: `#/event/${job.eventId}`,
+        tag: `reminder:${job.eventId}:${job.window}`,
+      }),
+      EMAIL: (locale: ReleasedLocale) => {
+        const name = pick(event.names as Names, locale)
+        return {
+          channel: "EMAIL" as const,
+          subject: m.email_reminder_subject({ event: name }, { locale }),
+          text: m.email_reminder_text(
+            { event: name, url: `${originOf(env)}/#/event/${job.eventId}` },
+            { locale },
+          ),
+        }
+      },
+    },
   })
 
   if (result.remaining > 0 && env.NOTIFICATIONS) {

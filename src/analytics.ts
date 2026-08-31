@@ -124,12 +124,32 @@ export const EVENTS = {
    * answer "is Web Push failing our iOS PWA users" — which is the evidence
    * docs/dev/native-notifications.md says we cannot currently produce.
    */
-  "push.batch": defineEvent({
-    // `source` appended, not inserted: Analytics Engine matches by position, so
-    // a new blob in the middle would shift every historical row's columns.
-    blobs: ["type", "service", "source"],
+  /**
+   * One send batch, per channel, with what became of it.
+   *
+   * Renamed from `push.batch` rather than kept and bent. The send path is
+   * channel-agnostic now — PUSH and EMAIL go through the same dispatch — and a
+   * row named "push" describing an email is the kind of small lie that makes a
+   * dataset untrustworthy.
+   *
+   * Free to rename precisely now: `push.batch` was added in this same series of
+   * changes and has never been deployed, so it has no history to lose. It would
+   * not be free later, which is the argument for doing it here.
+   *
+   * `push.sent` below stays push-named and push-shaped, because it is: per
+   * attempt, keyed by which push service took it, carrying an HTTP status. None
+   * of that generalises to email, and a channel that gains its own per-attempt
+   * detail should gain its own event rather than blur this one.
+   *
+   * `service` is the push service for PUSH and a marker otherwise — "-" for a
+   * normal send, or why nothing went out: "no-transport" for a channel the
+   * vocabulary defines and this Worker cannot deliver on, "no-copy" for one the
+   * caller wrote no renderer for. Both are silent failures made visible.
+   */
+  "notify.batch": defineEvent({
+    blobs: ["type", "channel", "service", "source"],
     doubles: ["sent", "gone", "failed"],
-    dimensions: ["type", "service", "source"],
+    dimensions: ["type", "channel", "service", "source"],
   }),
   /**
    * A notification that could not be delivered and will not be retried.

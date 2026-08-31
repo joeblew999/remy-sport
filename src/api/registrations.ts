@@ -24,6 +24,7 @@ import { ERRORS } from "./errors"
 import { authed, authedRoute, can, openTo, requireAction, viewer, type Db } from "./base"
 import { notify } from "./push"
 import { pick, type Names } from "../domain/names"
+import type { ReleasedLocale } from "../domain/vocabularies"
 import { m } from "../paraglide/messages.js"
 import type { Bindings } from "../types"
 
@@ -303,17 +304,33 @@ async function announceRoster(
     // than stacking three cards a coach has to dismiss one at a time.
     tag: `roster:${input.teamId}`,
     exclude: actorId,
-    render: (locale) => ({
-      title: (change === "added" ? m.push_roster_added_title : m.push_roster_removed_title)(
-        {
-          player: pick(player.names as Names, locale),
-          team: pick(team.names as Names, locale),
-        },
-        { locale },
-      ),
-      body: m.push_roster_body({}, { locale }),
-      url: `/#/team/${input.teamId}`,
-    }),
+    /**
+     * Push only, deliberately.
+     *
+     * There is no EMAIL renderer here, and that absence is the statement: a
+     * channel with no copy is not sent on, so "we have not decided what a roster
+     * change should say in an email" is expressed by writing nothing rather than
+     * by posting the push card into somebody's inbox.
+     *
+     * A squad list changing is worth a glanceable card and probably not worth an
+     * email — but that is the Product Owner's call, and this is what the code
+     * looks like before they make it.
+     */
+    render: {
+      PUSH: (locale: ReleasedLocale, tag: string) => ({
+        channel: "PUSH" as const,
+        tag,
+        title: (change === "added" ? m.push_roster_added_title : m.push_roster_removed_title)(
+          {
+            player: pick(player.names as Names, locale),
+            team: pick(team.names as Names, locale),
+          },
+          { locale },
+        ),
+        body: m.push_roster_body({}, { locale }),
+        url: `/#/team/${input.teamId}`,
+      }),
+    },
   })
 }
 
