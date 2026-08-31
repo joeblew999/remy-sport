@@ -87,7 +87,10 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
                 <div className="ava">{p.name.split(" ").map(x => x[0]).join("")}</div>
                 <div>
                   <div className="name">{p.name}</div>
-                  <div className="pos">{p.position}</div>
+                  <div className="pos">
+                    {p.position}
+                    {p.since && <span className="since">{m.roster_since({ date: p.since })}</span>}
+                  </div>
                 </div>
                 <div className="num">{p.jerseyNumber}</div>
               </div>

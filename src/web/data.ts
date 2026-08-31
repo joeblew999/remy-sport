@@ -49,6 +49,8 @@ export interface Team {
   short: string;
   crest: Crest;
   city: string;
+  /** The org's province, in the reader's language. See `Event.province`. */
+  province: string;
   /** Absent until a games table exists — see lib/api.ts. */
   record?: string;
   /** The org the team belongs to (canonical `teams.org_id`). */
@@ -73,6 +75,18 @@ export interface Event {
   div: string;
   loc: string;
   city: string;
+  /**
+   * Which of Thailand's 77 provinces, in the reader's language.
+   *
+   * The column has always been on the event, the model has always shipped the
+   * provinces, and `/api/events` has always returned the code — and until
+   * 2026-08-31 no screen in this app read it. Five cities were the whole of the
+   * app's geography, so a tournament in Udon Thani was filterable only as
+   * "not one of the five".
+   */
+  province: string;
+  /** The raw code, which is what a filter compares — labels are translated. */
+  provinceCode: string | null;
   day: number;
   mo: string;
   date: string;

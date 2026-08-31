@@ -15,9 +15,10 @@ interface DiscoverProps {
 type Tab = "all" | "live" | "upcoming" | "closed";
 
 export function DiscoverPage({ goto, spoiler }: DiscoverProps) {
-  const { locale, reference, name } = useLocale();
+  const { locale, reference, name, label } = useLocale();
   const [tab, setTab] = useState<Tab>("all");
   const [filterCity, setFilterCity] = useState<string | null>(null);
+  const [filterProvince, setFilterProvince] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<EventType | null>(null);
   const { data, isPending, error } = useEvents();
   const allEvents = data ?? [];
@@ -25,6 +26,7 @@ export function DiscoverPage({ goto, spoiler }: DiscoverProps) {
   let events = allEvents;
   if (tab !== "all") events = events.filter(e => e.status === (tab as EventStatus));
   if (filterCity) events = events.filter(e => e.city === filterCity);
+  if (filterProvince) events = events.filter(e => e.provinceCode === filterProvince);
   if (filterType) events = events.filter(e => e.type === filterType);
 
   const counts: Record<Tab, number> = {
@@ -50,6 +52,25 @@ export function DiscoverPage({ goto, spoiler }: DiscoverProps) {
     label: name(t.names, t.nameEn),
     key: t.code as EventType,
   }));
+
+  /**
+   * Provinces that actually have an event, with how many.
+   *
+   * Not all 77 — the model defines every province in Thailand, and offering a
+   * reader seventy-four choices that return nothing is worse than offering
+   * none. This is the same reason the city chips are filtered upstream, and the
+   * same reason the count is on the option: a filter that can empty the page
+   * should say so before it is clicked.
+   */
+  const PROVINCES = (() => {
+    const counts = new Map<string, number>();
+    for (const e of allEvents) {
+      if (e.provinceCode) counts.set(e.provinceCode, (counts.get(e.provinceCode) ?? 0) + 1);
+    }
+    return [...counts]
+      .map(([code, count]) => ({ code, count, label: label("provinces", code) || code }))
+      .sort((a, b) => a.label.localeCompare(b.label, locale));
+  })();
 
   return (
     <>
@@ -84,6 +105,22 @@ export function DiscoverPage({ goto, spoiler }: DiscoverProps) {
             <button key={c.code} className={`chip ${filterCity === c.label ? "active" : ""}`}
               onClick={() => setFilterCity(filterCity === c.label ? null : c.label)}>{c.label}</button>
           ))}
+          {/* A select rather than chips: the model defines 77 provinces, and a
+              row of chips is a control for five things, not for seventy. */}
+          {PROVINCES.length > 1 && (
+            <select
+              className="province-filter"
+              data-testid="province-filter"
+              aria-label={m.filter_by_province()}
+              value={filterProvince ?? ""}
+              onChange={(e) => setFilterProvince(e.target.value || null)}
+            >
+              <option value="">{m.all_provinces()}</option>
+              {PROVINCES.map(p => (
+                <option key={p.code} value={p.code}>{p.label} ({p.count})</option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
@@ -104,7 +141,14 @@ export function DiscoverPage({ goto, spoiler }: DiscoverProps) {
             <div><span className={`type ${e.type.toLowerCase()}`}>{typeLabel(e.type)}</span></div>
             <div className="loc">
               <div>{e.loc}</div>
-              <span className="city">{e.city}</span>
+              {/* City and province, because "Mueang" alone does not locate an
+                  event — every province in Thailand has one. */}
+              <span className="city">
+                {e.city}
+                {e.province !== "—" && e.province !== e.city && (
+                  <span className="province">{e.province}</span>
+                )}
+              </span>
             </div>
             <div className="div">{e.div}</div>
             <div><span className={`status ${e.status}`}>{e.statusLabel}</span></div>

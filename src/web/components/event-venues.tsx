@@ -18,36 +18,16 @@
  * fix then is a filter on the endpoint, not a bigger fetch here.
  */
 
-import { useQuery } from "@tanstack/react-query"
-import { orpc } from "../lib/orpc"
 import { useLocale } from "../lib/locale"
+import { useEventVenues } from "../lib/data"
 import { m } from "../lib/i18n"
 
 export function EventVenues({ eventId }: { eventId: string }) {
   const { name, label } = useLocale()
-
-  // `staleTime: Infinity` for the same reason the reference payload uses it:
-  // these are the PO's fixtures, and a re-seed is the only thing that changes
-  // them. At the 30s default this refetched every venue on every remount.
-  const { data: links, isPending: linksLoading } = useQuery(
-    orpc.eventVenues.list.queryOptions({ staleTime: Infinity }),
-  )
-  const { data: venues, isPending: venuesLoading } = useQuery(
-    orpc.venues.list.queryOptions({ staleTime: Infinity }),
-  )
-
-  const isPending = linksLoading || venuesLoading
-  const here = (links?.items ?? []).filter((l) => l.eventId === eventId)
-  const byId = new Map((venues?.items ?? []).map((v) => [v.id, v]))
-
-  const rows = here
-    .map((link) => ({ link, venue: byId.get(link.venueId) }))
-    .filter((r): r is { link: (typeof here)[number]; venue: NonNullable<typeof r.venue> } =>
-      Boolean(r.venue),
-    )
-    // The main court first — it is the one printed on a fixture list and the
-    // one somebody asks for directions to.
-    .sort((a, b) => Number(b.link.isPrimary) - Number(a.link.isPrimary))
+  // The join lives in `useEventVenues` — the fixture venue picker needs the
+  // same "which courts does this event play at" answer, and two copies of it
+  // is how one of them ends up offering a venue the event does not use.
+  const { rows, isPending } = useEventVenues(eventId)
 
   return (
     <div className="page-inner">
@@ -71,7 +51,9 @@ export function EventVenues({ eventId }: { eventId: string }) {
                   so a Thai reader gets "กรุงเทพมหานคร" rather than "BANGKOK",
                   the same as everywhere else a code is shown. */}
               <div className="row-meta">
-                {[venue.address, label("cities", venue.cityCode)].filter(Boolean).join(" · ")}
+                {[venue.address, label("cities", venue.cityCode), label("provinces", venue.provinceCode)]
+                  .filter(Boolean)
+                  .join(" · ")}
               </div>
             </div>
           </div>

@@ -139,6 +139,8 @@ export function toEvent(e: ApiEvent, loc: Localizer, today: Date = new Date()): 
     // set one rather than "this app cannot read the table".
     loc: e.venueNames ? loc.name(e.venueNames) : m.venue_tbc({}, { locale: loc.locale }),
     city: loc.label("cities", e.cityCode) || "—",
+    province: loc.label("provinces", e.provinceCode) || "—",
+    provinceCode: e.provinceCode,
     day: start ? start.getDate() : 0,
     mo: start ? formatMonthShort(loc.locale, start) : "TBC",
     date: formatRange(loc.locale, e.startDate, e.endDate),
@@ -204,6 +206,7 @@ export function toTeam(t: ApiTeam, loc: Localizer): Team {
     short: shortCode(t.orgName ?? t.name),
     crest: crestFor(t.id),
     city: loc.label("cities", t.orgCityCode) || "—",
+    province: loc.label("provinces", t.orgProvinceCode) || "—",
     // `record` needs played games. No games table exists yet (ADR 008), and a
     // fabricated "4–0" on a real team reads as fact — so leave it absent.
     record: undefined,

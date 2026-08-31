@@ -2156,3 +2156,124 @@ describe("The register for a camp session", () => {
     ).toBe(401)
   })
 })
+
+/**
+ * Which court a fixture is played on — `ASSIGN_COURTS`.
+ *
+ * The action had no endpoint, and `generateFixtures` writes every game with
+ * `venueId: null`. So generating a season produced thirty-one fixtures reading
+ * "Venue TBC" that nothing in the platform could ever change.
+ */
+describe("Assigning a fixture to a court", () => {
+  const niran = () => signIn(SEED_ENTITIES.users.find((u) => u.id === "usr_org_002")!.email)
+
+  /** A fixture of evt_002's to move around, cleaned up by the caller. */
+  const aFixture = async (cookie: string) => {
+    const res = await post(
+      "/api/events/evt_002/games",
+      {
+        eventId: "evt_002",
+        homeTeamId: "team_001",
+        awayTeamId: "team_003",
+        startsAt: "2026-09-21T10:00:00Z",
+      },
+      cookie,
+    )
+    return ((await res.json()) as { id: string }).id
+  }
+
+  it("the organiser puts a fixture on one of the event's courts, and takes it off again", async () => {
+    const organiser = await niran()
+    const id = await aFixture(organiser)
+
+    // evt_002 plays at ven_001 — see `eventVenue`.
+    const on = await put(`/api/events/evt_002/games/${id}/venue`, { venueId: "ven_001" }, organiser)
+    expect(on.status).toBe(200)
+    expect(((await on.json()) as { venueId: string | null }).venueId).toBe("ven_001")
+
+    // Un-assigning is a real thing an organiser does when a court falls
+    // through and the fixture stands — so null is accepted, not rejected.
+    const off = await put(`/api/events/evt_002/games/${id}/venue`, { venueId: null }, organiser)
+    expect(off.status).toBe(200)
+    expect(((await off.json()) as { venueId: string | null }).venueId).toBeNull()
+
+    await api(`/api/events/evt_002/games/${id}`, { method: "DELETE", cookie: organiser })
+  })
+
+  it("refuses a venue the event does not play at", async () => {
+    const organiser = await niran()
+    const id = await aFixture(organiser)
+
+    // ven_003 is evt_003's hall. It exists, which is exactly why this is a 400
+    // and not a 404 — the fix is to add it to the event, not to hunt a typo.
+    const res = await put(`/api/events/evt_002/games/${id}/venue`, { venueId: "ven_003" }, organiser)
+    expect(res.status).toBe(400)
+    expect(((await res.json()) as Record<string, unknown>).code).toBe("VENUE_NOT_AT_EVENT")
+
+    await api(`/api/events/evt_002/games/${id}`, { method: "DELETE", cookie: organiser })
+  })
+
+  /**
+   * The path carries two ids and only one of them is authorised.
+   *
+   * `requireAction` reads the eventId, so without this check an organiser could
+   * name an event they own and any game id on the platform, and the write would
+   * land on somebody else's fixture.
+   */
+  it("refuses a fixture that belongs to a different event", async () => {
+    const organiser = await niran() // owns evt_002, not evt_001
+    const { games } = (await (await api("/api/games?eventId=evt_001")).json()) as {
+      games: { id: string }[]
+    }
+    const elsewhere = games[0]!.id
+
+    const res = await put(
+      `/api/events/evt_002/games/${elsewhere}/venue`,
+      { venueId: "ven_001" },
+      organiser,
+    )
+    expect(res.status).toBe(400)
+  })
+
+  it("a coach may not assign courts in someone else's event", async () => {
+    const coach = await signIn(actorFor("COACH"))
+    const { games } = (await (await api("/api/games?eventId=evt_002")).json()) as {
+      games: { id: string }[]
+    }
+    const res = await put(
+      `/api/events/evt_002/games/${games[0]!.id}/venue`,
+      { venueId: "ven_001" },
+      coach,
+    )
+    expect(res.status).toBe(403)
+  })
+
+  /**
+   * The reason `venueId` came off `update`.
+   *
+   * The model names ASSIGN_COURTS and MANAGE_FIXTURES separately. They carry
+   * identical grants today, so routing courts through `update` was invisible
+   * rather than wrong — and would have stayed invisible if the Product Owner
+   * ever widened one of them. Two actions, two doors.
+   */
+  it("does not accept a court through the fixture editor", async () => {
+    const organiser = await niran()
+    const id = await aFixture(organiser)
+
+    const res = await put(
+      `/api/events/evt_002/games/${id}`,
+      { id, eventId: "evt_002", venueId: "ven_001" },
+      organiser,
+    )
+    // zod strips the key it does not know, so the request succeeds and does
+    // nothing — which is the guarantee that matters here: MANAGE_FIXTURES
+    // cannot put a fixture on a court.
+    expect(res.status).toBe(200)
+
+    // And nothing was assigned.
+    const after = (await (await api(`/api/games/${id}`)).json()) as { venueId: string | null }
+    expect(after.venueId).toBeNull()
+
+    await api(`/api/events/evt_002/games/${id}`, { method: "DELETE", cookie: organiser })
+  })
+})

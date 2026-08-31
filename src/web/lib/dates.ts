@@ -98,6 +98,25 @@ export function formatMonthShort(locale: string, d: Date): string {
 }
 
 /**
+ * Month and year, from the model's ISO day strings.
+ *
+ * Tenure on a team is recorded as a day — `player_team.from_date` is
+ * "2024-03-01" — but a roster reads better as "Mar 2024" than as a precise
+ * date nobody chose deliberately: the fixtures record the month someone
+ * joined, and the first of it is an artefact of needing a day column.
+ *
+ * Parsed as UTC noon rather than with `new Date(iso)`, which reads a bare
+ * "2024-03-01" as midnight UTC and renders it as February in every timezone
+ * west of London.
+ */
+export function formatMonthYear(locale: string, iso: string | null): string {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return "";
+  return fmt(locale, { month: "short", year: "numeric" }).format(new Date(Date.UTC(y, m - 1, d, 12)));
+}
+
+/**
  * An instant, on a named clock, in the reader's language.
  *
  * The zone is passed explicitly and never defaults to the machine's: a page

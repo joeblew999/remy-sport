@@ -312,6 +312,39 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .chip .x { opacity: 0.5;}
 .chip:hover { border-color: var(--ink-3);}
 
+/* The province filter sits in the same row as the city chips and matches them:
+   a select rather than chips because the model defines 77 provinces. */
+.province-filter {
+  padding: 6px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 100px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--ink-2);
+  background: var(--paper);
+}
+.province-filter:hover { border-color: var(--ink-3); }
+
+/* The province under a city, on an event row. Quieter than the city: it is
+   the coarser fact, and only shown when it adds one. */
+.city .province::before { content: " · "; opacity: 0.5; }
+.city .province { color: var(--ink-3); }
+
+/* How long a player has been on the roster, beside their position. */
+.pos .since { color: var(--ink-3); }
+.pos .since::before { content: " · "; opacity: 0.5; }
+
+/* The court picker on a fixture row. */
+.venue-select {
+  padding: 4px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--ink-2);
+  background: var(--paper);
+}
+
 .event-list {
   display: flex; flex-direction: column;
 }

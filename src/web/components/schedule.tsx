@@ -14,7 +14,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, orpc } from "../lib/orpc";
-import { useEntries, useGames } from "../lib/data";
+import { useEntries, useEventVenues, useGames } from "../lib/data";
 import { useLocale } from "../lib/locale";
 import { formErrors } from "../lib/form-errors";
 import { m } from "../lib/i18n";
@@ -75,6 +75,7 @@ export function Schedule({
   // EVENT-scoped, so the per-row answer was the same value twenty-eight times.
   const { data: entries } = useEntries(eventId);
   const canManage = Boolean(entries?.canManageFixtures);
+  const canAssignCourts = Boolean(entries?.canAssignCourts);
 
   if (games.isPending) return <div className="empty">{m.loading()}</div>;
   if (!games.data?.games.length) {
@@ -96,6 +97,8 @@ export function Schedule({
           spoiler={spoiler}
           viewerZone={games.data.viewerTimezone}
           canManage={canManage}
+          canAssignCourts={canAssignCourts}
+          eventId={eventId}
           goto={goto}
         />
       ))}
@@ -108,6 +111,8 @@ function GameRow({
   spoiler,
   viewerZone,
   canManage,
+  canAssignCourts,
+  eventId,
   goto,
 }: {
   game: Game;
@@ -115,6 +120,9 @@ function GameRow({
   viewerZone: string | null;
   /** The event's answer to MANAGE_FIXTURES, resolved once by the parent. */
   canManage: boolean;
+  /** And to ASSIGN_COURTS, which is a different action — see src/api/games.ts. */
+  canAssignCourts: boolean;
+  eventId: string | undefined;
   goto?: (r: Route) => void;
 }) {
   const { locale } = useLocale();
@@ -220,6 +228,7 @@ function GameRow({
                 unreachable, so a fixture entered at the wrong time stayed at
                 the wrong time and a mistake could never be taken back. */}
             {canManage && <ManageFixture game={game} />}
+            {canAssignCourts && <AssignVenue game={game} eventId={eventId} />}
           </>
         )}
       </div>
@@ -326,6 +335,58 @@ function ManageFixture({ game }: { game: Game }) {
         </p>
       )}
     </form>
+  );
+}
+
+/**
+ * Which court a fixture is on.
+ *
+ * `ASSIGN_COURTS` — a separate control from Edit because it is a separate
+ * action in the model, and separate from it in the API for the same reason.
+ *
+ * It exists because `generateFixtures` writes `venueId: null`: an organiser
+ * generated a thirty-one-game season and every row read "Venue TBC" with
+ * nothing anywhere in the app able to change it.
+ *
+ * The options are the event's courts, from `eventVenue` — never every venue on
+ * the platform. The endpoint refuses anything else, so offering more would be
+ * offering choices that 400.
+ */
+function AssignVenue({ game, eventId }: { game: Game; eventId: string | undefined }) {
+  const qc = useQueryClient();
+  const { name } = useLocale();
+  const { rows } = useEventVenues(eventId);
+
+  const assign = useMutation({
+    mutationFn: (venueId: string | null) =>
+      api.games.assignVenue({ id: game.id, eventId: game.eventId, venueId }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: orpc.games.key() }),
+  });
+
+  // Nothing to choose between: an event with no courts recorded needs a venue
+  // added on the Venues tab first, and a select with one empty option is a
+  // control that cannot do anything.
+  if (!rows.length) return null;
+
+  return (
+    <>
+      <label className="sr-only" htmlFor={`venue-${game.id}`}>{m.assign_venue()}</label>
+      <select
+        id={`venue-${game.id}`}
+        className="venue-select"
+        data-testid={`assign-venue-${game.id}`}
+        value={game.venueId ?? ""}
+        disabled={assign.isPending}
+        onChange={(e) => assign.mutate(e.target.value || null)}
+      >
+        <option value="">{m.venue_unassigned()}</option>
+        {rows.map(({ venue }) => (
+          <option key={venue.id} value={venue.id}>
+            {name(venue.names as Record<string, string>, venue.id)}
+          </option>
+        ))}
+      </select>
+    </>
   );
 }
 

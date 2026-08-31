@@ -19,6 +19,7 @@ import { useQuery } from "@tanstack/react-query";
 import { orpc } from "./orpc";
 import { toEvent, toTeam } from "./api";
 import { useLocalizer } from "./locale";
+import { formatMonthYear } from "./dates";
 import { type EventStatus, type EventType } from "../data";
 
 export interface EventFilters {
@@ -278,6 +279,16 @@ export function useRoster(teamId: string | undefined) {
           ...p,
           name: loc.name(p.names),
           position: loc.label("positions", p.positionCode),
+          /**
+           * How long they have been on this team.
+           *
+           * `player_team.from_date` is why the roster is a table of spells and
+           * not a list of names — it is what lets the query answer "who is on
+           * this team *today*". The page showed the answer and never the
+           * reason, so a player who joined last week and one who has been
+           * there three seasons read identically.
+           */
+          since: formatMonthYear(loc.locale, p.fromDate),
         })),
         available: r.available.map((p) => ({ ...p, name: loc.name(p.names) })),
         // Already named by the server — a coach is a user, not a fixture with a
@@ -312,6 +323,7 @@ export function useEntries(eventId: string | undefined) {
         registrable: r.registrable.map((x) => ({ ...x, team: loc.name(x.names) })),
         divisions: r.divisions.map((d) => ({ ...d, division: loc.name(d.names) })),
         canManageFixtures: r.canManageFixtures,
+        canAssignCourts: r.canAssignCourts,
       }),
     }),
   );
@@ -353,7 +365,13 @@ export function useOrgs() {
   return useQuery(
     orpc.orgs.list.queryOptions({
       select: ({ orgs }) =>
-        orgs.map((o) => ({ ...o, name: loc.name(o.names), city: loc.label("cities", o.cityCode) })),
+        orgs.map((o) => ({
+          ...o,
+          name: loc.name(o.names),
+          city: loc.label("cities", o.cityCode),
+          province: loc.label("provinces", o.provinceCode),
+          orgType: loc.label("orgTypes", o.orgTypeCode),
+        })),
     }),
   );
 }
@@ -364,7 +382,15 @@ export function useOrg(id: string | undefined) {
     orpc.orgs.get.queryOptions({
       input: { id: id! },
       enabled: id !== undefined,
-      select: (o) => ({ ...o, name: loc.name(o.names), city: loc.label("cities", o.cityCode) }),
+      select: (o) => ({
+        ...o,
+        name: loc.name(o.names),
+        city: loc.label("cities", o.cityCode),
+        province: loc.label("provinces", o.provinceCode),
+        // "School", "Club", "Federation" — the model's own word for what this
+        // organisation *is*, which the page rendered as nothing at all.
+        orgType: loc.label("orgTypes", o.orgTypeCode),
+      }),
     }),
   );
 }
@@ -398,4 +424,39 @@ export function useTeam(id: string | undefined) {
       select: (t) => toTeam(t, loc),
     }),
   );
+}
+
+/**
+ * The courts one event plays at, joined from the two reference lists.
+ *
+ * `eventVenues.list` says which venues an event uses and `venues.list` says
+ * what they are; neither is filtered by event, deliberately — both are
+ * reference-shaped and cached forever, so the join costs one pass over a few
+ * dozen rows and saves an endpoint that would exist to answer one page.
+ *
+ * Shared because two screens need the same answer: the Venues tab, which lists
+ * them, and the fixture venue picker, which must offer *only* these — the
+ * endpoint refuses any other, so a picker built off `venues.list` would be
+ * offering choices that 400.
+ */
+export function useEventVenues(eventId: string | undefined) {
+  const { data: links, isPending: linksLoading } = useQuery(
+    orpc.eventVenues.list.queryOptions({ staleTime: Infinity }),
+  );
+  const { data: venues, isPending: venuesLoading } = useQuery(
+    orpc.venues.list.queryOptions({ staleTime: Infinity }),
+  );
+
+  const byId = new Map((venues?.items ?? []).map((v) => [v.id, v]));
+  const rows = (links?.items ?? [])
+    .filter((l) => l.eventId === eventId)
+    .map((link) => ({ link, venue: byId.get(link.venueId) }))
+    .filter((r): r is { link: typeof r.link; venue: NonNullable<typeof r.venue> } =>
+      Boolean(r.venue),
+    )
+    // The main court first — it is the one printed on a fixture list and the
+    // one somebody asks for directions to.
+    .sort((a, b) => Number(b.link.isPrimary) - Number(a.link.isPrimary));
+
+  return { rows, isPending: linksLoading || venuesLoading };
 }

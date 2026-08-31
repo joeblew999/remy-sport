@@ -693,7 +693,12 @@ export const generateFixtures = authed
 
 export const update = authed
   .route({ method: "PUT", path: "/events/{eventId}/games/{id}", summary: "Change a fixture", ...authedRoute })
-  .input(FixtureInput.partial().extend({ id: z.string(), eventId: z.string() }))
+  // `venueId` is deliberately not here: which court a fixture is on is
+  // `ASSIGN_COURTS`, and it has its own endpoint below. Leaving it on this
+  // input would mean `MANAGE_FIXTURES` could do an action the model names
+  // separately — harmless while the grants match, and a silent bypass the day
+  // they do not.
+  .input(FixtureInput.omit({ venueId: true }).partial().extend({ id: z.string(), eventId: z.string() }))
   .output(GameSchema)
   .errors({
     TEAM_PLAYS_ITSELF: ERRORS.TEAM_PLAYS_ITSELF,
@@ -726,8 +731,96 @@ export const update = authed
       if (home === away) throw errors.TEAM_PLAYS_ITSELF()
       await assertSameDivision(context.db, eventId, home, away, errors.TEAMS_IN_DIFFERENT_DIVISIONS)
     }
-    await context.db.update(schema.game).set(columns).where(eq(schema.game.id, id))
+    /**
+     * Nothing to change is not an error, and it is not a crash either.
+     *
+     * The input is partial, so a request naming only the ids is valid — and
+     * `db.update().set({})` throws "No values to set", which reached the client
+     * as a 500. Found by a test asserting that `venueId` cannot be smuggled
+     * through this endpoint: zod strips the unknown key, which left exactly the
+     * empty object nobody had sent before.
+     */
+    if (Object.keys(columns).length) {
+      await context.db.update(schema.game).set(columns).where(eq(schema.game.id, id))
+    }
     return reload(context.db, context.user, id)
+  })
+
+/**
+ * Which court a fixture is played on.
+ *
+ * `ASSIGN_COURTS` is the model's own action and had no endpoint, which showed:
+ * `generateFixtures` writes every game with `venueId: null`, so generating a
+ * season produced thirty-one fixtures that read "Venue TBC" and stayed that way
+ * — the schedule could show a court and nothing could ever set one.
+ *
+ * ## Why this is not just a field on `update`
+ *
+ * `FixtureInput` accepts `venueId`, so `MANAGE_FIXTURES` could already set one.
+ * The model names two actions, and today they carry identical grants — OWNER,
+ * CO_ORGANIZER and PLATFORM_ADMIN on TOURNAMENT, LEAGUE and SHOWCASE — so
+ * routing courts through `update` was invisible rather than wrong. It would
+ * stop being invisible the moment the Product Owner grants `ASSIGN_COURTS` to
+ * anyone else, and the bug would be that court assignment quietly kept
+ * requiring the wider right. `venueId` is off `update` for that reason: two
+ * actions, two doors, and no way to use one to do the other's job.
+ *
+ * ## Only venues the event actually plays at
+ *
+ * `eventVenue` says which courts an event runs on. Offering every venue on the
+ * platform would let an organiser schedule a Bangkok fixture into a Chiang Mai
+ * sports hall by picking the wrong row of a long dropdown — the same mistake
+ * `setDivisions` and the fixture guard exist to prevent, and the same fix: the
+ * form filters, and the endpoint refuses.
+ */
+export const assignVenue = authed
+  .route({
+    method: "PUT",
+    path: "/events/{eventId}/games/{id}/venue",
+    summary: "Assign a fixture to a court",
+    ...authedRoute,
+  })
+  .input(
+    z.object({
+      id: z.string(),
+      eventId: z.string(),
+      // Nullable, because un-assigning is a real thing an organiser does when a
+      // court falls through and the fixture stands.
+      venueId: z.string().nullable(),
+    }),
+  )
+  .output(GameSchema)
+  .errors({ VENUE_NOT_AT_EVENT: ERRORS.VENUE_NOT_AT_EVENT })
+  .use(requireAction("ASSIGN_COURTS", (i: { eventId: string }) => i.eventId))
+  .handler(async ({ context, input, errors }) => {
+    // The fixture must be this event's. Without it, the eventId in the path is
+    // just the id the authorisation check reads — pass an event you own and any
+    // game id on the platform and the write lands.
+    const game = found(
+      await context.db
+        .select({ id: schema.game.id, eventId: schema.game.eventId })
+        .from(schema.game)
+        .where(eq(schema.game.id, input.id))
+        .get(),
+    )
+    if (game.eventId !== input.eventId) throw errors.VENUE_NOT_AT_EVENT()
+
+    if (input.venueId) {
+      const at = await context.db
+        .select({ venueId: schema.eventVenue.venueId })
+        .from(schema.eventVenue)
+        .where(eq(schema.eventVenue.eventId, input.eventId))
+        .all()
+      if (!at.some((v) => v.venueId === input.venueId)) {
+        throw errors.VENUE_NOT_AT_EVENT({ data: { venueId: input.venueId } })
+      }
+    }
+
+    await context.db
+      .update(schema.game)
+      .set({ venueId: input.venueId })
+      .where(eq(schema.game.id, input.id))
+    return reload(context.db, context.user, input.id)
   })
 
 export const remove = authed

@@ -468,6 +468,15 @@ export const eventTeams = viewer
       ),
       /** Whether this viewer may add fixtures to the event — MANAGE_FIXTURES. */
       canManageFixtures: z.boolean(),
+      /**
+       * Whether this viewer may put a fixture on a court — ASSIGN_COURTS.
+       *
+       * Asked separately from `canManageFixtures` even though the model grants
+       * both to the same three relations today. They are two actions, and the
+       * screen showing one control for both is exactly how the two would stop
+       * being distinguishable the day the Product Owner changes one of them.
+       */
+      canAssignCourts: z.boolean(),
       divisions: z.array(
         z.object({
           id: z.string(),
@@ -545,5 +554,6 @@ export const eventTeams = viewer
       registrable,
       divisions,
       canManageFixtures: await can(context.db, "MANAGE_FIXTURES", context.user, input.eventId),
+      canAssignCourts: await can(context.db, "ASSIGN_COURTS", context.user, input.eventId),
     }
   })

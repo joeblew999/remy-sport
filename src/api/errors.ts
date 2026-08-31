@@ -91,6 +91,14 @@ export const ERRORS = {
   UNKNOWN_EVENT: NOT_FOUND,
   UNKNOWN_DIVISION: NOT_FOUND,
   UNKNOWN_ORG: NOT_FOUND,
+  /**
+   * A venue this event does not play at.
+   *
+   * 400 rather than 404: the venue exists, and saying "not found" about a court
+   * that is plainly on the platform sends an organiser looking for a typo
+   * instead of adding it to the event.
+   */
+  VENUE_NOT_AT_EVENT: { status: 400 },
   NOT_A_REFEREE: { status: 400 },
   NOT_ASSIGNED: { status: 404 },
   NOT_A_MEMBER: { status: 404 },

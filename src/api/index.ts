@@ -84,6 +84,7 @@ export const router = {
     create: games.create,
     generateFixtures: games.generateFixtures,
     update: games.update,
+    assignVenue: games.assignVenue,
     delete: games.remove,
     enterScore: games.enterScore,
     setStatus: games.setStatus,
