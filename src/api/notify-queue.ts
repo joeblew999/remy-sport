@@ -59,6 +59,7 @@
  */
 
 import { z } from "zod"
+import * as schema from "../db/schema"
 import { database, type Db } from "./base"
 import { notify } from "./push"
 import { track } from "../analytics"
@@ -75,23 +76,48 @@ import type { ReleasedLocale } from "../domain/vocabularies"
  * live. A malformed one is acked and reported rather than retried forever —
  * see `handleNotification`.
  */
-export const NotificationJob = z.object({
+/**
+ * How many recipients this slice starts after.
+ *
+ * Chunking is by offset rather than by carrying the remaining addresses,
+ * because a push endpoint is a device identifier and a queue is not somewhere
+ * to put a list of them.
+ */
+const offset = z.number().int().min(0).default(0)
+
+/** Something happened to a game: a tip-off, a score, a final whistle. */
+const GameJob = z.object({
+  kind: z.literal("game"),
   typeCode: z.enum(["MATCH_START", "MATCH_END", "SCORE_UPDATE"]),
   gameId: z.string().min(1),
   /** Excluded from the audience: nobody needs telling about their own tap. */
   actorId: z.string().min(1),
   /** When the event happened, for telemetry. Not used for rendering. */
   occurredAt: z.string(),
-  /**
-   * How many recipients this slice starts after.
-   *
-   * Chunking is by offset rather than by carrying the remaining addresses,
-   * because a push endpoint is a device identifier and a queue is not somewhere
-   * to put a list of them.
-   */
-  offset: z.number().int().min(0).default(0),
+  offset,
 })
+
+/**
+ * An event starts soon.
+ *
+ * A first-class kind rather than a game job wearing a costume. Both kinds
+ * resolve an audience and fan out, which is why they share a consumer — only
+ * the read and the render differ, and those are the two things a discriminated
+ * union makes explicit.
+ */
+const ReminderJob = z.object({
+  kind: z.literal("reminder"),
+  eventId: z.string().min(1),
+  /** Which of the two windows the Product Owner's description names. */
+  window: z.enum(["24h", "1h"]),
+  occurredAt: z.string(),
+  offset,
+})
+
+export const NotificationJob = z.discriminatedUnion("kind", [GameJob, ReminderJob])
 export type NotificationJob = z.infer<typeof NotificationJob>
+export type GameJob = z.infer<typeof GameJob>
+export type ReminderJob = z.infer<typeof ReminderJob>
 
 /**
  * Recipients per message.
@@ -123,6 +149,12 @@ export async function runNotificationJob(
   env: Bindings,
   job: NotificationJob,
 ): Promise<JobOutcome> {
+  return job.kind === "reminder"
+    ? runReminderJob(db, env, job)
+    : runGameJob(db, env, job)
+}
+
+async function runGameJob(db: Db, env: Bindings, job: GameJob): Promise<JobOutcome> {
   const row = await db.query.game.findFirst({
     where: (g, { eq }) => eq(g.id, job.gameId),
     with: {
@@ -159,7 +191,7 @@ export async function runNotificationJob(
     exclude: job.actorId,
     offset: job.offset,
     limit: CHUNK,
-    source: "queue",
+    source: "queue:game",
     render: (locale: ReleasedLocale) => {
       const home = pick(game.homeTeam?.names, locale)
       const away = pick(game.awayTeam?.names, locale)
@@ -202,6 +234,101 @@ export async function runNotificationJob(
 }
 
 /**
+ * An event starting soon.
+ *
+ * ## THE CLAIM LIVES HERE, AND MOVING IT LOSES REMINDERS
+ *
+ * `notification_sent` is claimed **at consumption**, not when the sweep
+ * enqueues. That choice is the difference between a reminder that is late and
+ * a reminder that never arrives, and it is not obvious from either side:
+ *
+ * Claiming in the sweep would mean the sweep records "sent" for something that
+ * has not been sent yet. A message that then exhausts its retries and lands in
+ * the dead letter queue is a reminder **lost for good** — the claim row says
+ * done, so no later sweep will try again, and the only trace is a DLQ entry.
+ * A lost reminder is silence, and silence is what this whole design is trying
+ * not to have.
+ *
+ * Claiming here inverts that. A message that dies never writes a claim, so the
+ * next sweep — five minutes later, inside the same window — enqueues it again
+ * and it is recovered. The cost is that the sweep can enqueue a reminder more
+ * than once; the claim below is what makes that at most one *send*, because
+ * `onConflictDoNothing` plus a changed-row count is one atomic statement.
+ *
+ * **Topic collapsing does not rescue this**, the way it rescues score updates.
+ * Two score pushes an hour apart replace each other; two reminder pushes an
+ * hour apart are two cards on somebody's lock screen at 6am. The claim is doing
+ * real work here that the tag cannot do.
+ *
+ * The sweep also *reads* this table to skip reminders already sent. That is an
+ * optimisation and nothing more — it reduces queue traffic and is allowed to be
+ * stale. The correctness is entirely in the claim below.
+ */
+async function runReminderJob(db: Db, env: Bindings, job: ReminderJob): Promise<JobOutcome> {
+  const event = await db.query.event.findFirst({
+    where: (e, { eq }) => eq(e.id, job.eventId),
+    columns: { id: true, names: true },
+  })
+  if (!event) return { done: true, sent: 0, gone: 0, remaining: 0, why: "event is gone" }
+
+  /**
+   * Claimed once, on the first slice only.
+   *
+   * A large audience is delivered across several messages, and each is a fresh
+   * consumer invocation — so claiming on every slice would claim once, then
+   * refuse every continuation and deliver only the first hundred people.
+   */
+  if (job.offset === 0 && !(await claimReminder(db, job.eventId, job.window))) {
+    return { done: true, sent: 0, gone: 0, remaining: 0, why: "already sent" }
+  }
+
+  const result = await notify(db, env, {
+    typeCode: "EVENT_REMINDER",
+    targets: [{ objectTypeCode: "EVENT", objectId: job.eventId }],
+    // One key per event and window, so a redelivery that got past the claim
+    // still replaces rather than stacks.
+    tag: `reminder:${job.eventId}:${job.window}`,
+    offset: job.offset,
+    limit: CHUNK,
+    source: "queue:reminder",
+    render: (locale: ReleasedLocale) => ({
+      title: m.push_event_reminder_title(
+        { event: pick(event.names as Names, locale) },
+        { locale },
+      ),
+      body: m.push_event_reminder_body({}, { locale }),
+      url: `#/event/${job.eventId}`,
+    }),
+  })
+
+  if (result.remaining > 0 && env.NOTIFICATIONS) {
+    await env.NOTIFICATIONS.send({ ...job, offset: job.offset + CHUNK })
+  }
+  return { done: true, sent: result.sent, gone: result.gone, remaining: result.remaining }
+}
+
+/**
+ * Claim the right to send, or discover somebody already has.
+ *
+ * `onConflictDoNothing` plus a changed-row count: one statement, therefore
+ * atomic. The obvious alternative — read, then write if absent — has two
+ * concurrent consumers both read nothing and both send.
+ */
+export async function claimReminder(db: Db, eventId: string, window: string): Promise<boolean> {
+  const res = await db
+    .insert(schema.notificationSent)
+    .values({
+      objectTypeCode: "EVENT",
+      objectId: eventId,
+      typeCode: "EVENT_REMINDER",
+      kind: window,
+      sentAt: new Date().toISOString(),
+    })
+    .onConflictDoNothing()
+  return res.meta.changes > 0
+}
+
+/**
  * One message, and what to tell the queue about it.
  *
  * `notify` swallows its own failures so it cannot fail the write it follows.
@@ -221,11 +348,28 @@ export async function runNotificationJob(
  *             tag note above), so retrying costs nothing but a duplicate card
  *             the reader never sees.
  */
+/** What to call this job in telemetry: the notification type it will send. */
+const jobLabel = (job: NotificationJob): string =>
+  job.kind === "reminder" ? "EVENT_REMINDER" : job.typeCode
+
 export async function handleNotification(
   env: Bindings,
   body: unknown,
 ): Promise<{ action: "ack" | "retry"; why: string }> {
-  const parsed = NotificationJob.safeParse(body)
+  /**
+   * A message with no `kind` is a game job from before the union existed.
+   *
+   * Costs one line and covers the deploy window, where a message enqueued by
+   * the previous version is consumed by the next one. Without it those become
+   * "malformed", get acked, and the notification is dropped silently — which is
+   * the failure this whole path is built to avoid.
+   */
+  const shaped =
+    body !== null && typeof body === "object" && !("kind" in body)
+      ? { ...(body as Record<string, unknown>), kind: "game" }
+      : body
+
+  const parsed = NotificationJob.safeParse(shaped)
   if (!parsed.success) {
     // Reported, not retried. A shape that is wrong now is wrong in a minute.
     track(env, "notify.dead", { reason: "malformed", typeCode: "" })
@@ -240,7 +384,7 @@ export async function handleNotification(
     // the DLQ, whose consumer makes it visible.
     track(env, "notify.dead", {
       reason: error instanceof Error ? error.name : "unknown",
-      typeCode: parsed.data.typeCode,
+      typeCode: jobLabel(parsed.data),
     })
     return { action: "retry", why: error instanceof Error ? error.message : "unknown" }
   }

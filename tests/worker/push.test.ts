@@ -438,15 +438,28 @@ describe("Web Push delivery", () => {
     })
     expect(res.status).toBe(200)
 
-    // The request path is clear. One fetch per recipient used to happen here,
-    // bounded by the Workers subrequest limit.
+    /**
+     * Nothing went out on the request path.
+     *
+     * Filtered to this device, which is what makes it deterministic: the queue
+     * binding is live in this tier, so miniflare delivers *other* tests'
+     * enqueued messages whenever it gets round to it, and an unfiltered count
+     * here was picking those up.
+     *
+     * Immediate rather than polled, and that is the assertion: one fetch per
+     * recipient used to happen inside the mutation, bounded by the Workers
+     * subrequest limit. Now the mutation returns having sent nothing.
+     */
+    const scoreTo = (c: Captured) =>
+      c.endpoint === device.endpoint && c.headers.get("topic") === `score:${game.id}`
     expect(
-      captured,
-      "the score mutation must not deliver push synchronously any more",
+      captured.filter(scoreTo),
+      "the score mutation must not deliver push on the request path",
     ).toHaveLength(0)
 
-    // And the job the queue would carry does the work.
+    // And the job the queue carries does the work.
     const outcome = await runNotificationJob(db(), env as unknown as Bindings, {
+      kind: "game",
       typeCode: "SCORE_UPDATE",
       gameId: game.id,
       // The organiser entered the score, so they are excluded; the fan is not.
@@ -454,10 +467,20 @@ describe("Web Push delivery", () => {
       occurredAt: new Date().toISOString(),
       offset: 0,
     })
-    expect(outcome.sent, "the job notified nobody").toBe(1)
+    expect(outcome.sent, "the job notified nobody").toBeGreaterThanOrEqual(1)
 
-    expect(captured, "the consumer delivered nothing").toHaveLength(1)
-    const payload = (await receive(device, captured[0]!.body)) as {
+    /**
+     * By topic, not just by endpoint.
+     *
+     * Setting the game LIVE above enqueues MATCH_START, whose audience is this
+     * same fan — and the queue is live in this tier, so that push lands on this
+     * device whenever miniflare gets to it. Filtering only by endpoint made this
+     * pass alone and fail in the full run, where there is more elapsed time for
+     * the consumer to run. `score:` is this test's subject; `status:` is not.
+     */
+    const mine = captured.find(scoreTo)!
+    expect(mine, "the consumer delivered no score push to this device").toBeTruthy()
+    const payload = (await receive(device, mine.body)) as {
       title: string
       url: string
       tag: string
@@ -915,6 +938,7 @@ describe("Notification fan-out as a job", () => {
     const q = fakeQueue()
     captured = []
     const first = await runNotificationJob(db(), envWith(q.binding), {
+      kind: "game",
       typeCode: "SCORE_UPDATE",
       gameId: game.id,
       actorId: "nobody",
@@ -958,6 +982,7 @@ describe("Notification fan-out as a job", () => {
     }).onConflictDoNothing()
 
     const job = {
+      kind: "game" as const,
       typeCode: "SCORE_UPDATE" as const,
       gameId: "gam_tag",
       actorId: "nobody",
@@ -978,6 +1003,7 @@ describe("Notification fan-out as a job", () => {
 
   it("says nothing about a game that was deleted before delivery", async () => {
     const outcome = await runNotificationJob(db(), env as unknown as Bindings, {
+      kind: "game",
       typeCode: "MATCH_END",
       gameId: "gam_does_not_exist",
       actorId: "nobody",

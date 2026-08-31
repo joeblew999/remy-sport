@@ -1,0 +1,1 @@
+CREATE INDEX `event_start_date_idx` ON `event` (`start_date`);

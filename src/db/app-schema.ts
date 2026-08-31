@@ -115,6 +115,20 @@ export const event = sqliteTable("event", {
 }, (t) => [
   // Created by migration 0005. Same reason as team_org_idx above.
   index("event_city_code_idx").on(t.cityCode),
+  /**
+   * The reminder sweep's only filter.
+   *
+   * `sendDueReminders` selects events whose `startDate` falls in a window,
+   * twice per run, and the plan for that was `SCAN event` — a full table scan.
+   * That costs nothing at four events, and the cron moved from hourly to every
+   * five minutes in the same change: twelve times as many scans of a table that
+   * only grows.
+   *
+   * Cheap now and awkward later. The sweep is the one query here whose
+   * frequency is set by a schedule rather than by how many people are using the
+   * app, so it is the one that degrades with nobody doing anything.
+   */
+  index("event_start_date_idx").on(t.startDate),
 ])
 
 /**

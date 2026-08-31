@@ -99,6 +99,13 @@
       "when": 1788152304340,
       "tag": "0013_session_attendance",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1788167455619,
+      "tag": "0014_faithful_lightspeed",
+      "breakpoints": true
     }
   ]
 }

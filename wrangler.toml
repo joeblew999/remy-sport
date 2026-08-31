@@ -73,7 +73,16 @@ not_found_handling = "none"
 # would buy nothing and cost a scan. Not less often, because a two-hour tick
 # cannot deliver a one-hour warning at all.
 [triggers]
-crons = ["0 * * * *"]
+# Every five minutes, not hourly.
+#
+# EVENT_REMINDER promises 24h and 1h. An hourly sweep gives the 1h window up to
+# 59 minutes of error, so "starting soon" could arrive as the game tipped off —
+# the notification arriving after the thing it warns about.
+#
+# The cost is 12x the invocations, each running the due-events scan. That scan
+# is an index range lookup since migration 0014 (event_start_date_idx); it was
+# a full table scan, which is what made this worth checking before changing.
+crons = ["*/5 * * * *"]
 
 # ── Notification fan-out ─────────────────────────────────────────────────────
 #
