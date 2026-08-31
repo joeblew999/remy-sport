@@ -257,7 +257,120 @@ function ManageRoster({ teamId, roster }: { teamId: string; roster: Roster }) {
       ) : (
         <p className="muted" data-testid="no-available-players">{m.everyone_on_squad()}</p>
       )}
+
+      <NewPlayer teamId={teamId} onCreated={invalidate} />
     </section>
+  );
+}
+
+/**
+ * A player who is not on the platform yet.
+ *
+ * `CREATE_PLAYER` is granted to ANY_COACH, ANY_PLAYER and PLATFORM_ADMIN, and
+ * `players.create` was built, enforced and reachable only by curl — both
+ * coverage tools flagged it independently, one as an uncalled procedure and one
+ * as a stranded write.
+ *
+ * What that meant on screen: the squad form offers `available`, the players
+ * already on the platform who are not on this team. A coach with a new signing
+ * saw "everyone is on the squad" and stopped. Nothing anywhere in the app could
+ * add a player who was not already in it, unless you were their guardian —
+ * which a coach is not.
+ *
+ * ## Create, then add
+ *
+ * Two calls rather than one endpoint that does both, because the model has two
+ * actions: `CREATE_PLAYER` puts somebody on the platform and `MANAGE_ROSTER`
+ * puts them on this team. A coach means both, so the form does both — but a
+ * failure to join the squad still leaves the player created, which is the
+ * honest outcome and recoverable from the select above.
+ */
+function NewPlayer({ teamId, onCreated }: { teamId: string; onCreated: () => void }) {
+  const { terms, label } = useLocale();
+  const [open, setOpen] = useState(false);
+
+  const create = useMutation({
+    mutationFn: async (v: {
+      names: Record<string, string>;
+      dob: string;
+      jerseyNumber: number;
+      positionCode: string;
+    }) => {
+      const player = await api.players.create(v as never);
+      await api.teams.addPlayer({ teamId, playerId: player.playerId });
+      return player;
+    },
+    onSuccess: () => {
+      onCreated();
+      setOpen(false);
+    },
+  });
+
+  const err = formErrors(create.error, ["names", "dob", "jerseyNumber", "positionCode"]);
+
+  if (!open) {
+    return (
+      <button className="btn" data-testid="new-player-open" onClick={() => setOpen(true)}>
+        {m.player_new()}
+      </button>
+    );
+  }
+
+  return (
+    <form
+      className="admin-form"
+      data-testid="new-player-form"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const f = new FormData(e.currentTarget);
+        create.mutate({
+          names: { en: String(f.get("name")) },
+          dob: String(f.get("dob")),
+          jerseyNumber: Number(f.get("jerseyNumber")),
+          positionCode: String(f.get("positionCode")),
+        });
+      }}
+    >
+      <label htmlFor="new-player-name">{m.player_name()}</label>
+      <input id="new-player-name" name="name" required data-testid="new-player-name" />
+
+      <label htmlFor="new-player-dob">{m.player_dob()}</label>
+      {/* A real date control, for the same reason the guardian form uses one:
+          the API wants YYYY-MM-DD, and a text box is how "18/04/2012" reaches
+          it and comes back a 400 nobody can read. */}
+      <input id="new-player-dob" name="dob" type="date" required data-testid="new-player-dob" />
+
+      <label htmlFor="new-player-number">{m.player_number()}</label>
+      <input
+        id="new-player-number"
+        name="jerseyNumber"
+        type="number"
+        min={0}
+        max={99}
+        required
+        defaultValue={0}
+        data-testid="new-player-number"
+      />
+
+      <label htmlFor="new-player-position">{m.player_position()}</label>
+      <select id="new-player-position" name="positionCode" data-testid="new-player-position">
+        {terms("positions").map((t) => (
+          <option key={t.code} value={t.code}>{label("positions", t.code)}</option>
+        ))}
+      </select>
+
+      <button type="submit" data-testid="new-player-save" disabled={create.isPending}>
+        {create.isPending ? m.event_saving() : m.player_add()}
+      </button>
+      <button type="button" className="btn" onClick={() => setOpen(false)}>
+        {m.fixture_cancel()}
+      </button>
+      {(err.form || err.field("names")) && (
+        <p className="admin-error small" data-testid="new-player-error">
+          {err.form ?? err.field("names")}
+        </p>
+      )}
+    </form>
   );
 }
 

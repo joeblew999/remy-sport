@@ -256,6 +256,7 @@
   "player_edit": "แก้ไข",
   "player_jersey": "#{n}",
   "player_name": "ชื่อ",
+  "player_new": "เพิ่มผู้เล่นใหม่",
   "player_no_team": "ยังไม่มีทีม",
   "player_number": "หมายเลขเสื้อ",
   "player_number_range": "หมายเลขเสื้อต้องอยู่ระหว่าง 0 ถึง 99",

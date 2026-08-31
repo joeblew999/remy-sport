@@ -256,6 +256,7 @@
   "player_edit": "編集",
   "player_jersey": "#{n}",
   "player_name": "名前",
+  "player_new": "新しい選手",
   "player_no_team": "チーム未所属",
   "player_number": "背番号",
   "player_number_range": "背番号は0から99です。",

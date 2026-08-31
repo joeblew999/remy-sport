@@ -238,6 +238,68 @@ test.describe("Squad management", () => {
     await expect(page.getByTestId("no-available-players")).toBeVisible()
     await expect(page.getByTestId("add-player-form")).toHaveCount(0)
   })
+
+  /**
+   * The dead end that "nobody left to add" used to be.
+   *
+   * `available` is the players already on the platform who are not on this
+   * team, so a coach with a new signing saw "everyone is on the squad" and had
+   * nowhere to go. `players.create` was built and enforced and reachable only
+   * by curl — CREATE_PLAYER is granted to ANY_COACH, and no screen called it.
+   */
+  test("offers a new player even when there is nobody left to add", async ({ page }) => {
+    await show(page, roster({ canManage: true, available: [] }))
+    await expect(page.getByTestId("new-player-open")).toBeVisible()
+    await page.getByTestId("new-player-open").click()
+    await expect(page.getByTestId("new-player-form")).toBeVisible()
+    // A date control, not a text box: the API wants YYYY-MM-DD.
+    await expect(page.getByTestId("new-player-dob")).toHaveAttribute("type", "date")
+    // Positions come from the model's vocabulary, never a list typed here.
+    await expect(page.getByTestId("new-player-position").locator("option")).not.toHaveCount(0)
+  })
+
+  test("creates the player and puts them on the squad", async ({ page }) => {
+    await show(page, roster({ canManage: true, available: [] }))
+    // The SPA speaks the `/rpc/` transport, not the OpenAPI paths — routing
+    // `**/api/players` matched nothing and the calls array stayed empty.
+    const calls: string[] = []
+    await page.route("**/rpc/**", async (route) => {
+      const url = route.request().url()
+      if (url.includes("players/create")) {
+        calls.push("create")
+        // `RPCLink`'s wire format, not a bare object: the response is
+        // `{ json: ... }`, and fulfilling with the plain body left playerId
+        // undefined, so the second call never happened and the failure looked
+        // like the chain being broken.
+        return route.fulfill({
+          status: 201,
+          contentType: "application/json",
+          body: JSON.stringify({ json: { playerId: "ply_new", names: { en: "Somchai" }, jerseyNumber: 7 } }),
+        })
+      }
+      if (url.includes("teams/addPlayer")) {
+        calls.push("add")
+        return route.fulfill({ status: 201, contentType: "application/json", body: '{"json":{}}' })
+      }
+      return route.fallback()
+    })
+
+    await page.getByTestId("new-player-open").click()
+    await page.getByTestId("new-player-name").fill("Somchai")
+    await page.getByTestId("new-player-dob").fill("2012-04-18")
+    await page.getByTestId("new-player-number").fill("7")
+    await page.getByTestId("new-player-save").click()
+
+    // Both actions, in order: CREATE_PLAYER puts them on the platform and
+    // MANAGE_ROSTER puts them on this team. The coach means both.
+    await expect.poll(() => calls).toEqual(["create", "add"])
+    await expect(page.getByTestId("new-player-form")).toHaveCount(0)
+  })
+
+  test("is not offered to somebody who may not manage the squad", async ({ page }) => {
+    await show(page, roster({ canManage: false }))
+    await expect(page.getByTestId("new-player-open")).toHaveCount(0)
+  })
 })
 
 test.describe("A team's details", () => {
