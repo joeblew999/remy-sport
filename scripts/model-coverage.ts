@@ -12,7 +12,7 @@
  *
  * Three honest buckets:
  *
- *   enforced   a procedure calls requireAction() for it
+ *   enforced   a procedure declares a policy naming it
  *   public     every grant is PUBLIC, so there is nothing to enforce — a
  *              spectator reading a score needs no check, and counting these as
  *              "missing" would be a lie in the other direction
@@ -21,21 +21,64 @@
  * "Missing" is not the same as "wrong". It means the model promises something
  * the product cannot do yet, which is exactly the list worth looking at before
  * deciding what to build.
+ *
+ * ## The router is walked, not grepped
+ *
+ * This used to scan src/api for the literal string `requireAction("X")`. There
+ * are four policy kinds and that found one, so every action declared with
+ * `checkedInHandler` read as unbuilt — all six follow/unfollow actions, which
+ * are built, reachable from the event and team pages, and shipped weeks ago.
+ * Six of twenty-six, wrong in the direction that invents work, in the report
+ * whose own text calls itself the list to read before choosing what to build.
+ *
+ * `policyOf` over the real router is what scripts/check-authz.ts already does,
+ * and now the two tools answer "is this enforced" from one source. Two
+ * derivations of one fact is how they disagree, and the grep was simply the
+ * worse of the two.
  */
 
 import { readdirSync, readFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { ACTION, GRANTS } from "../src/domain/vocabularies"
+import { policyOf, type Policy } from "../src/api/base"
 import { router } from "../src/api/index"
 
-const API = resolve(import.meta.dir, "../src/api")
+type Node = Record<string, unknown>
 
-/** Every `requireAction("X")` in the API, whatever formatting it is written in. */
+/**
+ * Every action a procedure actually enforces.
+ *
+ * `action` (requireAction), `handler` (checkedInHandler — the handler calls
+ * `can` itself because the action depends on the input) and `stricter` all
+ * count: each is a check that runs.
+ *
+ * `open` does not. `openTo` declares that the model grants the action to PUBLIC
+ * and the code agrees — there is nothing being enforced, and those belong in the
+ * "public" bucket below, which exists to say exactly that. Counting them as
+ * enforced moved nine actions out of a bucket that was describing them
+ * correctly.
+ *
+ * `infrastructure` names no action at all: it is the escape hatch for health and
+ * the vocabularies, which are not domain objects.
+ */
 const enforced = new Set<string>()
-for (const file of readdirSync(API).filter((f) => f.endsWith(".ts"))) {
-  const src = readFileSync(join(API, file), "utf8")
-  for (const m of src.matchAll(/requireAction\(\s*"([A-Z_]+)"/g)) enforced.add(m[1]!)
+
+function collect(node: Node) {
+  for (const value of Object.values(node)) {
+    const internals = (value as Record<string, Node> | null)?.["~orpc"]
+    if (internals?.handler) {
+      const middlewares = (internals.middlewares ?? []) as unknown[]
+      const policy = middlewares.map(policyOf).find((p): p is Policy => p !== null)
+      if (!policy) continue
+      if (policy.kind === "handler") for (const a of policy.actions) enforced.add(a)
+      else if (policy.kind === "action" || policy.kind === "stricter") enforced.add(policy.action)
+    } else if (value && typeof value === "object") {
+      collect(value as Node)
+    }
+  }
 }
+
+collect(router as unknown as Node)
 
 const publicOnly = (code: string) => {
   const grants = (GRANTS as Record<string, ReadonlyArray<{ relation: string }>>)[code] ?? []
@@ -44,7 +87,16 @@ const publicOnly = (code: string) => {
 
 const byCategory = new Map<string, { code: string; state: string }[]>()
 for (const a of ACTION) {
-  const state = enforced.has(a.code) ? "enforced" : publicOnly(a.code) ? "public" : "missing"
+  /**
+   * The model is asked first, and the code second.
+   *
+   * An action granted only to PUBLIC has nothing to enforce whatever names it —
+   * `VIEW_EVENT` is public and is also listed by `events.mine`'s
+   * `checkedInHandler`. Asking the code first moved three such actions into
+   * "enforced", which reads as coverage the model never asked for. This report
+   * measures the model, so "public" wins.
+   */
+  const state = publicOnly(a.code) ? "public" : enforced.has(a.code) ? "enforced" : "missing"
   const list = byCategory.get(a.category) ?? []
   list.push({ code: a.code, state })
   byCategory.set(a.category, list)
@@ -95,26 +147,49 @@ const walk = (dir: string): string[] =>
   })
 const web = walk(WEB).map((f) => readFileSync(f, "utf8")).join("")
 
-const procedures: string[] = []
+/** The HTTP method a procedure declares, which is how a read is told from a write. */
+const methodOf = (node: unknown): string =>
+  ((node as Record<string, Record<string, Record<string, string>>> | null)?.["~orpc"]?.route
+    ?.method ?? "GET")
+
+const procedures: { path: string; method: string }[] = []
 for (const [group, value] of Object.entries(router)) {
   if (typeof value === "object" && value && !("~orpc" in value)) {
-    for (const name of Object.keys(value)) procedures.push(`${group}.${name}`)
+    for (const [name, proc] of Object.entries(value)) {
+      procedures.push({ path: `${group}.${name}`, method: methodOf(proc) })
+    }
   } else {
-    procedures.push(group)
+    procedures.push({ path: group, method: methodOf(value) })
   }
 }
 
-const reachable = procedures.filter((p) => new RegExp(`\\b(api|orpc)\\.${p}\\b`).test(web))
-const unreachable = procedures.filter((p) => !reachable.includes(p))
+const called = (p: string) => new RegExp(`\\b(api|orpc)\\.${p}\\b`).test(web)
+const unreachable = procedures.filter((p) => !called(p.path))
+const reachableN = procedures.length - unreachable.length
+
+/**
+ * A write nobody calls is the serious case, so the report separates them rather
+ * than leaving a reader to check each one by hand — which is what its own
+ * closing note used to ask for.
+ */
+const isWrite = (m: string) => m !== "GET"
+const strandedWrites = unreachable.filter((p) => isWrite(p.method))
 
 console.log(`  ── The GUI ──\n`)
-console.log(`  ${reachable.length} of ${procedures.length} procedures are called from src/web.`)
+console.log(`  ${reachableN} of ${procedures.length} procedures are called from src/web.`)
 if (unreachable.length) {
   console.log(`\n  Not reachable from any page:`)
-  for (const p of unreachable.sort()) console.log(`      ${p}`)
+  for (const p of unreachable.sort((a, b) => a.path.localeCompare(b.path))) {
+    console.log(`      ${isWrite(p.method) ? "!" : " "} ${p.method.padEnd(6)} ${p.path}`)
+  }
 }
 console.log(
-  `\n  An endpoint with no caller is a feature nobody has. Some of these are\n` +
-    `  deliberate — the generic domain reads exist for tooling — but a write in\n` +
-    `  this list means someone can only do it with curl.\n`,
+  strandedWrites.length
+    ? `\n  ${strandedWrites.length} of those are WRITES, marked "!". Somebody can only do that\n` +
+        `  with curl, which means nobody does it. Reads can be deliberate — the\n` +
+        `  generic domain endpoints exist for tooling — but a stranded write is a\n` +
+        `  feature that was built and never connected.\n`
+    : `\n  All of them are reads, and reads can be deliberate: the generic domain\n` +
+        `  endpoints exist for tooling rather than for a page. No write is stranded,\n` +
+        `  which is the case that would mean a feature nobody can reach.\n`,
 )
