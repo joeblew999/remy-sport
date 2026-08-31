@@ -357,7 +357,7 @@ role. Re-run before investigating: alone, and on a second full run, they pass.
 Playwright is held to `workers: 2` because of this.
 
 This note is here because I deleted the document that carried it. On 2026-08-29
-`docs/dev/test-migration.md` was removed as stale — most of it was, and its
+`docs/dev/test-migration.md` <!-- docs-check-ignore --> was removed as stale — most of it was, and its
 tier counts were four times wrong — but this went with it, and two days later I
 spent a diagnosis rediscovering a flake somebody had already characterised. When
 deleting a document, the known-defect list is the part to read twice.
