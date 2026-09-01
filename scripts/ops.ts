@@ -40,6 +40,18 @@ const OPS: Record<string, Op> = {
         : ["bun", "scripts/ops/demo.ts", action, ...rest],
     help: "demo <on|off|status> [--env X]   seeded sign-in on a deployment",
   },
+  smoke: {
+    group: "deployment",
+    /**
+     * The same checks `deploy` ends with, runnable on their own.
+     *
+     * They were step 9 of the pipeline and nothing else, so the only way to ask
+     * a live deployment whether it was still serving correctly was to deploy it
+     * again. That is a bad trade when something looks wrong.
+     */
+    cmd: (rest) => ["bun", "scripts/deploy/smoke.ts", ...rest],
+    help: "smoke --env X                    is a deployment still serving what it should",
+  },
   analytics: {
     group: "deployment",
     cmd: (rest) => ["bun", "scripts/ops/analytics.ts", ...rest],

@@ -31,7 +31,18 @@
 
 import { originOf, resolveTarget } from "../lib/cloudflare"
 
-const BASE = process.env.CF_DEPLOY_URL ?? originOf(resolveTarget(process.argv.slice(2), "ambient"))
+/**
+ * An explicit --env beats the ambient override.
+ *
+ * CF_DEPLOY_URL exists so you can point this at localhost or the dev tunnel. It
+ * used to win unconditionally, so with it set — exported once in a shell, and
+ * forgotten — `--env staging` silently smoked production instead and reported
+ * success about the wrong deployment.
+ */
+const NAMED = process.argv.some((a) => a === "--env" || a.startsWith("--env="))
+const BASE = NAMED
+  ? originOf(resolveTarget(process.argv.slice(2), "ambient"))
+  : (process.env.CF_DEPLOY_URL ?? originOf(resolveTarget([], "ambient")))
 
 /**
  * Which deployment this is — asked, not guessed.
