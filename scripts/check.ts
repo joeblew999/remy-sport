@@ -64,7 +64,7 @@ export const PHASES: Step[][] = [
    *
    * Cheap enough (~100ms) that serialising it costs nothing.
    */
-  [{ name: "seed", cmd: script("build/seed.ts", "--check") }],
+  [{ name: "seed", cmd: script("build/8-seed.ts", "--check") }],
   [
     {
       name: "render",

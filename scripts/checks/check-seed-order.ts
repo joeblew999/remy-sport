@@ -83,7 +83,7 @@ if (inversions.length) {
       `\n\n  A fresh database refuses these with FOREIGN KEY constraint failed. An\n` +
       `  existing one accepts them, because the parent is already there — which is\n` +
       `  why this can pass everywhere and fail on the next environment created.\n` +
-      `  Fix the emit order in scripts/build/seed.ts, then re-run 'mise run seed:sql'.`,
+      `  Fix the emit order in scripts/build/8-seed.ts, then re-run 'mise run seed:sql'.`,
   )
   process.exit(1)
 }

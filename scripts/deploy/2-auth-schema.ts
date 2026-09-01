@@ -1,8 +1,8 @@
 /**
  * Better Auth owns its tables, and this proves the committed copy still matches.
  *
- *   bun scripts/deploy/auth-schema.ts            fail if src/db/auth-schema.ts is stale
- *   bun scripts/deploy/auth-schema.ts --write    regenerate it
+ *   bun scripts/deploy/2-auth-schema.ts            fail if src/db/auth-schema.ts is stale
+ *   bun scripts/deploy/2-auth-schema.ts --write    regenerate it
  *
  * Same shape as check-seed and check:domain — an artifact compared against the
  * source of truth that generates it. The library decides what columns its tables
@@ -41,7 +41,7 @@ try {
   const before = existsSync(COMMITTED) ? readFileSync(COMMITTED, "utf-8") : ""
   if (readFileSync(fresh, "utf-8") !== before) {
     console.error(
-      `auth-schema: ${COMMITTED} is stale — run 'bun scripts/deploy/auth-schema.ts --write' and commit it`,
+      `auth-schema: ${COMMITTED} is stale — run 'bun scripts/deploy/2-auth-schema.ts --write' and commit it`,
     )
     Bun.spawnSync(["diff", fresh, COMMITTED], { stdout: "inherit", stderr: "inherit" })
     process.exit(1)

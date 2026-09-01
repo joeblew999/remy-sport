@@ -16,9 +16,76 @@
  * Every step is still its own script. This owns the order, not the work.
  */
 
-import { run as provision } from "./deploy/provision"
+import { run as provision } from "./deploy/5-provision"
 import { prepare } from "./prepare"
 import { Refused, originOf, resolveTarget, wrangler, type Target } from "./cloudflare"
+
+interface Phase {
+  name: string
+  why: string
+  go: (target: Target, origin: string) => void | Promise<void>
+}
+
+const PIPELINE: Phase[] = [
+  {
+    name: "check",
+    why: "the gate — nothing reaches the account until it is green",
+    go: () => step("check", ["bun", "scripts/check.ts"]),
+  },
+  {
+    name: "auth schema",
+    why: "the generated schema must match auth.config before anything ships it",
+    go: () => step("auth schema", ["bun", "scripts/deploy/2-auth-schema.ts"]),
+  },
+  {
+    name: "test",
+    why: "end to end, against a local server, before a remote one exists",
+    go: () => step("test", ["bun", "scripts/check.ts", "--e2e"]),
+  },
+  {
+    name: "stamp",
+    why: "versions.json is what the origin is later compared against, so it is written before the publish, not after",
+    go: () => step("stamp", ["bun", "scripts/deploy/4-versions.ts"]),
+  },
+  {
+    name: "provision",
+    why: "D1, its migrations, R2, queues and every secret — idempotent, and BEFORE the publish so the code never runs ahead of its schema",
+    go: async (target) => {
+      console.log(`\n── provision`)
+      // Imported, not spawned: provision.ts exports run() behind an
+      // import.meta.main guard precisely so a caller can use it as a function,
+      // and a thrown Refused carries more than an exit code.
+      await provision(["--env", target.environment], "apply")
+    },
+  },
+  {
+    name: "publish",
+    why: "the only irreversible step, and everything it depends on is already in place",
+    go: (target) => {
+      console.log(`\n── publish`)
+      const published = wrangler(["deploy"], target, { inherit: true })
+      if (published.code !== 0) throw new Refused("publish failed")
+    },
+  },
+  {
+    name: "wait",
+    why: "wrangler returns before the edge serves the new version, and /api/health cannot tell — the OLD worker answers it happily",
+    go: async (_t, origin) => {
+      console.log(`\n── wait for ${origin}`)
+      await waitForOrigin(origin)
+    },
+  },
+  {
+    name: "seed",
+    why: "after the schema is live, so the rows have tables to land in",
+    go: (target) => step("seed", ["bun", "scripts/db.ts", "seed-remote", "--env", target.environment]),
+  },
+  {
+    name: "smoke",
+    why: "last, because it is the only step that asks the deployment what it is actually serving",
+    go: (_t, origin) => step("smoke", ["bun", "scripts/deploy/9-smoke.ts"], { CF_DEPLOY_URL: origin }),
+  },
+]
 
 function step(label: string, argv: string[], env: Record<string, string> = {}): void {
   console.log(`\n── ${label}`)
@@ -85,73 +152,6 @@ async function waitForOrigin(origin: string): Promise<void> {
  * Everything after the publish verifies it. A deploy that cannot be checked
  * afterwards is not one worth performing.
  */
-interface Phase {
-  name: string
-  why: string
-  go: (target: Target, origin: string) => void | Promise<void>
-}
-
-const PIPELINE: Phase[] = [
-  {
-    name: "check",
-    why: "the gate — nothing reaches the account until it is green",
-    go: () => step("check", ["bun", "scripts/check.ts"]),
-  },
-  {
-    name: "auth schema",
-    why: "the generated schema must match auth.config before anything ships it",
-    go: () => step("auth schema", ["bun", "scripts/deploy/auth-schema.ts"]),
-  },
-  {
-    name: "test",
-    why: "end to end, against a local server, before a remote one exists",
-    go: () => step("test", ["bun", "scripts/check.ts", "--e2e"]),
-  },
-  {
-    name: "stamp",
-    why: "versions.json is what the origin is later compared against, so it is written before the publish, not after",
-    go: () => step("stamp", ["bun", "scripts/deploy/versions.ts"]),
-  },
-  {
-    name: "provision",
-    why: "D1, its migrations, R2, queues and every secret — idempotent, and BEFORE the publish so the code never runs ahead of its schema",
-    go: async (target) => {
-      console.log(`\n── provision`)
-      // Imported, not spawned: provision.ts exports run() behind an
-      // import.meta.main guard precisely so a caller can use it as a function,
-      // and a thrown Refused carries more than an exit code.
-      await provision(["--env", target.environment], "apply")
-    },
-  },
-  {
-    name: "publish",
-    why: "the only irreversible step, and everything it depends on is already in place",
-    go: (target) => {
-      console.log(`\n── publish`)
-      const published = wrangler(["deploy"], target, { inherit: true })
-      if (published.code !== 0) throw new Refused("publish failed")
-    },
-  },
-  {
-    name: "wait",
-    why: "wrangler returns before the edge serves the new version, and /api/health cannot tell — the OLD worker answers it happily",
-    go: async (_t, origin) => {
-      console.log(`\n── wait for ${origin}`)
-      await waitForOrigin(origin)
-    },
-  },
-  {
-    name: "seed",
-    why: "after the schema is live, so the rows have tables to land in",
-    go: (target) => step("seed", ["bun", "scripts/db.ts", "seed-remote", "--env", target.environment]),
-  },
-  {
-    name: "smoke",
-    why: "last, because it is the only step that asks the deployment what it is actually serving",
-    go: (_t, origin) => step("smoke", ["bun", "scripts/deploy/smoke.ts"], { CF_DEPLOY_URL: origin }),
-  },
-]
-
 try {
   // Inside the boundary, so a missing --env prints the refusal rather than a
   // stack trace. It was at module top level, where nothing could catch it.

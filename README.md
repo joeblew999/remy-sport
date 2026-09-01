@@ -57,10 +57,27 @@ scripts/deploy.ts   PIPELINE
 scripts/dev.ts      start()
 ```
 
-## Layout
+## Layout, and reading the order off it
 
 `scripts/` holds the five commands plus `cloudflare.ts` and `prepare.ts`. Every
-other script sits under the command that runs it: `checks/`, `deploy/`, `dev/`,
-`build/`, `ops/`.
+other script sits under the command that runs it.
+
+Where a folder is a **sequence**, its files are numbered by their position in it,
+so `ls` tells you the order without opening anything:
+
+```
+scripts/deploy/   2-auth-schema  4-versions  5-provision  9-smoke
+scripts/build/    2-fonts  8-seed
+scripts/dev/      5-dev-vars  watch
+```
+
+The gaps are real: they are steps that are not files. `deploy` step 1 is the
+gate, 3 is the e2e tier, 6 is the publish, 7 the wait, 8 the remote seed — the
+numbered files are the four that are their own script. Open `scripts/deploy.ts`
+and `PIPELINE` is the first thing in it, all nine with the reason each sits
+where it does.
+
+`scripts/checks/` is deliberately unnumbered: those run in parallel, so there is
+no order to state. `scripts/ops/` likewise — it is a menu, not a pipeline.
 
 `AGENTS.md` holds the things that have already cost a bug.

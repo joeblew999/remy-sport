@@ -118,27 +118,32 @@ async function reachable(): Promise<boolean> {
 }
 
 /**
- * What starting the server does, in order.
+ * Starting the server, and this function IS the order.
  *
- *   1. local()      deps, fonts, bundle, types, .dev.vars, migrations, browsers,
- *                   fixtures — `bun scripts/prepare.ts --order` prints that list
- *   2. tunnel       before the server, because the Worker reads TUNNEL_HOSTNAME
- *                   from .dev.vars at boot and will not pick it up later
- *   3. watcher      vite rebuilds dist/web on save
- *   4. server       wrangler serves the Worker and that bundle
- *   5. wait         poll /api/health until it answers
- *   6. seed         POST /api/seed, which needs the server from step 4
- *   7. print        the three URLs, once there is something behind them
- *
- * Steps 2-4 are started, not awaited: they are long-lived. Everything after
- * depends on 4 being up, which is what step 5 is for.
+ * It was sixty lines of spawning and polling with the sequence described in a
+ * comment above it — the one form nothing can check. The detail moved into the
+ * named steps below; what is left reads top to bottom as what happens.
  */
 async function start(): Promise<void> {
-  local()
+  const kids: { kill: () => void }[] = []
+  reapOnExit(kids)
+
+  local() //                                    1. deps, bundle, schema, fixtures
   const ip = lanAddress()
-  const children: { kill: () => void }[] = []
+  const tunnel = startTunnel(kids) //           2. before the server — see below
+  startWatcher(kids) //                         3. rebuilds dist/web on save
+  const server = startServer(kids, ip) //       4. serves the Worker and bundle
+  await untilReachable() //                     5. nothing below works before this
+  await seedLocal() //                          6. needs the server from 4
+  announce(ip, tunnel) //                       7. once there is something behind it
+
+  await server.exited
+}
+
+/** Kill every child on the way out — a stray watcher is a second writer of dist/web. */
+function reapOnExit(kids: { kill: () => void }[]): void {
   const reap = () => {
-    for (const c of children) {
+    for (const c of kids) {
       try {
         c.kill()
       } catch {
@@ -153,52 +158,68 @@ async function start(): Promise<void> {
       process.exit(signal === "SIGINT" ? 130 : 143)
     })
   }
+}
 
+/**
+ * Step 2, and it must precede the server: the Worker reads TUNNEL_HOSTNAME from
+ * .dev.vars at boot to trust that origin, and will not pick it up afterwards —
+ * it would serve the tunnel and refuse its own sign-in.
+ */
+function startTunnel(kids: { kill: () => void }[]): boolean {
   const token = tunnelToken()
-  if (token) {
-    // The Worker reads TUNNEL_HOSTNAME to trust that origin; without the line
-    // it serves the tunnel and refuses its own sign-in.
-    const vars = existsSync(".dev.vars") ? readFileSync(".dev.vars", "utf-8") : ""
-    if (!/^TUNNEL_HOSTNAME=/m.test(vars)) appendFileSync(".dev.vars", `TUNNEL_HOSTNAME=${HOSTNAME}\n`)
-    children.push(
-      Bun.spawn(["cloudflared", "tunnel", "run", "--token", token], { stdout: "ignore", stderr: "ignore" }),
-    )
-  } else {
+  if (!token) {
     console.log("  (no tunnel — needs CLOUDFLARE_API_TOKEN with Cloudflare Tunnel:Edit)")
+    return false
   }
+  const vars = existsSync(".dev.vars") ? readFileSync(".dev.vars", "utf-8") : ""
+  if (!/^TUNNEL_HOSTNAME=/m.test(vars)) appendFileSync(".dev.vars", `TUNNEL_HOSTNAME=${HOSTNAME}\n`)
+  kids.push(Bun.spawn(["cloudflared", "tunnel", "run", "--token", token], { stdout: "ignore", stderr: "ignore" }))
+  return true
+}
 
-  children.push(
+function startWatcher(kids: { kill: () => void }[]): void {
+  kids.push(
     Bun.spawn(["bun", "x", "vite", "build", "--config", "src/web/vite.config.ts", "--watch", "--logLevel", "warn"], {
       stdout: "inherit",
       stderr: "inherit",
     }),
   )
-  // --host is explicit and must stay so: without it wrangler simulates the
-  // production [[routes]] custom domain locally. check-conventions enforces it.
+}
+
+/**
+ * `--host` is explicit and must stay so: without it wrangler simulates the
+ * production [[routes]] custom domain locally. check-conventions enforces it.
+ */
+function startServer(kids: { kill: () => void }[], ip: string | null) {
   const server = Bun.spawn(
     ["bun", "x", "wrangler", "dev", "--ip", "0.0.0.0", "--host", ip ?? "localhost", "--port", String(PORT)],
     { stdout: "inherit", stderr: "inherit" },
   )
-  children.push(server)
+  kids.push(server)
+  return server
+}
 
+async function untilReachable(): Promise<void> {
   for (let i = 0; i < 40 && !(await reachable()); i++) await Bun.sleep(1_000)
+}
 
-  const seeded = await fetch(`${LOCAL}/api/seed`, { method: "POST" })
+async function seedLocal(): Promise<void> {
+  const ok = await fetch(`${LOCAL}/api/seed`, { method: "POST" })
     .then((r) => r.ok)
     .catch(() => false)
-  console.log(seeded ? "  seeded" : "  seed failed")
+  console.log(ok ? "  seeded" : "  seed failed")
+}
 
+function announce(ip: string | null, tunnel: boolean): void {
   console.log(`\n  http://localhost:${PORT}            this machine`)
   if (ip) console.log(`  http://${ip}:${PORT}      same wifi`)
   console.log(
-    token
+    tunnel
       ? `  https://${HOSTNAME}   fixed URL, works anywhere`
       : "  (no tunnel — 'mise run ops tunnel' once for a fixed public URL)",
   )
   console.log(`  #/login                          twelve seeded people, one click`)
   console.log(`  rebuilds on save — reload to see changes\n`)
-
-  await server.exited
 }
 
 /**

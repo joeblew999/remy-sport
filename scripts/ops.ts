@@ -48,7 +48,7 @@ const OPS: Record<string, Op> = {
     help: "tunnel                           create the dev tunnel and its hostname",
   },
   versions: {
-    cmd: (rest) => ["bun", "scripts/deploy/versions.ts", ...rest],
+    cmd: (rest) => ["bun", "scripts/deploy/4-versions.ts", ...rest],
     help: "versions                         stamp versions.json",
   },
   seed: {

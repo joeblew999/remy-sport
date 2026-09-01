@@ -77,7 +77,7 @@ const lines: string[] = [
   "--",
   "-- The Product Owner's model, as data rather than as an HTTP call. Applied by",
   "-- the worker tests directly and by POST /api/seed at runtime, so both get the",
-  "-- same database. See scripts/build/seed.ts for why that distinction matters.",
+  "-- same database. See scripts/build/8-seed.ts for why that distinction matters.",
   "",
   "-- The whole file is one transaction, so foreign keys are checked once at the",
   "-- end rather than statement by statement. Vocabularies reference each other —",
