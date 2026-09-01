@@ -77,8 +77,6 @@ TUNNEL_ZONE     = "ubuntusoftware.net"
 CF_WORKER_NAME  = "remy-sport"
 CF_SUBDOMAIN    = "gedw99"
 CF_DEPLOY_URL   = "https://remy.ubuntusoftware.net"
-CF_D1_NAME      = "remy-sport-db"
-CF_R2_NAME      = "remy-sport-storage"
 DEV_URL         = "http://localhost:8787"
 GITHUB_REPO_URL = "https://github.com/joeblew999/remy-sport"
 
@@ -1020,28 +1018,40 @@ bun scripts/check-budget.ts e2e $(( ($(date +%s%N) - start) / 1000000 ))
 # and a switch you may need off in a hurry should not need a commit and a build.
 
 [tasks."demo:on"]
-description = "Let the seeded people sign in on the deployment (published code; never the admin)"
+description = "Let the seeded people sign in on a deployment (published code; never the admin)"
 depends     = ["install"]
-# The seeded ADMIN is excluded in src/auth.ts on any deployment — that account
-# can impersonate, which is the one power reaching a real person. cf:smoke fails
-# if it ever appears in the list.
-run = """
-CODE="${DEMO_CODE:-424242}"
-printf '%s' "$CODE" | bun x wrangler secret put TEST_OTP
-echo "demo:on: seeded sign-in is live at {{env.CF_DEPLOY_URL}}/#/login with code $CODE"
-echo "demo:on: the admin is NOT offered, and /api/dev/outbox stays closed"
-"""
+# Production only, and that is the whole reason this task still exists after the
+# provisioning consolidation. `signInCode` in src/environment.ts says dev and
+# staging DERIVE their code — there is nothing to set and nothing to forget —
+# while production is "secret" precisely so a person decides when seeded sign-in
+# is on, and can take it away again without a redeploy.
+#
+# The seeded ADMIN is excluded in src/auth.ts on any deployment: that account can
+# impersonate, which is the one power reaching a real person.
+#
+# It ENDS BY ASKING THE DEPLOYMENT. `demo:status` reads /api/dev/accounts and
+# fails if the code is not actually being served, because "the secret was put"
+# and "seeded sign-in works" are different claims and only the second one
+# matters. This task was silently a no-op on production for a whole commit —
+# the code was gated on a policy row production does not have — and nothing
+# said so until the next deploy. A provisioning task that cannot tell you
+# whether it worked is the failure class this week has been about.
+run = "bun scripts/cf-demo.ts on"
 
 [tasks."demo:off"]
-description = "Stop the seeded people signing in on the deployment"
+description = "Stop the seeded people signing in on a deployment"
 depends     = ["install"]
 # Run this before the platform has real users. A demo account cannot reach
 # anyone else's data, but it can edit shared fixture data — and once real events
 # exist, those are not fixtures any more.
-run = """
-bun x wrangler secret delete TEST_OTP
-echo "demo:off: seeded sign-in is off — the fixtures' addresses have no inbox, so there is no way in"
-"""
+#
+# Safe to run twice: an already-absent secret is the desired state, not an
+# error. The previous version deleted unconditionally and failed when there was
+# nothing to delete, which made "make sure demo is off" a command you could not
+# confidently run.
+#
+#   mise run demo:off -- --env production
+run = "bun scripts/cf-demo.ts off"
 
 [tasks."demo:status"]
 description = "Is seeded sign-in on, and who does it offer?"
@@ -1198,19 +1208,20 @@ mise run check
 mise run auth:schema:check
 mise run test
 mise run versions
-mise run cf:env:bootstrap
-mise run cf:d1:migrations:apply:remote
-# Secrets before the code, so the version cf:deploy publishes is the last one
-# and is already complete. Putting a `wrangler secret put` *after* the deploy
+# One call, not four. Bootstrap does D1, its migrations, R2, both queues and
+# every secret — and it is idempotent, so the pre-deploy run creates what is
+# missing and the post-deploy run fills in the secrets that needed the Worker to
+# exist first.
+#
+# Secrets before the code, so the version cf:deploy publishes is the last one and
+# is already complete. Putting a `wrangler secret put` *after* the deploy
 # publishes a further version, and for a few seconds the edge still answers from
 # the one before it — which failed the push smoke check on a deploy where the
-# keys had in fact been set correctly. Both tasks skip cleanly when the Worker
-# does not exist yet, which is the case they used to be ordered for.
-mise run cf:secret:set
-mise run push:secret:set
+# keys had in fact been set correctly.
+mise run cf:env:bootstrap -- --env production
 mise run cf:deploy
 mise run cf:wait
-mise run seed:remote
+mise run seed:remote -- --env production
 mise run cf:smoke
 """
 
@@ -1268,28 +1279,40 @@ description = "Seed remote D1 with dev users (idempotent)"
 # `--json` output carries a preamble that is not JSON. Its exit code is the
 # signal that matters and `set -e` acts on it — which is the same property the
 # note above wanted, obtained by not building a pipeline in the first place.
-run = """
-set -e
-bun x wrangler d1 execute remy-sport-db --remote --file=src/db/seed.sql
-
-"""
+run = "bun scripts/cf-d1.ts seed-remote"
 
 # ── cf:env: provisioning (ADR 006) ───────────────────────────────────────────
-# Ensure-style, not create-style: each task checks whether the resource exists
-# and creates it only if absent, so re-running is always safe. cf:d1:create and
-# cf:r2:create remain as explicit escape hatches but are in no pipeline.
+# ONE path, for one named environment. cf:d1:create, cf:r2:create, cf:d1:ensure,
+# cf:r2:ensure, cf:secret:set, push:secret:set and moq:relay:set were seven
+# entry points with three idempotency stories between them; they are now
+# internal steps of cf:env:bootstrap. Plan first, apply second, and both run the
+# same code.
+
+[tasks."cf:env:plan"]
+description = "Print what cf:env:bootstrap would do for an environment. Changes nothing."
+depends     = ["install"]
+# The half that was missing. The apply was never the frightening part — not
+# knowing what it was about to do was. It runs the SAME code as bootstrap and
+# differs only in whether the apply step is called, so the plan cannot describe
+# a different run from the one that follows it.
+#
+#   mise run cf:env:plan -- --env staging
+run = "bun scripts/cf-provision.ts"
 
 [tasks."cf:env:bootstrap"]
-description = "Provision all Cloudflare resources for this project (idempotent)"
-# Ordered, not parallel: cf:secret:set needs the worker to exist, and the worker
-# cannot deploy until D1 and R2 do. See the note in cf:secret:set.
+description = "Provision D1, migrations, R2, both queues and every secret for one environment"
 depends     = ["install"]
-run = """
-set -e
-mise run cf:d1:ensure
-mise run cf:r2:ensure
-mise run cf:secret:set
-"""
+# The description is now true. It used to say "all Cloudflare resources" and run
+# three of six: push:secret:set was called separately by `deploy`, moq:relay:set
+# and demo:on were called by nothing, and the queues were created by nobody at
+# all despite wrangler.toml declaring three of them.
+#
+# Requires --env and refuses without one. Everything else in this codebase
+# resolves unset configuration to production because the risk there is an opened
+# door; this performs writes, where the strict answer is to not perform them.
+#
+#   mise run cf:env:bootstrap -- --env staging
+run = "bun scripts/cf-provision.ts --apply"
 
 [tasks."cf:wait"]
 description = "Wait until the origin is serving the build that was just deployed"
@@ -1330,39 +1353,7 @@ echo "cf:wait: {{env.CF_DEPLOY_URL}} never reported $WANT within 5 minutes" >&2
 exit 1
 """
 
-[tasks."cf:d1:ensure"]
-description = "Create D1 if absent; write the resolved database_id into wrangler.toml"
-depends     = ["install"]
-run         = "bun scripts/cf-ensure.ts d1"
 
-[tasks."cf:r2:ensure"]
-description = "Create the R2 bucket if absent"
-depends     = ["install"]
-run         = "bun scripts/cf-ensure.ts r2"
-
-[tasks."cf:secret:set"]
-description = "Set BETTER_AUTH_SECRET on the deployed worker (generates one if unset)"
-depends     = ["install"]
-# `wrangler secret put` prompts when attached to a TTY and has no value flag, so
-# the value is piped via stdin to work unattended. It is never echoed.
-#
-# The worker must already exist — `wrangler secret list` errors with "Worker not
-# found" on a never-deployed script. So this skips cleanly when called from
-# cf:env:bootstrap before the first deploy, and the deploy pipeline calls it
-# again immediately after cf:deploy. Idempotent, so running it twice is free.
-run = """
-if ! SECRETS=$(mise run -q cf:secret:list 2>&1); then
-  echo "cf:secret:set: worker not deployed yet — skipping (deploy runs this again afterwards)"
-  exit 0
-fi
-if echo "$SECRETS" | grep -q BETTER_AUTH_SECRET; then
-  echo "cf:secret:set: BETTER_AUTH_SECRET already set, no change"
-  exit 0
-fi
-SECRET="${BETTER_AUTH_SECRET:-$(openssl rand -base64 32)}"
-printf '%s' "$SECRET" | bun x wrangler secret put BETTER_AUTH_SECRET
-echo "cf:secret:set: BETTER_AUTH_SECRET set"
-"""
 
 [tasks."push:keys"]
 description = "Generate a VAPID keypair for Web Push (prints three lines; does not store them)"
@@ -1373,62 +1364,6 @@ depends     = ["install"]
 # production private key in a file by accident.
 run = "bun scripts/vapid.ts"
 
-[tasks."moq:relay:set"]
-description = "Point the video harness at a MoQ relay (MOQ_RELAY_URL / MOQ_RELAY_TOKEN as secrets)"
-depends     = ["install"]
-# Secrets, not a literal in index.html. Cloudflare's own warning is that the
-# token travels in the relay URL's *path* and therefore lands in server access
-# logs; a value in the bundle would additionally be in git, be served to every
-# visitor forever, and need a redeploy to rotate.
-#
-#   MOQ_RELAY_TOKEN=... mise run moq:relay:set
-#
-# The relay is created in the dashboard: Media > Realtime > MoQ Relay > Create
-# relay. The token is shown once.
-run = """
-set -e
-if [ -z "${MOQ_RELAY_TOKEN:-}" ]; then
-  echo "moq:relay:set: set MOQ_RELAY_TOKEN first — the publish+subscribe token from"
-  echo "  the dashboard at Media > Realtime > MoQ Relay. It is shown once."
-  exit 1
-fi
-printf '%s' "${MOQ_RELAY_URL:-https://draft-16.cloudflare.mediaoverquic.com}" \
-  | bun x wrangler secret put MOQ_RELAY_URL
-printf '%s' "$MOQ_RELAY_TOKEN" | bun x wrangler secret put MOQ_RELAY_TOKEN
-if [ -n "${MOQ_RELAY_TOKEN_SUBSCRIBE:-}" ]; then
-  printf '%s' "$MOQ_RELAY_TOKEN_SUBSCRIBE" | bun x wrangler secret put MOQ_RELAY_TOKEN_SUBSCRIBE
-  echo "moq:relay:set: watchers get the subscribe-only token"
-else
-  echo "moq:relay:set: no MOQ_RELAY_TOKEN_SUBSCRIBE — watchers will be handed the"
-  echo "  publish token, which lets anyone who loads the watch page broadcast."
-fi
-echo "moq:relay:set: the video harness is live — /api/moq/config now answers"
-"""
-
-[tasks."push:secret:set"]
-description = "Set the VAPID keys on the deployed worker, generating a pair on first run"
-depends     = ["install"]
-# Runs as part of `deploy`, and is a no-op once set.
-#
-# It generates rather than asking, because the pair has no meaning outside this
-# deployment — nothing needs to know it, and a key nobody chose is one nobody
-# can leak by pasting. What matters is that it is stable: **rotating it
-# invalidates every subscription** the browsers have already pinned it into.
-#
-# This was a shell block whose only guard was `grep -q VAPID_PRIVATE_KEY`. That
-# asks about one half of a keypair and substring-matches the whole listing, so a
-# deployment holding a public key and no private one generated a fresh pair,
-# put all three, and exited 0 — having silently killed every production
-# subscription. See scripts/push-secrets.ts; the three-outcome decision is
-# shared with scripts/dev-vars.ts and tested in tests/unit/vapid-decision.test.ts.
-#
-# A half-pair fails the deploy, with two ways past it. They are not equivalent:
-# push is already off when the pair is incomplete (vapidFrom needs all three),
-# and the subscriptions are dormant rather than dead — restore the missing half
-# and the same public key is served again.
-#   PUSH_SKIP=1    ship the deploy, touch no keys, stay recoverable
-#   PUSH_ROTATE=1  new pair; push works now, every subscription dies
-run = "bun scripts/push-secrets.ts"
 
 [tasks."dev:vars"]
 description = "Write .dev.vars with a generated BETTER_AUTH_SECRET if absent"
@@ -1567,39 +1502,35 @@ depends     = ["install"]
 run         = "bun x wrangler d1 list"
 
 [tasks."cf:d1:list:json"]
-description = "List D1 databases as JSON (machine-readable; used by cf:d1:ensure)"
+description = "List D1 databases as JSON (machine-readable)"
 depends     = ["install"]
 run         = "bun x wrangler d1 list --json"
 
-[tasks."cf:d1:create"]
-description = "Create the project D1 database"
-depends     = ["install"]
-run         = "bun x wrangler d1 create {{env.CF_D1_NAME}}"
 
 [tasks."cf:d1:tables"]
 description = "List tables in local D1"
 depends     = ["install"]
-run         = "bun x wrangler d1 execute {{env.CF_D1_NAME}} --local --command \"SELECT name FROM sqlite_master WHERE type='table' ORDER BY name\""
+run         = "bun scripts/cf-d1.ts tables-local"
 
 [tasks."cf:d1:tables:remote"]
 description = "List tables in remote D1"
 depends     = ["install"]
-run         = "bun x wrangler d1 execute {{env.CF_D1_NAME}} --remote --command \"SELECT name FROM sqlite_master WHERE type='table' ORDER BY name\""
+run         = "bun scripts/cf-d1.ts tables-remote"
 
 [tasks."cf:d1:migrations:create"]
 description = "Create a new D1 migration (set NAME env var)"
 depends     = ["install"]
-run         = "bun x wrangler d1 migrations create {{env.CF_D1_NAME}} \"$NAME\""
+run         = "bun x wrangler d1 migrations create remy-sport-db \"$NAME\""
 
 [tasks."cf:d1:migrations:apply"]
 description = "Apply D1 migrations locally (idempotent)"
 depends     = ["install"]
-run         = "bun x wrangler d1 migrations apply {{env.CF_D1_NAME}} --local"
+run         = "bun scripts/cf-d1.ts migrate-local"
 
 [tasks."cf:d1:migrations:apply:remote"]
 description = "Apply D1 migrations to remote (idempotent)"
 depends     = ["install"]
-run         = "bun x wrangler d1 migrations apply {{env.CF_D1_NAME}} --remote"
+run         = "bun scripts/cf-d1.ts migrate-remote"
 
 # Wrangler records which migrations it has applied and never re-runs one. That
 # is right for hand-written migrations and wrong for 0009, which
@@ -1610,11 +1541,7 @@ run         = "bun x wrangler d1 migrations apply {{env.CF_D1_NAME}} --remote"
 [tasks."cf:d1:reset"]
 description = "Delete the local D1 database and replay every migration from scratch. Use when a migration has changed under a database that already ran it — wrangler will not re-apply one. Local only; never touches remote."
 depends     = ["install"]
-run = """
-rm -rf .wrangler/state/v3/d1
-bun x wrangler d1 migrations apply {{env.CF_D1_NAME}} --local
-echo "cf:d1:reset: local D1 rebuilt — run 'mise run dev' for test data"
-"""
+run = "bun scripts/cf-d1.ts reset-local"
 
 # ── cf:r2: storage ───────────────────────────────────────────────────────────
 
@@ -1623,15 +1550,11 @@ description = "List R2 buckets"
 depends     = ["install"]
 run         = "bun x wrangler r2 bucket list"
 
-[tasks."cf:r2:create"]
-description = "Create the project R2 bucket"
-depends     = ["install"]
-run         = "bun x wrangler r2 bucket create {{env.CF_R2_NAME}}"
 
 [tasks."cf:r2:objects"]
 description = "List objects in the R2 bucket"
 depends     = ["install"]
-run         = "bun x wrangler r2 object list {{env.CF_R2_NAME}}"
+run         = "bun x wrangler r2 object list remy-sport-storage"
 
 # ── Web app (src/web/) ──────────────────────────────────────────────────────
 
@@ -1795,4 +1718,3 @@ depends     = ["install"]
 # were never defined. scripts/tunnel-setup.ts explains why the API path needs
 # no certificate.
 run = "bun scripts/tunnel-setup.ts"
-

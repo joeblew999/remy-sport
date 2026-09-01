@@ -97,9 +97,11 @@ researched than it was.
 - **Google.** A Firebase project, `google-services.json` in the Android app <!-- docs-check-ignore --> , FCM
   server credentials as Worker secrets. Plus the Android target that does not
   exist.
-- Both are per-environment: dev and production want separate credentials, so
-  this doubles into the secret handling that `scripts/push-secrets.ts` now
-  guards.
+- Both are per-environment — and there are three environments now, not two, so
+  this is a third and fourth credential pair per environment. They would become
+  two more `SecretGroup` entries in `scripts/cf-provision.ts`, which already
+  carries the all-or-nothing rule that makes a half-written pair a refusal
+  rather than a silent rotation.
 
 ### Schema
 

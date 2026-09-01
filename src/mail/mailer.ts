@@ -61,7 +61,7 @@ export interface Mailer {
 }
 
 /** Default sender. Must belong to a domain onboarded to Email Service. */
-const DEFAULT_FROM = "noreply@remy.ubuntusoftware.net"
+export const DEFAULT_FROM = "noreply@remy.ubuntusoftware.net"
 
 /**
  * Bulk sender, on its own subdomain so its reputation is its own.
@@ -69,7 +69,9 @@ const DEFAULT_FROM = "noreply@remy.ubuntusoftware.net"
  * Overridable by `NOTIFY_EMAIL_FROM` the same way `EMAIL_FROM` overrides the
  * transactional one — the pattern was already there, this follows it.
  */
-const DEFAULT_BULK_FROM = "notifications@notify.remy.ubuntusoftware.net"
+// Exported so `cf:env:plan` names the same domains the mailer will actually
+// send from, rather than only the ones a [vars] block happens to override.
+export const DEFAULT_BULK_FROM = "notifications@notify.remy.ubuntusoftware.net"
 
 /** The From address for one message, by kind. */
 export function senderFor(env: Bindings, kind: Mail["kind"]): string {

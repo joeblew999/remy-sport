@@ -477,8 +477,14 @@ library emits before trusting it.**
 **Rotating the VAPID pair silently breaks every existing subscription.** The
 browser pins the public key at `subscribe()` time, so a new key cannot sign for
 endpoints the old one created — they fail 403 forever, and no reader is told.
-`mise run push:secret:set` therefore generates a pair only when none exists and
-never replaces one.
+`mise run cf:env:bootstrap` therefore generates a pair only when none exists and
+never replaces one. A **half-pair is refused** rather than completed, because
+completing it means rotating: `PUSH_SKIP=1` ships the deploy and touches
+nothing (push is already off, and every subscription stays recoverable once the
+missing half returns), `PUSH_ROTATE=1` accepts the loss. That all-or-nothing
+rule is `decideSecrets` in `scripts/cf-provision.ts`, and it guards
+`BETTER_AUTH_SECRET` and the MoQ pair too — the same mistake would sign
+everybody out, or half-configure video.
 
 **Notifications are three separate things, and it matters.** Following an object
 (`subscription`), a reachable browser (`userNotificationChannel`), and a per-type
