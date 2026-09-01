@@ -42,7 +42,10 @@ test.describe.serial("Organisations", () => {
 
     // Present after the mutation invalidates the list — no reload.
     await expect(page.getByTestId(`member-row-${REFEREE}`)).toBeVisible()
-    await expect(page.getByTestId(`member-row-${REFEREE}`)).toContainText("MEMBER")
+    // The label the `orgRoles` vocabulary gives MEMBER, not the code. 97ec3e1
+    // stopped the badge printing "ORG_ADMIN" at a Thai reader and this
+    // assertion was left behind, which is what turned `deploy` red on 08-31.
+    await expect(page.getByTestId(`member-row-${REFEREE}`)).toContainText("Organisation Member")
 
     await page.getByTestId(`remove-${REFEREE}`).click()
     await expect(page.getByTestId(`member-row-${REFEREE}`)).toHaveCount(0)
