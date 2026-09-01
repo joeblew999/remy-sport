@@ -600,3 +600,12 @@ There is almost none, on purpose.
 
 - biz [domain/access/matrix.md](https://github.com/joeblew999/remy-sport-biz/blob/main/domain/access/matrix.md)
   — who may do what, generated from the model this repo syncs
+
+**A step is named for what it runs, and nothing uses a colon or a space.** The
+name is the file's stem, or the subcommand where it invokes one. This is checked
+because nothing else could see it: typecheck, knip and check:docs all ask whether
+a thing RUNS, and every one of them was green while `seed:order` kept a colon
+from a mise task that no longer existed, `gui` ran coverage-gui, `vars` ran
+dev-vars, and one step had a space in the middle of its name. Naming drift is
+invisible to a gate that only executes things, so it took a person reading the
+output — which is exactly the kind of thing that should not need a person.

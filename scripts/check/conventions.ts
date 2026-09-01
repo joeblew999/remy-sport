@@ -63,6 +63,34 @@ const grepSrc = (re: RegExp) =>
 
 const RULES: Rule[] = [
   {
+    /**
+     * Naming drift is invisible to every other gate.
+     *
+     * typecheck, knip and docs all ask whether the thing RUNS. None of them ask
+     * whether it reads. So `seed:order` kept a colon after the mise task it was
+     * named for was deleted, `gui` ran coverage-gui, `vars` ran dev-vars, and
+     * one step had a space in the middle of its name — every one of them green,
+     * every one of them wrong, and all of them found by a person reading the
+     * output rather than by anything here.
+     */
+    claim: '"A step is named for what it runs, and nothing uses a colon or a space."',
+    check: () => {
+      const bad: string[] = []
+      for (const file of ["scripts/check.ts", "scripts/deploy.ts", "scripts/lib/prepare.ts", "scripts/dev.ts"]) {
+        const body = read(file)
+        for (const [, name] of body.matchAll(/name: "([^"]+)"/g)) {
+          if (/[: ]/.test(name)) bad.push(`${file}: step "${name}" uses a colon or a space`)
+        }
+        // Where a step spawns a script, its name must be that file's stem.
+        for (const [, name, path] of body.matchAll(/name: "([^"]+)", cmd: script\("([^"]+)"/g)) {
+          const stem = path.split("/").pop()!.replace(/\.ts$/, "")
+          if (name !== stem) bad.push(`${file}: step "${name}" runs ${stem}.ts`)
+        }
+      }
+      return bad
+    },
+  },
+  {
     claim:
       '"Authorisation is the model\'s answer, never a role string compared in a handler."',
     /**
