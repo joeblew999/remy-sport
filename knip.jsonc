@@ -34,13 +34,13 @@
     "src/web/vite.config.ts",
     "src/auth.cli.ts",
     "scripts/*.ts",
-    "scripts/build/*.ts",
+    "scripts/prepare/*.ts",
     "scripts/deploy/*.ts",
     "scripts/dev/*.ts",
-    // scripts/checks/*.ts are the gate's steps. They are entry points like any
+    // scripts/check/*.ts are the gate's steps. They are entry points like any
     // other script here — check.ts spawns them by path rather than importing
     // them, so nothing in the graph reaches them and knip calls all eleven dead.
-    "scripts/checks/*.ts",
+    "scripts/check/*.ts",
     // scripts/ops/*.ts likewise: ops.ts dispatches to them by path, so nothing
     // in the module graph reaches them either.
     "scripts/ops/*.ts",

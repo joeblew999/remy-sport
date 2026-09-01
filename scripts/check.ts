@@ -89,18 +89,18 @@ export const PHASES: Step[][] = [
     { name: "deps", cmd: bun("x", "depcruise", "src", "--config", ".dependency-cruiser.cjs") },
     { name: "i18n", cmd: bun("x", "eslint", "src/web") },
     { name: "i18n:validate", cmd: bun("x", "inlang", "validate", "--project", "./project.inlang") },
-    { name: "docs", cmd: script("checks/check-docs.ts") },
-    { name: "authz", cmd: script("checks/check-authz.ts") },
-    { name: "conventions", cmd: script("checks/check-conventions.ts") },
-    { name: "seed:order", cmd: script("checks/check-seed-order.ts") },
+    { name: "docs", cmd: script("check/docs.ts") },
+    { name: "authz", cmd: script("check/authz.ts") },
+    { name: "conventions", cmd: script("check/conventions.ts") },
+    { name: "seed:order", cmd: script("check/seed-order.ts") },
     { name: "domain", cmd: script("ops/domain.ts", "--check") },
-    { name: "tables", cmd: script("checks/check-tables.ts") },
-    { name: "assets", cmd: script("checks/check-assets.ts") },
-    { name: "messages", cmd: script("checks/check-messages.ts") },
-    { name: "notifications", cmd: script("checks/check-notifications.ts") },
-    { name: "gui", cmd: script("ops/gui-coverage.ts") },
-    { name: "bundle", cmd: script("checks/check-bundle.ts") },
-    { name: "envs", cmd: script("checks/check-envs.ts") },
+    { name: "tables", cmd: script("check/tables.ts") },
+    { name: "assets", cmd: script("check/assets.ts") },
+    { name: "messages", cmd: script("check/messages.ts") },
+    { name: "notifications", cmd: script("check/notifications.ts") },
+    { name: "gui", cmd: script("ops/coverage-gui.ts") },
+    { name: "bundle", cmd: script("check/bundle.ts") },
+    { name: "envs", cmd: script("check/envs.ts") },
   ],
 ]
 
@@ -116,8 +116,8 @@ export function run(step: Step): Promise<{ name: string; ok: boolean }> {
       if (ok && step.budget) {
         // Timed, and the number is printed on every run. A tier that got six
         // times slower went unnoticed for a whole session because nothing ever
-        // said how long it took — see scripts/checks/check-budget.ts.
-        spawn("bun", ["scripts/checks/check-budget.ts", step.budget, String(Date.now() - started)], {
+        // said how long it took — see scripts/check/budget.ts.
+        spawn("bun", ["scripts/check/budget.ts", step.budget, String(Date.now() - started)], {
           stdio: "inherit",
           env: { ...process.env, ...step.env },
         }).on("exit", () => resolve({ name: step.name, ok }))

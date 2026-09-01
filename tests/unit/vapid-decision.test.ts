@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test"
-import { decideFromNames, decideVapid, halfPairMessage } from "../../scripts/ops/vapid"
+import { decideFromNames, decideVapid, halfPairMessage } from "../../scripts/ops/keys"
 
 /**
  * What to do about a VAPID keypair, given what is already stored.

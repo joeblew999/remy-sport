@@ -188,7 +188,7 @@ never going to appear. Now 15s per test, 5s per assertion, and a failing run
 costs 20s.
 
 Three things make a repeat visible: every tier prints its time against a budget
-on every run ([scripts/checks/check-budget.ts](scripts/checks/check-budget.ts)); both
+on every run ([scripts/check/budget.ts](scripts/check/budget.ts)); both
 Playwright configs name any file over a threshold the tier can actually exceed;
 and every timeout is written beside the operation that justifies it. **When a
 budget trips, find what got slower before raising the ceiling.**

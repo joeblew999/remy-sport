@@ -32,7 +32,7 @@
  * Six of twenty-six, wrong in the direction that invents work, in the report
  * whose own text calls itself the list to read before choosing what to build.
  *
- * `policyOf` over the real router is what scripts/checks/check-authz.ts already does,
+ * `policyOf` over the real router is what scripts/check/authz.ts already does,
  * and now the two tools answer "is this enforced" from one source. Two
  * derivations of one fact is how they disagree, and the grep was simply the
  * worse of the two.

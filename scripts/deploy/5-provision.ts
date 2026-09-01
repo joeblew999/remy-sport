@@ -29,7 +29,7 @@
  */
 
 import { DEMO_SIGN_IN_CODE, POLICY, type Environment } from "../../src/environment"
-import { DEFAULT_SUBJECT, PRIVATE_KEY, PUBLIC_KEY, generateVapid } from "../ops/vapid"
+import { DEFAULT_SUBJECT, PRIVATE_KEY, PUBLIC_KEY, generateVapid } from "../ops/keys"
 import {
   DEPLOYABLE,
   Refused,

@@ -86,17 +86,17 @@ const BUILD: Step[] = [
   {
     name: "fonts",
     why: "writes src/web/fonts.css, which styles.css imports on its first line — so it precedes the bundle that reads it",
-    go: () => sh(["bun", "scripts/build/2-fonts.ts"]),
+    go: () => sh(["bun", "scripts/prepare/2-fonts.ts"]),
   },
   { name: "bundle", why: "dist/web is gitignored and the [assets] binding points at it, so a fresh clone has none", go: webBuild },
   { name: "types", why: "worker-configuration.d.ts is generated from the bindings, and the typecheck reads it", go: () => sh(["bun", "x", "wrangler", "types"]) },
 ]
 
 const LOCAL: Step[] = [
-  { name: "vars", why: ".dev.vars before anything runs the Worker, including the tests", go: () => sh(["bun", "scripts/dev/5-dev-vars.ts"]) },
+  { name: "vars", why: ".dev.vars before anything runs the Worker, including the tests", go: () => sh(["bun", "scripts/prepare/5-dev-vars.ts"]) },
   { name: "migrate", why: "the local database gets its schema before anything seeds it", go: () => sh(["bun", "scripts/db.ts", "migrate-local"]) },
   { name: "browsers", why: "webkit for the render tier; a no-op once installed", go: () => sh(["bun", "x", "playwright", "install", "webkit"]) },
-  { name: "fixtures", why: "seed.sql regenerated from the model, after the schema it targets exists", go: () => sh(["bun", "scripts/build/8-seed.ts"]) },
+  { name: "fixtures", why: "seed.sql regenerated from the model, after the schema it targets exists", go: () => sh(["bun", "scripts/prepare/8-seed.ts"]) },
 ]
 
 /** What any command needs to BUILD. check and deploy stop here. */

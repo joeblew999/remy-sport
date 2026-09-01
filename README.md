@@ -57,27 +57,34 @@ scripts/deploy.ts   PIPELINE
 scripts/dev.ts      start()
 ```
 
-## Layout, and reading the order off it
+## Layout
 
-`scripts/` holds the five commands plus `cloudflare.ts` and `prepare.ts`. Every
-other script sits under the command that runs it.
-
-Where a folder is a **sequence**, its files are numbered by their position in it,
-so `ls` tells you the order without opening anything:
+One script per command, and beside it a folder of its parts named the same:
 
 ```
-scripts/deploy/   2-auth-schema  4-versions  5-provision  9-smoke
-scripts/build/    2-fonts  8-seed
-scripts/dev/      5-dev-vars  watch
+check.ts      check/       assets  authz  budget  bundle  conventions  docs
+                           envs  messages  notifications  seed-order  tables
+deploy.ts     deploy/      2-auth-schema  4-versions  5-provision  9-smoke
+prepare.ts    prepare/     2-fonts  5-dev-vars  8-seed
+ops.ts        ops/         analytics  audit  biz  coverage-data  coverage-gui
+                           coverage-model  demo  demo-status  domain  keys
+                           tiers  time  tunnel
+dev.ts        dev/         watch
+db.ts
+cloudflare.ts              the only path to the Cloudflare API
 ```
 
-The gaps are real: they are steps that are not files. `deploy` step 1 is the
-gate, 3 is the e2e tier, 6 is the publish, 7 the wait, 8 the remote seed — the
-numbered files are the four that are their own script. Open `scripts/deploy.ts`
-and `PIPELINE` is the first thing in it, all nine with the reason each sits
-where it does.
+Two rules make it readable without opening anything:
 
-`scripts/checks/` is deliberately unnumbered: those run in parallel, so there is
-no order to state. `scripts/ops/` likewise — it is a menu, not a pipeline.
+**A file is named for the thing that runs it.** Every name under `ops/` is an
+`ops` subcommand, so that listing is the menu. Every name under `check/` is a
+step in the gate.
+
+**Where a folder is a sequence, its files carry their position.** `deploy/` and
+`prepare/` are numbered; the gaps are steps that are not files — deploy's 1 is
+the gate, 3 the e2e tier, 6 the publish, 7 the wait, 8 the remote seed. `check/`
+is deliberately unnumbered because those run in parallel, and numbering them
+would assert an order that does not exist. `ops/` likewise: a menu, not a
+pipeline.
 
 `AGENTS.md` holds the things that have already cost a bug.

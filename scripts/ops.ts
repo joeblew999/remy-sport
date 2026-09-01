@@ -60,11 +60,11 @@ const OPS: Record<string, Op> = {
     help: "biz                              fast-forward the PO's checkout",
   },
   coverage: {
-    cmd: ([what = "gui", ...rest]) => ["bun", `scripts/ops/${what}-coverage.ts`, ...rest],
+    cmd: ([what = "gui", ...rest]) => ["bun", `scripts/ops/coverage-${what}.ts`, ...rest],
     help: "coverage <gui|data|model>        how much of each surface is exercised",
   },
   keys: {
-    cmd: (rest) => ["bun", "scripts/ops/vapid.ts", ...rest],
+    cmd: (rest) => ["bun", "scripts/ops/keys.ts", ...rest],
     help: "keys                             generate a VAPID keypair for Web Push",
   },
   deps: {
@@ -98,7 +98,7 @@ const OPS: Record<string, Op> = {
     help: "tauri <dev|build|info|ios-init|ios-dev>   desktop and mobile targets",
   },
   tiers: {
-    cmd: (rest) => ["bun", "scripts/ops/test-tiers.ts", ...rest],
+    cmd: (rest) => ["bun", "scripts/ops/tiers.ts", ...rest],
     help: "tiers                            how many tests sit in each tier",
   },
   time: {
