@@ -62,8 +62,8 @@ scripts/dev.ts      start()
 One script per command, and beside it a folder of its parts named the same:
 
 ```
-check.ts      check/       assets  authz  budget  bundle  conventions  docs
-                           envs  messages  notifications  seed-order  tables
+check.ts      check/       assets  authz  bundle  conventions  docs  envs
+                           messages  notifications  seed-order  tables
 deploy.ts     deploy/      2-auth-schema  4-versions  5-provision  9-smoke
 prepare.ts    prepare/     2-fonts  5-dev-vars  8-seed
 ops.ts        ops/         analytics  audit  biz  coverage-data  coverage-gui
@@ -76,9 +76,10 @@ cloudflare.ts              the only path to the Cloudflare API
 
 Two rules make it readable without opening anything:
 
-**A file is named for the thing that runs it.** Every name under `ops/` is an
-`ops` subcommand, so that listing is the menu. Every name under `check/` is a
-step in the gate.
+**A file is named for the thing that runs it.** Every file under `check/` is one
+step of the gate — all ten, nothing else. Every file under `ops/` belongs to the
+subcommand it is named for: `demo-status` is what `ops demo status` runs,
+`coverage-gui` is `ops coverage gui`.
 
 **Where a folder is a sequence, its files carry their position.** `deploy/` and
 `prepare/` are numbered; the gaps are steps that are not files — deploy's 1 is
