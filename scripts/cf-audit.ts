@@ -13,13 +13,18 @@
  *   CLOUDFLARE_API_TOKEN — token with Account Settings: Read (or Audit Logs Read).
  *                          The cf:audit task fills this from fnox when it is
  *                          not already set, so a stored token needs no prefix.
- *   CF_ACCOUNT_ID        — optional; resolved from wrangler config when absent
+ *   The account is the pinned one, from scripts/cloudflare.ts. There is no
+ *   override: this file used to carry a literal uuid as a fallback.
  *   SINCE / BEFORE       — optional ISO dates bounding the search
  */
 
-const TOKEN = process.env.CLOUDFLARE_API_TOKEN
+import { accountApi, token } from "./cloudflare"
 
-if (!TOKEN) {
+// Sourced through the module, so this consults fnox itself rather than relying
+// on its mise task to have exported one first — which is what the shell block
+// in cf:audit was for, and why it can now go. The guidance below is kept: it is
+// the only place that explains which permission the token needs.
+if (!token()) {
   console.error(
     `cf-audit: CLOUDFLARE_API_TOKEN is not set.
 
@@ -46,7 +51,6 @@ written to disk.`,
   process.exit(1)
 }
 
-const ACCOUNT_ID = process.env.CF_ACCOUNT_ID ?? "7384af54e33b8a54ff240371ea368440"
 const SINCE = process.env.SINCE ?? "2026-03-01T00:00:00Z"
 const BEFORE = process.env.BEFORE ?? "2026-08-21T00:00:00Z"
 
@@ -62,11 +66,11 @@ type Entry = {
  * they answer, so try both rather than guessing.
  */
 async function fetchPage(path: string, page: number): Promise<{ ok: boolean; entries: Entry[]; error?: string }> {
-  const url =
-    `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/${path}` +
-    `?since=${SINCE}&before=${BEFORE}&per_page=1000&page=${page}`
-
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${TOKEN}` } })
+  // Not apiResult(): a failure here is expected and drives the v1/v2 fallback
+  // below, so this reads the envelope rather than refusing on it.
+  const res = await accountApi(
+    `/${path}?since=${SINCE}&before=${BEFORE}&per_page=1000&page=${page}`,
+  )
   const body = (await res.json()) as {
     success?: boolean
     result?: Entry[]

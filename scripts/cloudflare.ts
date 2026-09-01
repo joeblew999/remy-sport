@@ -410,12 +410,8 @@ export function wrangler(
 
 const API = "https://api.cloudflare.com/client/v4"
 
-/**
- * A raw API call, for the endpoints wrangler has no command for — the audit log
- * and tunnel DNS. Account-scoped by construction: the path is relative to this
- * account and cannot be pointed at another.
- */
-export async function api(path: string, init: RequestInit = {}): Promise<Response> {
+/** The one place a bearer token is attached to a request. */
+async function v4(path: string, init: RequestInit = {}): Promise<Response> {
   const t = token()
   if (!t) {
     fail(
@@ -424,10 +420,52 @@ export async function api(path: string, init: RequestInit = {}): Promise<Respons
         "  Store it:  mise exec -- fnox set --global -p keychain CLOUDFLARE_API_TOKEN",
     )
   }
-  return fetch(`${API}/accounts/${accountId()}${path}`, {
+  return fetch(`${API}${path}`, {
     ...init,
     headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json", ...init.headers },
   })
+}
+
+/**
+ * An account-scoped call, for endpoints wrangler has no command for.
+ *
+ * The prefix is built here rather than passed in, so a caller cannot name a
+ * different account. `cf-audit.ts` carried `CF_ACCOUNT_ID ?? "<a literal
+ * uuid>"` — Decision 2's failure wearing its most obvious face: a pin one
+ * caller had quietly opted out of.
+ */
+export async function accountApi(path: string, init: RequestInit = {}): Promise<Response> {
+  return v4(`/accounts/${accountId()}${path}`, init)
+}
+
+/**
+ * A zone-scoped call. Zones are not account-scoped in the URL — the token is
+ * what confines them to this account — so they get their own named door rather
+ * than a general escape hatch from `accountApi`'s prefix.
+ */
+export async function zoneApi(path: string, init: RequestInit = {}): Promise<Response> {
+  return v4(`/zones${path}`, init)
+}
+
+/**
+ * The `{ success, result, errors }` envelope, unwrapped once.
+ *
+ * Every REST caller wrote this out again, and reading it wrongly is the same
+ * family of mistake as `unreachable()`: `res.ok` is true for a 200 whose body
+ * says `success: false`, so a refusal reads as a result.
+ */
+export async function apiResult<T>(res: Response, what: string): Promise<T> {
+  const body = (await res.json().catch(() => null)) as {
+    success?: boolean
+    result?: T
+    errors?: { message?: string }[]
+  } | null
+
+  if (!body?.success) {
+    const why = body?.errors?.map((e) => e.message).filter(Boolean).join("; ") || `HTTP ${res.status}`
+    fail(`${what} — ${why}`)
+  }
+  return body.result as T
 }
 
 // ── What an error means ──────────────────────────────────────────────────────

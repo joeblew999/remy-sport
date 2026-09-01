@@ -26,22 +26,13 @@
  */
 
 import { DEMO_SIGN_IN_CODE, POLICY } from "../src/environment"
-import { Refused, resolveTarget } from "./cloudflare"
+import { Refused, resolveTarget, wrangler } from "./cloudflare"
 
 const action = process.argv[2] as "on" | "off"
 const argv = process.argv.slice(3)
 
-function wrangler(args: string[], flag?: string): { code: number; text: string } {
-  const proc = Bun.spawnSync(["bun", "x", "wrangler", ...args, ...(flag ? ["--env", flag] : [])], {
-    stdin: undefined,
-    stdout: "pipe",
-    stderr: "pipe",
-  })
-  return { code: proc.exitCode, text: proc.stdout.toString() + proc.stderr.toString() }
-}
-
 try {
-  const target = resolveTarget(argv)
+  const target = resolveTarget(argv, "explicit")
 
   if (POLICY[target.environment].signInCode !== "secret") {
     throw new Refused(
@@ -53,18 +44,21 @@ try {
 
   if (action === "on") {
     const code = process.env.DEMO_CODE ?? DEMO_SIGN_IN_CODE
-    const put = Bun.spawnSync(
-      ["bun", "x", "wrangler", "secret", "put", "TEST_OTP", ...(target.flag ? ["--env", target.flag] : [])],
-      { stdin: new TextEncoder().encode(code), stdout: "inherit", stderr: "inherit" },
-    )
-    if (put.exitCode !== 0) throw new Refused("could not set TEST_OTP")
+    const put = wrangler(["secret", "put", "TEST_OTP"], target, { stdin: code, inherit: true })
+    if (put.code !== 0) throw new Refused("could not set TEST_OTP")
   } else if (action === "off") {
-    const gone = wrangler(["secret", "delete", "TEST_OTP", "--force"], target.flag)
+    // No `--force`: wrangler has no such flag and rejects the whole command with
+    // "Unknown argument: force", so `demo:off` could not turn demo off at all —
+    // the one command AGENTS.md says to run before the platform has real users.
+    // It prompts instead, and answers itself with "yes" when nothing is a TTY,
+    // which is every way this runs.
+    const gone = wrangler(["secret", "delete", "TEST_OTP"], target)
     // Already absent is the desired state, not a failure. The old task deleted
     // unconditionally and errored when there was nothing to delete, which made
     // "make sure demo is off" a command you could not safely run twice.
-    if (gone.code !== 0 && !/not found|does not exist/i.test(gone.text)) {
-      throw new Refused(`could not delete TEST_OTP:\n${gone.text}`)
+    const goneText = gone.out + gone.err
+    if (gone.code !== 0 && !/not found|does not exist/i.test(goneText)) {
+      throw new Refused(`could not delete TEST_OTP:\n${goneText}`)
     }
   } else {
     throw new Refused(`usage: cf-demo.ts <on|off> --env <environment>`)

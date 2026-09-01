@@ -1467,14 +1467,7 @@ depends     = ["install"]
 # `fnox get` rather than `fnox exec`: exec would inject every secret declared
 # in fnox.toml into this process, and warn on each run about ones unrelated to
 # auditing. This pulls exactly the one it needs.
-run = """
-set -e
-if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
-  CLOUDFLARE_API_TOKEN=$(fnox get CLOUDFLARE_API_TOKEN 2>/dev/null) || true
-  export CLOUDFLARE_API_TOKEN
-fi
-bun scripts/cf-audit.ts
-"""
+run = "bun scripts/cf-audit.ts"
 
 [tasks."time"]
 description = "Time a local endpoint — min/p50/p95/max over N runs (`mise run time /api/health`)"
