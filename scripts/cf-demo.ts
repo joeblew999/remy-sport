@@ -74,7 +74,7 @@ try {
    * the write. On 2026-09-01 that made `demo:on` report failure on a success,
    * which is half of why a fixed sign-in code sat on production unnoticed.
    *
-   * Same problem `cf:wait` solves for a deploy, and the same answer: ask until
+   * Same problem waitForOrigin solves in scripts/deploy.ts, and the same answer: ask
    * the deployment agrees, with a bound so a real failure still fails.
    *
    * `demo-status.ts` exits non-zero when the admin is offered, which is a

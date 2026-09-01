@@ -1206,48 +1206,16 @@ curl -sf -X POST {{env.DEV_URL}}/api/seed | jq .
 
 [tasks.deploy]
 description = "Full deploy pipeline"
-# Sequencing lives in the run block, NOT in depends (ADR 006 §8). mise runs
-# independent sibling dependencies in parallel — it honours the dependency
-# graph, not list order — so the old flat depends list let test:deployed race
-# cf:deploy and seed:remote race the remote migrations.
+# The order lives in scripts/deploy.ts, where it can be read, and where the
+# origin to verify against is derived per environment instead of being the one
+# hostname a TOML template could interpolate.
 #
-# Chaining the tasks through depends was rejected: it would couple them, so
+# Not expressed through `depends`: mise runs independent siblings in parallel —
+# it honours the graph, not list order — and chaining them would couple them, so
 # `mise run seed:remote` would trigger a full deploy as a side effect. Ordering
-# is a property of this pipeline, not of the individual tasks.
-#
-# Migrations run BEFORE cf:deploy, and after cf:env:bootstrap creates the D1
-# database they need. They used to run after the deploy, which was survivable
-# only while every migration was additive — old code simply ignored the new
-# columns. Migration 0007 broke that assumption: better-auth 1.7 matches
-# sign-in against account.issuer, so a Worker deployed ahead of it queries a
-# column that does not exist yet and every sign-in fails until the migration
-# lands. Migrate first, then deploy code that depends on the migration.
+# is a property of this pipeline, not of the tasks it calls.
 depends     = ["setup"]
-run = """
-set -e
-# No credential block. Every step below resolves its own through
-# scripts/cloudflare.ts — including cf:deploy, which was the last one that could
-# not, and seed:remote, which the note here used to say depended on this export.
-mise run check
-mise run auth:schema:check
-mise run test
-mise run versions
-# One call, not four. Bootstrap does D1, its migrations, R2, both queues and
-# every secret — and it is idempotent, so the pre-deploy run creates what is
-# missing and the post-deploy run fills in the secrets that needed the Worker to
-# exist first.
-#
-# Secrets before the code, so the version cf:deploy publishes is the last one and
-# is already complete. Putting a `wrangler secret put` *after* the deploy
-# publishes a further version, and for a few seconds the edge still answers from
-# the one before it — which failed the push smoke check on a deploy where the
-# keys had in fact been set correctly.
-mise run cf:env:bootstrap -- --env production
-mise run cf:deploy -- --env production
-mise run cf:wait
-mise run seed:remote -- --env production
-mise run cf:smoke
-"""
+run = "bun scripts/deploy.ts"
 
 # ── Remote / test variants ───────────────────────────────────────────────────
 
@@ -1348,47 +1316,6 @@ depends     = ["install"]
 # scripts/cloudflare.ts, which is the only place it is decided.
 run = "bun scripts/cf-provision.ts --apply"
 
-[tasks."cf:wait"]
-description = "Wait until the origin is serving the build that was just deployed"
-depends     = ["install"]
-# Two distinct problems, both of which broke a deploy:
-#
-# 1. A freshly bound custom domain is not immediately usable — wrangler creates
-#    the DNS record and requests an edge certificate, but propagation and
-#    issuance take minutes. The first deploy died with `getaddrinfo ENOTFOUND`.
-#
-# 2. `wrangler deploy` returns before the new version has propagated. Polling
-#    /api/health cannot detect that, because the OLD worker answers it happily
-#    — so test:deployed ran against stale code and every organization test 404'd
-#    on a route the new build had only just added.
-#
-# So this compares the build stamp the origin reports against the one in the
-# local versions.json (written by `mise run versions` earlier in the pipeline).
-# `_generated` rather than the git commit: the commit only changes when you
-# commit, so deploying uncommitted work would report a match against stale code.
-run = """
-set -o pipefail
-WANT=$(python3 -c "import json; d=json.load(open('versions.json')); print(d.get('current',d).get('_generated',''))")
-if [ -z "$WANT" ]; then
-  echo "cf:wait: no _generated stamp in versions.json — run 'mise run versions' first" >&2
-  exit 1
-fi
-for i in $(seq 1 60); do
-  GOT=$(curl -sf --max-time 10 {{env.CF_DEPLOY_URL}}/api/versions 2>/dev/null \
-        | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('current',d).get('_generated',''))" 2>/dev/null || echo "")
-  if [ "$GOT" = "$WANT" ]; then
-    echo "cf:wait: {{env.CF_DEPLOY_URL}} is serving $WANT"
-    exit 0
-  fi
-  [ -n "$GOT" ] && echo "cf:wait: origin still serving $GOT, want $WANT"
-  sleep 5
-done
-echo "cf:wait: {{env.CF_DEPLOY_URL}} never reported $WANT within 5 minutes" >&2
-exit 1
-"""
-
-
-
 [tasks."push:keys"]
 description = "Generate a VAPID keypair for Web Push (prints three lines; does not store them)"
 depends     = ["install"]
@@ -1408,17 +1335,6 @@ depends     = ["install"]
 run         = "bun scripts/dev-vars.ts"
 
 # ── cf: deploy ───────────────────────────────────────────────────────────────
-
-[tasks."cf:deploy"]
-description = "Deploy worker (API + SPA) to Cloudflare"
-# web:build must run first — wrangler uploads dist/web via the [assets] binding,
-# so deploying without a fresh build ships stale or missing GUI assets.
-depends     = ["install", "web:build"]
-sources     = ["src/**/*.ts", "src/web/**/*", "wrangler.toml", "package.json", "versions.json"]
-# Through scripts/cf-deploy.ts, not `bun x wrangler deploy`. It was the last raw
-# wrangler call on the deploy path and the only reason the credential block below
-# in `deploy` could not go: it inherited that export instead of resolving its own.
-run         = "bun scripts/cf-deploy.ts"
 
 [tasks."cf:audit"]
 description = "Query the Cloudflare audit log for delete actions (CLOUDFLARE_API_TOKEN from fnox or the environment)"
