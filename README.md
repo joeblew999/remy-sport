@@ -84,13 +84,14 @@ every file under `check/` is a step of the gate.
 `cloudflare.ts` is the only path to the Cloudflare API.
 
 Order is deliberately NOT in the filenames. When something runs is a fact about
-execution, not about a file, and encoding it in names needs a legend and goes
-stale the moment a step moves. It lives where it can be read and cannot lie:
+execution, not about a file: encoding it in names needs a legend and goes stale
+the moment a step moves. Ask the command instead — each prints the list it
+actually runs, so it cannot drift from the truth:
 
 ```
-scripts/deploy.ts   PIPELINE   nine steps, each with the reason it sits there
-scripts/check.ts    PHASES     three phases; within a phase there is no order
-scripts/dev.ts      start()    seven numbered lines
+mise run dev -- --order       7 steps
+mise run check -- --order     3 phases, and what is parallel within each
+mise run deploy -- --order    9 steps, each with the reason it sits there
 bun scripts/lib/prepare.ts --order
 ```
 

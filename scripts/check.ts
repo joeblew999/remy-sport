@@ -224,25 +224,25 @@ export const PHASES: Step[][] = [
     },
   ],
   [
-    { name: "typecheck:worker", cmd: bun("x", "tsc", "--noEmit", "-p", "tsconfig.json", "--incremental", "false") },
-    { name: "typecheck:spa", cmd: bun("x", "tsc", "--noEmit", "-p", "src/web/tsconfig.json", "--incremental", "false") },
-    { name: "typecheck:tests", cmd: bun("x", "tsc", "--noEmit", "-p", "tsconfig.tests.json", "--incremental", "false") },
+    { name: "typecheck-worker", cmd: bun("x", "tsc", "--noEmit", "-p", "tsconfig.json", "--incremental", "false") },
+    { name: "typecheck-spa", cmd: bun("x", "tsc", "--noEmit", "-p", "src/web/tsconfig.json", "--incremental", "false") },
+    { name: "typecheck-tests", cmd: bun("x", "tsc", "--noEmit", "-p", "tsconfig.tests.json", "--incremental", "false") },
     { name: "unit", cmd: bun("test", "tests/unit/"), budget: "unit" },
-    { name: "worker:assets", cmd: bun("x", "vitest", "run", "--config", "vitest.config.ts", "tests/worker/assets.test.ts") },
+    { name: "worker-assets", cmd: bun("x", "vitest", "run", "--config", "vitest.config.ts", "tests/worker/assets.test.ts") },
     { name: "dead", cmd: bun("x", "knip", "--include", "files,unlisted", "--no-config-hints") },
     { name: "deps", cmd: bun("x", "depcruise", "src", "--config", ".dependency-cruiser.cjs") },
     { name: "i18n", cmd: bun("x", "eslint", "src/web") },
-    { name: "i18n:validate", cmd: bun("x", "inlang", "validate", "--project", "./project.inlang") },
+    { name: "i18n-validate", cmd: bun("x", "inlang", "validate", "--project", "./project.inlang") },
     { name: "docs", cmd: script("check/docs.ts") },
     { name: "authz", cmd: script("check/authz.ts") },
     { name: "conventions", cmd: script("check/conventions.ts") },
-    { name: "seed:order", cmd: script("check/seed-order.ts") },
+    { name: "seed-order", cmd: script("check/seed-order.ts") },
     { name: "domain", cmd: script("ops/domain.ts", "--check") },
     { name: "tables", cmd: script("check/tables.ts") },
     { name: "assets", cmd: script("check/assets.ts") },
     { name: "messages", cmd: script("check/messages.ts") },
     { name: "notifications", cmd: script("check/notifications.ts") },
-    { name: "gui", cmd: script("ops/coverage-gui.ts") },
+    { name: "coverage-gui", cmd: script("ops/coverage-gui.ts") },
     { name: "bundle", cmd: script("check/bundle.ts") },
     { name: "envs", cmd: script("check/envs.ts") },
   ],
@@ -304,7 +304,18 @@ export async function gate(phases: Step[][]): Promise<string[]> {
  * separate file restating "how do you typecheck this project" is how the two
  * drift.
  */
-const FAST = new Set(["typecheck:worker", "typecheck:spa", "typecheck:tests", "unit"])
+const FAST = new Set(["typecheck-worker", "typecheck-spa", "typecheck-tests", "unit"])
+
+if (import.meta.main && process.argv.includes("--order")) {
+  console.log("\nmise run check\n")
+  PHASES.forEach((phase, i) => {
+    console.log(`  phase ${i}${phase.length > 1 ? "  (these run in parallel)" : ""}`)
+    for (const s of phase) console.log(`    ${s.name}`)
+  })
+  console.log("\n  A phase finishes before the next starts. Within one, there is no order.")
+  console.log("  bun scripts/lib/prepare.ts --order  — what runs before all of this\n")
+  process.exit(0)
+}
 
 if (import.meta.main) {
   // The gate owns its prerequisites: deps, fonts, the bundle, worker types.

@@ -104,7 +104,7 @@ BIZ_TOKEN_KEY = "GITHUB_BIZ_REPO_TOKEN"
 # ── Core ────────────────────────────────────────────────────────────────────
 
 [tasks.dev]
-description = "The dev server: one port, always current, seeded, reachable from a phone (stop, restart, ensure)"
+description = "Run it here — stop | restart | ensure | watch | --order"
 # One command, one port, and dist/web is never stale.
 #
 # This used to be three tasks and a footgun. `dev` served the built bundle, so
@@ -126,7 +126,7 @@ description = "The dev server: one port, always current, seeded, reachable from 
 run = "bun scripts/dev.ts"
 
 [tasks.check]
-description = "The gate: typecheck, tests, and the checks that rot quietly (--fast, --e2e)"
+description = "Prove it — --fast | --e2e | --order"
 # `web:build` is a dependency rather than a line in the script, so mise builds
 # it once for this task and for `test:render`, which needs it too.
 # dev:vars because the worker tests inside check read .dev.vars — "Using secrets
@@ -139,13 +139,13 @@ description = "The gate: typecheck, tests, and the checks that rot quietly (--fa
 run = "bun scripts/check.ts"
 
 [tasks.ops]
-description = "Operate a deployment: demo, analytics, audit, tunnel, versions, seed, coverage, keys, deps, icons, tauri, biz, domain"
+description = "Operate a deployment — no args to list the 15 operations"
 # Eight tasks were eight names a person had to know existed, for one concern.
 # scripts/ops.ts dispatches; the scripts behind it keep their own reasons.
 run = "bun scripts/ops.ts"
 
 [tasks.deploy]
-description = "Ship it: gate, provision, publish, verify (--env staging|production)"
+description = "Ship it — --env staging|production | --order"
 # The order lives in scripts/deploy.ts, where it can be read, and where the
 # origin to verify against is derived per environment instead of being the one
 # hostname a TOML template could interpolate.
@@ -159,7 +159,7 @@ run = "bun scripts/deploy.ts"
 # ── Remote / test variants ───────────────────────────────────────────────────
 
 [tasks.db]
-description = "The database: migrate-local | migrate-remote | seed-remote | tables-local | tables-remote | reset-local (add --env for remote)"
+description = "The database — no args for status, --help for the rest"
 # One entry point over scripts/db.ts, which was already a subcommand
 # dispatcher wearing six task names. A remote write names its environment or
 # refuses; a local or read-only one does not — the rule is declared per

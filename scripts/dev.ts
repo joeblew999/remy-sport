@@ -124,18 +124,33 @@ async function reachable(): Promise<boolean> {
  * comment above it — the one form nothing can check. The detail moved into the
  * named steps below; what is left reads top to bottom as what happens.
  */
+/**
+ * The sequence, as data, so `mise run dev -- --order` prints exactly what runs.
+ * Each line says why it is where it is; nearly all of them are "the next step
+ * needs what this one produced".
+ */
+const START: Array<{ name: string; why: string }> = [
+  { name: "prepare", why: "deps, bundle, schema, fixtures — `bun scripts/lib/prepare.ts --order`" },
+  { name: "tunnel", why: "before the server: the Worker reads TUNNEL_HOSTNAME from .dev.vars at boot" },
+  { name: "watcher", why: "vite rebuilds dist/web on every save" },
+  { name: "server", why: "wrangler serves the Worker and that bundle on :8787" },
+  { name: "wait", why: "poll /api/health — nothing below works until it answers" },
+  { name: "seed", why: "POST /api/seed, which needs the server from the step above" },
+  { name: "announce", why: "the three URLs, once there is something behind them" },
+]
+
 async function start(): Promise<void> {
   const kids: { kill: () => void }[] = []
   reapOnExit(kids)
 
-  local() //                                    1. deps, bundle, schema, fixtures
+  local()
   const ip = lanAddress()
-  const tunnel = startTunnel(kids) //           2. before the server — see below
-  startWatcher(kids) //                         3. rebuilds dist/web on save
-  const server = startServer(kids, ip) //       4. serves the Worker and bundle
-  await untilReachable() //                     5. nothing below works before this
-  await seedLocal() //                          6. needs the server from 4
-  announce(ip, tunnel) //                       7. once there is something behind it
+  const tunnel = startTunnel(kids)
+  startWatcher(kids)
+  const server = startServer(kids, ip)
+  await untilReachable()
+  await seedLocal()
+  announce(ip, tunnel)
 
   await server.exited
 }
@@ -248,6 +263,13 @@ async function ensure(): Promise<void> {
 }
 
 const [action = "start"] = process.argv.slice(2)
+
+if (process.argv.includes("--order")) {
+  console.log("\nmise run dev\n")
+  START.forEach((s, i) => console.log(`  ${i + 1}. ${s.name.padEnd(9)} ${s.why}`))
+  console.log("")
+  process.exit(0)
+}
 
 if (action === "stop") {
   stop()

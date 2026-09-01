@@ -33,9 +33,9 @@ const PIPELINE: Phase[] = [
     go: () => step("check", ["bun", "scripts/check.ts"]),
   },
   {
-    name: "auth schema",
+    name: "auth-schema",
     why: "the generated schema must match auth.config before anything ships it",
-    go: () => step("auth schema", ["bun", "scripts/deploy/auth-schema.ts"]),
+    go: () => step("auth-schema", ["bun", "scripts/deploy/auth-schema.ts"]),
   },
   {
     name: "test",
@@ -152,6 +152,13 @@ async function waitForOrigin(origin: string): Promise<void> {
  * Everything after the publish verifies it. A deploy that cannot be checked
  * afterwards is not one worth performing.
  */
+if (process.argv.includes("--order")) {
+  console.log("\nmise run deploy -- --env X\n")
+  PIPELINE.forEach((p, i) => console.log(`  ${String(i + 1).padStart(2)}. ${p.name.padEnd(12)} ${p.why}`))
+  console.log("")
+  process.exit(0)
+}
+
 try {
   // Inside the boundary, so a missing --env prints the refusal rather than a
   // stack trace. It was at module top level, where nothing could catch it.
