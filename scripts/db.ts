@@ -93,7 +93,7 @@ try {
 
   switch (op) {
     case "migrate-remote":
-      console.log(`cf-d1: applying migrations to "${name}" [${t.environment}, remote]`)
+      console.log(`db: applying migrations to "${name}" [${t.environment}, remote]`)
       run(["d1", "migrations", "apply", name, "--remote"], t)
       break
     case "migrate-local":
@@ -104,10 +104,10 @@ try {
       // have reset something it did not.
       Bun.spawnSync(["rm", "-rf", ".wrangler/state/v3/d1"])
       run(["d1", "migrations", "apply", name, "--local"], t)
-      console.log(`cf-d1: local D1 for "${name}" rebuilt — run 'mise run dev' for test data`)
+      console.log(`db: local D1 for "${name}" rebuilt — run 'mise run dev' for test data`)
       break
     case "seed-remote":
-      console.log(`cf-d1: seeding "${name}" [${t.environment}, remote]`)
+      console.log(`db: seeding "${name}" [${t.environment}, remote]`)
       /**
        * Applied through wrangler, not through the app. `POST /api/seed` was once
        * an open unauthenticated write on a public domain — 330 statements to
@@ -133,7 +133,7 @@ try {
       )
       break
     default:
-      console.error(`cf-d1: unknown operation "${op ?? ""}"`)
+      console.error(`db: unknown operation "${op ?? ""}"`)
       process.exit(1)
   }
 } catch (err) {

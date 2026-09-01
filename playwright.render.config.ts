@@ -97,6 +97,25 @@ export default defineConfig({
   reportSlowTests: { max: 5, threshold: 3_000 },
   use: {
     baseURL: "http://localhost:4173",
+    /**
+     * No service worker, because `page.route` cannot see through one.
+     *
+     * main.tsx registers it with `immediate: true`, and `vite preview` serves
+     * dist/web/sw.js — so once it claims the page, every /rpc call is made BY the
+     * worker and Playwright's route handler never sees it. The test's `sent`
+     * stays "" and the assertion reads as "save must reach the server".
+     *
+     * That is why this tier was concurrency-sensitive and looked flaky. Measured:
+     * the full suite passes 201/201 at one worker and fails at two and at three,
+     * a different spec each time. Serial runs finish each test before the worker
+     * activates; under load it wins the race. Nothing about the failures was
+     * random — retrying reproduced them, and a longer timeout only made them
+     * take 14.3s.
+     *
+     * This tier states it has no network at all: seedCache answers every call
+     * and the fonts are blocked. A service worker has no business in it.
+     */
+    serviceWorkers: "block",
     trace: "on-first-retry",
     // `devices["Desktop Safari"]`, not Chrome — and it must come BEFORE
     // browserName, because the device preset carries its own and would

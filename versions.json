@@ -1,16 +1,27 @@
 {
   "current": {
-    "_generated": "2026-09-01T07:13:55.594Z",
+    "_generated": "2026-09-01T07:41:51.997Z",
     "app": "0.1.0",
     "url": "https://remy.ubuntusoftware.net",
     "git": {
-      "commit": "41178c4",
+      "commit": "e8cdde2",
       "branch": "main",
-      "tag": "41178c4",
-      "github": "https://github.com/joeblew999/remy-sport/commit/41178c467f78f76be18fae41988356e9ab4ef6c0"
+      "tag": "e8cdde2",
+      "github": "https://github.com/joeblew999/remy-sport/commit/e8cdde205863c41b7b445b4b9ebe213943e997c2"
     }
   },
   "history": [
+    {
+      "_generated": "2026-09-01T07:13:55.594Z",
+      "app": "0.1.0",
+      "url": "https://remy.ubuntusoftware.net",
+      "git": {
+        "commit": "41178c4",
+        "branch": "main",
+        "tag": "41178c4",
+        "github": "https://github.com/joeblew999/remy-sport/commit/41178c467f78f76be18fae41988356e9ab4ef6c0"
+      }
+    },
     {
       "_generated": "2026-09-01T07:07:35.523Z",
       "app": "0.1.0",
@@ -218,17 +229,6 @@
         "branch": "main",
         "tag": "1f17163",
         "github": "https://github.com/joeblew999/remy-sport/commit/1f17163732b9a01728d653fd011bc1fedacf0cb8"
-      }
-    },
-    {
-      "_generated": "2026-08-28T09:25:43.945Z",
-      "app": "0.1.0",
-      "url": "https://remy.ubuntusoftware.net",
-      "git": {
-        "commit": "8484df2",
-        "branch": "main",
-        "tag": "8484df2",
-        "github": "https://github.com/joeblew999/remy-sport/commit/8484df28bb071a8f1d5e70dbd0b31a4390f1fe97"
       }
     }
   ],
