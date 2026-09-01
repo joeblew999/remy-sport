@@ -1521,7 +1521,16 @@ run = "bun scripts/cf-d1.ts reset-local"
 
 [tasks."web:build"]
 description = "Production build → dist/web/"
-depends     = ["install"]
+# fonts:vendor, not just install. It writes src/web/fonts.css, which
+# src/web/styles.css imports on its first line, and `setup` listed both as
+# parallel siblings with no edge between them — so the build could read the file
+# while writeFileSync had truncated it and not yet finished. The window is small
+# because fonts.css is committed and usually rewritten identically; it stops
+# being small the day a font changes.
+#
+# The dist/web race below was found the hard way and guarded. This one was the
+# same shape, one directory earlier, and had no guard at all.
+depends     = ["install", "fonts:vendor"]
 # Declared so the build actually skips when nothing changed, per the AGENTS.md
 # idempotency convention. This matters most for Tauri: tauri.conf.json runs
 # `mise run web:build` itself via beforeDevCommand/beforeBuildCommand, so
