@@ -84,19 +84,48 @@ try {
 
   const want = action === "on"
   const code = process.env.DEMO_CODE ?? DEMO_SIGN_IN_CODE
+  const ATTEMPTS = 12
+  const EVERY_MS = 2500
   let said = ""
-  for (let attempt = 1; attempt <= 12; attempt++) {
+  let observed = false
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
     const status = Bun.spawnSync(["bun", "scripts/demo-status.ts"], {
       stdout: "pipe",
       stderr: "pipe",
       env: { ...process.env },
     })
     said = status.stdout.toString() + status.stderr.toString()
-    const on = /demo: ON/.test(said) && new RegExp(`code ${code}`).test(said)
-    if (on === want) break
-    if (attempt < 12) Bun.sleepSync(2500)
+    if ((/demo: ON/.test(said) && new RegExp(`code ${code}`).test(said)) === want) {
+      observed = true
+      break
+    }
+    if (attempt < ATTEMPTS) Bun.sleepSync(EVERY_MS)
   }
   console.log(said.trimEnd())
+
+  /**
+   * Running out of time is not an observation.
+   *
+   * The distinction `unreachable()` draws in cloudflare.ts, in the one place it
+   * would otherwise come back wearing a rarer costume. After the bound we have
+   * "never saw it" — which is not the same claim as "it does not work", and
+   * reporting the second would be the original bug again: a verification
+   * asserting a state it did not witness. Saying so plainly also keeps this
+   * step trustworthy, and a verification people learn to ignore is worse than
+   * none.
+   */
+  if (!observed) {
+    throw new Refused(
+      `could not confirm within ${(ATTEMPTS * EVERY_MS) / 1000}s that seeded sign-in is ` +
+        `${want ? "ON" : "OFF"} on ${target.environment}.\n` +
+        "  The write itself succeeded. This is a timeout, not a verdict: the deployment never\n" +
+        "  reported the new state inside the bound, and propagation after a `secret put` is\n" +
+        "  usually seconds but is not guaranteed to be.\n\n" +
+        "  Run `mise run demo:status` before concluding anything. If it still disagrees,\n" +
+        "  check `signInCode` for this environment in src/environment.ts and generateOTP in\n" +
+        "  src/auth.ts.",
+    )
+  }
 
   const isOn = /demo: ON/.test(said)
   const servingCode = new RegExp(`code ${code}`).test(said)

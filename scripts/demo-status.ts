@@ -84,7 +84,36 @@ async function fixedCodeWorks(): Promise<boolean | string> {
   // 200 alone is not a session. Require the user Better Auth returns on a real
   // sign-in, so a route that answers cheerfully with nothing cannot read as ON.
   const body = (await signedIn.json().catch(() => null)) as { user?: { id?: string } } | null
-  return Boolean(body?.user?.id)
+  const worked = Boolean(body?.user?.id)
+
+  /**
+   * Signed out again, because this check is a read that writes.
+   *
+   * Proving the capability means actually signing in, which consumes the OTP and
+   * leaves a session row behind for a seeded account. Locally that is tidied by
+   * `DELETE /api/dev/otp` and the dev-sessions route; on a deployment neither
+   * exists — `dev-sessions.ts` is gated on `usesOutbox` — so without this, every
+   * status check quietly accumulates sessions on the live deployment. Small, but
+   * an operator command that leaks state each time it answers a question is a
+   * thing to find later rather than now.
+   *
+   * Best-effort: failing to sign out does not change the answer, and reporting
+   * that answer is what was asked for.
+   */
+  if (worked) {
+    const cookies = signedIn.headers.getSetCookie?.() ?? []
+    if (cookies.length) {
+      await fetch(`${BASE}/api/auth/sign-out`, {
+        method: "POST",
+        headers: { ...json, Cookie: cookies.map((c) => c.split(";")[0]).join("; ") },
+        // `{}`, not nothing: the Content-Type says JSON, so an empty body is a
+        // 400 "Invalid JSON in request body" and the session survives — a
+        // cleanup that silently does not clean up.
+        body: "{}",
+      }).catch(() => undefined)
+    }
+  }
+  return worked
 }
 
 const works = await fixedCodeWorks()

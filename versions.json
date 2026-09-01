@@ -1,16 +1,27 @@
 {
   "current": {
-    "_generated": "2026-09-01T05:34:52.503Z",
+    "_generated": "2026-09-01T05:40:51.418Z",
     "app": "0.1.0",
     "url": "https://remy.ubuntusoftware.net",
     "git": {
-      "commit": "e8adc24",
+      "commit": "d04bbbd",
       "branch": "main",
-      "tag": "e8adc24",
-      "github": "https://github.com/joeblew999/remy-sport/commit/e8adc24f55ab58c670eda0423d42c384d42ba351"
+      "tag": "d04bbbd",
+      "github": "https://github.com/joeblew999/remy-sport/commit/d04bbbdf5188c8a742f38925adc2fcce92a08341"
     }
   },
   "history": [
+    {
+      "_generated": "2026-09-01T05:34:52.503Z",
+      "app": "0.1.0",
+      "url": "https://remy.ubuntusoftware.net",
+      "git": {
+        "commit": "e8adc24",
+        "branch": "main",
+        "tag": "e8adc24",
+        "github": "https://github.com/joeblew999/remy-sport/commit/e8adc24f55ab58c670eda0423d42c384d42ba351"
+      }
+    },
     {
       "_generated": "2026-09-01T05:30:11.164Z",
       "app": "0.1.0",
@@ -219,55 +230,9 @@
         "tag": "de48a9a",
         "github": "https://github.com/joeblew999/remy-sport/commit/de48a9a404d045b88ea8fd9c6e284b815f5b5447"
       }
-    },
-    {
-      "_generated": "2026-08-27T08:50:16.783Z",
-      "app": "0.1.0",
-      "url": "https://remy.ubuntusoftware.net",
-      "git": {
-        "commit": "e847bc0",
-        "branch": "main",
-        "tag": "e847bc0",
-        "github": "https://github.com/joeblew999/remy-sport/commit/e847bc0a8cfe0fe1eaa627fc2a94fcdd9122df4e"
-      }
     }
   ],
   "cf_versions": [
-    {
-      "id": "07c6ad3e-2b7f-4b64-a4a3-95cb215a8281",
-      "number": 54,
-      "created": "2026-08-29T08:54:36.796781Z",
-      "source": "version_upload",
-      "url": null
-    },
-    {
-      "id": "d5e3310d-26cc-4a30-a47f-1ed1a70fdd15",
-      "number": 55,
-      "created": "2026-08-29T09:02:24.423447Z",
-      "source": "version_upload",
-      "url": null
-    },
-    {
-      "id": "490da48d-d8b5-4779-b751-170dd9932f2c",
-      "number": 56,
-      "created": "2026-08-30T02:58:36.193072Z",
-      "source": "secret",
-      "url": null
-    },
-    {
-      "id": "dce3b63a-c644-45e2-8eff-6f87526c9fa8",
-      "number": 57,
-      "created": "2026-09-01T04:45:52.09967Z",
-      "source": "version_upload",
-      "url": null
-    },
-    {
-      "id": "f7bf389d-23ef-47ba-9ad2-eb97c4dad2ef",
-      "number": 58,
-      "created": "2026-09-01T04:49:28.595229Z",
-      "source": "version_upload",
-      "url": null
-    },
     {
       "id": "06cf2b23-e8c2-4d6d-b2e7-dc5e80d58928",
       "number": 59,
@@ -301,6 +266,41 @@
       "number": 63,
       "created": "2026-09-01T05:30:40.083954Z",
       "source": "version_upload",
+      "url": null
+    },
+    {
+      "id": "c671f9b3-2516-46de-aca2-a2697aea8608",
+      "number": 64,
+      "created": "2026-09-01T05:35:15.751647Z",
+      "source": "version_upload",
+      "url": null
+    },
+    {
+      "id": "8aaf838b-2e68-43af-a52d-7e65053f769a",
+      "number": 65,
+      "created": "2026-09-01T05:36:36.171073Z",
+      "source": "secret",
+      "url": null
+    },
+    {
+      "id": "53b61ddf-95f2-4c3f-9a41-b4f7cf39f357",
+      "number": 66,
+      "created": "2026-09-01T05:38:10.069193Z",
+      "source": "secret",
+      "url": null
+    },
+    {
+      "id": "da27cef8-478e-4b54-80b8-227b33b12bef",
+      "number": 67,
+      "created": "2026-09-01T05:38:22.679849Z",
+      "source": "secret",
+      "url": null
+    },
+    {
+      "id": "17ad90c3-57e3-4ed9-8251-7dcff4df27a8",
+      "number": 68,
+      "created": "2026-09-01T05:38:45.74853Z",
+      "source": "secret",
       "url": null
     }
   ]
