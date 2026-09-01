@@ -13,6 +13,7 @@
 import { prepare } from "./prepare"
 
 import { spawn } from "child_process"
+import { existsSync } from "fs"
 
 export interface Step {
   name: string
@@ -64,7 +65,7 @@ export const PHASES: Step[][] = [
    *
    * Cheap enough (~100ms) that serialising it costs nothing.
    */
-  [{ name: "seed", cmd: script("build/8-seed.ts", "--check") }],
+  [{ name: "seed", cmd: script("prepare/8-seed.ts", "--check") }],
   [
     {
       name: "render",
@@ -103,6 +104,22 @@ export const PHASES: Step[][] = [
     { name: "envs", cmd: script("check/envs.ts") },
   ],
 ]
+
+/**
+ * Every step's script exists, checked before any of them runs.
+ *
+ * These are spawned by string, so a path that moved fails as a confusing step
+ * failure minutes in — "seed failed" when the truth is "there is no such file".
+ * That has now happened twice from the same cause: a rename whose sed matched
+ * `scripts/build/` and missed `script("build/...")`, which carries no prefix.
+ */
+for (const step of [...PHASES.flat(), E2E]) {
+  const file = step.cmd[1]
+  if (file?.startsWith("scripts/") && !existsSync(file)) {
+    console.error(`check: step "${step.name}" points at ${file}, which does not exist`)
+    process.exit(1)
+  }
+}
 
 export function run(step: Step): Promise<{ name: string; ok: boolean }> {
   return new Promise((resolve) => {
