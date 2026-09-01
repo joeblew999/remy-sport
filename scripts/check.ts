@@ -340,5 +340,10 @@ if (import.meta.main) {
         : null
     if (tier) console.log(`  you touched code ${tier} covers — run 'mise run check' before you commit`)
   }
-  console.log(`\ncheck: green${e2e ? " (e2e)" : fast ? " (fast)" : ""}\n`)
+  console.log(
+    `\ncheck: green${e2e ? " (e2e)" : fast ? " (fast)" : ""}\n` +
+      (fast || e2e
+        ? ""
+        : "\n  Commit it, then:\n    mise run deploy -- --env staging\n    mise run deploy -- --env production\n"),
+  )
 }

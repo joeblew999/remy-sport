@@ -234,7 +234,8 @@ function announce(ip: string | null, tunnel: boolean): void {
       : "  (no tunnel — 'mise run ops tunnel' once for a fixed public URL)",
   )
   console.log(`  #/login                          twelve seeded people, one click`)
-  console.log(`  rebuilds on save — reload to see changes\n`)
+  console.log(`  rebuilds on save — reload to see changes`)
+  console.log(`\n  when you are done:  mise run check\n`)
 }
 
 /**

@@ -38,17 +38,34 @@ function fnox(name: string): string | null {
 }
 
 const token = process.env[KEY]?.trim() || fnox(KEY)
-if (!token) {
-  console.error(`biz: ${KEY} is not set.
+const cloned = existsSync(join(DIR, ".git"))
 
-  remy-sport-biz is private, so this needs a GitHub fine-grained PAT scoped to
-  joeblew999/remy-sport-biz with Contents: Read-only.
+/**
+ * The token buys a fetch, not a read.
+ *
+ * With the checkout already beside this repo, everything downstream — the model
+ * copy, the schema derived from it, the seed — works from what is on disk. So a
+ * missing PAT means "cannot pull anything newer", which is a note, not a
+ * failure. It used to be a failure, and that made `mise run model` unrunnable on
+ * a machine whose checkout was perfectly fine.
+ */
+if (!token && cloned) {
+  console.log(`biz: no ${KEY}, so nothing was fetched — using the checkout at ${DIR} as it stands.`)
+  process.exit(0)
+}
+
+if (!token) {
+  console.error(`biz: ${KEY} is not set, and there is no checkout at ${DIR} to fall back on.
+
+  remy-sport-biz is private, so cloning it needs a GitHub fine-grained PAT scoped
+  to joeblew999/remy-sport-biz with Contents: Read-only.
 
     Create one:  https://github.com/settings/personal-access-tokens/new
     Store it:    mise exec -- fnox set --global -p keychain ${KEY}
                  (hidden input — the value never reaches argv or shell history)
 
-  Not having it only blocks pulling a newer model. Builds do not need this repo.`)
+  Builds do not need this repo: src/domain is committed. Only pulling a newer
+  model does.`)
   process.exit(1)
 }
 
@@ -90,7 +107,7 @@ esac
     process.exit(1)
   }
 
-  if (existsSync(join(DIR, ".git"))) {
+  if (cloned) {
     git(["-C", DIR, "remote", "set-url", "origin", URL], true)
     // `-c credential.helper=` empties the helper chain, so a stale entry in the
     // OS keychain cannot answer instead of the askpass above.
