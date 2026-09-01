@@ -68,15 +68,33 @@ const BUDGETS: Record<string, Budget> = {
     note: "the slowest single file, not the sum — files run in parallel over a ~5s workerd floor",
   },
   render: {
-    ceiling: 30,
-    measured: 17.0,
-    shared: { ceiling: 35, measured: 29.0 },
-    // Re-measured 2026-08-31, after tests/render/no-backend.spec.ts added a
-    // page load per route. That tier is deliberately slower than the rest: it
-    // waits a fixed moment on each route for promises to reject, which is the
-    // only way to observe an unhandled rejection. Trimmed from 700ms to 350ms
-    // once the shorter wait was shown to still catch the defect it exists for.
-    note: "WebKit launch dominates; no-backend.spec.ts adds one page load per route",
+    ceiling: 35,
+    measured: 26.7,
+    shared: { ceiling: 45, measured: 31.0 },
+    /*
+     * Raised 2026-09-01, deliberately, after it flaked a `check` run at 100% of
+     * a 35s shared ceiling. A flaky gate is worse than a slow one: the first
+     * time somebody re-runs `check` to see whether it passes on the second go,
+     * the signal is gone, and that habit does not come back.
+     *
+     * Measured before choosing, and the measurement decided it. One trivial
+     * spec takes 27.2s. All 201 take 26.7s. **The tests cost nothing
+     * measurable over the harness** — the tier is `vite preview` booting and
+     * WebKit launching, and 201 assertions are lost in the noise of that.
+     *
+     * So the two obvious fixes are both wrong here. Sharding makes it worse:
+     * each shard pays the fixed cost again. Trimming cannot help: there is
+     * nothing to trim, which is also why taking the no-backend per-route wait
+     * from 700ms to 350ms bought headroom that did not survive one spec being
+     * added — solo that trim was never visible, and under contention
+     * everything stretches together.
+     *
+     * What remains is the ceiling, so it moves with its reason written down.
+     * Shared samples across the flake: 27.9, 28.7, 30.9, 31.2, 35.3. The new
+     * ceiling catches a ~45% regression, which for a fixed-cost tier means the
+     * harness itself got slower — the only regression that can happen here.
+     */
+    note: "fixed cost: vite preview + WebKit launch. 201 tests cost no more than one",
   },
   e2e: {
     ceiling: 45,

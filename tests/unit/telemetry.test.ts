@@ -48,7 +48,7 @@ describe("telemetryInterceptor", () => {
     // only failures cannot answer the question latency is logged for.
     const { env, written } = recorder()
     await withRandom(0, () => call(env, async () => ({ matched: true })))
-    expect(written[0]!.blobs?.slice(0, 4)).toEqual(["api.served", "", "/api/games", "POST"])
+    expect(written[0]!.blobs?.slice(0, 5)).toEqual(["api.served", "production", "", "/api/games", "POST"])
   })
 
   it("samples them, rather than billing for every asset fetch", async () => {
@@ -69,9 +69,9 @@ describe("telemetryInterceptor", () => {
     ).rejects.toThrow()
     await expect(call(env, () => Promise.reject(new TypeError("x is not a function")))).rejects.toThrow()
 
-    expect(written[0]!.blobs).toEqual(["api.refused", "", "/api/games", "POST", "FORBIDDEN"])
+    expect(written[0]!.blobs).toEqual(["api.refused", "production", "", "/api/games", "POST", "FORBIDDEN"])
     expect(written[0]!.doubles?.[1]).toBe(403)
-    expect(written[1]!.blobs).toEqual(["api.threw", "", "/api/games", "POST", "TypeError"])
+    expect(written[1]!.blobs).toEqual(["api.threw", "production", "", "/api/games", "POST", "TypeError"])
   })
 
   it("rethrows, so the caller still gets the response oRPC would have sent", async () => {

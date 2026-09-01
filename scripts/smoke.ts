@@ -32,28 +32,30 @@
 const BASE = process.env.CF_DEPLOY_URL ?? "https://remy.ubuntusoftware.net"
 
 /**
- * Which of the three things this URL is.
+ * Which deployment this is — asked, not guessed.
  *
- * Not every check means something on every surface, and for a while this file
- * pretended otherwise. Three of them assert what a *deployment* must refuse —
- * no dev outbox, no seed route, no admin in the demo picker — and all three are
- * deliberately open on local dev, where mail is captured into a table and only
- * the person running the Worker can read it. So a smoke run against the tunnel
- * was permanently three-red, and every one of those was the app behaving
- * correctly.
+ * Not every check means something on every surface. Three of them assert what
+ * production must *refuse* — no dev outbox, no seed route, no admin in the demo
+ * picker — and dev and staging open some of those deliberately. A run that is
+ * permanently red is a run nobody reads, and the next genuine failure arrives
+ * in a list somebody has already learned to skip.
  *
- * That is the same failure as the VAPID remedy below: a check reporting a state
- * it cannot distinguish. It is worse than noise, because a run that is always
- * red is a run nobody reads, and the next genuine failure arrives in a list
- * somebody has already learned to skip.
+ * This classified by hostname: TUNNEL_HOSTNAME meant the tunnel, localhost
+ * meant local, anything else meant production. That was already the second
+ * version of the mistake. The first sniffed a `dev-` prefix and would have read
+ * a real deployment at `dev-remy-staging` as dev, skipping every
+ * deployment-safety check on it.
  *
- *   local     localhost — `wrangler dev` on the machine running this
- *   tunnel    TUNNEL_HOSTNAME — cloudflared pointed at that same wrangler dev,
- *             so a public name serving a local Worker and a local .dev.vars
- *   deployed  anything else, which is the safe default: an unrecognised host
- *             gets every check rather than quietly skipping the strict ones
+ * Guessing does not survive a third environment. Staging is a public hostname
+ * running a deployment whose checks *differ from production's* — the policy
+ * table in src/environment.ts gives it the seed route and seeded sign-in
+ * deliberately — so "not the tunnel, therefore production" would fail it for a
+ * rule that is no longer true.
+ *
+ * So `/api/health` reports it and this reads it. A fourth environment becomes a
+ * row in the policy table and a case below, not a new hostname rule.
  */
-const SURFACES = ["deployed", "tunnel", "local"] as const
+const SURFACES = ["production", "staging", "tunnel", "local"] as const
 type Surface = (typeof SURFACES)[number]
 
 const HOST = (() => {
@@ -64,47 +66,58 @@ const HOST = (() => {
   }
 })()
 
-const SURFACE: Surface = (() => {
-  if (HOST === "localhost" || HOST === "127.0.0.1") return "local"
-  /**
-   * The tunnel is TUNNEL_HOSTNAME and nothing else.
-   *
-   * This had a `HOST.startsWith("dev-")` fallback for when the variable is
-   * unset, two lines under a comment saying a prefix sniff was deliberately
-   * avoided. Worse, it resolved toward the *weaker* surface: a real deployment
-   * at `dev-remy-staging.ubuntusoftware.net`, smoke-tested from anywhere mise
-   * had not exported its env — CI, a bare `bun scripts/smoke.ts`, a pipeline
-   * that does not shell through mise — classified as `tunnel` and silently
-   * skipped all three deployment-safety checks.
-   *
-   * The host that breaks it is the one that looks most like dev while being a
-   * deployment, which is exactly the host nobody would think to re-test. My own
-   * check of this used `staging.example.com` and passed for the wrong reason:
-   * it does not start with "dev-".
-   *
-   * So unset configuration means strict, not lenient. A tunnel run that has not
-   * got the variable gets the deployment checks and fails loudly — which is a
-   * false positive somebody fixes by exporting one variable, and the failure
-   * mode this file is supposed to prefer.
-   */
-  if (process.env.TUNNEL_HOSTNAME && HOST === process.env.TUNNEL_HOSTNAME) return "tunnel"
-  return "deployed"
-})()
+/**
+ * Ask the deployment. Anything else is production.
+ *
+ * The fail-safe rule survives the move from guessing to asking, and it matters
+ * more here than it did: an unreachable host, a health endpoint that predates
+ * the field, or an environment name this script has never heard of all resolve
+ * to the *strictest* surface. A smoke run against something it cannot identify
+ * asserts everything, which is a false failure at worst — where the other
+ * direction would be silently skipping the checks that stop a seed route
+ * shipping to production.
+ *
+ * `dev` becomes `tunnel` or `local` by hostname, and only there: those two run
+ * identical code and differ only in how you reach them, so the distinction is
+ * genuinely about the URL rather than about the deployment.
+ */
+async function classify(): Promise<Surface> {
+  let declared: string | undefined
+  try {
+    const res = await fetch(`${BASE}/api/health`)
+    if (res.ok) {
+      declared = ((await res.json()) as { environment?: string }).environment
+    }
+  } catch {
+    // Unreachable. Strictest, and the health check below will say so properly.
+  }
+
+  if (declared === "staging") return "staging"
+  if (declared === "dev") {
+    return HOST === "localhost" || HOST === "127.0.0.1" ? "local" : "tunnel"
+  }
+  return "production"
+}
+
+const SURFACE: Surface = await classify()
 
 /** Runs everywhere. The default, and what most checks are. */
 const ANYWHERE = SURFACES
 
 /**
- * The three that assert what a deployment must *refuse*.
+ * The checks that assert what a *production* deployment must refuse.
  *
- * Skipped rather than inverted on dev. Asserting "the outbox is open here"
- * would be testing that local dev is configured for local dev, which no deploy
- * pipeline needs to know and which would fail for anyone who ran this against
- * a wrangler dev started without MAIL_TRANSPORT=outbox.
+ * Skipped rather than inverted elsewhere. Asserting "the outbox is open here"
+ * would be testing that dev is configured for dev, which no deploy pipeline
+ * needs to know.
+ *
+ * Staging is excluded on purpose and by policy, not by oversight: it has the
+ * seed route and seeded sign-in because src/environment.ts says so, so
+ * asserting their absence there would be asserting the opposite of the design.
  */
-const DEPLOYMENT_ONLY = ["deployed"] as const
+const PRODUCTION_ONLY = ["production"] as const
 const WHY_DEV_DIFFERS =
-  "local dev and the tunnel run MAIL_TRANSPORT=outbox, which mounts these on purpose"
+  "dev captures mail and staging keeps the seed route — src/environment.ts mounts these on purpose"
 
 /**
  * Where the VAPID keys for *this* host are supposed to come from.
@@ -118,9 +131,9 @@ const WHY_DEV_DIFFERS =
  * re-run a working deploy step and conclude the bug is elsewhere.
  */
 const vapidRemedy = () =>
-  SURFACE === "deployed"
-    ? "`mise run push:secret:set` has not run for this deployment"
-    : `${HOST} runs from .dev.vars — run \`mise run dev:vars\` and restart wrangler dev`
+  SURFACE === "tunnel" || SURFACE === "local"
+    ? `${HOST} runs from .dev.vars — run \`mise run dev:vars\` and restart wrangler dev`
+    : `\`mise run push:secret:set\` has not run for ${SURFACE}`
 
 const { SEED_ENTITIES } = await import("../src/domain/model/entities")
 
@@ -265,7 +278,7 @@ await check("if seeded sign-in is on, it excludes the admin", async () => {
   if (!body.code) return "seeded sign-in is on but no code was published — nobody can use it"
   return null
 }, {
-  on: DEPLOYMENT_ONLY,
+  on: PRODUCTION_ONLY,
   // Both halves are deployment rules. src/routes/dev-mail.ts offers the admin
   // exactly when `usesOutbox(env)` — locally the mail is captured and only the
   // operator can read it, and the admin console is a thing to develop against.
@@ -282,7 +295,7 @@ await check("the dev outbox does NOT exist", async () => {
   // sign-in deliberately does not need it — the code is published instead.
   const res = await get("/api/dev/outbox")
   return res.status === 404 ? null : `expected 404, got ${res.status}`
-}, { on: DEPLOYMENT_ONLY, why: WHY_DEV_DIFFERS })
+}, { on: PRODUCTION_ONLY, why: WHY_DEV_DIFFERS })
 
 /**
  * Where mail is captured, prove the capture actually works.
@@ -384,7 +397,7 @@ await check("the seed route does NOT exist", async () => {
   // through wrangler — so on a deployment this must be as absent as the outbox.
   const res = await fetch(`${BASE}/api/seed`, { method: "POST" })
   return res.status === 404 ? null : `expected 404, got ${res.status}`
-}, { on: DEPLOYMENT_ONLY, why: WHY_DEV_DIFFERS })
+}, { on: PRODUCTION_ONLY, why: WHY_DEV_DIFFERS })
 
 // The skips are restated at the end as well as inline, because the inline note
 // scrolls past and the last line is the one a pipeline log shows.
@@ -396,7 +409,7 @@ if (failed) {
 }
 
 console.log(
-  SURFACE === "deployed"
+  SURFACE === "production"
     ? `\nsmoke: the deployment is serving the PO's data and refusing what it should`
     : // Deliberately does not claim the second half. The checks that prove a
       // host refuses what it should are exactly the ones skipped here, so

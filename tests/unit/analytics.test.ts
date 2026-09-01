@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   EVENTS,
+  FIXED_BLOBS,
   blobColumn,
   doubleColumn,
   isEventName,
@@ -48,10 +49,10 @@ describe("track", () => {
     track(env, "api.refused", { route: "/api/games", method: "POST", code: "FORBIDDEN" }, "TH")
     track(env, "push.sent", { host: "web.push.apple.com", status: "201" })
 
-    expect(written[0]!.blobs).toEqual(["api.refused", "TH", "/api/games", "POST", "FORBIDDEN"])
+    expect(written[0]!.blobs).toEqual(["api.refused", "production", "TH", "/api/games", "POST", "FORBIDDEN"])
     // Blank rather than absent, so a caller with no country does not shift the
     // fields of one that has it.
-    expect(written[1]!.blobs).toEqual(["push.sent", "", "web.push.apple.com", "201", ""])
+    expect(written[1]!.blobs).toEqual(["push.sent", "production", "", "web.push.apple.com", "201", ""])
   })
 
   it("orders fields by the catalogue, not by the object literal", () => {
@@ -59,7 +60,7 @@ describe("track", () => {
     // different order must produce an identical row.
     const { env, written } = recorder()
     track(env, "api.refused", { code: "NOT_FOUND", method: "GET", route: "/api/teams" })
-    expect(written[0]!.blobs).toEqual(["api.refused", "", "/api/teams", "GET", "NOT_FOUND"])
+    expect(written[0]!.blobs).toEqual(["api.refused", "production", "", "/api/teams", "GET", "NOT_FOUND"])
   })
 
   it("writes a blank for a missing field instead of shifting the columns", () => {
@@ -68,7 +69,7 @@ describe("track", () => {
     // ones missing fields, because they are the ones that went wrong.
     const { env, written } = recorder()
     track(env, "moq.session", { role: "watch", transport: "websocket", seconds: 42 })
-    expect(written[0]!.blobs).toEqual(["moq.session", "", "watch", "", "websocket", ""])
+    expect(written[0]!.blobs).toEqual(["moq.session", "production", "", "watch", "", "websocket", ""])
     expect(written[0]!.doubles).toEqual([0, 42])
   })
 
@@ -157,12 +158,15 @@ describe("the catalogue", () => {
     }
   })
 
-  it("puts a field's first column after the two fixed ones", () => {
+  it("puts a field's first column after the fixed ones", () => {
     // The arithmetic both the writer and the report SQL depend on. If this is
     // wrong, every generated query is wrong in exactly the way that started all
-    // of this.
-    expect(blobColumn(0)).toBe("blob3")
-    expect(blobColumn(1)).toBe("blob4")
+    // of this — and it moved once already, when `environment` was inserted into
+    // FIXED_BLOBS, which is why this asserts against the array rather than a
+    // literal that would have to be edited by hand every time.
+    expect(blobColumn(0)).toBe(`blob${FIXED_BLOBS.length + 1}`)
+    expect(blobColumn(0)).toBe("blob4")
+    expect(blobColumn(1)).toBe(`blob${FIXED_BLOBS.length + 2}`)
     expect(doubleColumn(0)).toBe("double1")
   })
 

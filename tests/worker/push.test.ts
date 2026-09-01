@@ -30,6 +30,7 @@ import { actorFor, api, post, signIn } from "./helpers"
 import { SEED_ENTITIES } from "../../src/domain/model/entities"
 import { teamsCoachedBy } from "../helpers/fixtures"
 import { recorder, type Point } from "../helpers/track-env"
+import { EVENTS, FIXED_BLOBS } from "../../src/analytics"
 import { readOutbox, clearOutbox } from "../../src/mail/mailer"
 import { unsubscribeToken } from "../../src/api/unsubscribe"
 
@@ -775,14 +776,25 @@ describe("Send telemetry", () => {
    * Both are useful and they answer different questions ("is email failing" vs
    * "is Apple failing"), so they are told apart by source rather than merged.
    */
-  const batches = (written: Point[]) =>
-    written.filter((p) => p.blobs?.[0] === "notify.batch" && p.blobs?.[5] === "vendor")
+  /**
+   * Derived, not counted.
+   *
+   * These read `p.blobs[2]`, `[3]`, `[4]` — and every one of them broke the day
+   * `environment` was inserted into FIXED_BLOBS, silently shifting the layout.
+   * That is precisely the failure `blobColumn` exists to prevent in the writer
+   * and the report, arrived at from a third direction: a test that knows a
+   * column number is a third half that can disagree.
+   */
+  const at = (p: Point, field: (typeof EVENTS)["notify.batch"]["blobs"][number]) =>
+    p.blobs?.[FIXED_BLOBS.length + EVENTS["notify.batch"].blobs.indexOf(field)]
 
-  /** blobs: [event, country, type, channel, service, source] — see `write`. */
+  const batches = (written: Point[]) =>
+    written.filter((p) => p.blobs?.[0] === "notify.batch" && at(p, "source") === "vendor")
+
   const of = (p: Point) => ({
-    type: p.blobs?.[2],
-    channel: p.blobs?.[3],
-    service: p.blobs?.[4],
+    type: at(p, "type"),
+    channel: at(p, "channel"),
+    service: at(p, "service"),
     sent: p.doubles?.[0],
     gone: p.doubles?.[1],
     failed: p.doubles?.[2],
@@ -1228,7 +1240,10 @@ describe("EMAIL as a second channel", () => {
     expect(readOutbox("no-copy@example.invalid"), "push copy must not become an email").toHaveLength(0)
     // And it is visible, not silent.
     const noCopy = written.filter(
-      (p) => p.blobs?.[0] === "notify.batch" && p.blobs?.[3] === "EMAIL" && p.blobs?.[4] === "no-copy",
+      (p) =>
+        p.blobs?.[0] === "notify.batch" &&
+        p.blobs?.[FIXED_BLOBS.length + EVENTS["notify.batch"].blobs.indexOf("channel")] === "EMAIL" &&
+        p.blobs?.[FIXED_BLOBS.length + EVENTS["notify.batch"].blobs.indexOf("service")] === "no-copy",
     )
     expect(noCopy, "a skipped channel must be reported").not.toHaveLength(0)
   })
@@ -1260,7 +1275,9 @@ describe("EMAIL as a second channel", () => {
     })
 
     const noTransport = written.filter(
-      (p) => p.blobs?.[0] === "notify.batch" && p.blobs?.[4] === "no-transport",
+      (p) =>
+        p.blobs?.[0] === "notify.batch" &&
+        p.blobs?.[FIXED_BLOBS.length + EVENTS["notify.batch"].blobs.indexOf("service")] === "no-transport",
     )
     expect(noTransport, "an undeliverable channel must be countable").not.toHaveLength(0)
   })

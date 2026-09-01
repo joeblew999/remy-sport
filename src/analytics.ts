@@ -31,7 +31,7 @@
  */
 
 import type { Bindings } from "./types"
-import { permits } from "./environment"
+import { environmentOf, permits } from "./environment"
 
 /**
  * One event's shape.
@@ -256,7 +256,36 @@ export type Fields<N extends EventName> = {
  * know which feature wrote the row — "6% of sessions fall back to WebSocket" is
  * a different problem in one country than in twenty.
  */
-export const FIXED_BLOBS = ["event", "country"] as const
+export const FIXED_BLOBS = ["event", "environment", "country"] as const
+
+/**
+ * When the column layout changed, and when this line should be deleted.
+ *
+ * `environment` was inserted at position 2 rather than appended, so every blob
+ * after it shifted by one. Rows written before this instant have `country`
+ * where rows after it have `environment`, and a query spanning the cutover
+ * would mix them with no error at all — a shifted string is still a string.
+ *
+ * Appending would have avoided the shift and cost the thing the column is for:
+ * its index would then vary per event, so "show me everything from staging"
+ * stops being one query.
+ *
+ * The discontinuity was measured before it was accepted, not assumed. The
+ * dataset held **four rows**, all `moq.session`, all from 2026-08-29 — nothing
+ * else had ever been written, because production has not been deployed since
+ * the other events were added. Four rows of video telemetry is a fair price for
+ * a queryable environment dimension.
+ *
+ * `scripts/analytics.ts` filters every query to `timestamp >= CUTOVER`, so
+ * pre-cutover rows are never read under the new layout. That makes a mixed
+ * result impossible rather than merely flagged.
+ *
+ * **DELETE THIS, AND THE WHERE CLAUSE, AFTER 2026-11-30.** Analytics Engine
+ * retention is 90 days, so by then the last pre-cutover row has aged out and
+ * the filter excludes nothing. Left undated it becomes a line nobody dares
+ * touch for years — which is how a temporary guard turns into folklore.
+ */
+export const LAYOUT_CUTOVER = "2026-09-01T00:00:00Z"
 
 /**
  * Where an event's own field N lives, physically.
@@ -266,6 +295,18 @@ export const FIXED_BLOBS = ["event", "country"] as const
  * the two halves incapable of disagreeing.
  */
 export const blobColumn = (i: number) => `blob${FIXED_BLOBS.length + i + 1}`
+
+/**
+ * Where one of the fixed columns lives.
+ *
+ * Derived, like everything else here. The first version of the environment
+ * filter reached for `blobColumn(-1)` to mean "one before the per-event blobs",
+ * which resolves to `country` — off by one, and silently, because a shifted
+ * string is still a string. That is the exact failure this file's
+ * no-column-numbers rule exists to prevent, arrived at from the other side.
+ */
+export const fixedColumn = (name: (typeof FIXED_BLOBS)[number]) =>
+  `blob${FIXED_BLOBS.indexOf(name) + 1}`
 export const doubleColumn = (i: number) => `double${i + 1}`
 
 export function track<N extends EventName>(
@@ -349,7 +390,13 @@ function write(
       // matches by position, so a dropped entry shifts every later field into
       // the wrong column — and the rows most worth reading are exactly the ones
       // missing fields, because they are the ones that went wrong.
-      blobs: [event, country ?? "", ...spec.blobs.map((k) => String(fields[k] ?? ""))],
+      blobs: [
+        event,
+        // Positional and in FIXED_BLOBS order — see LAYOUT_CUTOVER above.
+        environmentOf(env as { ENVIRONMENT?: string }),
+        country ?? "",
+        ...spec.blobs.map((k) => String(fields[k] ?? "")),
+      ],
       doubles: spec.doubles.map((k) => Number(fields[k] ?? 0)),
       indexes: [event],
     })
