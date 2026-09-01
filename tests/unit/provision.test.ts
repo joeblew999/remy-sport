@@ -7,13 +7,13 @@ import {
   queueNames,
   type SecretGroup,
   type Step,
-} from "../../scripts/cf-provision"
+} from "../../scripts/provision"
 import { POLICY } from "../../src/environment"
 
 /**
  * The two decisions provisioning turns on, both pure so both testable.
  *
- * Everything else in `cf-provision.ts` talks to the Cloudflare API, and the
+ * Everything else in `provision.ts` talks to the Cloudflare API, and the
  * half-written-group branches are exactly the ones you cannot reach that way:
  * reproducing them for real means putting production into the broken state to
  * find out what happens next.

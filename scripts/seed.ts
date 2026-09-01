@@ -77,7 +77,7 @@ const lines: string[] = [
   "--",
   "-- The Product Owner's model, as data rather than as an HTTP call. Applied by",
   "-- the worker tests directly and by POST /api/seed at runtime, so both get the",
-  "-- same database. See scripts/seed-sql.ts for why that distinction matters.",
+  "-- same database. See scripts/seed.ts for why that distinction matters.",
   "",
   "-- The whole file is one transaction, so foreign keys are checked once at the",
   "-- end rather than statement by statement. Vocabularies reference each other —",
@@ -347,7 +347,7 @@ emitFixtures((n) => !BEFORE_ENTITIES.has(n))
 const eventDivisions = new Set(
   SEED_RELATIONSHIPS.eventTeams.map((t) => `${t.eventId}|${t.divisionId}`),
 )
-lines.push("", "-- eventDivisions (derived from eventTeams — see the note in seed-sql.ts)")
+lines.push("", "-- eventDivisions (derived from eventTeams — see the note in seed.ts)")
 for (const key of [...eventDivisions].sort()) {
   const [eventId, divisionId] = key.split("|") as [string, string]
   lines.push(

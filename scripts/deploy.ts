@@ -16,7 +16,7 @@
  * Every step is still its own script. This owns the order, not the work.
  */
 
-import { run as provision } from "./cf-provision"
+import { run as provision } from "./provision"
 import { Refused, resolveTarget, resolvedConfig, wrangler, type Target } from "./cloudflare"
 
 /** Where this environment actually serves, from the config it deploys with. */
@@ -76,54 +76,105 @@ async function waitForOrigin(origin: string): Promise<void> {
   throw new Refused(`${origin} never reported ${want} within 5 minutes`)
 }
 
+/**
+ * The pipeline, in order, with each step saying why it is where it is.
+ *
+ * Order is the whole content of this file, so it is a list rather than a run of
+ * statements — a sequence you can read, and whose reasons sit beside the steps
+ * they constrain rather than in a comment above the block.
+ *
+ * Three constraints bind it, and each has already cost a deploy:
+ *
+ *   gate before account   nothing touches Cloudflare until check and test pass.
+ *   migrate before publish  migration 0007 taught this: better-auth matches
+ *                         sign-in on account.issuer, so a Worker published ahead
+ *                         of its migration queries a column that does not exist
+ *                         and every sign-in fails until it lands.
+ *   secrets before publish  a `secret put` after the deploy publishes a further
+ *                         version, and for seconds the edge answers from the one
+ *                         before — which failed a push smoke check on a deploy
+ *                         whose keys were in fact correct.
+ *
+ * Everything after the publish verifies it. A deploy that cannot be checked
+ * afterwards is not one worth performing.
+ */
+interface Phase {
+  name: string
+  why: string
+  go: (target: Target, origin: string) => void | Promise<void>
+}
+
+const PIPELINE: Phase[] = [
+  {
+    name: "check",
+    why: "the gate — nothing reaches the account until it is green",
+    go: () => step("check", ["mise", "run", "check"]),
+  },
+  {
+    name: "auth schema",
+    why: "the generated schema must match auth.config before anything ships it",
+    go: () => step("auth schema", ["mise", "run", "auth:schema:check"]),
+  },
+  {
+    name: "test",
+    why: "end to end, against a local server, before a remote one exists",
+    go: () => step("test", ["mise", "run", "test"]),
+  },
+  {
+    name: "stamp",
+    why: "versions.json is what the origin is later compared against, so it is written before the publish, not after",
+    go: () => step("stamp", ["mise", "run", "versions"]),
+  },
+  {
+    name: "provision",
+    why: "D1, its migrations, R2, queues and every secret — idempotent, and BEFORE the publish so the code never runs ahead of its schema",
+    go: async (target) => {
+      console.log(`\n── provision`)
+      // Imported, not spawned: provision.ts exports run() behind an
+      // import.meta.main guard precisely so a caller can use it as a function,
+      // and a thrown Refused carries more than an exit code.
+      await provision(["--env", target.environment], "apply")
+    },
+  },
+  {
+    name: "publish",
+    why: "the only irreversible step, and everything it depends on is already in place",
+    go: (target) => {
+      console.log(`\n── publish`)
+      const published = wrangler(["deploy"], target, { inherit: true })
+      if (published.code !== 0) throw new Refused("publish failed")
+    },
+  },
+  {
+    name: "wait",
+    why: "wrangler returns before the edge serves the new version, and /api/health cannot tell — the OLD worker answers it happily",
+    go: async (_t, origin) => {
+      console.log(`\n── wait for ${origin}`)
+      await waitForOrigin(origin)
+    },
+  },
+  {
+    name: "seed",
+    why: "after the schema is live, so the rows have tables to land in",
+    go: (target) => step("seed", ["bun", "scripts/db.ts", "seed-remote", "--env", target.environment]),
+  },
+  {
+    name: "smoke",
+    why: "last, because it is the only step that asks the deployment what it is actually serving",
+    go: (_t, origin) => step("smoke", ["bun", "scripts/smoke.ts"], { CF_DEPLOY_URL: origin }),
+  },
+]
+
 try {
   // Inside the boundary, so a missing --env prints the refusal rather than a
   // stack trace. It was at module top level, where nothing could catch it.
   const target = resolveTarget(process.argv.slice(2), "explicit")
-  const ORIGIN = originOf(target)
-  console.log(`deploy: ${target.environment} → ${ORIGIN}`)
+  const origin = originOf(target)
+  console.log(`deploy: ${target.environment} → ${origin}`)
 
-  // The gate. Nothing reaches the account until these pass.
-  step("check", ["mise", "run", "check"])
-  step("auth schema is current", ["mise", "run", "auth:schema:check"])
-  step("test", ["mise", "run", "test"])
-  step("stamp the build", ["mise", "run", "versions"])
+  for (const phase of PIPELINE) await phase.go(target, origin)
 
-  /**
-   * Bootstrap before deploy, and it is one call rather than four.
-   *
-   * It does D1, its migrations, R2, both queues and every secret, and it is
-   * idempotent — so the pre-deploy run creates what is missing and a second run
-   * fills in whatever needed the Worker to exist first.
-   *
-   * Migrations run BEFORE the publish. They used to run after, which survived
-   * only while every migration was additive: old code ignored new columns.
-   * Migration 0007 broke that — better-auth 1.7 matches sign-in on
-   * account.issuer, so a Worker published ahead of it queries a column that does
-   * not exist and every sign-in fails until the migration lands.
-   *
-   * Secrets before the code, so the version the publish creates is the last one
-   * and is already complete. A `secret put` after the deploy publishes a further
-   * version, and for a few seconds the edge still answers from the one before —
-   * which failed a push smoke check on a deploy whose keys were in fact correct.
-   */
-  console.log(`\n── provision`)
-  // Imported, not spawned: cf-provision exports run() behind an import.meta.main
-  // guard precisely so a caller can use it as a function, and a thrown Refused
-  // carries more than an exit code.
-  await provision(["--env", target.environment], "apply")
-
-  console.log(`\n── publish`)
-  const published = wrangler(["deploy"], target, { inherit: true })
-  if (published.code !== 0) throw new Refused("publish failed")
-
-  console.log(`\n── wait for ${ORIGIN}`)
-  await waitForOrigin(ORIGIN)
-
-  step("seed", ["bun", "scripts/cf-d1.ts", "seed-remote", "--env", target.environment])
-  step("smoke", ["bun", "scripts/smoke.ts"], { CF_DEPLOY_URL: ORIGIN })
-
-  console.log(`\ndeploy: ${target.environment} is live at ${ORIGIN}\n`)
+  console.log(`\ndeploy: ${target.environment} is live at ${origin}\n`)
 } catch (err) {
   if (err instanceof Refused) {
     console.error(`\ndeploy: ${err.message}\n`)

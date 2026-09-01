@@ -1,7 +1,7 @@
 /**
  * Fail if seed.sql inserts a row before the row it points at.
  *
- * The gap this closes is not the ordering — that is fixed in seed-sql.ts — it is
+ * The gap this closes is not the ordering — that is fixed in seed.ts — it is
  * that nothing could tell. `check:seed` compares seed.sql against the model, so
  * a correctly-generated file in an unusable order passes it. The worker tests
  * seed from the same bytes but through the D1 binding, where miniflare does not
@@ -83,7 +83,7 @@ if (inversions.length) {
       `\n\n  A fresh database refuses these with FOREIGN KEY constraint failed. An\n` +
       `  existing one accepts them, because the parent is already there — which is\n` +
       `  why this can pass everywhere and fail on the next environment created.\n` +
-      `  Fix the emit order in scripts/seed-sql.ts, then re-run 'mise run seed:sql'.`,
+      `  Fix the emit order in scripts/seed.ts, then re-run 'mise run seed:sql'.`,
   )
   process.exit(1)
 }

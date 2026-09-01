@@ -61,7 +61,7 @@ try {
       throw new Refused(`could not delete TEST_OTP:\n${goneText}`)
     }
   } else {
-    throw new Refused(`usage: cf-demo.ts <on|off> --env <environment>`)
+    throw new Refused(`usage: demo.ts <on|off> --env <environment>`)
   }
 
   /**
@@ -80,7 +80,7 @@ try {
    * `demo-status.ts` exits non-zero when the admin is offered, which is a
    * separate failure it already guards.
    */
-  console.log(`\ncf-demo: asking the deployment whether that actually worked…\n`)
+  console.log(`\ndemo: asking the deployment whether that actually worked…\n`)
 
   const want = action === "on"
   const code = process.env.DEMO_CODE ?? DEMO_SIGN_IN_CODE
@@ -141,10 +141,10 @@ try {
   if (action === "off" && isOn) {
     throw new Refused("TEST_OTP was deleted, but the deployment still reports seeded sign-in as ON.")
   }
-  console.log(`\ncf-demo: verified — seeded sign-in is ${action.toUpperCase()} on ${target.environment}\n`)
+  console.log(`\ndemo: verified — seeded sign-in is ${action.toUpperCase()} on ${target.environment}\n`)
 } catch (err) {
   if (err instanceof Refused) {
-    console.error(`\ncf-demo: ${err.message}\n`)
+    console.error(`\ndemo: ${err.message}\n`)
     process.exit(1)
   }
   throw err

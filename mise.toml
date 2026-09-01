@@ -288,7 +288,7 @@ depends     = ["install"]
 # failing quietly. What proves the copy agrees with this database is the seed:
 # db.insert(city).values(CITY) does not compile if a field and a column
 # disagree.
-run = "bun scripts/domain-sync.ts"
+run = "bun scripts/domain.ts"
 
 [tasks."deps:outdated"]
 description = "Show npm packages behind their latest release"
@@ -386,7 +386,7 @@ HOSTARG="${IP:-localhost}"
 TUNNEL=""
 RUNTOK=$(printenv TUNNEL_RUN_TOKEN || fnox get TUNNEL_RUN_TOKEN 2>/dev/null) || true
 if [ -z "$RUNTOK" ]; then
-  bun scripts/tunnel-setup.ts >/dev/null 2>&1 \
+  bun scripts/tunnel.ts >/dev/null 2>&1 \
     && RUNTOK=$(fnox get TUNNEL_RUN_TOKEN 2>/dev/null) \
     || echo "  (no tunnel — needs CLOUDFLARE_API_TOKEN with Cloudflare Tunnel:Edit)"
 fi
@@ -543,9 +543,9 @@ depends     = ["install"]
 # As SQL, each test file seeds its own storage in milliseconds.
 # The model is copied in from remy-sport-biz, so the copies are the input —
 # The model is the input; there is no re-export layer between them any more.
-sources = ["scripts/seed-sql.ts", "src/domain/model/*.ts", "src/db/*-schema.ts"]
+sources = ["scripts/seed.ts", "src/domain/model/*.ts", "src/db/*-schema.ts"]
 outputs = ["src/db/seed.sql"]
-run     = "bun scripts/seed-sql.ts"
+run     = "bun scripts/seed.ts"
 
 [tasks."db:generate"]
 description = "Emit a migration for whatever changed in the drizzle schema (prompts on renames)"
@@ -595,9 +595,9 @@ depends     = ["install"]
 #
 # Subsets are DERIVED from ALL_LOCALES — adding a language upstream widens them
 # automatically. See the script for why CJK is deliberately not self-hosted.
-sources = ["scripts/fonts-vendor.ts", "src/domain/vocabularies.ts"]
+sources = ["scripts/fonts.ts", "src/domain/vocabularies.ts"]
 outputs = ["src/web/fonts.css"]
-run     = "bun scripts/fonts-vendor.ts"
+run     = "bun scripts/fonts.ts"
 
 [tasks."test:tiers"]
 description = "How many tests are in each tier, and how many are still in the wrong one"
@@ -642,7 +642,7 @@ depends     = ["install"]
 # the code was gated on a policy row production does not have — and nothing
 # said so until the next deploy. A provisioning task that cannot tell you
 # whether it worked is the failure class this week has been about.
-run = "bun scripts/cf-demo.ts on"
+run = "bun scripts/demo.ts on"
 
 [tasks."demo:off"]
 description = "Stop the seeded people signing in on a deployment"
@@ -658,7 +658,7 @@ depends     = ["install"]
 # confidently run.
 #
 #   mise run demo:off -- --env production
-run = "bun scripts/cf-demo.ts off"
+run = "bun scripts/demo.ts off"
 
 [tasks."demo:status"]
 description = "Is seeded sign-in on, and who does it offer?"
@@ -875,7 +875,7 @@ hide        = true
 # `--json` output carries a preamble that is not JSON. Its exit code is the
 # signal that matters and `set -e` acts on it — which is the same property the
 # note above wanted, obtained by not building a pipeline in the first place.
-run = "bun scripts/cf-d1.ts seed-remote"
+run = "bun scripts/db.ts seed-remote"
 
 # ── cf:env: provisioning (ADR 006) ───────────────────────────────────────────
 # ONE path, for one named environment. cf:d1:create, cf:r2:create, cf:d1:ensure,
@@ -899,7 +899,7 @@ depends     = ["install"]
 # account and decides what an error means, for every caller — so a task is a
 # name, a description, a dependency and one invocation. The shell that used to
 # sit here was the fifth copy of a rule that belongs in one place.
-run = "bun scripts/cf-provision.ts"
+run = "bun scripts/provision.ts"
 
 [tasks."cf:env:bootstrap"]
 description = "Provision D1, migrations, R2, both queues and every secret for one environment"
@@ -920,7 +920,7 @@ depends     = ["install"]
 # run the same code, so a credential resolved differently between them would let
 # the plan describe a run the apply cannot perform. Both get it from
 # scripts/cloudflare.ts, which is the only place it is decided.
-run = "bun scripts/cf-provision.ts --apply"
+run = "bun scripts/provision.ts --apply"
 
 [tasks."push:keys"]
 description = "Generate a VAPID keypair for Web Push (prints three lines; does not store them)"
@@ -939,7 +939,7 @@ hide        = true
 # A dependency of `setup`, never run directly. Hidden so `mise tasks` shows the
 # four dev commands somebody actually chooses between.
 depends     = ["install"]
-run         = "bun scripts/dev-vars.ts"
+run         = "bun scripts/dev.ts"
 
 # ── cf: deploy ───────────────────────────────────────────────────────────────
 
@@ -961,7 +961,7 @@ depends     = ["install"]
 # `fnox get` rather than `fnox exec`: exec would inject every secret declared
 # in fnox.toml into this process, and warn on each run about ones unrelated to
 # auditing. This pulls exactly the one it needs.
-run = "bun scripts/cf-audit.ts"
+run = "bun scripts/audit.ts"
 
 [tasks."time"]
 description = "Time a local endpoint — min/p50/p95/max over N runs (`mise run time /api/health`)"
@@ -1005,22 +1005,22 @@ run         = "bun x wrangler types"
 description = "List tables in local D1"
 hide        = true
 depends     = ["install"]
-run         = "bun scripts/cf-d1.ts tables-local"
+run         = "bun scripts/db.ts tables-local"
 
 [tasks."cf:d1:tables:remote"]
 description = "List tables in remote D1"
 hide        = true
 depends     = ["install"]
-run         = "bun scripts/cf-d1.ts tables-remote"
+run         = "bun scripts/db.ts tables-remote"
 
 [tasks.db]
 description = "The database: migrate-local | migrate-remote | seed-remote | tables-local | tables-remote | reset-local (add --env for remote)"
 depends     = ["install"]
-# One entry point over scripts/cf-d1.ts, which was already a subcommand
+# One entry point over scripts/db.ts, which was already a subcommand
 # dispatcher wearing six task names. A remote write names its environment or
 # refuses; a local or read-only one does not — the rule is declared per
 # operation in that file, not applied globally here.
-run = "bun scripts/cf-d1.ts"
+run = "bun scripts/db.ts"
 
 [tasks."cf:d1:migrations:create"]
 description = "Create a new D1 migration (set NAME env var)"
@@ -1032,13 +1032,13 @@ run         = "bun x wrangler d1 migrations create remy-sport-db \"$NAME\""
 description = "Apply D1 migrations locally (idempotent)"
 hide        = true
 depends     = ["install"]
-run         = "bun scripts/cf-d1.ts migrate-local"
+run         = "bun scripts/db.ts migrate-local"
 
 [tasks."cf:d1:migrations:apply:remote"]
 description = "Apply D1 migrations to remote (idempotent)"
 hide        = true
 depends     = ["install"]
-run         = "bun scripts/cf-d1.ts migrate-remote"
+run         = "bun scripts/db.ts migrate-remote"
 
 # Wrangler records which migrations it has applied and never re-runs one. That
 # is right for hand-written migrations and wrong for 0009, which
@@ -1050,7 +1050,7 @@ run         = "bun scripts/cf-d1.ts migrate-remote"
 description = "Delete the local D1 database and replay every migration from scratch. Use when a migration has changed under a database that already ran it — wrangler will not re-apply one. Local only; never touches remote."
 hide        = true
 depends     = ["install"]
-run = "bun scripts/cf-d1.ts reset-local"
+run = "bun scripts/db.ts reset-local"
 
 # ── cf:r2: storage ───────────────────────────────────────────────────────────
 
@@ -1218,6 +1218,6 @@ hide        = true
 depends     = ["install"]
 # Replaces `tunnel:named`, which could not run: it needed `cloudflared tunnel
 # login` — a browser flow writing a cert.pem — and referenced two env vars that
-# were never defined. scripts/tunnel-setup.ts explains why the API path needs
+# were never defined. scripts/tunnel.ts explains why the API path needs
 # no certificate.
-run = "bun scripts/tunnel-setup.ts"
+run = "bun scripts/tunnel.ts"

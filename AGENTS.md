@@ -125,7 +125,7 @@ is a tax. `## Open` below is where the ones worth keeping are written down.
 
 [remy-sport-biz](https://github.com/joeblew999/remy-sport-biz) is the Product
 Owner's source of truth, cloned at `../remy-sport-biz/`. Its `domain/model/` is
-TypeScript, and [`mise run domain:sync`](scripts/domain-sync.ts) copies it into
+TypeScript, and [`mise run domain:sync`](scripts/domain.ts) copies it into
 [src/domain/model/](src/domain/model/) **verbatim** — nothing transforms it.
 
 **The model arrives one way: you run `domain:sync` here.** Nothing else should
@@ -482,7 +482,7 @@ never replaces one. A **half-pair is refused** rather than completed, because
 completing it means rotating: `PUSH_SKIP=1` ships the deploy and touches
 nothing (push is already off, and every subscription stays recoverable once the
 missing half returns), `PUSH_ROTATE=1` accepts the loss. That all-or-nothing
-rule is `decideSecrets` in `scripts/cf-provision.ts`, and it guards
+rule is `decideSecrets` in `scripts/provision.ts`, and it guards
 `BETTER_AUTH_SECRET` and the MoQ pair too — the same mistake would sign
 everybody out, or half-configure video.
 

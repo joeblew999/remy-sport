@@ -8,7 +8,7 @@
  * both would do the right thing to the wrong database.
  *
  * So the name is resolved from wrangler config for a named environment, exactly
- * as `cf-provision.ts` does, and there is one rule about defaults:
+ * as `provision.ts` does, and there is one rule about defaults:
  *
  *   **A remote write requires --env. A local or read-only operation does not.**
  *

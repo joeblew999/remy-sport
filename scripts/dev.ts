@@ -133,7 +133,7 @@ for (const [key, make] of Object.entries(DEFAULTS)) {
 const decision = decideFromNames(present)
 
 if (decision.action === "refuse") {
-  console.error(`dev-vars: ${halfPairMessage(decision, DEV_VARS)}`)
+  console.error(`dev: ${halfPairMessage(decision, DEV_VARS)}`)
   // The mechanism, which is this caller's own: .dev.vars is a file, and there
   // is no deployment to protect — a local pair has no subscriptions pinned to
   // it beyond this developer's own browser.
@@ -153,11 +153,11 @@ if (decision.action === "generate") {
 }
 
 if (added.length === 0) {
-  console.log(`dev-vars: ${DEV_VARS} already has every key, no change`)
+  console.log(`dev: ${DEV_VARS} already has every key, no change`)
   process.exit(0)
 }
 
 writeFileSync(DEV_VARS, out, { mode: 0o600 })
 console.log(
-  `dev-vars: ${existing ? "updated" : "wrote"} ${DEV_VARS} (${added.join(", ")})`,
+  `dev: ${existing ? "updated" : "wrote"} ${DEV_VARS} (${added.join(", ")})`,
 )

@@ -62,7 +62,7 @@ let dir: string
 let config: string
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "cf-ensure-"))
+  dir = mkdtempSync(join(tmpdir(), "cloudflare-"))
   config = join(dir, "wrangler.toml")
   writeFileSync(config, FIXTURE)
 })

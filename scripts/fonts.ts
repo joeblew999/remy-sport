@@ -66,7 +66,7 @@ const SCRIPTS: Record<string, { subsets: string[]; family?: string }> = {
 const unknown = ALL_LOCALES.filter((l) => !(l in SCRIPTS))
 if (unknown.length) {
   console.error(
-    `fonts-vendor: no script mapping for locale(s) ${unknown.join(", ")}.\n` +
+    `fonts: no script mapping for locale(s) ${unknown.join(", ")}.\n` +
       `Add them to SCRIPTS in this file — a declared locale with no font renders\n` +
       `as empty boxes, and nothing else would have told you.`,
   )

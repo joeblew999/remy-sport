@@ -30,7 +30,7 @@ const OPS: Record<string, Op> = {
     cmd: ([action = "status", ...rest]) =>
       action === "status"
         ? ["bun", "scripts/demo-status.ts", ...rest]
-        : ["bun", "scripts/cf-demo.ts", action, ...rest],
+        : ["bun", "scripts/demo.ts", action, ...rest],
     help: "demo <on|off|status> [--env X]   seeded sign-in on a deployment",
   },
   analytics: {
@@ -38,11 +38,11 @@ const OPS: Record<string, Op> = {
     help: "analytics [hours]                what the deployed worker has been doing",
   },
   audit: {
-    cmd: (rest) => ["bun", "scripts/cf-audit.ts", ...rest],
+    cmd: (rest) => ["bun", "scripts/audit.ts", ...rest],
     help: "audit                            the account's delete actions",
   },
   tunnel: {
-    cmd: (rest) => ["bun", "scripts/tunnel-setup.ts", ...rest],
+    cmd: (rest) => ["bun", "scripts/tunnel.ts", ...rest],
     help: "tunnel                           create the dev tunnel and its hostname",
   },
   versions: {
@@ -50,7 +50,7 @@ const OPS: Record<string, Op> = {
     help: "versions                         stamp versions.json",
   },
   seed: {
-    cmd: (rest) => ["bun", "scripts/cf-d1.ts", "seed-remote", ...rest],
+    cmd: (rest) => ["bun", "scripts/db.ts", "seed-remote", ...rest],
     help: "seed --env X                     seed a remote database",
   },
   biz: {
@@ -58,7 +58,7 @@ const OPS: Record<string, Op> = {
     help: "biz                              fast-forward the PO's checkout",
   },
   domain: {
-    cmd: (rest) => ["bun", "scripts/domain-sync.ts", ...rest],
+    cmd: (rest) => ["bun", "scripts/domain.ts", ...rest],
     help: "domain [--check]                 copy the PO's model in",
   },
 }
