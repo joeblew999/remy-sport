@@ -21,7 +21,11 @@ import { install } from "./lib/prepare"
 
 import { Refused } from "./lib/cloudflare"
 
+type Group = "deployment" | "report" | "setup" | "model" | "maintenance"
+
 interface Op {
+  /** Which heading it appears under. A flat list of fifteen is not a menu. */
+  group: Group
   /** Argv to spawn. `rest` is whatever the caller typed after the subcommand. */
   cmd: (rest: string[]) => string[]
   help: string
@@ -29,6 +33,7 @@ interface Op {
 
 const OPS: Record<string, Op> = {
   demo: {
+    group: "deployment",
     cmd: ([action = "status", ...rest]) =>
       action === "status"
         ? ["bun", "scripts/ops/demo-status.ts", ...rest]
@@ -36,49 +41,60 @@ const OPS: Record<string, Op> = {
     help: "demo <on|off|status> [--env X]   seeded sign-in on a deployment",
   },
   analytics: {
+    group: "deployment",
     cmd: (rest) => ["bun", "scripts/ops/analytics.ts", ...rest],
     help: "analytics [hours]                what the deployed worker has been doing",
   },
   audit: {
+    group: "deployment",
     cmd: (rest) => ["bun", "scripts/ops/audit.ts", ...rest],
     help: "audit                            the account's delete actions",
   },
   tunnel: {
+    group: "setup",
     cmd: (rest) => ["bun", "scripts/ops/tunnel.ts", ...rest],
     help: "tunnel                           create the dev tunnel and its hostname",
   },
   versions: {
+    group: "deployment",
     cmd: (rest) => ["bun", "scripts/deploy/versions.ts", ...rest],
     help: "versions                         stamp versions.json",
   },
   seed: {
+    group: "deployment",
     cmd: (rest) => ["bun", "scripts/db.ts", "seed-remote", ...rest],
     help: "seed --env X                     seed a remote database",
   },
   biz: {
+    group: "model",
     cmd: (rest) => ["bun", "scripts/ops/biz.ts", ...rest],
     help: "biz                              fast-forward the PO's checkout",
   },
   coverage: {
+    group: "report",
     cmd: ([what = "gui", ...rest]) => ["bun", `scripts/ops/coverage-${what}.ts`, ...rest],
     help: "coverage <gui|data|model>        how much of each surface is exercised",
   },
   keys: {
+    group: "setup",
     cmd: (rest) => ["bun", "scripts/ops/keys.ts", ...rest],
     help: "keys                             generate a VAPID keypair for Web Push",
   },
   deps: {
+    group: "maintenance",
     cmd: ([what = "outdated"]) =>
       what === "update" ? ["bun", "update"] : ["bun", "outdated"],
     help: "deps <outdated|update>           npm packages against their releases",
   },
   icons: {
+    group: "setup",
     // Two generators, not one: pwa-assets covers the web manifest, tauri icon
     // the desktop and mobile bundles, and both read src/web/public/brand.svg.
     cmd: () => ["sh", "-c", "bun x pwa-assets-generator && bun x tauri icon src/web/public/brand.svg"],
     help: "icons                            regenerate every app icon from brand.svg",
   },
   tauri: {
+    group: "maintenance",
     /**
      * The desktop and mobile targets.
      *
@@ -98,14 +114,17 @@ const OPS: Record<string, Op> = {
     help: "tauri <dev|build|info|ios-init|ios-dev>   desktop and mobile targets",
   },
   tiers: {
+    group: "report",
     cmd: (rest) => ["bun", "scripts/ops/tiers.ts", ...rest],
     help: "tiers                            how many tests sit in each tier",
   },
   time: {
+    group: "report",
     cmd: (rest) => ["bun", "scripts/ops/time.ts", ...rest],
     help: "time <path>                      how long an endpoint takes, measured",
   },
   domain: {
+    group: "model",
     cmd: (rest) => ["bun", "scripts/ops/domain.ts", ...rest],
     help: "domain [--check]                 copy the PO's model in",
   },
@@ -117,8 +136,30 @@ const [name, ...rest] = process.argv.slice(2)
 
 if (!name || name === "--help" || !OPS[name]) {
   const unknown = name && !OPS[name] ? `\nops: no such operation "${name}"\n` : ""
-  console.log(`${unknown}\nmise run ops <operation>\n`)
-  for (const op of Object.values(OPS)) console.log(`  ${op.help}`)
+  console.log(`${unknown}
+mise run ops <operation>
+
+  You probably do not need any of this. The loop is:
+
+    mise run dev        build something
+    mise run check      before you commit
+    mise run deploy -- --env production
+
+  Everything below is occasional — most of it you run once, or when something
+  is wrong and you want evidence rather than a guess.`)
+  const HEADINGS: Array<[Group, string]> = [
+    ["deployment", "when you are showing it to someone, or something looks wrong"],
+    ["report", "when you want a number instead of an opinion"],
+    ["setup", "once, on a new machine"],
+    ["model", "when the Product Owner changes the model"],
+    ["maintenance", "rarely"],
+  ]
+  for (const [group, heading] of HEADINGS) {
+    const ops = Object.values(OPS).filter((o) => o.group === group)
+    if (!ops.length) continue
+    console.log(`\n  ${heading}`)
+    for (const op of ops) console.log(`    ${op.help}`)
+  }
   console.log("")
   process.exit(name && !OPS[name] ? 1 : 0)
 }

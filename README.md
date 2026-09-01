@@ -1,26 +1,22 @@
 # Remy Sport
 
-## Five commands
+## What a developer does
 
 ```
-mise run dev        run it here          → scripts/dev.ts
-mise run check      prove it             → scripts/check.ts
-mise run db         the database         → scripts/db.ts
-mise run deploy     ship it              → scripts/deploy.ts
-mise run ops        operate a deployment → scripts/ops.ts
+mise run dev        build something          → localhost:8787, seeded
+mise run check      before you commit        → about 30s
+mise run deploy -- --env production
 ```
 
-Run any of them with no arguments and it either does the obvious thing or tells
-you what it takes. That is where the subcommand lists live — not here, because a
-copy in this file is a copy that goes stale.
+That is the loop. Three commands.
 
-```
-mise run dev                     server, seeded, one port
-mise run check                   the gate            (--fast, --e2e)
-mise run deploy -- --env staging
-```
+`mise run db` and `mise run ops` exist for the occasional — a database question,
+showing the app to someone, wanting a number when something looks wrong. Run
+either with no arguments and it tells you what it can do. You will not need them
+most days.
 
-Arguments go after `--`. A remote write always names its environment or refuses.
+Arguments go after `--`. A command that writes to a deployment always names its
+environment or refuses.
 
 ## Environments
 
