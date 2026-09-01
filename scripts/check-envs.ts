@@ -36,7 +36,7 @@
  * warns about all three. Resolved config is the only trustworthy source.
  */
 
-import { experimental_readRawConfig, unstable_readConfig } from "wrangler"
+import { declaredEnvs, resolvedConfig } from "./cloudflare"
 
 /** Which environment a resolved config belongs to, for messages. */
 type Named = { label: string; env: string | undefined }
@@ -48,16 +48,13 @@ type Named = { label: string; env: string | undefined }
  * is covered the day somebody adds it — a new environment that nothing compares
  * against is exactly how the first one would have gone wrong.
  */
-const raw = experimental_readRawConfig({})
-const declared = Object.keys(
-  (raw.rawConfig as { env?: Record<string, unknown> }).env ?? {},
-)
+const declared = declaredEnvs()
 const targets: Named[] = [
   { label: "(top-level)", env: undefined },
   ...declared.map((env) => ({ label: env, env })),
 ]
 
-const resolved = targets.map((t) => ({ ...t, config: unstable_readConfig({ env: t.env }) }))
+const resolved = targets.map((t) => ({ ...t, config: resolvedConfig(t.env) }))
 
 /**
  * The hostname a route serves.

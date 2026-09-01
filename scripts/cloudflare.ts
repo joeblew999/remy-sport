@@ -42,6 +42,18 @@ export function resolvedConfig(env?: string) {
   return unstable_readConfig({ config: WRANGLER_TOML, env })
 }
 
+/**
+ * Every `[env.*]` block declared in the file, top-level excluded.
+ *
+ * Enumerated rather than hardcoded so a future `[env.preview]` is covered the
+ * day somebody adds it — an environment nothing compares against is exactly how
+ * the first one would have gone wrong.
+ */
+export function declaredEnvs(configPath: string = WRANGLER_TOML): string[] {
+  const raw = experimental_readRawConfig({ config: configPath })
+  return Object.keys((raw.rawConfig as { env?: Record<string, unknown> }).env ?? {})
+}
+
 // ── Writing a database_id, and proving we wrote the right one ────────────────
 
 /**
@@ -53,8 +65,7 @@ export function resolvedConfig(env?: string) {
  * here, it shows whatever it would actually deploy with.
  */
 export function d1Snapshot(configPath: string): Map<string, string> {
-  const raw = experimental_readRawConfig({ config: configPath })
-  const envs = Object.keys((raw.rawConfig as { env?: Record<string, unknown> }).env ?? {})
+  const envs = declaredEnvs(configPath)
   const snapshot = new Map<string, string>()
   for (const env of [undefined, ...envs]) {
     const config = unstable_readConfig({ config: configPath, env })

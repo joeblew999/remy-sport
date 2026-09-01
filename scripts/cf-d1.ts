@@ -17,7 +17,7 @@
  * live database by somebody who thought they were on staging.
  */
 
-import { Refused, resolveTarget, resolvedConfig, type Target } from "./cloudflare"
+import { Refused, resolveTarget, resolvedConfig, wrangler, type Target } from "./cloudflare"
 
 type Op = "migrate-remote" | "migrate-local" | "reset-local" | "seed-remote" | "tables-remote" | "tables-local"
 
@@ -25,11 +25,13 @@ type Op = "migrate-remote" | "migrate-local" | "reset-local" | "seed-remote" | "
 const REMOTE_WRITES: Op[] = ["migrate-remote", "seed-remote"]
 
 function target(op: Op, argv: string[]): Target {
-  if (REMOTE_WRITES.includes(op)) return resolveTarget(argv)
-  // Local and read-only: the top-level config, which is what `wrangler dev` and
-  // the local D1 state already use.
-  const named = argv.includes("--env") || argv.some((a) => a.startsWith("--env="))
-  return named ? resolveTarget(argv) : { environment: "production" }
+  // The declaration Decision 1 is about. A remote write names its environment or
+  // refuses; a local or read-only operation takes the top-level config, which is
+  // what `wrangler dev` and the local D1 state already use. The module applies
+  // whichever rule it is handed and infers neither — see
+  // docs/dev/cloudflare-module.md for why one global policy breaks in both
+  // directions.
+  return resolveTarget(argv, REMOTE_WRITES.includes(op) ? "explicit" : "ambient")
 }
 
 function databaseName(t: Target): string {
@@ -41,12 +43,15 @@ function databaseName(t: Target): string {
   return binding.database_name
 }
 
-function wrangler(args: string[], t: Target): void {
-  const proc = Bun.spawnSync(
-    ["bun", "x", "wrangler", ...args, ...(t.flag ? ["--env", t.flag] : [])],
-    { stdout: "inherit", stderr: "inherit" },
-  )
-  if (proc.exitCode !== 0) process.exit(proc.exitCode)
+/**
+ * Streamed, not captured, and the exit code is the signal.
+ *
+ * `inherit` matters here beyond tidiness: wrangler writes progress to the same
+ * stdout as its result, so piping a seed once killed the deploy with EPIPE.
+ */
+function run(args: string[], t: Target): void {
+  const { code } = wrangler(args, t, { inherit: true })
+  if (code !== 0) process.exit(code)
 }
 
 const op = process.argv[2] as Op
@@ -59,16 +64,16 @@ try {
   switch (op) {
     case "migrate-remote":
       console.log(`cf-d1: applying migrations to "${name}" [${t.environment}, remote]`)
-      wrangler(["d1", "migrations", "apply", name, "--remote"], t)
+      run(["d1", "migrations", "apply", name, "--remote"], t)
       break
     case "migrate-local":
-      wrangler(["d1", "migrations", "apply", name, "--local"], t)
+      run(["d1", "migrations", "apply", name, "--local"], t)
       break
     case "reset-local":
       // Local state only. Named for the database so the message cannot claim to
       // have reset something it did not.
       Bun.spawnSync(["rm", "-rf", ".wrangler/state/v3/d1"])
-      wrangler(["d1", "migrations", "apply", name, "--local"], t)
+      run(["d1", "migrations", "apply", name, "--local"], t)
       console.log(`cf-d1: local D1 for "${name}" rebuilt — run 'mise run dev' for test data`)
       break
     case "seed-remote":
@@ -83,16 +88,16 @@ try {
        * its result, so a pipeline killed the deploy with EPIPE. The exit code is
        * the signal that matters.
        */
-      wrangler(["d1", "execute", name, "--remote", "--file=src/db/seed.sql"], t)
+      run(["d1", "execute", name, "--remote", "--file=src/db/seed.sql"], t)
       break
     case "tables-remote":
-      wrangler(
+      run(
         ["d1", "execute", name, "--remote", "--command", "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"],
         t,
       )
       break
     case "tables-local":
-      wrangler(
+      run(
         ["d1", "execute", name, "--local", "--command", "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"],
         t,
       )

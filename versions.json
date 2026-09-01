@@ -1,16 +1,27 @@
 {
   "current": {
-    "_generated": "2026-09-01T05:30:11.164Z",
+    "_generated": "2026-09-01T05:34:52.503Z",
     "app": "0.1.0",
     "url": "https://remy.ubuntusoftware.net",
     "git": {
-      "commit": "93409dc",
+      "commit": "e8adc24",
       "branch": "main",
-      "tag": "93409dc",
-      "github": "https://github.com/joeblew999/remy-sport/commit/93409dca6ce020306e4aab397198f997a1b6a39f"
+      "tag": "e8adc24",
+      "github": "https://github.com/joeblew999/remy-sport/commit/e8adc24f55ab58c670eda0423d42c384d42ba351"
     }
   },
   "history": [
+    {
+      "_generated": "2026-09-01T05:30:11.164Z",
+      "app": "0.1.0",
+      "url": "https://remy.ubuntusoftware.net",
+      "git": {
+        "commit": "93409dc",
+        "branch": "main",
+        "tag": "93409dc",
+        "github": "https://github.com/joeblew999/remy-sport/commit/93409dca6ce020306e4aab397198f997a1b6a39f"
+      }
+    },
     {
       "_generated": "2026-09-01T05:21:43.613Z",
       "app": "0.1.0",
@@ -219,27 +230,9 @@
         "tag": "e847bc0",
         "github": "https://github.com/joeblew999/remy-sport/commit/e847bc0a8cfe0fe1eaa627fc2a94fcdd9122df4e"
       }
-    },
-    {
-      "_generated": "2026-08-27T08:25:26.152Z",
-      "app": "0.1.0",
-      "url": "https://remy.ubuntusoftware.net",
-      "git": {
-        "commit": "7fd50b3",
-        "branch": "main",
-        "tag": "7fd50b3",
-        "github": "https://github.com/joeblew999/remy-sport/commit/7fd50b3f438ae28719d7ca5a4ae27762820537de"
-      }
     }
   ],
   "cf_versions": [
-    {
-      "id": "3e679aaa-51bd-48f9-bc58-8902c380794e",
-      "number": 53,
-      "created": "2026-08-29T08:31:18.231561Z",
-      "source": "version_upload",
-      "url": null
-    },
     {
       "id": "07c6ad3e-2b7f-4b64-a4a3-95cb215a8281",
       "number": 54,
@@ -301,6 +294,13 @@
       "number": 62,
       "created": "2026-09-01T05:27:39.091003Z",
       "source": "secret",
+      "url": null
+    },
+    {
+      "id": "0d137d18-a6cb-4731-a19c-5ed57af38027",
+      "number": 63,
+      "created": "2026-09-01T05:30:40.083954Z",
+      "source": "version_upload",
       "url": null
     }
   ]

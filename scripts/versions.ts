@@ -9,6 +9,7 @@
  */
 
 import { execSync } from "child_process"
+import { wrangler } from "./cloudflare"
 import { readFileSync, writeFileSync } from "fs"
 import https from "https"
 
@@ -78,7 +79,15 @@ function checkHealth(url: string): Promise<boolean> {
 
 let cf_versions: any[] = []
 try {
-  const raw = JSON.parse(run("bunx wrangler versions list --json 2>/dev/null"))
+  // Through the module, so this gets the same credential and the same pinned
+  // account as everything else — it used to shell out to `bunx wrangler`
+  // directly with 2>/dev/null, which is its own client and its own silence.
+  // Sliced from the first `[` because wrangler prints a banner alongside the
+  // JSON, exactly as the D1 listing does.
+  const listed = wrangler(["versions", "list", "--json"])
+  const start = listed.out.indexOf("[")
+  if (listed.code !== 0 || start === -1) throw new Error("versions list unavailable")
+  const raw = JSON.parse(listed.out.slice(start))
   cf_versions = await Promise.all(
     raw.map(async (v: any) => {
       const previewId = v.id.split("-")[0]
