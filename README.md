@@ -1,36 +1,52 @@
 # Remy Sport
 
-## What a developer does
+## The two flows
+
+Everything is one of these. Each step says where it stops and what carries on.
+
+**You changed code**
 
 ```
-mise run dev        build something          → localhost:8787, seeded
-mise run check      before you commit        → about 30s
+mise run dev                            build it here      localhost:8787, seeded
+mise run check                          prove it           ~30s
+mise run deploy -- --env staging        try it out there
+mise run deploy -- --env production     ship it
+```
+
+**The Product Owner changed the model**
+
+```
+mise run model                          pull it in, migrate HERE, seed, verify
+mise run deploy -- --env staging        carry the migration out there
 mise run deploy -- --env production
 ```
 
-That is the loop. Three commands.
+The second flow is the one worth understanding, because this architecture is
+model-driven: the vocabulary and entities come from `remy-sport-biz`, the drizzle
+schema is derived from them, so a vocabulary change *is* a schema change, which
+needs a migration, and `seed.sql` is generated from the same model. `model` does
+that chain in order and stops if a step fails.
 
-When the Product Owner changes the model, there is a chain — the vocabulary and
-entities come in from `remy-sport-biz`, the drizzle schema follows them, that
-needs a migration, the seed is regenerated from the same model, and four checks
-each verify one link:
+It ends on your machine. The migration it writes is applied to `.wrangler/state`
+and nowhere else — `deploy` is what carries it out, and it provisions before it
+publishes so the schema lands before the code that needs it.
+
+Any command's order, without running it:
 
 ```
-mise run model              run it
-mise run model -- --order   see it first
+mise run model -- --order
+mise run deploy -- --order
+mise run check -- --order
+mise run dev -- --order
 ```
 
-This architecture is model-driven, so that chain is the part worth knowing. It
-used to be four steps under two other commands plus one inside `prepare`, which
-made the order something you knew or guessed — and guessing wrong is quiet: skip
-the migration and the schema describes tables the database does not have.
+## The other two commands
 
-Two more for the days that are not ordinary. `mise run db` answers database
-questions and applies migrations. `mise run ops` is everything you do TO a
-deployment or a machine — showing the app to someone, asking production what it
-has been doing, building the desktop and mobile apps, pulling the Product
-Owner's model. Run either with no arguments and it says when you would want
-each.
+`mise run db` answers database questions and applies migrations. `mise run ops`
+is everything you do TO a deployment or a machine — showing the app to someone,
+asking production what it has been doing, building the desktop and mobile apps,
+pulling the Product Owner's checkout. Run either with no arguments and it says
+when you would want each.
 
 Arguments go after `--`. A command that writes to a deployment always names its
 environment or refuses.

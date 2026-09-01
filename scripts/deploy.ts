@@ -169,7 +169,12 @@ try {
 
   for (const phase of PIPELINE) await phase.go(target, origin)
 
-  console.log(`\ndeploy: ${target.environment} is live at ${origin}\n`)
+  console.log(
+    `\ndeploy: ${target.environment} is live at ${origin}\n\n` +
+      (target.environment === "staging"
+        ? "  Then production, when it looks right:\n    mise run deploy -- --env production\n"
+        : ""),
+  )
 } catch (err) {
   if (err instanceof Refused) {
     console.error(`\ndeploy: ${err.message}\n`)

@@ -16,6 +16,11 @@
  *   mise run model              run the chain
  *   mise run model -- --order   print it without doing any of it
  *
+ * This is the LOCAL half. It ends with a migration applied to .wrangler/state
+ * and a deployment still on the old shape — `deploy` carries it out, and it
+ * provisions before it publishes so the schema lands before the code that
+ * needs it.
+ *
  * Stops at the first step that fails, because every step after one depends on it.
  */
 
@@ -86,4 +91,12 @@ for (const [i, step] of CHAIN.entries()) {
   }
 }
 
-console.log("\nmodel: the model is in, the schema follows it, and the checks agree\n")
+console.log(
+  "\nmodel: the model is in, the schema follows it, and the checks agree — HERE.\n\n" +
+    "  A deployment still has the old shape. The migration this just wrote is applied\n" +
+    "  to .wrangler/state and nowhere else, and `deploy` is what carries it out —\n" +
+    "  it provisions before it publishes, so the schema lands before the code that\n" +
+    "  needs it.\n\n" +
+    "    mise run deploy -- --env staging\n" +
+    "    mise run deploy -- --env production\n",
+)
