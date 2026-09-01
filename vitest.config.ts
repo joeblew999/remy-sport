@@ -46,7 +46,11 @@ export default defineConfig({
           // fallback is production, so leaving this out would silently strip
           // the routes half these tests are about.
           ENVIRONMENT: "dev",
-          TEST_OTP: "424242",
+          // TEST_OTP is deliberately absent. Dev's policy row says
+          // `signInCode: "derived"`, so the code comes from the table and no
+          // secret is involved — and every sign-in in this tier proves that,
+          // because they would all fail on a random code if it did not work.
+          // Setting it here would let the derivation break unnoticed.
           TEST_MIGRATIONS: migrations,
           // A throwaway VAPID pair, so push is *on* in tests and the code that
           // signs and encrypts actually runs. With these absent the sender

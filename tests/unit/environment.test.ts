@@ -1,5 +1,12 @@
 import { describe, it, expect } from "bun:test"
-import { ENVIRONMENTS, POLICY, environmentOf, permits } from "../../src/environment"
+import {
+  DEMO_SIGN_IN_CODE,
+  ENVIRONMENTS,
+  POLICY,
+  environmentOf,
+  fixedSignInCode,
+  permits,
+} from "../../src/environment"
 
 /**
  * The capability table, and the combination that made it necessary.
@@ -73,6 +80,60 @@ describe("production is the strictest row, and unset resolves to it", () => {
         if (POLICY[e][capability]) {
           expect(POLICY.dev[capability], `${e}.${capability} exceeds dev`).toBe(true)
         }
+      }
+    }
+  })
+})
+
+/**
+ * The two halves of seeded sign-in.
+ *
+ * `seededSignIn` decides whether the picker appears; `signInCode` decides
+ * whether those accounts can get in. They disagree on production, and folding
+ * them into one boolean shipped a real regression: gating the code on
+ * `seededSignIn` made `mise run demo:on` a silent no-op there, so every seeded
+ * account got a random code and the deployed suite — which signs in on every
+ * test — had nothing to type. Nothing failed until the next deploy.
+ */
+describe("the fixed sign-in code is not the account picker", () => {
+  it("dev and staging derive it, with no secret to provision", () => {
+    expect(fixedSignInCode({ ENVIRONMENT: "dev" })).toBe(DEMO_SIGN_IN_CODE)
+    expect(fixedSignInCode({ ENVIRONMENT: "staging" })).toBe(DEMO_SIGN_IN_CODE)
+    // And a stray secret cannot override the table on those.
+    expect(fixedSignInCode({ ENVIRONMENT: "staging", TEST_OTP: "999999" })).toBe(DEMO_SIGN_IN_CODE)
+  })
+
+  it("production has one only when a human set it", () => {
+    expect(fixedSignInCode({ ENVIRONMENT: "production" })).toBeUndefined()
+    expect(fixedSignInCode({ ENVIRONMENT: "production", TEST_OTP: "123456" })).toBe("123456")
+    // `mise run demo:off` deletes the secret, and that must be the whole of it.
+    expect(fixedSignInCode({ ENVIRONMENT: "production" })).toBeUndefined()
+  })
+
+  it("an undeclared deployment fixes nothing without a secret", () => {
+    expect(fixedSignInCode({})).toBeUndefined()
+  })
+
+  /**
+   * The regression, stated as the property that failed.
+   *
+   * Production is the case where the two rows disagree, so a test that only
+   * checked dev and staging would have passed throughout the broken commit.
+   */
+  it("production offers no picker and still fixes the code — the disagreeing case", () => {
+    const env = { ENVIRONMENT: "production", TEST_OTP: "123456" }
+    expect(permits(env, "seededSignIn"), "no picker on production").toBe(false)
+    expect(fixedSignInCode(env), "and yet the deployed suite can still sign in").toBe("123456")
+  })
+
+  it("no environment derives a code it would send to a real inbox", () => {
+    // The safety property behind "derived": a derived code is published, so it
+    // is only ever acceptable where seeded addresses cannot receive mail.
+    // Every derived environment must therefore be one whose seeded accounts are
+    // reachable only by whoever runs it.
+    for (const e of ENVIRONMENTS) {
+      if (POLICY[e].signInCode === "derived") {
+        expect(POLICY[e].seededSignIn, `${e} derives a code but offers no picker`).toBe(true)
       }
     }
   })

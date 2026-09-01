@@ -125,13 +125,36 @@ const RULES: Rule[] = [
     check: () => (/password/i.test(read("src/domain/model/entities.ts")) ? ["src/domain/model/entities.ts"] : []),
   },
   {
-    claim: '"There is one environment." — no `[env.*]` in wrangler.toml',
-    check: () =>
-      read("wrangler.toml")
-        .split("\n")
-        .map((l, i) => ({ l, n: i + 1 }))
-        .filter(({ l }) => /^\s*\[env\./.test(l))
-        .map(({ n }) => `wrangler.toml:${n}`),
+    claim:
+      '"A named environment declares everything it uses, and the policy table has to know its name."',
+    /**
+     * Every `[env.X]` in wrangler.toml must be a member of ENVIRONMENTS.
+     *
+     * This replaced "there is one environment", which stopped being true when
+     * staging arrived. The residual hazard is narrower and worse: `environmentOf`
+     * resolves an unrecognised name to **production**, so an `[env.preview]`
+     * would run under production's policy — no seed route, real mail, and a
+     * `sampleRate` of 10 — while every log line and the health endpoint said
+     * "preview". Fail-safe, and still a lie about which rules are in force.
+     *
+     * Resource-level separation is `check:envs`, which reads resolved config.
+     * This one is only about the name, which is the half that file cannot see:
+     * a block named for an environment nobody declared is still perfectly
+     * disjoint from every other.
+     */
+    check: () => {
+      const known = new Set(
+        [...read("src/environment.ts").matchAll(/"(dev|staging|production)"/g)].map((m) => m[1]),
+      )
+      // Deduped: one environment has many blocks — [env.x], [env.x.vars],
+      // [[env.x.routes]] — and naming it once is the useful message.
+      const declared = new Set(
+        [...read("wrangler.toml").matchAll(/^\s*\[+env\.([A-Za-z0-9_-]+)/gm)].map((m) => m[1]!),
+      )
+      return [...declared]
+        .filter((name) => !known.has(name))
+        .map((name) => `wrangler.toml: [env.${name}] is not in ENVIRONMENTS (src/environment.ts)`)
+    },
   },
   {
     claim: '"The dev tasks pass an explicit `--host` and must keep doing so."',

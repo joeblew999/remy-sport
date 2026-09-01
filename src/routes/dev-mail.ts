@@ -4,7 +4,7 @@ import { like } from "drizzle-orm"
 import * as schema from "../db/schema"
 import type { AppEnv } from "../types"
 import { readOutbox, clearOutbox, usesOutbox } from "../mail/mailer"
-import { permits } from "../environment"
+import { fixedSignInCode, permits } from "../environment"
 import { SEED_ENTITIES, SEED_RELATIONSHIPS } from "../../src/domain/model/entities"
 import { RELATION, STORED_ROLE } from "../domain/vocabularies"
 import { isRefusedStatus } from "../auth.config"
@@ -178,7 +178,11 @@ devMail.get("/api/dev/accounts", (c) => {
   const offered = permits(c.env, "seededSignIn")
   const withAdmin = permits(c.env, "offersAdminSignIn")
   const captured = usesOutbox(c.env)
-  const demo = Boolean(c.env.TEST_OTP)
+  // Asked of the policy, not of the binding. Staging derives its code and sets
+  // no secret, so `Boolean(c.env.TEST_OTP)` would have 404'd the picker on the
+  // one deployment built to offer it.
+  const fixed = fixedSignInCode(c.env)
+  const demo = Boolean(fixed)
   // Useful only where the codes can actually be read: captured in an outbox, or
   // fixed and published. `.test` addresses have no inbox either way.
   if (!offered || (!captured && !demo)) return c.json({ error: "Not found" }, 404)
@@ -219,7 +223,7 @@ devMail.get("/api/dev/accounts", (c) => {
      * button that hides where the code came from. Absent locally, where the
      * outbox carries a real generated code instead.
      */
-    ...(demo && !captured ? { code: c.env.TEST_OTP } : {}),
+    ...(demo && !captured ? { code: fixed } : {}),
     accounts: people.map((u) => ({
       role: STORED_ROLE[u.roleCode],
       email: u.email,

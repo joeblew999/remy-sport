@@ -322,10 +322,29 @@ production. **Build links in email from `BETTER_AUTH_URL`**, never the request
 origin: an email outlives its request. That is the one place this rule is
 inverted relative to `trustedOrigins`.
 
-**There is one environment.** `--env staging` once existed while `wrangler.toml`
-declared no such environment; wrangler only *warns*, so it would have deployed a
-second worker bound to the **production** D1 and R2. A real staging environment
-needs its own database, secrets and migrations, not a flag.
+**A named environment declares everything it uses, and the policy table has to
+know its name.** `--env staging` once existed while `wrangler.toml` declared no
+such environment; wrangler only *warns*, so it would have deployed a second
+worker bound to the **production** D1 and R2. There is now a real `[env.staging]`
+with its own database, bucket, queues, dataset and hostname.
+
+The hazard that replaces it is inheritance, and it is not symmetric. Bindings are
+**not** inherited and wrangler names each missing one — loud, and staging simply
+has no D1. `routes` and `triggers` **are** inherited: an `[env.*]` with no route
+override resolves to production's hostname, so `deploy --env staging` publishes
+onto the domain real people use. Wrangler warns about that when the inherited
+route is a `custom_domain` and says **nothing at all** when it is an ordinary
+route pattern — measured both ways, so the warning is not something to rely on.
+
+`mise run check:envs` reads *resolved* config through wrangler's own reader —
+never by parsing `wrangler.toml`, since the hazard is what the file does not say
+— and fails if two environments share a worker name, route host, database,
+bucket, queue or dataset, if an environment's `ENVIRONMENT` var disagrees with
+the block it is in, or if `BETTER_AUTH_URL` points at a host that environment
+does not serve. Every `[env.*]` must also be a member of `ENVIRONMENTS` in
+`src/environment.ts`: an unrecognised name resolves to *production's* policy,
+so a `[env.preview]` would quietly run with production's permissions while
+believing it was something else.
 
 **The dev tasks pass an explicit `--host` and must keep doing so.** With a
 `[[routes]]` block, plain `wrangler dev` simulates that route and every request

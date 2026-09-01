@@ -16,6 +16,7 @@
 import { randomBytes } from "crypto"
 import { existsSync, readFileSync, writeFileSync } from "fs"
 import { DEFAULT_SUBJECT, decideFromNames, generateVapid, halfPairMessage } from "./vapid"
+import { DEMO_SIGN_IN_CODE } from "../src/environment"
 
 const DEV_VARS = ".dev.vars"
 
@@ -51,7 +52,12 @@ const DEFAULTS: Record<string, () => string> = {
   // Local only. Setting it on a deployed Worker makes the admin account's
   // sign-in code a constant on a public site; that is why cf:smoke, not
   // test:deployed, verifies a deploy.
-  TEST_OTP: () => "424242",
+  // The Worker no longer reads this: dev's policy row says `signInCode:
+  // "derived"`, so `fixedSignInCode()` answers from the table. It stays in
+  // .dev.vars for the *other* half — the Playwright and worker helpers need to
+  // know which code to type, and they read the environment. Same constant, so
+  // the two halves cannot drift.
+  TEST_OTP: () => DEMO_SIGN_IN_CODE,
   /**
    * Where this deployment thinks it lives.
    *

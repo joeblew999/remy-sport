@@ -1,6 +1,7 @@
 import { SELF } from "cloudflare:test"
 import { expect } from "vitest"
 import { SEED_ENTITIES } from "../../src/domain/model/entities"
+import { DEMO_SIGN_IN_CODE } from "../../src/environment"
 
 /**
  * The whole harness for a Worker test. Three functions, no fixtures.
@@ -12,8 +13,15 @@ import { SEED_ENTITIES } from "../../src/domain/model/entities"
 
 export const ORIGIN = "https://remy.test"
 
-/** Matches TEST_OTP in vitest.config.ts, which seeded actors sign in with. */
-const OTP = "424242"
+/**
+ * The code seeded actors sign in with.
+ *
+ * Imported rather than repeated: the tier binds no TEST_OTP, so this is the
+ * derived code from the policy table and the Worker has to agree with it. A
+ * literal here would have let the two drift and turned a real break into a
+ * puzzle about which 424242 was wrong.
+ */
+const OTP = DEMO_SIGN_IN_CODE
 
 export const api = (path: string, init: RequestInit & { cookie?: string } = {}) =>
   SELF.fetch(`${ORIGIN}${path}`, {

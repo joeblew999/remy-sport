@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm"
 import type { Bindings } from "./types"
 import { buildAuthOptions } from "./auth.config"
 import { mailerFor } from "./mail/mailer"
-import { permits } from "./environment"
+import { fixedSignInCode, permits } from "./environment"
 import { LOCALES, type ReleasedLocale } from "./domain/vocabularies"
 import { FALLBACK } from "./domain/names"
 /**
@@ -293,7 +293,14 @@ export function createAuth(c: AuthHost) {
         })
       },
 
-      // Fixed code for the seeded demo accounts, and only when TEST_OTP is set.
+      // Fixed code for the seeded demo accounts, where the environment has one.
+      //
+      // Where it comes from is `signInCode` in the policy table: derived on dev
+      // and staging, and on production only from a human-set TEST_OTP that
+      // `mise run demo:off` removes. **Not gated on `seededSignIn`** — that row
+      // decides whether the account picker appears, which production says no to
+      // while still needing the fixed code for the deployed suite. Gating this
+      // on it made `demo:on` silently do nothing on production for one commit.
       //
       // `mise run deploy` reruns the whole Playwright suite against the
       // deployed Worker (test:deployed), and every test signs in. Passwords
@@ -315,13 +322,12 @@ export function createAuth(c: AuthHost) {
       // Still unset this before the platform has real users. A demo account
       // cannot reach anyone else's data, but it can edit shared fixture data,
       // and once real events exist those are not fixtures any more.
-      ...(c.env.TEST_OTP
+      ...(fixedSignInCode(c.env)
         ? {
             generateOTP: ({ email }: { email: string }) =>
               SEEDED_EMAILS.has(email) &&
-                permits(c.env, "seededSignIn") &&
                 (!ADMIN_EMAILS.has(email) || permits(c.env, "offersAdminSignIn"))
-                ? c.env.TEST_OTP!
+                ? fixedSignInCode(c.env)!
                 : String(crypto.getRandomValues(new Uint32Array(1))[0]! % 1_000_000).padStart(6, "0"),
           }
         : {}),

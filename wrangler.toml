@@ -167,11 +167,19 @@ MAIL_TRANSPORT  = "cloudflare"
 ENVIRONMENT     = "production"
 EMAIL_FROM      = "noreply@remy.ubuntusoftware.net"
 
-# TEST_OTP is deliberately NOT here.
+# TEST_OTP is deliberately NOT here, and production is the only environment
+# where it is read at all.
 #
-# It fixes the sign-in code for the twelve seeded people so the login page can
-# offer them one click — their addresses are `.test`, nothing delivers to them,
-# and the dev outbox does not exist on a deployment and must not.
+# `signInCode` in src/environment.ts says where the fixed code comes from: dev
+# and staging derive it from the table, because every seeded address there is
+# `.test` and reaches nobody, so there is nothing to provision and nothing to
+# forget. Production is `"secret"` — the one place a human decides.
+#
+# It fixes the sign-in code for the twelve seeded people so the deployed
+# Playwright suite can authenticate — their addresses are `.test`, nothing
+# delivers to them, and the dev outbox does not exist on a deployment and must
+# not. It does NOT make the account picker appear here: `seededSignIn` is false
+# for production and that is a separate row on purpose.
 #
 # It lives as a Worker secret instead, set by `mise run demo:on` and removed by
 # `mise run demo:off`. Not because the value is secret — it is published to the
@@ -200,3 +208,121 @@ EMAIL_FROM      = "noreply@remy.ubuntusoftware.net"
 type        = "Text"
 globs       = ["**/*.sql"]
 fallthrough = true
+
+# ── Staging ──────────────────────────────────────────────────────────────────
+#
+# A deployment that is not production. `ENVIRONMENT = "staging"` below selects
+# the middle column of the policy table in src/environment.ts: real mail, the
+# seed route, seeded sign-in, no admin in the picker, no dev mail routes.
+#
+# ## Read this before adding anything above
+#
+# Named environments inherit SOME top-level keys and not others, and the two
+# failure modes are not equally survivable. This was verified with
+# `wrangler deploy --dry-run --env staging` against this file, not from the
+# documentation — Cloudflare's inheritable-keys list omits send_email,
+# d1_databases and analytics_engine_datasets from the non-inheritable column
+# while wrangler warns about all three. **Trust the dry run.**
+#
+# NOT inherited — and these are the safe ones. Wrangler names each missing key
+# as a warning and the binding is simply absent, so the failure is loud and
+# local to staging. A minimal [env.staging] resolves to exactly one binding,
+# ASSETS. Everything else here is a redeclaration for that reason.
+#
+# INHERITED — and these are the dangerous ones, because inheriting is legal and
+# therefore silent:
+#
+#   * `routes` — an [env.staging] with no route override inherits
+#     `remy.ubuntusoftware.net` and wrangler says nothing. That is not a
+#     misconfigured staging environment, it is a staging build deployed onto
+#     production's hostname. The override below is the whole mitigation, and
+#     `scripts/check-envs.ts` asserts against the resolved config that staging's
+#     route is staging-remy and never remy.
+#
+#   * `triggers` — staging inherits crons = ["*/5 * * * *"]. Kept deliberately:
+#     the reminder sweep running against fixtures is a thing worth exercising
+#     before it runs against real events, and it notifies seeded `.test`
+#     addresses that reach nobody. **When the daily digest cron is added this
+#     stops being free** — staging would send an ops digest to real people every
+#     day alongside production's. The digest job must check ENVIRONMENT rather
+#     than assume one deployment.
+[env.staging]
+name = "remy-sport-staging"
+
+# Overriding, not adding. See the `routes` note above — without this block
+# staging deploys onto production's hostname with no warning.
+#
+# custom_domain = true for the same reason production uses it: wrangler creates
+# the DNS record on deploy, so there is no dashboard step and no hand-made
+# record to drift.
+[[env.staging.routes]]
+pattern       = "staging-remy.ubuntusoftware.net"
+custom_domain = true
+
+[[env.staging.analytics_engine_datasets]]
+binding = "ANALYTICS"
+# Its own dataset. Staging traffic in production's would corrupt the numbers the
+# policy table exists to keep separate — and staging samples at 1, so it would
+# contribute rows out of all proportion to its traffic.
+dataset = "remy_sport_events_staging"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "remy-sport-staging-db"
+# PLACEHOLDER. The database does not exist yet — creating it is an account
+# change and needs sign-off. `mise run cf:env:bootstrap` writes the real id here
+# when it creates it; until then a staging deploy fails at the API with "no such
+# database", which is the correct loud failure.
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "src/db/migrations"
+
+[[env.staging.r2_buckets]]
+binding = "STORAGE"
+bucket_name = "remy-sport-staging-storage"
+
+# Suffixed, where production's are bare. A shared queue would be worse than a
+# shared database: a staging producer's message is consumed by whichever worker
+# is subscribed, so staging fixtures would fan out through production's sender
+# to production's real subscribers.
+[[env.staging.queues.producers]]
+queue   = "remy-notifications-staging"
+binding = "NOTIFICATIONS"
+
+[[env.staging.queues.consumers]]
+queue = "remy-notifications-staging"
+max_batch_size    = 1
+max_batch_timeout = 5
+max_retries       = 3
+dead_letter_queue = "remy-notifications-staging-dlq"
+
+[[env.staging.queues.consumers]]
+queue          = "remy-notifications-staging-dlq"
+max_batch_size = 10
+max_retries    = 0
+
+[[env.staging.send_email]]
+name = "EMAIL"
+
+[env.staging.vars]
+BETTER_AUTH_URL = "https://staging-remy.ubuntusoftware.net"
+# Staging sends real mail — that is the point of it, and the row the policy
+# table exists to express. `capturesMail: false`.
+MAIL_TRANSPORT  = "cloudflare"
+ENVIRONMENT     = "staging"
+# Staging's own sending identity, for the reason docs/dev/email-deliverability.md
+# gives for splitting bulk from transactional: reputation attaches per domain,
+# and a staging test that trips a spam filter must not be able to take
+# production's sign-in mail down with it.
+#
+# **This subdomain is not onboarded to Email Service yet.** Until it is, staging
+# mail is rejected at send. That is deliberate — the alternative default, having
+# staging send as noreply@remy.ubuntusoftware.net, would work immediately and be
+# the exact coupling the split exists to prevent.
+EMAIL_FROM        = "noreply@staging.remy.ubuntusoftware.net"
+NOTIFY_EMAIL_FROM = "notifications@staging.remy.ubuntusoftware.net"
+
+# TEST_OTP is not here either, and on staging it is not a secret you set.
+# `seededSignIn` decides whether the demo picker appears; the fixed code decides
+# whether those accounts can get in. Two halves of one capability, so staging
+# derives both from the policy table and production stays the only environment
+# where a human sets the value.

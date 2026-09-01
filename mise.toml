@@ -587,7 +587,7 @@ mise run typecheck:clean ::: test:unit ::: test:worker:assets \
   ::: check:dead ::: check:docs ::: check:authz ::: check:conventions \
   ::: check:seed ::: check:domain ::: check:tables ::: check:assets \
   ::: check:messages ::: check:deps ::: check:i18n ::: i18n:validate \
-  ::: check:notifications ::: check:gui ::: check:bundle
+  ::: check:notifications ::: check:gui ::: check:bundle ::: check:envs
 """
 
 [tasks."test:unit"]
@@ -932,6 +932,23 @@ depends     = ["install"]
 #
 # Skips with a message when dist/web is absent rather than passing on nothing.
 run = "bun scripts/check-assets.ts"
+
+[tasks."check:envs"]
+description = "Fail if two environments share a hostname, database, bucket, queue or dataset"
+depends     = ["install"]
+# Named environments inherit some top-level keys, and the inherited ones are the
+# hazard: an [env.staging] with no `routes` override resolves to production's
+# hostname, so `deploy --env staging` publishes a staging build onto the domain
+# real people use.
+#
+# Wrangler warns about that when the route is a custom domain and says nothing
+# at all when it is an ordinary route pattern — measured both ways. So the
+# warning is real but conditional on a config detail unrelated to environments,
+# and this check is what does not depend on it.
+#
+# Reads resolved config through wrangler's own reader rather than parsing
+# wrangler.toml, because the hazard is what the file does NOT say.
+run = "bun scripts/check-envs.ts"
 
 [tasks."check:tables"]
 description = "Fail if the model names a table this schema does not have"

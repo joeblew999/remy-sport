@@ -66,6 +66,29 @@ export interface Policy {
    */
   seededSignIn: boolean
   /**
+   * Where the fixed sign-in code comes from, if anywhere.
+   *
+   * The second half of seeded sign-in, and it must be its own row — `seededSignIn`
+   * decides whether the picker *appears*, this decides whether those accounts
+   * can actually get *in*. They differ on production, which is why one boolean
+   * cannot carry both:
+   *
+   *   * `"derived"` — the code is `DEMO_SIGN_IN_CODE`, always present, nothing
+   *     to provision. Dev and staging, where every seeded address is `.test` and
+   *     reaches nobody.
+   *   * `"secret"` — only a human-set `TEST_OTP` fixes it, and `mise run
+   *     demo:off` removes it without a redeploy. **Production, and production
+   *     only.**
+   *
+   * Collapsing this into `seededSignIn` is not hypothetical: it shipped that way
+   * for one commit. Production has `seededSignIn: false`, so gating the code on
+   * it silently made `demo:on` a no-op there — every seeded account got a random
+   * code and the deployed Playwright suite, which signs in on every test, had no
+   * way to authenticate. Nothing failed at deploy time; it would have failed at
+   * the next `mise run deploy`.
+   */
+  signInCode: "derived" | "secret"
+  /**
    * ...and offers the **admin** among them.
    *
    * Dev only, and this is the row that cannot be folded into the one above. The
@@ -116,6 +139,7 @@ export const POLICY: Record<Environment, Policy> = {
     devMailRoutes: true,
     devSessionRoutes: true,
     seededSignIn: true,
+    signInCode: "derived",
     offersAdminSignIn: true,
     hasLocalEventStore: true,
     sampleRate: 1,
@@ -126,6 +150,9 @@ export const POLICY: Record<Environment, Policy> = {
     devMailRoutes: false,
     devSessionRoutes: true,
     seededSignIn: true,
+    // Derived, not provisioned: staging's seeded addresses are all `.test`, so
+    // the code reaches nobody and there is no secret for anyone to forget.
+    signInCode: "derived",
     // A deployment never publishes a way in as the account that can impersonate.
     offersAdminSignIn: false,
     hasLocalEventStore: false,
@@ -137,14 +164,28 @@ export const POLICY: Record<Environment, Policy> = {
     devMailRoutes: false,
     devSessionRoutes: false,
     seededSignIn: false,
+    // The one environment where a human decides. `mise run demo:on` sets the
+    // secret so the deployed Playwright suite can sign in; `demo:off` removes
+    // it, and must be run before the platform has real users.
+    signInCode: "secret",
     offersAdminSignIn: false,
     hasLocalEventStore: false,
     sampleRate: 10,
   },
 }
 
+/**
+ * The fixed sign-in code where the environment derives one.
+ *
+ * Not a secret, and calling it one would be the mistake. It is a published
+ * credential by construction — `/api/dev/accounts` sends it to the browser and
+ * the login page says so — and it only ever applies to seeded `.test`
+ * addresses that no mail can reach. What keeps it safe is scope, not obscurity.
+ */
+export const DEMO_SIGN_IN_CODE = "424242"
+
 /** Just enough of the env to answer. Keeps this importable from anywhere. */
-type HasEnvironment = { ENVIRONMENT?: string }
+type HasEnvironment = { ENVIRONMENT?: string; TEST_OTP?: string }
 
 /**
  * Which environment this is. Anything unrecognised is production.
@@ -167,3 +208,22 @@ export const policyFor = (env: HasEnvironment): Policy => POLICY[environmentOf(e
 /** One capability, read by name. The form every call site uses. */
 export const permits = <K extends keyof Policy>(env: HasEnvironment, capability: K): Policy[K] =>
   policyFor(env)[capability]
+
+/**
+ * The fixed sign-in code for seeded accounts, or undefined for none.
+ *
+ * The single place that answers "can a seeded account sign in with a known
+ * code", so `auth.ts` and `/api/dev/accounts` cannot drift apart on it — they
+ * already had two different expressions of the same question, one of which was
+ * wrong.
+ *
+ * **Deliberately independent of `seededSignIn`.** Production offers no picker
+ * and still fixes the code when a human sets `TEST_OTP`, because the deployed
+ * Playwright suite signs in on every test and there is no outbox to read. Those
+ * are two questions and this answers only the second.
+ *
+ * Undefined is the safe answer and the common one: no `TEST_OTP` on production
+ * means every account, seeded or not, gets a random code.
+ */
+export const fixedSignInCode = (env: HasEnvironment): string | undefined =>
+  policyFor(env).signInCode === "derived" ? DEMO_SIGN_IN_CODE : env.TEST_OTP

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import { SEED_ENTITIES, SEED_RELATIONSHIPS } from "../../src/domain/model/entities"
 import { ORIGIN, actorFor, api, post, signIn } from "./helpers"
 import { isRefusedStatus } from "../../src/auth.config"
+import { DEMO_SIGN_IN_CODE } from "../../src/environment"
 
 /**
  * Everything that writes, and everything that decides who may.
@@ -126,7 +127,7 @@ describe("seeding", () => {
 
     for (const u of refused) {
       await post("/api/auth/email-otp/send-verification-otp", { email: u.email, type: "sign-in" })
-      const res = await post("/api/auth/sign-in/email-otp", { email: u.email, otp: "424242" })
+      const res = await post("/api/auth/sign-in/email-otp", { email: u.email, otp: DEMO_SIGN_IN_CODE })
       expect(res.status, `${u.id} (${u.statusCode}) must not get a session`).toBe(403)
     }
 
@@ -817,7 +818,7 @@ describe("The seeded sign-in, and what it deliberately cannot reach", () => {
     const stranger = fresh("outsider")
     await post("/api/auth/email-otp/send-verification-otp", { email: stranger, type: "sign-in" })
     // The fixed code must not work for an address the fixtures do not name.
-    const res = await post("/api/auth/sign-in/email-otp", { email: stranger, otp: "424242" })
+    const res = await post("/api/auth/sign-in/email-otp", { email: stranger, otp: DEMO_SIGN_IN_CODE })
     expect(res.status, "TEST_OTP is scoped to the seeded set").not.toBe(200)
 
     // And the real emailed code does.
