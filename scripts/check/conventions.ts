@@ -64,6 +64,38 @@ const grepSrc = (re: RegExp) =>
 const RULES: Rule[] = [
   {
     /**
+     * AGENTS.md is read at the start of every session, so a command named there
+     * that no longer exists becomes wrong work rather than a confused reader.
+     *
+     * check:docs validates PATHS in the docs and could not see this: when
+     * ninety-one tasks became six, twenty-odd `mise run` references rotted in
+     * place and every gate stayed green. Same failure it already guards for
+     * files, one column over.
+     */
+    claim: '"Every `mise run` in the docs names a task that exists."',
+    check: () => {
+      const tasks = new Set(
+        [...read("mise.toml").matchAll(/^\[tasks\.(?:"([^"]+)"|([\w:.-]+))\]$/gm)].map(
+          (m) => m[1] ?? m[2],
+        ),
+      )
+      const bad: string[] = []
+      for (const doc of ["AGENTS.md", "README.md", "CLAUDE.md", "GEMINI.md"]) {
+        const body = read(doc)
+        body.split("\n").forEach((line, i) => {
+          // Same escape check:docs uses for a path named on purpose — this file
+          // explains argument passing with `mise run a b`, which is prose.
+          if (line.includes("<!-- docs-check-ignore -->")) return
+          for (const [, name] of line.matchAll(/mise run ([a-z][\w:.-]*)/g)) {
+            if (!tasks.has(name)) bad.push(`${doc}:${i + 1}  no such task: ${name}`)
+          }
+        })
+      }
+      return bad
+    },
+  },
+  {
+    /**
      * Naming drift is invisible to every other gate.
      *
      * typecheck, knip and docs all ask whether the thing RUNS. None of them ask

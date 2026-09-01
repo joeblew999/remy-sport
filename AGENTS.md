@@ -10,19 +10,19 @@ work rather than a confused reader. It has done exactly that twice.
 What is left is the set of things that have already cost a real bug.
 
 **Seeded sign-in on the deployment is a switch, and the admin is never on it.**
-`mise run demo:on` publishes a fixed code so the seeded people can sign in
+`mise run ops demo on` publishes a fixed code so the seeded people can sign in
 with one click — their addresses are `.test` and nothing delivers to them. The
 seeded **admin** is excluded on any deployment: it holds ban, set-role and
 impersonate, and impersonation is the one power that reaches a real person.
 `cf:smoke` fails if it is ever offered, and `/api/dev/outbox` must stay 404 —
 that one would expose everyone else's codes. It is a Worker secret not because
 the value is secret (it is published to the browser and the page says so) but
-because a secret flips without a redeploy. **`mise run demo:off` before the
+because a secret flips without a redeploy. **`mise run ops demo off` before the
 platform has real users.**
 
 **Adding a language is one pass, and Claude does the translating.** This is how
 `ja` went from nothing to complete: read `messages/en.json`, write
-`messages/<locale>.json`, check the placeholders, `mise run i18n:generate`.
+`messages/<locale>.json`, check the placeholders, `mise run check`.
 Nothing else is set up and nothing else is needed — inlang's own editor and its
 machine-translate CLI both exist, and neither is used here, so neither is
 described here as if it were.
@@ -84,9 +84,9 @@ the moment they vanish — so a `mv` away and back lands the real repo *inside* 
 husk the server just made, and `git` reports "not a git repository" from a path
 that looks right. Recovered on 2026-08-31 by stopping the server, un-nesting and
 deleting the husk; nothing was lost, because the move was a rename and not a
-copy. `mise run dev:stop` first, or test against a copy.
+copy. `mise run dev -- stop` first, or test against a copy.
 
-**`mise run dev:ensure` — never `pkill`, never a bare `wrangler dev`.** It is
+**`mise run dev -- ensure` — never `pkill`, never a bare `wrangler dev`.** It is
 idempotent and no-ops in a second when something is already serving. Starting
 things by hand is what produced a day of measuring stale bundles: a
 half-replaced server, or two racing for the port, and the thing on screen was
@@ -102,7 +102,7 @@ writing `dist/web`. It exists for `setup` and `deploy`, not for you.
 | edited | needed |
 |---|---|
 | `src/**` — Worker or SPA | nothing. Both reload in ~1s |
-| `vite.config.ts`, `.dev.vars`, `mise.toml` | `mise run dev:restart` |
+| `vite.config.ts`, `.dev.vars`, `mise.toml` | `mise run dev -- restart` |
 
 The middle row is the one that catches people: **the watcher does not re-read
 its own config**, so a vite.config.ts change appears to do nothing at all until
@@ -125,7 +125,7 @@ is a tax. `## Open` below is where the ones worth keeping are written down.
 
 [remy-sport-biz](https://github.com/joeblew999/remy-sport-biz) is the Product
 Owner's source of truth, cloned at `../remy-sport-biz/`. Its `domain/model/` is
-TypeScript, and [`mise run domain:sync`](scripts/ops/domain.ts) copies it into
+TypeScript, and [`mise run ops domain`](scripts/ops/domain.ts) copies it into
 [src/domain/model/](src/domain/model/) **verbatim** — nothing transforms it.
 
 **The model arrives one way: you run `domain:sync` here.** Nothing else should
@@ -204,7 +204,7 @@ tier and merging worker files (~3s of workerd startup each). **Do not "optimise
 the runner"** — a whole session went into storageState, worker counts and
 project ordering and stopped dead.
 
-**Four import rules, enforced by `mise run check:deps`.** The reasoning for each
+**Four import rules, enforced by `mise run check`.** The reasoning for each
 sits beside it in [.dependency-cruiser.cjs](.dependency-cruiser.cjs), where the
 failure quotes it. The one that actually happened: the Worker importing
 `src/web` to send the sign-in email from the product's own messages, which
@@ -223,7 +223,7 @@ thing it had not been taught was silently dropped. The PO's model still decides
 what a table *is* — a person reads it and writes the table.
 
 **Schema is drizzle-kit's; data is the seed's. Nothing else writes a migration.**
-`mise run db:generate` diffs [src/db/schema.ts](src/db/schema.ts) against the
+`mise run db -- generate` diffs [src/db/schema.ts](src/db/schema.ts) against the
 snapshot under `src/db/migrations/meta/` and emits only the delta. Run it in a
 real terminal — a rename prompts, because "renamed, or dropped and recreated?"
 needs a person, and **read what it produces**: two of its migrations have been
@@ -336,7 +336,7 @@ onto the domain real people use. Wrangler warns about that when the inherited
 route is a `custom_domain` and says **nothing at all** when it is an ordinary
 route pattern — measured both ways, so the warning is not something to rely on.
 
-`mise run check:envs` reads *resolved* config through wrangler's own reader —
+`mise run check` reads *resolved* config through wrangler's own reader —
 never by parsing `wrangler.toml`, since the hazard is what the file does not say
 — and fails if two environments share a worker name, route host, database,
 bucket, queue or dataset, if an environment's `ENVIRONMENT` var disagrees with
@@ -414,14 +414,14 @@ itself has never been the friction; re-deriving the boundary each time was.
 | who may enter a score | ✓ (GRANTS) | |
 | how that grant is executed as SQL | | ✓ (relations.ts) |
 
-`mise run data:coverage` reports the three ways the two can disagree: a code the
+`mise run ops coverage data` reports the three ways the two can disagree: a code the
 model defines and no fixture uses, a code outside `PILOT_SCOPE`, and — the one
 that bites — **a field the fixtures carry that no column stores**. That last
 found four on 2026-08-29, including a user lifecycle the model had always
 described and the database had no room for, so the seed dropped it in silence.
 
 **Every procedure declares how it is authorised, and non-procedure routes are
-inventoried.** `mise run check:authz` fails with the instruction attached.
+inventoried.** `mise run check` fails with the instruction attached.
 `POST /api/seed` sat unauthenticated for months because nothing listed it.
 
 **`can()` is the entire cost of a list, and it has no set-wise form.** Proven by
@@ -457,7 +457,7 @@ PO's vocabulary and in Better Auth.
 Ask the model. `requireAction` on the procedure, `can()` when the action depends
 on the input, `holds(db, "PLATFORM_ADMIN", user, null)` for a role, and
 `audienceFor(db, action, objectId)` for the inverse — *who* holds this, which is
-the question a notification asks. `mise run check:conventions` enforces this for
+the question a notification asks. `mise run check` enforces this for
 `src/api`. Before writing an authorisation check by hand, **grep the model for
 an action that already covers it** — there are 75, and roughly a third of what
 they describe is built.
@@ -477,7 +477,7 @@ library emits before trusting it.**
 **Rotating the VAPID pair silently breaks every existing subscription.** The
 browser pins the public key at `subscribe()` time, so a new key cannot sign for
 endpoints the old one created — they fail 403 forever, and no reader is told.
-`mise run cf:env:bootstrap` therefore generates a pair only when none exists and
+`mise run deploy` therefore generates a pair only when none exists and
 never replaces one. A **half-pair is refused** rather than completed, because
 completing it means rotating: `PUSH_SKIP=1` ships the deploy and touches
 nothing (push is already off, and every subscription stays recoverable once the
@@ -511,7 +511,7 @@ drifting from it.
 
 Before writing "because X" anywhere: **measure X this session** — `mise run
 probe` takes two seconds — or write "unverified". When a grep says a file is
-unused, run `mise run check:dead` first.
+unused, run `mise run check` first.
 
 ## Decisions that look like omissions
 
@@ -534,10 +534,10 @@ draws never needs a database.
 
 | Asserts | Goes in |
 |---|---|
-| a pure function | `tests/unit/` — `mise run test:unit` |
-| what the **API returns** | `tests/worker/` — `mise run test:worker` |
-| what the **UI renders** given data | `tests/render/` — `mise run test:render` |
-| a **real round trip** | `tests/e2e/` — `mise run test` |
+| a pure function | `tests/unit/` — `mise run check` |
+| what the **API returns** | `tests/worker/` — `mise run check` |
+| what the **UI renders** given data | `tests/render/` — `mise run check` |
+| a **real round trip** | `tests/e2e/` — `mise run check -- --e2e` |
 
 If a test signs in only so a page will render, seed the cache instead —
 `tests/helpers/seed-cache.ts`, and `tests/helpers/api-fixtures.ts` for the
@@ -574,13 +574,13 @@ Five rules, each of which cost an hour or a retraction to learn.
 - **Measure before naming a cause.** An endpoint took 0.23s and the cause was
   asserted, not measured: one of five `can()` calls was removed for a 4% gain,
   and the conclusion was built on. Stubbing `can()` settled it in two minutes —
-  0.23s → 0.01s. `mise run time` and `mise run probe` exist so this is the first
+  0.23s → 0.01s. `mise run ops time` and `mise run ops time` exist so this is the first
   move rather than the last.
 - **Check the harness before believing the result.** More time has gone into
   wrong measurements than into slow code. `echo "exit=$?"` after `$(date)` reads
-  *date's* status; `mise run a b` passes `b` as an argument, not a second task,
+  *date's* status; `mise run a b` passes `b` as an argument, not a second task, <!-- docs-check-ignore -->
   so a "parallel" check ran one thing and skipped every test tier and reported
-  green; `DEV_URL=… mise run time` measured localhost, because mise's own `[env]`
+  green; `DEV_URL=… mise run ops time` measured localhost, because mise's own `[env]`
   wins. Each looked like an answer.
 - **Test the disproof too.** A correct diagnosis was publicly retracted on the
   strength of one experiment whose premise was never checked. A result that
