@@ -18,7 +18,7 @@
  * it runs at the head of every command.
  */
 
-import { existsSync, statSync } from "fs"
+import { existsSync } from "fs"
 
 function sh(argv: string[], quiet = true): number {
   const proc = Bun.spawnSync(argv, {
@@ -32,8 +32,8 @@ function sh(argv: string[], quiet = true): number {
 /** Newer than every input, so nothing needs doing. */
 function fresh(output: string, inputs: string[]): boolean {
   if (!existsSync(output)) return false
-  const out = statSync(output).mtimeMs
-  return inputs.every((i) => !existsSync(i) || statSync(i).mtimeMs <= out)
+  const out = Bun.file(output).lastModified
+  return inputs.every((i) => !existsSync(i) || Bun.file(i).lastModified <= out)
 }
 
 export function install(): void {
@@ -45,12 +45,19 @@ export function install(): void {
  * The SPA bundle, deferring to the dev server's watcher when it holds the
  * directory.
  *
- * `dev` runs `vite build --watch` against the same config and output. Start a
+ * `dev` runs `vite build --watch` against this same config and output. Start a
  * second builder and whichever empties dist/web second leaves the other's output
- * gone — a window wide enough that a whole e2e suite once failed with "element
- * not found" on eight specs, because the shell was served with no bundle at all.
+ * gone — a window wide enough that an e2e suite once failed with "element not
+ * found" on eight specs, because the shell was served with no bundle at all.
  * The watcher is authoritative when it exists: it is already rebuilding on every
  * save, so its output is at least as fresh as ours.
+ *
+ * This is the behaviour the mise task had, and it is restored deliberately. I
+ * replaced it twice today — first waiting for the bundle to settle, then
+ * refusing outright — on a theory that the render tier's flakiness came from
+ * reading dist/web mid-write. It does not: that suite fails one run in three
+ * with no watcher running at all. Both replacements were machinery built on a
+ * diagnosis I had not confirmed.
  */
 function webBuild(): void {
   const watching = Bun.spawnSync(

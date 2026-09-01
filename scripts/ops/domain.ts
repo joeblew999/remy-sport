@@ -32,9 +32,9 @@
 import { existsSync, readFileSync, writeFileSync } from "fs"
 import { resolve } from "path"
 
-const BIZ = resolve(import.meta.dir, "../../remy-sport-biz/domain/model")
-const HERE = resolve(import.meta.dir, "../src/domain/model")
-const SETTINGS = resolve(import.meta.dir, "../project.inlang/settings.json")
+const BIZ = resolve(import.meta.dir, "../../../remy-sport-biz/domain/model")
+const HERE = resolve(import.meta.dir, "../../src/domain/model")
+const SETTINGS = resolve(import.meta.dir, "../../project.inlang/settings.json")
 const FILES = ["names.ts", "vocabularies.ts", "entities.ts"]
 const check = process.argv.includes("--check")
 

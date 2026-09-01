@@ -207,7 +207,7 @@ console.log(
  * link that does not exist yet, and the generic domain reads back the fixtures
  * for tools rather than for a page. So this is a list to read, not a rule.
  */
-const WEB = resolve(import.meta.dir, "../src/web")
+const WEB = resolve(import.meta.dir, "../../src/web")
 const walk = (dir: string): string[] =>
   readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
     if (e.name === "paraglide") return []

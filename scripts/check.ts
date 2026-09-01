@@ -51,6 +51,20 @@ const script = (file: string, ...args: string[]) => bun(`scripts/${file}`, ...ar
 export const E2E: Step = { name: "e2e", cmd: bun("x", "playwright", "test"), budget: "e2e" }
 
 export const PHASES: Step[][] = [
+  /**
+   * Phase 0 — the generator, alone, because everything after it reads what it
+   * writes.
+   *
+   * `seed` regenerates src/db/seed.sql from the model and fails if the result
+   * differs from the committed copy. It was in the cheap phase beside
+   * `seed:order`, which reads that same file, and beside the worker tests, which
+   * execute its bytes. One step writing a file twenty others read, concurrently.
+   * It passed alone and failed inside the gate, which is the signature of a race
+   * rather than a broken check.
+   *
+   * Cheap enough (~100ms) that serialising it costs nothing.
+   */
+  [{ name: "seed", cmd: script("build/seed.ts", "--check") }],
   [
     {
       name: "render",
@@ -79,15 +93,14 @@ export const PHASES: Step[][] = [
     { name: "authz", cmd: script("checks/check-authz.ts") },
     { name: "conventions", cmd: script("checks/check-conventions.ts") },
     { name: "seed:order", cmd: script("checks/check-seed-order.ts") },
-    { name: "domain", cmd: script("domain.ts", "--check") },
+    { name: "domain", cmd: script("ops/domain.ts", "--check") },
     { name: "tables", cmd: script("checks/check-tables.ts") },
     { name: "assets", cmd: script("checks/check-assets.ts") },
     { name: "messages", cmd: script("checks/check-messages.ts") },
     { name: "notifications", cmd: script("checks/check-notifications.ts") },
-    { name: "gui", cmd: script("gui-coverage.ts") },
+    { name: "gui", cmd: script("ops/gui-coverage.ts") },
     { name: "bundle", cmd: script("checks/check-bundle.ts") },
     { name: "envs", cmd: script("checks/check-envs.ts") },
-    { name: "seed", cmd: script("seed.ts", "--check") },
   ],
 ]
 
