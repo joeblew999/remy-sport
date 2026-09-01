@@ -139,20 +139,14 @@ if (!name || name === "--help" || !OPS[name]) {
   console.log(`${unknown}
 mise run ops <operation>
 
-  You probably do not need any of this. The loop is:
-
-    mise run dev        build something
-    mise run check      before you commit
-    mise run deploy -- --env production
-
-  Everything below is occasional — most of it you run once, or when something
-  is wrong and you want evidence rather than a guess.`)
+  Not the daily loop — that is dev, check, deploy. These are the things you
+  reach for when the day is not ordinary, and each heading says when that is.`)
   const HEADINGS: Array<[Group, string]> = [
-    ["deployment", "when you are showing it to someone, or something looks wrong"],
+    ["deployment", "showing it to someone, or asking a live deployment what it is doing"],
     ["report", "when you want a number instead of an opinion"],
     ["setup", "once, on a new machine"],
     ["model", "when the Product Owner changes the model"],
-    ["maintenance", "rarely"],
+    ["maintenance", "the desktop and mobile builds, and dependency upkeep"],
   ]
   for (const [group, heading] of HEADINGS) {
     const ops = Object.values(OPS).filter((o) => o.group === group)

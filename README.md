@@ -10,10 +10,12 @@ mise run deploy -- --env production
 
 That is the loop. Three commands.
 
-`mise run db` and `mise run ops` exist for the occasional — a database question,
-showing the app to someone, wanting a number when something looks wrong. Run
-either with no arguments and it tells you what it can do. You will not need them
-most days.
+Two more for the days that are not ordinary. `mise run db` answers database
+questions and applies migrations. `mise run ops` is everything you do TO a
+deployment or a machine — showing the app to someone, asking production what it
+has been doing, building the desktop and mobile apps, pulling the Product
+Owner's model. Run either with no arguments and it says when you would want
+each.
 
 Arguments go after `--`. A command that writes to a deployment always names its
 environment or refuses.
