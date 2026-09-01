@@ -17,6 +17,8 @@
  *   mise run ops analytics 24
  */
 
+import { install } from "./prepare"
+
 import { Refused } from "./cloudflare"
 
 interface Op {
@@ -57,11 +59,30 @@ const OPS: Record<string, Op> = {
     cmd: (rest) => ["mise", "run", "biz:sync", ...rest],
     help: "biz                              fast-forward the PO's checkout",
   },
+  coverage: {
+    cmd: ([what = "gui", ...rest]) => ["bun", `scripts/${what}-coverage.ts`, ...rest],
+    help: "coverage <gui|data|model>        how much of each surface is exercised",
+  },
+  keys: {
+    cmd: (rest) => ["bun", "scripts/vapid.ts", ...rest],
+    help: "keys                             generate a VAPID keypair for Web Push",
+  },
+  deps: {
+    cmd: ([what = "outdated"]) =>
+      what === "update" ? ["bun", "update"] : ["bun", "outdated"],
+    help: "deps <outdated|update>           npm packages against their releases",
+  },
+  icons: {
+    cmd: (rest) => ["mise", "run", "brand:icons", ...rest],
+    help: "icons                            regenerate every app icon from brand.svg",
+  },
   domain: {
     cmd: (rest) => ["bun", "scripts/domain.ts", ...rest],
     help: "domain [--check]                 copy the PO's model in",
   },
 }
+
+install()
 
 const [name, ...rest] = process.argv.slice(2)
 

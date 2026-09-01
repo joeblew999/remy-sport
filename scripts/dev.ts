@@ -1,163 +1,228 @@
 /**
- * Write .dev.vars with the local-dev variables (ADR 006, ADR 010).
+ * The dev server: one port, always current, seeded, reachable from a phone.
  *
- * .dev.vars is gitignored and holds the local-dev counterpart of the remote
- * secret set by `mise run cf:secret:set`. The two are deliberately distinct
- * values — a local secret should never be able to sign a production session.
+ *   mise run dev            start it
+ *   mise run dev -- stop    stop it and everything it started
+ *   mise run dev -- restart both, in order
+ *   mise run dev -- ensure  start only if it is not already up
  *
- * Idempotent, and additive rather than all-or-nothing: an existing file keeps
- * every value it already has, and only missing keys are appended. The original
- * version returned early if the file existed at all, which meant a developer
- * who had run setup before this script learned about a new key would silently
- * never get it — and for MAIL_TRANSPORT that failure mode is a local run
- * quietly using the production mail transport.
+ * It was fifty-three lines of shell in mise.toml plus twelve more for stopping,
+ * and `scripts/dev.ts` was something else entirely — the .dev.vars generator —
+ * so the one command a developer runs every day matched no script at all.
+ *
+ * ## Why three processes
+ *
+ * `wrangler dev` serves the Worker and the built SPA; `vite build --watch`
+ * rebuilds that SPA on save; `cloudflared` publishes it on a fixed HTTPS name.
+ * The tunnel is not a luxury: iOS Safari with HTTPS-Only refuses a plain
+ * `http://192.168.x.x`, which is the wall this started at, and `tunnel:quick`
+ * mints a random name per run so a link dies the moment the server restarts.
+ *
+ * Every child is killed on the way out — normal exit, Ctrl-C, or SIGTERM.
+ * Orphaned watchers are how two vite processes end up writing `dist/web`, which
+ * is a race with a whole e2e suite behind it.
  */
 
-import { randomBytes } from "crypto"
-import { existsSync, readFileSync, writeFileSync } from "fs"
-import { DEFAULT_SUBJECT, decideFromNames, generateVapid, halfPairMessage } from "./vapid"
-import { DEMO_SIGN_IN_CODE } from "../src/environment"
+import { local } from "./prepare"
 
-const DEV_VARS = ".dev.vars"
+import { existsSync, appendFileSync, readFileSync, mkdirSync, openSync } from "fs"
 
-/** Values only generated when absent, so a rerun never rotates a secret. */
-const DEFAULTS: Record<string, () => string> = {
-  // 32 bytes base64 — same strength as the remote secret.
-  BETTER_AUTH_SECRET: () => randomBytes(32).toString("base64"),
-  // Overrides wrangler.toml's [vars] MAIL_TRANSPORT="cloudflare". Local dev and
-  // the Playwright suite capture mail into the mail_outbox table instead of
-  // handing it to Cloudflare — see src/mail/mailer.ts.
-  MAIL_TRANSPORT: () => "outbox",
-  /**
-   * Which capability table applies — see src/environment.ts.
-   *
-   * Needed on a fresh checkout because the fallback is *production*: without
-   * it, a dev server would send real mail, drop its dev routes and sample
-   * telemetry. That is the right way round for a deployment and wrong for a
-   * laptop, which is exactly why it is written here rather than defaulted.
-   */
-  ENVIRONMENT: () => "dev",
-  // Fixed sign-in code for the addresses the fixtures seed.
-  //
-  // It does NOT make parallel sign-in safe, whatever this comment used to say.
-  // The code value stops rotating, but Better Auth still writes and consumes a
-  // verification row per request, so two tests signing in as the same person
-  // still invalidate each other and the loser gets INVALID_OTP. That cost 4
-  // failed runs in 5 until authz.spec.ts stopped signing in at all.
-  //
-  // What it actually buys is not needing to read the outbox for every sign-in.
-  // Specs that only need to *be* someone must load `stateFor(...)` — see the
-  // trap in AGENTS.md.
-  //
-  // Local only. Setting it on a deployed Worker makes the admin account's
-  // sign-in code a constant on a public site; that is why cf:smoke, not
-  // test:deployed, verifies a deploy.
-  // The Worker no longer reads this: dev's policy row says `signInCode:
-  // "derived"`, so `fixedSignInCode()` answers from the table. It stays in
-  // .dev.vars for the *other* half — the Playwright and worker helpers need to
-  // know which code to type, and they read the environment. Same constant, so
-  // the two halves cannot drift.
-  TEST_OTP: () => DEMO_SIGN_IN_CODE,
-  /**
-   * Where this deployment thinks it lives.
-   *
-   * `wrangler.toml` [vars] sets it to https://remy.ubuntusoftware.net, which is
-   * right for production and wrong everywhere else — and every link in every
-   * email is built from it. On the dev tunnel a notification email
-   * (src/api/notify-queue.ts) and an invitation (src/auth.ts) both linked
-   * straight to *production*, so following one took you to a different
-   * deployment with a different database.
-   *
-   * Nobody noticed because `MAIL_TRANSPORT=outbox` means dev captures rather
-   * than sends, so the wrong link only ever appeared in a table nobody reads.
-   * That is the same shape as the VAPID pair below: configuration absent on
-   * every fresh checkout, and wrong precisely where it does the most damage.
-   *
-   * The tunnel rather than localhost, because it is the hostname a phone can
-   * actually open — which is what these links are for.
-   */
-  BETTER_AUTH_URL: () => `https://${process.env.TUNNEL_HOSTNAME ?? "localhost:8787"}`,
-}
+const PORT = 8787
+const LOCAL = `http://127.0.0.1:${PORT}`
+const HOSTNAME = process.env.TUNNEL_HOSTNAME ?? ""
 
-const existing = existsSync(DEV_VARS) ? readFileSync(DEV_VARS, "utf8") : ""
-const present = new Set(
-  existing
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith("#"))
-    .map((line) => line.split("=")[0]!.trim()),
-)
-
-const added: string[] = []
-let out = existing
-const append = (key: string, value: string) => {
-  if (out && !out.endsWith("\n")) out += "\n"
-  out += `${key}="${value}"\n`
-  added.push(key)
-}
-
-for (const [key, make] of Object.entries(DEFAULTS)) {
-  if (present.has(key)) continue
-  append(key, make())
+/** The LAN address, so a phone on the same wifi can reach this. */
+function lanAddress(): string | null {
+  for (const iface of ["en0", "en1"]) {
+    const got = Bun.spawnSync(["ipconfig", "getifaddr", iface], { stdout: "pipe", stderr: "ignore" })
+    const ip = got.stdout.toString().trim()
+    if (ip) return ip
+  }
+  return null
 }
 
 /**
- * The VAPID keypair, which the scalars above cannot express.
+ * The tunnel's run token, from the environment or fnox, creating the tunnel
+ * first if it does not exist yet.
  *
- * Web Push was configured once by hand and never again: this script generated
- * three values, none of them VAPID, and `.dev.vars` is gitignored — so push
- * worked for whoever set it up and was silently off on every fresh checkout.
- * `/api/push/key` answered `publicKey: null`, `pushState()` returned
- * "not-configured", and the profile page rendered "not switched on for this
- * deployment yet" identically signed in, signed out and in the installed PWA.
- *
- * ## Why this is not three entries in DEFAULTS
- *
- * The public and private keys are halves of one keypair and only mean anything
- * together. Filling them in independently — which is what a per-key loop does —
- * would pair a fresh private key with whatever public key was already there,
- * and every push would fail to sign for the endpoints browsers had pinned.
- *
- * So the pair is handled as a unit, and the three states are distinguished:
- *
- *   both present   leave them alone. **Rotating invalidates every subscription**
- *                  a browser has already pinned — see scripts/vapid.ts.
- *   both absent    generate one pair and write it.
- *   one present    refuse. Generating the partner produces a mismatched pair and
- *                  overwriting the survivor rotates it; both are silent 403s
- *                  later. A person has to say which they meant.
- *
- * `VAPID_SUBJECT` is not cryptographic — it is the contact address a push
- * service complains to — so it is filled in on its own like any other scalar.
+ * Absent is fine and common: a machine with no Cloudflare token gets a local
+ * server and a LAN address, and is told what it is missing rather than failing.
  */
-const decision = decideFromNames(present)
+function tunnelToken(): string | null {
+  const fromEnv = process.env.TUNNEL_RUN_TOKEN?.trim()
+  if (fromEnv) return fromEnv
+  const read = () => {
+    const got = Bun.spawnSync(["fnox", "get", "TUNNEL_RUN_TOKEN"], { stdout: "pipe", stderr: "ignore" })
+    return got.exitCode === 0 ? got.stdout.toString().trim() || null : null
+  }
+  const stored = read()
+  if (stored) return stored
+  const made = Bun.spawnSync(["bun", "scripts/tunnel.ts"], { stdout: "ignore", stderr: "ignore" })
+  return made.exitCode === 0 ? read() : null
+}
 
-if (decision.action === "refuse") {
-  console.error(`dev: ${halfPairMessage(decision, DEV_VARS)}`)
-  // The mechanism, which is this caller's own: .dev.vars is a file, and there
-  // is no deployment to protect — a local pair has no subscriptions pinned to
-  // it beyond this developer's own browser.
-  console.error(
-    `  Restore the ${decision.missing} line, or delete the ${decision.have} line and rerun
-` +
-      "  to get a fresh pair.",
+/**
+ * Processes this checkout started, matched by command and scoped by working
+ * directory.
+ *
+ * Scoped because the config paths are relative, so a bare pattern matches any
+ * checkout of this repo on the machine — the same reason `web:build` scopes its
+ * watcher check by `lsof` cwd.
+ */
+const PATTERNS = [
+  "wrangler dev",
+  "vite build --config src/web/vite.config.ts --watch",
+  "cloudflared tunnel run",
+]
+
+function ours(): number[] {
+  const root = process.cwd()
+  const pids: number[] = []
+  for (const pattern of PATTERNS) {
+    const found = Bun.spawnSync(["pgrep", "-f", pattern], { stdout: "pipe", stderr: "ignore" })
+    for (const line of found.stdout.toString().split("\n")) {
+      const pid = Number(line.trim())
+      if (!pid) continue
+      const cwd = Bun.spawnSync(["lsof", "-a", "-p", String(pid), "-d", "cwd", "-Fn"], {
+        stdout: "pipe",
+        stderr: "ignore",
+      })
+        .stdout.toString()
+        .split("\n")
+        .find((l) => l.startsWith("n"))
+        ?.slice(1)
+      if (cwd && (cwd === root || cwd.startsWith(root + "/"))) pids.push(pid)
+    }
+  }
+  return pids
+}
+
+function stop(): void {
+  const pids = ours()
+  for (const pid of pids) {
+    try {
+      process.kill(pid)
+    } catch {
+      // Already gone between pgrep and here, which is the desired state anyway.
+    }
+  }
+  console.log(pids.length ? `dev: stopped ${pids.length} process(es)` : "dev: nothing running here")
+}
+
+async function reachable(): Promise<boolean> {
+  return fetch(`${LOCAL}/api/health`, { signal: AbortSignal.timeout(1_000) })
+    .then((r) => r.ok)
+    .catch(() => false)
+}
+
+async function start(): Promise<void> {
+  // Everything a local run needs, owned here rather than by a `setup` task.
+  local()
+  const ip = lanAddress()
+  const children: { kill: () => void }[] = []
+  const reap = () => {
+    for (const c of children) {
+      try {
+        c.kill()
+      } catch {
+        /* already gone */
+      }
+    }
+  }
+  process.on("exit", reap)
+  for (const signal of ["SIGINT", "SIGTERM"] as const) {
+    process.on(signal, () => {
+      reap()
+      process.exit(signal === "SIGINT" ? 130 : 143)
+    })
+  }
+
+  const token = tunnelToken()
+  if (token) {
+    // The Worker reads TUNNEL_HOSTNAME to trust that origin; without the line
+    // it serves the tunnel and refuses its own sign-in.
+    const vars = existsSync(".dev.vars") ? readFileSync(".dev.vars", "utf-8") : ""
+    if (!/^TUNNEL_HOSTNAME=/m.test(vars)) appendFileSync(".dev.vars", `TUNNEL_HOSTNAME=${HOSTNAME}\n`)
+    children.push(
+      Bun.spawn(["cloudflared", "tunnel", "run", "--token", token], { stdout: "ignore", stderr: "ignore" }),
+    )
+  } else {
+    console.log("  (no tunnel — needs CLOUDFLARE_API_TOKEN with Cloudflare Tunnel:Edit)")
+  }
+
+  children.push(
+    Bun.spawn(["bun", "x", "vite", "build", "--config", "src/web/vite.config.ts", "--watch", "--logLevel", "warn"], {
+      stdout: "inherit",
+      stderr: "inherit",
+    }),
   )
+  // --host is explicit and must stay so: without it wrangler simulates the
+  // production [[routes]] custom domain locally. check-conventions enforces it.
+  const server = Bun.spawn(
+    ["bun", "x", "wrangler", "dev", "--ip", "0.0.0.0", "--host", ip ?? "localhost", "--port", String(PORT)],
+    { stdout: "inherit", stderr: "inherit" },
+  )
+  children.push(server)
+
+  for (let i = 0; i < 40 && !(await reachable()); i++) await Bun.sleep(1_000)
+
+  const seeded = await fetch(`${LOCAL}/api/seed`, { method: "POST" })
+    .then((r) => r.ok)
+    .catch(() => false)
+  console.log(seeded ? "  seeded" : "  seed failed")
+
+  console.log(`\n  http://localhost:${PORT}            this machine`)
+  if (ip) console.log(`  http://${ip}:${PORT}      same wifi`)
+  console.log(
+    token
+      ? `  https://${HOSTNAME}   fixed URL, works anywhere`
+      : "  (no tunnel — 'mise run ops tunnel' once for a fixed public URL)",
+  )
+  console.log(`  #/login                          twelve seeded people, one click`)
+  console.log(`  rebuilds on save — reload to see changes\n`)
+
+  await server.exited
+}
+
+/**
+ * Up, starting it only if it is not already.
+ *
+ * Idempotent, and the reason nothing should ever `pkill`: starting things by
+ * hand is what produced a day of measuring stale bundles — a half-replaced
+ * server, or two racing for the port, and the thing on screen was not the thing
+ * on disk. Detached with its output in .wrangler/dev.log so a caller that only
+ * needs a server can carry on.
+ */
+async function ensure(): Promise<void> {
+  if (await reachable()) return console.log(`dev: already serving on ${LOCAL}`)
+  console.log("dev: starting...")
+  mkdirSync(".wrangler", { recursive: true })
+  // A real file descriptor: Bun.spawn takes an fd for stdio, and the detached
+  // child outlives this process, so a writer owned by it would not survive.
+  const log = openSync(".wrangler/dev.log", "a")
+  Bun.spawn(["bun", "scripts/dev.ts", "start"], { stdout: log, stderr: log, stdin: "ignore" }).unref()
+  for (let i = 0; i < 120; i++) {
+    if (await reachable()) return console.log(`dev: serving on ${LOCAL}`)
+    await Bun.sleep(500)
+  }
+  console.error("dev: never became reachable — see .wrangler/dev.log")
   process.exit(1)
 }
 
-if (!present.has("VAPID_SUBJECT")) append("VAPID_SUBJECT", DEFAULT_SUBJECT)
-if (decision.action === "generate") {
-  const { publicKey, privateKey } = await generateVapid(DEFAULT_SUBJECT)
-  append("VAPID_PUBLIC_KEY", publicKey)
-  append("VAPID_PRIVATE_KEY", privateKey)
-}
+const [action = "start"] = process.argv.slice(2)
 
-if (added.length === 0) {
-  console.log(`dev: ${DEV_VARS} already has every key, no change`)
-  process.exit(0)
+if (action === "stop") {
+  stop()
+} else if (action === "restart") {
+  stop()
+  // Wait for the port to actually free before rebinding it.
+  for (let i = 0; i < 20 && (await reachable()); i++) await Bun.sleep(250)
+  await start()
+} else if (action === "ensure") {
+  await ensure()
+} else if (action === "start") {
+  await start()
+} else {
+  console.error(`dev: unknown action "${action}" — start | stop | restart | ensure`)
+  process.exit(1)
 }
-
-writeFileSync(DEV_VARS, out, { mode: 0o600 })
-console.log(
-  `dev: ${existing ? "updated" : "wrote"} ${DEV_VARS} (${added.join(", ")})`,
-)

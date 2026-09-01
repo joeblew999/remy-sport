@@ -17,21 +17,8 @@
  */
 
 import { run as provision } from "./provision"
-import { Refused, resolveTarget, resolvedConfig, wrangler, type Target } from "./cloudflare"
-
-/** Where this environment actually serves, from the config it deploys with. */
-function originOf(t: Target): string {
-  const config = resolvedConfig(t.flag)
-  const routes = (config.routes ?? []) as Array<{ pattern?: string }>
-  const pattern = routes[0]?.pattern
-  if (!pattern) {
-    throw new Refused(
-      `no [[routes]] pattern resolves for ${t.environment}, so there is no origin to verify.\n` +
-        "  A deploy that cannot be checked afterwards is not one worth performing.",
-    )
-  }
-  return `https://${pattern.replace(/\/\*$/, "")}`
-}
+import { prepare } from "./prepare"
+import { Refused, originOf, resolveTarget, wrangler, type Target } from "./cloudflare"
 
 function step(label: string, argv: string[], env: Record<string, string> = {}): void {
   console.log(`\n── ${label}`)
@@ -118,12 +105,12 @@ const PIPELINE: Phase[] = [
   {
     name: "test",
     why: "end to end, against a local server, before a remote one exists",
-    go: () => step("test", ["mise", "run", "test"]),
+    go: () => step("test", ["bun", "scripts/check.ts", "--e2e"]),
   },
   {
     name: "stamp",
     why: "versions.json is what the origin is later compared against, so it is written before the publish, not after",
-    go: () => step("stamp", ["mise", "run", "versions"]),
+    go: () => step("stamp", ["bun", "scripts/versions.ts"]),
   },
   {
     name: "provision",
@@ -168,6 +155,7 @@ const PIPELINE: Phase[] = [
 try {
   // Inside the boundary, so a missing --env prints the refusal rather than a
   // stack trace. It was at module top level, where nothing could catch it.
+  prepare()
   const target = resolveTarget(process.argv.slice(2), "explicit")
   const origin = originOf(target)
   console.log(`deploy: ${target.environment} → ${origin}`)

@@ -32,10 +32,12 @@
  * tests the thing rather than a proxy for it.
  */
 
+import { originOf, resolveTarget } from "./cloudflare"
+
 import { DEMO_SIGN_IN_CODE } from "../src/environment"
 import { SEED_ENTITIES } from "../src/domain/model/entities"
 
-const BASE = process.env.CF_DEPLOY_URL ?? "https://remy.ubuntusoftware.net"
+const BASE = process.env.CF_DEPLOY_URL ?? originOf(resolveTarget(process.argv.slice(2), "ambient"))
 
 /** The code `demo:on` publishes. `DEMO_CODE` overrides it, as it does there. */
 const CODE = process.env.DEMO_CODE ?? DEMO_SIGN_IN_CODE

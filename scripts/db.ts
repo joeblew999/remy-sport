@@ -17,6 +17,8 @@
  * live database by somebody who thought they were on staging.
  */
 
+import { install } from "./prepare"
+
 import { Refused, resolveTarget, resolvedConfig, wrangler, type Target } from "./cloudflare"
 
 type Op = "migrate-remote" | "migrate-local" | "reset-local" | "seed-remote" | "tables-remote" | "tables-local"
@@ -54,8 +56,36 @@ function run(args: string[], t: Target): void {
   if (code !== 0) process.exit(code)
 }
 
+install()
+
 const op = process.argv[2] as Op
 const argv = process.argv.slice(3)
+
+/**
+ * Schema work, which is drizzle-kit rather than wrangler and needs no target.
+ *
+ * Here because they are database commands and this is the database entry point.
+ * They were two more task names for two one-line invocations, which is how the
+ * task list got to ninety.
+ */
+if (op === "generate" || op === "studio") {
+  const tool = Bun.spawnSync(["bun", "x", "drizzle-kit", op, ...argv], { stdout: "inherit", stderr: "inherit" })
+  process.exit(tool.exitCode ?? 1)
+}
+if (!op || op === "--help") {
+  console.log(`
+mise run db -- <operation>
+
+  migrate-local                 apply migrations to .wrangler/state
+  migrate-remote --env X        apply them to a deployment
+  seed-remote --env X           load the fixtures into a deployment
+  tables-local | tables-remote  what tables exist
+  reset-local                   drop local D1 and replay every migration
+  generate                      emit a migration for the drizzle schema change
+  studio                        browse the local database
+`)
+  process.exit(op ? 0 : 1)
+}
 
 try {
   const t = target(op, argv)

@@ -282,6 +282,36 @@ export function resolveTarget(argv: string[], rule: TargetRule = "explicit"): Ta
   return { environment, flag: environment === "production" ? undefined : environment }
 }
 
+/**
+ * Where an environment serves, and what its Worker is called — from the config
+ * it deploys with, not from a literal.
+ *
+ * These were CF_DEPLOY_URL and CF_WORKER_NAME in mise's [env], pinned to
+ * production. That is the same shape as the CF_D1_NAME literal provisioning
+ * used to read: it cannot express three environments, and the failure is not an
+ * error — every caller quietly does the right thing to the wrong environment.
+ * `cf:wait` polled production's hostname on a staging deploy for exactly this
+ * reason.
+ *
+ * CF_DEPLOY_URL still wins when set, because pointing smoke at localhost or the
+ * dev tunnel is a real thing to do; it is an override now rather than the source.
+ */
+export function originOf(target: Target): string {
+  const routes = (resolvedConfig(target.flag).routes ?? []) as Array<{ pattern?: string }>
+  const pattern = routes[0]?.pattern
+  if (!pattern) {
+    fail(
+      `no [[routes]] pattern resolves for ${target.environment}, so there is no origin.\n` +
+        "  A deployment that cannot be named cannot be verified either.",
+    )
+  }
+  return `https://${pattern.replace(/\/\*$/, "")}`
+}
+
+export function workerName(target: Target): string {
+  return resolvedConfig(target.flag).name as string
+}
+
 // ── The credential ───────────────────────────────────────────────────────────
 
 let cachedToken: string | null | undefined

@@ -10,6 +10,8 @@
  * not arbitrary — see PHASES below.
  */
 
+import { prepare } from "./prepare"
+
 import { spawn } from "child_process"
 
 export interface Step {
@@ -135,6 +137,9 @@ export async function gate(phases: Step[][]): Promise<string[]> {
 const FAST = new Set(["typecheck:worker", "typecheck:spa", "typecheck:tests", "unit"])
 
 if (import.meta.main) {
+  // The gate owns its prerequisites: deps, fonts, the bundle, worker types.
+  // These were four mise tasks whose only content was `depends`.
+  prepare()
   const fast = process.argv.includes("--fast")
   const e2e = process.argv.includes("--e2e")
   const phases = e2e ? [[E2E]] : fast ? [PHASES.flat().filter((s) => FAST.has(s.name))] : PHASES

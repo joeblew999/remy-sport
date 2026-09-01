@@ -74,9 +74,10 @@ TUNNEL_NAME     = "remy-sport-dev"
 TUNNEL_HOSTNAME = "dev-remy.ubuntusoftware.net"
 TUNNEL_ZONE     = "ubuntusoftware.net"
 
-CF_WORKER_NAME  = "remy-sport"
+# The workers.dev subdomain, which wrangler.toml does not carry. Everything
+# that IS in wrangler.toml — the worker name, each environment's hostname — is
+# read from there through scripts/cloudflare.ts rather than duplicated here.
 CF_SUBDOMAIN    = "gedw99"
-CF_DEPLOY_URL   = "https://remy.ubuntusoftware.net"
 DEV_URL         = "http://localhost:8787"
 GITHUB_REPO_URL = "https://github.com/joeblew999/remy-sport"
 
@@ -91,27 +92,113 @@ BIZ_TOKEN_KEY = "GITHUB_BIZ_REPO_TOKEN"
 
 # ── Core ────────────────────────────────────────────────────────────────────
 
-[tasks.install]
-description = "Install dependencies"
+[tasks."tauri:dev"]
+description = "Run the Tauri desktop app against the local Worker"
 hide        = true
-sources     = ["package.json", "bun.lock"]
-run         = "bun install"
+depends     = ["install", "dev:ensure"]
+run         = "bun x tauri dev"
 
-[tasks."auth:schema:generate"]
-description = "Regenerate src/db/auth-schema.ts from src/auth.config.ts via the Better Auth CLI"
+[tasks."tauri:build"]
+description = "Build the signed-less Tauri desktop bundle (.app + .dmg)"
 hide        = true
 depends     = ["install"]
-# Better Auth owns its own tables — we do not hand-write them. Adding a plugin
-# or an extra user field in auth.config.ts changes the schema, so re-run this
-# and then create a migration (cf:d1:migrations:create) for the delta.
+run         = "bun x tauri build"
+
+[tasks."tauri:info"]
+description = "Show Tauri environment diagnosis (toolchain, versions, config)"
+hide        = true
+depends     = ["install"]
+run         = "bun x tauri info"
+
+[tasks."tauri:ios:init"]
+description = "Scaffold the iOS Xcode project (idempotent)"
+hide        = true
+depends     = ["install", "tauri:ios:deps"]
+# Skips once the project exists and neither the Tauri config nor the crate
+# manifest has changed, so tauri:ios:dev can depend on it unconditionally.
+sources     = ["src-tauri/tauri.conf.json", "src-tauri/Cargo.toml"]
+# CocoaPods comes from mise, on demand, rather than a global `brew install`.
+# `tauri ios init` shells out to `pod`, so it must be on PATH for the child
+# process — hence wrapping the whole command in `mise exec` rather than
+# provisioning in a separate task. Per-task `tools = {}` would express this
+# directly but is silently ignored on mise 2026.8.9.
+run = """
+export PATH="$RUBY_BIN:$PATH"
+bun x tauri ios init
+"""
+
+[tasks."tauri:ios:deps"]
+description = "Install CocoaPods into the project GEM_HOME (idempotent)"
+hide        = true
+# RUBY_BIN must be prepended: mise places its own tool paths after /usr/bin, so
+# without this `ruby` is macOS's 2.6 and cocoapods 1.17 will not run on it
+# ("ffi requires Ruby version >= 3.0"). Gems land in .gem/, not in Homebrew.
+run = """
+export PATH="$RUBY_BIN:$PATH"
+if pod --version >/dev/null 2>&1; then
+  echo "tauri:ios:deps: cocoapods $(pod --version) already installed"
+  exit 0
+fi
+echo "tauri:ios:deps: installing cocoapods $COCOAPODS_VERSION into $GEM_HOME"
+gem install cocoapods -v "$COCOAPODS_VERSION" --no-document
+"""
+
+[tasks."tauri:ios:dev"]
+description = "Run the iOS app in the Simulator against the local Worker"
+hide        = true
+depends     = ["install", "dev:ensure", "tauri:ios:init"]
+run = """
+export PATH="$RUBY_BIN:$PATH"
+bun x tauri ios dev
+"""
+
+# ── Tunnel ──────────────────────────────────────────────────────────────────
+# Emulators reach localhost directly and need no tunnel. A tunnel is only
+# required for Apple Universal Links: Apple's CDN fetches
+# /.well-known/apple-app-site-association from the public internet, so it can
+# never see localhost. A *named* tunnel is required — a random trycloudflare
+# hostname is useless because Apple caches the file against the domain.
+
+[tasks.dev]
+description = "The dev server: one port, always current, seeded, reachable from a phone"
+# One command, one port, and dist/web is never stale.
 #
-# The CLI needs a module-level `auth` export, which src/auth.cli.ts provides;
-# the runtime instance takes a Hono Context and cannot be imported here.
+# This used to be three tasks and a footgun. `dev` served the built bundle, so
+# every CSS or component change needed a manual `mise run web:build` first —
+# which is exactly the mistake that had me measuring a stale stylesheet and
+# concluding a fix had not worked. `web:dev` ran a second server on :5175 with
+# HMR and a proxy back here, so the two ports disagreed about what the app was.
+# `dev:seed` was a third variant that seeded and the others did not.
 #
-# `auth`, not `@better-auth/cli`: the CLI was renamed at 1.5 and the old package
-# is frozen at 1.4.22, so it cannot read a 1.7 config. The new one ships both an
-# `auth` and a `better-auth` binary; `auth` is what the upstream docs use.
-run         = "bun x auth generate --config src/auth.cli.ts --output src/db/auth-schema.ts -y"
+# `vite build --watch` writes into dist/web on every save, and wrangler serves
+# that directory, so :8787 is the only address and it is always the current
+# code. A change is live on the next page load — no HMR, and that is the trade:
+# one honest port beats two that can disagree.
+#
+# --ip 0.0.0.0 binds every interface; --host is the LAN address so a phone on
+# the same wifi can reach it. Sign-in works from localhost and from the LAN
+# because trustedOrigins derives from the request URL (src/auth.ts) — the
+# convention check requires the flag, not a particular value.
+run = "bun scripts/dev.ts"
+
+[tasks.check]
+description = "Type check, dead code, and documented paths — the three things that rot quietly"
+# `web:build` is a dependency rather than a line in the script, so mise builds
+# it once for this task and for `test:render`, which needs it too.
+# dev:vars because the worker tests inside check read .dev.vars — "Using secrets
+# defined in .dev.vars". That dependency was real and undeclared: check worked
+# only because setup had happened to run at some point, which is the same shape
+# as the fonts race. deploy gets it transitively, by running check.
+# No `sources`/`outputs`: dead-code and docs drift depend on files this task
+# does not read as inputs (a deleted importer, an edited .md), so caching this
+# would skip exactly the run that would have caught the drift.
+run = "bun scripts/check.ts"
+
+[tasks.ops]
+description = "Operate a deployment: demo | analytics | audit | tunnel | versions | seed | biz | domain"
+# Eight tasks were eight names a person had to know existed, for one concern.
+# scripts/ops.ts dispatches; the scripts behind it keep their own reasons.
+run = "bun scripts/ops.ts"
 
 [tasks."auth:schema:check"]
 description = "Fail if src/db/auth-schema.ts is stale relative to src/auth.config.ts"
@@ -134,6 +221,22 @@ echo "auth:schema:check: auth-schema.ts is up to date"
 """
 
 # ── Companion repo ──────────────────────────────────────────────────────────
+
+[tasks."auth:schema:generate"]
+description = "Regenerate src/db/auth-schema.ts from src/auth.config.ts via the Better Auth CLI"
+hide        = true
+depends     = ["install"]
+# Better Auth owns its own tables — we do not hand-write them. Adding a plugin
+# or an extra user field in auth.config.ts changes the schema, so re-run this
+# and then create a migration (cf:d1:migrations:create) for the delta.
+#
+# The CLI needs a module-level `auth` export, which src/auth.cli.ts provides;
+# the runtime instance takes a Hono Context and cannot be imported here.
+#
+# `auth`, not `@better-auth/cli`: the CLI was renamed at 1.5 and the old package
+# is frozen at 1.4.22, so it cannot read a 1.7 config. The new one ships both an
+# `auth` and a `better-auth` binary; `auth` is what the upstream docs use.
+run         = "bun x auth generate --config src/auth.cli.ts --output src/db/auth-schema.ts -y"
 
 [tasks."biz:sync"]
 description = "Clone or fast-forward the remy-sport-biz checkout at ../remy-sport-biz (local dev only)"
@@ -236,12 +339,6 @@ if grep -qF -- "$TOKEN" "$BIZ_DIR/.git/config"; then
 fi
 """
 
-# Two configs because two JSX runtimes: the Worker is Hono JSX, the SPA is
-# React. Neither was checking .tsx at all until now — `include` was
-# `src/**/*.ts`, so every component in the repo went untypechecked and a page
-# kept rendering a field that had been deleted from its type.
-# UI copy is compiled, so it has to exist before anything typechecks it. The
-# Vite plugin does this during a build; this task is for everything else.
 [tasks."brand:icons"]
 description = "Regenerate every app icon — web, desktop, iOS, Android — from src/web/public/brand.svg"
 hide        = true
@@ -272,560 +369,6 @@ bun x pwa-assets-generator
 bun x tauri icon src/web/public/brand.svg
 """
 
-[tasks."i18n:generate"]
-description = "Compile messages/*.json into typed message functions (Paraglide). The locale list comes from project.inlang/settings.json, which domain:sync derives from the model's ALL_LOCALES."
-hide        = true
-depends     = ["install"]
-run         = "bun x paraglide-js compile --project ./project.inlang --outdir ./src/paraglide"
-
-[tasks."domain:sync"]
-description = "Copy the Product Owner's model in from remy-sport-biz — verbatim, no transform"
-hide        = true
-depends     = ["install"]
-# This replaced a 900-line generator that read JSONL and emitted TypeScript. The
-# model is authored as TypeScript upstream now, so there is nothing to
-# transform — and every silent bug that pipeline produced was a transform
-# failing quietly. What proves the copy agrees with this database is the seed:
-# db.insert(city).values(CITY) does not compile if a field and a column
-# disagree.
-run = "bun scripts/domain.ts"
-
-[tasks."deps:outdated"]
-description = "Show npm packages behind their latest release"
-hide        = true
-depends     = ["install"]
-run         = "bun outdated"
-
-[tasks."deps:update"]
-description = "Update npm packages within the semver ranges in package.json"
-hide        = true
-# Only moves within existing ranges — a major bump still needs the range in
-# package.json edited deliberately, so this can never silently cross a breaking
-# boundary. Run `mise run check` and `mise run test` afterwards.
-depends     = ["install"]
-run = """
-set -e
-bun update
-mise run check
-"""
-
-[tasks.prepare]
-description = "Everything needed to BUILD: deps, fonts, the SPA bundle, worker types"
-hide        = true
-# The half of the old `setup` that is not about running locally.
-#
-# `deploy` used to depend on the whole of setup, so shipping to production wrote
-# .dev.vars, applied migrations to the LOCAL database, installed Playwright
-# browsers, and regenerated src/db/seed.sql. That last one was not merely
-# untidy: deploy then runs `check`, whose seed step fails if git sees a
-# difference — so the pipeline rewrote a file and then failed itself for the
-# file having changed. A command racing its own earlier step.
-#
-# web:build belongs here rather than only in the deploy. dist/web is gitignored
-# and the [assets] binding points at it, so on a fresh clone `wrangler dev`
-# refuses to start at all: "The directory specified by the assets.directory
-# field in your configuration file does not exist". It declares sources/outputs,
-# so it is a no-op once dist/web is current, and it depends on fonts:vendor
-# because it imports the CSS that task writes.
-depends     = ["install", "fonts:vendor", "web:build", "cf:types"]
-
-[tasks.setup]
-description = "Everything needed to RUN LOCALLY: prepare, plus .dev.vars, local migrations, Playwright, fixtures"
-hide        = true
-# prepare, plus the four things only a local run needs. `dev` and `test` depend
-# on this; `check`, `verify` and `deploy` depend on `prepare` instead, so none of
-# them touches local state any more.
-#
-# These are genuinely independent of each other, so running them in parallel is
-# correct here — unlike the deploy pipeline, whose ordering is explicit in
-# scripts/deploy.ts because each constraint there has cost a deploy.
-depends     = ["prepare", "dev:vars", "cf:d1:migrations:apply", "playwright:install", "seed:sql"]
-
-[tasks."playwright:install"]
-description = "Install the Playwright browser (idempotent)"
-hide        = true
-depends     = ["install"]
-# WebKit, because both browser tiers run on it — see the note in
-# playwright.config.ts for why. Chromium is no longer installed: nothing uses
-# it, and a second 80MB engine that no test runs is not worth carrying.
-#
-# `playwright install` rather than the hand-rolled curl-and-unzip this replaced.
-# That path fetched linux64 chromium builds by revision and needed a macOS
-# branch beside it, so it was two code paths for one job — and the version
-# pinning it bought is already in bun.lock, which decides the Playwright that
-# reads it. It honours PLAYWRIGHT_BROWSERS_PATH, so browsers still land in
-# .playwright/ rather than a per-OS cache outside the project.
-#
-# Idempotent on its own: it skips anything already present.
-run = """
-set -e
-bun x playwright install webkit
-if command -v apt-get >/dev/null 2>&1; then
-  bun x playwright install-deps webkit 2>/dev/null || true
-fi
-"""
-
-[tasks.dev]
-description = "The dev server: one port, always current, seeded, reachable from a phone"
-depends     = ["setup"]
-# One command, one port, and dist/web is never stale.
-#
-# This used to be three tasks and a footgun. `dev` served the built bundle, so
-# every CSS or component change needed a manual `mise run web:build` first —
-# which is exactly the mistake that had me measuring a stale stylesheet and
-# concluding a fix had not worked. `web:dev` ran a second server on :5175 with
-# HMR and a proxy back here, so the two ports disagreed about what the app was.
-# `dev:seed` was a third variant that seeded and the others did not.
-#
-# `vite build --watch` writes into dist/web on every save, and wrangler serves
-# that directory, so :8787 is the only address and it is always the current
-# code. A change is live on the next page load — no HMR, and that is the trade:
-# one honest port beats two that can disagree.
-#
-# --ip 0.0.0.0 binds every interface; --host is the LAN address so a phone on
-# the same wifi can reach it. Sign-in works from localhost and from the LAN
-# because trustedOrigins derives from the request URL (src/auth.ts) — the
-# convention check requires the flag, not a particular value.
-run = """
-set -e
-IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)
-HOSTARG="${IP:-localhost}"
-
-# The tunnel first, because wrangler reads .dev.vars once at startup and the
-# Worker needs TUNNEL_HOSTNAME from it. Writing that file after wrangler had
-# already booted meant the first run of the day always failed sign-in through
-# the tunnel with INVALID_ORIGIN, and the second run worked — which is a
-# miserable thing to debug and was mine.
-#
-# Sets itself up on first use rather than making anyone remember a separate
-# command: tunnel-setup.ts is idempotent, so this is a no-op once the tunnel
-# exists. Without a CLOUDFLARE_API_TOKEN there is simply no tunnel, and dev
-# carries on with the two local addresses.
-TUNNEL=""
-RUNTOK=$(printenv TUNNEL_RUN_TOKEN || fnox get TUNNEL_RUN_TOKEN 2>/dev/null) || true
-if [ -z "$RUNTOK" ]; then
-  bun scripts/tunnel.ts >/dev/null 2>&1 \
-    && RUNTOK=$(fnox get TUNNEL_RUN_TOKEN 2>/dev/null) \
-    || echo "  (no tunnel — needs CLOUDFLARE_API_TOKEN with Cloudflare Tunnel:Edit)"
-fi
-if [ -n "$RUNTOK" ]; then
-  # `wrangler dev --host` rewrites the Host the Worker sees, so a request made
-  # to the tunnel arrives claiming to be the LAN address while the browser's
-  # Origin header still says the tunnel. Better Auth refuses that mismatch.
-  # This is the one name that cannot be derived from the request.
-  # .dev.vars is local and gitignored, so nothing reaches production.
-  grep -q '^TUNNEL_HOSTNAME=' .dev.vars 2>/dev/null \
-    || echo 'TUNNEL_HOSTNAME={{env.TUNNEL_HOSTNAME}}' >> .dev.vars
-  cloudflared tunnel run --token "$RUNTOK" >/dev/null 2>&1 &
-  TUNNEL=$!
-fi
-
-bun x vite build --config src/web/vite.config.ts --watch --logLevel warn &
-WATCH=$!
-bun x wrangler dev --ip 0.0.0.0 --host "$HOSTARG" --port 8787 &
-SERVER=$!
-
-trap 'kill $WATCH $SERVER $TUNNEL 2>/dev/null || true' EXIT INT TERM
-
-for _ in $(seq 1 40); do
-  curl -sf -o /dev/null http://127.0.0.1:8787/api/health && break
-  sleep 1
-done
-curl -sf -X POST http://127.0.0.1:8787/api/seed >/dev/null 2>&1 && echo "  seeded" || echo "  seed failed"
-
-echo ""
-echo "  http://localhost:8787            this machine"
-[ -n "$IP" ] && echo "  http://$IP:8787      same wifi"
-if [ -n "$TUNNEL" ]; then
-  echo "  https://{{env.TUNNEL_HOSTNAME}}   fixed URL, works anywhere"
-else
-  echo "  (no tunnel — 'mise run tunnel:setup' once for a fixed public URL)"
-fi
-echo "  #/login                          twelve seeded people, one click"
-echo "  rebuilds on save — reload to see changes"
-echo ""
-wait $SERVER
-"""
-
-[tasks.verify]
-depends     = ["prepare"]
-description = "The fast loop: typecheck and unit tests, in parallel, in about six seconds"
-# The rung that was missing. There was the 28s gate or the tiers by hand, and
-# nothing in between — so the inner loop was either expensive or improvised, and
-# improvised mostly meant skipped.
-#
-# Typecheck is 6.3s and carries most of the signal in a codebase this typed;
-# unit is 0.4s. In parallel that is the length of the typecheck, which is the
-# floor. `test:worker` (11s) and `test:render` (18s) would each more than double
-# it, so this names the one you owe rather than running it — a fast check you
-# actually run beats a thorough one you avoid.
-#
-# `check` is still the pre-commit gate. This is for the thirty times before it.
-run = "bun scripts/check.ts --fast"
-
-[tasks.watch]
-description = "Run verify on every save — the loop with no command in it"
-hide        = true
-depends     = ["install"]
-# `verify` is 1.75s. That is the number that makes this worth having: a check you
-# have to ask for gets run at the end of a change, and a check that has already
-# run is one you read.
-#
-# Ctrl-C stops it. It ignores src/paraglide, which `verify` itself regenerates —
-# watching that is an infinite loop at full CPU.
-run = "bun scripts/watch.ts"
-
-[tasks.check]
-description = "Type check, dead code, and documented paths — the three things that rot quietly"
-# `web:build` is a dependency rather than a line in the script, so mise builds
-# it once for this task and for `test:render`, which needs it too.
-# dev:vars because the worker tests inside check read .dev.vars — "Using secrets
-# defined in .dev.vars". That dependency was real and undeclared: check worked
-# only because setup had happened to run at some point, which is the same shape
-# as the fonts race. deploy gets it transitively, by running check.
-depends     = ["prepare", "dev:vars"]
-# No `sources`/`outputs`: dead-code and docs drift depend on files this task
-# does not read as inputs (a deleted importer, an edited .md), so caching this
-# would skip exactly the run that would have caught the drift.
-run = "bun scripts/check.ts"
-
-[tasks."data:coverage"]
-description = "Which of the model's vocabulary the fixtures exercise, and which fields have no column"
-hide        = true
-depends     = ["install"]
-# Reported, not enforced. Two of the three sections are judgement calls the
-# Product Owner owns — PILOT_SCOPE says which of the sport the product runs —
-# and the third, fields with no column, is where the model and the schema
-# actually disagree. That one found four on 2026-08-29, including a user
-# lifecycle nothing implemented.
-run = "bun scripts/data-coverage.ts"
-
-[tasks.probe]
-description = "Typecheck a throwaway snippet against the real project (PROBE=path, or stdin)"
-hide        = true
-depends     = ["install"]
-# Measure instead of asserting. Every wrong belief corrected in the ADR-020
-# session was killed by exactly this: write a file, typecheck it, delete it.
-# Four beliefs, about a minute each — cheaper than being wrong in a document.
-#
-#   echo 'import type { Router } from "./src/api/index"; export type P = Router' | mise run probe
-#
-# Writes to .probe.ts at the repo root and always removes it, so a failed probe
-# cannot leave a file that breaks the next `mise run check`.
-# WEB=1 probes the SPA instead of the Worker. The two have different tsconfigs
-# (react vs hono JSX, and only the Worker's includes worker-configuration.d.ts),
-# and which one you probe is usually the question — that difference is exactly
-# what ADR 016 §1 turned out to hinge on.
-#
-# The file lands INSIDE src/ so the project tsconfig governs it; a root-level
-# file is outside `include`, and tsc then resolves node_modules differently and
-# reports phantom "Cannot find module '@orpc/server'" errors.
-run = """
-if [ -n "${WEB:-}" ]; then TARGET=src/web/__probe.ts; CFG="-p src/web/tsconfig.json"
-else TARGET=src/__probe.ts; CFG=""; fi
-trap 'rm -f "$TARGET"' EXIT
-if [ -n "${PROBE:-}" ]; then cp "$PROBE" "$TARGET"; else cat > "$TARGET"; fi
-echo "--- probing ${TARGET} ---"
-bun x tsc --noEmit $CFG || true
-echo "--- done (nothing above = it typechecks) ---"
-"""
-
-[tasks."test:all"]
-description = "Every tier, with the wall-clock time each one costs"
-hide        = true
-# The number that matters is where the seconds go. Anything that grows here is
-# a test in the wrong tier — `mise run test:tiers` says which.
-#
-# Output is captured rather than discarded, and replayed when a tier fails. The
-# earlier `>/dev/null 2>&1` printed nothing but `test:worker FAILED`, so finding
-# out *which* test failed meant running the tier again by hand — the timing
-# report cost you the failure report.
-run = """
-set -e
-log="$(mktemp -t test-all)"
-trap 'rm -f "$log"' EXIT
-for t in test:unit test:worker test:render test; do
-  start=$(date +%s)
-  if ! mise run $t >"$log" 2>&1; then
-    echo "  $t FAILED"
-    echo
-    cat "$log"
-    exit 1
-  fi
-  printf "  %-14s %ss\n" "$t" "$(( $(date +%s) - start ))"
-done
-"""
-
-[tasks."seed:sql"]
-description = "Regenerate src/db/seed.sql from the biz fixtures — the seed as data, not an HTTP call"
-hide        = true
-depends     = ["install"]
-# The vocabularies have
-# always been SQL (migration 0009); the entities went through POST /api/seed,
-# which needs a running Worker and therefore a database every spec shares.
-# As SQL, each test file seeds its own storage in milliseconds.
-# The model is copied in from remy-sport-biz, so the copies are the input —
-# The model is the input; there is no re-export layer between them any more.
-sources = ["scripts/seed.ts", "src/domain/model/*.ts", "src/db/*-schema.ts"]
-outputs = ["src/db/seed.sql"]
-run     = "bun scripts/seed.ts"
-
-[tasks."db:generate"]
-description = "Emit a migration for whatever changed in the drizzle schema (prompts on renames)"
-hide        = true
-depends     = ["install"]
-# drizzle-kit diffs src/db/schema.ts against meta/0017_snapshot.json and writes
-# only the delta, numbered from 0018 so it never collides with the seventeen
-# hand-written and generated migrations already there.
-#
-# There is deliberately no 0000 baseline .sql: those seventeen already built the
-# shape the snapshot records, so emitting one would re-run work that is done.
-#
-# Run this in a real terminal. A rename asks whether the column was renamed or
-# dropped and recreated, and that question needs a person — which is exactly the
-# capability the old generate-the-whole-migration approach never had.
-run = "bun x drizzle-kit generate"
-
-[tasks."db:studio"]
-description = "Browse the local D1 database in Drizzle Studio (developer tool; read-write)"
-hide        = true
-# Depends on the migrations because Studio reads the schema from the database,
-# not from src/db/schema.ts — against a checkout that has never run wrangler
-# there is no .sqlite file for drizzle.config.ts to find, and Studio starts with
-# no tables and no explanation. Applying migrations is idempotent, so this costs
-# nothing once the database exists.
-depends = ["install", "cf:d1:migrations:apply"]
-#
-# Two things this is not:
-#
-#   - It is not in VS Code. Studio's UI is served from https://local.drizzle.studio
-#     and only the data stays local, so this opens a browser tab and needs
-#     working internet. There is no first-party Drizzle extension for VS Code.
-#   - It is not the remote database. This reads the miniflare file under
-#     .wrangler/; production D1 is the Cloudflare dashboard.
-#
-# Edits made here are real writes to the local database, and they survive
-# exactly until the next `mise run cf:d1:reset` or re-seed. Nothing reaches biz.
-run = "bun x drizzle-kit studio"
-
-[tasks."fonts:vendor"]
-description = "Download the web fonts into src/web/fonts/ and regenerate fonts.css"
-hide        = true
-depends     = ["install"]
-# `sources`/`outputs` so `setup` can depend on this without hitting the network
-# every run: it re-downloads only when the declared locales or the script change.
-# The output is committed too, so a clean build never needs a connection at all.
-#
-# Subsets are DERIVED from ALL_LOCALES — adding a language upstream widens them
-# automatically. See the script for why CJK is deliberately not self-hosted.
-sources = ["scripts/fonts.ts", "src/domain/vocabularies.ts"]
-outputs = ["src/web/fonts.css"]
-run     = "bun scripts/fonts.ts"
-
-[tasks."test:tiers"]
-description = "How many tests are in each tier, and how many are still in the wrong one"
-hide        = true
-# Makes the tier split measurable rather than a
-# claim. Optimising the runner bought 2.8m -> 1.6m and then stopped; the number
-# that matters is how many browser tests exist at all.
-run = "bun scripts/test-tiers.ts"
-
-[tasks.test]
-description = "Run Playwright tests locally"
-depends     = ["setup"]
-run = "bun scripts/check.ts --e2e"
-
-# ── Demo sign-in ────────────────────────────────────────────────────────────
-# Lets the twelve seeded people sign in on a deployment with one click. Their
-# addresses are `.test` so nothing delivers to them, and the dev outbox does not
-# exist on a deployment — a fixed code is the only way in.
-#
-# A Worker secret rather than a [vars] entry, and not because the value is
-# secret: it is published to the browser with the account list, and the login
-# page labels it. It is a secret because a secret changes WITHOUT a redeploy,
-# and a switch you may need off in a hurry should not need a commit and a build.
-
-[tasks."demo:on"]
-description = "Let the seeded people sign in on a deployment (published code; never the admin)"
-hide        = true
-depends     = ["install"]
-# Production only, and that is the whole reason this task still exists after the
-# provisioning consolidation. `signInCode` in src/environment.ts says dev and
-# staging DERIVE their code — there is nothing to set and nothing to forget —
-# while production is "secret" precisely so a person decides when seeded sign-in
-# is on, and can take it away again without a redeploy.
-#
-# The seeded ADMIN is excluded in src/auth.ts on any deployment: that account can
-# impersonate, which is the one power reaching a real person.
-#
-# It ENDS BY ASKING THE DEPLOYMENT. `demo:status` reads /api/dev/accounts and
-# fails if the code is not actually being served, because "the secret was put"
-# and "seeded sign-in works" are different claims and only the second one
-# matters. This task was silently a no-op on production for a whole commit —
-# the code was gated on a policy row production does not have — and nothing
-# said so until the next deploy. A provisioning task that cannot tell you
-# whether it worked is the failure class this week has been about.
-run = "bun scripts/demo.ts on"
-
-[tasks."demo:off"]
-description = "Stop the seeded people signing in on a deployment"
-hide        = true
-depends     = ["install"]
-# Run this before the platform has real users. A demo account cannot reach
-# anyone else's data, but it can edit shared fixture data — and once real events
-# exist, those are not fixtures any more.
-#
-# Safe to run twice: an already-absent secret is the desired state, not an
-# error. The previous version deleted unconditionally and failed when there was
-# nothing to delete, which made "make sure demo is off" a command you could not
-# confidently run.
-#
-#   mise run demo:off -- --env production
-run = "bun scripts/demo.ts off"
-
-[tasks."demo:status"]
-description = "Is seeded sign-in on, and who does it offer?"
-hide        = true
-depends     = ["install"]
-# Asks the deployment rather than the config: what is set and what is *serving*
-# are different questions, and only the second one matters.
-run = "bun scripts/demo-status.ts"
-
-[tasks."model:coverage"]
-description = "Which of the Product Owner's actions the API actually implements"
-hide        = true
-depends     = ["install"]
-# Not part of `check`, and not a build failure: most of these are unbuilt on
-# purpose and the roadmap says so. What was missing was a way to SEE it — the
-# API had no way to create a game at all, the model said an organiser schedules
-# fixtures, and nothing connected the two until someone read the router by hand.
-run = "bun scripts/model-coverage.ts"
-
-[tasks.shots]
-description = "Screenshot every screen in every released language into screenshots/"
-hide        = true
-depends     = ["setup"]
-# Not part of `test`, and not a test: nothing here asserts. It exists because a
-# green suite says a page works, not that it looks right — see
-# tests/e2e/screens.shots.ts for the two bugs that got through a green suite
-# and were obvious in a picture.
-#
-# `screenshots/` is gitignored. The files are build output regenerated by this
-# task, and committing a few hundred KB of PNG per run would put the repo's
-# history to work storing pictures. They land in the working tree, which is what
-# makes them openable in an editor — the reason they were unreachable in /tmp.
-run = "bun x playwright test --config playwright.shots.config.ts"
-
-[tasks.versions]
-description = "Generate versions.json"
-hide        = true
-run         = "bun scripts/versions.ts"
-
-[tasks."dev:ensure"]
-description = "Make sure the dev server is up, starting it if not. Idempotent — use this, never pkill"
-hide        = true
-# No `depends` on purpose. It used to declare `setup` and then run `mise run
-# dev`, which declares `setup` as well — and only 3 of setup's 7 dependencies
-# are cached, so migrations and `playwright install` ran twice on every restart.
-# The `dev` it delegates to still resolves `setup`, so nothing is skipped; it is
-# resolved once instead of twice.
-#
-# The early exit matters more: when a server is already up this now does one
-# curl, where before it ran the whole of `setup` before discovering there was
-# nothing to do.
-# The one way to get a dev server. Use this instead of starting things by hand.
-#
-# It used to launch a bare `wrangler dev --host localhost`: no SPA watcher, no
-# tunnel, no seed. So the server you got from `dev:ensure` was not the server
-# you got from `dev`, and which one was running decided whether a change
-# appeared, whether the tunnel answered, and whether there was any data. That is
-# a fourth permutation of "the dev server" and it existed only because this task
-# reimplemented a stripped-down copy of another one. It delegates now.
-#
-# Idempotent, and that is the point: it no-ops when something is already
-# serving. Reaching for `pkill` and `nohup` instead is what produced a whole day
-# of measuring stale bundles — the server would be half-replaced, or two would
-# race for the port, and the thing on screen was not the thing on disk.
-#
-# Waits for readiness by polling rather than sleeping. `mise run dev` is ready
-# in about two seconds; a fixed `sleep 40` after it turns a fast loop into a
-# slow one and teaches you the tooling is slow when it is not.
-run = """
-if curl -sf -o /dev/null {{env.DEV_URL}}/api/health 2>/dev/null; then
-  echo "dev:ensure: already serving on {{env.DEV_URL}}"
-  exit 0
-fi
-mkdir -p .wrangler
-echo "dev:ensure: starting..."
-nohup mise run dev >.wrangler/dev.log 2>&1 &
-for _ in $(seq 1 60); do
-  if curl -sf -o /dev/null {{env.DEV_URL}}/api/health 2>/dev/null; then
-    echo "dev:ensure: serving on {{env.DEV_URL}}"
-    exit 0
-  fi
-  sleep 0.5
-done
-echo "dev:ensure: did not become ready — see .wrangler/dev.log" >&2
-exit 1
-"""
-
-[tasks."dev:restart"]
-description = "Stop and restart the dev server, waiting for it. For .dev.vars or mise.toml changes only"
-# The only three things that need one: editing the `dev` task itself, changing
-# .dev.vars (wrangler reads it once at boot), or a wedged process.
-#
-# A change to src/ needs NOTHING — wrangler reloads the Worker and vite rebuilds
-# the SPA, both in about a second. Restarting for a code change is the habit
-# that made a one-second loop feel like a minute.
-run = """
-mise run dev:stop
-mise run dev:ensure
-"""
-
-[tasks."dev:stop"]
-description = "Stop the dev server and everything it started (idempotent)"
-# All three, not just wrangler. `dev` runs a vite watcher and a cloudflared
-# tunnel beside it, and stopping only the Worker left both orphaned — a watcher
-# still writing dist/web for a server that was gone, and a tunnel still holding
-# the public hostname open. Ctrl-C on `dev` handles this through its trap; this
-# is for when the process is not in front of you.
-#
-# Scoped to this checkout by working directory, because `pkill -f "wrangler
-# dev"` matches every wrangler on the machine: another project's dev server, and
-# — worse, because it looks like a flaky test — the one Playwright starts for
-# itself as its `webServer`. Killing that mid-run fails the e2e tier for reasons
-# that have nothing to do with the code.
-run = """
-STOPPED=""
-for pat in "wrangler dev" "vite build --config src/web/vite.config.ts --watch" "cloudflared tunnel run"; do
-  for pid in $(pgrep -f "$pat" 2>/dev/null); do
-    # The process's own cwd, which is the only reliable way to tell whose
-    # wrangler this is — the command line does not name the project.
-    cwd=$(lsof -a -p "$pid" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -1)
-    case "$cwd" in
-      "{{config_root}}"|"{{config_root}}"/*) kill "$pid" 2>/dev/null && STOPPED="yes" ;;
-    esac
-  done
-done
-[ -n "$STOPPED" ] && echo "dev:stop: stopped" || echo "dev:stop: nothing running here"
-"""
-
-[tasks.seed]
-description = "Seed local D1 with dev users (requires running dev server)"
-hide        = true
-# See the pipefail note on seed:remote.
-run = """
-set -o pipefail
-curl -sf -X POST {{env.DEV_URL}}/api/seed | jq .
-"""
-
-[tasks.ops]
-description = "Operate a deployment: demo | analytics | audit | tunnel | versions | seed | biz | domain"
-depends     = ["install"]
-# Eight tasks were eight names a person had to know existed, for one concern.
-# scripts/ops.ts dispatches; the scripts behind it keep their own reasons.
-run = "bun scripts/ops.ts"
-
 [tasks.deploy]
 description = "Full deploy pipeline"
 # The order lives in scripts/deploy.ts, where it can be read, and where the
@@ -836,411 +379,15 @@ description = "Full deploy pipeline"
 # it honours the graph, not list order — and chaining them would couple them, so
 # `mise run seed:remote` would trigger a full deploy as a side effect. Ordering
 # is a property of this pipeline, not of the tasks it calls.
-depends     = ["prepare"]
 run = "bun scripts/deploy.ts"
 
 # ── Remote / test variants ───────────────────────────────────────────────────
 
-[tasks."cf:smoke"]
-description = "Verify the deployed Worker — read-only, plus one write that must be a no-op"
-hide        = true
-depends     = ["install"]
-# What `deploy` ends with, instead of test:deployed. See scripts/smoke.ts for
-# why pointing the whole suite at production was both unrunnable and a bad idea.
-#
-# Defaults to production, and CF_DEPLOY_URL points it elsewhere:
-#
-#   CF_DEPLOY_URL=http://localhost:8787            mise run cf:smoke
-#   CF_DEPLOY_URL=https://$TUNNEL_HOSTNAME         mise run cf:smoke
-#
-# Those two used to be permanently three-red — the checks asserting a
-# deployment refuses the dev outbox, the seed route and an admin sign-in, all
-# of which local dev opens deliberately. They report as skipped now, with the
-# reason, so the exit code means something on every surface. An unrecognised
-# host is treated as a deployment and gets every check.
-run = "bun scripts/smoke.ts"
-
-[tasks."test:deployed"]
-description = "Run the Playwright suite against the deployed Worker (needs TEST_OTP; NOT part of deploy)"
-hide        = true
-env         = { BASE_URL = "{{env.CF_DEPLOY_URL}}" }
-# Deliberately not in the deploy pipeline. It requires TEST_OTP as a Worker
-# secret, which makes the sign-in code for every seeded address a constant on a
-# public site, and it writes as it runs — the `hook-*@remy.dev` accounts in the
-# deployed database came from previous runs of this. `mise run cf:smoke` is what
-# verifies a deploy. Keep this for deliberate, pre-launch use only.
-run = "bun x playwright test"
-
-[tasks."test:grep"]
-description = "Run only tests whose title matches GREP (unset GREP runs everything)"
-hide        = true
-depends     = ["setup"]
-# GREP defaults to empty, which matches every title — so the task still runs
-# without any user-supplied arg, per the AGENTS.md convention.
-run         = 'bun x playwright test --grep "${GREP:-}"'
-
-[tasks."test:ui"]
-description = "Run Playwright tests with interactive UI"
-hide        = true
-run         = "bun x playwright test --ui"
-
-[tasks."seed:remote"]
-description = "Seed remote D1 with dev users (idempotent)"
-hide        = true
-# Applied through wrangler, not through the app. `POST /api/seed` used to be an
-# open, unauthenticated write on a public domain — 330 D1 statements per call to
-# anyone who found it. Seeding is an operator action and the operator already
-# holds Cloudflare credentials, so the endpoint simply does not exist on a
-# deployment now, and this needs no HTTP surface to replace it.
-#
-# Not piped into `jq`, and not parsed at all. Wrangler writes progress to the
-# same stdout as its result, so piping killed the deploy with EPIPE, and its
-# `--json` output carries a preamble that is not JSON. Its exit code is the
-# signal that matters and `set -e` acts on it — which is the same property the
-# note above wanted, obtained by not building a pipeline in the first place.
-run = "bun scripts/db.ts seed-remote"
-
-# ── cf:env: provisioning (ADR 006) ───────────────────────────────────────────
-# ONE path, for one named environment. cf:d1:create, cf:r2:create, cf:d1:ensure,
-# cf:r2:ensure, cf:secret:set, push:secret:set and moq:relay:set were seven
-# entry points with three idempotency stories between them; they are now
-# internal steps of cf:env:bootstrap. Plan first, apply second, and both run the
-# same code.
-
-[tasks."cf:env:plan"]
-description = "Print what cf:env:bootstrap would do for an environment. Changes nothing."
-hide        = true
-depends     = ["install"]
-# The half that was missing. The apply was never the frightening part — not
-# knowing what it was about to do was. It runs the SAME code as bootstrap and
-# differs only in whether the apply step is called, so the plan cannot describe
-# a different run from the one that follows it.
-#
-#   mise run cf:env:plan -- --env staging
-#
-# No credential block here. scripts/cloudflare.ts resolves the token, pins the
-# account and decides what an error means, for every caller — so a task is a
-# name, a description, a dependency and one invocation. The shell that used to
-# sit here was the fifth copy of a rule that belongs in one place.
-run = "bun scripts/provision.ts"
-
-[tasks."cf:env:bootstrap"]
-description = "Provision D1, migrations, R2, both queues and every secret for one environment"
-hide        = true
-depends     = ["install"]
-# The description is now true. It used to say "all Cloudflare resources" and run
-# three of six: push:secret:set was called separately by `deploy`, moq:relay:set
-# and demo:on were called by nothing, and the queues were created by nobody at
-# all despite wrangler.toml declaring three of them.
-#
-# Requires --env and refuses without one. Everything else in this codebase
-# resolves unset configuration to production because the risk there is an opened
-# door; this performs writes, where the strict answer is to not perform them.
-#
-#   mise run cf:env:bootstrap -- --env staging
-#
-# Same one invocation as cf:env:plan, and it must stay that way: plan and apply
-# run the same code, so a credential resolved differently between them would let
-# the plan describe a run the apply cannot perform. Both get it from
-# scripts/cloudflare.ts, which is the only place it is decided.
-run = "bun scripts/provision.ts --apply"
-
-[tasks."push:keys"]
-description = "Generate a VAPID keypair for Web Push (prints three lines; does not store them)"
-hide        = true
-depends     = ["install"]
-# Prints rather than writes, because where the three lines go depends on which
-# environment they are for: `.dev.vars` locally, `wrangler secret put` on a
-# deployment. Writing them somewhere on the caller's behalf would put a
-# production private key in a file by accident.
-run = "bun scripts/vapid.ts"
-
-
-[tasks."dev:vars"]
-description = "Write .dev.vars with a generated BETTER_AUTH_SECRET if absent"
-hide        = true
-# A dependency of `setup`, never run directly. Hidden so `mise tasks` shows the
-# four dev commands somebody actually chooses between.
-depends     = ["install"]
-run         = "bun scripts/dev.ts"
-
-# ── cf: deploy ───────────────────────────────────────────────────────────────
-
-[tasks."cf:audit"]
-description = "Query the Cloudflare audit log for delete actions (CLOUDFLARE_API_TOKEN from fnox or the environment)"
-hide        = true
-depends     = ["install"]
-# Closes the one open question in the ADR 006 postscript: who removed the
-# original worker, D1 and R2. The wrangler OAuth token cannot answer it —
-# `wrangler login --scopes-list` has no audit scope at all — so this needs a
-# dashboard-created API token.
-#
-# ADR 006 §"Reading the audit log" documents invoking this as
-# `CLOUDFLARE_API_TOKEN=... mise run cf:audit`, and that still works — an
-# explicit value in the environment always wins. fnox is only consulted when
-# there is nothing to override, which turns the documented one-liner into the
-# fallback rather than the requirement.
-#
-# `fnox get` rather than `fnox exec`: exec would inject every secret declared
-# in fnox.toml into this process, and warn on each run about ones unrelated to
-# auditing. This pulls exactly the one it needs.
-run = "bun scripts/audit.ts"
-
-[tasks."time"]
-description = "Time a local endpoint — min/p50/p95/max over N runs (`mise run time /api/health`)"
-hide        = true
-depends     = ["install"]
-# The counterpart to `probe`. That one settles a question about types by writing
-# a file and typechecking it; this settles a question about speed by making the
-# request and timing it.
-#
-# It exists because an hour went into guessing why one endpoint took 0.23s — a
-# cause named without evidence, a correct diagnosis retracted on one bad
-# experiment — and the settling test took two minutes once somebody ran it.
-# Nothing in the repo measured latency, so the first move was assertion.
-#
-#   mise run time /api/games?eventId=evt_002
-#   COOKIE="$(cat .session)" mise run time /api/events 50
-run = "bun scripts/time.ts \"$@\""
-
-[tasks."analytics"]
-description = "Report what the deployed worker has been doing (Analytics Engine; hours as arg, default 24)"
-hide        = true
-depends     = ["install"]
-# Analytics Engine has no dashboard. The data is reachable only over a SQL API,
-# so without this task everything src/analytics.ts writes is a write-only pipe
-# that feels like observability and is not.
-#
-# Same credential path as cf:audit, for the same reason: the wrangler OAuth
-# token has no analytics scope (`wrangler login --scopes-list` lists none), so
-# this needs a dashboard-created API token with Account Analytics: Read.
-run = "bun scripts/analytics.ts"
-
-[tasks."cf:types"]
-description = "Generate TypeScript types from wrangler bindings (worker-configuration.d.ts)"
-hide        = true
-depends     = ["install"]
-run         = "bun x wrangler types"
-
-# ── cf:d1: database ──────────────────────────────────────────────────────────
-
-[tasks."cf:d1:tables"]
-description = "List tables in local D1"
-hide        = true
-depends     = ["install"]
-run         = "bun scripts/db.ts tables-local"
-
-[tasks."cf:d1:tables:remote"]
-description = "List tables in remote D1"
-hide        = true
-depends     = ["install"]
-run         = "bun scripts/db.ts tables-remote"
-
 [tasks.db]
 description = "The database: migrate-local | migrate-remote | seed-remote | tables-local | tables-remote | reset-local (add --env for remote)"
-depends     = ["install"]
 # One entry point over scripts/db.ts, which was already a subcommand
 # dispatcher wearing six task names. A remote write names its environment or
 # refuses; a local or read-only one does not — the rule is declared per
 # operation in that file, not applied globally here.
 run = "bun scripts/db.ts"
 
-[tasks."cf:d1:migrations:create"]
-description = "Create a new D1 migration (set NAME env var)"
-hide        = true
-depends     = ["install"]
-run         = "bun x wrangler d1 migrations create remy-sport-db \"$NAME\""
-
-[tasks."cf:d1:migrations:apply"]
-description = "Apply D1 migrations locally (idempotent)"
-hide        = true
-depends     = ["install"]
-run         = "bun scripts/db.ts migrate-local"
-
-[tasks."cf:d1:migrations:apply:remote"]
-description = "Apply D1 migrations to remote (idempotent)"
-hide        = true
-depends     = ["install"]
-run         = "bun scripts/db.ts migrate-remote"
-
-# Wrangler records which migrations it has applied and never re-runs one. That
-# is right for hand-written migrations and wrong for 0009, which
-# Migrations are drizzle-kit's and reference rows are the seed's, so a model
-# change is a re-seed rather than a replay — but a schema change still needs one.
-# old vocabulary while the generated TypeScript moves on. Dropping the local
-# state and replaying is the only way to pick it up.
-[tasks."cf:d1:reset"]
-description = "Delete the local D1 database and replay every migration from scratch. Use when a migration has changed under a database that already ran it — wrangler will not re-apply one. Local only; never touches remote."
-hide        = true
-depends     = ["install"]
-run = "bun scripts/db.ts reset-local"
-
-# ── cf:r2: storage ───────────────────────────────────────────────────────────
-
-[tasks."web:build"]
-description = "Production build → dist/web/"
-hide        = true
-# fonts:vendor, not just install. It writes src/web/fonts.css, which
-# src/web/styles.css imports on its first line, and `setup` listed both as
-# parallel siblings with no edge between them — so the build could read the file
-# while writeFileSync had truncated it and not yet finished. The window is small
-# because fonts.css is committed and usually rewritten identically; it stops
-# being small the day a font changes.
-#
-# The dist/web race below was found the hard way and guarded. This one was the
-# same shape, one directory earlier, and had no guard at all.
-depends     = ["install", "fonts:vendor"]
-# Declared so the build actually skips when nothing changed, per the AGENTS.md
-# idempotency convention. This matters most for Tauri: tauri.conf.json runs
-# `mise run web:build` itself via beforeDevCommand/beforeBuildCommand, so
-# without these the SPA was rebuilt twice on every `mise run tauri:build`.
-#
-# src/paraglide and src/domain are in this list because the SPA imports both,
-# and leaving them out was a staleness bug with teeth: adding a message,
-# compiling it with `i18n:generate` and running `web:build` reported "sources
-# up-to-date, skipping" and shipped a bundle without the new string. A
-# translation could have passed every check and deployed missing. The rule is
-# that `sources` lists what the build READS, not what lives in its own folder.
-sources     = [
-  "src/web/**/*",
-  "src/paraglide/**/*",
-  "src/domain/**/*",
-  "messages/*.json",
-  "package.json",
-  "bun.lock",
-]
-outputs     = ["dist/web/index.html"]
-# Defers to the dev server's watcher, because both write dist/web and vite
-# empties it first.
-#
-# `mise run dev` runs `vite build --watch` against this same config and output
-# directory. Edit an SPA file with the dev server up and both builders wake:
-# `web:build` because its `sources` changed, the watcher because the file did.
-# Whichever empties the directory second leaves the other's output gone, and the
-# window is wide enough to matter — a whole e2e suite failed with "element not
-# found" on 8 specs, because the shell was being served with no bundle at all.
-# That reads as a product regression and is a build race.
-#
-# The watcher is authoritative when it exists: it is already rebuilding on every
-# save, so the bundle it produces is at least as fresh as this task's. Scoped by
-# working directory for the same reason `dev:stop` is — the config path is
-# relative, so a bare pattern matches any checkout on the machine.
-run = """
-for pid in $(pgrep -f "vite build --config src/web/vite.config.ts --watch" 2>/dev/null); do
-  cwd=$(lsof -a -p "$pid" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -1)
-  case "$cwd" in
-    "{{config_root}}"|"{{config_root}}"/*)
-      # Wait for the in-flight rebuild rather than assuming it finished.
-      for _ in $(seq 1 40); do
-        [ -f dist/web/index.html ] && exit 0
-        sleep 0.25
-      done
-      echo "web:build: the dev watcher holds dist/web and produced no index.html" >&2
-      echo "  it may have failed to build — check .wrangler/dev.log" >&2
-      exit 1
-      ;;
-  esac
-done
-bun x vite build --config src/web/vite.config.ts
-"""
-
-[tasks."web:typecheck"]
-description = "TypeScript type-check src/web/ (no emit)"
-hide        = true
-depends     = ["install"]
-run         = "bun x tsc -p src/web/tsconfig.json --noEmit"
-
-[tasks."tauri:dev"]
-description = "Run the Tauri desktop app against the local Worker"
-hide        = true
-depends     = ["install", "dev:ensure"]
-run         = "bun x tauri dev"
-
-# tauri.conf.json already runs `mise run web:build` via
-# beforeDevCommand/beforeBuildCommand, so web:build is deliberately NOT in
-# depends here — listing it too rebuilt the SPA twice per invocation.
-[tasks."tauri:build"]
-description = "Build the signed-less Tauri desktop bundle (.app + .dmg)"
-hide        = true
-depends     = ["install"]
-run         = "bun x tauri build"
-
-[tasks."tauri:info"]
-description = "Show Tauri environment diagnosis (toolchain, versions, config)"
-hide        = true
-depends     = ["install"]
-run         = "bun x tauri info"
-
-[tasks."tauri:ios:deps"]
-description = "Install CocoaPods into the project GEM_HOME (idempotent)"
-hide        = true
-# RUBY_BIN must be prepended: mise places its own tool paths after /usr/bin, so
-# without this `ruby` is macOS's 2.6 and cocoapods 1.17 will not run on it
-# ("ffi requires Ruby version >= 3.0"). Gems land in .gem/, not in Homebrew.
-run = """
-export PATH="$RUBY_BIN:$PATH"
-if pod --version >/dev/null 2>&1; then
-  echo "tauri:ios:deps: cocoapods $(pod --version) already installed"
-  exit 0
-fi
-echo "tauri:ios:deps: installing cocoapods $COCOAPODS_VERSION into $GEM_HOME"
-gem install cocoapods -v "$COCOAPODS_VERSION" --no-document
-"""
-
-[tasks."tauri:ios:init"]
-description = "Scaffold the iOS Xcode project (idempotent)"
-hide        = true
-depends     = ["install", "tauri:ios:deps"]
-# Skips once the project exists and neither the Tauri config nor the crate
-# manifest has changed, so tauri:ios:dev can depend on it unconditionally.
-sources     = ["src-tauri/tauri.conf.json", "src-tauri/Cargo.toml"]
-# CocoaPods comes from mise, on demand, rather than a global `brew install`.
-# `tauri ios init` shells out to `pod`, so it must be on PATH for the child
-# process — hence wrapping the whole command in `mise exec` rather than
-# provisioning in a separate task. Per-task `tools = {}` would express this
-# directly but is silently ignored on mise 2026.8.9.
-run = """
-export PATH="$RUBY_BIN:$PATH"
-bun x tauri ios init
-"""
-
-# tauri.conf.json already runs `mise run web:build` via
-# beforeDevCommand/beforeBuildCommand, so web:build is deliberately NOT in
-# depends here — listing it too rebuilt the SPA twice per invocation.
-[tasks."tauri:ios:dev"]
-description = "Run the iOS app in the Simulator against the local Worker"
-hide        = true
-depends     = ["install", "dev:ensure", "tauri:ios:init"]
-run = """
-export PATH="$RUBY_BIN:$PATH"
-bun x tauri ios dev
-"""
-
-# ── Tunnel ──────────────────────────────────────────────────────────────────
-# Emulators reach localhost directly and need no tunnel. A tunnel is only
-# required for Apple Universal Links: Apple's CDN fetches
-# /.well-known/apple-app-site-association from the public internet, so it can
-# never see localhost. A *named* tunnel is required — a random trycloudflare
-# hostname is useless because Apple caches the file against the domain.
-
-[tasks."tunnel:login"]
-description = "Authenticate cloudflared with Cloudflare (one-off, opens browser)"
-hide        = true
-run         = "cloudflared tunnel login"
-
-[tasks."tunnel:quick"]
-description = "Expose local Worker on a random trycloudflare URL (real-device testing)"
-hide        = true
-# Fine for loading the app on a phone off your LAN. NOT usable for Universal
-# Links — the hostname changes every run and Apple caches the AASA per domain.
-run         = "cloudflared tunnel --url {{env.DEV_URL}}"
-
-[tasks."tunnel:setup"]
-description = "Create the dev tunnel and its fixed hostname via the Cloudflare API (one-off, idempotent)"
-hide        = true
-depends     = ["install"]
-# Replaces `tunnel:named`, which could not run: it needed `cloudflared tunnel
-# login` — a browser flow writing a cert.pem — and referenced two env vars that
-# were never defined. scripts/tunnel.ts explains why the API path needs
-# no certificate.
-run = "bun scripts/tunnel.ts"

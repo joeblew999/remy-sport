@@ -29,7 +29,9 @@
  * or creates an account.
  */
 
-const BASE = process.env.CF_DEPLOY_URL ?? "https://remy.ubuntusoftware.net"
+import { originOf, resolveTarget } from "./cloudflare"
+
+const BASE = process.env.CF_DEPLOY_URL ?? originOf(resolveTarget(process.argv.slice(2), "ambient"))
 
 /**
  * Which deployment this is — asked, not guessed.
