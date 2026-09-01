@@ -100,7 +100,7 @@ const PIPELINE: Phase[] = [
   {
     name: "auth schema",
     why: "the generated schema must match auth.config before anything ships it",
-    go: () => step("auth schema", ["mise", "run", "auth:schema:check"]),
+    go: () => step("auth schema", ["bun", "scripts/auth-schema.ts"]),
   },
   {
     name: "test",

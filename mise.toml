@@ -92,75 +92,8 @@ BIZ_TOKEN_KEY = "GITHUB_BIZ_REPO_TOKEN"
 
 # ── Core ────────────────────────────────────────────────────────────────────
 
-[tasks."tauri:dev"]
-description = "Run the Tauri desktop app against the local Worker"
-hide        = true
-depends     = ["install", "dev:ensure"]
-run         = "bun x tauri dev"
-
-[tasks."tauri:build"]
-description = "Build the signed-less Tauri desktop bundle (.app + .dmg)"
-hide        = true
-depends     = ["install"]
-run         = "bun x tauri build"
-
-[tasks."tauri:info"]
-description = "Show Tauri environment diagnosis (toolchain, versions, config)"
-hide        = true
-depends     = ["install"]
-run         = "bun x tauri info"
-
-[tasks."tauri:ios:init"]
-description = "Scaffold the iOS Xcode project (idempotent)"
-hide        = true
-depends     = ["install", "tauri:ios:deps"]
-# Skips once the project exists and neither the Tauri config nor the crate
-# manifest has changed, so tauri:ios:dev can depend on it unconditionally.
-sources     = ["src-tauri/tauri.conf.json", "src-tauri/Cargo.toml"]
-# CocoaPods comes from mise, on demand, rather than a global `brew install`.
-# `tauri ios init` shells out to `pod`, so it must be on PATH for the child
-# process — hence wrapping the whole command in `mise exec` rather than
-# provisioning in a separate task. Per-task `tools = {}` would express this
-# directly but is silently ignored on mise 2026.8.9.
-run = """
-export PATH="$RUBY_BIN:$PATH"
-bun x tauri ios init
-"""
-
-[tasks."tauri:ios:deps"]
-description = "Install CocoaPods into the project GEM_HOME (idempotent)"
-hide        = true
-# RUBY_BIN must be prepended: mise places its own tool paths after /usr/bin, so
-# without this `ruby` is macOS's 2.6 and cocoapods 1.17 will not run on it
-# ("ffi requires Ruby version >= 3.0"). Gems land in .gem/, not in Homebrew.
-run = """
-export PATH="$RUBY_BIN:$PATH"
-if pod --version >/dev/null 2>&1; then
-  echo "tauri:ios:deps: cocoapods $(pod --version) already installed"
-  exit 0
-fi
-echo "tauri:ios:deps: installing cocoapods $COCOAPODS_VERSION into $GEM_HOME"
-gem install cocoapods -v "$COCOAPODS_VERSION" --no-document
-"""
-
-[tasks."tauri:ios:dev"]
-description = "Run the iOS app in the Simulator against the local Worker"
-hide        = true
-depends     = ["install", "dev:ensure", "tauri:ios:init"]
-run = """
-export PATH="$RUBY_BIN:$PATH"
-bun x tauri ios dev
-"""
-
-# ── Tunnel ──────────────────────────────────────────────────────────────────
-# Emulators reach localhost directly and need no tunnel. A tunnel is only
-# required for Apple Universal Links: Apple's CDN fetches
-# /.well-known/apple-app-site-association from the public internet, so it can
-# never see localhost. A *named* tunnel is required — a random trycloudflare
-# hostname is useless because Apple caches the file against the domain.
-
 [tasks.dev]
-description = "The dev server: one port, always current, seeded, reachable from a phone"
+description = "The dev server: one port, always current, seeded, reachable from a phone (stop, restart, ensure)"
 # One command, one port, and dist/web is never stale.
 #
 # This used to be three tasks and a footgun. `dev` served the built bundle, so
@@ -182,7 +115,7 @@ description = "The dev server: one port, always current, seeded, reachable from 
 run = "bun scripts/dev.ts"
 
 [tasks.check]
-description = "Type check, dead code, and documented paths — the three things that rot quietly"
+description = "The gate: typecheck, tests, and the checks that rot quietly (--fast, --e2e)"
 # `web:build` is a dependency rather than a line in the script, so mise builds
 # it once for this task and for `test:render`, which needs it too.
 # dev:vars because the worker tests inside check read .dev.vars — "Using secrets
@@ -195,48 +128,10 @@ description = "Type check, dead code, and documented paths — the three things 
 run = "bun scripts/check.ts"
 
 [tasks.ops]
-description = "Operate a deployment: demo | analytics | audit | tunnel | versions | seed | biz | domain"
+description = "Operate a deployment: demo, analytics, audit, tunnel, versions, seed, coverage, keys, deps, icons, tauri, biz, domain"
 # Eight tasks were eight names a person had to know existed, for one concern.
 # scripts/ops.ts dispatches; the scripts behind it keep their own reasons.
 run = "bun scripts/ops.ts"
-
-[tasks."auth:schema:check"]
-description = "Fail if src/db/auth-schema.ts is stale relative to src/auth.config.ts"
-hide        = true
-depends     = ["install"]
-# Guards the drift that broke sign-in: a generated file that someone edited by
-# hand, or a config change nobody regenerated for.
-run = """
-set -e
-TMP=$(mktemp -d)
-bun x auth generate --config src/auth.cli.ts --output "$TMP/auth-schema.ts" -y >/dev/null 2>&1
-if ! diff -q "$TMP/auth-schema.ts" src/db/auth-schema.ts >/dev/null; then
-  echo "auth:schema:check: src/db/auth-schema.ts is stale — run 'mise run auth:schema:generate'" >&2
-  diff "$TMP/auth-schema.ts" src/db/auth-schema.ts || true
-  rm -rf "$TMP"
-  exit 1
-fi
-rm -rf "$TMP"
-echo "auth:schema:check: auth-schema.ts is up to date"
-"""
-
-# ── Companion repo ──────────────────────────────────────────────────────────
-
-[tasks."auth:schema:generate"]
-description = "Regenerate src/db/auth-schema.ts from src/auth.config.ts via the Better Auth CLI"
-hide        = true
-depends     = ["install"]
-# Better Auth owns its own tables — we do not hand-write them. Adding a plugin
-# or an extra user field in auth.config.ts changes the schema, so re-run this
-# and then create a migration (cf:d1:migrations:create) for the delta.
-#
-# The CLI needs a module-level `auth` export, which src/auth.cli.ts provides;
-# the runtime instance takes a Hono Context and cannot be imported here.
-#
-# `auth`, not `@better-auth/cli`: the CLI was renamed at 1.5 and the old package
-# is frozen at 1.4.22, so it cannot read a 1.7 config. The new one ships both an
-# `auth` and a `better-auth` binary; `auth` is what the upstream docs use.
-run         = "bun x auth generate --config src/auth.cli.ts --output src/db/auth-schema.ts -y"
 
 [tasks."biz:sync"]
 description = "Clone or fast-forward the remy-sport-biz checkout at ../remy-sport-biz (local dev only)"
@@ -339,38 +234,8 @@ if grep -qF -- "$TOKEN" "$BIZ_DIR/.git/config"; then
 fi
 """
 
-[tasks."brand:icons"]
-description = "Regenerate every app icon — web, desktop, iOS, Android — from src/web/public/brand.svg"
-hide        = true
-depends     = ["install"]
-# One drawing, two generators, every platform.
-#
-# src/web/brand.svg is the only place the mark exists. Before it, the sidebar
-# drew a basketball in CSS with two pseudo-elements and scaleX/scaleY, which
-# renders at 32px and produces no file — so installing the app on a phone got a
-# screenshot of the page as its icon, and src-tauri/icons held sixteen files
-# nobody could regenerate from anything.
-#
-# Neither generator is hand-rolled and neither is a size list here: the sizes
-# each OS wants change with its releases, and a list in this repo would be a
-# snapshot of what was true when somebody last looked.
-#
-#   @vite-pwa/assets-generator  favicon, maskable, apple-touch, the manifest set
-#   tauri icon                  .icns, .ico, the iOS AppIcon set, Android mipmaps
-#
-# The image and preset come from pwa-assets.config.ts, not flags: `--preset
-# minimal2023` parses and then fails with "not yet implemented".
-#
-# Both read the SVG directly, so there is no intermediate PNG to regenerate and
-# forget. Output is committed — a build must not depend on rasterising an SVG.
-run = """
-set -e
-bun x pwa-assets-generator
-bun x tauri icon src/web/public/brand.svg
-"""
-
 [tasks.deploy]
-description = "Full deploy pipeline"
+description = "Ship it: gate, provision, publish, verify (--env staging|production)"
 # The order lives in scripts/deploy.ts, where it can be read, and where the
 # origin to verify against is derived per environment instead of being the one
 # hostname a TOML template could interpolate.

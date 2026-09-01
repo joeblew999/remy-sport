@@ -73,8 +73,29 @@ const OPS: Record<string, Op> = {
     help: "deps <outdated|update>           npm packages against their releases",
   },
   icons: {
-    cmd: (rest) => ["mise", "run", "brand:icons", ...rest],
+    // Two generators, not one: pwa-assets covers the web manifest, tauri icon
+    // the desktop and mobile bundles, and both read src/web/public/brand.svg.
+    cmd: () => ["sh", "-c", "bun x pwa-assets-generator && bun x tauri icon src/web/public/brand.svg"],
     help: "icons                            regenerate every app icon from brand.svg",
+  },
+  tauri: {
+    /**
+     * The desktop and mobile targets.
+     *
+     * iOS needs cocoapods, which needs the project-local Ruby on PATH —
+     * GEM_HOME and RUBY_BIN come from mise's [env], and mise appends its own
+     * paths AFTER /usr/bin, so the system Ruby 2.6 wins unless RUBY_BIN is
+     * prepended. cocoapods cannot run on 2.6.
+     */
+    cmd: ([what = "dev", ...rest]) => {
+      const ios = what.startsWith("ios")
+      const argv = ios
+        ? ["tauri", "ios", what === "ios" ? "dev" : what.replace("ios-", ""), ...rest]
+        : ["tauri", what, ...rest]
+      const prefix = ios ? `export PATH="$RUBY_BIN:$PATH"; ` : ""
+      return ["sh", "-c", prefix + "bun x " + argv.join(" ")]
+    },
+    help: "tauri <dev|build|info|ios-init|ios-dev>   desktop and mobile targets",
   },
   domain: {
     cmd: (rest) => ["bun", "scripts/domain.ts", ...rest],
