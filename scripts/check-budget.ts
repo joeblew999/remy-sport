@@ -71,6 +71,13 @@ const BUDGETS: Record<string, Budget> = {
      * for no reason teaches you to re-run it. That habit is the thing being
      * protected here, not the seconds.
      *
+     * Re-measured 2026-09-01 after authz-equivalence.test.ts came down from
+     * 11.8s to 7.9s solo: shared is now 34.8 / 36.0 / 36.6, so the ceiling has
+     * grown headroom rather than being tightened. That file was asking the same
+     * (relation, actor, object) question thousands of times over a 20,790-row
+     * cross-product; memoising the reads — not shrinking the matrix, and not
+     * touching the oracle's algorithm — removed most of it.
+     *
      * The tier is 16.6s alone. The 2.5x is contention with test:render, which is
      * the gate deliberately using the machine — not a regression. Whether that
      * contention can be *reduced* is a real question and a separate one: the
@@ -79,7 +86,7 @@ const BUDGETS: Record<string, Budget> = {
      * while the same experiment at 4 came out *worse* than at 6, which is how I
      * know one sample cannot decide it. Not tuned here on that evidence.
      */
-    shared: { ceiling: 55, measured: 42.2 },
+    shared: { ceiling: 55, measured: 36.6 },
     // Re-measured 2026-08-31. The old note said "isolatedStorage pays that
     // eight times", which reads as a sum — vitest runs files in parallel, so
     // the tier costs its slowest file, not the total. It had crept to 24.5s

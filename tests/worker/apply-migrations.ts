@@ -35,6 +35,32 @@ import { SEED_STATEMENTS } from "../../src/db/seed"
  *
  * So the lever is a smaller *biggest* file. Fewer files buys nothing above the
  * ~5s floor, and merging two small ones makes the tier slower to no purpose.
+ *
+ * ## The statements below are not the floor. Measured, 2026-09-01.
+ *
+ * The obvious next optimisation is to stop replaying 115 migration and 725 seed
+ * statements for all twelve files — build the database once and restore a
+ * snapshot per file. **It would save almost nothing**, and the measurement is
+ * recorded here because the idea is a good one that happens to be wrong:
+ *
+ *     setup file empty ............................  10ms
+ *     setup file does ONE `SELECT 1` .............. 4.00s
+ *     setup file does all 840 statements .......... 4.15s
+ *
+ * The cost is not the SQL. It is the **first touch of `env.DB`** — Miniflare
+ * standing up the D1 simulator for this file's isolated storage — and it is paid
+ * by whatever query happens to be first. All 840 statements cost about 150ms on
+ * top of it, so a snapshot-and-restore scheme would remove 3.6% of the setup and
+ * still pay the other 96%, because restoring is itself a query.
+ *
+ * Nor is that 4s the tier's bound. Twelve files pay ~4s of setup each — 73s in
+ * total — while the tier finishes in 13s, because it overlaps almost perfectly.
+ * The tier is bounded by its slowest *file*, and lowering a floor that is paid
+ * in parallel changes nothing until it exceeds that file.
+ *
+ * The only way past it is to stop giving each file its own database, which is
+ * `isolatedStorage: false` — and that trades a real guarantee (specs cannot race
+ * or see each other's writes) for a few seconds. Not worth it.
  */
 const migrations = (env as unknown as { TEST_MIGRATIONS: { queries: string[] }[] }).TEST_MIGRATIONS
 
