@@ -17,9 +17,9 @@
  */
 import { mkdirSync, writeFileSync } from "fs"
 import { join, resolve } from "path"
-import { ALL_LOCALES } from "../src/domain/vocabularies"
+import { ALL_LOCALES } from "../../src/domain/vocabularies"
 
-const ROOT = resolve(import.meta.dir, "..")
+const ROOT = resolve(import.meta.dir, "../..")
 const OUT = join(ROOT, "src/web/fonts")
 
 /**

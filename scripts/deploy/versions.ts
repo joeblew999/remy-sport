@@ -9,7 +9,7 @@
  */
 
 import { execSync } from "child_process"
-import { wrangler, resolveTarget, workerName } from "./cloudflare"
+import { wrangler, resolveTarget, workerName } from "../cloudflare"
 import { readFileSync, writeFileSync } from "fs"
 import https from "https"
 
@@ -38,7 +38,7 @@ const fullSha = run("git rev-parse HEAD")
 
 const current = {
   _generated: new Date().toISOString(),
-  app: require("../package.json").version,
+  app: require("../../package.json").version,
   url: DEPLOYED_URL,
   git: {
     commit: shortSha,

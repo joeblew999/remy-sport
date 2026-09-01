@@ -105,7 +105,7 @@ export function halfPairMessage(d: { have: string; missing: string }, where: str
 /**
  * One VAPID keypair, as the three variables that configure push.
  *
- * Exported so `scripts/dev-vars.ts` can seed `.dev.vars` with a pair on a fresh
+ * Exported so `scripts/dev/dev-vars.ts` can seed `.dev.vars` with a pair on a fresh
  * checkout without a second copy of the encoding. There was no second copy, and
  * that was the bug: dev-vars generated BETTER_AUTH_SECRET, MAIL_TRANSPORT and
  * TEST_OTP and nothing else, so push was configured exactly once by hand and

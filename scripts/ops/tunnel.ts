@@ -21,7 +21,7 @@
  * Run once. Re-running is safe and changes nothing that already matches.
  */
 
-import { accountApi, apiResult, zoneApi } from "./cloudflare"
+import { accountApi, apiResult, zoneApi } from "../cloudflare"
 
 const env = (name: string): string => {
   const v = process.env[name]

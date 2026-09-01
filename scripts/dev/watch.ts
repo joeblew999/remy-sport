@@ -1,5 +1,5 @@
 /**
- * Run `mise run verify` whenever a source file changes.
+ * Run `check --fast` whenever a source file changes.
  *
  * The point is the 1.75s, not the watching. A check you have to ask for gets
  * run at the end of a change; a check that has already run is a check you read.
@@ -45,7 +45,7 @@ function verify(): void {
   const started = Date.now()
   // Inherited stdio: the point is to read the errors, and a wrapper that
   // captured and re-printed them would only add a layer to be wrong about.
-  const child = spawn("mise", ["run", "verify"], { stdio: "inherit" })
+  const child = spawn("bun", ["scripts/check.ts", "--fast"], { stdio: "inherit" })
   child.on("exit", (code) => {
     const secs = ((Date.now() - started) / 1000).toFixed(1)
     console.log(

@@ -15,8 +15,8 @@
 
 import { randomBytes } from "crypto"
 import { existsSync, readFileSync, writeFileSync } from "fs"
-import { DEFAULT_SUBJECT, decideFromNames, generateVapid, halfPairMessage } from "./vapid"
-import { DEMO_SIGN_IN_CODE } from "../src/environment"
+import { DEFAULT_SUBJECT, decideFromNames, generateVapid, halfPairMessage } from "../ops/vapid"
+import { DEMO_SIGN_IN_CODE } from "../../src/environment"
 
 const DEV_VARS = ".dev.vars"
 

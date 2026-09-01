@@ -29,7 +29,7 @@
  * or creates an account.
  */
 
-import { originOf, resolveTarget } from "./cloudflare"
+import { originOf, resolveTarget } from "../cloudflare"
 
 const BASE = process.env.CF_DEPLOY_URL ?? originOf(resolveTarget(process.argv.slice(2), "ambient"))
 
@@ -137,7 +137,7 @@ const vapidRemedy = () =>
     ? `${HOST} runs from .dev.vars — run \`mise run dev:vars\` and restart wrangler dev`
     : `\`mise run push:secret:set\` has not run for ${SURFACE}`
 
-const { SEED_ENTITIES } = await import("../src/domain/model/entities")
+const { SEED_ENTITIES } = await import("../../src/domain/model/entities")
 
 let failed = 0
 const skipped: string[] = []

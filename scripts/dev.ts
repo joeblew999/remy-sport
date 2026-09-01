@@ -5,6 +5,7 @@
  *   mise run dev -- stop    stop it and everything it started
  *   mise run dev -- restart both, in order
  *   mise run dev -- ensure  start only if it is not already up
+ *   mise run dev -- watch   re-run the fast gate on every save
  *
  * It was fifty-three lines of shell in mise.toml plus twelve more for stopping,
  * and `scripts/dev.ts` was something else entirely — the .dev.vars generator —
@@ -57,7 +58,7 @@ function tunnelToken(): string | null {
   }
   const stored = read()
   if (stored) return stored
-  const made = Bun.spawnSync(["bun", "scripts/tunnel.ts"], { stdout: "ignore", stderr: "ignore" })
+  const made = Bun.spawnSync(["bun", "scripts/ops/tunnel.ts"], { stdout: "ignore", stderr: "ignore" })
   return made.exitCode === 0 ? read() : null
 }
 
@@ -218,11 +219,15 @@ if (action === "stop") {
   // Wait for the port to actually free before rebinding it.
   for (let i = 0; i < 20 && (await reachable()); i++) await Bun.sleep(250)
   await start()
+} else if (action === "watch") {
+  // The fast gate on every save. The point is the seconds, not the watching: a
+  // check you have to ask for gets run at the end of a change.
+  Bun.spawnSync(["bun", "scripts/dev/watch.ts"], { stdout: "inherit", stderr: "inherit" })
 } else if (action === "ensure") {
   await ensure()
 } else if (action === "start") {
   await start()
 } else {
-  console.error(`dev: unknown action "${action}" — start | stop | restart | ensure`)
+  console.error(`dev: unknown action "${action}" — start | stop | restart | ensure | watch`)
   process.exit(1)
 }

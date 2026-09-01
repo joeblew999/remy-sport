@@ -29,7 +29,7 @@
 
 import { readdirSync, readFileSync, statSync } from "fs"
 import { join, resolve } from "path"
-import { router } from "../src/api/index"
+import { router } from "../../src/api/index"
 
 const WEB = resolve(import.meta.dir, "../src/web")
 

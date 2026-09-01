@@ -31,24 +31,24 @@ const OPS: Record<string, Op> = {
   demo: {
     cmd: ([action = "status", ...rest]) =>
       action === "status"
-        ? ["bun", "scripts/demo-status.ts", ...rest]
-        : ["bun", "scripts/demo.ts", action, ...rest],
+        ? ["bun", "scripts/ops/demo-status.ts", ...rest]
+        : ["bun", "scripts/ops/demo.ts", action, ...rest],
     help: "demo <on|off|status> [--env X]   seeded sign-in on a deployment",
   },
   analytics: {
-    cmd: (rest) => ["bun", "scripts/analytics.ts", ...rest],
+    cmd: (rest) => ["bun", "scripts/ops/analytics.ts", ...rest],
     help: "analytics [hours]                what the deployed worker has been doing",
   },
   audit: {
-    cmd: (rest) => ["bun", "scripts/audit.ts", ...rest],
+    cmd: (rest) => ["bun", "scripts/ops/audit.ts", ...rest],
     help: "audit                            the account's delete actions",
   },
   tunnel: {
-    cmd: (rest) => ["bun", "scripts/tunnel.ts", ...rest],
+    cmd: (rest) => ["bun", "scripts/ops/tunnel.ts", ...rest],
     help: "tunnel                           create the dev tunnel and its hostname",
   },
   versions: {
-    cmd: (rest) => ["bun", "scripts/versions.ts", ...rest],
+    cmd: (rest) => ["bun", "scripts/deploy/versions.ts", ...rest],
     help: "versions                         stamp versions.json",
   },
   seed: {
@@ -60,11 +60,11 @@ const OPS: Record<string, Op> = {
     help: "biz                              fast-forward the PO's checkout",
   },
   coverage: {
-    cmd: ([what = "gui", ...rest]) => ["bun", `scripts/${what}-coverage.ts`, ...rest],
+    cmd: ([what = "gui", ...rest]) => ["bun", `scripts/ops/${what}-coverage.ts`, ...rest],
     help: "coverage <gui|data|model>        how much of each surface is exercised",
   },
   keys: {
-    cmd: (rest) => ["bun", "scripts/vapid.ts", ...rest],
+    cmd: (rest) => ["bun", "scripts/ops/vapid.ts", ...rest],
     help: "keys                             generate a VAPID keypair for Web Push",
   },
   deps: {
@@ -97,8 +97,16 @@ const OPS: Record<string, Op> = {
     },
     help: "tauri <dev|build|info|ios-init|ios-dev>   desktop and mobile targets",
   },
+  tiers: {
+    cmd: (rest) => ["bun", "scripts/ops/test-tiers.ts", ...rest],
+    help: "tiers                            how many tests sit in each tier",
+  },
+  time: {
+    cmd: (rest) => ["bun", "scripts/ops/time.ts", ...rest],
+    help: "time <path>                      how long an endpoint takes, measured",
+  },
   domain: {
-    cmd: (rest) => ["bun", "scripts/domain.ts", ...rest],
+    cmd: (rest) => ["bun", "scripts/ops/domain.ts", ...rest],
     help: "domain [--check]                 copy the PO's model in",
   },
 }

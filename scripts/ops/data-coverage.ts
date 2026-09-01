@@ -14,10 +14,10 @@
  * them. The point is that the gaps are chosen rather than discovered.
  */
 
-import * as vocab from "../src/domain/vocabularies"
-import { PILOT_SCOPE } from "../src/domain/vocabularies"
-import { SEED_ENTITIES, SEED_RELATIONSHIPS } from "../src/domain/model/entities"
-import * as schema from "../src/db/schema"
+import * as vocab from "../../src/domain/vocabularies"
+import { PILOT_SCOPE } from "../../src/domain/vocabularies"
+import { SEED_ENTITIES, SEED_RELATIONSHIPS } from "../../src/domain/model/entities"
+import * as schema from "../../src/db/schema"
 
 const rows = { ...SEED_ENTITIES, ...SEED_RELATIONSHIPS } as Record<
   string,

@@ -25,8 +25,8 @@
  * it would suggest the setting had been changed when it had not.
  */
 
-import { DEMO_SIGN_IN_CODE, POLICY } from "../src/environment"
-import { Refused, resolveTarget, wrangler } from "./cloudflare"
+import { DEMO_SIGN_IN_CODE, POLICY } from "../../src/environment"
+import { Refused, resolveTarget, wrangler } from "../cloudflare"
 
 const action = process.argv[2] as "on" | "off"
 const argv = process.argv.slice(3)
@@ -89,7 +89,7 @@ try {
   let said = ""
   let observed = false
   for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
-    const status = Bun.spawnSync(["bun", "scripts/demo-status.ts"], {
+    const status = Bun.spawnSync(["bun", "scripts/ops/demo-status.ts"], {
       stdout: "pipe",
       stderr: "pipe",
       env: { ...process.env },

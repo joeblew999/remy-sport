@@ -10,7 +10,7 @@
 import { readdirSync, readFileSync } from "fs"
 import { join, resolve } from "path"
 
-const ROOT = resolve(import.meta.dir, "..")
+const ROOT = resolve(import.meta.dir, "../..")
 const read = (p: string) => readFileSync(join(ROOT, p), "utf-8")
 const files = (dir: string, m: RegExp) => {
   try {

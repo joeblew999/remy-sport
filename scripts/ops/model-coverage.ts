@@ -54,10 +54,10 @@
 
 import { readdirSync, readFileSync } from "node:fs"
 import { join, resolve } from "node:path"
-import { ACTION, GRANTS } from "../src/domain/vocabularies"
-import { policyOf, type Policy } from "../src/api/base"
-import { RECEIVE_ACTION } from "../src/api/push"
-import { router } from "../src/api/index"
+import { ACTION, GRANTS } from "../../src/domain/vocabularies"
+import { policyOf, type Policy } from "../../src/api/base"
+import { RECEIVE_ACTION } from "../../src/api/push"
+import { router } from "../../src/api/index"
 
 type Node = Record<string, unknown>
 

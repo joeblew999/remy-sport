@@ -35,16 +35,16 @@ import { writeFileSync } from "fs"
 import { resolve } from "path"
 import { getTableColumns, getTableName } from "drizzle-orm"
 import type { SQLiteTable } from "drizzle-orm/sqlite-core"
-import { FIXTURE_TABLES } from "../src/db/fixtures-schema"
-import { VOCABULARY_TABLES } from "../src/db/vocabularies-schema"
-import { VOCABULARY } from "../src/domain/vocabularies"
-import * as schema from "../src/db/schema"
-import { SEED_ENTITIES, SEED_RELATIONSHIPS } from "../src/domain/model/entities"
-import { clean, pivot } from "../src/domain/names"
-import { STORED_ROLE } from "../src/domain/vocabularies"
-import type { Names } from "../src/domain/names"
+import { FIXTURE_TABLES } from "../../src/db/fixtures-schema"
+import { VOCABULARY_TABLES } from "../../src/db/vocabularies-schema"
+import { VOCABULARY } from "../../src/domain/vocabularies"
+import * as schema from "../../src/db/schema"
+import { SEED_ENTITIES, SEED_RELATIONSHIPS } from "../../src/domain/model/entities"
+import { clean, pivot } from "../../src/domain/names"
+import { STORED_ROLE } from "../../src/domain/vocabularies"
+import type { Names } from "../../src/domain/names"
 
-const ROOT = resolve(import.meta.dir, "..")
+const ROOT = resolve(import.meta.dir, "../..")
 
 /** SQLite string literal. */
 const q = (v: string | null | undefined) =>
@@ -77,7 +77,7 @@ const lines: string[] = [
   "--",
   "-- The Product Owner's model, as data rather than as an HTTP call. Applied by",
   "-- the worker tests directly and by POST /api/seed at runtime, so both get the",
-  "-- same database. See scripts/seed.ts for why that distinction matters.",
+  "-- same database. See scripts/build/seed.ts for why that distinction matters.",
   "",
   "-- The whole file is one transaction, so foreign keys are checked once at the",
   "-- end rather than statement by statement. Vocabularies reference each other —",

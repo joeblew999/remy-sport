@@ -66,7 +66,7 @@ export function prepare(): void {
   // fonts before the bundle: it writes src/web/fonts.css, which styles.css
   // imports on its first line. They were parallel siblings with no edge, so the
   // build could read the file while writeFileSync had truncated it.
-  sh(["bun", "scripts/fonts.ts"])
+  sh(["bun", "scripts/build/fonts.ts"])
   webBuild()
   sh(["bun", "x", "wrangler", "types"])
 }
@@ -74,10 +74,10 @@ export function prepare(): void {
 /** prepare, plus the four things only a local run needs. */
 export function local(): void {
   prepare()
-  sh(["bun", "scripts/dev-vars.ts"])
+  sh(["bun", "scripts/dev/dev-vars.ts"])
   sh(["bun", "scripts/db.ts", "migrate-local"])
   sh(["bun", "x", "playwright", "install", "webkit"])
-  sh(["bun", "scripts/seed.ts"])
+  sh(["bun", "scripts/build/seed.ts"])
 }
 
 if (import.meta.main) {

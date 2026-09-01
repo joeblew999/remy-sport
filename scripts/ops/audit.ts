@@ -18,7 +18,7 @@
  *   SINCE / BEFORE       — optional ISO dates bounding the search
  */
 
-import { accountApi, token } from "./cloudflare"
+import { accountApi, token } from "../cloudflare"
 
 // Sourced through the module, so this consults fnox itself rather than relying
 // on its mise task to have exported one first — which is what the shell block

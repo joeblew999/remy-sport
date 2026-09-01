@@ -32,10 +32,10 @@
  * tests the thing rather than a proxy for it.
  */
 
-import { originOf, resolveTarget } from "./cloudflare"
+import { originOf, resolveTarget } from "../cloudflare"
 
-import { DEMO_SIGN_IN_CODE } from "../src/environment"
-import { SEED_ENTITIES } from "../src/domain/model/entities"
+import { DEMO_SIGN_IN_CODE } from "../../src/environment"
+import { SEED_ENTITIES } from "../../src/domain/model/entities"
 
 const BASE = process.env.CF_DEPLOY_URL ?? originOf(resolveTarget(process.argv.slice(2), "ambient"))
 
