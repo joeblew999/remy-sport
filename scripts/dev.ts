@@ -117,8 +117,23 @@ async function reachable(): Promise<boolean> {
     .catch(() => false)
 }
 
+/**
+ * What starting the server does, in order.
+ *
+ *   1. local()      deps, fonts, bundle, types, .dev.vars, migrations, browsers,
+ *                   fixtures — `bun scripts/prepare.ts --order` prints that list
+ *   2. tunnel       before the server, because the Worker reads TUNNEL_HOSTNAME
+ *                   from .dev.vars at boot and will not pick it up later
+ *   3. watcher      vite rebuilds dist/web on save
+ *   4. server       wrangler serves the Worker and that bundle
+ *   5. wait         poll /api/health until it answers
+ *   6. seed         POST /api/seed, which needs the server from step 4
+ *   7. print        the three URLs, once there is something behind them
+ *
+ * Steps 2-4 are started, not awaited: they are long-lived. Everything after
+ * depends on 4 being up, which is what step 5 is for.
+ */
 async function start(): Promise<void> {
-  // Everything a local run needs, owned here rather than by a `setup` task.
   local()
   const ip = lanAddress()
   const children: { kill: () => void }[] = []

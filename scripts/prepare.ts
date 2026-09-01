@@ -68,23 +68,56 @@ function webBuild(): void {
   sh(["bun", "x", "vite", "build", "--config", "src/web/vite.config.ts", "--logLevel", "warn"], false)
 }
 
-export function prepare(): void {
-  install()
-  // fonts before the bundle: it writes src/web/fonts.css, which styles.css
-  // imports on its first line. They were parallel siblings with no edge, so the
-  // build could read the file while writeFileSync had truncated it.
-  sh(["bun", "scripts/build/fonts.ts"])
-  webBuild()
-  sh(["bun", "x", "wrangler", "types"])
+/**
+ * The order, as a list, with each step saying why it is where it is.
+ *
+ * Every command runs one of these two before its own work, so this is the first
+ * thing that happens in the repo and the last place an implicit ordering should
+ * hide.
+ */
+interface Step {
+  name: string
+  why: string
+  go: () => void
 }
 
-/** prepare, plus the four things only a local run needs. */
+const BUILD: Step[] = [
+  { name: "install", why: "everything below is a node_modules binary", go: install },
+  {
+    name: "fonts",
+    why: "writes src/web/fonts.css, which styles.css imports on its first line — so it precedes the bundle that reads it",
+    go: () => sh(["bun", "scripts/build/fonts.ts"]),
+  },
+  { name: "bundle", why: "dist/web is gitignored and the [assets] binding points at it, so a fresh clone has none", go: webBuild },
+  { name: "types", why: "worker-configuration.d.ts is generated from the bindings, and the typecheck reads it", go: () => sh(["bun", "x", "wrangler", "types"]) },
+]
+
+const LOCAL: Step[] = [
+  { name: "vars", why: ".dev.vars before anything runs the Worker, including the tests", go: () => sh(["bun", "scripts/dev/dev-vars.ts"]) },
+  { name: "migrate", why: "the local database gets its schema before anything seeds it", go: () => sh(["bun", "scripts/db.ts", "migrate-local"]) },
+  { name: "browsers", why: "webkit for the render tier; a no-op once installed", go: () => sh(["bun", "x", "playwright", "install", "webkit"]) },
+  { name: "fixtures", why: "seed.sql regenerated from the model, after the schema it targets exists", go: () => sh(["bun", "scripts/build/seed.ts"]) },
+]
+
+/** What any command needs to BUILD. check and deploy stop here. */
+export function prepare(): void {
+  for (const step of BUILD) step.go()
+}
+
+/** prepare, plus what only a local run needs. dev and the e2e tier need this. */
 export function local(): void {
   prepare()
-  sh(["bun", "scripts/dev/dev-vars.ts"])
-  sh(["bun", "scripts/db.ts", "migrate-local"])
-  sh(["bun", "x", "playwright", "install", "webkit"])
-  sh(["bun", "scripts/build/seed.ts"])
+  for (const step of LOCAL) step.go()
+}
+
+/** `bun scripts/prepare.ts --order` prints what runs, in order, and why. */
+if (import.meta.main && process.argv.includes("--order")) {
+  for (const [label, steps] of [["prepare", BUILD], ["local (adds)", LOCAL]] as const) {
+    console.log(`\n${label}`)
+    for (const s of steps) console.log(`  ${s.name.padEnd(10)} ${s.why}`)
+  }
+  console.log("")
+  process.exit(0)
 }
 
 if (import.meta.main) {

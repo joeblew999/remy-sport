@@ -74,6 +74,27 @@ mise run ops biz                        fast-forward the PO's checkout
 mise run ops domain --check             the model, against the PO's copy
 ```
 
+## What runs when
+
+Every command declares its own order, and each step says why it sits where it
+does. To read it rather than guess:
+
+```
+bun scripts/prepare.ts --order   what every command does before its own work
+scripts/check.ts    PHASES       the gate, in three phases
+scripts/deploy.ts   PIPELINE     the nine steps of a deploy, each with its reason
+scripts/dev.ts      start()      the seven steps of bringing the server up
+```
+
+The three constraints that bind the deploy, each of which has cost one:
+
+```
+gate before account      nothing touches Cloudflare until check and test pass
+migrate before publish   a Worker ahead of its migration fails every sign-in
+secrets before publish   a later secret put makes another version, and the edge
+                         answers from the one before it for a few seconds
+```
+
 ## Environments
 
 | Environment | URL | Worker | Database |

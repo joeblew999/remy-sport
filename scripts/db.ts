@@ -72,7 +72,36 @@ if (op === "generate" || op === "studio") {
   const tool = Bun.spawnSync(["bun", "x", "drizzle-kit", op, ...argv], { stdout: "inherit", stderr: "inherit" })
   process.exit(tool.exitCode ?? 1)
 }
-if (!op || op === "--help") {
+/**
+ * No argument means "tell me where the database stands", not "here is a list".
+ *
+ * A command whose default is help is a command you cannot use without already
+ * knowing it. This one has a safe, useful thing to say: what tables exist
+ * locally, and whether any migration is unapplied.
+ */
+if (!op) {
+  const quiet = { stdout: "pipe", stderr: "ignore" } as const
+  const migrations = Bun.spawnSync(
+    ["bun", "x", "wrangler", "d1", "migrations", "list", "remy-sport-db", "--local"],
+    quiet,
+  ).stdout.toString()
+  const pending = (migrations.match(/\.sql/g) ?? []).length
+  const tables = Bun.spawnSync(
+    ["bun", "x", "wrangler", "d1", "execute", "remy-sport-db", "--local", "--json", "--command",
+     "SELECT name FROM sqlite_master WHERE type='table'"],
+    quiet,
+  ).stdout.toString()
+  const count = (tables.match(/"name":/g) ?? []).length
+
+  console.log(
+    `\ndb: local database — ${count} tables, ` +
+      (pending ? `${pending} migration(s) NOT applied` : "every migration applied") +
+      `\n\n  mise run db -- --help   what else this does\n`,
+  )
+  process.exit(pending ? 1 : 0)
+}
+
+if (op === "--help") {
   console.log(`
 mise run db -- <operation>
 
