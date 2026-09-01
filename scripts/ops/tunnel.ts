@@ -21,6 +21,8 @@
  * Run once. Re-running is safe and changes nothing that already matches.
  */
 
+import { DEV_ORIGIN } from "../../src/environment"
+
 import { accountApi, apiResult, zoneApi } from "../cloudflare"
 
 const env = (name: string): string => {
@@ -46,7 +48,7 @@ const zone_ = async <T>(path: string, init?: RequestInit): Promise<T> =>
 const name = env("TUNNEL_NAME")
 const hostname = env("TUNNEL_HOSTNAME")
 const zoneName = env("TUNNEL_ZONE")
-const service = env("DEV_URL")
+const service = process.env.DEV_URL ?? DEV_ORIGIN
 
 // ── The tunnel ───────────────────────────────────────────────────────────────
 

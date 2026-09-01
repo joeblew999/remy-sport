@@ -30,6 +30,8 @@
  * costs; the spread between it and p95 is whether that number can be trusted.
  */
 
+import { DEV_ORIGIN } from "../../src/environment"
+
 const args = process.argv.slice(2)
 
 /**
@@ -52,7 +54,7 @@ if (!target) {
   process.exit(2)
 }
 
-const BASE = process.env.DEV_URL ?? "http://127.0.0.1:8787"
+const BASE = process.env.DEV_URL ?? DEV_ORIGIN
 const path = target
 
 /**

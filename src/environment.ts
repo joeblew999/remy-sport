@@ -182,6 +182,17 @@ export const POLICY: Record<Environment, Policy> = {
  * the login page says so — and it only ever applies to seeded `.test`
  * addresses that no mail can reach. What keeps it safe is scope, not obscurity.
  */
+/**
+ * Where the local dev server serves.
+ *
+ * Decided here because dev is one of the three environments this file governs,
+ * and the port was written in four places — mise's [env], the dev script, the
+ * latency tool's fallback and the tunnel's service target. wrangler.toml cannot
+ * hold it: there is no [env.dev] block, because dev is not a deployment.
+ */
+export const DEV_PORT = 8787
+export const DEV_ORIGIN = `http://localhost:${DEV_PORT}`
+
 export const DEMO_SIGN_IN_CODE = "424242"
 
 /** Just enough of the env to answer. Keeps this importable from anywhere. */

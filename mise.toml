@@ -26,6 +26,21 @@ fnox = "1.34.0"
 ruby = "3.4.9"
 
 [env]
+# What belongs here and what does not.
+#
+# Tool configuration, and facts neither source of truth can hold. Nothing that
+# describes an environment: wrangler.toml decides what each one deploys with
+# (name, account, routes, bindings, vars) and src/environment.ts decides what
+# each one is allowed to do (the policy table, the dev origin). Both are read
+# through scripts/cloudflare.ts.
+#
+# CF_DEPLOY_URL, CF_WORKER_NAME, DEV_URL and CLOUDFLARE_ACCOUNT_ID all used to
+# sit here as literals pinned to production. That is the same shape as the
+# CF_D1_NAME literal provisioning was written to kill: it cannot express three
+# environments, and the failure is never an error — every caller quietly does
+# the right thing to the wrong one. All four are derived now. They still work as
+# overrides when set, which is how CI supplies its own and how smoke gets
+# pointed at localhost.
 # ── Project-scoped Cloudflare state ─────────────────────────────────────────
 # Wrangler defaults to global state under ~/Library/Preferences/.wrangler,
 # shared by every project on the machine. That is what made the loss of the
@@ -38,9 +53,6 @@ ruby = "3.4.9"
 WRANGLER_LOG_PATH  = "{{config_root}}/.wrangler/logs"
 WRANGLER_CACHE_DIR = "{{config_root}}/.wrangler/cache"
 
-# Pin the account so no command can act against a different one, whatever the
-# ambient credential happens to be authorised for.
-CLOUDFLARE_ACCOUNT_ID = "7384af54e33b8a54ff240371ea368440"
 
 # Playwright otherwise caches browsers globally, and at a different path per OS
 # (~/.cache on Linux, ~/Library/Caches on macOS) — which is why the install task
@@ -78,7 +90,6 @@ TUNNEL_ZONE     = "ubuntusoftware.net"
 # that IS in wrangler.toml — the worker name, each environment's hostname — is
 # read from there through scripts/cloudflare.ts rather than duplicated here.
 CF_SUBDOMAIN    = "gedw99"
-DEV_URL         = "http://localhost:8787"
 GITHUB_REPO_URL = "https://github.com/joeblew999/remy-sport"
 
 # The Product Owner's repo, cloned as a sibling by biz:sync. The path is not a
@@ -132,107 +143,6 @@ description = "Operate a deployment: demo, analytics, audit, tunnel, versions, s
 # Eight tasks were eight names a person had to know existed, for one concern.
 # scripts/ops.ts dispatches; the scripts behind it keep their own reasons.
 run = "bun scripts/ops.ts"
-
-[tasks."biz:sync"]
-description = "Clone or fast-forward the remy-sport-biz checkout at ../remy-sport-biz (local dev only)"
-hide        = true
-# remy-sport-biz is the Product Owner's source of truth, and it is private, so
-# an unauthenticated clone cannot work — hence the PAT. It is a fine-grained
-# token scoped to that one repo with Contents: Read-only, registered once by
-# hand (see README, "Companion repo"); this task only reads it.
-#
-# Nothing in the build depends on this. src/domain/vocabularies.ts is generated
-# from the biz fixtures but committed, so CI and deploy never clone anything —
-# only regenerating it needs the checkout. That is why this is not wired into
-# `setup` and why failing here is not a build failure.
-#
-# On token handling: the URL written to .git/config is the clean, token-free
-# one, and credentials are supplied per-invocation through GIT_ASKPASS. The
-# helper script holds no secret of its own — it echoes an environment variable
-# that exists only in this task's process tree, and the temp dir is removed on
-# exit. `-c credential.helper=` disables any inherited helper (osxkeychain is
-# configured on this machine) so nothing gets persisted behind our back, and
-# the grep afterwards asserts the invariant instead of trusting it.
-run = """
-set -e
-
-BIZ_DIR="{{env.BIZ_DIR}}"
-BIZ_URL="{{env.BIZ_REPO_URL}}"
-
-if ! TOKEN=$(fnox get {{env.BIZ_TOKEN_KEY}} 2>/dev/null) || [ -z "$TOKEN" ]; then
-  cat >&2 <<'EOF'
-biz:sync: fnox secret {{env.BIZ_TOKEN_KEY}} is not set.
-
-  remy-sport-biz is private, so this needs a GitHub fine-grained PAT scoped to
-  joeblew999/remy-sport-biz with Contents: Read-only.
-
-  Create one:  https://github.com/settings/personal-access-tokens/new
-  Store it:    mise exec -- fnox set --global -p keychain {{env.BIZ_TOKEN_KEY}}
-               (prompts with hidden input — the value never reaches argv or
-                shell history)
-
-  Not having it only blocks `domain:sync` against a newer model.
-  src/domain/vocabularies.ts is committed, so builds do not need this repo.
-EOF
-  exit 1
-fi
-
-ASKPASS_DIR=$(mktemp -d)
-trap 'rm -rf "$ASKPASS_DIR"' EXIT
-cat >"$ASKPASS_DIR/git-askpass" <<'EOF'
-#!/bin/sh
-# No secret lives in this file — it echoes what the parent put in the env.
-case "$1" in
-  Username*) printf '%s' x-access-token ;;
-  *)         printf '%s' "$BIZ_PAT" ;;
-esac
-EOF
-chmod +x "$ASKPASS_DIR/git-askpass"
-
-export GIT_ASKPASS="$ASKPASS_DIR/git-askpass"
-export BIZ_PAT="$TOKEN"
-export GIT_TERMINAL_PROMPT=0
-
-# A fine-grained PAT with a short expiry is the expected setup, so "it stopped
-# working" is a routine outcome rather than an odd one. Git's own message for
-# that case says only "Invalid username or token", which does not point anywhere.
-auth_failed() {
-  cat >&2 <<'EOF'
-
-biz:sync: git could not authenticate.
-
-  The PAT in fnox is most likely expired — these are deliberately short-lived —
-  or it is missing Contents: Read-only on joeblew999/remy-sport-biz.
-
-  Mint a replacement and overwrite the stored one:
-
-    mise exec -- fnox set --global -p keychain {{env.BIZ_TOKEN_KEY}}
-EOF
-  exit 1
-}
-
-if [ -d "$BIZ_DIR/.git" ]; then
-  # Resets the URL first, so a checkout somebody cloned with an embedded token
-  # is repaired rather than carried forward.
-  git -C "$BIZ_DIR" remote set-url origin "$BIZ_URL"
-  git -c credential.helper= -C "$BIZ_DIR" fetch --quiet origin || auth_failed
-  BEHIND=$(git -C "$BIZ_DIR" rev-list --count HEAD..origin/main)
-  if [ "$BEHIND" = "0" ]; then
-    echo "biz:sync: already up to date at $(git -C "$BIZ_DIR" rev-parse --short HEAD)"
-  else
-    git -C "$BIZ_DIR" merge --ff-only origin/main
-    echo "biz:sync: fast-forwarded $BEHIND commit(s) to $(git -C "$BIZ_DIR" rev-parse --short HEAD)"
-  fi
-else
-  git -c credential.helper= clone --quiet "$BIZ_URL" "$BIZ_DIR" || auth_failed
-  echo "biz:sync: cloned into $BIZ_DIR"
-fi
-
-if grep -qF -- "$TOKEN" "$BIZ_DIR/.git/config"; then
-  echo "biz:sync: the token reached $BIZ_DIR/.git/config — refusing to leave it there" >&2
-  exit 1
-fi
-"""
 
 [tasks.deploy]
 description = "Ship it: gate, provision, publish, verify (--env staging|production)"

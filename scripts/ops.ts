@@ -56,7 +56,7 @@ const OPS: Record<string, Op> = {
     help: "seed --env X                     seed a remote database",
   },
   biz: {
-    cmd: (rest) => ["mise", "run", "biz:sync", ...rest],
+    cmd: (rest) => ["bun", "scripts/ops/biz.ts", ...rest],
     help: "biz                              fast-forward the PO's checkout",
   },
   coverage: {

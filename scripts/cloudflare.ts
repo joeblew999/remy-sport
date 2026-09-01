@@ -387,12 +387,15 @@ export function fnoxGet(name: string, bin = "fnox"): string | null {
  * accident, because it cannot reach one without going through here.
  */
 export function accountId(): string {
-  const id = process.env.CLOUDFLARE_ACCOUNT_ID
+  // wrangler.toml first: it is the file that decides every other per-environment
+  // fact, and an account pinned in two places is a pin that can disagree with
+  // itself. The environment variable stays as an override for CI.
+  const id = process.env.CLOUDFLARE_ACCOUNT_ID || (resolvedConfig().account_id as string | undefined)
   if (!id) {
     fail(
       "CLOUDFLARE_ACCOUNT_ID is not set.\n" +
-        "  It is pinned in mise.toml's [env] so no command can act against a different\n" +
-        "  account than the one this repo deploys to. Run through `mise run`, or set it.",
+        "  It is pinned by `account_id` in wrangler.toml so no command can act against\n" +
+        "  a different account than the one this repo deploys to.",
     )
   }
   return id

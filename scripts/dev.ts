@@ -24,12 +24,13 @@
  * is a race with a whole e2e suite behind it.
  */
 
+import { DEV_ORIGIN, DEV_PORT } from "../src/environment"
 import { local } from "./prepare"
 
 import { existsSync, appendFileSync, readFileSync, mkdirSync, openSync } from "fs"
 
-const PORT = 8787
-const LOCAL = `http://127.0.0.1:${PORT}`
+const PORT = DEV_PORT
+const LOCAL = DEV_ORIGIN
 const HOSTNAME = process.env.TUNNEL_HOSTNAME ?? ""
 
 /** The LAN address, so a phone on the same wifi can reach this. */

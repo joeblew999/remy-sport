@@ -1,4 +1,10 @@
 name = "remy-sport"
+# The account, here rather than only in mise's [env], because this is the file
+# that decides what every environment deploys with. scripts/cloudflare.ts reads
+# it from the resolved config and forces it into every wrangler child and every
+# API URL, so no caller can reach a different account by accident.
+# CLOUDFLARE_ACCOUNT_ID still overrides, for CI that supplies its own.
+account_id = "7384af54e33b8a54ff240371ea368440"
 main = "src/index.ts"
 compatibility_date = "2025-09-01"
 

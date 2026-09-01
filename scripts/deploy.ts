@@ -95,7 +95,7 @@ const PIPELINE: Phase[] = [
   {
     name: "check",
     why: "the gate — nothing reaches the account until it is green",
-    go: () => step("check", ["mise", "run", "check"]),
+    go: () => step("check", ["bun", "scripts/check.ts"]),
   },
   {
     name: "auth schema",
