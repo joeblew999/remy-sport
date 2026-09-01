@@ -306,14 +306,22 @@ export async function gate(phases: Step[][]): Promise<string[]> {
  */
 const FAST = new Set(["typecheck-worker", "typecheck-spa", "typecheck-tests", "unit"])
 
-if (import.meta.main && process.argv.includes("--order")) {
-  console.log("\nmise run 2-check\n")
+if (import.meta.main && process.argv.includes("--help")) {
+  console.log(`
+mise run 2-check [-- --fast | --e2e]
+
+  (no argument)  the whole gate, about 30s
+  --fast         typecheck and unit tests only, about 6s
+  --e2e          the end-to-end tier, which needs a dev server
+
+What it runs:
+`)
   PHASES.forEach((phase, i) => {
     console.log(`  phase ${i}${phase.length > 1 ? "  (these run in parallel)" : ""}`)
     for (const s of phase) console.log(`    ${s.name}`)
   })
   console.log("\n  A phase finishes before the next starts. Within one, there is no order.")
-  console.log("  bun scripts/lib/prepare.ts --order  — what runs before all of this\n")
+  console.log("  bun scripts/lib/prepare.ts --help  — what runs before all of this\n")
   process.exit(0)
 }
 

@@ -152,8 +152,16 @@ async function waitForOrigin(origin: string): Promise<void> {
  * Everything after the publish verifies it. A deploy that cannot be checked
  * afterwards is not one worth performing.
  */
-if (process.argv.includes("--order")) {
-  console.log("\nmise run 3-deploy -- --env X\n")
+if (process.argv.includes("--help")) {
+  console.log(`
+mise run 3-deploy -- --env staging | production
+
+  A remote write names its environment or refuses; there is deliberately no
+  default. Everything before the publish is the gate, everything after verifies
+  it.
+
+What it runs:
+`)
   PIPELINE.forEach((p, i) => console.log(`  ${String(i + 1).padStart(2)}. ${p.name.padEnd(12)} ${p.why}`))
   console.log("")
   process.exit(0)

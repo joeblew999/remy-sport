@@ -125,12 +125,12 @@ async function reachable(): Promise<boolean> {
  * named steps below; what is left reads top to bottom as what happens.
  */
 /**
- * The sequence, as data, so `mise run 1-dev -- --order` prints exactly what runs.
+ * The sequence, as data, so `mise run 1-dev -- --help` prints exactly what runs.
  * Each line says why it is where it is; nearly all of them are "the next step
  * needs what this one produced".
  */
 const START: Array<{ name: string; why: string }> = [
-  { name: "prepare", why: "deps, bundle, schema, fixtures — `bun scripts/lib/prepare.ts --order`" },
+  { name: "prepare", why: "deps, bundle, schema, fixtures — `bun scripts/lib/prepare.ts --help`" },
   { name: "tunnel", why: "before the server: the Worker reads TUNNEL_HOSTNAME from .dev.vars at boot" },
   { name: "watcher", why: "vite rebuilds dist/web on every save" },
   { name: "server", why: "wrangler serves the Worker and that bundle on :8787" },
@@ -265,8 +265,18 @@ async function ensure(): Promise<void> {
 
 const [action = "start"] = process.argv.slice(2)
 
-if (process.argv.includes("--order")) {
-  console.log("\nmise run 1-dev\n")
+if (process.argv.includes("--help")) {
+  console.log(`
+mise run 1-dev [-- stop | restart | ensure | watch]
+
+  (no argument)  start the server and stay attached — Ctrl-C stops everything
+  stop           stop it and every process it started
+  restart        both, in order
+  ensure         start it only if it is not already up
+  watch          re-run the fast gate on every save
+
+What starting it does, in order:
+`)
   START.forEach((s, i) => console.log(`  ${i + 1}. ${s.name.padEnd(9)} ${s.why}`))
   console.log("")
   process.exit(0)

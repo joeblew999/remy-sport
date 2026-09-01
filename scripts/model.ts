@@ -14,7 +14,7 @@
  * reference vocabulary that no longer exists.
  *
  *   mise run model              run the chain
- *   mise run model -- --order   print it without doing any of it
+ *   mise run model -- --help    print it without doing any of it
  *
  * This is the LOCAL half. It ends with a migration applied to .wrangler/state
  * and a deployment still on the old shape — `deploy` carries it out, and it
@@ -66,8 +66,8 @@ const CHAIN: Step[] = [
   },
 ]
 
-if (process.argv.includes("--order")) {
-  console.log("\nmise run model — when the Product Owner changes the model\n")
+if (process.argv.includes("--help")) {
+  console.log("\nmise run model — when the Product Owner changes the model\n\nWhat it runs:\n")
   const pad = Math.max(...CHAIN.map((s) => s.name.length))
   CHAIN.forEach((s, i) => console.log(`  ${i + 1}. ${s.name.padEnd(pad)}  ${s.why}`))
   console.log("")

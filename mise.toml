@@ -104,7 +104,7 @@ BIZ_TOKEN_KEY = "GITHUB_BIZ_REPO_TOKEN"
 # ── Core ────────────────────────────────────────────────────────────────────
 
 [tasks.1-dev]
-description = "build it here — stop | restart | ensure | watch | --order"
+description = "build it here — stop | restart | ensure | watch | --help"
 # One command, one port, and dist/web is never stale.
 #
 # This used to be three tasks and a footgun. `dev` served the built bundle, so
@@ -126,7 +126,7 @@ description = "build it here — stop | restart | ensure | watch | --order"
 run = "bun scripts/dev.ts"
 
 [tasks.2-check]
-description = "prove it — --fast | --e2e | --order"
+description = "prove it — --fast | --e2e | --help"
 # `web:build` is a dependency rather than a line in the script, so mise builds
 # it once for this task and for `test:render`, which needs it too.
 # dev:vars because the worker tests inside check read .dev.vars — "Using secrets
@@ -139,7 +139,7 @@ description = "prove it — --fast | --e2e | --order"
 run = "bun scripts/check.ts"
 
 [tasks.model]
-description = "when the PO changes the model — pull it in, migrate here, then 3-deploy"
+description = "when the PO changes the model — pull it in, migrate here, then 3-deploy (--help)"
 # The chain was real and unwritten: biz, domain, generate, migrate, seed, verify.
 # Four of those lived under two other commands and the fifth happened inside
 # prepare, so the order was something you knew or guessed.
@@ -152,7 +152,7 @@ description = "occasional · operate a deployment — no args to list them"
 run = "bun scripts/ops.ts"
 
 [tasks.3-deploy]
-description = "ship it — --env staging|production | --order"
+description = "ship it — --env staging|production | --help"
 # The order lives in scripts/deploy.ts, where it can be read, and where the
 # origin to verify against is derived per environment instead of being the one
 # hostname a TOML template could interpolate.

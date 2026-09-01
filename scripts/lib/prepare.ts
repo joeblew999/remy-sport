@@ -110,8 +110,8 @@ export function local(): void {
   for (const step of LOCAL) step.go()
 }
 
-/** `bun scripts/lib/prepare.ts --order` prints what runs, in order, and why. */
-if (import.meta.main && process.argv.includes("--order")) {
+/** `bun scripts/lib/prepare.ts --help` prints what runs, in order, and why. */
+if (import.meta.main && process.argv.includes("--help")) {
   for (const [label, steps] of [["prepare", BUILD], ["local (adds)", LOCAL]] as const) {
     console.log(`\n${label}`)
     const pad = Math.max(...steps.map((x) => x.name.length))

@@ -34,10 +34,10 @@ publishes so the schema lands before the code that needs it.
 Any command's order, without running it:
 
 ```
-mise run model -- --order
-mise run 3-deploy -- --order
-mise run 2-check -- --order
-mise run 1-dev -- --order
+mise run model -- --help
+mise run 3-deploy -- --help
+mise run 2-check -- --help
+mise run 1-dev -- --help
 ```
 
 ## The other two commands
@@ -80,7 +80,7 @@ Each command declares its own order, with every step saying why it sits where it
 does. Read it rather than guess:
 
 ```
-bun scripts/lib/prepare.ts --order   what every command does first
+bun scripts/lib/prepare.ts --help   what every command does first
 scripts/check.ts    PHASES
 scripts/deploy.ts   PIPELINE
 scripts/dev.ts      start()
@@ -118,10 +118,10 @@ the moment a step moves. Ask the command instead — each prints the list it
 actually runs, so it cannot drift from the truth:
 
 ```
-mise run 1-dev -- --order       7 steps
-mise run 2-check -- --order     3 phases, and what is parallel within each
-mise run 3-deploy -- --order    9 steps, each with the reason it sits there
-bun scripts/lib/prepare.ts --order
+mise run 1-dev -- --help       7 steps
+mise run 2-check -- --help     3 phases, and what is parallel within each
+mise run 3-deploy -- --help    9 steps, each with the reason it sits there
+bun scripts/lib/prepare.ts --help
 ```
 
 `AGENTS.md` holds the things that have already cost a bug.
