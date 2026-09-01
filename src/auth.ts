@@ -5,7 +5,8 @@ import { drizzle } from "drizzle-orm/d1"
 import { eq } from "drizzle-orm"
 import type { Bindings } from "./types"
 import { buildAuthOptions } from "./auth.config"
-import { mailerFor, usesOutbox } from "./mail/mailer"
+import { mailerFor } from "./mail/mailer"
+import { permits } from "./environment"
 import { LOCALES, type ReleasedLocale } from "./domain/vocabularies"
 import { FALLBACK } from "./domain/names"
 /**
@@ -317,7 +318,9 @@ export function createAuth(c: AuthHost) {
       ...(c.env.TEST_OTP
         ? {
             generateOTP: ({ email }: { email: string }) =>
-              SEEDED_EMAILS.has(email) && !(ADMIN_EMAILS.has(email) && !usesOutbox(c.env))
+              SEEDED_EMAILS.has(email) &&
+                permits(c.env, "seededSignIn") &&
+                (!ADMIN_EMAILS.has(email) || permits(c.env, "offersAdminSignIn"))
                 ? c.env.TEST_OTP!
                 : String(crypto.getRandomValues(new Uint32Array(1))[0]! % 1_000_000).padStart(6, "0"),
           }

@@ -161,6 +161,10 @@ BETTER_AUTH_URL = "https://remy.ubuntusoftware.net"
 # .dev.vars (written by `mise run dev:vars`), which takes precedence over
 # [vars] — so nothing here can cause a test run to attempt delivery.
 MAIL_TRANSPORT  = "cloudflare"
+# Which capability table applies — see src/environment.ts. Absent or
+# unrecognised resolves to production, so this line is a courtesy rather than
+# load-bearing: the strict answer is the default.
+ENVIRONMENT     = "production"
 EMAIL_FROM      = "noreply@remy.ubuntusoftware.net"
 
 # TEST_OTP is deliberately NOT here.

@@ -1,4 +1,5 @@
 import type { Bindings } from "../types"
+import { permits } from "../environment"
 
 /**
  * Outbound email, with a transport that can be swapped for tests.
@@ -176,14 +177,16 @@ function outboxMailer(env: Bindings): Mailer {
 }
 
 /**
- * `outbox` unless explicitly told otherwise.
+ * Is mail captured rather than sent?
  *
- * Defaulting the other way would mean a missing var turns a test run into an
- * attempt at real delivery. The var is set to "cloudflare" in wrangler.toml's
- * [vars], so production opts in by configuration rather than by omission.
+ * This is all it means now. It used to stand in for eight unrelated things —
+ * whether four dev routes existed, whether telemetry was real, whether the demo
+ * picker offered the admin — which held only while there were two environments.
+ * Staging needs real mail *and* the seed route, and a boolean about the mail
+ * transport cannot say that. See src/environment.ts.
  */
 export function usesOutbox(env: Bindings): boolean {
-  return (env.MAIL_TRANSPORT ?? "outbox") !== "cloudflare"
+  return permits(env, "capturesMail")
 }
 
 export function mailerFor(env: Bindings): Mailer {

@@ -39,7 +39,7 @@ export function recorder(): { written: Point[]; env: TrackEnv } {
   return {
     written,
     env: {
-      MAIL_TRANSPORT: "cloudflare",
+      ENVIRONMENT: "production",
       ANALYTICS: {
         // `event?` — optional, because the binding's signature says so.
         writeDataPoint: (event?: Point) => {
@@ -58,7 +58,7 @@ export function recorder(): { written: Point[]; env: TrackEnv } {
  */
 export function failingRecorder(): TrackEnv {
   return {
-    MAIL_TRANSPORT: "cloudflare",
+    ENVIRONMENT: "production",
     ANALYTICS: {
       writeDataPoint: () => {
         throw new Error("dataset unavailable")
@@ -74,7 +74,8 @@ export function failingRecorder(): TrackEnv {
  * and every worker test run without the binding, and a missing dataset has to
  * degrade to "no telemetry" rather than to a failed request.
  */
-export const devEnv: TrackEnv = {}
+/** A dev server: a local ring to read, and no dataset to write to. */
+export const devEnv: TrackEnv = { ENVIRONMENT: "dev" }
 
 /** A deployment with no dataset bound — the case that used to throw. */
-export const unboundEnv: TrackEnv = { MAIL_TRANSPORT: "cloudflare" }
+export const unboundEnv: TrackEnv = { ENVIRONMENT: "production" }

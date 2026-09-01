@@ -1,7 +1,7 @@
 import { Hono } from "hono"
 import { SEED_STATEMENTS } from "../db/seed"
 import type { AppEnv } from "../types"
-import { usesOutbox } from "../mail/mailer"
+import { permits } from "../environment"
 
 /**
  * Seed the database with the Product Owner's model.
@@ -44,7 +44,7 @@ import { usesOutbox } from "../mail/mailer"
 const seed = new Hono<AppEnv>()
 
 seed.post("/api/seed", async (c) => {
-  if (!usesOutbox(c.env)) return c.notFound()
+  if (!permits(c.env, "seedRoute")) return c.notFound()
 
   // One batch: D1 wraps it in a transaction, so a foreign key that is not yet
   // satisfied mid-file does not leave the database half-seeded.

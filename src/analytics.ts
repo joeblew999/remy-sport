@@ -31,7 +31,7 @@
  */
 
 import type { Bindings } from "./types"
-import { usesOutbox } from "./mail/mailer"
+import { permits } from "./environment"
 
 /**
  * One event's shape.
@@ -307,7 +307,15 @@ export function trackDynamic(
  * exists. Reusing it means there is one rule to get right rather than two that
  * can disagree about which worker they are running on.
  */
-export type TrackEnv = Pick<Bindings, "ANALYTICS" | "MAIL_TRANSPORT">
+/**
+ * What telemetry needs to know about its environment.
+ *
+ * `ENVIRONMENT`, not `MAIL_TRANSPORT`. The mail transport was never a statement
+ * about where telemetry goes — it stood in for one while there were two
+ * environments, and the type carried the conflation as faithfully as the code
+ * did.
+ */
+export type TrackEnv = Pick<Bindings, "ANALYTICS" | "ENVIRONMENT">
 
 /**
  * Whether this worker keeps its telemetry where a person can read it.
@@ -320,7 +328,7 @@ export type TrackEnv = Pick<Bindings, "ANALYTICS" | "MAIL_TRANSPORT">
  * looked like it worked because the reports fell back to the deployment.
  */
 export function keepsEventsLocally(env: TrackEnv): boolean {
-  return usesOutbox(env as Bindings)
+  return permits(env as Bindings, "hasLocalEventStore")
 }
 
 function write(

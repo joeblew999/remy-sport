@@ -4,6 +4,7 @@ import { like } from "drizzle-orm"
 import * as schema from "../db/schema"
 import type { AppEnv } from "../types"
 import { readOutbox, clearOutbox, usesOutbox } from "../mail/mailer"
+import { permits } from "../environment"
 import { SEED_ENTITIES, SEED_RELATIONSHIPS } from "../../src/domain/model/entities"
 import { RELATION, STORED_ROLE } from "../domain/vocabularies"
 import { isRefusedStatus } from "../auth.config"
@@ -28,12 +29,12 @@ import { isRefusedStatus } from "../auth.config"
 const devMail = new Hono<AppEnv>()
 
 devMail.get("/api/dev/outbox", (c) => {
-  if (!usesOutbox(c.env)) return c.notFound()
+  if (!permits(c.env, "devMailRoutes")) return c.notFound()
   return c.json({ messages: readOutbox(c.req.query("to")) })
 })
 
 devMail.delete("/api/dev/outbox", (c) => {
-  if (!usesOutbox(c.env)) return c.notFound()
+  if (!permits(c.env, "devMailRoutes")) return c.notFound()
   clearOutbox()
   return c.json({ cleared: true })
 })
@@ -149,7 +150,7 @@ function summarise(held: string[]): string[] {
  * about half the time and named the identity element rather than the code.
  */
 devMail.delete("/api/dev/otp", async (c) => {
-  if (!usesOutbox(c.env)) return c.notFound()
+  if (!permits(c.env, "devMailRoutes")) return c.notFound()
   const to = c.req.query("to")
   if (!to) return c.json({ error: "to is required" }, 400)
   // Better Auth prefixes the purpose: `sign-in-otp-<email>`, and there are other
@@ -165,11 +166,22 @@ devMail.delete("/api/dev/otp", async (c) => {
 })
 
 devMail.get("/api/dev/accounts", (c) => {
-  const outbox = usesOutbox(c.env)
+  /**
+   * Three questions that used to be one.
+   *
+   * `usesOutbox` answered all of them, which held only while dev and production
+   * were the whole world. Staging wants the picker (it is most of what staging
+   * is for), must not offer the admin (it is a deployment, and the admin can
+   * impersonate), and sends real mail (so there is no outbox to read a code
+   * from, and the code must be published instead).
+   */
+  const offered = permits(c.env, "seededSignIn")
+  const withAdmin = permits(c.env, "offersAdminSignIn")
+  const captured = usesOutbox(c.env)
   const demo = Boolean(c.env.TEST_OTP)
-  // Locally the outbox makes this useful. On a deployment it is useful only if
-  // the codes are fixed, because there is no inbox to read `.test` mail from.
-  if (!outbox && !demo) return c.json({ error: "Not found" }, 404)
+  // Useful only where the codes can actually be read: captured in an outbox, or
+  // fixed and published. `.test` addresses have no inbox either way.
+  if (!offered || (!captured && !demo)) return c.json({ error: "Not found" }, 404)
 
   /**
    * On a deployment the admin is not offered, and could not sign in this way
@@ -196,7 +208,7 @@ devMail.get("/api/dev/accounts", (c) => {
    * account the fixtures have precisely so that case is exercised.
    */
   const signable = SEED_ENTITIES.users.filter((u) => !isRefusedStatus(u.statusCode))
-  const people = outbox ? signable : signable.filter((u) => u.roleCode !== "ADMIN")
+  const people = withAdmin ? signable : signable.filter((u) => u.roleCode !== "ADMIN")
 
   return c.json({
     /**
@@ -207,7 +219,7 @@ devMail.get("/api/dev/accounts", (c) => {
      * button that hides where the code came from. Absent locally, where the
      * outbox carries a real generated code instead.
      */
-    ...(demo && !outbox ? { code: c.env.TEST_OTP } : {}),
+    ...(demo && !captured ? { code: c.env.TEST_OTP } : {}),
     accounts: people.map((u) => ({
       role: STORED_ROLE[u.roleCode],
       email: u.email,

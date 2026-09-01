@@ -41,6 +41,11 @@ export default defineConfig({
         // says. `outbox` captures messages in the isolate instead of sending.
         bindings: {
           MAIL_TRANSPORT: "outbox",
+          // The worker tier is a dev environment: it reads the outbox, asserts
+          // on the seed route and the demo picker, and needs every sample. The
+          // fallback is production, so leaving this out would silently strip
+          // the routes half these tests are about.
+          ENVIRONMENT: "dev",
           TEST_OTP: "424242",
           TEST_MIGRATIONS: migrations,
           // A throwaway VAPID pair, so push is *on* in tests and the code that

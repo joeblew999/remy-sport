@@ -33,8 +33,9 @@
  * a `FORBIDDEN` is the system working and a `TypeError` is not.
  */
 
-import { keepsEventsLocally, track } from "../analytics"
+import { track } from "../analytics"
 import type { Bindings } from "../types"
+import { permits } from "../environment"
 
 /**
  * What oRPC hands an interceptor, as much of it as this needs.
@@ -101,7 +102,10 @@ export function routeShape(pathname: string): string {
  * number that describes nothing.
  */
 function sampleRate(env: Bindings | Record<string, never>): number {
-  return keepsEventsLocally(env as Bindings) ? 1 : 10
+  // Declared per environment rather than inferred from where telemetry lands.
+  // Staging is sampled at 1 because its traffic is you — the two used to be the
+  // same answer only because there were two environments.
+  return permits(env as Bindings, "sampleRate")
 }
 
 export function telemetryInterceptor(options: InterceptorOptions): Promise<unknown> {

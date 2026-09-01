@@ -27,6 +27,15 @@ const DEFAULTS: Record<string, () => string> = {
   // the Playwright suite capture mail into the mail_outbox table instead of
   // handing it to Cloudflare — see src/mail/mailer.ts.
   MAIL_TRANSPORT: () => "outbox",
+  /**
+   * Which capability table applies — see src/environment.ts.
+   *
+   * Needed on a fresh checkout because the fallback is *production*: without
+   * it, a dev server would send real mail, drop its dev routes and sample
+   * telemetry. That is the right way round for a deployment and wrong for a
+   * laptop, which is exactly why it is written here rather than defaulted.
+   */
+  ENVIRONMENT: () => "dev",
   // Fixed sign-in code for the addresses the fixtures seed.
   //
   // It does NOT make parallel sign-in safe, whatever this comment used to say.

@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/d1"
 import { sql } from "drizzle-orm"
 import type { AppEnv } from "../types"
 import * as schema from "../db/schema"
-import { usesOutbox } from "../mail/mailer"
+import { permits } from "../environment"
 
 /**
  * Prune accumulated sessions. Local development and tests only (ADR 014).
@@ -24,7 +24,7 @@ import { usesOutbox } from "../mail/mailer"
 const devSessions = new Hono<AppEnv>()
 
 devSessions.post("/api/dev/prune-sessions", async (c) => {
-  if (!usesOutbox(c.env)) return c.notFound()
+  if (!permits(c.env, "devSessionRoutes")) return c.notFound()
 
   const db = drizzle(c.env.DB, { schema })
   const before = await db.select({ n: sql<number>`count(*)` }).from(schema.session).get()

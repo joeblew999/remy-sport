@@ -5,6 +5,14 @@ export type Bindings = {
   BETTER_AUTH_SECRET: string
   BETTER_AUTH_URL: string
   /**
+   * Which environment this is — "dev" | "staging" | "production".
+   *
+   * Optional in the type and *not* optional in effect: anything absent or
+   * unrecognised resolves to production, the strictest answer. See
+   * src/environment.ts for the capability table it selects.
+   */
+  ENVIRONMENT?: string
+  /**
    * The dev tunnel's hostname, local only — written into `.dev.vars` by
    * `mise run dev` and absent everywhere else.
    *
