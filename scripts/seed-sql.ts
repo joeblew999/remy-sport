@@ -365,3 +365,26 @@ console.log(
     `${SEED_ENTITIES.events.length} events, ${fixtureRows} rows across ` +
     `${Object.keys(FIXTURE_TABLES).length} fixture tables`,
 )
+
+/**
+ * `--check`: regenerate, then fail if git sees a difference.
+ *
+ * Same shape as auth:schema:check and check:domain — the artifact compared
+ * against its source of truth. It was six lines of shell in mise.toml and then
+ * briefly a file of its own; it belongs here, beside the generator whose output
+ * it is checking.
+ *
+ * This asks whether seed.sql MATCHES the model. Whether it can be applied to an
+ * empty database is a different question — a correctly-generated file in an
+ * unusable order passes this one, which is exactly what happened on 2026-09-01.
+ * That is check-seed-order.ts.
+ */
+if (process.argv.includes("--check")) {
+  const { spawnSync } = await import("child_process")
+  if (spawnSync("git", ["diff", "--quiet", "--", "src/db/seed.sql"]).status !== 0) {
+    console.error("check-seed: seed.sql is stale — run 'mise run seed:sql' and commit the result:")
+    spawnSync("git", ["--no-pager", "diff", "--stat", "--", "src/db/seed.sql"], { stdio: "inherit" })
+    process.exit(1)
+  }
+  console.log("check-seed: seed.sql matches the model")
+}
