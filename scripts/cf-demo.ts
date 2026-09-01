@@ -67,22 +67,39 @@ try {
   /**
    * The check, and it is the point of the file.
    *
-   * A deploy takes a moment to propagate, so this is what `cf:wait` is for
-   * elsewhere; here the secret takes effect without a new version, so one read
-   * is enough. `demo-status.ts` exits non-zero when the admin is offered, which
-   * is a separate failure it already guards.
+   * Polled, not read once. The old comment here said the secret "takes effect
+   * without a new version, so one read is enough" — that is wrong.
+   * `wrangler secret put` publishes a new version and the edge serves the old
+   * one for a few seconds, so an immediate read reports the state from before
+   * the write. On 2026-09-01 that made `demo:on` report failure on a success,
+   * which is half of why a fixed sign-in code sat on production unnoticed.
+   *
+   * Same problem `cf:wait` solves for a deploy, and the same answer: ask until
+   * the deployment agrees, with a bound so a real failure still fails.
+   *
+   * `demo-status.ts` exits non-zero when the admin is offered, which is a
+   * separate failure it already guards.
    */
   console.log(`\ncf-demo: asking the deployment whether that actually worked…\n`)
-  const status = Bun.spawnSync(["bun", "scripts/demo-status.ts"], {
-    stdout: "pipe",
-    stderr: "pipe",
-    env: { ...process.env },
-  })
-  const said = status.stdout.toString() + status.stderr.toString()
+
+  const want = action === "on"
+  const code = process.env.DEMO_CODE ?? DEMO_SIGN_IN_CODE
+  let said = ""
+  for (let attempt = 1; attempt <= 12; attempt++) {
+    const status = Bun.spawnSync(["bun", "scripts/demo-status.ts"], {
+      stdout: "pipe",
+      stderr: "pipe",
+      env: { ...process.env },
+    })
+    said = status.stdout.toString() + status.stderr.toString()
+    const on = /demo: ON/.test(said) && new RegExp(`code ${code}`).test(said)
+    if (on === want) break
+    if (attempt < 12) Bun.sleepSync(2500)
+  }
   console.log(said.trimEnd())
 
   const isOn = /demo: ON/.test(said)
-  const servingCode = new RegExp(`code ${process.env.DEMO_CODE ?? DEMO_SIGN_IN_CODE}`).test(said)
+  const servingCode = new RegExp(`code ${code}`).test(said)
 
   if (action === "on" && !(isOn && servingCode)) {
     throw new Refused(
