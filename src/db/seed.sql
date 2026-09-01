@@ -2,7 +2,7 @@
 --
 -- The Product Owner's model, as data rather than as an HTTP call. Applied by
 -- the worker tests directly and by POST /api/seed at runtime, so both get the
--- same database. See scripts/seed-sql.ts for why that distinction matters.
+-- same database. See scripts/seed.ts for why that distinction matters.
 
 -- The whole file is one transaction, so foreign keys are checked once at the
 -- end rather than statement by statement. Vocabularies reference each other —
@@ -817,7 +817,7 @@ INSERT OR IGNORE INTO userNotificationPreference (user_id, notification_type_cod
 INSERT OR IGNORE INTO userNotificationPreference (user_id, notification_type_code, channel_code, is_enabled) VALUES ('usr_org_002', 'APPROVAL_GRANTED', 'LINE', 1);
 INSERT OR IGNORE INTO userNotificationPreference (user_id, notification_type_code, channel_code, is_enabled) VALUES ('usr_org_002', 'INVITATION', 'EMAIL', 1);
 
--- eventDivisions (derived from eventTeams — see the note in seed-sql.ts)
+-- eventDivisions (derived from eventTeams — see the note in seed.ts)
 INSERT OR IGNORE INTO eventDivision (event_id, division_id) VALUES ('evt_001', 'div_001');
 INSERT OR IGNORE INTO eventDivision (event_id, division_id) VALUES ('evt_001', 'div_002');
 INSERT OR IGNORE INTO eventDivision (event_id, division_id) VALUES ('evt_002', 'div_001');

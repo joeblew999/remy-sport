@@ -73,11 +73,11 @@ export const PHASES: Step[][] = [
     { name: "deps", cmd: bun("x", "depcruise", "src", "--config", ".dependency-cruiser.cjs") },
     { name: "i18n", cmd: bun("x", "eslint", "src/web") },
     { name: "i18n:validate", cmd: bun("x", "inlang", "validate", "--project", "./project.inlang") },
-    { name: "docs", cmd: script("docs-check.ts") },
+    { name: "docs", cmd: script("check-docs.ts") },
     { name: "authz", cmd: script("check-authz.ts") },
     { name: "conventions", cmd: script("check-conventions.ts") },
     { name: "seed:order", cmd: script("check-seed-order.ts") },
-    { name: "domain", cmd: script("domain-sync.ts", "--check") },
+    { name: "domain", cmd: script("domain.ts", "--check") },
     { name: "tables", cmd: script("check-tables.ts") },
     { name: "assets", cmd: script("check-assets.ts") },
     { name: "messages", cmd: script("check-messages.ts") },
@@ -85,7 +85,7 @@ export const PHASES: Step[][] = [
     { name: "gui", cmd: script("gui-coverage.ts") },
     { name: "bundle", cmd: script("check-bundle.ts") },
     { name: "envs", cmd: script("check-envs.ts") },
-    { name: "seed", cmd: script("seed-sql.ts", "--check") },
+    { name: "seed", cmd: script("seed.ts", "--check") },
   ],
 ]
 

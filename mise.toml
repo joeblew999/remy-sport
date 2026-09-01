@@ -309,19 +309,37 @@ bun update
 mise run check
 """
 
-[tasks.setup]
-description = "Install deps, build the SPA, write .dev.vars, apply local D1 migrations, and install Playwright"
+[tasks.prepare]
+description = "Everything needed to BUILD: deps, fonts, the SPA bundle, worker types"
 hide        = true
-# These five are genuinely independent, so running them in parallel is correct
-# here — unlike the deploy pipeline, which needs explicit ordering (ADR 006 §8).
+# The half of the old `setup` that is not about running locally.
 #
-# web:build belongs here, not just in cf:deploy. dist/web is gitignored and the
-# [assets] binding points at it, so on a fresh clone `wrangler dev` refuses to
-# start at all: "The directory specified by the assets.directory field in your
-# configuration file does not exist". Everything local runs through setup —
-# dev, dev:seed, dev:ensure, test — so building here fixes all of them at once.
-# web:build declares sources/outputs, so it is a no-op once dist/web is current.
-depends     = ["install", "web:build", "dev:vars", "cf:d1:migrations:apply", "playwright:install", "fonts:vendor", "seed:sql"]
+# `deploy` used to depend on the whole of setup, so shipping to production wrote
+# .dev.vars, applied migrations to the LOCAL database, installed Playwright
+# browsers, and regenerated src/db/seed.sql. That last one was not merely
+# untidy: deploy then runs `check`, whose seed step fails if git sees a
+# difference — so the pipeline rewrote a file and then failed itself for the
+# file having changed. A command racing its own earlier step.
+#
+# web:build belongs here rather than only in the deploy. dist/web is gitignored
+# and the [assets] binding points at it, so on a fresh clone `wrangler dev`
+# refuses to start at all: "The directory specified by the assets.directory
+# field in your configuration file does not exist". It declares sources/outputs,
+# so it is a no-op once dist/web is current, and it depends on fonts:vendor
+# because it imports the CSS that task writes.
+depends     = ["install", "fonts:vendor", "web:build", "cf:types"]
+
+[tasks.setup]
+description = "Everything needed to RUN LOCALLY: prepare, plus .dev.vars, local migrations, Playwright, fixtures"
+hide        = true
+# prepare, plus the four things only a local run needs. `dev` and `test` depend
+# on this; `check`, `verify` and `deploy` depend on `prepare` instead, so none of
+# them touches local state any more.
+#
+# These are genuinely independent of each other, so running them in parallel is
+# correct here — unlike the deploy pipeline, whose ordering is explicit in
+# scripts/deploy.ts because each constraint there has cost a deploy.
+depends     = ["prepare", "dev:vars", "cf:d1:migrations:apply", "playwright:install", "seed:sql"]
 
 [tasks."playwright:install"]
 description = "Install the Playwright browser (idempotent)"
@@ -430,6 +448,7 @@ wait $SERVER
 """
 
 [tasks.verify]
+depends     = ["prepare"]
 description = "The fast loop: typecheck and unit tests, in parallel, in about six seconds"
 # The rung that was missing. There was the 28s gate or the tiers by hand, and
 # nothing in between — so the inner loop was either expensive or improvised, and
@@ -460,7 +479,11 @@ run = "bun scripts/watch.ts"
 description = "Type check, dead code, and documented paths — the three things that rot quietly"
 # `web:build` is a dependency rather than a line in the script, so mise builds
 # it once for this task and for `test:render`, which needs it too.
-depends     = ["cf:types", "web:build"]
+# dev:vars because the worker tests inside check read .dev.vars — "Using secrets
+# defined in .dev.vars". That dependency was real and undeclared: check worked
+# only because setup had happened to run at some point, which is the same shape
+# as the fonts race. deploy gets it transitively, by running check.
+depends     = ["prepare", "dev:vars"]
 # No `sources`/`outputs`: dead-code and docs drift depend on files this task
 # does not read as inputs (a deleted importer, an edited .md), so caching this
 # would skip exactly the run that would have caught the drift.
@@ -813,7 +836,7 @@ description = "Full deploy pipeline"
 # it honours the graph, not list order — and chaining them would couple them, so
 # `mise run seed:remote` would trigger a full deploy as a side effect. Ordering
 # is a property of this pipeline, not of the tasks it calls.
-depends     = ["setup"]
+depends     = ["prepare"]
 run = "bun scripts/deploy.ts"
 
 # ── Remote / test variants ───────────────────────────────────────────────────
