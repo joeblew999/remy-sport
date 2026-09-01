@@ -30,6 +30,14 @@ export type Bindings = {
   // Sender address; must belong to a domain onboarded to Email Service.
   EMAIL_FROM?: string
   /**
+   * Bulk sender, deliberately a different domain from EMAIL_FROM.
+   *
+   * Sign-in is email OTP, so a spam-reputation hit on notifications would take
+   * authentication with it — and nobody could sign in to turn the notifications
+   * off. Reputation attaches per domain, so the split is a subdomain.
+   */
+  NOTIFY_EMAIL_FROM?: string
+  /**
    * Fixed sign-in code for the addresses the fixtures seed, so the
    * Playwright suite can authenticate against a deployed Worker where no dev
    * outbox exists (ADR 012). A secret, never a [vars] entry. Unset it before

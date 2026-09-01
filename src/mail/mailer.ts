@@ -29,6 +29,30 @@ export interface Mail {
   subject: string
   text: string
   html?: string
+  /**
+   * Which sending identity this is, and it is not decoration.
+   *
+   * Sign-in is email OTP, so authentication *is* email. Bulk notification mail
+   * sharing one From address with it means a spam complaint about scores takes
+   * sign-in down with it — nobody can log in to turn the notifications off,
+   * which is the worst possible order for those two things to fail in.
+   *
+   * DKIM and reputation attach at the domain level, so the split is a
+   * subdomain rather than a different local part: `noreply@remy.…` for
+   * transactional, `notifications@notify.remy.…` for bulk. See
+   * docs/dev/email-deliverability.md for what that needs in DNS.
+   *
+   * Transactional is the default because it is the one that must never be
+   * skipped: a new caller that forgets to say gets the *safer* identity, and
+   * the mistake is a notification sent from the sign-in domain rather than a
+   * sign-in code sent from a bulk one.
+   */
+  kind?: "transactional" | "bulk"
+  /**
+   * Headers this message must carry. Bulk mail carries List-Unsubscribe;
+   * transactional mail must not — see src/api/unsubscribe.ts.
+   */
+  headers?: Record<string, string>
 }
 
 export interface Mailer {
@@ -37,6 +61,21 @@ export interface Mailer {
 
 /** Default sender. Must belong to a domain onboarded to Email Service. */
 const DEFAULT_FROM = "noreply@remy.ubuntusoftware.net"
+
+/**
+ * Bulk sender, on its own subdomain so its reputation is its own.
+ *
+ * Overridable by `NOTIFY_EMAIL_FROM` the same way `EMAIL_FROM` overrides the
+ * transactional one — the pattern was already there, this follows it.
+ */
+const DEFAULT_BULK_FROM = "notifications@notify.remy.ubuntusoftware.net"
+
+/** The From address for one message, by kind. */
+export function senderFor(env: Bindings, kind: Mail["kind"]): string {
+  return kind === "bulk"
+    ? (env.NOTIFY_EMAIL_FROM ?? DEFAULT_BULK_FROM)
+    : (env.EMAIL_FROM ?? DEFAULT_FROM)
+}
 
 function cloudflareMailer(env: Bindings): Mailer {
   return {
@@ -50,11 +89,12 @@ function cloudflareMailer(env: Bindings): Mailer {
         )
       }
       await env.EMAIL.send({
-        from: env.EMAIL_FROM ?? DEFAULT_FROM,
+        from: senderFor(env, mail.kind),
         to: mail.to,
         subject: mail.subject,
         text: mail.text,
         ...(mail.html ? { html: mail.html } : {}),
+        ...(mail.headers ? { headers: mail.headers } : {}),
       })
     },
   }
@@ -90,6 +130,16 @@ interface CapturedMail {
   subject: string
   body: string
   createdAt: string
+  /**
+   * Recorded so the outbox can prove what a deployment would actually send.
+   *
+   * Without these the outbox flatters the sender: List-Unsubscribe either
+   * present or missing looks identical in a capture that drops headers, and
+   * "transactional mail must carry no unsubscribe header" is exactly the kind
+   * of assertion that has to be made against what goes on the wire.
+   */
+  from: string
+  headers: Record<string, string>
 }
 
 function outbox(): CapturedMail[] {
@@ -107,7 +157,7 @@ export function clearOutbox(): void {
   outbox().length = 0
 }
 
-function outboxMailer(): Mailer {
+function outboxMailer(env: Bindings): Mailer {
   return {
     async send(mail) {
       outbox().push({
@@ -116,6 +166,10 @@ function outboxMailer(): Mailer {
         subject: mail.subject,
         body: mail.text,
         createdAt: new Date().toISOString(),
+        // The same values `cloudflareMailer` would put on the wire, so an
+        // assertion against the outbox is an assertion about what ships.
+        from: senderFor(env, mail.kind),
+        headers: mail.headers ?? {},
       })
     },
   }
@@ -133,5 +187,5 @@ export function usesOutbox(env: Bindings): boolean {
 }
 
 export function mailerFor(env: Bindings): Mailer {
-  return usesOutbox(env) ? outboxMailer() : cloudflareMailer(env)
+  return usesOutbox(env) ? outboxMailer(env) : cloudflareMailer(env)
 }

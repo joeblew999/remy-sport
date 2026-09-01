@@ -130,6 +130,8 @@ const HONO_ROUTES: Record<string, string> = {
   "ALL /api/auth/*": "Better Auth owns its own authorisation, including the admin plugin; the wrapper records the outcome of POSTs and reads no request body",
   "GET /.well-known/apple-app-site-association": "public by specification; 404s until configured",
   "GET /.well-known/assetlinks.json": "public by specification; 404s until configured",
+  "GET /api/unsubscribe": "unauthenticated by necessity — somebody who has stopped opening the app is exactly who it is for. Renders a confirmation page and changes NOTHING, because mail scanners follow GET links; the token is HMAC'd with BETTER_AUTH_SECRET and authorises one preference row going to off",
+  "POST /api/unsubscribe": "the RFC 8058 one-click path. Same token, same single scope: one (userId, typeCode, EMAIL) preference to false. Cannot read, enumerate or change anything else",
   "GET /api/versions": "build metadata — the commit and time this Worker was built from",
   "GET /openapi.json": "the published contract, which documents its own security schemes",
   "GET /doc": "Swagger UI over the above",

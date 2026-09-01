@@ -295,7 +295,7 @@ export async function notify(
     }
     const fallback = content.get(asLocale(null)) ?? render(asLocale(null), args.tag)
 
-    const result = await transport.send(db, env, recipients, content, fallback)
+    const result = await transport.send(db, env, recipients, content, fallback, String(args.typeCode))
     sent += result.sent
     gone += result.gone
     track(env, "notify.batch", {

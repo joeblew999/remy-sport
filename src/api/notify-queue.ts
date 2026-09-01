@@ -265,6 +265,7 @@ async function runGameJob(db: Db, env: Bindings, job: GameJob): Promise<JobOutco
           channel: "EMAIL" as const,
           subject,
           text: m.email_game_text({ event, home, away, url, ...args }, { locale }),
+          unsubscribeLabel: m.email_unsubscribe({}, { locale }),
         }
       },
     },
@@ -362,6 +363,7 @@ async function runReminderJob(db: Db, env: Bindings, job: ReminderJob): Promise<
             { event: name, url: `${originOf(env)}/#/event/${job.eventId}` },
             { locale },
           ),
+          unsubscribeLabel: m.email_unsubscribe({}, { locale }),
         }
       },
     },

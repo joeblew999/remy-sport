@@ -43,6 +43,25 @@ const DEFAULTS: Record<string, () => string> = {
   // sign-in code a constant on a public site; that is why cf:smoke, not
   // test:deployed, verifies a deploy.
   TEST_OTP: () => "424242",
+  /**
+   * Where this deployment thinks it lives.
+   *
+   * `wrangler.toml` [vars] sets it to https://remy.ubuntusoftware.net, which is
+   * right for production and wrong everywhere else — and every link in every
+   * email is built from it. On the dev tunnel a notification email
+   * (src/api/notify-queue.ts) and an invitation (src/auth.ts) both linked
+   * straight to *production*, so following one took you to a different
+   * deployment with a different database.
+   *
+   * Nobody noticed because `MAIL_TRANSPORT=outbox` means dev captures rather
+   * than sends, so the wrong link only ever appeared in a table nobody reads.
+   * That is the same shape as the VAPID pair below: configuration absent on
+   * every fresh checkout, and wrong precisely where it does the most damage.
+   *
+   * The tunnel rather than localhost, because it is the hostname a phone can
+   * actually open — which is what these links are for.
+   */
+  BETTER_AUTH_URL: () => `https://${process.env.TUNNEL_HOSTNAME ?? "localhost:8787"}`,
 }
 
 const existing = existsSync(DEV_VARS) ? readFileSync(DEV_VARS, "utf8") : ""

@@ -158,6 +158,18 @@ export const EVENTS = {
    * "notifications silently stopped" — so the DLQ has a consumer, and it writes
    * this, beside push.batch, where somebody already looks.
    */
+  /**
+   * Somebody stopped an email.
+   *
+   * Worth its own row: a rising unsubscribe rate on one notification type is
+   * the earliest signal that the copy or the frequency is wrong, and it arrives
+   * long before a spam complaint does. No user id — this is a rate, not a log.
+   */
+  "notify.unsubscribed": defineEvent({
+    blobs: ["typeCode", "channel"],
+    doubles: [],
+    dimensions: ["typeCode", "channel"],
+  }),
   "notify.dead": defineEvent({
     blobs: ["reason", "typeCode"],
     doubles: ["attempts"],

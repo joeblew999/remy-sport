@@ -21,16 +21,17 @@
 import { env } from "cloudflare:test"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { drizzle } from "drizzle-orm/d1"
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import * as schema from "../../src/db/schema"
 import { notify } from "../../src/api/push"
 import { runNotificationJob, handleNotification, CHUNK } from "../../src/api/notify-queue"
 import type { Bindings } from "../../src/types"
-import { actorFor, api, signIn } from "./helpers"
+import { actorFor, api, post, signIn } from "./helpers"
 import { SEED_ENTITIES } from "../../src/domain/model/entities"
 import { teamsCoachedBy } from "../helpers/fixtures"
 import { recorder, type Point } from "../helpers/track-env"
 import { readOutbox, clearOutbox } from "../../src/mail/mailer"
+import { unsubscribeToken } from "../../src/api/unsubscribe"
 
 const b64url = {
   encode: (bytes: ArrayBuffer | Uint8Array) =>
@@ -1183,6 +1184,7 @@ describe("EMAIL as a second channel", () => {
           channel: "EMAIL" as const,
           subject: "Assumption 61 – BCC 58",
           text: "Bangkok Schools League\n\nFollow the game: https://example.test/#/games/g1",
+          unsubscribeLabel: "Stop receiving these emails:",
         }),
       },
     })
@@ -1261,5 +1263,207 @@ describe("EMAIL as a second channel", () => {
       (p) => p.blobs?.[0] === "notify.batch" && p.blobs?.[4] === "no-transport",
     )
     expect(noTransport, "an undeliverable channel must be countable").not.toHaveLength(0)
+  })
+})
+
+/**
+ * One-click unsubscribe, and the two ways it goes silently wrong.
+ *
+ * A missing header on bulk mail is a spam complaint. A present one on a sign-in
+ * code is a promise nothing can honour. Neither shows up without being asserted,
+ * which is why both directions are here.
+ */
+describe("Unsubscribe", () => {
+  const E = env as unknown as Bindings
+
+  const emailUser = async (id: string, address: string) => {
+    const u = await makeUser(id)
+    await db().insert(schema.userNotificationChannel).values({
+      userId: u, channelCode: "EMAIL", address, addressLabel: `${u}-email`,
+      secret: null, localeCode: "en", isEnabled: true, verifiedAt: new Date().toISOString(),
+    }).onConflictDoNothing()
+    await db().insert(schema.userNotificationPreference).values({
+      userId: u, notificationTypeCode: "SCORE_UPDATE", channelCode: "EMAIL", isEnabled: true,
+    }).onConflictDoUpdate({
+      target: [
+        schema.userNotificationPreference.userId,
+        schema.userNotificationPreference.notificationTypeCode,
+        schema.userNotificationPreference.channelCode,
+      ],
+      set: { isEnabled: true },
+    })
+    await follows(u, "TEAM", "team_001")
+    return u
+  }
+
+  const prefOf = async (userId: string, typeCode = "SCORE_UPDATE") =>
+    (await db()
+      .select({ on: schema.userNotificationPreference.isEnabled })
+      .from(schema.userNotificationPreference)
+      .where(
+        and(
+          eq(schema.userNotificationPreference.userId, userId),
+          eq(schema.userNotificationPreference.notificationTypeCode, typeCode),
+          eq(schema.userNotificationPreference.channelCode, "EMAIL"),
+        ),
+      ))[0]?.on
+
+  const sendScore = () =>
+    notify(db(), E, {
+      typeCode: "SCORE_UPDATE",
+      targets: [{ objectTypeCode: "TEAM", objectId: "team_001" }],
+      tag: "score:unsub",
+      render: {
+        EMAIL: () => ({
+          channel: "EMAIL" as const,
+          subject: "A score",
+          text: "Body.",
+          unsubscribeLabel: "Stop receiving these emails:",
+        }),
+      },
+    })
+
+  it("puts both headers on a notification email", async () => {
+    const u = await emailUser("unsub-headers", "headers@example.invalid")
+    clearOutbox()
+    await sendScore()
+
+    const [mail] = readOutbox("headers@example.invalid")
+    expect(mail, "no notification email was sent").toBeTruthy()
+    expect(mail!.headers["List-Unsubscribe"]).toMatch(/^<https?:\/\/.+\/api\/unsubscribe\?t=.+>$/)
+    // Without this the header is a link, not one-click: the client shows it and
+    // the reader still has to visit a page. Gmail and Yahoo require the pair.
+    expect(mail!.headers["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click")
+    // Never the address: a link in an email reaches browser history, referrer
+    // headers and proxy logs, and a user id is opaque where an address is not.
+    expect(mail!.headers["List-Unsubscribe"]).not.toContain("headers@example.invalid")
+    expect(u).toBeTruthy()
+  })
+
+  it("puts NEITHER header on a sign-in code", async () => {
+    // Offering to unsubscribe from your own authentication is nonsense, and the
+    // header would be a lie — there is no preference behind it to turn off.
+    clearOutbox()
+    const res = await post("/api/auth/email-otp/send-verification-otp", {
+      email: "otp-headers@example.invalid",
+      type: "sign-in",
+    })
+    expect(res.status).toBe(200)
+
+    const [mail] = readOutbox("otp-headers@example.invalid")
+    expect(mail, "no sign-in email was sent").toBeTruthy()
+    expect(mail!.headers["List-Unsubscribe"]).toBeUndefined()
+    expect(mail!.headers["List-Unsubscribe-Post"]).toBeUndefined()
+  })
+
+  it("sends bulk from a different identity than sign-in", async () => {
+    // Authentication is email OTP, so a reputation hit on notifications would
+    // take sign-in with it — and nobody could sign in to turn the notifications
+    // off. Reputation attaches per domain, so the split is a subdomain.
+    await emailUser("unsub-from", "from@example.invalid")
+    clearOutbox()
+    await sendScore()
+    await post("/api/auth/email-otp/send-verification-otp", {
+      email: "from-otp@example.invalid",
+      type: "sign-in",
+    })
+
+    const bulk = readOutbox("from@example.invalid")[0]!
+    const transactional = readOutbox("from-otp@example.invalid")[0]!
+    expect(bulk.from).not.toBe(transactional.from)
+    expect(bulk.from).toContain("notify.")
+  })
+
+  it("shows the link in the body, not only in a header", async () => {
+    // Somebody already annoyed will not go hunting in their mail client's
+    // menus. The alternative to finding the door is pressing "spam".
+    await emailUser("unsub-body", "body@example.invalid")
+    clearOutbox()
+    await sendScore()
+
+    const [mail] = readOutbox("body@example.invalid")
+    expect(mail!.body).toContain("Stop receiving these emails:")
+    expect(mail!.body).toContain("/api/unsubscribe?t=")
+  })
+
+  /**
+   * The one that is easy to get backwards and expensive when you do.
+   *
+   * Mail scanners, link previewers and corporate security gateways follow GET
+   * links in messages they inspect. A GET that acted would silently unsubscribe
+   * everybody whose employer scans their inbox — they never clicked anything.
+   */
+  it("a GET renders a confirmation and changes NOTHING", async () => {
+    const u = await emailUser("unsub-get", "get@example.invalid")
+    const token = await unsubscribeToken(E, { userId: u, typeCode: "SCORE_UPDATE" })
+
+    expect(await prefOf(u), "precondition: the preference is on").toBe(true)
+
+    const res = await api(`/api/unsubscribe?t=${encodeURIComponent(token)}`)
+    expect(res.status).toBe(200)
+    const html = await res.text()
+    expect(html).toContain("<form method=\"post\"")
+
+    expect(
+      await prefOf(u),
+      "a scanner following the link must not unsubscribe anybody",
+    ).toBe(true)
+  })
+
+  it("a POST unsubscribes, with no confirmation, per RFC 8058", async () => {
+    const u = await emailUser("unsub-post", "post@example.invalid")
+    const token = await unsubscribeToken(E, { userId: u, typeCode: "SCORE_UPDATE" })
+
+    const res = await api(`/api/unsubscribe?t=${encodeURIComponent(token)}`, { method: "POST" })
+    expect(res.status).toBe(200)
+    expect(await prefOf(u)).toBe(false)
+  })
+
+  it("changes exactly one preference row and nothing else", async () => {
+    const u = await emailUser("unsub-scope", "scope@example.invalid")
+    // A second type, and the push channel, both left alone.
+    await db().insert(schema.userNotificationPreference).values([
+      { userId: u, notificationTypeCode: "MATCH_END", channelCode: "EMAIL", isEnabled: true },
+      { userId: u, notificationTypeCode: "SCORE_UPDATE", channelCode: "PUSH", isEnabled: true },
+    ]).onConflictDoNothing()
+
+    const token = await unsubscribeToken(E, { userId: u, typeCode: "SCORE_UPDATE" })
+    await api(`/api/unsubscribe?t=${encodeURIComponent(token)}`, { method: "POST" })
+
+    expect(await prefOf(u, "SCORE_UPDATE")).toBe(false)
+    expect(await prefOf(u, "MATCH_END"), "another type must be untouched").toBe(true)
+    const push = (await db()
+      .select({ on: schema.userNotificationPreference.isEnabled })
+      .from(schema.userNotificationPreference)
+      .where(
+        and(
+          eq(schema.userNotificationPreference.userId, u),
+          eq(schema.userNotificationPreference.channelCode, "PUSH"),
+        ),
+      ))[0]?.on
+    expect(push, "a link in an email must not be able to stop push").toBe(true)
+  })
+
+  it("refuses a token that was not signed by us", async () => {
+    const u = await emailUser("unsub-forged", "forged@example.invalid")
+    const real = await unsubscribeToken(E, { userId: u, typeCode: "SCORE_UPDATE" })
+    // Same claim, a signature that is not ours.
+    const forged = `${real.split(".")[0]}.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA`
+
+    const res = await api(`/api/unsubscribe?t=${encodeURIComponent(forged)}`, { method: "POST" })
+    expect(res.status).toBe(400)
+    expect(await prefOf(u), "a forged token must change nothing").toBe(true)
+  })
+
+  it("cannot be pointed at somebody else by editing the claim", async () => {
+    // The signature covers the whole claim, so swapping the user id invalidates
+    // it. Without that, one valid link would unsubscribe anybody whose id you
+    // could guess.
+    const victim = await emailUser("unsub-victim", "victim@example.invalid")
+    const tampered = `${btoa(`${victim}:SCORE_UPDATE`).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")}.notasignature`
+
+    const res = await api(`/api/unsubscribe?t=${encodeURIComponent(tampered)}`, { method: "POST" })
+    expect(res.status).toBe(400)
+    expect(await prefOf(victim)).toBe(true)
   })
 })

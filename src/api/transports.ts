@@ -32,6 +32,7 @@
 
 import { deliverPush, type PushTarget } from "./push-send"
 import { mailerFor } from "../mail/mailer"
+import { unsubscribeHeaders, unsubscribeUrl } from "./unsubscribe"
 import type { Bindings } from "../types"
 import type { Db } from "./base"
 
@@ -46,7 +47,20 @@ export type Recipient = {
 /** What a transport is asked to deliver. Rendered, per locale, by the caller. */
 export type Rendered =
   | { channel: "PUSH"; title: string; body: string; url: string; tag: string }
-  | { channel: "EMAIL"; subject: string; text: string; html?: string }
+  | {
+      channel: "EMAIL"
+      subject: string
+      text: string
+      html?: string
+      /**
+       * The sentence above the unsubscribe link, in the reader's language.
+       *
+       * Rendered by the caller rather than written here, because it is copy and
+       * copy is translated — an English "Stop these emails" under a Thai
+       * notification is the same bug as an English month name in a Thai date.
+       */
+      unsubscribeLabel: string
+    }
 
 /** What became of a batch on one channel. */
 export type Delivered = { sent: number; gone: number; failed: number }
@@ -63,6 +77,8 @@ export interface Transport {
     recipients: Recipient[],
     content: Map<string, Rendered>,
     fallback: Rendered,
+    /** Which notification type — an unsubscribe token is scoped to one. */
+    typeCode: string,
   ): Promise<Delivered>
 }
 
@@ -97,7 +113,7 @@ const push: Transport = {
  * than leaving it, so every failure counts as `failed` and the row stays.
  */
 const email: Transport = {
-  async send(_db, env, recipients, content, fallback) {
+  async send(_db, env, recipients, content, fallback, typeCode) {
     const mailer = mailerFor(env)
     let sent = 0
     let failed = 0
@@ -109,11 +125,28 @@ const email: Transport = {
           return
         }
         try {
+          /**
+           * Per recipient, because the token is per recipient.
+           *
+           * The header and the body link both authorise exactly this person's
+           * preference for exactly this notification type, so neither can be
+           * shared across an audience — one leaked link would otherwise
+           * unsubscribe everybody.
+           */
+          const claim = { userId: r.userId, typeCode }
+          const headers = await unsubscribeHeaders(env, claim)
+          const link = await unsubscribeUrl(env, claim)
           await mailer.send({
             to: r.address,
             subject: rendered.subject,
-            text: rendered.text,
+            // A visible link as well as the header. Somebody already annoyed
+            // enough to want out will not go hunting in their mail client's
+            // menus — and the alternative to finding the door is pressing
+            // "spam", which costs the sending domain far more.
+            text: `${rendered.text}\n\n${rendered.unsubscribeLabel}\n${link}`,
             ...(rendered.html ? { html: rendered.html } : {}),
+            kind: "bulk",
+            headers,
           })
           sent += 1
         } catch {

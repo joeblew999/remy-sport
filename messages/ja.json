@@ -84,6 +84,7 @@
   "email_placeholder": "you@example.com",
   "email_reminder_subject": "{event} がまもなく始まります",
   "email_reminder_text": "{event} がまもなく始まります。\n\n試合開始時刻はスケジュールをご覧ください: {url}\n\nこのメールは、この大会をフォローしているため送信されています。受信設定はプロフィールから変更できます。",
+  "email_unsubscribe": "この種のメールの配信を停止する:",
   "enable_notifications": "通知をオンにする",
   "enter_a_team": "チームを参加させる",
   "enter_score": "スコアを入力",

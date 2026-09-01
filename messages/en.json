@@ -84,6 +84,7 @@
   "email_placeholder": "you@example.com",
   "email_reminder_subject": "{event} starts soon",
   "email_reminder_text": "{event} starts soon.\n\nCheck the schedule for tip-off times: {url}\n\nYou are receiving this because you follow this event. Change what you receive in your profile.",
+  "email_unsubscribe": "Stop receiving these emails:",
   "enable_notifications": "Turn on notifications",
   "enter_a_team": "Enter a team",
   "enter_score": "Enter score",

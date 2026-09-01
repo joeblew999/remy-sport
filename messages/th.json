@@ -84,6 +84,7 @@
   "email_placeholder": "you@example.com",
   "email_reminder_subject": "{event} กำลังจะเริ่ม",
   "email_reminder_text": "{event} กำลังจะเริ่มขึ้น\n\nดูตารางเวลาแข่งขัน: {url}\n\nคุณได้รับอีเมลนี้เพราะติดตามรายการแข่งขันนี้ เปลี่ยนการแจ้งเตือนได้ในหน้าโปรไฟล์",
+  "email_unsubscribe": "หยุดรับอีเมลประเภทนี้:",
   "enable_notifications": "เปิดการแจ้งเตือน",
   "enter_a_team": "ส่งทีมเข้าแข่งขัน",
   "enter_score": "บันทึกคะแนน",

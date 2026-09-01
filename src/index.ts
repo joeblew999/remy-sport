@@ -16,6 +16,7 @@ import analyticsRoutes from "./routes/analytics"
 import devMailRoutes from "./routes/dev-mail"
 import devSessionRoutes from "./routes/dev-sessions"
 import wellKnownRoutes from "./routes/well-known"
+import unsubscribeRoutes from "./api/unsubscribe"
 import type { AppEnv } from "./types"
 import { handleNotification } from "./api/notify-queue"
 import { track } from "./analytics"
@@ -93,6 +94,7 @@ app.route("/", devSessionRoutes)
 // Apple/Android deep-link association files. Must be before CSRF — they are
 // fetched by Apple's and Google's crawlers, not by a browser session.
 app.route("/", wellKnownRoutes)
+app.route("/", unsubscribeRoutes)
 
 app.use(csrf())
 
