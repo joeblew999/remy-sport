@@ -273,7 +273,7 @@ database_name = "remy-sport-staging-db"
 # change and needs sign-off. `mise run cf:env:bootstrap` writes the real id here
 # when it creates it; until then a staging deploy fails at the API with "no such
 # database", which is the correct loud failure.
-database_id = "ebdb6140-dea2-4005-b013-5222561cd7d0"
+database_id = "7fdf8d7a-9d81-4b33-bafe-a350aba6de1c"
 migrations_dir = "src/db/migrations"
 
 [[env.staging.r2_buckets]]

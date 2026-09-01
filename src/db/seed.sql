@@ -359,6 +359,18 @@ INSERT OR IGNORE INTO account (id, issuer, account_id, provider_id, user_id, cre
 INSERT INTO user (id, name, email, email_verified, created_at, updated_at, role, biz_id, names, locale_code, status_code) VALUES ('usr_spectator_003', 'Chanida Pidbanchi', 'closed.c@example.test', 1, 1767225600000, 1767225600000, 'spectator', 'usr_spectator_003', '{"th":"ชนิดา ปิดบัญชี","en":"Chanida Pidbanchi"}', 'en', 'DEACTIVATED') ON CONFLICT(id) DO UPDATE SET name = excluded.name, email = excluded.email, email_verified = excluded.email_verified, created_at = excluded.created_at, updated_at = excluded.updated_at, role = excluded.role, biz_id = excluded.biz_id, names = excluded.names, locale_code = excluded.locale_code, status_code = excluded.status_code;
 INSERT OR IGNORE INTO account (id, issuer, account_id, provider_id, user_id, created_at, updated_at) VALUES ('acc_usr_spectator_003', 'local:credential', 'usr_spectator_003', 'credential', 'usr_spectator_003', 1767225600000, 1767225600000);
 
+-- orgs
+INSERT OR IGNORE INTO org (id, slug, org_type_code, city_code, province_code, names) VALUES ('org_001', 'assumption-college', 'SCHOOL', 'BANGKOK', 'BKK', '{"th":"โรงเรียนอัสสัมชัญ","en":"Assumption College"}');
+INSERT OR IGNORE INTO org (id, slug, org_type_code, city_code, province_code, names) VALUES ('org_002', 'triam-udom-suksa', 'SCHOOL', 'BANGKOK', 'BKK', '{"th":"โรงเรียนเตรียมอุดมศึกษา","en":"Triam Udom Suksa School"}');
+INSERT OR IGNORE INTO org (id, slug, org_type_code, city_code, province_code, names) VALUES ('org_003', 'montfort-college', 'SCHOOL', 'CHIANG_MAI', 'CMI', '{"th":"โรงเรียนมงฟอร์ตวิทยาลัย","en":"Montfort College"}');
+INSERT OR IGNORE INTO org (id, slug, org_type_code, city_code, province_code, names) VALUES ('org_004', 'basketball-sport-association-thailand', 'FEDERATION', 'BANGKOK', 'BKK', '{"th":"สมาคมกีฬาบาสเกตบอลแห่งประเทศไทย","en":"Basketball Sport Association of Thailand"}');
+INSERT OR IGNORE INTO org (id, slug, org_type_code, city_code, province_code, names) VALUES ('org_005', 'bangkok-basketball-club', 'CLUB', 'BANGKOK', 'BKK', '{"th":"สโมสรบาสเกตบอลกรุงเทพ","en":"Bangkok Basketball Club"}');
+INSERT OR IGNORE INTO org (id, slug, org_type_code, city_code, province_code, names) VALUES ('org_006', 'saint-gabriels-college', 'SCHOOL', 'BANGKOK', 'BKK', '{"th":"โรงเรียนเซนต์คาเบรียล","en":"Saint Gabriel''s College"}');
+INSERT OR IGNORE INTO org (id, slug, org_type_code, city_code, province_code, names) VALUES ('org_007', 'suankularb-wittayalai', 'SCHOOL', 'BANGKOK', 'BKK', '{"th":"โรงเรียนสวนกุหลาบวิทยาลัย","en":"Suankularb Wittayalai School"}');
+INSERT OR IGNORE INTO org (id, slug, org_type_code, city_code, province_code, names) VALUES ('org_008', 'bangkok-christian-college', 'SCHOOL', 'BANGKOK', 'BKK', '{"th":"โรงเรียนกรุงเทพคริสเตียนวิทยาลัย","en":"Bangkok Christian College"}');
+INSERT OR IGNORE INTO org (id, slug, org_type_code, city_code, province_code, names) VALUES ('org_009', 'satriwitthaya-school', 'SCHOOL', 'BANGKOK', 'BKK', '{"th":"โรงเรียนสตรีวิทยา","en":"Satriwitthaya School"}');
+INSERT OR IGNORE INTO org (id, slug, org_type_code, city_code, province_code, names) VALUES ('org_010', 'assumption-convent', 'SCHOOL', 'BANGKOK', 'BKK', '{"th":"โรงเรียนอัสสัมชัญคอนแวนต์","en":"Assumption Convent School"}');
+
 -- Rosters. `name` is the English pivot beside the locale-keyed `names`.
 INSERT OR IGNORE INTO team (id, name, names, org_id, age_group_code, gender_code, created_at, updated_at) VALUES ('team_001', 'Assumption College U16 Boys', '{"th":"ทีมบาสเกตบอลอัสสัมชัญ U16 ชาย","en":"Assumption College U16 Boys"}', 'org_001', 'U16', 'M', 1767225600000, 1767225600000);
 INSERT OR IGNORE INTO team (id, name, names, org_id, age_group_code, gender_code, created_at, updated_at) VALUES ('team_002', 'Triam Udom U18 Girls', '{"th":"ทีมบาสเกตบอลเตรียมอุดมศึกษา U18 หญิง","en":"Triam Udom U18 Girls"}', 'org_002', 'U18', 'F', 1767225600000, 1767225600000);
@@ -394,18 +406,6 @@ INSERT OR IGNORE INTO division (id, age_group_code, gender_code, skill_tier_code
 INSERT OR IGNORE INTO division (id, age_group_code, gender_code, skill_tier_code, names) VALUES ('div_004', 'U18', 'F', NULL, '{"th":"U18 หญิง","en":"U18 Girls","ja":"U18 女子"}');
 INSERT OR IGNORE INTO division (id, age_group_code, gender_code, skill_tier_code, names) VALUES ('div_005', 'U18', 'M', 'PREMIER', '{"th":"U18 ชาย พรีเมียร์","en":"U18 Boys Premier","ja":"U18 男子 プレミア"}');
 INSERT OR IGNORE INTO division (id, age_group_code, gender_code, skill_tier_code, names) VALUES ('div_006', 'U16', 'M', 'PREMIER', '{"th":"U16 ชาย พรีเมียร์","en":"U16 Boys Premier","ja":"U16 男子 プレミア"}');
-
--- orgs
-INSERT OR IGNORE INTO org (id, slug, org_type_code, city_code, province_code, names) VALUES ('org_001', 'assumption-college', 'SCHOOL', 'BANGKOK', 'BKK', '{"th":"โรงเรียนอัสสัมชัญ","en":"Assumption College"}');
-INSERT OR IGNORE INTO org (id, slug, org_type_code, city_code, province_code, names) VALUES ('org_002', 'triam-udom-suksa', 'SCHOOL', 'BANGKOK', 'BKK', '{"th":"โรงเรียนเตรียมอุดมศึกษา","en":"Triam Udom Suksa School"}');
-INSERT OR IGNORE INTO org (id, slug, org_type_code, city_code, province_code, names) VALUES ('org_003', 'montfort-college', 'SCHOOL', 'CHIANG_MAI', 'CMI', '{"th":"โรงเรียนมงฟอร์ตวิทยาลัย","en":"Montfort College"}');
-INSERT OR IGNORE INTO org (id, slug, org_type_code, city_code, province_code, names) VALUES ('org_004', 'basketball-sport-association-thailand', 'FEDERATION', 'BANGKOK', 'BKK', '{"th":"สมาคมกีฬาบาสเกตบอลแห่งประเทศไทย","en":"Basketball Sport Association of Thailand"}');
-INSERT OR IGNORE INTO org (id, slug, org_type_code, city_code, province_code, names) VALUES ('org_005', 'bangkok-basketball-club', 'CLUB', 'BANGKOK', 'BKK', '{"th":"สโมสรบาสเกตบอลกรุงเทพ","en":"Bangkok Basketball Club"}');
-INSERT OR IGNORE INTO org (id, slug, org_type_code, city_code, province_code, names) VALUES ('org_006', 'saint-gabriels-college', 'SCHOOL', 'BANGKOK', 'BKK', '{"th":"โรงเรียนเซนต์คาเบรียล","en":"Saint Gabriel''s College"}');
-INSERT OR IGNORE INTO org (id, slug, org_type_code, city_code, province_code, names) VALUES ('org_007', 'suankularb-wittayalai', 'SCHOOL', 'BANGKOK', 'BKK', '{"th":"โรงเรียนสวนกุหลาบวิทยาลัย","en":"Suankularb Wittayalai School"}');
-INSERT OR IGNORE INTO org (id, slug, org_type_code, city_code, province_code, names) VALUES ('org_008', 'bangkok-christian-college', 'SCHOOL', 'BANGKOK', 'BKK', '{"th":"โรงเรียนกรุงเทพคริสเตียนวิทยาลัย","en":"Bangkok Christian College"}');
-INSERT OR IGNORE INTO org (id, slug, org_type_code, city_code, province_code, names) VALUES ('org_009', 'satriwitthaya-school', 'SCHOOL', 'BANGKOK', 'BKK', '{"th":"โรงเรียนสตรีวิทยา","en":"Satriwitthaya School"}');
-INSERT OR IGNORE INTO org (id, slug, org_type_code, city_code, province_code, names) VALUES ('org_010', 'assumption-convent', 'SCHOOL', 'BANGKOK', 'BKK', '{"th":"โรงเรียนอัสสัมชัญคอนแวนต์","en":"Assumption Convent School"}');
 
 -- players
 INSERT OR IGNORE INTO player (id, user_id, jersey_number, position_code, dob, names) VALUES ('ply_001', 'usr_player_001', 4, 'PG', '2009-03-15', '{"th":"ธนกร สุขใส","en":"Thanakorn Suksai"}');

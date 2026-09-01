@@ -236,6 +236,27 @@ for (const u of SEED_ENTITIES.users) {
 // rows went into a table Better Auth owned, with that library's column names and
 // its lowercased roles.
 
+/**
+ * The fixture tables that must be written BEFORE the entity blocks below.
+ *
+ * `org` is the whole list, and it has to be: `team.org_id` and
+ * `org_member.org_id` are NOT NULL foreign keys into it, and both were being
+ * written first. That only ever worked against a database that already had the
+ * orgs — every one we had, until staging became the first remote database this
+ * repo built from nothing, and `seed:remote` failed on it with
+ * FOREIGN KEY constraint failed.
+ *
+ * Not solved by reordering FIXTURE_TABLES alone: the graph interleaves. `team`
+ * needs `org`, while `player` and `eventTeam` need `team`, so neither block can
+ * sit wholly before the other. Two passes over the same list is what expresses
+ * that. `check:seed:fresh` is what stops it drifting again.
+ */
+const BEFORE_ENTITIES = new Set(["orgs"])
+
+let fixtureRows = 0
+
+emitFixtures((n) => BEFORE_ENTITIES.has(n))
+
 lines.push("", "-- Rosters. `name` is the English pivot beside the locale-keyed `names`.")
 for (const t of SEED_ENTITIES.teams) {
   lines.push(
@@ -290,23 +311,27 @@ for (const e of SEED_ENTITIES.events) {
  * the joins that point at them — and the four tables above come first because
  * every one of these has a foreign key into them.
  */
-let fixtureRows = 0
-for (const [name, table] of Object.entries(FIXTURE_TABLES) as [string, SQLiteTable][]) {
-  const source = SEED_ENTITIES as Record<string, readonly Record<string, unknown>[] | undefined>
-  const rows = source[name] ?? (SEED_RELATIONSHIPS as Record<string, readonly Record<string, unknown>[]>)[name]
-  if (!rows?.length) continue
+function emitFixtures(wanted: (name: string) => boolean): void {
+  for (const [name, table] of Object.entries(FIXTURE_TABLES) as [string, SQLiteTable][]) {
+    if (!wanted(name)) continue
+    const source = SEED_ENTITIES as Record<string, readonly Record<string, unknown>[] | undefined>
+    const rows = source[name] ?? (SEED_RELATIONSHIPS as Record<string, readonly Record<string, unknown>[]>)[name]
+    if (!rows?.length) continue
 
-  const cols = getTableColumns(table)
-  lines.push("", `-- ${name}`)
-  for (const row of rows) {
-    const present = Object.keys(cols).filter((k) => k in row)
-    lines.push(
-      `INSERT OR IGNORE INTO ${getTableName(table)} (${present.map((k) => cols[k]!.name).join(", ")}) VALUES ` +
-        `(${present.map((k) => lit(row[k])).join(", ")});`,
-    )
-    fixtureRows++
+    const cols = getTableColumns(table)
+    lines.push("", `-- ${name}`)
+    for (const row of rows) {
+      const present = Object.keys(cols).filter((k) => k in row)
+      lines.push(
+        `INSERT OR IGNORE INTO ${getTableName(table)} (${present.map((k) => cols[k]!.name).join(", ")}) VALUES ` +
+          `(${present.map((k) => lit(row[k])).join(", ")});`,
+      )
+      fixtureRows++
+    }
   }
 }
+
+emitFixtures((n) => !BEFORE_ENTITIES.has(n))
 
 /**
  * Which divisions each event runs, derived from the teams already in it.

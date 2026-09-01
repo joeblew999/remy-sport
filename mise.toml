@@ -594,6 +594,7 @@ RENDER_WORKERS=3 BUDGET_SHARED=1 mise run test:render ::: test:worker
 
 mise run typecheck:clean ::: test:unit ::: test:worker:assets \
   ::: check:dead ::: check:docs ::: check:authz ::: check:conventions \
+  ::: check:seed:order \
   ::: check:seed ::: check:domain ::: check:tables ::: check:assets \
   ::: check:messages ::: check:deps ::: check:i18n ::: i18n:validate \
   ::: check:notifications ::: check:gui ::: check:bundle ::: check:envs
@@ -967,6 +968,15 @@ depends     = ["install"]
 # the one path that uses it. ORG named `organizations` after that table was
 # dropped, and every write to an organisation answered 500.
 run = "bun scripts/check-tables.ts"
+
+[tasks."check:seed:order"]
+description = "Fail if seed.sql inserts a row before the row it references"
+depends     = ["install"]
+# check:seed asks whether seed.sql matches the model. This asks whether it can
+# be applied to an empty database at all — a different question, and the one
+# nothing was asking on 2026-09-01 when staging's first seed failed on a foreign
+# key after the worker had already been published.
+run = "bun scripts/check-seed-order.ts"
 
 [tasks."check:seed"]
 description = "Fail if src/db/seed.sql is stale against the fixtures"
