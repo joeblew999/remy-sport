@@ -59,7 +59,27 @@ const BUDGETS: Record<string, Budget> = {
   worker: {
     ceiling: 25,
     measured: 16.2,
-    shared: { ceiling: 45, measured: 40.8 },
+    /*
+     * Shared ceiling raised 2026-09-01, after it failed one `check` run in
+     * three. Same reasoning as render's below, and the same mistake underneath
+     * it: the ceiling was set from a single measurement (40.8s) against a
+     * distribution nobody had characterised.
+     *
+     * Six consecutive shared samples: 39.3, 41.0, 41.6, 41.9, >45, 42.2 — mean
+     * ~42, with a tail past the ceiling. Nine percent of headroom over a mean is
+     * not headroom, it is a coin flip, and a gate that fails a third of the time
+     * for no reason teaches you to re-run it. That habit is the thing being
+     * protected here, not the seconds.
+     *
+     * The tier is 16.6s alone. The 2.5x is contention with test:render, which is
+     * the gate deliberately using the machine — not a regression. Whether that
+     * contention can be *reduced* is a real question and a separate one: the
+     * two tiers ask for ~17 processes on twelve cores, and capping Playwright's
+     * workers to 3 moved the phase from 40.3s to 35.1s in a single sample —
+     * while the same experiment at 4 came out *worse* than at 6, which is how I
+     * know one sample cannot decide it. Not tuned here on that evidence.
+     */
+    shared: { ceiling: 55, measured: 42.2 },
     // Re-measured 2026-08-31. The old note said "isolatedStorage pays that
     // eight times", which reads as a sum — vitest runs files in parallel, so
     // the tier costs its slowest file, not the total. It had crept to 24.5s
