@@ -1,5 +1,13 @@
 import { describe, it, expect } from "bun:test"
-import { decideSecrets, resolveTarget, queueNames, type SecretGroup } from "../../scripts/cf-provision"
+import {
+  blocking,
+  decideSecrets,
+  refusalMessage,
+  resolveTarget,
+  queueNames,
+  type SecretGroup,
+  type Step,
+} from "../../scripts/cf-provision"
 import { POLICY } from "../../src/environment"
 
 /**
@@ -123,6 +131,65 @@ describe("queues, including the one that is easy to miss", () => {
     } as any
     // Two names are visible as `queue = ...` lines; three must be created.
     expect(queueNames(config)).toEqual(["n", "n-dlq"])
+  })
+})
+
+describe("what stops an apply, including the question it could not ask", () => {
+  const step = (outcome: Step["outcome"], resource: string, detail = "d"): Step => ({
+    resource,
+    outcome,
+    detail,
+  })
+
+  it("lets a plan with nothing outstanding through", () => {
+    const clean = [
+      step("exists", "D1 remy-sport-db"),
+      step("would-create", "Queue remy-notifications"),
+      step("would-set", "VAPID"),
+      step("skip", "TEST_OTP"),
+    ]
+    expect(blocking(clean)).toEqual([])
+  })
+
+  it("stops on a refusal, as it always did", () => {
+    const refused = step("refuse", "Secrets", "could not read the secret list")
+    expect(blocking([step("exists", "R2"), refused])).toEqual([refused])
+  })
+
+  /**
+   * The branch this exists for, and the incident that produced it.
+   *
+   * On 2026-09-01 the D1 API answered "Authentication error [code: 10000]"
+   * while R2, queues and workers all answered normally. Both D1 steps planned
+   * as `unknown`, carried no `apply`, and passed a gate that looked only for
+   * `refuse` — so bootstrap created the queues, skipped the database and five
+   * pending migrations, and exited 0. The next line of `deploy` is `cf:deploy`.
+   */
+  it("stops on an unknown, which is NOT the same as absent", () => {
+    const unknowns = [
+      step("unknown", "D1 remy-sport-db", "Authentication error [code: 10000]"),
+      step("unknown", "D1 migrations → remy-sport-db", "depends on the above"),
+    ]
+    // The queues were reachable and would have been created. That is the half
+    // that made the old run look like a success.
+    expect(blocking([...unknowns, step("would-create", "Queue remy-notifications")])).toEqual(unknowns)
+  })
+
+  it("names every blocker, and says why unknown is not absent", () => {
+    const message = refusalMessage([
+      step("refuse", "Secrets", "could not read the secret list"),
+      step("unknown", "D1 remy-sport-db", "Authentication error [code: 10000]"),
+    ])
+    expect(message).toContain("Nothing was changed.")
+    expect(message).toContain("Secrets — could not read the secret list")
+    expect(message).toContain("D1 remy-sport-db — Authentication error [code: 10000]")
+    expect(message).toMatch(/not the same as "absent"/)
+  })
+
+  it("says nothing about unknowns when there are none", () => {
+    const message = refusalMessage([step("refuse", "R2", "no r2_buckets binding")])
+    expect(message).toContain("R2 — no r2_buckets binding")
+    expect(message).not.toMatch(/Could not determine/)
   })
 })
 

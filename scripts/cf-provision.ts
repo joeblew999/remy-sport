@@ -148,7 +148,9 @@ function planD1(target: Target, config: ReturnType<typeof resolvedConfig>): Step
   if (!listing.ok) {
     // Names still come from config, so the plan says WHAT it would provision
     // even when it cannot say whether it already exists. That is most of the
-    // value of a plan on a machine that is not logged in.
+    // value of a plan on a machine that is not logged in — and it stays a plan:
+    // `blocking()` turns these two into a refusal in apply mode, so the run that
+    // follows never acts on the half-answer this one is allowed to print.
     return [
       { resource: `D1 ${name}`, outcome: "unknown", detail: listing.why },
       { resource: `D1 migrations → ${name}`, outcome: "unknown", detail: "depends on the above" },
@@ -699,6 +701,59 @@ function manualSteps(target: Target, config: ReturnType<typeof resolvedConfig>):
 
 export class Refused extends Error {}
 
+/**
+ * What stops an apply — and "I could not ask" stops one exactly as surely as
+ * "I will not".
+ *
+ * A refusal is a decision this script reached; an unknown is a decision it was
+ * unable to reach. Apply mode asks one question — is it safe to write? — and
+ * both are the same answer to it. Anything softer for `unknown` is how a run
+ * skips a step it could not see, which is what happened on 2026-09-01: the D1
+ * API answered "Authentication error [code: 10000]" while every other product
+ * answered normally, so both D1 steps planned as `unknown`, carried no `apply`,
+ * and passed a gate that looked only for `refuse`. Bootstrap created the two
+ * queues, silently skipped the database and five pending migrations, and exited
+ * 0 — which would have left `deploy` publishing a Worker whose code expected
+ * tables that were never made, over a production that was serving fine.
+ *
+ * `planSecrets` already had this right: an unreadable secret list refuses
+ * outright rather than guessing "not deployed yet", for the same reason and
+ * after the same kind of incident. This puts D1, R2 and the queues — the three
+ * that report `unknown` — on that footing too.
+ */
+export function blocking(steps: readonly Step[]): Step[] {
+  return steps.filter((s) => s.outcome === "refuse" || s.outcome === "unknown")
+}
+
+/**
+ * Why the run stopped, naming each step rather than pointing at the table.
+ *
+ * The unknowns get the longer half deliberately: a refusal is self-explaining,
+ * whereas an unknown looks like something you can shrug past until it is spelled
+ * out that both available guesses write the wrong thing.
+ */
+export function refusalMessage(blocked: readonly Step[]): string {
+  const refused = blocked.filter((s) => s.outcome === "refuse")
+  const unknown = blocked.filter((s) => s.outcome === "unknown")
+  const lines = ["refusing to provision. Nothing was changed."]
+
+  if (refused.length) {
+    lines.push("", "  Refused:", ...refused.map((s) => `    ${s.resource} — ${s.detail}`))
+  }
+  if (unknown.length) {
+    lines.push(
+      "",
+      `  Could not determine (${unknown.length}):`,
+      ...unknown.map((s) => `    ${s.resource} — ${s.detail}`),
+      "",
+      `  Not knowing is not the same as "absent". Creating what already exists and`,
+      "  skipping what is actually missing are both wrong, and both report success —",
+      "  so this run does neither. Restore access, then plan again.",
+    )
+  }
+  return lines.join("\n")
+}
+
 export async function run(argv: string[], mode: "plan" | "apply"): Promise<void> {
   const target = resolveTarget(argv)
   const config = resolvedConfig(target.flag)
@@ -723,16 +778,27 @@ export async function run(argv: string[], mode: "plan" | "apply"): Promise<void>
     console.log(`  ${EXPECTED[step.outcome].padEnd(10)} ${step.resource.padEnd(width)}  ${step.detail}`)
   }
 
-  const refusals = steps.filter((s) => s.outcome === "refuse")
-  if (refusals.length) {
+  // Counted the same way in both modes, because a plan that described a
+  // smaller set of blockers than the apply it precedes would be exactly the
+  // second implementation this file exists to avoid.
+  const blocked = blocking(steps)
+  if (blocked.length) {
+    const unknown = blocked.filter((s) => s.outcome === "unknown").length
+    const refusals = blocked.length - unknown
+    const parts = [
+      refusals ? `${refusals} refusal(s)` : "",
+      unknown ? `${unknown} unanswered` : "",
+    ].filter(Boolean)
     console.log(
-      `\n  ${refusals.length} refusal(s). ` +
+      `\n  ${parts.join(" and ")}. ` +
         (mode === "plan" ? "Bootstrap would stop here." : "Nothing further was attempted."),
     )
   }
 
   if (mode === "apply") {
-    if (refusals.length) throw new Refused("refusing to provision — see above")
+    // Plan reports and exits 0; only apply refuses. Reading is safe when the
+    // account cannot be reached — writing is what is not.
+    if (blocked.length) throw new Refused(refusalMessage(blocked))
     console.log("")
     for (const step of steps) {
       if (step.apply) {
