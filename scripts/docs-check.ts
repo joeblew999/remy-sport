@@ -31,7 +31,10 @@ function docFiles(): string[] {
       else if (e.name.endsWith(".md")) out.push(join(dir, e.name))
     }
   }
-  walk("docs")
+  // Optional. There is no docs/ directory by default and a checker that dies
+  // on its absence is not a check, it is a dependency — the same shape as every
+  // other "not there" that had to stop meaning "something is wrong".
+  if (existsSync(join(ROOT, "docs"))) walk("docs")
   return out.filter((f) => existsSync(join(ROOT, f)))
 }
 
