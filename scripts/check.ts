@@ -39,6 +39,15 @@ const script = (file: string, ...args: string[]) => bun(`scripts/${file}`, ...ar
  * test:worker is 12.6s alone and 26.8s beside render, which is the gate doing
  * its job rather than a regression, and one ceiling cannot describe both.
  */
+/**
+ * The end-to-end tier, which `check` deliberately does not run.
+ *
+ * It needs a dev server and takes minutes; the gate is the fast feedback loop
+ * and `deploy` runs this separately before it ships. Modelled here anyway so
+ * there is one place that knows how a tier is timed.
+ */
+export const E2E: Step = { name: "e2e", cmd: bun("x", "playwright", "test"), budget: "e2e" }
+
 export const PHASES: Step[][] = [
   [
     {
@@ -127,7 +136,8 @@ const FAST = new Set(["typecheck:worker", "typecheck:spa", "typecheck:tests", "u
 
 if (import.meta.main) {
   const fast = process.argv.includes("--fast")
-  const phases = fast ? [PHASES.flat().filter((s) => FAST.has(s.name))] : PHASES
+  const e2e = process.argv.includes("--e2e")
+  const phases = e2e ? [[E2E]] : fast ? [PHASES.flat().filter((s) => FAST.has(s.name))] : PHASES
   const failed = await gate(phases)
   if (failed.length) {
     console.error(`\ncheck: ${failed.length} failed — ${failed.join(", ")}\n`)
@@ -144,5 +154,5 @@ if (import.meta.main) {
         : null
     if (tier) console.log(`  you touched code ${tier} covers — run 'mise run check' before you commit`)
   }
-  console.log(`\ncheck: green${fast ? " (fast)" : ""}\n`)
+  console.log(`\ncheck: green${e2e ? " (e2e)" : fast ? " (fast)" : ""}\n`)
 }

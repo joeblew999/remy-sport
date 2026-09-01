@@ -137,6 +137,7 @@ echo "auth:schema:check: auth-schema.ts is up to date"
 
 [tasks."biz:sync"]
 description = "Clone or fast-forward the remy-sport-biz checkout at ../remy-sport-biz (local dev only)"
+hide        = true
 # remy-sport-biz is the Product Owner's source of truth, and it is private, so
 # an unauthenticated clone cannot work — hence the PAT. It is a fine-grained
 # token scoped to that one repo with Contents: Read-only, registered once by
@@ -279,6 +280,7 @@ run         = "bun x paraglide-js compile --project ./project.inlang --outdir ./
 
 [tasks."domain:sync"]
 description = "Copy the Product Owner's model in from remy-sport-biz — verbatim, no transform"
+hide        = true
 depends     = ["install"]
 # This replaced a 900-line generator that read JSONL and emitted TypeScript. The
 # model is authored as TypeScript upstream now, so there is nothing to
@@ -608,14 +610,7 @@ run = "bun scripts/test-tiers.ts"
 [tasks.test]
 description = "Run Playwright tests locally"
 depends     = ["setup"]
-run = """
-# Timed, and the number is printed on every run. A tier that got six times
-# slower went unnoticed for a whole session because nothing ever said how long
-# it took — see scripts/check-budget.ts.
-start=$(date +%s%N)
-bun x playwright test
-bun scripts/check-budget.ts e2e $(( ($(date +%s%N) - start) / 1000000 ))
-"""
+run = "bun scripts/check.ts --e2e"
 
 # ── Demo sign-in ────────────────────────────────────────────────────────────
 # Lets the twelve seeded people sign in on a deployment with one click. Their
@@ -629,6 +624,7 @@ bun scripts/check-budget.ts e2e $(( ($(date +%s%N) - start) / 1000000 ))
 
 [tasks."demo:on"]
 description = "Let the seeded people sign in on a deployment (published code; never the admin)"
+hide        = true
 depends     = ["install"]
 # Production only, and that is the whole reason this task still exists after the
 # provisioning consolidation. `signInCode` in src/environment.ts says dev and
@@ -650,6 +646,7 @@ run = "bun scripts/cf-demo.ts on"
 
 [tasks."demo:off"]
 description = "Stop the seeded people signing in on a deployment"
+hide        = true
 depends     = ["install"]
 # Run this before the platform has real users. A demo account cannot reach
 # anyone else's data, but it can edit shared fixture data — and once real events
@@ -665,6 +662,7 @@ run = "bun scripts/cf-demo.ts off"
 
 [tasks."demo:status"]
 description = "Is seeded sign-in on, and who does it offer?"
+hide        = true
 depends     = ["install"]
 # Asks the deployment rather than the config: what is set and what is *serving*
 # are different questions, and only the second one matters.
@@ -697,6 +695,7 @@ run = "bun x playwright test --config playwright.shots.config.ts"
 
 [tasks.versions]
 description = "Generate versions.json"
+hide        = true
 run         = "bun scripts/versions.ts"
 
 [tasks."dev:ensure"]
@@ -790,11 +789,19 @@ done
 
 [tasks.seed]
 description = "Seed local D1 with dev users (requires running dev server)"
+hide        = true
 # See the pipefail note on seed:remote.
 run = """
 set -o pipefail
 curl -sf -X POST {{env.DEV_URL}}/api/seed | jq .
 """
+
+[tasks.ops]
+description = "Operate a deployment: demo | analytics | audit | tunnel | versions | seed | biz | domain"
+depends     = ["install"]
+# Eight tasks were eight names a person had to know existed, for one concern.
+# scripts/ops.ts dispatches; the scripts behind it keep their own reasons.
+run = "bun scripts/ops.ts"
 
 [tasks.deploy]
 description = "Full deploy pipeline"
@@ -975,6 +982,7 @@ run = "bun scripts/time.ts \"$@\""
 
 [tasks."analytics"]
 description = "Report what the deployed worker has been doing (Analytics Engine; hours as arg, default 24)"
+hide        = true
 depends     = ["install"]
 # Analytics Engine has no dashboard. The data is reachable only over a SQL API,
 # so without this task everything src/analytics.ts writes is a write-only pipe
