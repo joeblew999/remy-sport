@@ -1215,17 +1215,9 @@ description = "Full deploy pipeline"
 depends     = ["setup"]
 run = """
 set -e
-# Resolved once, here, and exported — so every child task below inherits it and
-# each one's own `fnox get` sees a value already set and keeps it. One keychain
-# read per deploy, and no step can end up on a different credential than the
-# step that planned for it.
-#
-# seed:remote needs it as much as bootstrap does: it executes SQL against remote
-# D1, which is the half OAuth cannot do.
-if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
-  CLOUDFLARE_API_TOKEN=$(fnox get CLOUDFLARE_API_TOKEN 2>/dev/null) || true
-  export CLOUDFLARE_API_TOKEN
-fi
+# No credential block. Every step below resolves its own through
+# scripts/cloudflare.ts — including cf:deploy, which was the last one that could
+# not, and seed:remote, which the note here used to say depended on this export.
 mise run check
 mise run auth:schema:check
 mise run test
@@ -1241,7 +1233,7 @@ mise run versions
 # the one before it — which failed the push smoke check on a deploy where the
 # keys had in fact been set correctly.
 mise run cf:env:bootstrap -- --env production
-mise run cf:deploy
+mise run cf:deploy -- --env production
 mise run cf:wait
 mise run seed:remote -- --env production
 mise run cf:smoke
@@ -1413,42 +1405,10 @@ description = "Deploy worker (API + SPA) to Cloudflare"
 # so deploying without a fresh build ships stale or missing GUI assets.
 depends     = ["install", "web:build"]
 sources     = ["src/**/*.ts", "src/web/**/*", "wrangler.toml", "package.json", "versions.json"]
-run         = "bun x wrangler deploy"
-
-[tasks."cf:versions:list"]
-description = "List deployed versions"
-depends     = ["install"]
-run         = "bun x wrangler versions list"
-
-[tasks."cf:versions:upload"]
-description = "Upload a version without deploying"
-depends     = ["install"]
-run         = "bun x wrangler versions upload"
-
-[tasks."cf:versions:deploy"]
-description = "Gradual rollout (interactive)"
-depends     = ["install"]
-run         = "bun x wrangler versions deploy"
-
-[tasks."cf:rollback"]
-description = "Roll back to the previous version"
-depends     = ["install"]
-run         = "bun x wrangler rollback"
-
-[tasks."cf:tail"]
-description = "Tail live worker logs"
-depends     = ["install"]
-run         = "bun x wrangler tail"
-
-[tasks."cf:login"]
-description = "Authenticate wrangler with Cloudflare (opens browser)"
-depends     = ["install"]
-run         = "bun x wrangler login"
-
-[tasks."cf:logout"]
-description = "Clear stored Cloudflare credentials"
-depends     = ["install"]
-run         = "bun x wrangler logout"
+# Through scripts/cf-deploy.ts, not `bun x wrangler deploy`. It was the last raw
+# wrangler call on the deploy path and the only reason the credential block below
+# in `deploy` could not go: it inherited that export instead of resolving its own.
+run         = "bun scripts/cf-deploy.ts"
 
 [tasks."cf:audit"]
 description = "Query the Cloudflare audit log for delete actions (CLOUDFLARE_API_TOKEN from fnox or the environment)"
@@ -1504,33 +1464,12 @@ fi
 bun scripts/analytics.ts "$@"
 """
 
-[tasks."cf:whoami"]
-description = "Show current Cloudflare auth info"
-depends     = ["install"]
-run         = "bun x wrangler whoami"
-
-[tasks."cf:secret:list"]
-description = "List secrets set on the worker"
-depends     = ["install"]
-run         = "bun x wrangler secret list"
-
 [tasks."cf:types"]
 description = "Generate TypeScript types from wrangler bindings (worker-configuration.d.ts)"
 depends     = ["install"]
 run         = "bun x wrangler types"
 
 # ── cf:d1: database ──────────────────────────────────────────────────────────
-
-[tasks."cf:d1:list"]
-description = "List D1 databases"
-depends     = ["install"]
-run         = "bun x wrangler d1 list"
-
-[tasks."cf:d1:list:json"]
-description = "List D1 databases as JSON (machine-readable)"
-depends     = ["install"]
-run         = "bun x wrangler d1 list --json"
-
 
 [tasks."cf:d1:tables"]
 description = "List tables in local D1"
@@ -1569,19 +1508,6 @@ depends     = ["install"]
 run = "bun scripts/cf-d1.ts reset-local"
 
 # ── cf:r2: storage ───────────────────────────────────────────────────────────
-
-[tasks."cf:r2:list"]
-description = "List R2 buckets"
-depends     = ["install"]
-run         = "bun x wrangler r2 bucket list"
-
-
-[tasks."cf:r2:objects"]
-description = "List objects in the R2 bucket"
-depends     = ["install"]
-run         = "bun x wrangler r2 object list remy-sport-storage"
-
-# ── Web app (src/web/) ──────────────────────────────────────────────────────
 
 [tasks."web:build"]
 description = "Production build → dist/web/"
@@ -1645,19 +1571,6 @@ description = "TypeScript type-check src/web/ (no emit)"
 depends     = ["install"]
 run         = "bun x tsc -p src/web/tsconfig.json --noEmit"
 
-[tasks."web:deploy"]
-description = "LEGACY — deploy SPA to Pages (superseded: cf:deploy now ships it same-origin)"
-depends     = ["web:build"]
-run         = "bun x wrangler pages deploy dist/web --project-name=remy-sport-design --branch=main --commit-dirty=true"
-
-# ── Tauri (Desktop + iOS) ───────────────────────────────────────────────────
-# The Tauri CLI is pinned in package.json (npm package), like wrangler and vite.
-# Desktop dev loads the SPA from the running Worker at localhost:8787/app, so
-# the same relative /api/* calls work as on the web.
-
-# tauri.conf.json already runs `mise run web:build` via
-# beforeDevCommand/beforeBuildCommand, so web:build is deliberately NOT in
-# depends here — listing it too rebuilt the SPA twice per invocation.
 [tasks."tauri:dev"]
 description = "Run the Tauri desktop app against the local Worker"
 depends     = ["install", "dev:ensure"]
