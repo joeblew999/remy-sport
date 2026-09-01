@@ -10,6 +10,21 @@ mise run deploy -- --env production
 
 That is the loop. Three commands.
 
+When the Product Owner changes the model, there is a chain — the vocabulary and
+entities come in from `remy-sport-biz`, the drizzle schema follows them, that
+needs a migration, the seed is regenerated from the same model, and four checks
+each verify one link:
+
+```
+mise run model              run it
+mise run model -- --order   see it first
+```
+
+This architecture is model-driven, so that chain is the part worth knowing. It
+used to be four steps under two other commands plus one inside `prepare`, which
+made the order something you knew or guessed — and guessing wrong is quiet: skip
+the migration and the schema describes tables the database does not have.
+
 Two more for the days that are not ordinary. `mise run db` answers database
 questions and applies migrations. `mise run ops` is everything you do TO a
 deployment or a machine — showing the app to someone, asking production what it

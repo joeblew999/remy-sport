@@ -138,6 +138,13 @@ description = "Prove it — --fast | --e2e | --order"
 # would skip exactly the run that would have caught the drift.
 run = "bun scripts/check.ts"
 
+[tasks.model]
+description = "The PO changed the model — pull it in, follow it through, verify (--order)"
+# The chain was real and unwritten: biz, domain, generate, migrate, seed, verify.
+# Four of those lived under two other commands and the fifth happened inside
+# prepare, so the order was something you knew or guessed.
+run = "bun scripts/model.ts"
+
 [tasks.ops]
 description = "Operate a deployment — no args to list the 15 operations"
 # Eight tasks were eight names a person had to know existed, for one concern.
