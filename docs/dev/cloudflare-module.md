@@ -15,7 +15,7 @@ The credential rule alone exists in **three different shapes across seven
 sites**: a shell block in five `mise.toml` tasks, a TypeScript env→fnox
 fallback in `scripts/tunnel-setup.ts`, and a demand-or-explain in
 `scripts/cf-audit.ts`. Config resolution is duplicated twice —
-`scripts/cf-ensure.ts` exports a resolved reader and `scripts/check-envs.ts`
+`scripts/cloudflare.ts` exports a resolved reader and `scripts/check-envs.ts`
 imports wrangler's directly.
 
 The cost is not untidiness. On 2026-09-01 the wrangler OAuth token turned out to
@@ -103,10 +103,10 @@ Each step lands as its own commit with a green deploy between them.
    *(Done — it was never committed; a working-tree discard.)*
 1. **Stand up the module and migrate `scripts/cf-provision.ts` only.** It
    already contains most of the surface, so this is mostly extraction.
-   `scripts/cf-ensure.ts` is not dead and is not deleted: no task invokes it,
-   but it owns resolved-config reading and the `database_id` write, and it
-   becomes part of the module rather than a casualty of it. Its name is the
-   problem, not its contents.
+   The old `cf-ensure` was not dead and was not deleted: no task invoked it,
+   but it owned resolved-config reading and the `database_id` write, so it
+   *became* the module — renamed to `scripts/cloudflare.ts`, which is where
+   the boundary now lives. Its name was the problem, not its contents.
 2. **Migrate the remaining clients, one per commit, in ascending risk:**
    `scripts/cf-demo.ts` → `scripts/cf-audit.ts` → `scripts/tunnel-setup.ts` →
    `scripts/cf-d1.ts` → `scripts/check-envs.ts` → `scripts/versions.ts`.

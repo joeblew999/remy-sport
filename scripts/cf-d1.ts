@@ -17,8 +17,7 @@
  * live database by somebody who thought they were on staging.
  */
 
-import { resolvedConfig } from "./cf-ensure"
-import { Refused, resolveTarget, type Target } from "./cf-provision"
+import { Refused, resolveTarget, resolvedConfig, type Target } from "./cloudflare"
 
 type Op = "migrate-remote" | "migrate-local" | "reset-local" | "seed-remote" | "tables-remote" | "tables-local"
 

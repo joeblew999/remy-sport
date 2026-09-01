@@ -1320,22 +1320,11 @@ depends     = ["install"]
 #
 #   mise run cf:env:plan -- --env staging
 #
-# Same credential path as cf:audit, and for a sharper reason than analytics has.
-# The wrangler OAuth token records `d1:write` and `whoami` prints it, but every
-# account-scoped D1 call 401s with it — list, create and metadata alike — while
-# R2, queues, workers and secrets all answer normally on that same token. So a
-# plan run on OAuth reported D1 as `unknown` and everything else correctly,
-# which reads exactly like a Cloudflare outage and is not one. That cost most of
-# 2026-09-01 and produced a wrong diagnosis; the token has to be resolved here
-# rather than remembered at the prompt.
-run = """
-set -e
-if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
-  CLOUDFLARE_API_TOKEN=$(fnox get CLOUDFLARE_API_TOKEN 2>/dev/null) || true
-  export CLOUDFLARE_API_TOKEN
-fi
-bun scripts/cf-provision.ts "$@"
-"""
+# No credential block here. scripts/cloudflare.ts resolves the token, pins the
+# account and decides what an error means, for every caller — so a task is a
+# name, a description, a dependency and one invocation. The shell that used to
+# sit here was the fifth copy of a rule that belongs in one place.
+run = "bun scripts/cf-provision.ts"
 
 [tasks."cf:env:bootstrap"]
 description = "Provision D1, migrations, R2, both queues and every secret for one environment"
@@ -1351,18 +1340,11 @@ depends     = ["install"]
 #
 #   mise run cf:env:bootstrap -- --env staging
 #
-# Resolves the token the same way cf:env:plan does, and must: plan and apply run
-# the same code, so a credential difference between them would let the plan
-# describe a run the apply cannot perform. See the note there for why OAuth is
-# not enough.
-run = """
-set -e
-if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
-  CLOUDFLARE_API_TOKEN=$(fnox get CLOUDFLARE_API_TOKEN 2>/dev/null) || true
-  export CLOUDFLARE_API_TOKEN
-fi
-bun scripts/cf-provision.ts --apply "$@"
-"""
+# Same one invocation as cf:env:plan, and it must stay that way: plan and apply
+# run the same code, so a credential resolved differently between them would let
+# the plan describe a run the apply cannot perform. Both get it from
+# scripts/cloudflare.ts, which is the only place it is decided.
+run = "bun scripts/cf-provision.ts --apply"
 
 [tasks."cf:wait"]
 description = "Wait until the origin is serving the build that was just deployed"

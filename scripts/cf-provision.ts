@@ -28,77 +28,25 @@
  * *write*, and the strictest answer for a write is to not perform it.
  */
 
-import { DEMO_SIGN_IN_CODE, ENVIRONMENTS, POLICY, type Environment } from "../src/environment"
+import { DEMO_SIGN_IN_CODE, POLICY, type Environment } from "../src/environment"
 import { DEFAULT_SUBJECT, PRIVATE_KEY, PUBLIC_KEY, generateVapid } from "./vapid"
-import { patchDatabaseId, resolvedConfig } from "./cf-ensure"
+import {
+  DEPLOYABLE,
+  Refused,
+  type Target,
+  patchDatabaseId,
+  resolveTarget,
+  resolvedConfig,
+  unreachable,
+  wrangler,
+} from "./cloudflare"
 import { DEFAULT_BULK_FROM, DEFAULT_FROM } from "../src/mail/mailer"
 
-// ── The target ───────────────────────────────────────────────────────────────
-
-/**
- * Which environment, and what wrangler calls it.
- *
- * `production` is wrangler's *unnamed* top-level config, so its flag is absent
- * rather than `--env production`. That asymmetry is worth naming: passing
- * `--env production` to wrangler does not select production, it looks for an
- * `[env.production]` block that does not exist.
- */
-export interface Target {
-  environment: Environment
-  /** The `--env` value, or undefined for the top-level (production) config. */
-  flag?: string
-}
-
-export const DEPLOYABLE: Environment[] = ["staging", "production"]
-
-export function resolveTarget(argv: string[]): Target {
-  const at = argv.indexOf("--env")
-  const named = at !== -1 ? argv[at + 1] : argv.find((a) => a.startsWith("--env="))?.split("=")[1]
-
-  if (!named) {
-    throw new Refused(
-      "no target environment.\n" +
-        `  Usage: --env <${DEPLOYABLE.join("|")}>\n\n` +
-        "  There is deliberately no default. Every other unset-configuration path in\n" +
-        "  this codebase resolves to production because the risk is an opened door;\n" +
-        "  this one performs writes, and the strict answer for a write is to refuse.",
-    )
-  }
-  if (!(ENVIRONMENTS as readonly string[]).includes(named)) {
-    throw new Refused(`"${named}" is not an environment. Known: ${ENVIRONMENTS.join(", ")}`)
-  }
-  if (named === "dev") {
-    throw new Refused(
-      "dev is local and provisions nothing on the account.\n" +
-        "  Its D1 lives in .wrangler/state, its secrets in .dev.vars, and its fixed\n" +
-        "  sign-in code comes from the policy table. Run `mise run dev:vars`.",
-    )
-  }
-  const environment = named as Environment
-  return { environment, flag: environment === "production" ? undefined : environment }
-}
-
-// ── Running wrangler ─────────────────────────────────────────────────────────
-
-interface Ran {
-  code: number
-  out: string
-  err: string
-}
-
-function wrangler(args: string[], target?: Target, stdin?: string): Ran {
-  const full = ["x", "wrangler", ...args, ...(target?.flag ? ["--env", target.flag] : [])]
-  const proc = Bun.spawnSync(["bun", ...full], {
-    stdin: stdin === undefined ? "ignore" : new TextEncoder().encode(stdin),
-    stdout: "pipe",
-    stderr: "pipe",
-  })
-  return {
-    code: proc.exitCode,
-    out: proc.stdout.toString(),
-    err: proc.stderr.toString(),
-  }
-}
+// The target, the credential, the account, how wrangler is run and what its
+// errors mean all live in ./cloudflare now. They were defined here, which is
+// why only this file could tell "could not ask" from "absent" — see
+// docs/dev/cloudflare-module.md.
+export { DEPLOYABLE, Refused, resolveTarget, type Target }
 
 // ── Steps ────────────────────────────────────────────────────────────────────
 
@@ -212,31 +160,6 @@ function planD1(target: Target, config: ReturnType<typeof resolvedConfig>): Step
     },
   })
   return steps
-}
-
-/**
- * Whether the account itself could not be reached, as opposed to the resource
- * being absent.
- *
- * The distinction is the whole reason the plan is trustworthy. "This bucket
- * does not exist" and "I could not ask" look identical at the exit code, and
- * treating the second as the first is how a plan says `+ create` about
- * something that is already there — or, in apply mode, how a run decides a
- * populated database needs making.
- */
-function unreachable(r: Ran): string | null {
-  const text = r.out + r.err
-  if (!/Authentication error|code: 10000|code: 10001|not logged in|fetch failed|ENOTFOUND/i.test(text)) {
-    return null
-  }
-  const clean = text.split("\n").map((l) => l.replace(/\u001b\[[0-9;]*m/g, "").trim())
-  // Prefer the line carrying the API's own code — "Authentication error
-  // [code: 10000]" is diagnosable; "a request failed" is not.
-  const reason =
-    clean.find((l) => /\[code: \d+\]/.test(l)) ??
-    clean.find((l) => /error|failed/i.test(l) && l.length > 10) ??
-    "could not reach the Cloudflare API"
-  return `${reason} — could not ask, so this is NOT "absent". Try \`bun x wrangler login\`.`
 }
 
 type Listing = { ok: true; dbs: Array<{ uuid: string; name: string }> } | { ok: false; why: string }
@@ -611,7 +534,7 @@ async function planSecrets(target: Target): Promise<Step[]> {
 function setGroup(target: Target, values: Record<string, string>, only?: string[]): void {
   for (const [name, value] of Object.entries(values)) {
     if (only && !only.includes(name)) continue
-    const put = wrangler(["secret", "put", name], target, value)
+    const put = wrangler(["secret", "put", name], target, { stdin: value })
     if (put.code !== 0) throw new Refused(`could not set ${name}:\n${put.out}${put.err}`)
   }
 }
@@ -698,8 +621,6 @@ function manualSteps(target: Target, config: ReturnType<typeof resolvedConfig>):
 }
 
 // ── Entry ────────────────────────────────────────────────────────────────────
-
-export class Refused extends Error {}
 
 /**
  * What stops an apply — and "I could not ask" stops one exactly as surely as
@@ -820,7 +741,7 @@ if (import.meta.main) {
   try {
     await run(process.argv.slice(2), mode)
   } catch (err) {
-    if (err instanceof Refused || (err as Error).constructor?.name === "RefusedError") {
+    if (err instanceof Refused) {
       console.error(`\ncf-provision: ${(err as Error).message}\n`)
       process.exit(1)
     }

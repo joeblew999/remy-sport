@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "bun:test"
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs"
 import { tmpdir } from "os"
 import { join } from "path"
-import { patchDatabaseId, d1Snapshot, TOP_LEVEL } from "../../scripts/cf-ensure"
+import { patchDatabaseId, d1Snapshot, TOP_LEVEL } from "../../scripts/cloudflare"
 
 /**
  * Writing a database_id into the right block, and proving the others did not move.

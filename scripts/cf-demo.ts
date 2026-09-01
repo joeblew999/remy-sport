@@ -26,7 +26,7 @@
  */
 
 import { DEMO_SIGN_IN_CODE, POLICY } from "../src/environment"
-import { Refused, resolveTarget } from "./cf-provision"
+import { Refused, resolveTarget } from "./cloudflare"
 
 const action = process.argv[2] as "on" | "off"
 const argv = process.argv.slice(3)
