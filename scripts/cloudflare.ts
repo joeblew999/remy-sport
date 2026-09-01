@@ -297,15 +297,40 @@ let cachedToken: string | null | undefined
  */
 export function token(): string | null {
   if (cachedToken !== undefined) return cachedToken
-  const fromEnv = process.env.CLOUDFLARE_API_TOKEN
+  // Empty is unset. `CLOUDFLARE_API_TOKEN=` in front of a command says "not
+  // this one", and `credentialEnv()` agrees — it strips the empty value rather
+  // than passing it on, so both halves read it the same way.
+  //
+  // They disagreed in one case, and it was the worst one: with an empty value
+  // here AND nothing in fnox, this returned null while the child still
+  // inherited "". An empty token is worse than no token — wrangler tries to use
+  // it instead of falling back to the OAuth credential that would have worked.
+  const fromEnv = process.env.CLOUDFLARE_API_TOKEN?.trim()
   if (fromEnv) return (cachedToken = fromEnv)
+  return (cachedToken = fnoxGet("CLOUDFLARE_API_TOKEN"))
+}
 
-  const got = Bun.spawnSync(["fnox", "get", "CLOUDFLARE_API_TOKEN"], {
-    stdout: "pipe",
-    stderr: "ignore",
-  })
-  const value = got.exitCode === 0 ? got.stdout.toString().trim() : ""
-  return (cachedToken = value || null)
+/**
+ * One secret out of fnox, or null — including when fnox is not installed.
+ *
+ * `Bun.spawnSync` **throws** on a missing executable rather than returning a
+ * non-zero `exitCode`: "Executable not found in $PATH". So the obvious
+ * exit-code check is not enough, and without the catch a machine with no fnox —
+ * CI, a fresh clone, a contributor who has never provisioned — gets a stack
+ * trace from a lookup that is supposed to be allowed to find nothing. The shell
+ * this replaced said `2>/dev/null || true` and was right.
+ *
+ * `bin` is a parameter so the absent-binary path is testable without
+ * uninstalling anything.
+ */
+export function fnoxGet(name: string, bin = "fnox"): string | null {
+  try {
+    const got = Bun.spawnSync([bin, "get", name], { stdout: "pipe", stderr: "ignore" })
+    if (got.exitCode !== 0) return null
+    return got.stdout.toString().trim() || null
+  } catch {
+    return null
+  }
 }
 
 // ── The account ──────────────────────────────────────────────────────────────
@@ -334,9 +359,13 @@ export function accountId(): string {
 
 /** The environment every Cloudflare child process gets, and nothing else. */
 function credentialEnv(): Record<string, string> {
+  // Discarded from the spread, not overwritten: an empty CLOUDFLARE_API_TOKEN
+  // means unset, `token()` reads it that way, and a child that still received
+  // "" would be authenticating differently from what this module decided.
+  const { CLOUDFLARE_API_TOKEN: _discarded, ...rest } = process.env
   const t = token()
   return {
-    ...process.env,
+    ...rest,
     CLOUDFLARE_ACCOUNT_ID: accountId(),
     ...(t ? { CLOUDFLARE_API_TOKEN: t } : {}),
   } as Record<string, string>
@@ -415,6 +444,13 @@ export async function api(path: string, init: RequestInit = {}): Promise<Respons
  * broken credential and five migrations being skipped silently.
  */
 export function unreachable(r: Ran): string | null {
+  // A command that succeeded reached the account, whatever its output says.
+  // `Ran` carries the exit code and this used to ignore it, so the guarantee
+  // lived in each call site's `code !== 0` guard instead of here — four of them
+  // got it right and the fifth would not have. A successful listing that merely
+  // *contains* "Authentication error" is a resource name, not a failure.
+  if (r.code === 0) return null
+
   const text = r.out + r.err
   if (!/Authentication error|code: 10000|code: 10001|not logged in|fetch failed|ENOTFOUND/i.test(text)) {
     return null
