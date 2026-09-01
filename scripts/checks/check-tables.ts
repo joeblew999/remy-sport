@@ -12,8 +12,8 @@
  */
 import { getTableColumns, getTableName } from "drizzle-orm"
 import type { SQLiteTable } from "drizzle-orm/sqlite-core"
-import * as schema from "../src/db/schema"
-import { ACTION, FIXTURE_TABLE, GRANTS, OBJECT_TYPE, RELATION } from "../src/domain/vocabularies"
+import * as schema from "../../src/db/schema"
+import { ACTION, FIXTURE_TABLE, GRANTS, OBJECT_TYPE, RELATION } from "../../src/domain/vocabularies"
 
 const TABLES = new Set<string>()
 for (const value of Object.values(schema)) {

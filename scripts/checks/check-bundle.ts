@@ -31,7 +31,7 @@
 import { existsSync, readFileSync, statSync } from "fs"
 import { resolve } from "path"
 
-const SW = resolve(import.meta.dir, "../dist/web/sw.js")
+const SW = resolve(import.meta.dir, "../../dist/web/sw.js")
 
 /**
  * Modules that have no business running in a service worker.

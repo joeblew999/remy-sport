@@ -36,7 +36,7 @@
  * warns about all three. Resolved config is the only trustworthy source.
  */
 
-import { declaredEnvs, resolvedConfig } from "./cloudflare"
+import { declaredEnvs, resolvedConfig } from "../cloudflare"
 
 /** Which environment a resolved config belongs to, for messages. */
 type Named = { label: string; env: string | undefined }

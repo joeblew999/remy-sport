@@ -31,9 +31,9 @@
 
 import { readdirSync, readFileSync, statSync } from "fs"
 import { join, relative, resolve } from "path"
-import { NOTIFICATION_TYPE_CODES } from "../src/domain/vocabularies"
+import { NOTIFICATION_TYPE_CODES } from "../../src/domain/vocabularies"
 
-const ROOT = resolve(import.meta.dir, "..")
+const ROOT = resolve(import.meta.dir, "../..")
 const SERVER = resolve(ROOT, "src")
 const SETTINGS = resolve(ROOT, "src/web/components/notification-settings.tsx")
 

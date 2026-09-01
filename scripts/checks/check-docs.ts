@@ -21,7 +21,7 @@
 import { readdirSync, readFileSync, existsSync } from "fs"
 import { join, resolve, dirname } from "path"
 
-const ROOT = resolve(import.meta.dir, "..")
+const ROOT = resolve(import.meta.dir, "../..")
 
 function docFiles(): string[] {
   const out = ["AGENTS.md", "CLAUDE.md", "GEMINI.md", "README.md"]

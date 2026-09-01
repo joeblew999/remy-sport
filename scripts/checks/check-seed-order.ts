@@ -24,7 +24,7 @@
 import { readFileSync, readdirSync } from "fs"
 import { join, resolve } from "path"
 
-const ROOT = resolve(import.meta.dir, "..")
+const ROOT = resolve(import.meta.dir, "../..")
 const MIGRATIONS = join(ROOT, "src/db/migrations")
 
 /** child -> parents, from every migration: a table can gain a foreign key later. */

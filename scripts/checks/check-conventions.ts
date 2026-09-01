@@ -22,7 +22,7 @@
 import { readFileSync, readdirSync, existsSync } from "fs"
 import { join, resolve } from "path"
 
-const ROOT = resolve(import.meta.dir, "..")
+const ROOT = resolve(import.meta.dir, "../..")
 const read = (p: string) => (existsSync(join(ROOT, p)) ? readFileSync(join(ROOT, p), "utf-8") : "")
 
 /** Every .ts/.tsx under src/, minus the generated trees. */

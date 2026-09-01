@@ -21,9 +21,9 @@
  *   4. The escape hatches stay countable, and are printed every run.
  */
 
-import { GRANTS } from "../src/domain/vocabularies"
-import { policyOf, type Policy } from "../src/api/base"
-import { router } from "../src/api/index"
+import { GRANTS } from "../../src/domain/vocabularies"
+import { policyOf, type Policy } from "../../src/api/base"
+import { router } from "../../src/api/index"
 
 type Node = Record<string, unknown>
 
@@ -146,7 +146,7 @@ const HONO_ROUTES: Record<string, string> = {
 // The named export, not the default. The default is `{ fetch, scheduled }`
 // now that the Worker has a cron trigger, and reading `.routes` off that gave
 // undefined — this check has to fail loudly or not at all.
-const { app } = await import("../src/index")
+const { app } = await import("../../src/index")
 const live = new Set(
   (app as unknown as { routes: { method: string; path: string }[] }).routes.map(
     (r) => `${r.method} ${r.path}`,

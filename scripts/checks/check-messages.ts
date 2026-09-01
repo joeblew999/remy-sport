@@ -30,10 +30,10 @@
 
 import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
-import { ALL_LOCALES, LOCALES } from "../src/domain/vocabularies"
-import { ERRORS } from "../src/api/errors"
+import { ALL_LOCALES, LOCALES } from "../../src/domain/vocabularies"
+import { ERRORS } from "../../src/api/errors"
 
-const ROOT = resolve(import.meta.dir, "..")
+const ROOT = resolve(import.meta.dir, "../..")
 
 const load = (locale: string): Record<string, string> | null => {
   try {

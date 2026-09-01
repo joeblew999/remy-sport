@@ -25,9 +25,9 @@ import { resolve } from "node:path"
 // The named export, not the default. The Worker's default became
 // `{ fetch, scheduled }` when it grew a cron trigger, and `.routes` is not on
 // it — a check that reads a route table has to fail loudly or not at all.
-import { app } from "../src/index"
+import { app } from "../../src/index"
 
-const ROOT = resolve(import.meta.dir, "..")
+const ROOT = resolve(import.meta.dir, "../..")
 const DIST = resolve(ROOT, "dist/web")
 
 const wrangler = readFileSync(resolve(ROOT, "wrangler.toml"), "utf8")
