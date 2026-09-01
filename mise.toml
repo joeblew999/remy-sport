@@ -32,7 +32,7 @@ ruby = "3.4.9"
 # describes an environment: wrangler.toml decides what each one deploys with
 # (name, account, routes, bindings, vars) and src/environment.ts decides what
 # each one is allowed to do (the policy table, the dev origin). Both are read
-# through scripts/cloudflare.ts.
+# through scripts/lib/cloudflare.ts.
 #
 # CF_DEPLOY_URL, CF_WORKER_NAME, DEV_URL and CLOUDFLARE_ACCOUNT_ID all used to
 # sit here as literals pinned to production. That is the same shape as the
@@ -88,7 +88,7 @@ TUNNEL_ZONE     = "ubuntusoftware.net"
 
 # The workers.dev subdomain, which wrangler.toml does not carry. Everything
 # that IS in wrangler.toml — the worker name, each environment's hostname — is
-# read from there through scripts/cloudflare.ts rather than duplicated here.
+# read from there through scripts/lib/cloudflare.ts rather than duplicated here.
 CF_SUBDOMAIN    = "gedw99"
 GITHUB_REPO_URL = "https://github.com/joeblew999/remy-sport"
 

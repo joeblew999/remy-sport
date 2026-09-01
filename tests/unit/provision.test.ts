@@ -7,7 +7,7 @@ import {
   queueNames,
   type SecretGroup,
   type Step,
-} from "../../scripts/deploy/5-provision"
+} from "../../scripts/deploy/provision"
 import { POLICY } from "../../src/environment"
 
 /**

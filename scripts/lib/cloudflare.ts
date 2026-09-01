@@ -21,7 +21,7 @@
 
 import { readFileSync, writeFileSync } from "fs"
 import { experimental_readRawConfig, unstable_readConfig } from "wrangler"
-import { ENVIRONMENTS, type Environment } from "../src/environment"
+import { ENVIRONMENTS, type Environment } from "../../src/environment"
 
 const WRANGLER_TOML = "wrangler.toml"
 

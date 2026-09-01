@@ -13,12 +13,12 @@
  *   CLOUDFLARE_API_TOKEN — token with Account Settings: Read (or Audit Logs Read).
  *                          The cf:audit task fills this from fnox when it is
  *                          not already set, so a stored token needs no prefix.
- *   The account is the pinned one, from scripts/cloudflare.ts. There is no
+ *   The account is the pinned one, from scripts/lib/cloudflare.ts. There is no
  *   override: this file used to carry a literal uuid as a fallback.
  *   SINCE / BEFORE       — optional ISO dates bounding the search
  */
 
-import { accountApi, token } from "../cloudflare"
+import { accountApi, token } from "../lib/cloudflare"
 
 // Sourced through the module, so this consults fnox itself rather than relying
 // on its mise task to have exported one first — which is what the shell block

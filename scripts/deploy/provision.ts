@@ -39,7 +39,7 @@ import {
   resolvedConfig,
   unreachable,
   wrangler,
-} from "../cloudflare"
+} from "../lib/cloudflare"
 import { DEFAULT_BULK_FROM, DEFAULT_FROM } from "../../src/mail/mailer"
 
 // The target, the credential, the account, how wrangler is run and what its

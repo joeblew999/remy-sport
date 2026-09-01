@@ -17,9 +17,9 @@
  * live database by somebody who thought they were on staging.
  */
 
-import { install } from "./prepare"
+import { install } from "./lib/prepare"
 
-import { Refused, resolveTarget, resolvedConfig, wrangler, type Target } from "./cloudflare"
+import { Refused, resolveTarget, resolvedConfig, wrangler, type Target } from "./lib/cloudflare"
 
 type Op = "migrate-remote" | "migrate-local" | "reset-local" | "seed-remote" | "tables-remote" | "tables-local"
 

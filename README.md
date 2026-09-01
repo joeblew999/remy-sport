@@ -41,7 +41,7 @@ Two files describe an environment, and nothing else does:
 - **`src/environment.ts`** — what it is *allowed to do*: the policy table, and the
   dev origin, because dev is not a deployment.
 
-`scripts/cloudflare.ts` is the only reader of either and the only path to the
+`scripts/lib/cloudflare.ts` is the only reader of either and the only path to the
 Cloudflare API. It resolves the credential, forces the pinned account into every
 call, and tells "could not ask" apart from "absent".
 
@@ -51,7 +51,7 @@ Each command declares its own order, with every step saying why it sits where it
 does. Read it rather than guess:
 
 ```
-bun scripts/prepare.ts --order   what every command does first
+bun scripts/lib/prepare.ts --order   what every command does first
 scripts/check.ts    PHASES
 scripts/deploy.ts   PIPELINE
 scripts/dev.ts      start()
@@ -59,33 +59,39 @@ scripts/dev.ts      start()
 
 ## Layout
 
-One script per command, and beside it a folder of its parts named the same:
-
 ```
-check.ts      check/       assets  authz  bundle  conventions  docs  envs
-                           messages  notifications  seed-order  tables
-deploy.ts     deploy/      2-auth-schema  4-versions  5-provision  9-smoke
-prepare.ts    prepare/     2-fonts  5-dev-vars  8-seed
-ops.ts        ops/         analytics  audit  biz  coverage-data  coverage-gui
-                           coverage-model  demo  demo-status  domain  keys
-                           tiers  time  tunnel
-dev.ts        dev/         watch
-db.ts
-cloudflare.ts              the only path to the Cloudflare API
+scripts/
+  check.ts  db.ts  deploy.ts  dev.ts  ops.ts     the five commands, and nothing else
+
+  check/    assets  authz  bundle  conventions  docs  envs
+            messages  notifications  seed-order  tables
+  deploy/   auth-schema  provision  smoke  versions
+  ops/      analytics  audit  biz  coverage-data  coverage-gui  coverage-model
+            demo  demo-status  domain  keys  tiers  time  tunnel
+
+  lib/      cloudflare  prepare  fonts  dev-vars  seed  watch
 ```
 
-Two rules make it readable without opening anything:
+Three things, and no legend needed:
 
-**A file is named for the thing that runs it.** Every file under `check/` is one
-step of the gate — all ten, nothing else. Every file under `ops/` belongs to the
-subcommand it is named for: `demo-status` is what `ops demo status` runs,
-`coverage-gui` is `ops coverage gui`.
+**The top level is exactly what you can run.** Five files, five commands.
 
-**Where a folder is a sequence, its files carry their position.** `deploy/` and
-`prepare/` are numbered; the gaps are steps that are not files — deploy's 1 is
-the gate, 3 the e2e tier, 6 the publish, 7 the wait, 8 the remote seed. `check/`
-is deliberately unnumbered because those run in parallel, and numbering them
-would assert an order that does not exist. `ops/` likewise: a menu, not a
-pipeline.
+**A folder holds the parts of the command it is named after**, each named for
+what it does — every file under `ops/` is reachable as an `ops` subcommand,
+every file under `check/` is a step of the gate.
+
+**`lib/` is everything shared or called by more than one command.**
+`cloudflare.ts` is the only path to the Cloudflare API.
+
+Order is deliberately NOT in the filenames. When something runs is a fact about
+execution, not about a file, and encoding it in names needs a legend and goes
+stale the moment a step moves. It lives where it can be read and cannot lie:
+
+```
+scripts/deploy.ts   PIPELINE   nine steps, each with the reason it sits there
+scripts/check.ts    PHASES     three phases; within a phase there is no order
+scripts/dev.ts      start()    seven numbered lines
+bun scripts/lib/prepare.ts --order
+```
 
 `AGENTS.md` holds the things that have already cost a bug.

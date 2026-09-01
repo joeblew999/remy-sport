@@ -17,9 +17,9 @@
  *   mise run ops analytics 24
  */
 
-import { install } from "./prepare"
+import { install } from "./lib/prepare"
 
-import { Refused } from "./cloudflare"
+import { Refused } from "./lib/cloudflare"
 
 interface Op {
   /** Argv to spawn. `rest` is whatever the caller typed after the subcommand. */
@@ -48,7 +48,7 @@ const OPS: Record<string, Op> = {
     help: "tunnel                           create the dev tunnel and its hostname",
   },
   versions: {
-    cmd: (rest) => ["bun", "scripts/deploy/4-versions.ts", ...rest],
+    cmd: (rest) => ["bun", "scripts/deploy/versions.ts", ...rest],
     help: "versions                         stamp versions.json",
   },
   seed: {

@@ -10,7 +10,7 @@
  * not arbitrary — see PHASES below.
  */
 
-import { prepare } from "./prepare"
+import { prepare } from "./lib/prepare"
 
 import { spawn } from "child_process"
 import { existsSync } from "fs"
@@ -208,7 +208,7 @@ export const PHASES: Step[][] = [
    *
    * Cheap enough (~100ms) that serialising it costs nothing.
    */
-  [{ name: "seed", cmd: script("prepare/8-seed.ts", "--check") }],
+  [{ name: "seed", cmd: script("lib/seed.ts", "--check") }],
   [
     {
       name: "render",

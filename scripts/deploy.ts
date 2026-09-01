@@ -16,9 +16,9 @@
  * Every step is still its own script. This owns the order, not the work.
  */
 
-import { run as provision } from "./deploy/5-provision"
-import { prepare } from "./prepare"
-import { Refused, originOf, resolveTarget, wrangler, type Target } from "./cloudflare"
+import { run as provision } from "./deploy/provision"
+import { prepare } from "./lib/prepare"
+import { Refused, originOf, resolveTarget, wrangler, type Target } from "./lib/cloudflare"
 
 interface Phase {
   name: string
@@ -35,7 +35,7 @@ const PIPELINE: Phase[] = [
   {
     name: "auth schema",
     why: "the generated schema must match auth.config before anything ships it",
-    go: () => step("auth schema", ["bun", "scripts/deploy/2-auth-schema.ts"]),
+    go: () => step("auth schema", ["bun", "scripts/deploy/auth-schema.ts"]),
   },
   {
     name: "test",
@@ -45,7 +45,7 @@ const PIPELINE: Phase[] = [
   {
     name: "stamp",
     why: "versions.json is what the origin is later compared against, so it is written before the publish, not after",
-    go: () => step("stamp", ["bun", "scripts/deploy/4-versions.ts"]),
+    go: () => step("stamp", ["bun", "scripts/deploy/versions.ts"]),
   },
   {
     name: "provision",
@@ -83,7 +83,7 @@ const PIPELINE: Phase[] = [
   {
     name: "smoke",
     why: "last, because it is the only step that asks the deployment what it is actually serving",
-    go: (_t, origin) => step("smoke", ["bun", "scripts/deploy/9-smoke.ts"], { CF_DEPLOY_URL: origin }),
+    go: (_t, origin) => step("smoke", ["bun", "scripts/deploy/smoke.ts"], { CF_DEPLOY_URL: origin }),
   },
 ]
 

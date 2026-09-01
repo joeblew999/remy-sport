@@ -25,7 +25,7 @@
  */
 
 import { DEV_ORIGIN, DEV_PORT } from "../src/environment"
-import { local } from "./prepare"
+import { local } from "./lib/prepare"
 
 import { existsSync, appendFileSync, readFileSync, mkdirSync, openSync } from "fs"
 
@@ -259,7 +259,7 @@ if (action === "stop") {
 } else if (action === "watch") {
   // The fast gate on every save. The point is the seconds, not the watching: a
   // check you have to ask for gets run at the end of a change.
-  Bun.spawnSync(["bun", "scripts/dev/watch.ts"], { stdout: "inherit", stderr: "inherit" })
+  Bun.spawnSync(["bun", "scripts/lib/watch.ts"], { stdout: "inherit", stderr: "inherit" })
 } else if (action === "ensure") {
   await ensure()
 } else if (action === "start") {

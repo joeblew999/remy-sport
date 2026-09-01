@@ -482,7 +482,7 @@ never replaces one. A **half-pair is refused** rather than completed, because
 completing it means rotating: `PUSH_SKIP=1` ships the deploy and touches
 nothing (push is already off, and every subscription stays recoverable once the
 missing half returns), `PUSH_ROTATE=1` accepts the loss. That all-or-nothing
-rule is `decideSecrets` in `scripts/deploy/5-provision.ts`, and it guards
+rule is `decideSecrets` in `scripts/deploy/provision.ts`, and it guards
 `BETTER_AUTH_SECRET` and the MoQ pair too — the same mistake would sign
 everybody out, or half-configure video.
 

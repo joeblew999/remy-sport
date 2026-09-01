@@ -23,7 +23,7 @@
 
 import { DEV_ORIGIN } from "../../src/environment"
 
-import { accountApi, apiResult, zoneApi } from "../cloudflare"
+import { accountApi, apiResult, zoneApi } from "../lib/cloudflare"
 
 const env = (name: string): string => {
   const v = process.env[name]

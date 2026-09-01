@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test"
-import { fnoxGet, resolveTarget, unreachable, type Ran } from "../../scripts/cloudflare"
+import { fnoxGet, resolveTarget, unreachable, type Ran } from "../../scripts/lib/cloudflare"
 
 /**
  * The Cloudflare boundary's decisions, which are the ones that fail quietly.

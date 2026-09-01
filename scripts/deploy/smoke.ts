@@ -29,7 +29,7 @@
  * or creates an account.
  */
 
-import { originOf, resolveTarget } from "../cloudflare"
+import { originOf, resolveTarget } from "../lib/cloudflare"
 
 const BASE = process.env.CF_DEPLOY_URL ?? originOf(resolveTarget(process.argv.slice(2), "ambient"))
 

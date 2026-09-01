@@ -9,7 +9,7 @@
  */
 
 import { execSync } from "child_process"
-import { wrangler, resolveTarget, workerName } from "../cloudflare"
+import { wrangler, resolveTarget, workerName } from "../lib/cloudflare"
 import { readFileSync, writeFileSync } from "fs"
 import https from "https"
 
