@@ -1,11 +1,11 @@
 /**
  * The dev server: one port, always current, seeded, reachable from a phone.
  *
- *   mise run dev            start it
- *   mise run dev -- stop    stop it and everything it started
- *   mise run dev -- restart both, in order
- *   mise run dev -- ensure  start only if it is not already up
- *   mise run dev -- watch   re-run the fast gate on every save
+ *   mise run 1-dev            start it
+ *   mise run 1-dev -- stop    stop it and everything it started
+ *   mise run 1-dev -- restart both, in order
+ *   mise run 1-dev -- ensure  start only if it is not already up
+ *   mise run 1-dev -- watch   re-run the fast gate on every save
  *
  * It was fifty-three lines of shell in mise.toml plus twelve more for stopping,
  * and `scripts/dev.ts` was something else entirely — the .dev.vars generator —
@@ -125,7 +125,7 @@ async function reachable(): Promise<boolean> {
  * named steps below; what is left reads top to bottom as what happens.
  */
 /**
- * The sequence, as data, so `mise run dev -- --order` prints exactly what runs.
+ * The sequence, as data, so `mise run 1-dev -- --order` prints exactly what runs.
  * Each line says why it is where it is; nearly all of them are "the next step
  * needs what this one produced".
  */
@@ -235,7 +235,7 @@ function announce(ip: string | null, tunnel: boolean): void {
   )
   console.log(`  #/login                          twelve seeded people, one click`)
   console.log(`  rebuilds on save — reload to see changes`)
-  console.log(`\n  when you are done:  mise run check\n`)
+  console.log(`\n  when you are done:  mise run 2-check\n`)
 }
 
 /**
@@ -266,7 +266,7 @@ async function ensure(): Promise<void> {
 const [action = "start"] = process.argv.slice(2)
 
 if (process.argv.includes("--order")) {
-  console.log("\nmise run dev\n")
+  console.log("\nmise run 1-dev\n")
   START.forEach((s, i) => console.log(`  ${i + 1}. ${s.name.padEnd(9)} ${s.why}`))
   console.log("")
   process.exit(0)

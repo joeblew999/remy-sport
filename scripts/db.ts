@@ -133,7 +133,7 @@ try {
       // have reset something it did not.
       Bun.spawnSync(["rm", "-rf", ".wrangler/state/v3/d1"])
       run(["d1", "migrations", "apply", name, "--local"], t)
-      console.log(`db: local D1 for "${name}" rebuilt — run 'mise run dev' for test data`)
+      console.log(`db: local D1 for "${name}" rebuilt — run 'mise run 1-dev' for test data`)
       break
     case "seed-remote":
       console.log(`db: seeding "${name}" [${t.environment}, remote]`)

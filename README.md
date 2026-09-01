@@ -7,18 +7,18 @@ Everything is one of these. Each step says where it stops and what carries on.
 **You changed code**
 
 ```
-mise run dev                            build it here      localhost:8787, seeded
-mise run check                          prove it           ~30s
-mise run deploy -- --env staging        try it out there
-mise run deploy -- --env production     ship it
+mise run 1-dev                            build it here      localhost:8787, seeded
+mise run 2-check                          prove it           ~30s
+mise run 3-deploy -- --env staging        try it out there
+mise run 3-deploy -- --env production     ship it
 ```
 
 **The Product Owner changed the model**
 
 ```
 mise run model                          pull it in, migrate HERE, seed, verify
-mise run deploy -- --env staging        carry the migration out there
-mise run deploy -- --env production
+mise run 3-deploy -- --env staging        carry the migration out there
+mise run 3-deploy -- --env production
 ```
 
 The second flow is the one worth understanding, because this architecture is
@@ -35,9 +35,9 @@ Any command's order, without running it:
 
 ```
 mise run model -- --order
-mise run deploy -- --order
-mise run check -- --order
-mise run dev -- --order
+mise run 3-deploy -- --order
+mise run 2-check -- --order
+mise run 1-dev -- --order
 ```
 
 ## The other two commands
@@ -57,7 +57,7 @@ environment or refuses.
 | --- | --- | --- | --- |
 | Production | https://remy.ubuntusoftware.net | `remy-sport` | `remy-sport-db` |
 | Staging | https://staging-remy.ubuntusoftware.net | `remy-sport-staging` | `remy-sport-staging-db` |
-| Dev | http://localhost:8787 · https://dev-remy.ubuntusoftware.net | `mise run dev` | `.wrangler/state` |
+| Dev | http://localhost:8787 · https://dev-remy.ubuntusoftware.net | `mise run 1-dev` | `.wrangler/state` |
 
 The two dev URLs are one server. The tunnel exists because iOS Safari with
 HTTPS-Only refuses a plain `http://192.168.x.x`, so a phone needs the HTTPS name.
@@ -118,9 +118,9 @@ the moment a step moves. Ask the command instead — each prints the list it
 actually runs, so it cannot drift from the truth:
 
 ```
-mise run dev -- --order       7 steps
-mise run check -- --order     3 phases, and what is parallel within each
-mise run deploy -- --order    9 steps, each with the reason it sits there
+mise run 1-dev -- --order       7 steps
+mise run 2-check -- --order     3 phases, and what is parallel within each
+mise run 3-deploy -- --order    9 steps, each with the reason it sits there
 bun scripts/lib/prepare.ts --order
 ```
 

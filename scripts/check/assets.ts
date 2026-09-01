@@ -39,7 +39,7 @@ if (/^\s*run_worker_first\s*=\s*true/m.test(wrangler)) {
 }
 
 if (!existsSync(DIST)) {
-  // `mise run check` does not build the SPA. Say so rather than passing on an
+  // `mise run 2-check` does not build the SPA. Say so rather than passing on an
   // absence, which would read as "no collisions".
   console.log("check-assets: dist/web is not built — run 'mise run web:build' to check for real")
   process.exit(0)

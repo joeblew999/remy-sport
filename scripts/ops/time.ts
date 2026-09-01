@@ -92,7 +92,7 @@ for (let i = 0; i <= runs; i++) {
     bytes = (await res.arrayBuffer()).byteLength
   } catch (err) {
     console.error(`\n  ${url}\n  unreachable: ${(err as Error).message}`)
-    console.error(`  is the dev server up? \`mise run dev\``)
+    console.error(`  is the dev server up? \`mise run 1-dev\``)
     process.exit(1)
   }
   const took = performance.now() - started

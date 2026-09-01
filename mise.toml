@@ -103,8 +103,8 @@ BIZ_TOKEN_KEY = "GITHUB_BIZ_REPO_TOKEN"
 
 # ── Core ────────────────────────────────────────────────────────────────────
 
-[tasks.dev]
-description = "1 · build it here — stop | restart | ensure | watch | --order"
+[tasks.1-dev]
+description = "build it here — stop | restart | ensure | watch | --order"
 # One command, one port, and dist/web is never stale.
 #
 # This used to be three tasks and a footgun. `dev` served the built bundle, so
@@ -125,8 +125,8 @@ description = "1 · build it here — stop | restart | ensure | watch | --order"
 # convention check requires the flag, not a particular value.
 run = "bun scripts/dev.ts"
 
-[tasks.check]
-description = "2 · prove it — --fast | --e2e | --order"
+[tasks.2-check]
+description = "prove it — --fast | --e2e | --order"
 # `web:build` is a dependency rather than a line in the script, so mise builds
 # it once for this task and for `test:render`, which needs it too.
 # dev:vars because the worker tests inside check read .dev.vars — "Using secrets
@@ -139,7 +139,7 @@ description = "2 · prove it — --fast | --e2e | --order"
 run = "bun scripts/check.ts"
 
 [tasks.model]
-description = "when the PO changes the model — pull it in, migrate here, then 3"
+description = "when the PO changes the model — pull it in, migrate here, then 3-deploy"
 # The chain was real and unwritten: biz, domain, generate, migrate, seed, verify.
 # Four of those lived under two other commands and the fifth happened inside
 # prepare, so the order was something you knew or guessed.
@@ -151,8 +151,8 @@ description = "occasional · operate a deployment — no args to list them"
 # scripts/ops.ts dispatches; the scripts behind it keep their own reasons.
 run = "bun scripts/ops.ts"
 
-[tasks.deploy]
-description = "3 · ship it — --env staging|production | --order"
+[tasks.3-deploy]
+description = "ship it — --env staging|production | --order"
 # The order lives in scripts/deploy.ts, where it can be read, and where the
 # origin to verify against is derived per environment instead of being the one
 # hostname a TOML template could interpolate.

@@ -307,7 +307,7 @@ export async function gate(phases: Step[][]): Promise<string[]> {
 const FAST = new Set(["typecheck-worker", "typecheck-spa", "typecheck-tests", "unit"])
 
 if (import.meta.main && process.argv.includes("--order")) {
-  console.log("\nmise run check\n")
+  console.log("\nmise run 2-check\n")
   PHASES.forEach((phase, i) => {
     console.log(`  phase ${i}${phase.length > 1 ? "  (these run in parallel)" : ""}`)
     for (const s of phase) console.log(`    ${s.name}`)
@@ -338,12 +338,12 @@ if (import.meta.main) {
       : /src\/web\//.test(changed)
         ? "the render suite"
         : null
-    if (tier) console.log(`  you touched code ${tier} covers — run 'mise run check' before you commit`)
+    if (tier) console.log(`  you touched code ${tier} covers — run 'mise run 2-check' before you commit`)
   }
   console.log(
     `\ncheck: green${e2e ? " (e2e)" : fast ? " (fast)" : ""}\n` +
       (fast || e2e
         ? ""
-        : "\n  Commit it, then:\n    mise run deploy -- --env staging\n    mise run deploy -- --env production\n"),
+        : "\n  Commit it, then:\n    mise run 3-deploy -- --env staging\n    mise run 3-deploy -- --env production\n"),
   )
 }

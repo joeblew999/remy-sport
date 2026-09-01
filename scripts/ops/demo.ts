@@ -7,7 +7,7 @@
  * fixed code had been gated on `permits(env, "seededSignIn")`, which production
  * has as false — so `demo:on` put the secret, printed a cheerful success line,
  * and every seeded account still got a random code. Nothing failed. It would
- * have surfaced at the next `mise run deploy`, when the whole Playwright suite
+ * have surfaced at the next `mise run 3-deploy`, when the whole Playwright suite
  * could not sign in.
  *
  * So this ends by **asking the deployment**. "The secret was written" and

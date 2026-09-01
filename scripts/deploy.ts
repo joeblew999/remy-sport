@@ -153,7 +153,7 @@ async function waitForOrigin(origin: string): Promise<void> {
  * afterwards is not one worth performing.
  */
 if (process.argv.includes("--order")) {
-  console.log("\nmise run deploy -- --env X\n")
+  console.log("\nmise run 3-deploy -- --env X\n")
   PIPELINE.forEach((p, i) => console.log(`  ${String(i + 1).padStart(2)}. ${p.name.padEnd(12)} ${p.why}`))
   console.log("")
   process.exit(0)
@@ -172,7 +172,7 @@ try {
   console.log(
     `\ndeploy: ${target.environment} is live at ${origin}\n\n` +
       (target.environment === "staging"
-        ? "  Then production, when it looks right:\n    mise run deploy -- --env production\n"
+        ? "  Then production, when it looks right:\n    mise run 3-deploy -- --env production\n"
         : ""),
   )
 } catch (err) {

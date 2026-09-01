@@ -1,7 +1,7 @@
 /**
  * Assert the rules AGENTS.md states, against the tree.
  *
- * This is the third leg of `mise run check`, and the one that exists because of
+ * This is the third leg of `mise run 2-check`, and the one that exists because of
  * how this repo is built. Every session an agent reads AGENTS.md and believes
  * it. A human reading a stale rule thinks "that's not right, I remember"; an
  * agent has no memory to contradict it and builds on it instead. That is not

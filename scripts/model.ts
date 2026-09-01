@@ -97,6 +97,6 @@ console.log(
     "  to .wrangler/state and nowhere else, and `deploy` is what carries it out —\n" +
     "  it provisions before it publishes, so the schema lands before the code that\n" +
     "  needs it.\n\n" +
-    "    mise run deploy -- --env staging\n" +
-    "    mise run deploy -- --env production\n",
+    "    mise run 3-deploy -- --env staging\n" +
+    "    mise run 3-deploy -- --env production\n",
 )

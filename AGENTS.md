@@ -22,7 +22,7 @@ platform has real users.**
 
 **Adding a language is one pass, and Claude does the translating.** This is how
 `ja` went from nothing to complete: read `messages/en.json`, write
-`messages/<locale>.json`, check the placeholders, `mise run check`.
+`messages/<locale>.json`, check the placeholders, `mise run 2-check`.
 Nothing else is set up and nothing else is needed — inlang's own editor and its
 machine-translate CLI both exist, and neither is used here, so neither is
 described here as if it were.
@@ -84,9 +84,9 @@ the moment they vanish — so a `mv` away and back lands the real repo *inside* 
 husk the server just made, and `git` reports "not a git repository" from a path
 that looks right. Recovered on 2026-08-31 by stopping the server, un-nesting and
 deleting the husk; nothing was lost, because the move was a rename and not a
-copy. `mise run dev -- stop` first, or test against a copy.
+copy. `mise run 1-dev -- stop` first, or test against a copy.
 
-**`mise run dev -- ensure` — never `pkill`, never a bare `wrangler dev`.** It is
+**`mise run 1-dev -- ensure` — never `pkill`, never a bare `wrangler dev`.** It is
 idempotent and no-ops in a second when something is already serving. Starting
 things by hand is what produced a day of measuring stale bundles: a
 half-replaced server, or two racing for the port, and the thing on screen was
@@ -102,7 +102,7 @@ writing `dist/web`. It exists for `setup` and `deploy`, not for you.
 | edited | needed |
 |---|---|
 | `src/**` — Worker or SPA | nothing. Both reload in ~1s |
-| `vite.config.ts`, `.dev.vars`, `mise.toml` | `mise run dev -- restart` |
+| `vite.config.ts`, `.dev.vars`, `mise.toml` | `mise run 1-dev -- restart` |
 
 The middle row is the one that catches people: **the watcher does not re-read
 its own config**, so a vite.config.ts change appears to do nothing at all until
@@ -155,7 +155,7 @@ What proves the model agrees with this database is the seed:
 disagree. Do not add a script that checks the same thing more weakly.
 
 The copies are committed, so a build never needs biz — it is private, and
-requiring it would put a credential in every deploy. `mise run check` verifies
+requiring it would put a credential in every deploy. `mise run 2-check` verifies
 they have not drifted.
 
 **biz wins unless the code here says otherwise, with the reason in the commit.**
@@ -204,7 +204,7 @@ tier and merging worker files (~3s of workerd startup each). **Do not "optimise
 the runner"** — a whole session went into storageState, worker counts and
 project ordering and stopped dead.
 
-**Four import rules, enforced by `mise run check`.** The reasoning for each
+**Four import rules, enforced by `mise run 2-check`.** The reasoning for each
 sits beside it in [.dependency-cruiser.cjs](.dependency-cruiser.cjs), where the
 failure quotes it. The one that actually happened: the Worker importing
 `src/web` to send the sign-in email from the product's own messages, which
@@ -266,7 +266,7 @@ If a plugin wants to own a domain table, that is the signal not to use it.
 *replace* the plugin's own, so `admin()` locked the seeded admin out of every
 admin endpoint — invisible until something called one. It gets its own scoped
 controller ([`src/auth/admin-access-control.ts`](src/auth/admin-access-control.ts));
-`mise run check` asserts it.
+`mise run 2-check` asserts it.
 
 **Do not merge the statement sets to "fix" that.** The admin plugin declares
 `user` and `session`, and both names are taken by the domain model — where
@@ -336,7 +336,7 @@ onto the domain real people use. Wrangler warns about that when the inherited
 route is a `custom_domain` and says **nothing at all** when it is an ordinary
 route pattern — measured both ways, so the warning is not something to rely on.
 
-`mise run check` reads *resolved* config through wrangler's own reader —
+`mise run 2-check` reads *resolved* config through wrangler's own reader —
 never by parsing `wrangler.toml`, since the hazard is what the file does not say
 — and fails if two environments share a worker name, route host, database,
 bucket, queue or dataset, if an environment's `ENVIRONMENT` var disagrees with
@@ -348,13 +348,13 @@ believing it was something else.
 
 **The dev tasks pass an explicit `--host` and must keep doing so.** With a
 `[[routes]]` block, plain `wrangler dev` simulates that route and every request
-arrives as `remy.ubuntusoftware.net`. The *value* is free: `mise run dev` passes
+arrives as `remy.ubuntusoftware.net`. The *value* is free: `mise run 1-dev` passes
 the machine's LAN address so a phone on the same wifi can reach it, and sign-in
 still works from localhost as well — `trustedOrigins` derives from the request
 URL (`src/auth.ts`), so whichever host a request arrives on is trusted. Verified
 by signing in over each in turn; note an OTP is single-use, so testing that by
 hand fails on the second attempt as `INVALID_OTP` and looks like an origin
-refusal. `mise run check` asserts the flag is present.
+refusal. `mise run 2-check` asserts the flag is present.
 
 **`src/db/auth-schema.ts` is generated. Never edit it.** The hand-maintained
 version drifted once and every sign-in 500'd the moment the schema became correct.
@@ -421,7 +421,7 @@ found four on 2026-08-29, including a user lifecycle the model had always
 described and the database had no room for, so the seed dropped it in silence.
 
 **Every procedure declares how it is authorised, and non-procedure routes are
-inventoried.** `mise run check` fails with the instruction attached.
+inventoried.** `mise run 2-check` fails with the instruction attached.
 `POST /api/seed` sat unauthenticated for months because nothing listed it.
 
 **`can()` is the entire cost of a list, and it has no set-wise form.** Proven by
@@ -457,7 +457,7 @@ PO's vocabulary and in Better Auth.
 Ask the model. `requireAction` on the procedure, `can()` when the action depends
 on the input, `holds(db, "PLATFORM_ADMIN", user, null)` for a role, and
 `audienceFor(db, action, objectId)` for the inverse — *who* holds this, which is
-the question a notification asks. `mise run check` enforces this for
+the question a notification asks. `mise run 2-check` enforces this for
 `src/api`. Before writing an authorisation check by hand, **grep the model for
 an action that already covers it** — there are 75, and roughly a third of what
 they describe is built.
@@ -477,7 +477,7 @@ library emits before trusting it.**
 **Rotating the VAPID pair silently breaks every existing subscription.** The
 browser pins the public key at `subscribe()` time, so a new key cannot sign for
 endpoints the old one created — they fail 403 forever, and no reader is told.
-`mise run deploy` therefore generates a pair only when none exists and
+`mise run 3-deploy` therefore generates a pair only when none exists and
 never replaces one. A **half-pair is refused** rather than completed, because
 completing it means rotating: `PUSH_SKIP=1` ships the deploy and touches
 nothing (push is already off, and every subscription stays recoverable once the
@@ -511,7 +511,7 @@ drifting from it.
 
 Before writing "because X" anywhere: **measure X this session** — `mise run
 probe` takes two seconds — or write "unverified". When a grep says a file is
-unused, run `mise run check` first.
+unused, run `mise run 2-check` first.
 
 ## Decisions that look like omissions
 
@@ -534,10 +534,10 @@ draws never needs a database.
 
 | Asserts | Goes in |
 |---|---|
-| a pure function | `tests/unit/` — `mise run check` |
-| what the **API returns** | `tests/worker/` — `mise run check` |
-| what the **UI renders** given data | `tests/render/` — `mise run check` |
-| a **real round trip** | `tests/e2e/` — `mise run check -- --e2e` |
+| a pure function | `tests/unit/` — `mise run 2-check` |
+| what the **API returns** | `tests/worker/` — `mise run 2-check` |
+| what the **UI renders** given data | `tests/render/` — `mise run 2-check` |
+| a **real round trip** | `tests/e2e/` — `mise run 2-check -- --e2e` |
 
 If a test signs in only so a page will render, seed the cache instead —
 `tests/helpers/seed-cache.ts`, and `tests/helpers/api-fixtures.ts` for the
@@ -561,7 +561,7 @@ the gate stayed green.
   JSON column mid-implementation, shipped the better design, and left this file
   describing the table. A brief written from it later asked for code that had
   never existed.
-- `mise run check` before committing, not just `tsc`.
+- `mise run 2-check` before committing, not just `tsc`.
 - Always `mise run`; never raw `bun`/`bunx wrangler` when a task exists. Tasks
   must be idempotent and work with no user args.
 - Sessions should be **net-negative on lines**.

@@ -126,10 +126,10 @@ const set = Bun.spawn(["fnox", "set", "--global", "-p", "keychain", "TUNNEL_RUN_
 if ((await set.exited) !== 0) {
   console.error(
     "tunnel-setup: could not store the run token in fnox.\n" +
-      "  Store it yourself, then `mise run dev` will pick it up:\n" +
+      "  Store it yourself, then `mise run 1-dev` will pick it up:\n" +
       "  mise exec -- fnox set --global -p keychain TUNNEL_RUN_TOKEN",
   )
   process.exit(1)
 }
 
-console.log(`\n  https://${hostname}\n  A fixed URL. 'mise run dev' brings it up with the server.\n`)
+console.log(`\n  https://${hostname}\n  A fixed URL. 'mise run 1-dev' brings it up with the server.\n`)

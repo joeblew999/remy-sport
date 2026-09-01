@@ -1,7 +1,7 @@
 /**
  * Verify a deployed Worker, without a sign-in backdoor.
  *
- * This is what `mise run deploy` ends with. It used to end with `test:deployed`
+ * This is what `mise run 3-deploy` ends with. It used to end with `test:deployed`
  * — the whole Playwright suite pointed at production — which never actually ran:
  * it needs `TEST_OTP` as both a local env var and a Worker secret, and no task
  * provisions either, so the pipeline always exited red even when the deploy had
