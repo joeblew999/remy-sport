@@ -78,15 +78,18 @@ const BUDGETS: Record<string, Budget> = {
      * cross-product; memoising the reads — not shrinking the matrix, and not
      * touching the oracle's algorithm — removed most of it.
      *
-     * The tier is 16.6s alone. The 2.5x is contention with test:render, which is
-     * the gate deliberately using the machine — not a regression. Whether that
-     * contention can be *reduced* is a real question and a separate one: the
-     * two tiers ask for ~17 processes on twelve cores, and capping Playwright's
-     * workers to 3 moved the phase from 40.3s to 35.1s in a single sample —
-     * while the same experiment at 4 came out *worse* than at 6, which is how I
-     * know one sample cannot decide it. Not tuned here on that evidence.
+     * Re-set 2026-09-01 once the contention was actually measured. `check` now
+     * caps Playwright at three workers for phase 1 (see
+     * playwright.render.config.ts), and this tier stops being starved: shared
+     * samples are 22.4 / 23.1 / 24.7 / 26.5, against 36.6 before.
+     *
+     * So the ceiling comes DOWN from 55 to 40. It was raised to 55 when the
+     * shared figure was 42 with a tail past 45, and leaving it there over a
+     * measured 24 would let this tier take half again as long as it does with
+     * nobody noticing — which is the exact failure this file exists for. 40 is
+     * ~3x the observed spread of headroom, which is the ratio render has too.
      */
-    shared: { ceiling: 55, measured: 36.6 },
+    shared: { ceiling: 40, measured: 24.7 },
     // Re-measured 2026-08-31. The old note said "isolatedStorage pays that
     // eight times", which reads as a sum — vitest runs files in parallel, so
     // the tier costs its slowest file, not the total. It had crept to 24.5s
@@ -97,7 +100,17 @@ const BUDGETS: Record<string, Budget> = {
   render: {
     ceiling: 35,
     measured: 26.7,
-    shared: { ceiling: 45, measured: 31.0 },
+    /*
+     * Measured 34.2 / 34.3 / 35.3 / 35.7 as of 2026-09-01, up from 31.0 — this
+     * tier now runs on three workers inside `check` rather than six, and gives
+     * back more than it loses: total `check` went 50.8s to 41.8s median, and its
+     * run-to-run spread went from 12.1s to 1.4s.
+     *
+     * The ceiling stays at 45. Headroom is 9s against a spread of 1.5s — six
+     * times the noise — so it is not the flaky kind of tight, and lowering it to
+     * match the higher measurement would remove the room the cap just bought.
+     */
+    shared: { ceiling: 45, measured: 35.3 },
     /*
      * Raised 2026-09-01, deliberately, after it flaked a `check` run at 100% of
      * a 35s shared ceiling. A flaky gate is worse than a slow one: the first

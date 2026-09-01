@@ -571,6 +571,17 @@ run = """
 # Everything else goes together, render included: it drives WebKit against a
 # static `vite preview` and touches no Worker binding, so it is happy under
 # load. It also dominates the group at ~15s, which the cheap checks fill.
+# RENDER_WORKERS=3 caps Playwright for this phase only — see the table in
+# playwright.render.config.ts. The two tiers want ~17 processes on twelve cores,
+# and uncapped they cost each other more than the parallelism buys: measured over
+# five samples each, total `check` is 43.0/50.8/55.1s at the default 6 and
+# 40.6/41.1/41.8s at 3. The spread mattering more than the median is the point —
+# twelve seconds of run-to-run variance is what made the budget flaky.
+#
+# Folding the cheap checks into this phase was measured too, and is worse:
+# 41.6/46.6/51.6s in one phase against 40.6/41.1/41.8s in two. The paragraph
+# below was right and now has numbers.
+#
 # The two heavy tiers together, then everything cheap. Not one group of fifteen:
 # with worker and render in the same pile as thirteen other jobs the gate was
 # 33s, because both of them slowed down more than the cheap work saved. Two
@@ -579,7 +590,7 @@ run = """
 # BUDGET_SHARED tells check-budget which ceiling applies. `test:worker` is 12.6s
 # alone and 26.8s beside render — the gate doing its job, not a regression, and
 # one ceiling cannot describe both.
-BUDGET_SHARED=1 mise run test:render ::: test:worker
+RENDER_WORKERS=3 BUDGET_SHARED=1 mise run test:render ::: test:worker
 
 mise run typecheck:clean ::: test:unit ::: test:worker:assets \
   ::: check:dead ::: check:docs ::: check:authz ::: check:conventions \

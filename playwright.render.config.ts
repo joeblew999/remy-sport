@@ -31,6 +31,38 @@ export default defineConfig({
      * hold.
      */
   fullyParallel: true,
+  /**
+   * How many WebKit instances, and it depends on who else is running.
+   *
+   * Playwright's default is half the cores — 6 here. Alone that is right; the
+   * tier is 26.5s at 6 and 33.6s at 3, because nothing is competing for the
+   * other six.
+   *
+   * Inside `check` it is wrong. Phase 1 runs this beside `test:worker`, whose
+   * ~11 workerd isolates make ~17 processes asking for twelve cores, and both
+   * tiers lose more to the oversubscription than either gains from the extra
+   * parallelism. Measured, five samples of each configuration, total `check`
+   * wall clock as min/median/max:
+   *
+   *     6 workers (the default) ....  43.0 / 50.8 / 55.1     spread 12.1s
+   *     4 workers ..................  39.0 / 41.6 / 42.8     spread  3.8s
+   *     3 workers ..................  40.6 / 41.1 / 41.8     spread  1.2s
+   *     sequential, not concurrent .  46.1 / 46.5 / 49.3     spread  3.2s
+   *
+   * Three, not four: four has the better single sample and three has the better
+   * median and a spread three times tighter. **The spread is the finding.** The
+   * default configuration varies by twelve seconds run to run, which is where
+   * the budget flakiness came from — not from a tier that got slower.
+   *
+   * Sequential is in the table because it is the honest alternative: if
+   * oversubscription is the problem, not overlapping at all is a fix. It is a
+   * real improvement over the uncapped default and still 5.4s worse than
+   * capping, so the concurrent shape earns its place.
+   *
+   * `check` sets RENDER_WORKERS=3 for its phase 1 and nothing else does, so a
+   * standalone `mise run test:render` keeps all six.
+   */
+  workers: Number(process.env.RENDER_WORKERS) || undefined,
   reporter: process.env.CI ? "line" : "list",
   /**
    * Fail fast, because there is nothing here that can legitimately be slow.
