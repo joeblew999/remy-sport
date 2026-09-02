@@ -106,13 +106,35 @@ export const subscribe = authed
     // `onConflictDoUpdate` also gets the transfer case right, which the old
     // branch did not: if a browser was registered to one account and someone
     // else signs in on it, the row moves rather than colliding.
-    await context.db
+    /**
+     * Two unique indexes, and the upsert can only name one.
+     *
+     * `userNotificationChannel_address` on (channel_code, address) is the
+     * identity this upserts on — the endpoint IS the browser. But
+     * `userNotificationChannel_key` on (user_id, channel_code, address_label)
+     * also exists, and a second device whose label matches an existing row
+     * violates it. `onConflictDoUpdate` does not cover a constraint it did not
+     * target, so that arrived as a 500.
+     *
+     * It was not hypothetical: on macOS an installed web app and the Safari it
+     * was installed from share a user agent, so both labelled themselves
+     * "Safari on Mac". The app could never register, and every push went to the
+     * browser instead. The client distinguishes them now, but a label is a
+     * human-readable name rather than an identity and nothing should 500
+     * because two of them match — a reader with two identical phones is
+     * entitled to register both.
+     *
+     * The endpoint fingerprint as a suffix, because it is already how the rest
+     * of the app names a device and it is stable across re-registrations.
+     */
+    const write = (label: string) =>
+      context.db
       .insert(schema.userNotificationChannel)
       .values({
         userId: context.user.id,
         channelCode: "PUSH",
         address: input.subscription.endpoint,
-        addressLabel: input.label,
+        addressLabel: label,
         secret: JSON.stringify(input.subscription.keys),
         localeCode: input.locale ?? null,
         isEnabled: true,
@@ -128,12 +150,22 @@ export const subscribe = authed
         ],
         set: {
           userId: context.user.id,
-          addressLabel: input.label,
+          addressLabel: label,
           secret: JSON.stringify(input.subscription.keys),
           localeCode: input.locale ?? null,
           isEnabled: true,
         },
       })
+
+    try {
+      await write(input.label)
+    } catch {
+      // The label index, not the endpoint one — the endpoint is handled above.
+      // Suffixed rather than rejected: the reader asked to register a device
+      // and what collided was its name.
+      const suffix = (await deviceFingerprint(input.subscription.endpoint)).slice(0, 6)
+      await write(`${input.label} · ${suffix}`.slice(0, 60))
+    }
     return { ok: true as const }
   })
 

@@ -265,7 +265,22 @@ function deviceLabel(): string {
       : /Safari/.test(ua)
         ? "Safari"
         : "browser"
-  return `${browser} on ${platform}`
+  /**
+   * The installed app is a different device from the browser it was installed
+   * from, and saying so is not cosmetic.
+   *
+   * On macOS a web app in the Dock has its own storage, its own service worker
+   * and its own subscription — but the same user agent, so this returned
+   * "Safari on Mac" for both. `userNotificationChannel_key` is unique on
+   * (user_id, channel_code, address_label), and the upsert targets the ENDPOINT
+   * index, so the second registration hit an index nothing handled and came
+   * back as a 500. The installed app could never register, every test push went
+   * to Safari instead, and the app showed nothing.
+   *
+   * It also reads better: "Safari on Mac (app)" is the row a reader can
+   * actually pick out from the browser it was installed from.
+   */
+  return isInstalled() ? `${browser} on ${platform} (app)` : `${browser} on ${platform}`
 }
 
 /**
