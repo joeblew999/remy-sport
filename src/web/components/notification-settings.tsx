@@ -192,9 +192,26 @@ export function NotificationSettings() {
           >
             {m.send_test_notification()}
           </button>
+          {/*
+            What actually became of it, rather than one number.
+
+            This rendered `sent` alone, so a push the service REFUSED and a
+            reader with no devices produced the same sentence — "Sent to 0
+            device(s)" — followed by a guess that it was "blocked at the system
+            level", which is the one cause we can be sure it is not when the
+            send never left. Four outcomes, four answers, worst first.
+          */}
           {test.data && (
-            <div className="meta" data-testid="push-test-result">
-              {m.test_sent_to_devices({ count: test.data.sent })}
+            <div className="push-note" data-testid="push-test-result">
+              {!test.data.configured
+                ? m.test_not_configured()
+                : test.data.failed > 0
+                  ? m.test_refused({ count: test.data.failed })
+                  : test.data.gone > 0 && test.data.sent === 0
+                    ? m.test_all_expired({ count: test.data.gone })
+                    : test.data.sent === 0
+                      ? m.test_no_devices()
+                      : m.test_sent_to_devices({ count: test.data.sent })}
             </div>
           )}
         </>

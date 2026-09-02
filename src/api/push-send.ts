@@ -127,7 +127,7 @@ export async function deliverPush(
   db: Db,
   env: Bindings,
   rows: PushTarget[],
-): Promise<{ sent: number; gone: number; failed: number }> {
+): Promise<{ sent: number; gone: number; failed: number; configured: boolean }> {
   const targets = rows.flatMap((row) => {
     const device = toDevice({ address: row.address, secret: row.secret, localeCode: null })
     return device ? [{ address: row.address, subscription: device.subscription, body: row.body }] : []
@@ -140,9 +140,17 @@ async function deliver(
   env: Bindings,
   targets: { address: string; subscription: PushSubscription; body: PushBody }[],
   tag: string,
-): Promise<{ sent: number; gone: number; failed: number }> {
+): Promise<{ sent: number; gone: number; failed: number; configured: boolean }> {
   const vapid = vapidFrom(env)
-  if (!vapid) return { sent: 0, gone: 0, failed: 0 }
+  /**
+   * No keys is not the same answer as nothing to send, and it used to be.
+   *
+   * Both came back as three zeros, so a deployment with no VAPID configured was
+   * indistinguishable from a reader with no devices — and the test button said
+   * "sent to 0 devices" for both. `configured: false` is the difference, and it
+   * is the one a reader cannot fix themselves.
+   */
+  if (!vapid) return { sent: 0, gone: 0, failed: 0, configured: false }
 
   const dead: string[] = []
   const results = await Promise.allSettled(
@@ -177,6 +185,26 @@ async function deliver(
       if (res.status === 404 || res.status === 410) {
         dead.push(address)
         return "gone" as Outcome
+      }
+      /**
+       * The refusal, where a person can read it.
+       *
+       * `track` already records the status, but Analytics Engine is unbound in
+       * local dev and its rows are a no-op there — so a failed test push left
+       * NOTHING anywhere. Chasing one on 2026-09-02 got as far as "a real Apple
+       * subscription exists and the send happened" and stopped, because the
+       * status code existed only inside this closure.
+       *
+       * The body is what says WHY: Apple returns `BadJwtToken` for a VAPID
+       * subject it will not accept, which is unguessable from a bare 403.
+       * Truncated because a push service is free to return a page.
+       */
+      if (!res.ok) {
+        const why = await res.text().catch(() => "")
+        console.warn(
+          `push refused: ${res.status} from ${new URL(subscription.endpoint).host}` +
+            (why ? ` — ${why.slice(0, 200)}` : ""),
+        )
       }
       return (res.ok ? "sent" : "failed") as Outcome
     }),
@@ -237,5 +265,6 @@ async function deliver(
     sent: counted("sent"),
     gone: dead.length,
     failed: results.length - counted("sent") - dead.length,
+    configured: true,
   }
 }

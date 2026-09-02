@@ -351,15 +351,21 @@ export async function sendToRows(
   env: Bindings,
   rows: { address: string; secret: string | null; localeCode: string | null }[],
   body: PushBody,
-): Promise<{ sent: number; gone: number }> {
+): Promise<{ sent: number; gone: number; failed: number; configured: boolean }> {
   // Through the same push transport `notify` uses, so the test button and a
   // real notification cannot diverge about encryption, 410 handling or
   // telemetry. It stays synchronous and push-only: the user is standing there,
-  // and the whole value of the button is `{ sent, gone }` coming straight back.
-  const { sent, gone } = await deliverPush(
+  // and the whole value of the button is the outcome coming straight back.
+  //
+  // `failed` used to be destructured away here, and it is the answer the button
+  // exists to give: a push the service REFUSED — a bad VAPID subject, a
+  // malformed payload, a vendor outage — counted as neither sent nor gone and
+  // vanished, so the reader was told "sent to 0 devices" for a send that was
+  // attempted and rejected. That is indistinguishable from having no devices,
+  // and it is what "I pressed test and nothing happened" looked like from here.
+  return deliverPush(
     db,
     env,
     rows.map((row) => ({ address: row.address, secret: row.secret, body })),
   )
-  return { sent, gone }
 }

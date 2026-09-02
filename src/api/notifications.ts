@@ -398,7 +398,10 @@ export const sendTest = authed
   .use(requireAction("MANAGE_OWN_NOTIFICATION_CHANNELS"))
   .route({ method: "POST", path: "/push/test", summary: "Push a test notification to my own devices", ...authedRoute })
   .input(z.object({ locale: z.enum(LOCALES).optional() }))
-  .output(z.object({ sent: z.number(), gone: z.number() }))
+  // `failed` and `configured` are the half that was missing. A refused send and
+  // a deployment with no VAPID both used to arrive as zeroes, which the page
+  // rendered as "sent to 0 device(s)" — the same sentence as having no devices.
+  .output(z.object({ sent: z.number(), gone: z.number(), failed: z.number(), configured: z.boolean() }))
   .handler(async ({ context, input }) => {
     const rows = await context.db
       .select({
