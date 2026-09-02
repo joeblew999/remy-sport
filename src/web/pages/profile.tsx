@@ -2,6 +2,7 @@ import { useEvents, useLiveGames } from "../lib/data";
 import { useSession } from "../lib/session";
 import { Invitations } from "../components/invitations";
 import { YourPlayers } from "../components/your-players";
+import { Following } from "../components/following";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
 
@@ -121,6 +122,12 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
               ))}
             </div>
 
+            {/* Content, not a device setting. It sat at the bottom of the push
+                device list — a section about where notifications are delivered —
+                so "Kanya Thongdee · Player" appeared under two browsers and a
+                row of checkboxes. What a reader follows belongs with the rest of
+                what is theirs. */}
+            <Following />
           </div>
         </div>
       </div>

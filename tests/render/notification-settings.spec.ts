@@ -1,6 +1,6 @@
 import { test, expect } from "./fixture"
-import { seedCache } from "../helpers/seed-cache"
-import { sessionKey } from "../../src/web/lib/session"
+import { as } from "../helpers/actors"
+import { open } from "../helpers/surfaces"
 
 /**
  * How the notification section READS, which nothing checked.
@@ -29,12 +29,10 @@ import { sessionKey } from "../../src/web/lib/session"
  * be a dashed rectangle.
  */
 /** Resolved and empty — see push-settings.spec.ts on why absent is not enough. */
-const signedOut = { queryKey: sessionKey as unknown as readonly unknown[], data: null }
-
 test.describe("The notification section, as a reader sees it", () => {
   test("a status line reads as a line, not as a page with nothing on it", async ({ page }) => {
-    await seedCache(page, [signedOut])
-    await page.goto("/#/devices")
+    await as(page, "ADMIN")
+    await open(page, "notifications")
 
     const note = page.getByTestId("push-unknown")
     await expect(note).toBeVisible()
@@ -49,8 +47,8 @@ test.describe("The notification section, as a reader sees it", () => {
   })
 
   test("sub-headings sit below the section title, not above it", async ({ page }) => {
-    await seedCache(page, [signedOut])
-    await page.goto("/#/devices")
+    await as(page, "ADMIN")
+    await open(page, "notifications")
 
     const section = page.getByTestId("notification-settings")
     const size = (sel: string) =>
@@ -61,8 +59,8 @@ test.describe("The notification section, as a reader sees it", () => {
   })
 
   test("the preference list is a list of settings, not a bulleted list", async ({ page }) => {
-    await seedCache(page, [signedOut])
-    await page.goto("/#/devices")
+    await as(page, "ADMIN")
+    await open(page, "notifications")
 
     const list = page.getByTestId("notification-settings").locator("ul.pref-list").first()
     await expect(list).toBeVisible()
@@ -89,20 +87,20 @@ test.describe("The notification section, as a reader sees it", () => {
    * it drifting back onto the dashboard.
    */
   test("lives beside the sessions list, not on the profile dashboard", async ({ page }) => {
-    await seedCache(page, [signedOut])
-    await page.goto("/#/profile")
+    await as(page, "ADMIN")
+    await open(page, "dashboard")
     await expect(
       page.getByTestId("notification-settings"),
       "settings on a dashboard is how the two device lists ended up apart",
     ).toHaveCount(0)
 
-    await page.goto("/#/devices")
+    await open(page, "notifications")
     await expect(page.getByTestId("notification-settings")).toBeVisible()
   })
 
   test("puts the devices before the preferences, because a device is the prerequisite", async ({ page }) => {
-    await seedCache(page, [signedOut])
-    await page.goto("/#/devices")
+    await as(page, "ADMIN")
+    await open(page, "notifications")
 
     /**
      * Order as the reader meets it: this device, then which devices, then what
@@ -123,11 +121,59 @@ test.describe("The notification section, as a reader sees it", () => {
   })
 
   test("says the device state once, not twice", async ({ page }) => {
-    await seedCache(page, [signedOut])
-    await page.goto("/#/devices")
+    await as(page, "ADMIN")
+    await open(page, "notifications")
     // "On for this device" sat under a button already reading "Turn off on this
     // device" — the verb after the fact it was derived from, and one more thing
     // that could disagree with the list below.
     await expect(page.getByTestId("push-on-here")).toHaveCount(0)
+  })
+
+  test("does not carry the follow list, which is content rather than a device setting", async ({ page }) => {
+    await as(page, "ADMIN")
+    await open(page, "notifications")
+    // "Kanya Thongdee · Player" under two browsers and a row of checkboxes, in
+    // a section about where push is delivered.
+    await expect(
+      page.getByTestId("notification-settings").getByTestId("following-list"),
+    ).toHaveCount(0)
+
+    await open(page, "dashboard")
+    await expect(page.getByTestId("following-card")).toBeVisible()
+  })
+
+  /**
+   * The install prompt stays out of the way of every spec in this tier.
+   *
+   * `<pwa-install>` is a fixed overlay and a bottom sheet on a phone, so it sits
+   * on top of whatever a test is looking at — it covered the device list in
+   * every screenshot taken while this section was being reworked, and anything
+   * clicking near the bottom of a page is one layout change from hitting it.
+   *
+   * ./fixture.ts suppresses it the way the component itself does, via the
+   * `pwa-hide-install` flag it reads in its constructor, rather than by hiding
+   * it in CSS. This asserts the suppression still works, because a silent
+   * failure of it looks like a flaky click somewhere unrelated.
+   *
+   * Visibility, not height: it is hidden by opacity and transform, so the card
+   * keeps its 190px whether shown or not — which is exactly how the first
+   * version of this check fooled me into thinking the fixture had not worked.
+   */
+  test("the install prompt is not covering anything in this tier", async ({ page }) => {
+    await as(page, "ADMIN")
+    await open(page, "notifications")
+    await page.waitForTimeout(600)
+
+    const seen = await page.evaluate(() => {
+      const card = document
+        .querySelector("pwa-install")
+        ?.shadowRoot?.querySelector("article.install-dialog") as HTMLElement | null
+      if (!card) return false
+      const s = getComputedStyle(card)
+      const r = card.getBoundingClientRect()
+      const onScreen = r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth
+      return onScreen && s.opacity !== "0" && s.visibility !== "hidden"
+    })
+    expect(seen, "an overlay over the page makes every other assertion suspect").toBe(false)
   })
 })

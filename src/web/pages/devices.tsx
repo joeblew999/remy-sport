@@ -36,28 +36,22 @@ export function DevicesPage({ goto }: { goto: (r: Route) => void }) {
   if (sessionLoading) return <div className="empty">{m.loading()}</div>;
 
   /**
-   * Signed out, and still worth rendering something.
+   * Signed out: the sign-in prompt and nothing else.
    *
-   * The sessions list genuinely needs a session — it IS the session list. The
-   * notification settings below do not: whether this browser supports push,
-   * whether permission is blocked, and whether the app has to be installed
-   * first are facts about the device, and a reader benefits from "notifications
-   * are blocked in your browser" before they sign in rather than after.
-   *
-   * The early return used to take the whole page, so moving the settings here
-   * would have hidden them from exactly the reader most likely to be debugging
-   * why nothing arrives. The section gates its own ACTIONS internally.
+   * The notification settings were rendered here too for a while, on the
+   * argument that browser support and blocked permissions are facts about the
+   * device worth knowing before signing in. As a reader sees it that is wrong —
+   * an empty device list and a row of preference checkboxes under "sign in to
+   * see your devices", none of it actionable until they do. Every control in
+   * that section needs a session; the state alone was not worth the panel.
    */
   if (!user) {
     return (
-      <div className="page-inner" data-testid="devices-page">
-        <div className="empty" data-testid="devices-signed-out">
-          <p>{m.sign_in_to_see_devices()}</p>
-          <button className="btn primary" onClick={() => goto({ page: "login" })}>
-            {m.sign_in()}
-          </button>
-        </div>
-        <NotificationSettings />
+      <div className="empty" data-testid="devices-signed-out">
+        <p>{m.sign_in_to_see_devices()}</p>
+        <button className="btn primary" onClick={() => goto({ page: "login" })}>
+          {m.sign_in()}
+        </button>
       </div>
     );
   }

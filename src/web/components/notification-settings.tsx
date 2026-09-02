@@ -8,6 +8,13 @@
  * settings than it does, and a reader who turns push on then wonders where the
  * rest went.
  *
+ * **Mounted only behind a session.** Every action here — registering a browser,
+ * unregistering it, sending a test — is `authed`, so this used to gate each one
+ * on `user` and print "sign in first". Its only caller is the signed-in branch
+ * of /#/devices now, so those branches were unreachable, and a branch no test
+ * can reach is not defence, it is decoration. Mount it anywhere public and the
+ * buttons will 401 in silence again.
+ *
  * Every unavailable state gets its own sentence. See lib/push.ts: "you must
  * install this app first" and "you blocked notifications" are different
  * problems with different fixes, and one generic "notifications are off" would
@@ -19,7 +26,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api, orpc } from "../lib/orpc"
 import { m } from "../../paraglide/messages.js"
 import { useLocale } from "../lib/locale"
-import { useSession } from "../lib/session"
 import { useRouter } from "../lib/router"
 import { PushFailure, currentDeviceId, disablePush, enableNative, enablePush, pushState, type PushState } from "../lib/push"
 
@@ -54,8 +60,7 @@ const OFFERED = [
 
 export function NotificationSettings() {
   const qc = useQueryClient()
-  const { locale, label, name, describe } = useLocale()
-  const { user } = useSession()
+  const { locale, label, describe } = useLocale()
   /**
    * The tapped notification came back here and said so.
    *
@@ -215,28 +220,15 @@ export function NotificationSettings() {
         </div>
       ) : state.status === "on" || state.status === "off" ? (
         <>
-          {/*
-            Registering a browser is `authed`, so without a session this button
-            can only 401 — which it did, three separate ways, before any of them
-            said so. The push STATE above stays visible either way: permission,
-            support and installedness are facts about this device and are worth
-            knowing signed out. It is the actions that need somebody to act as.
-          */}
-          {user ? (
-            <button
-              type="button"
-              className="btn"
-              disabled={busy}
-              onClick={() => void toggle()}
-              data-testid="push-toggle"
-            >
-              {state.status === "on" ? m.disable_notifications() : m.enable_notifications()}
-            </button>
-          ) : (
-            <div className="push-note" data-testid="push-signed-out">
-              {m.push_needs_sign_in()}
-            </div>
-          )}
+          <button
+            type="button"
+            className="btn"
+            disabled={busy}
+            onClick={() => void toggle()}
+            data-testid="push-toggle"
+          >
+            {state.status === "on" ? m.disable_notifications() : m.enable_notifications()}
+          </button>
           {toggleFailed && (
             <div className="push-note is-blocked" data-testid="push-toggle-error">
               {toggleFailed === "subscribe"
@@ -276,41 +268,15 @@ export function NotificationSettings() {
               actually appears depends on the push service, the OS and any Focus
               mode — none of which we can see, and none of which a test suite
               can stand in for. So the reader presses it and looks. */}
-          {user ? (
-            <button
-              type="button"
-              className="btn"
-              disabled={test.isPending}
-              onClick={() => test.mutate()}
-              data-testid="push-test"
-            >
-              {m.send_test_notification()}
-            </button>
-          ) : (
-            // The endpoint is `authed`, and this whole block is reachable
-            // signed out. Offering the button anyway is what produced a click
-            // that could only ever be refused.
-            <div className="push-note" data-testid="push-test-signed-out">
-              {m.test_needs_sign_in()}
-            </div>
-          )}
-          {/*
-            What actually became of it, rather than one number.
-
-            This rendered `sent` alone, so a push the service REFUSED and a
-            reader with no devices produced the same sentence — "Sent to 0
-            device(s)" — followed by a guess that it was "blocked at the system
-            level", which is the one cause we can be sure it is not when the
-            send never left. Four outcomes, four answers, worst first.
-          */}
-          {/*
-            A failed send said NOTHING. Only `test.data` was rendered, so a
-            request the Worker refused — a lapsed session being the easy way in,
-            since pushState() reads "on" from a local subscription and
-            notifications.key is public, so this button renders while signed
-            out — left the button looking inert. "I pressed it and nothing
-            happened" was literally true, and the page was the reason.
-          */}
+          <button
+            type="button"
+            className="btn"
+            disabled={test.isPending}
+            onClick={() => test.mutate()}
+            data-testid="push-test"
+          >
+            {m.send_test_notification()}
+          </button>
           {/*
             Proof of the last step, which nothing else can give.
 
@@ -441,22 +407,6 @@ export function NotificationSettings() {
         })}
       </ul>
 
-      <h3>{m.following_label()}</h3>
-      {data?.following.length ? (
-        <ul className="pref-list" data-testid="following-list">
-          {data.following.map((f) => (
-            <li key={`${f.objectTypeCode}:${f.objectId}`}>
-              {/* The thing's own name, in the reader's language — "Assumption
-                  College U16 Boys", not "Team". A list of type labels reads as
-                  "Team, Team, Team" and is not one anybody can act on. */}
-              {name(f.names, f.name) || label("objectTypes", f.objectTypeCode)}
-              <span className="meta"> · {label("objectTypes", f.objectTypeCode)}</span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <div className="push-note">{m.nothing_followed_yet()}</div>
-      )}
     </section>
   )
 }

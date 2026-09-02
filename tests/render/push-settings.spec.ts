@@ -1,7 +1,8 @@
 import { test, expect } from "./fixture"
-import { seedCache } from "../helpers/seed-cache"
-import { sessionKey } from "../../src/web/lib/session"
 import { deviceFingerprint } from "../../src/domain/device-fingerprint"
+import { as } from "../helpers/actors"
+import { open } from "../helpers/surfaces"
+import { ENDPOINT, stubPushRpc, withNotificationPermission, withSubscription } from "../helpers/push"
 
 /**
  * What the push settings SAY, for the states a real subscription is needed to
@@ -34,128 +35,26 @@ import { deviceFingerprint } from "../../src/domain/device-fingerprint"
  * renders for a signed-out reader whose click can only ever be refused.
  */
 
-/**
- * Signed out, and RESOLVED — not merely absent.
- *
- * `useSession` reports `loading: q.isPending`, so an unseeded session query on
- * a tier with no backend stays pending through its retries and the devices page
- * renders only its loading branch. A signed-out visitor really does get 200 with
- * a null body (see fetchSession), so this is the honest shape rather than a
- * convenience.
- */
-const signedOut = {
-  queryKey: sessionKey as unknown as readonly unknown[],
-  data: null,
-}
-
-const signedIn = {
-  queryKey: sessionKey as unknown as readonly unknown[],
-  data: {
-    user: { id: "usr_admin_001", email: "admin@remysport.test", name: "Admin", role: "admin" },
-    session: { activeOrganizationId: null, impersonatedBy: null },
-  },
-}
-
-/**
- * A key of the right SHAPE, because the code decodes it before subscribing.
- *
- * `keyBytes()` base64url-decodes this into the 65 bytes an uncompressed P-256
- * point occupies, and a placeholder like "BTEST" throws in there — before
- * `subscribe()` is reached at all. Two tests then classified the failure as
- * "unknown" and asserted against the wrong branch, which cost a round of
- * chasing the component for a fault in the fixture.
- */
-const VAPID_KEY = "BAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK-2vcTL0tng5-71AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsU"
-
-/** The endpoint the stubbed browser holds. Its fingerprint is asserted below. */
-const ENDPOINT = "https://web.push.apple.com/TEST-ENDPOINT-FOR-RENDER-TIER"
-
-/**
- * A browser that holds a push subscription.
- *
- * Replaces `navigator.serviceWorker` wholesale rather than registering a real
- * worker: the tier serves a built bundle over `vite preview`, and a real
- * registration would pull in the app's own service worker and its caching. The
- * two properties `pushState()` reads are the two provided.
- */
-const withSubscription = (endpoint: string) => (page: Parameters<typeof seedCache>[0]) =>
-  page.addInitScript((ep: string) => {
-    const subscription = { endpoint: ep, expirationTime: null, toJSON: () => ({ endpoint: ep }) }
-    Object.defineProperty(navigator, "serviceWorker", {
-      configurable: true,
-      get: () => ({
-        ready: Promise.resolve({ pushManager: { getSubscription: async () => subscription } }),
-        addEventListener() {},
-        controller: null,
-      }),
-    })
-  }, endpoint)
-
-/** The VAPID key call, which `pushState()` makes before it looks locally. */
-async function stubRpc(
-  page: Parameters<typeof seedCache>[0],
-  answers: { devices?: unknown; sendTest?: unknown; sendTestStatus?: number; subscribeStatus?: number },
-) {
-  await page.route("**/rpc/**", async (route) => {
-    const url = route.request().url()
-    const json = (body: unknown, status = 200) =>
-      route.fulfill({ status, contentType: "application/json", body: JSON.stringify({ json: body }) })
-
-    if (url.includes("notifications/key")) return json({ publicKey: VAPID_KEY })
-    if (url.includes("notifications/subscribe") && answers.subscribeStatus) {
-      return route.fulfill({
-        status: answers.subscribeStatus,
-        contentType: "application/json",
-        body: JSON.stringify({ json: { message: "refused" } }),
-      })
-    }
-    if (url.includes("notifications/devices")) return json(answers.devices ?? { devices: [] })
-    if (url.includes("notifications/sendTest")) {
-      if (answers.sendTestStatus && answers.sendTestStatus >= 400) {
-        return route.fulfill({
-          status: answers.sendTestStatus,
-          contentType: "application/json",
-          body: JSON.stringify({ json: { message: "refused" } }),
-        })
-      }
-      return json(answers.sendTest ?? { sent: 1, gone: 0, failed: 0, configured: true })
-    }
-    return route.fallback()
-  })
-}
-
 test.describe("Push settings, with a subscription this browser actually holds", () => {
   test("a refused send says so, instead of rendering nothing", async ({ page }) => {
-    await withSubscription(ENDPOINT)(page)
-    await seedCache(page, [signedIn])
-    await stubRpc(page, { sendTestStatus: 401 })
+    await withSubscription(page)
+    await as(page, "ADMIN")
+    await stubPushRpc(page, { sendTestStatus: 401 })
 
-    await page.goto("/#/devices")
+    await open(page, "notifications")
     await page.getByTestId("push-test").click()
 
     // The whole bug: this used to be a click with no consequence on screen.
     await expect(page.getByTestId("push-test-error")).toBeVisible()
   })
 
-  test("the button is not offered to somebody who is not signed in", async ({ page }) => {
-    await withSubscription(ENDPOINT)(page)
-    await seedCache(page, [signedOut])
-    await stubRpc(page, {})
-    // Signed out, but the push STATE still renders: notifications.key is public
-    // and getSubscription is local, so neither needs a session. That is how the
-    // refusal was reached — the block was there, the action could not work.
-    await page.goto("/#/devices")
-
-    await expect(page.getByTestId("push-test-signed-out")).toBeVisible()
-    await expect(page.getByTestId("push-test")).toHaveCount(0)
-  })
 
   test("a send the push service refused is not reported as success", async ({ page }) => {
-    await withSubscription(ENDPOINT)(page)
-    await seedCache(page, [signedIn])
-    await stubRpc(page, { sendTest: { sent: 0, gone: 0, failed: 1, configured: true } })
+    await withSubscription(page)
+    await as(page, "ADMIN")
+    await stubPushRpc(page, { sendTest: { sent: 0, gone: 0, failed: 1, configured: true } })
 
-    await page.goto("/#/devices")
+    await open(page, "notifications")
     await page.getByTestId("push-test").click()
 
     const result = page.getByTestId("push-test-result")
@@ -166,11 +65,11 @@ test.describe("Push settings, with a subscription this browser actually holds", 
   })
 
   test("a deployment with no keys is not reported as no devices", async ({ page }) => {
-    await withSubscription(ENDPOINT)(page)
-    await seedCache(page, [signedIn])
-    await stubRpc(page, { sendTest: { sent: 0, gone: 0, failed: 0, configured: false } })
+    await withSubscription(page)
+    await as(page, "ADMIN")
+    await stubPushRpc(page, { sendTest: { sent: 0, gone: 0, failed: 0, configured: false } })
 
-    await page.goto("/#/devices")
+    await open(page, "notifications")
     await page.getByTestId("push-test").click()
 
     await expect(page.getByTestId("push-test-result")).toContainText(/push keys/i)
@@ -189,34 +88,34 @@ test.describe("Push settings, with a subscription this browser actually holds", 
      */
     const id = await deviceFingerprint(ENDPOINT)
 
-    await withSubscription(ENDPOINT)(page)
-    await seedCache(page, [signedIn])
-    await stubRpc(page, { devices: { devices: [{ label: "Safari on Mac", enabled: true, id }] } })
+    await withSubscription(page)
+    await as(page, "ADMIN")
+    await stubPushRpc(page, { devices: { devices: [{ label: "Safari on Mac", enabled: true, id }] } })
 
-    await page.goto("/#/devices")
+    await open(page, "notifications")
     await expect(page.getByTestId("device-0-here")).toBeVisible()
     await expect(page.getByTestId("device-not-registered")).toHaveCount(0)
   })
 
   test("a browser missing from the list is told so, however switched-on it looks", async ({ page }) => {
-    await withSubscription(ENDPOINT)(page)
-    await seedCache(page, [signedIn])
+    await withSubscription(page)
+    await as(page, "ADMIN")
     // Somebody else's device. This is the macOS case: the installed web app has
     // its own storage and its own subscription, so the row that exists belongs
     // to Safari and the reader sitting in the app matches nothing.
-    await stubRpc(page, {
+    await stubPushRpc(page, {
       devices: { devices: [{ label: "Safari on Mac", enabled: true, id: "ffffffffffff" }] },
     })
 
-    await page.goto("/#/devices")
+    await open(page, "notifications")
     await expect(page.getByTestId("device-not-registered")).toBeVisible()
     await expect(page.getByTestId("device-0-here")).toHaveCount(0)
   })
 
   test("a tapped test notification says it arrived, which is the step nothing could show", async ({ page }) => {
-    await withSubscription(ENDPOINT)(page)
-    await seedCache(page, [signedIn])
-    await stubRpc(page, {})
+    await withSubscription(page)
+    await as(page, "ADMIN")
+    await stubPushRpc(page, {})
 
     /**
      * What the service worker navigates to on a tap. The route is the whole
@@ -224,7 +123,7 @@ test.describe("Push settings, with a subscription this browser actually holds", 
      * button is on, so a working tap and a dead one rendered identically and
      * the reader's only possible report was "nothing happened".
      */
-    await page.goto("/#/devices?pushtest=1756800000000")
+    await open(page, "notifications", { pushtest: "1756800000000" })
 
     await expect(page.getByTestId("push-test-tapped")).toBeVisible()
     await page.getByTestId("push-test-tapped-clear").click()
@@ -234,33 +133,14 @@ test.describe("Push settings, with a subscription this browser actually holds", 
   test("a failed switch-on says so, instead of a button that does nothing", async ({ page }) => {
     // No subscription: this browser is in the state where the button reads
     // "Turn on notifications".
-    await seedCache(page, [signedIn])
-    await page.addInitScript(() => {
-      Object.defineProperty(navigator, "serviceWorker", {
-        configurable: true,
-        get: () => ({
-          ready: Promise.resolve({
-            pushManager: {
-              getSubscription: async () => null,
-              subscribe: async () => ({
-                endpoint: "https://web.push.apple.com/NEW",
-                toJSON: () => ({ endpoint: "https://web.push.apple.com/NEW", keys: { p256dh: "a", auth: "b" } }),
-                unsubscribe: async () => true,
-              }),
-            },
-          }),
-          addEventListener() {},
-          controller: null,
-        }),
-      })
-      Object.defineProperty(Notification, "permission", { configurable: true, get: () => "granted" })
-      Notification.requestPermission = async () => "granted" as NotificationPermission
-    })
+    await as(page, "ADMIN")
+    await withSubscription(page, null)
+    await withNotificationPermission(page)
     // Registering the subscription is `authed`, and this is the throw that used
     // to leave `toggle()` rejecting with nothing rendered.
-    await stubRpc(page, { subscribeStatus: 401 })
+    await stubPushRpc(page, { subscribeStatus: 401 })
 
-    await page.goto("/#/devices")
+    await open(page, "notifications")
     await page.getByTestId("push-toggle").click()
 
     const err = page.getByTestId("push-toggle-error")
@@ -271,51 +151,14 @@ test.describe("Push settings, with a subscription this browser actually holds", 
     await expect(err).toContainText(/could not be registered/i)
   })
 
-  test("no session means no toggle either, since registering a browser is authed", async ({ page }) => {
-    // A browser with no subscription and nobody signed in: the state the
-    // toggle used to be offered in, where it could only ever return 401.
-    await page.addInitScript(() => {
-      Object.defineProperty(navigator, "serviceWorker", {
-        configurable: true,
-        get: () => ({
-          ready: Promise.resolve({ pushManager: { getSubscription: async () => null } }),
-          addEventListener() {},
-          controller: null,
-        }),
-      })
-    })
-    await seedCache(page, [signedOut])
-    await stubRpc(page, {})
-    await page.goto("/#/devices")
-
-    await expect(page.getByTestId("push-signed-out")).toBeVisible()
-    await expect(page.getByTestId("push-toggle")).toHaveCount(0)
-  })
 
   test("a browser that refuses to subscribe is not blamed on the session", async ({ page }) => {
-    await seedCache(page, [signedIn])
-    await page.addInitScript(() => {
-      Object.defineProperty(navigator, "serviceWorker", {
-        configurable: true,
-        get: () => ({
-          ready: Promise.resolve({
-            pushManager: {
-              getSubscription: async () => null,
-              // Safari's actual shape when it will not subscribe: a bare
-              // AbortError carrying nothing useful.
-              subscribe: async () => { throw new DOMException("failed", "AbortError") },
-            },
-          }),
-          addEventListener() {},
-          controller: null,
-        }),
-      })
-      Object.defineProperty(Notification, "permission", { configurable: true, get: () => "granted" })
-      Notification.requestPermission = async () => "granted" as NotificationPermission
-    })
-    await stubRpc(page, {})
+    await as(page, "ADMIN")
+    await withSubscription(page, null, { subscribeRefuses: true })
+    await withNotificationPermission(page)
+    await stubPushRpc(page, {})
 
-    await page.goto("/#/devices")
+    await open(page, "notifications")
     await page.getByTestId("push-toggle").click()
 
     const err = page.getByTestId("push-toggle-error")

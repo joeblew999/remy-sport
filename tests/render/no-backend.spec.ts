@@ -1,7 +1,7 @@
 import { test, expect } from "./fixture"
 import { ROUTES } from "../../src/web/lib/router"
-import { seedCache } from "../helpers/seed-cache"
-import { sessionKey } from "../../src/web/lib/session"
+import { as } from "../helpers/actors"
+import { open } from "../helpers/surfaces"
 
 /**
  * Every route, with no backend, rejecting nothing.
@@ -77,12 +77,10 @@ for (const route of ROUTES) {
 // On /#/devices since the settings moved there, beside the sessions list —
 // the two "device" lists meant different things in different places and both
 // said "this device".
-const signedOutSession = { queryKey: sessionKey as unknown as readonly unknown[], data: null }
-
 test.describe("A push state that could not be determined", () => {
   test("says so, and offers a way to try again", async ({ page }) => {
-    await seedCache(page, [signedOutSession])
-    await page.goto("/#/devices")
+    await as(page, "ADMIN")
+    await open(page, "notifications")
     await expect(page.getByTestId("push-unknown")).toBeVisible()
     await expect(page.getByTestId("push-retry")).toBeVisible()
     // Not the blank that shipped: the section renders something a reader can
@@ -93,8 +91,8 @@ test.describe("A push state that could not be determined", () => {
   test("does not claim the deployment has no keys", async ({ page }) => {
     // "not-configured" says push is switched off for this deployment, which
     // sends a reader with a dropped connection to entirely the wrong place.
-    await seedCache(page, [signedOutSession])
-    await page.goto("/#/devices")
+    await as(page, "ADMIN")
+    await open(page, "notifications")
     await expect(page.getByTestId("push-unknown")).toBeVisible()
     await expect(page.getByTestId("push-blocked")).toHaveCount(0)
   })
@@ -104,12 +102,12 @@ test.describe("A push state that could not be determined", () => {
     // Seeded BEFORE the counter: Playwright gives the last-registered route
     // precedence, and seedCache installs one of its own — registering it after
     // this meant the counter never saw a request.
-    await seedCache(page, [signedOutSession])
+    await as(page, "ADMIN")
     await page.route("**/rpc/**", (route) => {
       if (route.request().url().includes("notifications/key")) asked++
       return route.fallback()
     })
-    await page.goto("/#/devices")
+    await open(page, "notifications")
     await expect(page.getByTestId("push-retry")).toBeVisible()
     const before = asked
     await page.getByTestId("push-retry").click()
