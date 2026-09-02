@@ -20,6 +20,7 @@ import { api, orpc } from "../lib/orpc"
 import { m } from "../../paraglide/messages.js"
 import { useLocale } from "../lib/locale"
 import { useSession } from "../lib/session"
+import { useRouter } from "../lib/router"
 import { currentDeviceId, disablePush, enableNative, enablePush, pushState, type PushState } from "../lib/push"
 
 /**
@@ -55,6 +56,15 @@ export function NotificationSettings() {
   const qc = useQueryClient()
   const { locale, label, name, describe } = useLocale()
   const { user } = useSession()
+  /**
+   * The tapped notification came back here and said so.
+   *
+   * This is the last link in the chain and the only one the reader could not
+   * previously observe: the test notification opened `#/profile`, the page they
+   * pressed the button on, so a working tap and a broken one were identical.
+   */
+  const { route, setParam } = useRouter()
+  const tapped = route.query?.pushtest
   const [state, setState] = useState<PushState | null>(null)
   const [busy, setBusy] = useState(false)
   /**
@@ -243,6 +253,27 @@ export function NotificationSettings() {
             out — left the button looking inert. "I pressed it and nothing
             happened" was literally true, and the page was the reason.
           */}
+          {/*
+            Proof of the last step, which nothing else can give.
+
+            Delivery is observable — a card appears. The TAP was not: it landed
+            on the page it started from. This is set by the query the service
+            worker navigated to, so seeing it means the notification arrived AND
+            the click reached the app.
+          */}
+          {tapped && (
+            <div className="push-note" data-testid="push-test-tapped">
+              <span>{m.test_tap_confirmed()}</span>{" "}
+              <button
+                type="button"
+                className="btn"
+                data-testid="push-test-tapped-clear"
+                onClick={() => setParam("pushtest", null)}
+              >
+                {m.dismiss()}
+              </button>
+            </div>
+          )}
           {test.isError && (
             <div className="push-note is-blocked" data-testid="push-test-error">
               {m.test_failed()}

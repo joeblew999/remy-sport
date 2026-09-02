@@ -178,4 +178,22 @@ test.describe("Push settings, with a subscription this browser actually holds", 
     await expect(page.getByTestId("device-not-registered")).toBeVisible()
     await expect(page.getByTestId("device-0-here")).toHaveCount(0)
   })
+
+  test("a tapped test notification says it arrived, which is the step nothing could show", async ({ page }) => {
+    await withSubscription(ENDPOINT)(page)
+    await seedCache(page, [signedIn])
+    await stubRpc(page, {})
+
+    /**
+     * What the service worker navigates to on a tap. The route is the whole
+     * point: the test notification used to open bare `#/profile`, the page the
+     * button is on, so a working tap and a dead one rendered identically and
+     * the reader's only possible report was "nothing happened".
+     */
+    await page.goto("/#/profile?pushtest=1756800000000")
+
+    await expect(page.getByTestId("push-test-tapped")).toBeVisible()
+    await page.getByTestId("push-test-tapped-clear").click()
+    await expect(page.getByTestId("push-test-tapped")).toHaveCount(0)
+  })
 })

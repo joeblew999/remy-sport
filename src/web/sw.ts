@@ -97,7 +97,25 @@ self.addEventListener("notificationclick", (event) => {
       for (const client of open) {
         if (new URL(client.url).origin !== self.location.origin) continue
         await client.focus()
-        if ("navigate" in client) await client.navigate(target)
+        /**
+         * `navigate()` rejects for a client this worker does not control, and
+         * `includeUncontrolled: true` above deliberately looks for those — a
+         * page loaded before the worker took control is exactly one. The
+         * rejection was uncaught inside `waitUntil`, so the whole handler died
+         * after `focus()` and the tap did nothing at all.
+         *
+         * Focus alone is still the right outcome when navigation is not
+         * available: the reader is looking at the app, which is most of what
+         * they wanted. Opening a second window on top of a focused one would be
+         * worse than landing on the wrong route.
+         */
+        if ("navigate" in client) {
+          try {
+            await client.navigate(target)
+          } catch {
+            /* uncontrolled client: it is focused, which is the useful half */
+          }
+        }
         return
       }
       await self.clients.openWindow(target)

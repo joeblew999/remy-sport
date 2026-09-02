@@ -446,7 +446,19 @@ export const sendTest = authed
     return sendToRows(context.db, context.env, rows, {
         title: m.test_notification_title({}, { locale }),
         body: m.test_notification_body({}, { locale }),
-        url: "#/profile",
+      /**
+       * Back to the page the button is on, and carrying proof it was tapped.
+       *
+       * `#/profile` alone was unobservable: it is the page the reader pressed
+       * the button from, so a click that worked and a click that did nothing
+       * looked exactly the same. The one notification whose whole purpose is to
+       * demonstrate the pipeline could not demonstrate its own last step, and
+       * "I clicked it and nothing happened" was the only possible report.
+       *
+       * The timestamp rather than a bare flag, so a second test is
+       * distinguishable from a stale query left in the address bar.
+       */
+      url: `#/profile?pushtest=${Date.now()}`,
       // A fixed tag, so pressing the button twice replaces the first card
       // rather than leaving a pile of identical ones to clear.
       tag: "test",
