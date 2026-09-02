@@ -4,33 +4,27 @@ import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import { VitePWA } from "vite-plugin-pwa";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
-import { execSync } from "node:child_process";
 
 // Hash routing only — required for Tauri webview compatibility.
 // See remy-sport-biz/decisions/decision-003-frontend-targets.md.
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /**
- * The commit this bundle was built from, baked in so the running page can say
- * what it is — and so it can notice when the server has moved on without it.
+ * No build-time version constant here, and the reason is worth keeping.
  *
- * From git rather than from versions.json, and the ordering is why: `3-deploy`
- * builds the bundle inside `check` (step 1) and writes the stamp at step 4, so
- * a bundle reading versions.json would always carry the PREVIOUS deploy's stamp
- * and report itself permanently stale. Both sides read git independently
- * instead, so there is no order to get wrong.
+ * A `define` baked `git rev-parse --short HEAD` into the bundle so the page
+ * could compare itself against the server. It was wrong the moment it shipped:
+ * `git commit` moves HEAD without touching any file in the bundle's `sources`
+ * list (scripts/lib/prepare.ts), so the freshness check correctly judged the
+ * bundle current, vite never re-ran, and the deployed artifact carried the
+ * previous commit permanently. Staging served a client stamped 01d7e89 against
+ * a server stamped 707ea9a and asked every reader to reload, which changed
+ * nothing, because the bundle really was that old.
  *
- * Empty rather than fatal outside a checkout: a tarball build should produce a
- * bundle that runs, and "unknown" is a truthful answer to a question git cannot
- * answer here.
+ * components/build-stamp.tsx compares the served shell's content-hashed script
+ * against the one the page loaded instead. A hash is derived from the bytes, so
+ * it cannot disagree with them.
  */
-const buildCommit = (() => {
-  try {
-    return execSync("git rev-parse --short HEAD", { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }).trim();
-  } catch {
-    return "";
-  }
-})();
 
 export default defineConfig({
   root: __dirname,
@@ -119,7 +113,6 @@ export default defineConfig({
     }),
   ],
   base: "./",
-  define: { __BUILD_COMMIT__: JSON.stringify(buildCommit) },
   /**
    * `vite preview` proxies nothing. This is not a tidy-up.
    *

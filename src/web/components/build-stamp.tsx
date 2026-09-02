@@ -30,12 +30,29 @@
 import { useEffect, useState } from "react";
 import { m } from "../lib/i18n";
 
-declare const __BUILD_COMMIT__: string;
-
 interface Stamp {
   environment?: string;
   git?: { commit?: string; github?: string };
 }
+
+/**
+ * The script tag this page was actually loaded with.
+ *
+ * The bundle's identity is its own content-hashed filename, which is the one
+ * thing that cannot lie about which build is running. The first version of this
+ * baked the commit in at build time with a vite `define`, and it was wrong in a
+ * way worth remembering: `git commit` moves HEAD without touching any file in
+ * the bundle's `sources` list, so prepare.ts correctly judged the bundle fresh,
+ * vite never re-ran, and the deployed artifact carried the PREVIOUS commit
+ * forever. Staging shipped a client stamped 01d7e89 against a server stamped
+ * 707ea9a and told every reader to reload, which did nothing, because the bundle
+ * really was that old.
+ *
+ * A hash cannot drift from the file it names.
+ */
+const loadedScript = () =>
+  document.querySelector<HTMLScriptElement>('script[type="module"][src]')?.getAttribute("src") ??
+  null;
 
 export function BuildStamp() {
   const [server, setServer] = useState<Stamp | null>(null);
@@ -48,6 +65,8 @@ export function BuildStamp() {
    * covers the tab left open all afternoon.
    */
   const [swReady, setSwReady] = useState(false);
+  /** The served shell names a different bundle than the one this tab loaded. */
+  const [bundleStale, setBundleStale] = useState(false);
   useEffect(() => {
     const onReady = () => setSwReady(true);
     window.addEventListener("remy:update-ready", onReady);
@@ -71,32 +90,53 @@ export function BuildStamp() {
       .catch(() => {
         /* no /api/versions: say nothing rather than guess */
       });
+
+    /**
+     * Is the shell the server serves now the one this tab loaded?
+     *
+     * `no-store` because a cached index.html would compare the page against
+     * itself and never report anything. Guarded like the fetch above: the
+     * render tier has no server, and a rejection there fails every route.
+     */
+    void fetch("/", { cache: "no-store" })
+      .then((r) => (r.ok ? r.text() : null))
+      .then((html) => {
+        const mine = loadedScript();
+        if (!live || !html || !mine) return;
+        const latest = html.match(/<script[^>]+type="module"[^>]+src="([^"]+)"/)?.[1];
+        // Compare the filename, not the path: the shell writes "./assets/x.js"
+        // and the DOM may report it either way.
+        if (latest && latest.split("/").pop() !== mine.split("/").pop()) setBundleStale(true);
+      })
+      .catch(() => {
+        /* no shell to compare against: say nothing */
+      });
+
     return () => {
       live = false;
     };
   }, []);
 
-  const client = __BUILD_COMMIT__;
-  if (!client) return null;
-
   const serverCommit = server?.git?.commit;
-  // Either route: a deploy that predates this page load, or one that landed
-  // while it was open. Same condition to the reader, so the same button.
-  const stale = swReady || (Boolean(serverCommit) && serverCommit !== client);
+  // Three routes to the same fact: the worker found a new version, the served
+  // shell names a different bundle, or /api/versions is somewhere this page is
+  // not. One button, because it is one thing to the reader.
+  const stale = swReady || bundleStale;
   const env = server?.environment;
+
+  // Nothing to say without a server to say it about. The render tier has none,
+  // and inventing a version there would be worse than an empty corner.
+  if (!serverCommit) return null;
 
   return (
     <div className="build-stamp" data-testid="build-stamp">
       {env && env !== "production" && <span className="build-env">{env}</span>}
-      <span className="build-commit">{client}</span>
+      <span className="build-commit">{serverCommit}</span>
       {stale && (
         <button
           type="button"
           className="build-stale"
           data-testid="build-stale"
-          // The worker route knows a new version exists without knowing which,
-          // so name the target only when the fetch actually found one.
-          title={serverCommit ? `${client} → ${serverCommit}` : client}
           onClick={() => window.location.reload()}
         >
           {m.build_update_available()}
