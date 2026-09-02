@@ -39,6 +39,20 @@ interface Stamp {
 
 export function BuildStamp() {
   const [server, setServer] = useState<Stamp | null>(null);
+  /**
+   * The service worker's answer to the same question, which arrives later.
+   *
+   * The fetch below runs once at mount, so it can only ever catch a deployment
+   * that happened before this page loaded. main.tsx polls the worker every
+   * fifteen minutes and raises this when one is waiting — that is the path that
+   * covers the tab left open all afternoon.
+   */
+  const [swReady, setSwReady] = useState(false);
+  useEffect(() => {
+    const onReady = () => setSwReady(true);
+    window.addEventListener("remy:update-ready", onReady);
+    return () => window.removeEventListener("remy:update-ready", onReady);
+  }, []);
 
   useEffect(() => {
     let live = true;
@@ -66,7 +80,9 @@ export function BuildStamp() {
   if (!client) return null;
 
   const serverCommit = server?.git?.commit;
-  const stale = Boolean(serverCommit) && serverCommit !== client;
+  // Either route: a deploy that predates this page load, or one that landed
+  // while it was open. Same condition to the reader, so the same button.
+  const stale = swReady || (Boolean(serverCommit) && serverCommit !== client);
   const env = server?.environment;
 
   return (
@@ -78,7 +94,9 @@ export function BuildStamp() {
           type="button"
           className="build-stale"
           data-testid="build-stale"
-          title={`${client} → ${serverCommit}`}
+          // The worker route knows a new version exists without knowing which,
+          // so name the target only when the fetch actually found one.
+          title={serverCommit ? `${client} → ${serverCommit}` : client}
           onClick={() => window.location.reload()}
         >
           {m.build_update_available()}

@@ -238,7 +238,53 @@ if (
   "serviceWorker" in navigator
 ) {
   import("virtual:pwa-register")
-    .then(({ registerSW }) => registerSW({ immediate: true }))
+    .then(({ registerSW }) =>
+      registerSW({
+        immediate: true,
+        /**
+         * Ask whether there is a new worker, because nothing else will.
+         *
+         * `registerType: "autoUpdate"` handles the update once one is FOUND —
+         * it compiles to `window.location.reload()` on activation. What it does
+         * not do is look. The browser checks on navigation and otherwise on its
+         * own schedule, so a tab left open across a deploy serves the old bundle
+         * indefinitely — which is the normal case here: a scoring table open on
+         * a laptop at courtside for a whole tournament.
+         *
+         * Fifteen minutes is a cheap conditional request against the worker
+         * script, not a download; the browser only fetches a new worker when the
+         * bytes differ. `update()` rejects if the registration has gone away, so
+         * it is caught — an unhandled rejection on a timer would fire forever.
+         */
+        onRegisteredSW(_url, registration) {
+          if (!registration) return;
+          setInterval(
+            () => {
+              void registration.update().catch(() => {
+                /* offline, or the registration is gone: try again next tick */
+              });
+            },
+            15 * 60 * 1000,
+          );
+        },
+        /**
+         * Tell the reader instead of reloading under them.
+         *
+         * Supplying this REPLACES autoUpdate's automatic
+         * `window.location.reload()`. That default is fine on a page someone is
+         * reading and wrong on one they are typing into — this product has live
+         * score entry, and a reload mid-game loses whatever was in the form for
+         * a change that could have waited a few seconds.
+         *
+         * The sidebar's build stamp already renders a reload button for the same
+         * condition, reached the other way (its own /api/versions check), so
+         * this raises the same signal rather than inventing a second one.
+         */
+        onNeedReload() {
+          window.dispatchEvent(new CustomEvent("remy:update-ready"));
+        },
+      }),
+    )
     .catch(() => {
       /* no service worker: the app still works, push does not */
     });
@@ -252,6 +298,21 @@ if (
  * and showing an "Add to Home Screen" dialog inside an already-installed
  * native shell would be confusing at best. Gated on the same isNativeApp()
  * this file already imports for push, rather than re-deriving the check.
+ *
+ * Its dialog is not translated into Thai, and that cannot be fixed from here.
+ * 0.6.4 ships 33 locales and `th` is not among them, so a Thai reader gets
+ * English copy inside an otherwise Thai app. The component resolves its
+ * language from navigator.language alone — exact code, then the two-letter
+ * prefix, then a bare `catch {}` that leaves it on English — so an unsupported
+ * language is indistinguishable from a supported one at runtime, which is why
+ * this went unnoticed. That lookup also ignores our locale, which is
+ * localStorage-first (lib/locale.tsx), so a reader on a Japanese browser who
+ * chose English still gets a Japanese dialog; en and ja mismatch that way
+ * today. It declares `changeLocale` in its .d.ts but does not expose it
+ * through `exports` — the entry resolves to a bundle whose only export is
+ * PWAInstallElement — so there is nothing to call and no local workaround
+ * short of importing past the exports map. Both asked upstream:
+ * https://github.com/khmyznikov/pwa-install/issues/169
  */
 if (typeof window !== "undefined" && !isNativeApp()) {
   import("@khmyznikov/pwa-install").catch(() => {
