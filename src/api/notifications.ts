@@ -31,6 +31,7 @@ import {
   type Db,
 } from "./base"
 import { sendToRows, vapidFrom } from "./push"
+import { deviceFingerprint } from "../domain/device-fingerprint"
 import {
   GRANTS,
   LOCALES,
@@ -162,12 +163,17 @@ export const unsubscribe = authed
 export const devices = authed
   .route({ method: "GET", path: "/push/devices", summary: "Browsers registered for push", ...authedRoute })
   .use(requireAction("MANAGE_OWN_NOTIFICATION_CHANNELS"))
-  .output(z.object({ devices: z.array(z.object({ label: z.string(), enabled: z.boolean() })) }))
+  .output(
+    z.object({
+      devices: z.array(z.object({ label: z.string(), enabled: z.boolean(), id: z.string() })),
+    }),
+  )
   .handler(async ({ context }) => {
     const rows = await context.db
       .select({
         label: schema.userNotificationChannel.addressLabel,
         enabled: schema.userNotificationChannel.isEnabled,
+        address: schema.userNotificationChannel.address,
       })
       .from(schema.userNotificationChannel)
       .where(
@@ -176,9 +182,27 @@ export const devices = authed
           eq(schema.userNotificationChannel.channelCode, "PUSH"),
         ),
       )
-    // The endpoint is deliberately not returned. It is a bearer capability —
-    // anyone holding it can push to that browser — and the UI never needs it.
-    return { devices: rows }
+    /**
+     * The endpoint is still deliberately not returned — it is a bearer
+     * capability, and anyone holding it can push to that browser. What is
+     * returned is a hash of it, which lets the page answer the one question the
+     * list could not: is the device I am sitting at on this list?
+     *
+     * Without it a reader inside an installed web app sees "Safari on Mac" and
+     * reasonably concludes that is them. On macOS it is not — a web app added to
+     * the Dock has its own storage, its own service worker registration and its
+     * own subscription — so the list was describing a different browser while
+     * looking like confirmation.
+     */
+    return {
+      devices: await Promise.all(
+        rows.map(async ({ label, enabled, address }) => ({
+          label,
+          enabled,
+          id: await deviceFingerprint(address),
+        })),
+      ),
+    }
   })
 
 /**

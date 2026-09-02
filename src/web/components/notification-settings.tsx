@@ -19,7 +19,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api, orpc } from "../lib/orpc"
 import { m } from "../../paraglide/messages.js"
 import { useLocale } from "../lib/locale"
-import { disablePush, enableNative, enablePush, pushState, type PushState } from "../lib/push"
+import { currentDeviceId, disablePush, enableNative, enablePush, pushState, type PushState } from "../lib/push"
 
 /**
  * The types worth offering, not all fourteen.
@@ -55,6 +55,12 @@ export function NotificationSettings() {
   const { locale, label, name, describe } = useLocale()
   const [state, setState] = useState<PushState | null>(null)
   const [busy, setBusy] = useState(false)
+  /**
+   * The fingerprint of this browser's own subscription, matched against the
+   * server's list below. Recomputed when the push state changes, because
+   * turning notifications on is exactly when it stops being null.
+   */
+  const [thisDevice, setThisDevice] = useState<string | null>(null)
 
   /**
    * Ask what the state is. Also the retry, which is why it is a callback.
@@ -77,6 +83,23 @@ export function NotificationSettings() {
       live = false
     }
   }, [])
+
+  // Guarded like everything else here: no route may leave a promise rejecting,
+  // and `currentDeviceId` is called on a page the render tier loads with no
+  // server at all.
+  useEffect(() => {
+    let live = true
+    void currentDeviceId()
+      .then((id) => {
+        if (live) setThisDevice(id)
+      })
+      .catch(() => {
+        /* cannot identify this browser: the list simply marks nothing */
+      })
+    return () => {
+      live = false
+    }
+  }, [state?.status])
 
   const { data } = useQuery(orpc.notifications.following.queryOptions())
   const { data: devices } = useQuery(orpc.notifications.devices.queryOptions())
@@ -262,11 +285,25 @@ export function NotificationSettings() {
           endpoint deliberately never returns the push endpoint itself: it is a
           bearer capability, and anyone holding it can push to that browser. */}
       <h3>{m.push_devices()}</h3>
+      {/*
+        The device you are sitting at, named as such.
+
+        A list of labels cannot answer the question it is there to answer. On
+        macOS a web app added to the Dock has its own storage — so its own
+        service worker registration and its own subscription — and a reader
+        inside the installed app saw "Safari on Mac" and read it as themselves.
+        It was a different browser, and every test they sent went to it.
+      */}
       {devices?.devices.length ? (
         <ul className="pref-list" data-testid="device-list">
           {devices.devices.map((d, i) => (
-            <li key={`${d.label}-${i}`} data-testid={`device-${i}`}>
+            <li key={d.id || `${d.label}-${i}`} data-testid={`device-${i}`}>
               {d.label}
+              {thisDevice && d.id === thisDevice && (
+                <span className="device-here" data-testid={`device-${i}-here`}>
+                  {m.device_this_one()}
+                </span>
+              )}
               {/* A registered-but-disabled browser is a real state and the
                   reason nothing arrives on it. Silence with no explanation is
                   what makes people conclude push is broken. */}
@@ -276,6 +313,19 @@ export function NotificationSettings() {
         </ul>
       ) : (
         <div className="push-note" data-testid="devices-empty">{m.devices_none()}</div>
+      )}
+      {/*
+        This browser holds a subscription the server has no row for.
+
+        `pushState()` reports "on" from the local subscription alone, and
+        `deliverPush` deletes a row on a 410 — so a pruned device shows a
+        Disable button and a working-looking test button forever, and nothing
+        can ever reach it. This is the only place the two views are compared.
+      */}
+      {thisDevice && devices && !devices.devices.some((d) => d.id === thisDevice) && (
+        <div className="push-note is-blocked" data-testid="device-not-registered">
+          {m.device_not_registered()}
+        </div>
       )}
 
       <h3>{m.following_label()}</h3>

@@ -14,6 +14,10 @@
  */
 
 import { api } from "./orpc"
+// src/domain is shared ground — the one place the SPA and the Worker may both
+// import from. Both halves of this fingerprint must agree exactly, and two
+// copies of a hash in two files is how they would stop agreeing.
+import { deviceFingerprint } from "../../domain/device-fingerprint"
 
 export type PushState =
   /** Not a browser that can do this. */
@@ -148,6 +152,40 @@ const isIos = () =>
  * reported "this browser cannot show notifications" on a machine that plainly
  * could, and there was nothing behind the message to fix.
  */
+/**
+ * What this browser would be called on the server's device list, or null.
+ *
+ * `pushState()` answers "does this browser hold a subscription", which is a
+ * purely local question — and answering only that is how a device can report
+ * itself switched on while the server has no row for it. Nothing then reaches
+ * it, and the page shows a Disable button and a working-looking test.
+ *
+ * This is the other half: the same fingerprint the Worker publishes for each
+ * registered device, computed over the subscription this browser actually
+ * holds. Matching the two is what lets the list say "this device" — and, more
+ * usefully, notice when this device is missing from it.
+ *
+ * The case that made it necessary: on macOS a web app added to the Dock has its
+ * own storage, so it has its own service worker registration and its own
+ * subscription. A reader inside the installed app saw "Safari on Mac" in the
+ * list and reasonably read it as confirmation, when it was a different browser
+ * entirely.
+ *
+ * Null for every reason this cannot be answered — no service worker, no
+ * subscription, a registration that never becomes ready — because all of them
+ * mean the same thing to the caller: there is no local device to match.
+ */
+export async function currentDeviceId(): Promise<string | null> {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null
+  try {
+    const registration = await navigator.serviceWorker.ready
+    const existing = await registration.pushManager.getSubscription()
+    return existing ? await deviceFingerprint(existing.endpoint) : null
+  } catch {
+    return null
+  }
+}
+
 export async function pushState(): Promise<PushState> {
   if (typeof window === "undefined") return { status: "unsupported" }
   if (isTauri()) return nativeState()

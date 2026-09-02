@@ -1687,3 +1687,13 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   border-color: var(--accent);
   color: var(--ink);
 }
+
+/* "this device", in the push device list. Quiet — it is a fact about the row,
+   not a warning; the warning is the .push-note underneath when the row is
+   absent entirely. */
+.device-here {
+  margin-left: 6px;
+  font-size: 11px;
+  color: var(--accent-deep);
+  font-weight: 600;
+}
