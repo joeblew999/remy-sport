@@ -490,7 +490,7 @@ export const sendTest = authed
        * The timestamp rather than a bare flag, so a second test is
        * distinguishable from a stale query left in the address bar.
        */
-      url: `#/profile?pushtest=${Date.now()}`,
+      url: `#/devices?pushtest=${Date.now()}`,
       // A fixed tag, so pressing the button twice replaces the first card
       // rather than leaving a pile of identical ones to clear.
       tag: "test",

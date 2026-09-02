@@ -1,6 +1,5 @@
 import { useEvents, useLiveGames } from "../lib/data";
 import { useSession } from "../lib/session";
-import { NotificationSettings } from "../components/notification-settings";
 import { Invitations } from "../components/invitations";
 import { YourPlayers } from "../components/your-players";
 import type { Route } from "../lib/router";
@@ -122,7 +121,6 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
               ))}
             </div>
 
-            <NotificationSettings />
           </div>
         </div>
       </div>

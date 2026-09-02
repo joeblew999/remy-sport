@@ -887,7 +887,12 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
    grows past the grid instead. On the event page that made a 362px grid resolve
    a 406.5px column, and everything in it overflowed by 31px. `minmax(0, 1fr)`
    is the standard fix and the same defect as `min-width: 0` on a flex child. */
-.dash-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 32px;}
+/* Equal, because 2fr:1fr was the wrong way round.
+   The wide column carried ONE section — live games, empty most of the time —
+   while the narrow one carried four, including all of notification settings.
+   The narrowest column had the most to say. Settings have moved to /#/devices
+   and the rest divides evenly. */
+.dash-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px;}
 .dash-card {
   border: 1px solid var(--rule);
   padding: 0;

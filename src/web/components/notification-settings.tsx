@@ -261,9 +261,17 @@ export function NotificationSettings() {
 
       {state?.status === "on" && (
         <>
-          <div className="meta" data-testid="push-on-here">
-            {m.notifications_on_here()}
-          </div>
+          {/*
+            "On for this device" used to be rendered here, below a button that
+            already read "Turn off on this device" — the verb after the fact it
+            was derived from, saying the same thing twice. The button is the
+            state; a second line restating it is one more thing to read and one
+            more thing that can disagree.
+
+            What this device IS gets said once more, and usefully: in the list
+            below, where the row is marked "· this device" beside the browsers
+            that are not. That is the same fact where it can be compared.
+          */}
           {/* The only end-to-end check that exists. Whether a notification
               actually appears depends on the push service, the OS and any Focus
               mode — none of which we can see, and none of which a test suite
@@ -345,44 +353,6 @@ export function NotificationSettings() {
         </>
       )}
 
-      <h3>{m.what_to_hear_about()}</h3>
-      <ul className="pref-list">
-        {OFFERED.map((code) => {
-          const muted = data?.muted.includes(code) ?? false
-          return (
-            <li key={code}>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={!muted}
-                  // Off until push is on: a switch that changes a stored
-                  // preference nothing will read is a lie about what it does.
-                  disabled={state?.status !== "on" || mute.isPending}
-                  onChange={(e) =>
-                    mute.mutate({ notificationTypeCode: code, isEnabled: e.target.checked })
-                  }
-                  data-testid={`pref-${code}`}
-                />
-                {/* The model's own name for the type, in the reader's language.
-                    Writing these as UI copy would be a second set of names for
-                    the PO's list to drift from. */}
-                {label("notificationTypes", code)}
-              </label>
-              {/* And the model's own explanation of what it sends. "Score
-                  Update" is two words that could mean a push on every basket
-                  or one at full time; "Score changed during a live match" is
-                  the answer, and it has been in the fixtures in three
-                  languages the whole time. */}
-              {describe("notificationTypes", code) && (
-                <div className="pref-note" data-testid={`pref-note-${code}`}>
-                  {describe("notificationTypes", code)}
-                </div>
-              )}
-            </li>
-          )
-        })}
-      </ul>
-
       {/* Which browsers are actually registered.
           `notifications.devices` existed and no screen called it, so the one
           question a person asks when a notification does not arrive — "is this
@@ -432,6 +402,44 @@ export function NotificationSettings() {
           {m.device_not_registered()}
         </div>
       )}
+
+      <h3>{m.what_to_hear_about()}</h3>
+      <ul className="pref-list">
+        {OFFERED.map((code) => {
+          const muted = data?.muted.includes(code) ?? false
+          return (
+            <li key={code}>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={!muted}
+                  // Off until push is on: a switch that changes a stored
+                  // preference nothing will read is a lie about what it does.
+                  disabled={state?.status !== "on" || mute.isPending}
+                  onChange={(e) =>
+                    mute.mutate({ notificationTypeCode: code, isEnabled: e.target.checked })
+                  }
+                  data-testid={`pref-${code}`}
+                />
+                {/* The model's own name for the type, in the reader's language.
+                    Writing these as UI copy would be a second set of names for
+                    the PO's list to drift from. */}
+                {label("notificationTypes", code)}
+              </label>
+              {/* And the model's own explanation of what it sends. "Score
+                  Update" is two words that could mean a push on every basket
+                  or one at full time; "Score changed during a live match" is
+                  the answer, and it has been in the fixtures in three
+                  languages the whole time. */}
+              {describe("notificationTypes", code) && (
+                <div className="pref-note" data-testid={`pref-note-${code}`}>
+                  {describe("notificationTypes", code)}
+                </div>
+              )}
+            </li>
+          )
+        })}
+      </ul>
 
       <h3>{m.following_label()}</h3>
       {data?.following.length ? (

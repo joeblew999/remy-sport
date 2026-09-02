@@ -1,4 +1,6 @@
 import { test, expect } from "./fixture"
+import { seedCache } from "../helpers/seed-cache"
+import { sessionKey } from "../../src/web/lib/session"
 
 /**
  * How the notification section READS, which nothing checked.
@@ -26,9 +28,13 @@ import { test, expect } from "./fixture"
  * "could not find out" status, and that status is one of the five that used to
  * be a dashed rectangle.
  */
+/** Resolved and empty — see push-settings.spec.ts on why absent is not enough. */
+const signedOut = { queryKey: sessionKey as unknown as readonly unknown[], data: null }
+
 test.describe("The notification section, as a reader sees it", () => {
   test("a status line reads as a line, not as a page with nothing on it", async ({ page }) => {
-    await page.goto("/#/profile")
+    await seedCache(page, [signedOut])
+    await page.goto("/#/devices")
 
     const note = page.getByTestId("push-unknown")
     await expect(note).toBeVisible()
@@ -43,7 +49,8 @@ test.describe("The notification section, as a reader sees it", () => {
   })
 
   test("sub-headings sit below the section title, not above it", async ({ page }) => {
-    await page.goto("/#/profile")
+    await seedCache(page, [signedOut])
+    await page.goto("/#/devices")
 
     const section = page.getByTestId("notification-settings")
     const size = (sel: string) =>
@@ -54,7 +61,8 @@ test.describe("The notification section, as a reader sees it", () => {
   })
 
   test("the preference list is a list of settings, not a bulleted list", async ({ page }) => {
-    await page.goto("/#/profile")
+    await seedCache(page, [signedOut])
+    await page.goto("/#/devices")
 
     const list = page.getByTestId("notification-settings").locator("ul.pref-list").first()
     await expect(list).toBeVisible()
@@ -65,5 +73,61 @@ test.describe("The notification section, as a reader sees it", () => {
     })
     expect(style.marker, "browser bullets in a settings card").toBe("none")
     expect(style.indent, "the browser's 40px list indent").toBeLessThan(8)
+  })
+
+  /**
+   * Where it lives, and why that is a test rather than a preference.
+   *
+   * There were two device lists in two places and both said "this device": the
+   * sessions on /#/devices (where you are signed in) and the push subscriptions
+   * in notification settings (where notifications are delivered). They are not
+   * the same thing and they genuinely diverge — a Mac held a push subscription
+   * for an account it was signed out of while a signed-in iPhone had none.
+   *
+   * Apart, that is a coincidence of wording nobody notices. Adjacent, the
+   * difference is visible. So the placement is the fix, and a test is what stops
+   * it drifting back onto the dashboard.
+   */
+  test("lives beside the sessions list, not on the profile dashboard", async ({ page }) => {
+    await seedCache(page, [signedOut])
+    await page.goto("/#/profile")
+    await expect(
+      page.getByTestId("notification-settings"),
+      "settings on a dashboard is how the two device lists ended up apart",
+    ).toHaveCount(0)
+
+    await page.goto("/#/devices")
+    await expect(page.getByTestId("notification-settings")).toBeVisible()
+  })
+
+  test("puts the devices before the preferences, because a device is the prerequisite", async ({ page }) => {
+    await seedCache(page, [signedOut])
+    await page.goto("/#/devices")
+
+    /**
+     * Order as the reader meets it: this device, then which devices, then what
+     * to hear about. Choosing types is refinement — with nothing registered it
+     * is moot, and it used to render first, fully enabled-looking, above the
+     * list that would have said so. On a phone that put a full screen of scroll
+     * between "On for this device" and the row marked "· this device".
+     */
+    const headings = await page
+      .getByTestId("notification-settings")
+      .locator("h3")
+      .allInnerTexts()
+    const devices = headings.findIndex((h) => /device/i.test(h))
+    const prefs = headings.findIndex((h) => /hear/i.test(h))
+    expect(devices, "a devices heading").toBeGreaterThanOrEqual(0)
+    expect(prefs, "a preferences heading").toBeGreaterThanOrEqual(0)
+    expect(devices, `devices (${devices}) must precede preferences (${prefs})`).toBeLessThan(prefs)
+  })
+
+  test("says the device state once, not twice", async ({ page }) => {
+    await seedCache(page, [signedOut])
+    await page.goto("/#/devices")
+    // "On for this device" sat under a button already reading "Turn off on this
+    // device" — the verb after the fact it was derived from, and one more thing
+    // that could disagree with the list below.
+    await expect(page.getByTestId("push-on-here")).toHaveCount(0)
   })
 })

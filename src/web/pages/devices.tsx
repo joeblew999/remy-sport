@@ -3,6 +3,7 @@ import { useDevices, useRevokeDevice } from "../lib/auth";
 import { toDevices, formatWhen, type RawSession } from "../lib/devices";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
+import { NotificationSettings } from "../components/notification-settings";
 import { useLocale } from "../lib/locale";
 
 /**
@@ -34,13 +35,29 @@ export function DevicesPage({ goto }: { goto: (r: Route) => void }) {
 
   if (sessionLoading) return <div className="empty">{m.loading()}</div>;
 
+  /**
+   * Signed out, and still worth rendering something.
+   *
+   * The sessions list genuinely needs a session — it IS the session list. The
+   * notification settings below do not: whether this browser supports push,
+   * whether permission is blocked, and whether the app has to be installed
+   * first are facts about the device, and a reader benefits from "notifications
+   * are blocked in your browser" before they sign in rather than after.
+   *
+   * The early return used to take the whole page, so moving the settings here
+   * would have hidden them from exactly the reader most likely to be debugging
+   * why nothing arrives. The section gates its own ACTIONS internally.
+   */
   if (!user) {
     return (
-      <div className="empty" data-testid="devices-signed-out">
-        <p>{m.sign_in_to_see_devices()}</p>
-        <button className="btn primary" onClick={() => goto({ page: "login" })}>
-          {m.sign_in()}
-        </button>
+      <div className="page-inner" data-testid="devices-page">
+        <div className="empty" data-testid="devices-signed-out">
+          <p>{m.sign_in_to_see_devices()}</p>
+          <button className="btn primary" onClick={() => goto({ page: "login" })}>
+            {m.sign_in()}
+          </button>
+        </div>
+        <NotificationSettings />
       </div>
     );
   }
@@ -132,6 +149,23 @@ export function DevicesPage({ goto }: { goto: (r: Route) => void }) {
           )}
         </>
       )}
+
+      {/*
+        The other device list, deliberately on the same page.
+
+        These two were in different places and both said "this device", which is
+        how a reader ends up certain they are looking at one list. They are not
+        the same thing and they genuinely diverge — measured on 2026-09-02, a Mac
+        held a push subscription for an account it was signed OUT of, while a
+        signed-in iPhone had no push registration at all.
+
+        Above: where you are signed in — a session, revocable.
+        Below: where notifications are delivered — a subscription, per browser.
+
+        Adjacent, the difference is visible. Apart, it is a coincidence of
+        wording nobody can be expected to notice.
+      */}
+      <NotificationSettings />
     </div>
   );
 }

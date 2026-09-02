@@ -34,6 +34,20 @@ import { deviceFingerprint } from "../../src/domain/device-fingerprint"
  * renders for a signed-out reader whose click can only ever be refused.
  */
 
+/**
+ * Signed out, and RESOLVED — not merely absent.
+ *
+ * `useSession` reports `loading: q.isPending`, so an unseeded session query on
+ * a tier with no backend stays pending through its retries and the devices page
+ * renders only its loading branch. A signed-out visitor really does get 200 with
+ * a null body (see fetchSession), so this is the honest shape rather than a
+ * convenience.
+ */
+const signedOut = {
+  queryKey: sessionKey as unknown as readonly unknown[],
+  data: null,
+}
+
 const signedIn = {
   queryKey: sessionKey as unknown as readonly unknown[],
   data: {
@@ -116,7 +130,7 @@ test.describe("Push settings, with a subscription this browser actually holds", 
     await seedCache(page, [signedIn])
     await stubRpc(page, { sendTestStatus: 401 })
 
-    await page.goto("/#/profile")
+    await page.goto("/#/devices")
     await page.getByTestId("push-test").click()
 
     // The whole bug: this used to be a click with no consequence on screen.
@@ -125,10 +139,12 @@ test.describe("Push settings, with a subscription this browser actually holds", 
 
   test("the button is not offered to somebody who is not signed in", async ({ page }) => {
     await withSubscription(ENDPOINT)(page)
+    await seedCache(page, [signedOut])
     await stubRpc(page, {})
-    // No session seeded: `notifications.key` is public and getSubscription is
-    // local, so the block renders anyway — which is how the refusal was reached.
-    await page.goto("/#/profile")
+    // Signed out, but the push STATE still renders: notifications.key is public
+    // and getSubscription is local, so neither needs a session. That is how the
+    // refusal was reached — the block was there, the action could not work.
+    await page.goto("/#/devices")
 
     await expect(page.getByTestId("push-test-signed-out")).toBeVisible()
     await expect(page.getByTestId("push-test")).toHaveCount(0)
@@ -139,7 +155,7 @@ test.describe("Push settings, with a subscription this browser actually holds", 
     await seedCache(page, [signedIn])
     await stubRpc(page, { sendTest: { sent: 0, gone: 0, failed: 1, configured: true } })
 
-    await page.goto("/#/profile")
+    await page.goto("/#/devices")
     await page.getByTestId("push-test").click()
 
     const result = page.getByTestId("push-test-result")
@@ -154,7 +170,7 @@ test.describe("Push settings, with a subscription this browser actually holds", 
     await seedCache(page, [signedIn])
     await stubRpc(page, { sendTest: { sent: 0, gone: 0, failed: 0, configured: false } })
 
-    await page.goto("/#/profile")
+    await page.goto("/#/devices")
     await page.getByTestId("push-test").click()
 
     await expect(page.getByTestId("push-test-result")).toContainText(/push keys/i)
@@ -177,7 +193,7 @@ test.describe("Push settings, with a subscription this browser actually holds", 
     await seedCache(page, [signedIn])
     await stubRpc(page, { devices: { devices: [{ label: "Safari on Mac", enabled: true, id }] } })
 
-    await page.goto("/#/profile")
+    await page.goto("/#/devices")
     await expect(page.getByTestId("device-0-here")).toBeVisible()
     await expect(page.getByTestId("device-not-registered")).toHaveCount(0)
   })
@@ -192,7 +208,7 @@ test.describe("Push settings, with a subscription this browser actually holds", 
       devices: { devices: [{ label: "Safari on Mac", enabled: true, id: "ffffffffffff" }] },
     })
 
-    await page.goto("/#/profile")
+    await page.goto("/#/devices")
     await expect(page.getByTestId("device-not-registered")).toBeVisible()
     await expect(page.getByTestId("device-0-here")).toHaveCount(0)
   })
@@ -208,7 +224,7 @@ test.describe("Push settings, with a subscription this browser actually holds", 
      * button is on, so a working tap and a dead one rendered identically and
      * the reader's only possible report was "nothing happened".
      */
-    await page.goto("/#/profile?pushtest=1756800000000")
+    await page.goto("/#/devices?pushtest=1756800000000")
 
     await expect(page.getByTestId("push-test-tapped")).toBeVisible()
     await page.getByTestId("push-test-tapped-clear").click()
@@ -244,7 +260,7 @@ test.describe("Push settings, with a subscription this browser actually holds", 
     // to leave `toggle()` rejecting with nothing rendered.
     await stubRpc(page, { subscribeStatus: 401 })
 
-    await page.goto("/#/profile")
+    await page.goto("/#/devices")
     await page.getByTestId("push-toggle").click()
 
     const err = page.getByTestId("push-toggle-error")
@@ -268,8 +284,9 @@ test.describe("Push settings, with a subscription this browser actually holds", 
         }),
       })
     })
+    await seedCache(page, [signedOut])
     await stubRpc(page, {})
-    await page.goto("/#/profile")
+    await page.goto("/#/devices")
 
     await expect(page.getByTestId("push-signed-out")).toBeVisible()
     await expect(page.getByTestId("push-toggle")).toHaveCount(0)
@@ -298,7 +315,7 @@ test.describe("Push settings, with a subscription this browser actually holds", 
     })
     await stubRpc(page, {})
 
-    await page.goto("/#/profile")
+    await page.goto("/#/devices")
     await page.getByTestId("push-toggle").click()
 
     const err = page.getByTestId("push-toggle-error")
