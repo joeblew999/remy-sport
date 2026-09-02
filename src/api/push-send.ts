@@ -155,14 +155,41 @@ async function deliver(
   const dead: string[] = []
   const results = await Promise.allSettled(
     targets.map(async ({ address, subscription, body }) => {
+      /**
+       * Anything that throws before the response, logged too.
+       *
+       * `failed` is computed as total − sent − gone, so a REJECTED promise
+       * counts as a failure — and the refusal log below sits after `fetch`, so
+       * those left no trace whatsoever. Measured on 2026-09-02 against dev:
+       * `{ failed: 1 }` with nothing anywhere saying why, because `buildPush`
+       * threw during ECDH on a malformed p256dh and never reached the request.
+       *
+       * Encryption faults, DNS, a refused connection and a timeout all land
+       * here. They are the failures least likely to be guessable from the
+       * outside, which makes them the ones most worth naming.
+       */
       const payload = await buildPush(subscription, body, vapid, {
         topic: tag,
         urgency: "high",
+      }).catch((e: unknown) => {
+        console.warn(
+          `push could not be built for ${pushService(subscription.endpoint)}:`,
+          e instanceof Error ? e.message : e,
+        )
+        throw e
       })
       const res = await fetch(subscription.endpoint, {
         method: payload.method,
         headers: payload.headers,
         body: payload.body,
+      }).catch((e: unknown) => {
+        // Never reached the service: DNS, refused, timed out. Distinct from a
+        // service that answered and said no, and the reader's fix is different.
+        console.warn(
+          `push never reached ${pushService(subscription.endpoint)}:`,
+          e instanceof Error ? e.message : e,
+        )
+        throw e
       })
       /**
        * Per attempt, keyed by the push service's host.
