@@ -10,7 +10,7 @@
  * not arbitrary — see PHASES below.
  */
 
-import { prepare } from "./lib/prepare"
+import { prepare, webWatcherRunning } from "./lib/prepare"
 
 import { spawn } from "child_process"
 import { existsSync } from "fs"
@@ -256,6 +256,38 @@ export const PHASES: Step[][] = [
  * That has now happened twice from the same cause: a rename whose sed matched
  * `scripts/build/` and missed `script("build/...")`, which carries no prefix.
  */
+/**
+ * The dev bundler must not be running while a tier reads its output.
+ *
+ * `mise run 1-dev` runs `vite build --watch`, which rewrites dist/web on every
+ * save. The render tier serves exactly that directory through `vite preview`,
+ * and the e2e tier serves it through the Worker's [assets] binding — so a
+ * rebuild landing mid-run is a page served with a chunk half-written, and it
+ * surfaces as a timeout in whichever spec happened to be reading at the time.
+ *
+ * Different victims every run, passing when re-run alone, and nothing in the
+ * output pointing at the cause. It cost a full investigation on 2026-09-02: I
+ * measured three failures a run across five runs, stashed my changes, bisected
+ * into a worktree, and the answer was a dev server I had left running. The
+ * hazard was already written down in vite.config.ts and in AGENTS.md, which is
+ * exactly why it needed to stop being something to remember.
+ *
+ * `--fast` is deliberately exempt. `1-dev -- watch` runs it on every save, it
+ * reads no built bundle, and refusing there would break the loop this guard is
+ * meant to protect.
+ */
+if (!process.argv.includes("--fast") && webWatcherRunning()) {
+  console.error(
+    "\ncheck: the dev bundler is running, and these tiers read what it is writing.\n" +
+      "  `vite build --watch` rewrites dist/web on every save; the render tier serves\n" +
+      "  that directory and the e2e tier ships it. A rebuild mid-run shows up as a\n" +
+      "  timeout in an unrelated spec.\n\n" +
+      "    mise run 1-dev -- stop     then run this again\n" +
+      "    mise run 2-check -- --fast is safe with dev up — it reads no bundle\n",
+  )
+  process.exit(1)
+}
+
 for (const step of [...PHASES.flat(), E2E]) {
   const file = step.cmd[1]
   if (file?.startsWith("scripts/") && !existsSync(file)) {

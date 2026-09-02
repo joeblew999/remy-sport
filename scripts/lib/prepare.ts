@@ -81,12 +81,26 @@ function bunInstall(): number {
  * with no watcher running at all. Both replacements were machinery built on a
  * diagnosis I had not confirmed.
  */
-function webBuild(): number {
-  const watching = Bun.spawnSync(
+/**
+ * Is `mise run 1-dev`'s bundler running?
+ *
+ * Exported because two different things need the answer for opposite reasons.
+ * `webBuild` below asks so it can DEFER — the watcher's output is at least as
+ * fresh as ours, and a second builder emptying dist/web is the race that once
+ * failed eight e2e specs. `check.ts` asks so it can REFUSE: the render and e2e
+ * tiers read that same directory, and a rebuild landing mid-run is unattributable
+ * from the inside.
+ */
+export function webWatcherRunning(): boolean {
+  const found = Bun.spawnSync(
     ["pgrep", "-f", "vite build --config src/web/vite.config.ts --watch"],
     { stdout: "pipe", stderr: "ignore" },
   )
-  if (watching.stdout.toString().trim() && existsSync("dist/web/index.html")) return 0
+  return found.stdout.toString().trim() !== ""
+}
+
+function webBuild(): number {
+  if (webWatcherRunning() && existsSync("dist/web/index.html")) return 0
 
   /**
    * Skip when the bundle is already newer than everything it is built from.
