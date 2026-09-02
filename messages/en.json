@@ -377,6 +377,8 @@
   "team_settings": "Team details",
   "teams": "Teams",
   "test_all_expired": "{count} device(s) had expired and have been removed. Turn notifications off and on again to re-register this one.",
+  "test_failed": "The request did not get through. If you have been signed out, sign in and try again.",
+  "test_needs_sign_in": "Sign in to send a test notification to your devices.",
   "test_no_devices": "No devices are registered to receive push, so there was nothing to send to.",
   "test_not_configured": "This deployment has no push keys, so nothing could be sent. That is a server setting, not something you can fix here.",
   "test_notification_body": "This is what a live score will look like.",

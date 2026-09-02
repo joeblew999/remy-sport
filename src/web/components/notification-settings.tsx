@@ -19,6 +19,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api, orpc } from "../lib/orpc"
 import { m } from "../../paraglide/messages.js"
 import { useLocale } from "../lib/locale"
+import { useSession } from "../lib/session"
 import { currentDeviceId, disablePush, enableNative, enablePush, pushState, type PushState } from "../lib/push"
 
 /**
@@ -53,6 +54,7 @@ const OFFERED = [
 export function NotificationSettings() {
   const qc = useQueryClient()
   const { locale, label, name, describe } = useLocale()
+  const { user } = useSession()
   const [state, setState] = useState<PushState | null>(null)
   const [busy, setBusy] = useState(false)
   /**
@@ -206,15 +208,24 @@ export function NotificationSettings() {
               actually appears depends on the push service, the OS and any Focus
               mode — none of which we can see, and none of which a test suite
               can stand in for. So the reader presses it and looks. */}
-          <button
-            type="button"
-            className="btn"
-            disabled={test.isPending}
-            onClick={() => test.mutate()}
-            data-testid="push-test"
-          >
-            {m.send_test_notification()}
-          </button>
+          {user ? (
+            <button
+              type="button"
+              className="btn"
+              disabled={test.isPending}
+              onClick={() => test.mutate()}
+              data-testid="push-test"
+            >
+              {m.send_test_notification()}
+            </button>
+          ) : (
+            // The endpoint is `authed`, and this whole block is reachable
+            // signed out. Offering the button anyway is what produced a click
+            // that could only ever be refused.
+            <div className="push-note" data-testid="push-test-signed-out">
+              {m.test_needs_sign_in()}
+            </div>
+          )}
           {/*
             What actually became of it, rather than one number.
 
@@ -224,6 +235,19 @@ export function NotificationSettings() {
             level", which is the one cause we can be sure it is not when the
             send never left. Four outcomes, four answers, worst first.
           */}
+          {/*
+            A failed send said NOTHING. Only `test.data` was rendered, so a
+            request the Worker refused — a lapsed session being the easy way in,
+            since pushState() reads "on" from a local subscription and
+            notifications.key is public, so this button renders while signed
+            out — left the button looking inert. "I pressed it and nothing
+            happened" was literally true, and the page was the reason.
+          */}
+          {test.isError && (
+            <div className="push-note is-blocked" data-testid="push-test-error">
+              {m.test_failed()}
+            </div>
+          )}
           {test.data && (
             <div className="push-note" data-testid="push-test-result">
               {!test.data.configured
