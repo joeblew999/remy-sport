@@ -257,33 +257,32 @@ export const PHASES: Step[][] = [
  * `scripts/build/` and missed `script("build/...")`, which carries no prefix.
  */
 /**
- * The dev bundler must not be running while a tier reads its output.
+ * Only the e2e tier still shares anything with the dev server.
  *
- * `mise run 1-dev` runs `vite build --watch`, which rewrites dist/web on every
- * save. The render tier serves exactly that directory through `vite preview`,
- * and the e2e tier serves it through the Worker's [assets] binding — so a
- * rebuild landing mid-run is a page served with a chunk half-written, and it
- * surfaces as a timeout in whichever spec happened to be reading at the time.
+ * The render tier used to preview `dist/web`, which `mise run 1-dev`'s
+ * `vite build --watch` rewrites on every save — two hundred tests reading a
+ * directory a watcher was writing, producing timeouts in whichever spec was
+ * mid-read. The first fix was a guard here refusing to run at all, and that was
+ * the wrong shape: it made testing and using the dev server mutually exclusive,
+ * so one person had to stop for the other.
  *
- * Different victims every run, passing when re-run alone, and nothing in the
- * output pointing at the cause. It cost a full investigation on 2026-09-02: I
- * measured three failures a run across five runs, stashed my changes, bisected
- * into a worktree, and the answer was a dev server I had left running. The
- * hazard was already written down in vite.config.ts and in AGENTS.md, which is
- * exactly why it needed to stop being something to remember.
+ * The render tier builds its own bundle into dist/render now (see
+ * playwright.render.config.ts) and shares nothing, so the default gate has no
+ * conflict left and runs happily beside a dev server.
  *
- * `--fast` is deliberately exempt. `1-dev -- watch` runs it on every save, it
- * reads no built bundle, and refusing there would break the loop this guard is
- * meant to protect.
+ * `--e2e` is different by design: its webServer sets `reuseExistingServer`, so
+ * it deliberately tests against whatever is on :8787 — which is the dev server
+ * when one is up, still serving the directory the watcher rewrites. Short
+ * enough that it usually survives, and worth saying rather than leaving as a
+ * coin flip.
  */
-if (!process.argv.includes("--fast") && webWatcherRunning()) {
+if (process.argv.includes("--e2e") && webWatcherRunning()) {
   console.error(
-    "\ncheck: the dev bundler is running, and these tiers read what it is writing.\n" +
-      "  `vite build --watch` rewrites dist/web on every save; the render tier serves\n" +
-      "  that directory and the e2e tier ships it. A rebuild mid-run shows up as a\n" +
-      "  timeout in an unrelated spec.\n\n" +
+    "\ncheck --e2e: the dev bundler is running, and this tier reuses the server it feeds.\n" +
+      "  `vite build --watch` rewrites dist/web on every save, and the Worker on :8787\n" +
+      "  serves it. A rebuild mid-run shows up as a timeout in an unrelated spec.\n\n" +
       "    mise run 1-dev -- stop     then run this again\n" +
-      "    mise run 2-check -- --fast is safe with dev up — it reads no bundle\n",
+      "  The default gate needs no such thing — the render tier builds its own.\n",
   )
   process.exit(1)
 }

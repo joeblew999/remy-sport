@@ -124,8 +124,29 @@ export default defineConfig({
     browserName: "webkit",
   },
   webServer: {
-    // `--outDir` matches vite.config.ts's build output.
-    command: "bun x vite preview --config src/web/vite.config.ts --port 4173 --strictPort",
+    /**
+     * Its own bundle, built from source, in its own directory.
+     *
+     * This used to preview `dist/web` — the directory `mise run 1-dev`'s
+     * `vite build --watch` rewrites on every save. Two hundred tests reading a
+     * directory a watcher is writing produced timeouts in whichever spec
+     * happened to be mid-read: different victims each run, passing when re-run
+     * alone, and nothing in the output pointing at the cause. It cost an
+     * afternoon to attribute, and the answer was a dev server left running.
+     *
+     * A guard on the gate was the first fix and it was the wrong shape: it made
+     * running the tests and using the dev server mutually exclusive, so the
+     * person working on the product had to stop for the person testing it.
+     *
+     * Building here instead costs 1.3s against a 35s tier and the two never
+     * touch. `vite build` reads src and writes dist/render; the watcher reads
+     * src and writes dist/web. Nothing is shared, so there is nothing to race.
+     *
+     * `--outDir` is relative to the config's `root`, which is src/web.
+     */
+    command:
+      "bun x vite build --config src/web/vite.config.ts --outDir ../../dist/render --emptyOutDir --logLevel warn" +
+      " && bun x vite preview --config src/web/vite.config.ts --outDir ../../dist/render --port 4173 --strictPort",
     url: "http://localhost:4173",
     reuseExistingServer: true,
     timeout: 30_000,
