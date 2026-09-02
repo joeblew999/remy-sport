@@ -69,7 +69,7 @@ const withSubscription = (endpoint: string) => (page: Parameters<typeof seedCach
 /** The VAPID key call, which `pushState()` makes before it looks locally. */
 async function stubRpc(
   page: Parameters<typeof seedCache>[0],
-  answers: { devices?: unknown; sendTest?: unknown; sendTestStatus?: number },
+  answers: { devices?: unknown; sendTest?: unknown; sendTestStatus?: number; subscribeStatus?: number },
 ) {
   await page.route("**/rpc/**", async (route) => {
     const url = route.request().url()
@@ -77,6 +77,13 @@ async function stubRpc(
       route.fulfill({ status, contentType: "application/json", body: JSON.stringify({ json: body }) })
 
     if (url.includes("notifications/key")) return json({ publicKey: "BTEST" })
+    if (url.includes("notifications/subscribe") && answers.subscribeStatus) {
+      return route.fulfill({
+        status: answers.subscribeStatus,
+        contentType: "application/json",
+        body: JSON.stringify({ json: { message: "refused" } }),
+      })
+    }
     if (url.includes("notifications/devices")) return json(answers.devices ?? { devices: [] })
     if (url.includes("notifications/sendTest")) {
       if (answers.sendTestStatus && answers.sendTestStatus >= 400) {
@@ -195,5 +202,40 @@ test.describe("Push settings, with a subscription this browser actually holds", 
     await expect(page.getByTestId("push-test-tapped")).toBeVisible()
     await page.getByTestId("push-test-tapped-clear").click()
     await expect(page.getByTestId("push-test-tapped")).toHaveCount(0)
+  })
+
+  test("a failed switch-on says so, instead of a button that does nothing", async ({ page }) => {
+    // No subscription: this browser is in the state where the button reads
+    // "Turn on notifications".
+    await seedCache(page, [signedIn])
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "serviceWorker", {
+        configurable: true,
+        get: () => ({
+          ready: Promise.resolve({
+            pushManager: {
+              getSubscription: async () => null,
+              subscribe: async () => ({
+                endpoint: "https://web.push.apple.com/NEW",
+                toJSON: () => ({ endpoint: "https://web.push.apple.com/NEW", keys: { p256dh: "a", auth: "b" } }),
+                unsubscribe: async () => true,
+              }),
+            },
+          }),
+          addEventListener() {},
+          controller: null,
+        }),
+      })
+      Object.defineProperty(Notification, "permission", { configurable: true, get: () => "granted" })
+      Notification.requestPermission = async () => "granted" as NotificationPermission
+    })
+    // Registering the subscription is `authed`, and this is the throw that used
+    // to leave `toggle()` rejecting with nothing rendered.
+    await stubRpc(page, { subscribeStatus: 401 })
+
+    await page.goto("/#/profile")
+    await page.getByTestId("push-toggle").click()
+
+    await expect(page.getByTestId("push-toggle-error")).toBeVisible()
   })
 })

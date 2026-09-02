@@ -300,6 +300,7 @@
   "push_roster_removed_title": "{player} が {team} を離脱",
   "push_score_body": "{event} で試合中",
   "push_score_title": "{home} {homeScore} – {away} {awayScore}",
+  "push_toggle_failed": "通知を有効にできませんでした。サインアウトされている場合は、サインインしてからもう一度お試しください。",
   "push_unknown": "通知が有効かどうか確認できませんでした。",
   "push_unsupported": "このブラウザは通知を表示できません。",
   "quarter_remaining": "第{n}クォーター · 残り{clock}",

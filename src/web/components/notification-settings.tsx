@@ -126,10 +126,26 @@ export function NotificationSettings() {
     mutationFn: () => api.notifications.sendTest({ locale: locale as "en" }),
   })
 
+  /**
+   * Turning it on or off, and saying so when it does not work.
+   *
+   * `try/finally` with no catch, and the caller is `void toggle()` — so a throw
+   * from enablePush left `state` untouched, rendered nothing, and became an
+   * unhandled rejection. Pressing "Turn on notifications" appeared to do
+   * nothing at all. Three things in that path can throw, and the one that
+   * actually does is `notifications.subscribe`, which is `authed`.
+   */
+  const [toggleFailed, setToggleFailed] = useState(false)
   const toggle = async () => {
     setBusy(true)
+    setToggleFailed(false)
     try {
       setState(state?.status === "on" ? await disablePush() : await enablePush(locale))
+    } catch {
+      setToggleFailed(true)
+      // Re-read rather than assume: enablePush rolls the browser half back on
+      // failure, so the truthful state is whatever it left behind.
+      setState(await pushState())
     } finally {
       setBusy(false)
     }
@@ -188,15 +204,22 @@ export function NotificationSettings() {
           </button>
         </div>
       ) : state.status === "on" || state.status === "off" ? (
-        <button
-          type="button"
-          className="btn"
-          disabled={busy}
-          onClick={() => void toggle()}
-          data-testid="push-toggle"
-        >
-          {state.status === "on" ? m.disable_notifications() : m.enable_notifications()}
-        </button>
+        <>
+          <button
+            type="button"
+            className="btn"
+            disabled={busy}
+            onClick={() => void toggle()}
+            data-testid="push-toggle"
+          >
+            {state.status === "on" ? m.disable_notifications() : m.enable_notifications()}
+          </button>
+          {toggleFailed && (
+            <div className="push-note is-blocked" data-testid="push-toggle-error">
+              {m.push_toggle_failed()}
+            </div>
+          )}
+        </>
       ) : (
         <div className="push-note is-blocked" data-testid="push-blocked">
           {state.status === "needs-install"

@@ -287,22 +287,61 @@ export async function enablePush(locale: string): Promise<PushState> {
   if (!publicKey) return { status: "not-configured" }
 
   const registration = await navigator.serviceWorker.ready
-  const subscription = await registration.pushManager.subscribe({
+
+  /**
+   * Subscribe, replacing a subscription pinned to a different key.
+   *
+   * `subscribe()` throws InvalidStateError when this browser already holds one
+   * with a different `applicationServerKey` — which happens whenever VAPID keys
+   * are rotated, and between environments that have their own. The old
+   * subscription can never be pushed to with the current keys, so keeping it is
+   * strictly worse than replacing it.
+   */
+  let subscription: PushSubscription
+  const options = {
     // Required, and not merely advisory: a subscription that does not promise a
     // visible notification for every push is refused outright by Chrome.
     userVisibleOnly: true,
     applicationServerKey: keyBytes(publicKey),
-  })
+  }
+  try {
+    subscription = await registration.pushManager.subscribe(options)
+  } catch {
+    const stale = await registration.pushManager.getSubscription()
+    if (!stale) throw new Error("push-subscribe-failed")
+    await stale.unsubscribe()
+    subscription = await registration.pushManager.subscribe(options)
+  }
 
-  await api.notifications.subscribe({
-    subscription: subscription.toJSON() as {
-      endpoint: string
-      expirationTime?: number | null
-      keys: { p256dh: string; auth: string }
-    },
-    label: deviceLabel(),
-    locale: locale as "en",
-  })
+  /**
+   * Register it, and undo the browser half if that fails.
+   *
+   * This is `authed`, so a lapsed session throws — and it used to throw with a
+   * live browser subscription already created. The reader was left holding a
+   * subscription the server has no row for: `pushState()` reads "on" from the
+   * local one, the page offers Disable and a test button, and nothing can ever
+   * be delivered. The failure created the ghost state that
+   * `device_not_registered` exists to report.
+   *
+   * Rolling back leaves both halves off, which is a state a reader can act on
+   * by pressing the button again.
+   */
+  try {
+    await api.notifications.subscribe({
+      subscription: subscription.toJSON() as {
+        endpoint: string
+        expirationTime?: number | null
+        keys: { p256dh: string; auth: string }
+      },
+      label: deviceLabel(),
+      locale: locale as "en",
+    })
+  } catch (e) {
+    await subscription.unsubscribe().catch(() => {
+      /* best effort: the server call already failed, and this is the cleanup */
+    })
+    throw e
+  }
   return { status: "on" }
 }
 

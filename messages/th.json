@@ -300,6 +300,7 @@
   "push_roster_removed_title": "{player} ออกจาก {team}",
   "push_score_body": "กำลังแข่งที่ {event}",
   "push_score_title": "{home} {homeScore} – {away} {awayScore}",
+  "push_toggle_failed": "เปิดการแจ้งเตือนไม่สำเร็จ หากคุณออกจากระบบไปแล้ว กรุณาเข้าสู่ระบบแล้วลองอีกครั้ง",
   "push_unknown": "ไม่สามารถตรวจสอบสถานะการแจ้งเตือนได้",
   "push_unsupported": "เบราว์เซอร์นี้ไม่สามารถแสดงการแจ้งเตือนได้",
   "quarter_remaining": "ควอเตอร์ {n} · เหลือ {clock}",

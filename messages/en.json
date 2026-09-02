@@ -300,6 +300,7 @@
   "push_roster_removed_title": "{player} left {team}",
   "push_score_body": "Live at {event}",
   "push_score_title": "{home} {homeScore} – {away} {awayScore}",
+  "push_toggle_failed": "Could not switch notifications on. If you have been signed out, sign in and try again.",
   "push_unknown": "Could not check whether notifications are on.",
   "push_unsupported": "This browser cannot show notifications.",
   "quarter_remaining": "Quarter {n} · {clock} remaining",

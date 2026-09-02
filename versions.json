@@ -1,14 +1,14 @@
 {
   "current": {
-    "_generated": "2026-09-02T08:16:14.251Z",
+    "_generated": "2026-09-02T08:20:45.985Z",
     "app": "0.1.0",
     "environment": "dev",
     "url": "http://localhost:8787",
     "git": {
-      "commit": "26a1bc0",
+      "commit": "5b520a5",
       "branch": "main",
-      "tag": "26a1bc0",
-      "github": "https://github.com/joeblew999/remy-sport/commit/26a1bc039c82f026d51388a99790cb876621b977"
+      "tag": "5b520a5",
+      "github": "https://github.com/joeblew999/remy-sport/commit/5b520a53f433c02c98fade36aef661ffaafaad52"
     }
   },
   "cf_versions": [
