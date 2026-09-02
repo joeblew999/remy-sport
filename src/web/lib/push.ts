@@ -274,6 +274,29 @@ function deviceLabel(): string {
  * Returns the state afterwards rather than a boolean, so a refusal and a
  * misconfigured deployment stay distinguishable to the caller.
  */
+/**
+ * Which step failed, carried out to the page.
+ *
+ * `enablePush` has four ways to throw and the page rendered one sentence for
+ * all of them — "if you have been signed out" — which was a guess, and a wrong
+ * one for a reader who was signed in. Naming the step is the difference between
+ * a message that helps and a message that sends somebody to check the one thing
+ * that was fine.
+ *
+ * `cause` keeps the original for the console. A push failure in Safari is
+ * frequently a bare `AbortError` with no detail, and throwing that away because
+ * it looked unhelpful is how this became unanswerable in the first place.
+ */
+export class PushFailure extends Error {
+  constructor(
+    readonly step: "subscribe" | "register",
+    override readonly cause: unknown,
+  ) {
+    super(`push-${step}-failed`)
+    this.name = "PushFailure"
+  }
+}
+
 export async function enablePush(locale: string): Promise<PushState> {
   const before = await pushState()
   if (before.status !== "off") return before
@@ -304,13 +327,19 @@ export async function enablePush(locale: string): Promise<PushState> {
     userVisibleOnly: true,
     applicationServerKey: keyBytes(publicKey),
   }
+  let first: unknown
   try {
     subscription = await registration.pushManager.subscribe(options)
-  } catch {
+  } catch (e) {
+    first = e
     const stale = await registration.pushManager.getSubscription()
-    if (!stale) throw new Error("push-subscribe-failed")
+    if (!stale) throw new PushFailure("subscribe", first)
     await stale.unsubscribe()
-    subscription = await registration.pushManager.subscribe(options)
+    try {
+      subscription = await registration.pushManager.subscribe(options)
+    } catch (again) {
+      throw new PushFailure("subscribe", again)
+    }
   }
 
   /**
@@ -340,7 +369,7 @@ export async function enablePush(locale: string): Promise<PushState> {
     await subscription.unsubscribe().catch(() => {
       /* best effort: the server call already failed, and this is the cleanup */
     })
-    throw e
+    throw new PushFailure("register", e)
   }
   return { status: "on" }
 }

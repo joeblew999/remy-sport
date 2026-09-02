@@ -21,7 +21,7 @@ import { m } from "../../paraglide/messages.js"
 import { useLocale } from "../lib/locale"
 import { useSession } from "../lib/session"
 import { useRouter } from "../lib/router"
-import { currentDeviceId, disablePush, enableNative, enablePush, pushState, type PushState } from "../lib/push"
+import { PushFailure, currentDeviceId, disablePush, enableNative, enablePush, pushState, type PushState } from "../lib/push"
 
 /**
  * The types worth offering, not all fourteen.
@@ -135,14 +135,24 @@ export function NotificationSettings() {
    * nothing at all. Three things in that path can throw, and the one that
    * actually does is `notifications.subscribe`, which is `authed`.
    */
-  const [toggleFailed, setToggleFailed] = useState(false)
+  const [toggleFailed, setToggleFailed] = useState<"subscribe" | "register" | "unknown" | null>(null)
   const toggle = async () => {
     setBusy(true)
-    setToggleFailed(false)
+    setToggleFailed(null)
     try {
       setState(state?.status === "on" ? await disablePush() : await enablePush(locale))
-    } catch {
-      setToggleFailed(true)
+    } catch (e) {
+      /**
+       * The raw error, always, where a person can read it.
+       *
+       * Safari refuses a subscription with a bare `AbortError` carrying no
+       * detail, and the first version of this printed one guessed sentence for
+       * every cause — "if you have been signed out" — to a reader who was
+       * signed in. A wrong explanation is worse than none: it sends somebody to
+       * check the thing that was fine.
+       */
+      console.error("notifications: could not switch on", e)
+      setToggleFailed(e instanceof PushFailure ? e.step : "unknown")
       // Re-read rather than assume: enablePush rolls the browser half back on
       // failure, so the truthful state is whatever it left behind.
       setState(await pushState())
@@ -229,7 +239,11 @@ export function NotificationSettings() {
           )}
           {toggleFailed && (
             <div className="push-note is-blocked" data-testid="push-toggle-error">
-              {m.push_toggle_failed()}
+              {toggleFailed === "subscribe"
+                ? m.push_subscribe_refused()
+                : toggleFailed === "register"
+                  ? m.push_register_failed()
+                  : m.push_toggle_failed()}
             </div>
           )}
         </>

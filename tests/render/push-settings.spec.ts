@@ -42,6 +42,17 @@ const signedIn = {
   },
 }
 
+/**
+ * A key of the right SHAPE, because the code decodes it before subscribing.
+ *
+ * `keyBytes()` base64url-decodes this into the 65 bytes an uncompressed P-256
+ * point occupies, and a placeholder like "BTEST" throws in there — before
+ * `subscribe()` is reached at all. Two tests then classified the failure as
+ * "unknown" and asserted against the wrong branch, which cost a round of
+ * chasing the component for a fault in the fixture.
+ */
+const VAPID_KEY = "BAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK-2vcTL0tng5-71AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsU"
+
 /** The endpoint the stubbed browser holds. Its fingerprint is asserted below. */
 const ENDPOINT = "https://web.push.apple.com/TEST-ENDPOINT-FOR-RENDER-TIER"
 
@@ -76,7 +87,7 @@ async function stubRpc(
     const json = (body: unknown, status = 200) =>
       route.fulfill({ status, contentType: "application/json", body: JSON.stringify({ json: body }) })
 
-    if (url.includes("notifications/key")) return json({ publicKey: "BTEST" })
+    if (url.includes("notifications/key")) return json({ publicKey: VAPID_KEY })
     if (url.includes("notifications/subscribe") && answers.subscribeStatus) {
       return route.fulfill({
         status: answers.subscribeStatus,
@@ -236,7 +247,12 @@ test.describe("Push settings, with a subscription this browser actually holds", 
     await page.goto("/#/profile")
     await page.getByTestId("push-toggle").click()
 
-    await expect(page.getByTestId("push-toggle-error")).toBeVisible()
+    const err = page.getByTestId("push-toggle-error")
+    await expect(err).toBeVisible()
+    // The step, not a guess. This is the register half — the subscription was
+    // made and the server refused it — and saying "signed out" for the OTHER
+    // half sent a signed-in reader to check the one thing that was fine.
+    await expect(err).toContainText(/could not be registered/i)
   })
 
   test("no session means no toggle either, since registering a browser is authed", async ({ page }) => {
@@ -257,5 +273,37 @@ test.describe("Push settings, with a subscription this browser actually holds", 
 
     await expect(page.getByTestId("push-signed-out")).toBeVisible()
     await expect(page.getByTestId("push-toggle")).toHaveCount(0)
+  })
+
+  test("a browser that refuses to subscribe is not blamed on the session", async ({ page }) => {
+    await seedCache(page, [signedIn])
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "serviceWorker", {
+        configurable: true,
+        get: () => ({
+          ready: Promise.resolve({
+            pushManager: {
+              getSubscription: async () => null,
+              // Safari's actual shape when it will not subscribe: a bare
+              // AbortError carrying nothing useful.
+              subscribe: async () => { throw new DOMException("failed", "AbortError") },
+            },
+          }),
+          addEventListener() {},
+          controller: null,
+        }),
+      })
+      Object.defineProperty(Notification, "permission", { configurable: true, get: () => "granted" })
+      Notification.requestPermission = async () => "granted" as NotificationPermission
+    })
+    await stubRpc(page, {})
+
+    await page.goto("/#/profile")
+    await page.getByTestId("push-toggle").click()
+
+    const err = page.getByTestId("push-toggle-error")
+    await expect(err).toBeVisible()
+    await expect(err).toContainText(/refused to create/i)
+    await expect(err).not.toContainText(/signed out/i)
   })
 })
