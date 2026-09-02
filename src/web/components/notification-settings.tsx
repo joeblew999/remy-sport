@@ -116,7 +116,7 @@ export function NotificationSettings() {
       {state?.status === "native" || state?.status === "native-off" || state?.status === "native-denied" ? (
         <div data-testid="push-native">
           {state.status === "native-denied" ? (
-            <div className="empty" data-testid="push-native-denied">{m.push_native_denied()}</div>
+            <div className="push-note is-blocked" data-testid="push-native-denied">{m.push_native_denied()}</div>
           ) : state.status === "native" ? (
             <div className="meta" data-testid="push-native-on">{m.push_native_on()}</div>
           ) : (
@@ -146,7 +146,7 @@ export function NotificationSettings() {
         // a failure look like a section that does not exist.
         <div className="meta" data-testid="push-checking">{m.push_checking()}</div>
       ) : state.status === "unknown" ? (
-        <div className="empty" data-testid="push-unknown">
+        <div className="push-note" data-testid="push-unknown">
           <span>{m.push_unknown()}</span>{" "}
           <button type="button" className="btn" data-testid="push-retry" onClick={check}>
             {m.push_retry()}
@@ -163,7 +163,7 @@ export function NotificationSettings() {
           {state.status === "on" ? m.disable_notifications() : m.enable_notifications()}
         </button>
       ) : (
-        <div className="empty" data-testid="push-blocked">
+        <div className="push-note is-blocked" data-testid="push-blocked">
           {state.status === "needs-install"
             ? m.push_needs_install()
             : state.status === "denied"
@@ -258,7 +258,7 @@ export function NotificationSettings() {
           ))}
         </ul>
       ) : (
-        <div className="empty" data-testid="devices-empty">{m.devices_none()}</div>
+        <div className="push-note" data-testid="devices-empty">{m.devices_none()}</div>
       )}
 
       <h3>{m.following_label()}</h3>
@@ -275,7 +275,7 @@ export function NotificationSettings() {
           ))}
         </ul>
       ) : (
-        <div className="empty">{m.nothing_followed_yet()}</div>
+        <div className="push-note">{m.nothing_followed_yet()}</div>
       )}
     </section>
   )

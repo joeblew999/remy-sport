@@ -1623,8 +1623,67 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 
 /* The model's own explanation of a notification type, under its switch.
    Indented past the checkbox so it reads as belonging to the label. */
+/* The preference, device and following lists.
+   Unstyled until now, so all three rendered with browser bullets and the
+   default 40px indent inside a card where nothing else has either. */
+.pref-list {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+}
+.pref-list > li {
+  padding: 7px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.pref-list > li:last-child { border-bottom: 0; }
+/* The checkbox and its label on one line, so the note below hangs under the
+   text rather than under the box. */
+.pref-list label {
+  display: flex; align-items: center; gap: 8px;
+  cursor: pointer;
+}
+.pref-list input[type="checkbox"] { accent-color: var(--accent); flex: none; }
+/* A preference that cannot be changed yet should look like it — the switches
+   are disabled until push is on, and nothing said so visually. */
+.pref-list label:has(input:disabled) { cursor: default; color: var(--ink-3); }
 .pref-list .pref-note {
   margin-left: 24px;
   font-size: 12px;
   color: var(--ink-3);
+}
+
+/* Sub-headings inside a card.
+   `.admin-card h2` is 13px uppercase grey; h3 had no rule at all, so every
+   sub-heading rendered at the browser default — larger and blacker than the
+   section title above it, which read as three separate cards run together. */
+.admin-card h3 {
+  font-size: 12px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--ink-3);
+  margin: 18px 0 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+}
+
+/* An inline status line, where `.empty` was being used for one.
+   `.empty` is a whole-screen empty state — 60px of padding and a dashed
+   border — and this rendered every one-sentence push status as a large dashed
+   rectangle with a line floating in it. Five of them on one page. It stays as
+   it is for the ten other components that use it as intended. */
+.push-note {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  padding: 9px 11px;
+  border-radius: 5px;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.45;
+}
+/* Blocked, denied, unsupported: the reader cannot fix these from here, so they
+   read as a state rather than an error to act on. */
+.push-note.is-blocked {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--ink);
 }
