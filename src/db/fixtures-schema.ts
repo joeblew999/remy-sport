@@ -18,7 +18,7 @@
 // Tables for the domain model — entities and the links between them.
 
 import { sqliteTable, text, integer, uniqueIndex } from "drizzle-orm/sqlite-core"
-import { relations } from "drizzle-orm"
+import { relations, sql } from "drizzle-orm"
 import { createSelectSchema } from "drizzle-zod"
 import type { Names } from "../domain/names"
 import { GAME_STATUS_CODES, INVITE_STATUS_CODES, ORG_ROLE_CODES } from "../domain/vocabularies"
@@ -374,7 +374,30 @@ export const userNotificationChannel = sqliteTable("userNotificationChannel", {
   isEnabled: integer("is_enabled", { mode: "boolean" }).notNull(),
   verifiedAt: text("verified_at"),
 }, (t) => [
-  uniqueIndex("userNotificationChannel_key").on(t.userId, t.channelCode, t.addressLabel),
+  /**
+   * One label per person per channel — except for push.
+   *
+   * The rule this protects is real for the channels a person *chooses* an
+   * address for: one "primary" email, one "mobile" number, one "in-app". The
+   * seed is the argument — EMAIL and LINE are `primary` for everybody, SMS is
+   * `mobile`. Two rows called "primary" for one person is a mistake there.
+   *
+   * PUSH is the one channel where many rows per person is the whole point, and
+   * its labels are not chosen at all: `deviceLabel()` derives them from the user
+   * agent, so two devices routinely produce the same string. On macOS an
+   * installed web app and the Safari it was installed from share a user agent
+   * exactly, so both said "Safari on Mac" — the app's registration violated
+   * this index, `subscribe` upserts on the ENDPOINT index and so did not catch
+   * it, and the reader got a 500. The installed app could never register, and
+   * every push went to the browser instead.
+   *
+   * Scoped rather than dropped: what it forbids is right everywhere it still
+   * applies, and the endpoint index below is what actually keeps push rows
+   * unique. A label is a name, not an identity.
+   */
+  uniqueIndex("userNotificationChannel_key")
+    .on(t.userId, t.channelCode, t.addressLabel)
+    .where(sql`${t.channelCode} <> 'PUSH'`),
   // One row per address per channel, across all users. A push endpoint belongs
   // to exactly one browser, so this is what makes `subscribe` an upsert instead
   // of a read-then-decide.

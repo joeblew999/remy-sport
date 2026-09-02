@@ -63,6 +63,56 @@ describe("Registering a browser for push", () => {
     expect(devices.map((d) => d.label)).toContain("Safari on iPhone")
   })
 
+  /**
+   * Two devices, one name — which on macOS is the ordinary case, not an edge.
+   *
+   * An installed web app and the Safari it was installed from share a user
+   * agent exactly, so `deviceLabel()` produced "Safari on Mac" for both. That
+   * collided on `userNotificationChannel_key` (user_id, channel_code,
+   * address_label), which `subscribe` does not upsert on — it upserts on the
+   * endpoint — so the second registration raised and came back a 500. The
+   * installed app could never register, and every push went to the browser.
+   *
+   * The index is scoped to exclude PUSH in 0015. It still holds everywhere it
+   * means something, which the case below this one asserts.
+   */
+  it("registers two devices with the same label, which is what an installed app looks like", async () => {
+    const cookie = await signIn(COACH)
+    const label = "Safari on Mac"
+
+    const first = await post(
+      "/api/push/subscribe",
+      { subscription: fakeSubscription("same-label-browser"), label },
+      cookie,
+    )
+    expect(first.status).toBe(200)
+
+    // A different browser — different endpoint — reporting an identical name.
+    const second = await post(
+      "/api/push/subscribe",
+      { subscription: fakeSubscription("same-label-installed-app"), label },
+      cookie,
+    )
+    expect(second.status, "a duplicate NAME is not a duplicate device").toBe(200)
+
+    const list = await api("/api/push/devices", { cookie })
+    const { devices } = (await list.json()) as { devices: { label: string; id: string }[] }
+    // Both present, and distinguishable by the fingerprint the list publishes —
+    // which is how the page can say which one the reader is sitting at.
+    const ids = new Set(devices.map((d) => d.id))
+    expect(ids.size, "two rows, two fingerprints").toBeGreaterThanOrEqual(2)
+
+    // This tier shares one database, and leaving two devices on COACH breaks
+    // the shared-laptop case below, which asserts they hold exactly one.
+    for (const name of ["same-label-browser", "same-label-installed-app"]) {
+      await post(
+        "/api/push/unsubscribe",
+        { endpoint: fakeSubscription(name).endpoint },
+        cookie,
+      )
+    }
+  })
+
   it("keeps one row when the same browser subscribes twice", async () => {
     const cookie = await signIn(SPECTATOR)
     const subscription = fakeSubscription("spectator-repeat")

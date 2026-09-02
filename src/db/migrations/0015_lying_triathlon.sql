@@ -1,0 +1,2 @@
+DROP INDEX `userNotificationChannel_key`;--> statement-breakpoint
+CREATE UNIQUE INDEX `userNotificationChannel_key` ON `userNotificationChannel` (`user_id`,`channel_code`,`address_label`) WHERE "userNotificationChannel"."channel_code" <> 'PUSH';
