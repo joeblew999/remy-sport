@@ -68,9 +68,21 @@ const OPS: Record<string, Op> = {
     help: "tunnel                           create the dev tunnel and its hostname",
   },
   versions: {
-    group: "deployment",
-    cmd: (rest) => ["bun", "scripts/deploy/versions.ts", ...rest],
-    help: "versions                         stamp versions.json",
+    group: "report",
+    /**
+     * Reads, where it used to write.
+     *
+     * This pointed at scripts/deploy/versions.ts, the stamp WRITER — so a person
+     * typing the obvious command to find out what was deployed instead silently
+     * restamped versions.json, and with no --env it stamped production's
+     * hostname. That is one of the ways the file came to claim production was
+     * 07420e2 while production served b63532f.
+     *
+     * Writing the stamp is a step inside a deploy, not something a person does;
+     * it stays in the pipeline where the environment is known.
+     */
+    cmd: (rest) => ["bun", "scripts/ops/versions.ts", ...rest],
+    help: "versions                         what each environment is actually running",
   },
   seed: {
     group: "deployment",

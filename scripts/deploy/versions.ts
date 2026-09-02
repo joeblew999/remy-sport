@@ -1,16 +1,46 @@
 /**
- * Generate versions.json with git history and Cloudflare Worker versions.
+ * The build stamp for ONE environment, written before that environment's publish.
+ *
+ * `src/index.ts` bundles this file and serves it at `/api/versions`, so whatever
+ * is written here is what that deployment will report about itself for as long
+ * as it is live. That makes it a stamp, not a record: it describes the artifact
+ * being built, and the only honest answer to "what is live where" is to ask each
+ * environment, which `mise run ops versions` does.
+ *
+ * ## Why it names its environment
+ *
+ * The url used to be `requireEnv("CF_DEPLOY_URL")`, which mise derives to
+ * PRODUCTION. Nothing passed --env, so a staging deploy stamped production's
+ * hostname into the artifact and staging's own /api/versions answered
+ * `https://remy.ubuntusoftware.net`. Measured 2026-09-02: staging served
+ * d411075 while claiming to be production, and the committed file claimed
+ * production was 07420e2 when it was really 22 commits behind at b63532f.
+ *
+ * That is the same failure mise.toml already describes for CF_D1_NAME —
+ * "it cannot express three environments, and the failure is never an error —
+ * every caller quietly does the right thing to the wrong one". The smoke step
+ * was taught about --env in d14852e; this one was missed.
+ *
+ * `resolveTarget` with its default `explicit` rule is the guard: there is no
+ * ambient fallback any more, so this cannot stamp an environment nobody named.
+ *
+ * ## Why there is no history array
+ *
+ * There was one, and it was wrong. It kept the last twenty deploys, but with a
+ * single `current` shared by every environment, whichever deployed last
+ * overwrote it — so it recorded staging deploys as production and drifted from
+ * reality without ever failing. Git already holds this correctly, and
+ * Cloudflare holds its own version list in `cf_versions` below.
  *
  * Env vars (from mise.toml [env]):
- *   CF_DEPLOY_URL   — production worker URL
  *   GITHUB_REPO_URL — GitHub repo URL (for commit links)
  *   CF_WORKER_NAME  — CF worker name (for preview URLs)
  *   CF_SUBDOMAIN    — CF account subdomain (for preview URLs)
  */
 
 import { execSync } from "child_process"
-import { wrangler, resolveTarget, workerName } from "../lib/cloudflare"
-import { readFileSync, writeFileSync } from "fs"
+import { wrangler, resolveTarget, originOf, workerName } from "../lib/cloudflare"
+import { writeFileSync } from "fs"
 import https from "https"
 
 const run = (cmd: string) => execSync(cmd, { encoding: "utf-8" }).trim()
@@ -26,7 +56,26 @@ function requireEnv(name: string): string {
   return v
 }
 
-const DEPLOYED_URL = requireEnv("CF_DEPLOY_URL")
+// Explicit --env, no ambient fallback: an unnamed environment resolving to
+// production is precisely the bug this file carried.
+/**
+ * dev is handled before `resolveTarget`, which refuses it on purpose — dev
+ * "provisions nothing on the account", so it is not a deploy target and has no
+ * [[routes]] to take an origin from.
+ *
+ * It still needs a stamp. The committed versions.json is what `mise run 1-dev`
+ * bundles and serves, so with a deploy's stamp left in it the local server
+ * reports whichever environment was published last — which is how the file came
+ * to sit in git saying "staging" while describing a laptop.
+ */
+const argv = process.argv.slice(2)
+const at = argv.indexOf("--env")
+const IS_DEV = (at !== -1 ? argv[at + 1] : undefined) === "dev"
+
+const ENVIRONMENT = IS_DEV ? "dev" : resolveTarget(argv).environment
+const DEPLOYED_URL = IS_DEV
+  ? (process.env.DEV_URL ?? "http://localhost:8787")
+  : originOf(resolveTarget(argv))
 const GITHUB_REPO = requireEnv("GITHUB_REPO_URL")
 const WORKER_NAME = requireEnv("CF_WORKER_NAME")
 const CF_SUBDOMAIN = requireEnv("CF_SUBDOMAIN")
@@ -39,6 +88,10 @@ const fullSha = run("git rev-parse HEAD")
 const current = {
   _generated: new Date().toISOString(),
   app: require("../../package.json").version,
+  // Which environment this artifact was built for. Without it a reader of
+  // /api/versions cannot tell staging from production, and neither could this
+  // file's own url.
+  environment: ENVIRONMENT,
   url: DEPLOYED_URL,
   git: {
     commit: shortSha,
@@ -47,19 +100,6 @@ const current = {
     github: `${GITHUB_REPO}/commit/${fullSha}`,
   },
 }
-
-// --- History: append previous current, dedupe, keep last 20 ---
-
-let history: any[] = []
-try {
-  const prev = JSON.parse(readFileSync("versions.json", "utf-8"))
-  history = prev.history || []
-  if (history[0]?.git?.commit !== current.git.commit) {
-    history.unshift(prev.current || { app: prev.app, git: prev.git, url: prev.url })
-  }
-} catch {}
-history = history.filter((h: any) => h.git?.commit !== current.git.commit)
-history = history.slice(0, 20)
 
 // --- Health-check helper ---
 
@@ -108,5 +148,8 @@ try {
 
 // --- Write output ---
 
-writeFileSync("versions.json", JSON.stringify({ current, history, cf_versions }, null, 2) + "\n")
-console.log(`versions.json updated — v${current.app} · ${shortSha} · ${current.git.branch}`)
+writeFileSync("versions.json", JSON.stringify({ current, cf_versions }, null, 2) + "\n")
+console.log(
+  `versions.json stamped for ${current.environment} — v${current.app} · ${shortSha} · ${current.git.branch}\n` +
+    `  ${DEPLOYED_URL} reports this ${IS_DEV ? "after the next restart" : "once it is published"}`,
+)

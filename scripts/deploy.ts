@@ -44,8 +44,8 @@ const PIPELINE: Phase[] = [
   },
   {
     name: "stamp",
-    why: "versions.json is what the origin is later compared against, so it is written before the publish, not after",
-    go: () => step("stamp", ["bun", "scripts/deploy/versions.ts"]),
+    why: "versions.json is what the origin is later compared against, so it is written before the publish, not after — and it is stamped for THIS environment, since the artifact carries it",
+    go: (target) => step("stamp", ["bun", "scripts/deploy/versions.ts", "--env", target.environment]),
   },
   {
     name: "provision",
