@@ -238,4 +238,24 @@ test.describe("Push settings, with a subscription this browser actually holds", 
 
     await expect(page.getByTestId("push-toggle-error")).toBeVisible()
   })
+
+  test("no session means no toggle either, since registering a browser is authed", async ({ page }) => {
+    // A browser with no subscription and nobody signed in: the state the
+    // toggle used to be offered in, where it could only ever return 401.
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "serviceWorker", {
+        configurable: true,
+        get: () => ({
+          ready: Promise.resolve({ pushManager: { getSubscription: async () => null } }),
+          addEventListener() {},
+          controller: null,
+        }),
+      })
+    })
+    await stubRpc(page, {})
+    await page.goto("/#/profile")
+
+    await expect(page.getByTestId("push-signed-out")).toBeVisible()
+    await expect(page.getByTestId("push-toggle")).toHaveCount(0)
+  })
 })

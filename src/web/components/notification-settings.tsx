@@ -205,15 +205,28 @@ export function NotificationSettings() {
         </div>
       ) : state.status === "on" || state.status === "off" ? (
         <>
-          <button
-            type="button"
-            className="btn"
-            disabled={busy}
-            onClick={() => void toggle()}
-            data-testid="push-toggle"
-          >
-            {state.status === "on" ? m.disable_notifications() : m.enable_notifications()}
-          </button>
+          {/*
+            Registering a browser is `authed`, so without a session this button
+            can only 401 — which it did, three separate ways, before any of them
+            said so. The push STATE above stays visible either way: permission,
+            support and installedness are facts about this device and are worth
+            knowing signed out. It is the actions that need somebody to act as.
+          */}
+          {user ? (
+            <button
+              type="button"
+              className="btn"
+              disabled={busy}
+              onClick={() => void toggle()}
+              data-testid="push-toggle"
+            >
+              {state.status === "on" ? m.disable_notifications() : m.enable_notifications()}
+            </button>
+          ) : (
+            <div className="push-note" data-testid="push-signed-out">
+              {m.push_needs_sign_in()}
+            </div>
+          )}
           {toggleFailed && (
             <div className="push-note is-blocked" data-testid="push-toggle-error">
               {m.push_toggle_failed()}

@@ -293,6 +293,7 @@
   "push_native_limit": "アプリが開いている間のみ通知します。閉じている間は届きません。アプリを閉じた状態でスマートフォンに通知を受け取るには、Remy をホーム画面に追加してそちらで通知をオンにしてください。",
   "push_native_on": "このアプリの通知はオンです。",
   "push_needs_install": "先に Remy をホーム画面に追加してください — iPhone と iPad はインストール済みアプリのみ通知できます。",
+  "push_needs_sign_in": "この端末で通知を有効にするにはサインインしてください。",
   "push_not_configured": "この環境ではまだ通知が有効になっていません。",
   "push_retry": "再試行",
   "push_roster_added_title": "{player} が {team} に加入",

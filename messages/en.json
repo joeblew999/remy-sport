@@ -293,6 +293,7 @@
   "push_native_limit": "The app notifies you while it is open. Nothing arrives when it is closed — for alerts on a phone with the app closed, add Remy to your Home Screen and turn on notifications there.",
   "push_native_on": "Notifications are on for this app.",
   "push_needs_install": "Add Remy to your Home Screen first — iPhone and iPad only allow notifications for installed apps.",
+  "push_needs_sign_in": "Sign in to turn notifications on for this device.",
   "push_not_configured": "Notifications are not switched on for this deployment yet.",
   "push_retry": "Try again",
   "push_roster_added_title": "{player} joined {team}",
