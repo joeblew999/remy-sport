@@ -4,10 +4,33 @@ import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import { VitePWA } from "vite-plugin-pwa";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import { execSync } from "node:child_process";
 
 // Hash routing only — required for Tauri webview compatibility.
 // See remy-sport-biz/decisions/decision-003-frontend-targets.md.
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+/**
+ * The commit this bundle was built from, baked in so the running page can say
+ * what it is — and so it can notice when the server has moved on without it.
+ *
+ * From git rather than from versions.json, and the ordering is why: `3-deploy`
+ * builds the bundle inside `check` (step 1) and writes the stamp at step 4, so
+ * a bundle reading versions.json would always carry the PREVIOUS deploy's stamp
+ * and report itself permanently stale. Both sides read git independently
+ * instead, so there is no order to get wrong.
+ *
+ * Empty rather than fatal outside a checkout: a tarball build should produce a
+ * bundle that runs, and "unknown" is a truthful answer to a question git cannot
+ * answer here.
+ */
+const buildCommit = (() => {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  } catch {
+    return "";
+  }
+})();
 
 export default defineConfig({
   root: __dirname,
@@ -96,6 +119,7 @@ export default defineConfig({
     }),
   ],
   base: "./",
+  define: { __BUILD_COMMIT__: JSON.stringify(buildCommit) },
   /**
    * `vite preview` proxies nothing. This is not a tidy-up.
    *

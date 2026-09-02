@@ -1,4 +1,5 @@
 import { Icon } from "./icon";
+import { BuildStamp } from "./build-stamp";
 import { initialsFor } from "./account";
 import { useSession } from "../lib/session";
 import { m } from "../lib/i18n";
@@ -111,6 +112,7 @@ export function Sidebar({ page, setPage }: { page: string; setPage: (p: string) 
           an endpoint, not two hardcoded rows. */}
       <div className="sidebar-bottom">
         <UserCard />
+        <BuildStamp />
       </div>
     </aside>
   );

@@ -148,6 +148,14 @@ const LOCAL: Step[] = [
   { name: "migrate-local", why: "the local database gets its schema before anything seeds it", go: () => sh(["bun", "scripts/db.ts", "migrate-local"]) },
   { name: "browsers", why: "webkit for the render tier; a no-op once installed", go: () => sh(["bun", "x", "playwright", "install", "webkit"]) },
   { name: "seed", why: "seed.sql regenerated from the model, after the schema it targets exists", go: () => sh(["bun", "scripts/lib/seed.ts"]) },
+  /**
+   * The local server bundles versions.json and serves it at /api/versions, so
+   * without this it reports whichever environment was DEPLOYED last — and the
+   * sidebar's build stamp then tells you an update is available forever,
+   * because the page is built from the working tree and the answer is not.
+   * Idempotent: it rewrites nothing when the commit has not moved.
+   */
+  { name: "versions", why: "dev serves /api/versions from this file, so it stamps the working tree rather than the last deploy", go: () => sh(["bun", "scripts/deploy/versions.ts", "--env", "dev"]) },
 ]
 
 /**

@@ -40,7 +40,7 @@
 
 import { execSync } from "child_process"
 import { wrangler, resolveTarget, originOf, workerName } from "../lib/cloudflare"
-import { writeFileSync } from "fs"
+import { readFileSync, writeFileSync } from "fs"
 import https from "https"
 
 const run = (cmd: string) => execSync(cmd, { encoding: "utf-8" }).trim()
@@ -147,6 +147,38 @@ try {
 } catch {}
 
 // --- Write output ---
+
+/**
+ * On dev, written only when something that matters actually changed.
+ *
+ * `1-dev` stamps on every start so the local server reports the working tree
+ * rather than whichever deploy last touched the file. But `_generated` moves on
+ * every run, so an unconditional write would dirty versions.json every time the
+ * dev server started — the same non-idempotence that made the bundle rebuild on
+ * every command until 670c553.
+ *
+ * Deploys always write: `_generated` is the token `waitForOrigin` polls for to
+ * know the new version has propagated, so a reused stamp would match the OLD
+ * deployment and the wait would pass instantly against stale code. dev has no
+ * propagation to wait for.
+ */
+const identity = (v: { environment?: string; url?: string; git?: { commit?: string } }) =>
+  `${v.environment}|${v.url}|${v.git?.commit}`
+
+let write = true
+if (IS_DEV) {
+  try {
+    const prev = JSON.parse(readFileSync("versions.json", "utf-8")) as { current?: Parameters<typeof identity>[0] }
+    write = !prev.current || identity(prev.current) !== identity(current)
+  } catch {
+    /* no readable file: write one */
+  }
+}
+
+if (!write) {
+  console.log(`versions.json already stamped for ${current.environment} at ${shortSha}`)
+  process.exit(0)
+}
 
 writeFileSync("versions.json", JSON.stringify({ current, cf_versions }, null, 2) + "\n")
 console.log(
