@@ -25,16 +25,27 @@ module.exports = {
       to: { path: "^src/web/" },
     },
     {
-      name: "spa-must-not-import-worker-runtime",
+      name: "spa-reaches-only-the-shared-roots",
       comment:
-        "The SPA may import TYPES from the API — `import type { Router }` is how the " +
-        "client is typed, and types erase. It must not import the implementation: " +
-        "that would pull drizzle, Better Auth and the D1 bindings into the browser " +
-        "bundle. src/domain and src/paraglide are shared and fine.",
+        "The SPA's runtime reach is src/web, src/domain and src/paraglide, and " +
+        "nothing else. It may still import TYPES from anywhere — `import type " +
+        "{ Router }` is how the client is typed, and types erase. What it must not " +
+        "do is import an implementation: that would pull drizzle, Better Auth and " +
+        "the D1 bindings into the browser bundle. " +
+        "An allowlist, where this was once a denylist of `^src/(api|db|routes|mail)/`. " +
+        "A denylist can only forbid the directories that existed when it was " +
+        "written, so a NEW top-level directory imported by the SPA passed it in " +
+        "silence — and that is not just untidy layering. `sources` in " +
+        "scripts/lib/prepare.ts lists the roots the bundle is rebuilt from, and a " +
+        "root missing from it means an edit there does not rebuild. Demonstrated " +
+        "end to end on 2026-09-02: a new src/newthing/ imported from main.tsx, every " +
+        "gate green, and a deploy that would have shipped the previous bundle. This " +
+        "rule is what keeps that list honest — a new shared root has to be added " +
+        "here, deliberately, and prepare.ts is the next thing to edit.",
       severity: "error",
       from: { path: "^src/web/" },
       to: {
-        path: "^src/(api|db|routes|mail)/",
+        path: "^src/(?!web/|domain/|paraglide/)",
         // A type-only import compiles to nothing, and lib/orpc.ts depends on
         // exactly that to type the client against the real router.
         dependencyTypesNot: ["type-only"],
