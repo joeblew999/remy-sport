@@ -117,7 +117,8 @@ the Product Owner in your reply. Fix it well enough to finish the task, then
 name it: what you hit, what you did instead, and what the real fix would be.
 Silently working around a bad seam is how it survives — the workaround ships,
 nobody hears about it, and the next person pays the same tax without knowing it
-is a tax. `## Open` below is where the ones worth keeping are written down.
+is a tax. Say it in the reply, and put anything that outlives the task beside
+the code it constrains.
 
 `mise tasks` lists everything and what each one does.
 
