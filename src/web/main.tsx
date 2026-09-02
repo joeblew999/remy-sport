@@ -209,6 +209,8 @@ function App() {
           </div>
         </div>
       </div>
+      {/* Browser only — see the isNativeApp() gate on the import below. */}
+      {!isNativeApp() && <pwa-install manifest-url="/manifest.webmanifest" use-local-storage/>}
     </>
   );
 }
@@ -240,6 +242,21 @@ if (
     .catch(() => {
       /* no service worker: the app still works, push does not */
     });
+}
+
+/**
+ * The install-prompt component — in a browser only, never inside Tauri.
+ *
+ * Same reasoning as the service worker block above: Tauri users already have
+ * the native app, so beforeinstallprompt/Web Install concepts do not apply
+ * and showing an "Add to Home Screen" dialog inside an already-installed
+ * native shell would be confusing at best. Gated on the same isNativeApp()
+ * this file already imports for push, rather than re-deriving the check.
+ */
+if (typeof window !== "undefined" && !isNativeApp()) {
+  import("@khmyznikov/pwa-install").catch(() => {
+    /* no install prompt: the app still works, install just isn't offered */
+  });
 }
 
 // Forward webview console output to the Rust logger when running inside Tauri.
