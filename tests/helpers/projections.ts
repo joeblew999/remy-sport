@@ -362,9 +362,38 @@ export function projectSessions(eventId: string, rights: { canDefine?: boolean }
   }
 }
 
+/**
+ * One session's register, as `events.attendance` returns it.
+ *
+ * Everyone entered in the event, ticked or not — a register listing only the
+ * children who turned up is a list, and whoever is holding it needs to see who
+ * is missing. `ply_006` misses two of the camp's five sessions, which is the
+ * only reason the unticked branch has data at all.
+ */
+export function projectAttendance(
+  eventId: string,
+  sessionId: string,
+  rights: { canRecord?: boolean } = {},
+) {
+  const present = new Set(
+    R.sessionAttendances.filter((a) => a.sessionId === sessionId).map((a) => a.playerId),
+  )
+  return {
+    players: R.eventPlayers
+      .filter((e) => e.eventId === eventId)
+      .map((e) => ({
+        playerId: e.playerId,
+        names: names(playerById(e.playerId).names),
+        attended: present.has(e.playerId),
+      })),
+    canRecord: rights.canRecord ?? false,
+  }
+}
+
 /** Every id the projections above can be asked about, for the equivalence test. */
 export const SEEDED = {
   events: E.events.map((e) => e.id),
   teams: E.teams.map((t) => t.id),
   games: E.games.map((g) => g.id),
+  sessions: R.eventSessions.map((s) => ({ id: s.id, eventId: s.eventId })),
 } as const

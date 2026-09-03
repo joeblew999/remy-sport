@@ -2,6 +2,7 @@ import { test, expect } from "./fixture"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { apiEvent } from "../helpers/api-fixtures"
+import { projectAttendance, projectEvent, projectSessions } from "../helpers/projections"
 
 /**
  * A camp's timetable.
@@ -15,39 +16,42 @@ import { apiEvent } from "../helpers/api-fixtures"
  * to whoever the server says may define the schedule, and to nobody else. A
  * coach is the interesting case — the model gives them RECORD_ATTENDANCE and
  * withholds the timetable.
+ *
+ * ## This spec used to describe a camp that does not exist
+ *
+ * It invented a session called `ses_1` at an event it called "Bangkok Skills
+ * Camp". The seed's camp is `evt_003`, "Chiang Mai Summer Basketball Camp
+ * 2026", and until 2026-09-03 it had **no sessions at all** — so the tab this
+ * file covers shipped empty while every test here passed. The invented payload
+ * was what let that happen: a page drawn from data no database held cannot tell
+ * you the database is empty.
+ *
+ * It reads the seed now, through `tests/helpers/projections.ts`. There is
+ * nowhere left to type a name the fixtures do not have.
  */
 
-const SESSIONS = [
-  {
-    id: "ses_1",
-    eventId: "evt_003",
-    venueId: null,
-    venueNames: null,
-    names: { en: "Shooting fundamentals" },
-    startsAt: "2026-07-06T09:00:00.000Z",
-    endsAt: "2026-07-06T11:00:00.000Z",
-    // The venue's clock. 09:00 UTC is 16:00 in Bangkok, and that is what a
-    // parent collecting their child needs to read — not their own zone.
-    timezone: "Asia/Bangkok",
-  },
-]
+const CAMP = "evt_003"
 
-const seed = (page: Parameters<typeof seedCache>[0], opts: { canDefine: boolean; sessions?: typeof SESSIONS }) =>
+/** The camp's real first session: ball handling, 09:00–11:30 Bangkok time. */
+const FIRST = projectSessions(CAMP).sessions[0]!
+
+const seed = (
+  page: Parameters<typeof seedCache>[0],
+  opts: { canDefine: boolean; empty?: boolean },
+) =>
   seedCache(page, [
-    entry(orpc.events.get, { id: "evt_003" }, apiEvent({
-      id: "evt_003",
-      name: "Bangkok Skills Camp",
-      names: { en: "Bangkok Skills Camp" },
-      typeCode: "CAMP",
-    })),
-    entry(orpc.events.sessions, { eventId: "evt_003" }, {
-      sessions: opts.sessions ?? SESSIONS,
-      canDefine: opts.canDefine,
-    }),
+    entry(orpc.events.get, { id: CAMP }, projectEvent(CAMP)),
+    entry(
+      orpc.events.sessions,
+      { eventId: CAMP },
+      opts.empty
+        ? { sessions: [], canDefine: opts.canDefine }
+        : projectSessions(CAMP, { canDefine: opts.canDefine }),
+    ),
   ])
 
 const open = async (page: Parameters<typeof seedCache>[0]) => {
-  await visit(page, "event", { id: "evt_003" })
+  await visit(page, "event", { id: CAMP })
   await page.getByTestId("tab-sessions").click()
 }
 
@@ -57,35 +61,56 @@ test.describe("A camp's sessions", () => {
     await seed(page, { canDefine: false })
     await open(page)
 
-    const row = page.getByTestId("session-ses_1")
-    await expect(row).toContainText("Shooting fundamentals")
-    // On the venue's clock, not the reader's: 09:00 UTC is 16:00 in Bangkok.
-    // Rendering the browser's zone would tell a parent in London to arrive five
-    // hours early.
-    await expect(row).toContainText("04:00 PM")
-    await expect(row).toContainText("06:00 PM")
-    // The day is named once, not once per time.
+    const row = page.getByTestId(`session-${FIRST.id}`)
+    await expect(row).toContainText(FIRST.names.en!)
+    /**
+     * On the venue's clock, not the reader's.
+     *
+     * The camp starts at 02:00Z, which is 09:00 in Bangkok — and 09:00 is what
+     * a parent dropping a child off needs to read. Rendering the browser's zone
+     * would tell a parent in London to arrive seven hours early.
+     */
+    await expect(row).toContainText("09:00 AM")
+    await expect(row).toContainText("11:30 AM")
     // The day is named once, not once per time — `formatTimeOn` carries a date
-    // with it, and using it for both ends read "Jul 6 at 04:00 PM – Jul 6 at
-    // 06:00 PM". Case-insensitive because the row is uppercased in CSS, which
+    // with it, and using it for both ends read "Apr 15 at 09:00 AM – Apr 15 at
+    // 11:30 AM". Case-insensitive because the row is uppercased in CSS, which
     // is not what this asserts.
-    expect((await row.innerText()).match(/jul 6/gi)?.length).toBe(1)
+    expect((await row.innerText()).match(/apr 15/gi)?.length).toBe(1)
+  })
+
+  test("names every session the camp runs, not just the first", async ({ page }) => {
+    // Derived, so growing the camp's timetable does not edit this test.
+    await seed(page, { canDefine: false })
+    await open(page)
+    for (const session of projectSessions(CAMP).sessions) {
+      await expect(page.getByTestId(`session-${session.id}`)).toContainText(session.names.en!)
+    }
+  })
+
+  test("says 'Venue TBC' for the session whose court is not decided", async ({ page }) => {
+    // The closing afternoon has no venue: it is settled in the week. A column
+    // every row fills is one whose empty branch has never rendered.
+    const tbc = projectSessions(CAMP).sessions.find((s) => s.venueId === null)!
+    await seed(page, { canDefine: false })
+    await open(page)
+    await expect(page.getByTestId(`session-${tbc.id}`)).not.toContainText("700th Anniversary")
   })
 
   test("offers the form only to somebody the server says may define it", async ({ page }) => {
     await seed(page, { canDefine: false })
     await open(page)
     await expect(page.getByTestId("add-session")).toHaveCount(0)
-    await expect(page.getByTestId("remove-session-ses_1")).toHaveCount(0)
+    await expect(page.getByTestId(`remove-session-${FIRST.id}`)).toHaveCount(0)
 
     await seed(page, { canDefine: true })
     await open(page)
     await expect(page.getByTestId("add-session")).toBeVisible()
-    await expect(page.getByTestId("remove-session-ses_1")).toBeVisible()
+    await expect(page.getByTestId(`remove-session-${FIRST.id}`)).toBeVisible()
   })
 
   test("says so when the timetable is empty rather than showing nothing", async ({ page }) => {
-    await seed(page, { canDefine: true, sessions: [] })
+    await seed(page, { canDefine: true, empty: true })
     await open(page)
     await expect(page.getByTestId("sessions-none")).toBeVisible()
     // ...and still offers the way to fill it, which is the whole point.
@@ -93,7 +118,7 @@ test.describe("A camp's sessions", () => {
   })
 
   test("sends UTC instants, whatever the local boxes showed", async ({ page }) => {
-    await seed(page, { canDefine: true, sessions: [] })
+    await seed(page, { canDefine: true, empty: true })
 
     let sent = ""
     await page.route("**/rpc/**", async (route) => {
@@ -113,56 +138,58 @@ test.describe("A camp's sessions", () => {
     expect(sent).toContain("Z")
   })
 
+  /**
+   * The register, on the session a child actually missed.
+   *
+   * `ses_002` is the second morning and `ply_006` is not on it — the only reason
+   * the unticked branch has data at all. A register whose every row says yes has
+   * not been tested, which is why the fixtures were written with an absence in
+   * them rather than a full house.
+   */
+  const REGISTER = projectSessions(CAMP).sessions[1]!
+
   test("opens a register showing everyone entered, ticked or not", async ({ page }) => {
     // A register with only the present children on it is a list. Whoever is
     // holding it needs to see who is missing.
+    const attendance = projectAttendance(CAMP, REGISTER.id, { canRecord: true })
+    const present = attendance.players.find((p) => p.attended)!
+    const absent = attendance.players.find((p) => !p.attended)!
+
     await seedCache(page, [
-      entry(orpc.events.get, { id: "evt_003" }, apiEvent({
-        id: "evt_003", name: "Camp", names: { en: "Camp" }, typeCode: "CAMP",
-      })),
-      entry(orpc.events.sessions, { eventId: "evt_003" }, { sessions: SESSIONS, canDefine: true }),
-      entry(orpc.events.attendance, { eventId: "evt_003", sessionId: "ses_1" }, {
-        players: [
-          { playerId: "ply_001", names: { en: "Somchai" }, attended: true },
-          { playerId: "ply_004", names: { en: "Kanya" }, attended: false },
-        ],
-        canRecord: true,
-      }),
+      entry(orpc.events.get, { id: CAMP }, projectEvent(CAMP)),
+      entry(orpc.events.sessions, { eventId: CAMP }, projectSessions(CAMP, { canDefine: true })),
+      entry(orpc.events.attendance, { eventId: CAMP, sessionId: REGISTER.id }, attendance),
     ])
     await open(page)
-    await page.getByTestId("register-ses_1").click()
+    await page.getByTestId(`register-${REGISTER.id}`).click()
 
-    await expect(page.getByTestId("attended-ply_001")).toBeChecked()
-    await expect(page.getByTestId("attended-ply_004")).not.toBeChecked()
-    await expect(page.getByTestId("attended-ply_004")).toBeEnabled()
+    await expect(page.getByTestId(`attended-${present.playerId}`)).toBeChecked()
+    await expect(page.getByTestId(`attended-${absent.playerId}`)).not.toBeChecked()
+    await expect(page.getByTestId(`attended-${absent.playerId}`)).toBeEnabled()
   })
 
   test("shows the register read-only to somebody who may not record", async ({ page }) => {
     // canRecord is the server's answer and is wider than canDefine — the model
     // gives a camp's coaches the register and withholds the timetable.
+    const attendance = projectAttendance(CAMP, REGISTER.id, { canRecord: false })
     await seedCache(page, [
-      entry(orpc.events.get, { id: "evt_003" }, apiEvent({
-        id: "evt_003", name: "Camp", names: { en: "Camp" }, typeCode: "CAMP",
-      })),
-      entry(orpc.events.sessions, { eventId: "evt_003" }, { sessions: SESSIONS, canDefine: false }),
-      entry(orpc.events.attendance, { eventId: "evt_003", sessionId: "ses_1" }, {
-        players: [{ playerId: "ply_001", names: { en: "Somchai" }, attended: false }],
-        canRecord: false,
-      }),
+      entry(orpc.events.get, { id: CAMP }, projectEvent(CAMP)),
+      entry(orpc.events.sessions, { eventId: CAMP }, projectSessions(CAMP, { canDefine: false })),
+      entry(orpc.events.attendance, { eventId: CAMP, sessionId: REGISTER.id }, attendance),
     ])
     await open(page)
-    await page.getByTestId("register-ses_1").click()
-    await expect(page.getByTestId("attended-ply_001")).toBeDisabled()
+    await page.getByTestId(`register-${REGISTER.id}`).click()
+    await expect(
+      page.getByTestId(`attended-${attendance.players[0]!.playerId}`),
+    ).toBeDisabled()
   })
 
   test("is not offered on a league, which has fixtures instead", async ({ page }) => {
+    // evt_002 is the seeded league. apiEvent rather than a projection because
+    // what this asserts is the *absence* of a tab, and a league's real payload
+    // would drag in 28 games' worth of facts to prove nothing extra.
     await seedCache(page, [
-      entry(orpc.events.get, { id: "evt_002" }, apiEvent({
-        id: "evt_002",
-        name: "League",
-        names: { en: "League" },
-        typeCode: "LEAGUE",
-      })),
+      entry(orpc.events.get, { id: "evt_002" }, apiEvent({ id: "evt_002", typeCode: "LEAGUE" })),
     ])
     await visit(page, "event", { id: "evt_002" })
     await expect(page.getByTestId("tab-sessions")).toHaveCount(0)

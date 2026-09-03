@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import { actorFor, api, signIn } from "./helpers"
 import {
   SEEDED,
+  projectAttendance,
   projectEntries,
   projectEvent,
   projectEvents,
@@ -180,7 +181,24 @@ describe("Entries and sessions", () => {
  * component reading `data.coaches` off a payload that has none renders an empty
  * list rather than throwing.
  */
-describe("Coaching staff, which only a signed-in reader sees", () => {
+describe("What only a signed-in reader sees", () => {
+  /**
+   * A register is not public. `RECORD_ATTENDANCE` gates writing it and the
+   * endpoint refuses an anonymous reader outright — a list of which children
+   * turned up where is not something a gym wall prints.
+   *
+   * Read here as a spectator, who may see it and may not mark it, so
+   * `canRecord` comes back false and matches the projection's default.
+   */
+  it("a session's register is what the projection says", async () => {
+    const cookie = await signIn(actorFor("SPECTATOR"))
+    for (const { id, eventId } of SEEDED.sessions) {
+      const res = await api(`/api/events/${eventId}/sessions/${id}/attendance`, { cookie })
+      expect(res.status, `${id}'s register should be readable when signed in`).toBe(200)
+      same(await res.json(), projectAttendance(eventId, id), `attendance(${id})`)
+    }
+  })
+
   it("is what the projection says, for every team", async () => {
     const cookie = await signIn(actorFor("SPECTATOR"))
     for (const id of SEEDED.teams) {
