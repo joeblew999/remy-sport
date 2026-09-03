@@ -16,6 +16,7 @@ import * as teams from "./teams"
 import * as admin from "./admin"
 import * as reference from "./reference"
 import * as health from "./health"
+import * as me from "./me"
 import * as domain from "./domain"
 import * as moq from "./moq"
 import * as notifications from "./notifications"
@@ -106,6 +107,7 @@ export const router = {
   standings: { list: standings.list },
   reference: { list: reference.list },
   health: { get: health.get },
+  me: { mine: me.mine },
 
   // The Product Owner's domain model. One generic implementation serves all of
   // them — see src/api/domain.ts for why, and the contract for which.

@@ -361,22 +361,24 @@ The loop reads: do the next unticked box in 1, 2, 3, 4, 6 in order, and pick up
 
 ## Phase 1 — the app can ask
 
-- [ ] `mine` procedure in `src/api/relations.ts`, exposed as `me.mine`, returning `{ type, id, relation }[]`
+- [x] `mine` procedure — in `src/api/me.ts`, not `relations.ts`: that file is a
+      pure resolver with no oRPC imports, and putting a procedure there would mix
+      layers. Exposed as `me.mine`, returning `{ type, id, relation }[]`
       for the 15 table-backed relations. `events.mine` at `src/api/events.ts:292`
       is the template.
-- [ ] The two `via: "parent"` relations (a game held because you own its event)
+- [x] The two `via: "parent"` relations (a game held because you own its event)
       are **deliberately excluded**, with the reason in a comment: they are the
       high fan-out case, and an organiser reaches their games through the event.
-- [ ] Exposed in `src/api/index.ts`. There is **no** `relations` group there
+- [x] Exposed in `src/api/index.ts` as `me`. There was **no** `relations` group there
       today — the router exposes notifications, moq, events, orgs, games, teams,
       standings, reference, health, divisions, venues, players, admin. So this
       adds a group, and `me` is the better name for it than `relations`: the
       relation table is how permissions are implemented, and a public name that
       leaks it cannot be changed later without breaking callers.
-- [ ] Worker tests: each seeded person's holdings are exactly right, including
+- [x] Worker tests — `tests/worker/me.test.ts`, 4 passing. Each seeded person's holdings are exactly right, including
       that Wichai holds no Triam Udom team. Fixtures derived from
       `SEED_ENTITIES`, never hand-written.
-- [ ] A test that fails when the model grows a relation kind this does not
+- [x] A test that fails when the model grows a relation kind this does not
       handle. The count comes from `vocabularies.ts`, not a literal.
 
 **Done when:** `mise run 2-check` is green and the new tests fail if the
@@ -600,16 +602,22 @@ what was found. A screen with nothing written against it is not done.
       `grep -rnE "\\.filter\\(.*\\.(can|is|may)|\\[0\\]|role ===" src/web/pages src/web/components`
       returns only hits about facts, never about permissions.
 
-      Run 2026-09-03, ten hits, triaged:
+      Run 2026-09-03 (pass 1), **15 hits** — an earlier count of ten was
+      truncated by `head`, corrected on the first real pass. Triaged:
 
       | hit | verdict |
       |---|---|
       | `pages/team.tsx:24` `allTeams?.[0]` | **bug** — My team shows row one |
-      | `pages/event.tsx:47` `allEvents?.[0]` | **bug** — same, found by this check |
+      | `pages/event.tsx:47` `allEvents?.[0]` | **bug** — same, on events |
       | `pages/admin.tsx:67` `role === "admin"` | **bug** — GUI deciding admin-ness |
-      | `pages/discover.tsx:206` `games[0]` | check in Phase 6 — may be a featured game |
+      | `pages/discover.tsx:206` | fine — first *live* game for a banner, comment says so |
+      | `components/entries.tsx:108` | fine — form default from a server-scoped list |
+      | `pages/admin.tsx:486` | fine — dedupes a role list for display |
+      | `components/event-sessions.tsx:71` | fine — a session's timezone |
       | `pages/profile.tsx:55` `isBroadcasting` | fine — a fact about a game |
-      | `team.tsx:87,116`, `event.tsx:98`, `admin.tsx:368` | fine — initials, string splits, a default |
+      | `team.tsx:87,116`, `account.tsx:28` | fine — initials |
+      | `event.tsx:98`, `crash.tsx:65` | fine — string splitting |
+      | `admin.tsx:324,368` | fine — a displayed account, a default |
 
       The regex is deliberately noisy: `[0]` catches string indexing too. Triage
       is the point — a check that returns nothing is a check nobody reads.
@@ -644,6 +652,32 @@ each, no box, no work — they exist so they are not lost and not followed.
 - AGENTS.md is 674 lines with 114 bolded, against guidance of 150-200.
 
 ### Passes
+
+- **Pass 1 — Phase 1 complete.** Self-inspection first: all seven model counts
+  unchanged; the DoD grep returned **15** hits, not the ten recorded — the
+  earlier number was truncated by `head`. Retriaged: three bugs (`team.tsx:24`,
+  `event.tsx:47`, `admin.tsx:67`), twelve legitimate. Plan corrected before any
+  work, per step 1.
+
+  Then `src/api/me.ts` and `tests/worker/me.test.ts`. Four things the work
+  taught, all recorded in the code:
+
+  1. It does not belong in `relations.ts` — that file has no oRPC imports and is
+     a pure resolver. Its own file keeps the layers apart.
+  2. The relation list is derived with `RELATION.filter(r => r.via === "table")`
+     and nothing else. A second filter for `objectTypeCode !== "PLATFORM"` was
+     written and **the compiler rejected it as unreachable** — every table-backed
+     relation is already on a specific thing. The model proving the filter right.
+  3. The first negative test asserted two coaches share no team. False:
+     `team_001` has coach_001 as head and coach_002 as assistant. Sharing is not
+     the bug, over-returning is — so it now asserts that every team the resolver
+     *excludes* is absent, which is the shape that catches "My team".
+  4. `check-authz` refused the procedure for declaring no policy while explaining
+     itself in a comment — "a procedure that declares nothing is not public, it
+     is unreviewed". Correct. It now declares `infrastructure(...)` with the
+     reason in the string, where the checker can see it.
+
+  `mise run 2-check` green.
 
 - 2026-09-03 — plan verified over ten passes against the code. Four things were
   wrong and are fixed: the headline "101 relations, 68 person-scoped" conflated
