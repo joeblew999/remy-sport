@@ -284,7 +284,7 @@ const NIRAN: ApiPlayerRow = {
   userId: null,
   names: { en: "Niran" },
   jerseyNumber: 7,
-  positionCode: "GK",
+  positionCode: "PG",
   dob: "2011-04-02",
 }
 

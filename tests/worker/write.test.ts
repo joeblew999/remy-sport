@@ -1397,61 +1397,93 @@ describe("Approving a referee", () => {
 })
 
 /**
- * Deleting a player, and the four tables that point at one.
+ * Deleting a player, and the tables that point at one.
  *
  * `DELETE_PLAYER` had no endpoint and no screen — one of the twenty-eight
  * actions the model grants and the app did not offer. It is PLATFORM_ADMIN and
  * nobody else, the same line the PO drew for teams, and for a sharper reason:
  * these rows are minors.
  *
- * The subject is derived from the seed rather than named, because a player with
- * no squad and no event entry would pass the delete while proving nothing. This
- * finds one that actually has both, so the batch that clears the dependents is
- * the thing under test — without it the delete fails at the database, since none
- * of the four FKs is declared ON DELETE CASCADE.
+ * ## The subject is made here, not borrowed from the seed
+ *
+ * `isolatedStorage` is per file, not per test — so a test that deletes a seeded
+ * player removes them from every test after it in this file. The first version
+ * did exactly that, picking a seeded player who was on a squad and in an event.
+ * It passed, and it made this file's later tests depend on which rows the
+ * fixtures happen to hold.
+ *
+ * So the player is signed up here, by a guardian, and put on a squad by their
+ * coach. That makes the two dependent rows the delete has to clear —
+ * `guardian` and `playerTeam` — out of the test's own writes, and neither is ON
+ * DELETE CASCADE, so without the batch the delete fails at the database. The
+ * seed is left exactly as it was found.
  */
 describe("Deleting a player", () => {
-  /** Rows the seed holds, read through the API so the test sees what a client sees. */
-  const rowsOf = async (path: string, cookie: string) => {
-    const res = await api(path, { cookie })
-    expect(res.status, `${path} should be readable`).toBe(200)
-    return ((await res.json()) as { items: { playerId: string }[] }).items
+  /**
+   * Whether the platform still holds this player, through the list a client
+   * reads. There is no `GET /api/players/{id}` — `players.list` serves the whole
+   * table — and asserting a 404 on a route that does not exist would pass
+   * whatever the delete did, which the first version of this quietly did.
+   */
+  const stillThere = async (playerId: string, cookie: string) => {
+    const res = await api("/api/players", { cookie })
+    expect(res.status, "the player list should be readable").toBe(200)
+    const { items } = (await res.json()) as { items: { id: string }[] }
+    return items.some((p) => p.id === playerId)
   }
 
-  it("takes the squads, entries and guardians with it", async () => {
+  /** A child, their guardian, and a squad — the shape a delete has to unpick. */
+  async function aPlayerWithHistory() {
+    const parent = await signIn(SPECTATOR)
+    const signedUp = await post(
+      "/api/players/mine",
+      {
+        names: { en: "Somchai Deletable" },
+        dob: "2012-05-14",
+        jerseyNumber: 23,
+        positionCode: "PG",
+        guardianTypeCode: "PARENT",
+      },
+      parent,
+    )
+    expect(signedUp.status, "a guardian should be able to sign up their child").toBe(201)
+    const { playerId } = (await signedUp.json()) as { playerId: string }
+
+    // On a squad, by the coach who runs it — so the row exists because the
+    // product made it, not because a fixture did.
+    const coach = await signIn(COACH)
+    const added = await post("/api/teams/team_001/players", { teamId: "team_001", playerId }, coach)
+    expect(added.status, "their coach should be able to add them").toBe(201)
+
+    return { playerId, coach }
+  }
+
+  it("takes the squad and the guardian with it", async () => {
+    const { playerId } = await aPlayerWithHistory()
     const admin = await signIn(ADMIN)
-    const squads = await rowsOf("/api/player-teams", admin)
-    const entries = await rowsOf("/api/event-players", admin)
 
-    // Somebody with both, so the cascade has something to clear on each side.
-    const inBoth = squads.map((r) => r.playerId).find((id) => entries.some((e) => e.playerId === id))
-    expect(inBoth, "the seed should have a player on a squad and in an event").toBeTruthy()
-
-    const res = await del(`/api/players/${inBoth}`, admin)
+    const res = await del(`/api/players/${playerId}`, admin)
     expect(res.status).toBe(200)
-    expect(((await res.json()) as { deleted: string }).deleted).toBe(inBoth)
+    expect(((await res.json()) as { deleted: string }).deleted).toBe(playerId)
 
     // The point of the batch: the rows that pointed at them are gone, not
-    // orphaned and not blocking. Asserted from outside, through the same lists.
-    expect((await rowsOf("/api/player-teams", admin)).some((r) => r.playerId === inBoth)).toBe(false)
-    expect((await rowsOf("/api/event-players", admin)).some((r) => r.playerId === inBoth)).toBe(false)
-    expect((await api(`/api/players/${inBoth}`, { cookie: admin })).status).not.toBe(200)
+    // orphaned and not blocking. Read back through the same list a client uses.
+    const squads = await api("/api/player-teams", { cookie: admin })
+    const { items } = (await squads.json()) as { items: { playerId: string }[] }
+    expect(items.some((r) => r.playerId === playerId), "their squad row").toBe(false)
+    expect(await stillThere(playerId, admin), "the player themselves").toBe(false)
   })
 
-  it("is refused to a coach, including one whose squad the player is on", async () => {
-    const coach = await signIn(COACH)
-    const admin = await signIn(ADMIN)
-    // team_001's roster, so this coach holds HEAD_COACH over the player and is
-    // still refused. Managing a squad is not the same as deleting a person.
-    const squads = await rowsOf("/api/player-teams", admin)
-    const onTeam = squads.find((r) => (r as { teamId?: string }).teamId === "team_001")
-    expect(onTeam, "team_001 should have a roster").toBeTruthy()
+  it("is refused to a coach, including the one whose squad they are on", async () => {
+    const { playerId, coach } = await aPlayerWithHistory()
 
-    const res = await del(`/api/players/${onTeam!.playerId}`, coach)
+    // The coach holds HEAD_COACH over this player's team and is still refused.
+    // Managing a squad is not the same as deleting a person, which is the whole
+    // reason this control is not on the roster.
+    const res = await del(`/api/players/${playerId}`, coach)
     expect(res.status, "a coach must not be able to delete a player").toBe(403)
 
-    // And still there.
-    expect((await rowsOf("/api/player-teams", admin)).some((r) => r.playerId === onTeam!.playerId)).toBe(true)
+    expect(await stillThere(playerId, await signIn(ADMIN)), "and still there").toBe(true)
   })
 
   it("is refused to a signed-out visitor, and 404s on an id that is not there", async () => {
