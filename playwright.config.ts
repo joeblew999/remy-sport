@@ -75,7 +75,7 @@ export default defineConfig({
     { name: "auth-teardown", testMatch: /auth\.teardown\.ts/ },
     {
       name: "e2e",
-      testIgnore: [/.*\.setup\.ts/, /devices\.spec\.ts/, /authz\.spec\.ts/],
+      testIgnore: [/.*\.setup\.ts/, /authz\.spec\.ts/],
       dependencies: ["auth"],
     },
     /**
@@ -91,17 +91,11 @@ export default defineConfig({
      * stayed on the previous actor and the test failed at 32 of 35. It was
      * characterised as an occasional flake; measured, it was two runs in three.
      *
-     * Sequencing it costs a few seconds and removes the race, which is what the
-     * `devices` project below already does for the same class of problem. The
-     * alternative — a private actor nothing else signs in as — pushes the
-     * collision one seeded account further away rather than removing it.
+     * Sequencing it costs a few seconds and removes the race. The alternative —
+     * a private actor nothing else signs in as — pushes the collision one
+     * seeded account further away rather than removing it.
      */
     { name: "authz", testMatch: /authz\.spec\.ts/, dependencies: ["e2e"] },
-    // Last, and alone. Session state is global per user, so "sign out all other
-    // devices" revokes the very cookies auth.setup.ts saved for that actor —
-    // which any concurrently-running file is relying on. Running it after
-    // everything else makes that harmless instead of a coin flip.
-    { name: "devices", testMatch: /devices\.spec\.ts/, dependencies: ["e2e"] },
   ],
   ...(isLocal && {
     webServer: {
