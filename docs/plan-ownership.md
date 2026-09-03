@@ -27,7 +27,8 @@ id*. It cannot answer *mine*, except for events and players where somebody added
 it by hand.
 
 The model already has the answer. 17 ways to be connected to something, across
-five kinds of thing — team, event, player, game, org — resolved by
+five kinds of thing — team (5), event (3), player (3), game (3), org (3) —
+resolved by
 `objectsHeldBy` in `src/api/relations.ts:373`. That function is a ReBAC
 **ListObjects**: which objects does this user hold this relation to. It exists,
 two endpoints use it, and the app has never been able to call it.
@@ -47,9 +48,15 @@ nothing in this product is entity-shaped from a person's side. Wichai is not
 browsing teams, he coaches one. Pim is not browsing players, her daughter is
 one. Adisorn is not browsing games, he is assigned to some.
 
-The model agrees, and says so in numbers. **101 relations; 68 are a person's tie
-to one specific thing, 33 are platform-wide.** Two to one toward *mine*. The
-browsing third — Discover, Live — is the minority.
+The model agrees, and says so in numbers. **Of 76 actions, 51 are about one
+specific thing and 25 are platform-wide. Of 25 relations, 17 tie you to one
+specific thing and 8 are platform-wide.** Two to one, both ways. The browsing
+third — Discover, Live — is the minority.
+
+(An earlier draft of this file said "101 relations, 68 person-scoped". That was
+wrong: 101 is actions *plus* relations, counted together because both carry a
+`code` and an `objectTypeCode`. Corrected on the second verification pass. The
+ratio survived the correction; the absolute numbers did not.)
 
 So the browser has been sitting between a surface shaped one way and a product
 shaped the other, translating. Badly, in three different ways: filter everything
@@ -126,13 +133,14 @@ to build five today.
 
 **One layer decides. Screens render.**
 
-The grant logic lives in the resolver and is tested there exhaustively — the
-20,790-combination oracle in `tests/worker/authz-equivalence.test.ts`. That test
-is only possible *because* the logic is in one place.
+The grant logic lives in the resolver and is tested there exhaustively.
+`tests/worker/authz-equivalence.test.ts` asserts, in its own words, "every action
+in the model, against every seeded object of that action's type, for every seeded
+actor". That test is only possible *because* the logic is in one place.
 
 The moment a screen holds a second opinion — a `canEdit` filter, a row pick, an
 `if role ===` — authorization has escaped the tested layer, and testing it means
-eleven screens times six roles times every relation, in a browser, forever.
+every screen times every role times every relation, in a browser, forever.
 
 Profile's bug was not a data bug. **It was a second, worse copy of a grant rule,
 sitting outside the tested layer**, doing exactly what it was written to do. No
@@ -228,6 +236,15 @@ procedure returns the wrong person's things.
 - [ ] One helper — "my things of this kind" — so no screen writes the join
       itself. Eleven copies of that join is the same bug in a new costume.
 - [ ] `src/web/pages/team.tsx:24` — `allTeams?.[0]` becomes Wichai's team.
+- [ ] `src/web/pages/event.tsx:47` — `allEvents?.[0]`, the same bug found by the
+      DoD check on 2026-09-03. `#/event` with no id shows whichever event is
+      first. Decide whether a no-id event route should exist at all: the sidebar
+      does not link to it, so it may be dead and deleting it is the better fix.
+- [ ] `src/web/pages/admin.tsx:67` — `role === "admin"`. The GUI deciding
+      admin-ness rather than asking. The API already answers this; the console
+      previously "decided this from a role table copied into the client", which
+      `events.list`'s `canCreate` comment records as the reason that field
+      exists. Same class, still present.
 - [ ] Render tests: with holdings planted, **My team** shows Assumption and does
       **not** show Triam Udom. The negative assertion is the one that matters.
 
@@ -246,19 +263,22 @@ has one fewer endpoint than it started with.
 
 ## Phase 4 — it stays true
 
-Four things change what you are connected to: accepting an invitation, a roster
-change, a referee assignment, following something. Each must clear the cache.
+Verified 2026-09-03: **only two things in the GUI change what you are connected
+to.** An earlier draft of this file claimed four; roster changes and referee
+assignment are actions the API has and the GUI never calls, so they belong to the
+"not built" set in Phase 5 rather than here.
 
-- [ ] Find them. They are among 60 `useMutation` sites in 16 files —
-      `invitations.tsx`, `team.tsx`, `schedule.tsx`, `follow.tsx` are the likely
-      homes.
-- [ ] Wire each one.
-- [ ] **If one cannot be found, say so here and in the reply.** Do not leave it
-      silently stale — the symptom is joining a team and not seeing it until
-      reload, which is indistinguishable from the bug this plan is fixing.
+- [ ] `orpc.events.acceptCoOrganizerInvite` — `components/invitations.tsx`.
+      Accepting makes you a CO_ORGANIZER of that event.
+- [ ] `orpc.notifications.follow` — `components/follow.tsx`,
+      `components/following.tsx`, `components/notification-settings.tsx`, and
+      `lib/data.tsx`. Four call sites, one operation; the invalidation belongs in
+      the shared hook in `data.tsx`, not repeated in three components.
+- [ ] When Phase 5 adds roster or referee-assignment surfaces, they clear it too.
+      Written here so that is not forgotten rather than assumed.
 
-**Done when:** each of the four is either wired or written down as unwired, by
-name.
+**Done when:** both are wired, and a test proves it — accept an invitation, and
+the event appears in your holdings without a reload.
 
 ## Phase 5 — where everything belongs
 
@@ -275,6 +295,12 @@ which is correct, but means action coverage cannot be read from the GUI alone.
 Some of the 28 are legitimately not code-named: `SIGN_IN_OUT` is Better Auth's,
 `INSTALL_APP` is the PWA prompt, `SPOILER_MODE` is a local toggle. The rest are
 whole areas the model describes and nothing implements:
+
+**Snapshot, 2026-09-03, shown to make the scale legible — not a source of
+truth.** This table will be wrong the day the PO adds an action; the generator
+described below is what to trust. It is here because a reader needs to see the
+shape once, and deleting it would make this section an assertion with no
+evidence.
 
 | area | actions with nothing behind them |
 |---|---|
@@ -307,7 +333,11 @@ This is the interrogation, and it runs until it converges rather than once.
    - **delete** where a surface exists for something the model does not have, or
      duplicates another
 4. **Re-run 1 and 2.** Moving something changes what its neighbours should hold.
-   Loop until a pass changes nothing.
+   Loop until a pass changes nothing — **or until the third pass**, whichever
+   comes first. If two passes keep swapping the same thing between two homes,
+   that is a genuine judgement call, not convergence: write both options and the
+   reason in this file, pick one, and move on. A loop with no bound is how this
+   phase quietly becomes the rest of the year.
 
 ### The constraints on where things go
 
@@ -369,10 +399,27 @@ what was found. A screen with nothing written against it is not done.
 
 - [ ] Every screen that exists at the end checked and recorded, with its copy
       matching its data.
-- [ ] The coverage list regenerates and shows every one of the 76 actions either
-      placed in the GUI or marked **not built**, with nothing unaccounted for.
+- [ ] The coverage list regenerates and shows **every action the model grants**
+      either placed in the GUI or marked **not built**, with nothing
+      unaccounted for. The count comes from the generator, not from this file.
 - [ ] No screen filters on a permission flag, picks a row to stand for "yours",
-      or branches on role.
+      or branches on role. Checkable:
+      `grep -rnE "\\.filter\\(.*\\.(can|is|may)|\\[0\\]|role ===" src/web/pages src/web/components`
+      returns only hits about facts, never about permissions.
+
+      Run 2026-09-03, ten hits, triaged:
+
+      | hit | verdict |
+      |---|---|
+      | `pages/team.tsx:24` `allTeams?.[0]` | **bug** — My team shows row one |
+      | `pages/event.tsx:47` `allEvents?.[0]` | **bug** — same, found by this check |
+      | `pages/admin.tsx:67` `role === "admin"` | **bug** — GUI deciding admin-ness |
+      | `pages/discover.tsx:206` `games[0]` | check in Phase 6 — may be a featured game |
+      | `pages/profile.tsx:55` `isBroadcasting` | fine — a fact about a game |
+      | `team.tsx:87,116`, `event.tsx:98`, `admin.tsx:368` | fine — initials, string splits, a default |
+
+      The regex is deliberately noisy: `[0]` catches string indexing too. Triage
+      is the point — a check that returns nothing is a check nobody reads.
 - [ ] One way to ask what is yours. `events.mine` and `players.mine` gone.
 - [ ] Ownership and grant tests in the worker tier, deriving fixtures from the
       model, including negative cases — the wrong person's things must be
@@ -380,8 +427,10 @@ what was found. A screen with nothing written against it is not done.
 - [ ] No new e2e tests. If a journey needs one, say why here first.
 - [ ] `mise run 2-check` green, and `mise run 2-check -- --e2e` no worse than the
       34 passing it starts at.
-- [ ] The four invalidation points wired, or named as unwired.
-- [ ] Nothing deferred that is not written in this file.
+- [ ] Both invalidation points wired, and any added by Phase 5 wired with them.
+- [ ] Nothing deferred silently. This one cannot be checked mechanically, so it
+      is a promise rather than a test: anything not done is written in the log
+      with the reason, and said in the reply at the time.
 - [ ] The log below records every pass, so the reasoning survives this file's author.
 
 ## Log
@@ -389,6 +438,15 @@ what was found. A screen with nothing written against it is not done.
 Append one line per session: what was done, what was found, what is next. Newest
 last.
 
+- 2026-09-03 — plan verified over ten passes against the code. Four things were
+  wrong and are fixed: the headline "101 relations, 68 person-scoped" conflated
+  actions with relations (really 76 actions / 25 relations, 51 and 17 of them
+  object-scoped); Phase 4 claimed four invalidation points when only two exist in
+  the GUI; the Phase 5 loop had no termination bound; and the file broke its own
+  "do not copy facts in" rule with an undated table. The DoD's grep was then run
+  for real and found two bugs nobody had reported — `event.tsx:47` has the same
+  row-one bug as `team.tsx:24`, and `admin.tsx:67` decides admin-ness in the
+  browser. Both are now in Phase 2.
 - 2026-09-03 — plan written. Prior work today: routing no longer renders blank
   pages for unknown hashes, profile's "Your events" moved from a `canEdit`
   filter to `events.mine`, `devices.spec.ts` deleted, timing budgets report
