@@ -43,7 +43,6 @@ export const router = {
   },
   events: {
     list: events.list,
-    mine: events.mine,
     setDivisions: events.setDivisions,
     /**
      * A camp's timetable. `DEFINE_SESSION_SCHEDULE` is the model's answer for

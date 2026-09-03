@@ -42,14 +42,6 @@ export interface EventFilters {
  * have stored the same event twice and gone to the network to change language.
  */
 /**
- * The events you organise or follow, grouped by which.
- *
- * `events.mine` returns each row with the strongest relation you hold on it, so
- * the grouping is the server's answer rather than something derived here from
- * an organiser id — which is the mistake the deleted "My Events" nav item was a
- * symptom of.
- */
-/**
  * What you are connected to, and how.
  *
  * One request, answering "mine" for every kind of thing at once — see
@@ -70,17 +62,6 @@ export function useHoldings() {
 }
 
 /**
- * The ids of one kind of thing you hold, with how you hold each.
- *
- * The join lives here once. Eleven screens each writing
- * `holdings.filter(h => h.type === "TEAM")` is eleven places for it to drift,
- * and filtering-in-the-component is the exact shape of the bug this replaced.
- *
- * Returns ids, not rows: screens pair them with lists they already have. For
- * teams, events and organisations that list is every row there will ever be, so
- * there is no second request.
- */
-/**
  * Whether the model grants you a platform-wide action.
  *
  * `MANAGE_ALL_USERS`, `MODERATE_LISTINGS`, `APPROVE_REFEREE` — the ones with no
@@ -95,25 +76,64 @@ export function useCan(action: string) {
   return { ...q, data: Boolean(q.can?.[action]) };
 }
 
+/**
+ * The ids of one kind of thing you hold, with how you hold each.
+ *
+ * The join lives here once. Eleven screens each writing
+ * `holdings.filter(h => h.type === "TEAM")` is eleven places for it to drift,
+ * and filtering-in-the-component is the exact shape of the bug this replaced.
+ *
+ * Returns ids, not rows: screens pair them with lists they already have. For
+ * teams, events and organisations that list is every row there will ever be, so
+ * there is no second request.
+ */
 export function useMine(type: "EVENT" | "TEAM" | "PLAYER" | "GAME" | "ORG") {
   const q = useHoldings();
   return { ...q, data: q.holdings.filter((h) => h.type === type) };
 }
 
+/**
+ * The events you organise or follow, grouped by which.
+ *
+ * Built from holdings and the events list rather than its own request. This had
+ * `events.mine`, a second procedure answering the question `me.mine` now
+ * answers for every kind of thing — and two answers to one question is how
+ * "yours" came to mean two different things on two screens.
+ *
+ * Safe to join in the browser here, and only here, because events are the small
+ * kind: four on the platform today, hundreds ever, and both screens that call
+ * this already hold the whole list. `players.mine` is deliberately NOT folded in
+ * the same way — players grow every season, and fetching all of them to show a
+ * parent one child is the fan-out this design avoids. See docs/plan-ownership.md.
+ *
+ * The grouping is still the server's answer: the relation comes from the
+ * holding, not from comparing an organiser id here. That distinction is what the
+ * deleted "My Events" nav item got wrong.
+ */
 export function useMyEvents() {
   const loc = useLocalizer();
-  return useQuery(
-    orpc.events.mine.queryOptions({
-      select: ({ events }) => ({
-        organising: events
-          .filter((e) => e.relation === "OWNER" || e.relation === "CO_ORGANIZER")
-          .map((e) => ({ ...toEvent(e, loc), relation: e.relation })),
-        following: events
-          .filter((e) => e.relation === "FOLLOWER_EVENT")
-          .map((e) => ({ ...toEvent(e, loc), relation: e.relation })),
-      }),
-    }),
+  const { holdings, ...q } = useHoldings();
+  const events = useQuery(
+    orpc.events.list.queryOptions({ select: ({ events }) => events }),
   );
+
+  const relationOf = new Map(
+    holdings.filter((h) => h.type === "EVENT").map((h) => [h.id, h.relation]),
+  );
+  const mine = (events.data ?? [])
+    .filter((e) => relationOf.has(e.id))
+    .map((e) => ({ ...toEvent(e, loc), relation: relationOf.get(e.id)! }));
+
+  return {
+    ...q,
+    isPending: q.isPending || events.isPending,
+    data: {
+      organising: mine.filter(
+        (e) => e.relation === "OWNER" || e.relation === "CO_ORGANIZER",
+      ),
+      following: mine.filter((e) => e.relation === "FOLLOWER_EVENT"),
+    },
+  };
 }
 
 export function useEvents({ status, type, city, limit, enabled = true }: EventFilters = {}) {

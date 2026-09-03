@@ -18,19 +18,37 @@ import { VOCABULARY } from "../../src/domain/vocabularies"
 
 const signedIn = sessionFor("ORGANIZER")
 
-/** `events.mine` as the contract declares it, relation and all. */
+/**
+ * The two requests this page is now built from, seeded together.
+ *
+ * `events.mine` was deleted: it answered for events what `me.mine` answers for
+ * everything, and two answers to one question is how "yours" came to mean two
+ * different things on two screens. The page joins holdings against the events
+ * list, which it already had — safe here because events are the small kind.
+ *
+ * The relation still comes from the server. It rides on the holding rather than
+ * being derived from an organiser id in the browser, which is the distinction
+ * the deleted "My Events" nav item got wrong.
+ */
 const mine = (
   events: { id: string; name: string; relation: "OWNER" | "CO_ORGANIZER" | "FOLLOWER_EVENT" }[],
-) =>
-  entry(orpc.events.mine, undefined, {
-    events: events.map((e) => ({
-      ...apiEvent({ id: e.id, name: e.name, names: { en: e.name } }),
-      relation: e.relation,
-    })),
-  })
+) => [
+  entry(orpc.events.list, undefined, {
+    events: events.map((e) => apiEvent({ id: e.id, name: e.name, names: { en: e.name } })),
+    canCreate: false,
+  }),
+  entry(orpc.me.mine, undefined, {
+    holdings: events.map((e) => ({ type: "EVENT", id: e.id, relation: e.relation })),
+    can: {},
+  }),
+]
 
 const seed = (page: Parameters<typeof seedCache>[0], rows: Parameters<typeof mine>[0]) =>
-  seedCache(page, [signedIn, mine(rows), entry(orpc.reference.list, undefined, apiReference(VOCABULARY))])
+  seedCache(page, [
+    signedIn,
+    ...mine(rows),
+    entry(orpc.reference.list, undefined, apiReference(VOCABULARY)),
+  ])
 
 test.describe("My Events", () => {
   test("splits what you organise from what you follow", async ({ page }) => {

@@ -423,13 +423,34 @@ shows somebody else's.
 
 ## Phase 3 — nothing left behind
 
-- [ ] `events.mine` and `players.mine` deleted.
-- [ ] Their five call sites moved: `data.tsx`, `profile.tsx`, `my-events.tsx`,
-      `your-players.tsx`, `event-players.tsx`.
-- [ ] Their tests deleted.
+**Rewritten on pass 4**, because the original was wrong: it said delete both
+`events.mine` and `players.mine`. Deleting `players.mine` would make the product
+worse, and the architecture section above already said why — it just was not
+applied when this phase was written.
 
-**Done when:** `grep -rn "mine" src/api/` finds one procedure, and the API
-has one fewer endpoint than it started with.
+`players.mine` returns hydrated rows: guardianship type, jersey number, position,
+and the team the child currently plays for. Replacing it with holdings means
+fetching **every player on the platform** — 119 today, thousands across seasons —
+so a parent can be shown their one child. Players are the growing kind. This is
+the fan-out case, and the right answer is the narrowed request that already
+exists.
+
+`events.mine` is the opposite. Events stay small — 4 today, hundreds ever — and
+both screens that use it already have the whole list to hand. It is genuinely a
+second way to ask a question `me.mine` now answers.
+
+- [x] `events.mine` deleted, with `MINE` and its note.
+- [x] Its call sites moved to holdings + `events.list`: `lib/data.tsx`
+      (`useMyEvents`), `pages/profile.tsx`, `pages/my-events.tsx`.
+- [x] `useMyEvents` keeps its shape — organising versus following — since the
+      relation is in the holding. The page must not learn to derive that.
+- [x] Its tests deleted — the guarantee is asserted in `tests/worker/me.test.ts`
+      for every seeded person, in both directions.
+- [x] **`players.mine` stays**, and this file records why so nobody deletes it
+      later for symmetry.
+
+**Done when:** `grep -rn "\.mine" src/api/` finds `me.mine` and `players.mine`,
+and the API has one fewer endpoint than it started with — not two.
 
 ## Phase 4 — it stays true
 
@@ -605,25 +626,27 @@ what was found. A screen with nothing written against it is not done.
       unaccounted for. The count comes from the generator, not from this file.
 - [ ] No screen filters on a permission flag, picks a row to stand for "yours",
       or branches on role. Checkable:
-      `grep -rnE "\\.filter\\(.*\\.(can|is|may)|\\[0\\]|role ===" src/web/pages src/web/components`
-      returns only hits about facts, never about permissions.
+      ```sh
+      grep -rnE "\.filter\(.*\.(can|is|may)|\[0\]|role ===" src/web/pages src/web/components \
+        | grep -vE ":[0-9]+: *(\*|//|/\*)"
+      ```
 
-      Run 2026-09-03 (pass 1), **15 hits** — an earlier count of ten was
-      truncated by `head`, corrected on the first real pass. Triaged:
+      The second grep drops comment lines. Without it the check matched its own
+      documentation — the notes explaining `allTeams[0]` and `role === "admin"`
+      each counted as a hit, so fixing a bug *raised* the count. Found on pass 4,
+      when 15 became 16 after three bugs had been fixed.
+
+      Run 2026-09-03 (pass 4), **13 hits, none of them the class**:
 
       | hit | verdict |
       |---|---|
-      | `pages/team.tsx:24` `allTeams?.[0]` | **bug** — My team shows row one |
-      | `pages/event.tsx:47` `allEvents?.[0]` | **bug** — same, on events |
-      | `pages/admin.tsx:67` `role === "admin"` | **bug** — GUI deciding admin-ness |
-      | `pages/discover.tsx:206` | fine — first *live* game for a banner, comment says so |
+      | `pages/team.tsx:42` `myTeams[0]` | fine — the single element of a one-element array, guarded by `.length === 1` |
+      | `pages/discover.tsx:206` | fine — first *live* game for a banner |
       | `components/entries.tsx:108` | fine — form default from a server-scoped list |
-      | `pages/admin.tsx:486` | fine — dedupes a role list for display |
       | `components/event-sessions.tsx:71` | fine — a session's timezone |
+      | `pages/admin.tsx:336,380,498` | fine — a displayed account, a default, a dedupe |
       | `pages/profile.tsx:55` `isBroadcasting` | fine — a fact about a game |
-      | `team.tsx:87,116`, `account.tsx:28` | fine — initials |
-      | `event.tsx:98`, `crash.tsx:65` | fine — string splitting |
-      | `admin.tsx:324,368` | fine — a displayed account, a default |
+      | initials and string splits | fine |
 
       The regex is deliberately noisy: `[0]` catches string indexing too. Triage
       is the point — a check that returns nothing is a check nobody reads.
@@ -658,6 +681,27 @@ each, no box, no work — they exist so they are not lost and not followed.
 - AGENTS.md is 674 lines with 114 bolded, against guidance of 150-200.
 
 ### Passes
+
+- **Pass 4 — Phase 3, rewritten before it was done.** Self-inspection found the
+  grep had gone from 15 hits to **16 after three bugs were fixed** — because it
+  was matching the comments explaining the bugs. Fixing a bug raised the count.
+  The check now drops comment lines and reports **13, none of them the class**.
+
+  Then Phase 3 turned out to be wrong as written. It said delete both `mine`
+  endpoints; deleting `players.mine` would mean fetching all 119 players — a
+  number that grows every season — so a parent can be shown one child. That is
+  the fan-out case the architecture section already ruled on, and the phase had
+  not applied it. Rewritten: `events.mine` goes, `players.mine` stays, and this
+  file records why so nobody deletes it later for symmetry.
+
+  `events.mine` is gone. Three `mine` endpoints became two. `useMyEvents` builds
+  from holdings and the events list, keeping the organising/following split as
+  the *server's* answer — the relation rides on the holding rather than being
+  derived from an organiser id in the browser.
+
+  One self-inflicted fault: a scripted replace spanned from the old `useMyEvents`
+  docblock to `useEvents` and swallowed the three hooks added last pass, which
+  the bundler caught and typecheck did not.
 
 - **Pass 3 — the two bugs the grep found.** `#/event` with no id deleted rather
   than fixed: nothing in the repo links there, so rule 1 applies, and it took an
