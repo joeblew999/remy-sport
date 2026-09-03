@@ -26,8 +26,15 @@ Lead with judgement. The first output on any task is what **not** to build.
 Short. Plain. In the words of the product, not the code.
 
 - Say what you are about to do, before you do it. One line.
-- Lead with the answer. Options get one line each: what it does, what it costs,
-  whether you would choose it.
+- Explain in three moves, in this order, and none of them is a list of options.
+  **Who it hurts** — name a seeded person and what they see. "Wichai clicks My
+  team and gets somebody else's team." **What is structurally missing or
+  duplicated** — one sentence, in plain words, about the shape rather than the
+  code: "the server can answer 'all of them' and 'this one', and cannot answer
+  'mine'." **What that shape costs elsewhere** — where else the same gap shows
+  up, because that is what makes it architecture and not a bug report.
+- Options come last and only if asked, one line each: what it does, what it
+  costs, whether you would choose it.
 - No jargon without plain words beside it. Command output is not an explanation.
 - Say "I don't know", "that's broken", "I got that wrong" — flatly, no cushioning.
 - If they ask "what?", the last thing you said was wrong. Two sentences.
