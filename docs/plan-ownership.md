@@ -386,10 +386,12 @@ procedure returns the wrong person's things.
 
 ## Phase 2 — the app uses it, once
 
-- [ ] One hook, `useHoldings`, in `src/web/lib/data.tsx`. Long stale time.
-- [ ] One helper — "my things of this kind" — so no screen writes the join
+- [x] One hook, `useHoldings`, in `src/web/lib/data.tsx`. 10-minute stale time.
+- [x] One helper — `useMine(type)`, "my things of this kind" — so no screen writes the join
       itself. Eleven copies of that join is the same bug in a new costume.
-- [ ] `src/web/pages/team.tsx:24` — `allTeams?.[0]` becomes Wichai's team.
+- [x] `src/web/pages/team.tsx` — three answers, not one: none, one, several.
+      Coach_001 holds two teams in the seed, so picking the first of *your*
+      teams would be the original bug with a better source. It lists them.
 - [ ] `src/web/pages/event.tsx:47` — `allEvents?.[0]`, the same bug found by the
       DoD check on 2026-09-03. `#/event` with no id shows whichever event is
       first. Rule 1 applies — the sidebar does not link to `#/event` with no id,
@@ -400,14 +402,14 @@ procedure returns the wrong person's things.
       previously "decided this from a role table copied into the client", which
       `events.list`'s `canCreate` comment records as the reason that field
       exists. Same class, still present.
-- [ ] **Empty state, by rule 6.** A new spectator holds no relations, so
+- [x] **Empty state, by rule 6.** A new spectator holds no relations, so
       "My team" has nothing to show. That is the common case for most readers of
       this product, not an edge case — and an unanswered version of it is what
       renders a blank pane, which is the other bug fixed today. It needs a real
       empty state: what a person with no team should see, and what they can do
       about it. Same question for a referee with no assignments and a parent
       whose child is on no roster.
-- [ ] Render tests: with holdings planted, **My team** shows Assumption and does
+- [x] Render tests — `tests/render/my-team.spec.ts`, 4 passing. With holdings planted, **My team** shows Assumption and does
       **not** show Triam Udom. The negative assertion is the one that matters.
       Plus the empty case: holdings empty renders the empty state, not a blank
       pane and not somebody else's team.
@@ -652,6 +654,32 @@ each, no box, no work — they exist so they are not lost and not followed.
 - AGENTS.md is 674 lines with 114 bolded, against guidance of 150-200.
 
 ### Passes
+
+- **Pass 2 — Phase 2 complete** except the two bugs the grep found, which are
+  still open. Counts unchanged, grep still 15.
+
+  `useHoldings` and `useMine(type)` in `data.tsx`; the join lives in one place so
+  no screen writes it. `team.tsx` now answers three ways — none, one, several —
+  because coach_001 holds two teams and picking the first of *yours* is the same
+  bug with a nicer source. Four render tests, each asserting the negative half.
+
+  Three things the work found, none of them in the code being changed:
+
+  1. **`tests/helpers/surfaces.ts` built `/#/team/undefined`.** Every surface
+     interpolated its id unconditionally, so `visit(page, "team")` navigated to
+     a team called "undefined" and the page correctly said it did not exist.
+     Harmless while every caller passed an id; wrong the moment a test wanted the
+     no-id case, which is the whole of "my team". `broadcast` already had the
+     guard — somebody hit this once and fixed only their own line. All five fixed.
+  2. **`entry(procedure, {}, …)` does not match a no-input procedure's key.** It
+     wants `undefined`. Three existing specs already knew; nothing said so.
+  3. **`apiTeam`'s defaults are Triam Udom's**, so overriding only the name left
+     team_001 called "Assumption" at "Triam Udom Suksa School" — and the negative
+     assertion failed against a page that was right. The fixture now overrides
+     the school too, so that string appearing means the wrong team is on screen
+     and nothing else.
+
+  `mise run 2-check` green, 155 render tests.
 
 - **Pass 1 — Phase 1 complete.** Self-inspection first: all seven model counts
   unchanged; the DoD grep returned **15** hits, not the ten recorded — the

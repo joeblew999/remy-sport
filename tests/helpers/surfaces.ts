@@ -50,11 +50,23 @@ const SURFACES = {
   myEvents: () => "/#/events",
   /** Schools and clubs. */
   orgs: () => "/#/orgs",
-  org: (id?: string) => `/#/org/${id}`,
-  event: (id?: string) => `/#/event/${id}`,
-  team: (id?: string) => `/#/team/${id}`,
+  /**
+   * No id means no id — not the string "undefined".
+   *
+   * These interpolated unconditionally, so `visit(page, "team")` navigated to
+   * `/#/team/undefined` and the page correctly reported that no such team
+   * exists. Harmless while every caller passed one; wrong the moment a test
+   * wanted the "my team" case, where having no id is the whole point. Found by
+   * three render tests failing against code that was right.
+   *
+   * `broadcast` already had the guard, which is the tell: somebody hit this
+   * once and fixed their own line.
+   */
+  org: (id?: string) => (id ? `/#/org/${id}` : "/#/org"),
+  event: (id?: string) => (id ? `/#/event/${id}` : "/#/event"),
+  team: (id?: string) => (id ? `/#/team/${id}` : "/#/team"),
   broadcast: (id?: string) => (id ? `/#/broadcast/${id}` : "/#/broadcast"),
-  watch: (id?: string) => `/#/watch/${id}`,
+  watch: (id?: string) => (id ? `/#/watch/${id}` : "/#/watch"),
 } as const
 
 export type Surface = keyof typeof SURFACES

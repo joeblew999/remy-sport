@@ -49,6 +49,49 @@ export interface EventFilters {
  * an organiser id — which is the mistake the deleted "My Events" nav item was a
  * symptom of.
  */
+/**
+ * What you are connected to, and how.
+ *
+ * One request, answering "mine" for every kind of thing at once — see
+ * `src/api/me.ts`. Screens never work this out for themselves: a page that
+ * decides what is yours is a second copy of a rule the model owns, which is how
+ * "Your events" came to mean "events you may edit" and how "My team" came to
+ * mean whichever team sorted first.
+ *
+ * Long `staleTime` because what you are connected to changes rarely and only
+ * through actions this app takes — accepting an invitation, following
+ * something. Those clear it explicitly. The 30s default would refetch this on
+ * every screen for nothing, and still be too slow to show a team you just
+ * joined.
+ */
+export function useHoldings() {
+  return useQuery(
+    orpc.me.mine.queryOptions({
+      staleTime: 10 * 60 * 1000,
+      select: ({ holdings }) => holdings,
+    }),
+  );
+}
+
+/**
+ * The ids of one kind of thing you hold, with how you hold each.
+ *
+ * The join lives here once. Eleven screens each writing
+ * `holdings.filter(h => h.type === "TEAM")` is eleven places for it to drift,
+ * and filtering-in-the-component is the exact shape of the bug this replaced.
+ *
+ * Returns ids, not rows: screens pair them with lists they already have. For
+ * teams, events and organisations that list is every row there will ever be, so
+ * there is no second request.
+ */
+export function useMine(type: "EVENT" | "TEAM" | "PLAYER" | "GAME" | "ORG") {
+  const q = useHoldings();
+  return {
+    ...q,
+    data: (q.data ?? []).filter((h) => h.type === type),
+  };
+}
+
 export function useMyEvents() {
   const loc = useLocalizer();
   return useQuery(

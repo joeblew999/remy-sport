@@ -31,6 +31,7 @@
   "box_score": "Box score",
   "bracket_format": "Format · single-elimination · {teams} teams",
   "browse": "Browse",
+  "browse_teams": "Browse teams",
   "build_update_available": "Update available — reload",
   "cancel": "Cancel",
   "coaching_staff": "Coaching staff",
@@ -227,6 +228,7 @@
   "no_games_yet": "No games scheduled yet.",
   "no_live_games": "No games are being played right now.",
   "no_matching_division": "No division matches this team's age group and gender.",
+  "no_team_yet": "You are not on a team yet.",
   "not_found_event": "That event does not exist.",
   "not_found_org": "That organisation does not exist.",
   "not_found_team": "That team does not exist.",
@@ -436,5 +438,6 @@
   "your_players": "Your players",
   "your_players_none": "No children yet. Add one to enter them in a camp or follow their team.",
   "your_team": "Your team",
+  "your_teams": "Your teams",
   "your_time": "{time} your time"
 }
