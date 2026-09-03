@@ -156,6 +156,16 @@ export function apiGame(over: Partial<ApiGame> = {}): ApiGame {
  */
 export type ApiRoster = ResponseOf<Client["teams"]["roster"]>
 
+/**
+ * One row of `players.list` — the whole table, so the whole row.
+ *
+ * No factory beside it on purpose. `domain.ts` derives that response straight
+ * from the drizzle table, so a column the PO adds appears here without anything
+ * being edited, and a fixture with defaults would be the place it silently
+ * did not.
+ */
+export type ApiPlayerRow = ResponseOf<Client["players"]["list"]>["items"][number]
+
 export function apiRoster(over: Partial<ApiRoster> = {}): ApiRoster {
   return {
     players: [],

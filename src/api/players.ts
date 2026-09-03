@@ -25,6 +25,7 @@
  * squad belongs on their profile too, this is the line that changes.
  */
 
+import { ORPCError } from "@orpc/server"
 import { and, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import * as schema from "../db/schema"
@@ -385,4 +386,43 @@ export const withdrawFromEvent = authed
     // Not an error when there was nothing to remove: the caller wanted the
     // player out of the event and the player is out of the event.
     return { withdrawn: res.meta.changes > 0 }
+  })
+
+export const remove = authed
+  .route({ method: "DELETE", path: "/players/{id}", summary: "Delete a player", ...authedRoute })
+  .input(z.object({ id: z.string() }))
+  .output(z.object({ deleted: z.string() }))
+  /**
+   * `DELETE_PLAYER` is PLATFORM_ADMIN and nobody else — not a guardian, not a
+   * coach, not the player themselves. The PO's grant, and the reason is that
+   * these rows are minors: a person removing a child from the platform is doing
+   * something a coach should not be able to do on a whim.
+   */
+  .use(requireAction("DELETE_PLAYER"))
+  .handler(async ({ context, input }) => {
+    /**
+     * The rows that point at this player, first.
+     *
+     * Four tables carry a non-null FK to `player.id` and none is declared
+     * ON DELETE CASCADE, so the delete fails at the database rather than
+     * orphaning anything. Exactly the shape `teams.remove` deals with, and for
+     * the same reason — see the note there, which was written after a create
+     * that made a dependent row from birth turned this from theory into a
+     * failing test.
+     */
+    await context.db.batch([
+      context.db.delete(schema.guardian).where(eq(schema.guardian.playerId, input.id)),
+      context.db.delete(schema.playerTeam).where(eq(schema.playerTeam.playerId, input.id)),
+      context.db.delete(schema.eventPlayer).where(eq(schema.eventPlayer.playerId, input.id)),
+      context.db
+        .delete(schema.sessionAttendance)
+        .where(eq(schema.sessionAttendance.playerId, input.id)),
+    ])
+
+    const res = await context.db.delete(schema.player).where(eq(schema.player.id, input.id))
+    // `requireAction` has already 404'd a missing id — it resolves the table
+    // from the action's object type — so zero changes here means the row went
+    // between the two. Still a 404 to the caller.
+    if (res.meta.changes === 0) throw new ORPCError("NOT_FOUND", { message: "Not found" })
+    return { deleted: input.id }
   })

@@ -71,10 +71,33 @@ const HELD = RELATION.filter((r) => r.via === "table").map((r) => ({
  * note says so: the admin console "decided this from a role table copied into
  * the client, which is a second answer to a question the model already
  * answers".
+ *
+ * ## The test is on the granting relations, not on the action
+ *
+ * This read `a.objectTypeCode === "PLATFORM"` until `DELETE_PLAYER` needed an
+ * answer. That action names PLAYER — so it failed the test — while its only
+ * grant is PLATFORM_ADMIN, a relation nobody holds *on a player*. Whether you
+ * may delete one does not depend on which one, so there was nothing to pass an
+ * id for and no way to ask.
+ *
+ * So the filter now asks what the paragraph above always claimed: is every
+ * relation that grants this held platform-wide? That is a property of the
+ * relations, and `RELATION` states it — `objectTypeCode: "PLATFORM"`.
+ *
+ * It costs nothing. Every platform relation is `via: "role"` or
+ * `via: "everyone"`, and `holds` answers both from the session without touching
+ * the database — so the set widening from 25 actions to 47 adds no queries, only
+ * entries in a map the client already receives.
  */
-const PLATFORM_ACTIONS = ACTION.filter(
-  (a) => a.objectTypeCode === "PLATFORM" && a.code in GRANTS,
-).map((a) => a.code as keyof typeof GRANTS)
+const PLATFORM_RELATIONS = new Set<string>(
+  RELATION.filter((r) => r.objectTypeCode === "PLATFORM").map((r) => r.code),
+)
+const PLATFORM_ACTIONS = ACTION.filter((a) => {
+  const grants = GRANTS[a.code as keyof typeof GRANTS] as readonly { relation: string }[] | undefined
+  // An action with no grants permits nobody, and `can` already says so. Asking
+  // would be a query whose answer the model has already given.
+  return Boolean(grants?.length) && grants!.every((g) => PLATFORM_RELATIONS.has(g.relation))
+}).map((a) => a.code as keyof typeof GRANTS)
 
 const Holding = z.object({
   /** EVENT, TEAM, PLAYER, GAME or ORG — the model's own object type. */

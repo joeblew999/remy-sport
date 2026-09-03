@@ -121,6 +121,7 @@ export const router = {
      * 2026-08-30. See src/api/players.ts.
      */
     mine: playersApi.mine,
+    remove: playersApi.remove,
     /**
      * Two ways a player comes into existence, because the model has two
      * actions: `CREATE_PLAYER` for a coach adding to the pool, and

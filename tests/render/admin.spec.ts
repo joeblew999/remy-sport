@@ -2,7 +2,7 @@ import { test, expect } from "./fixture"
 import { VISITOR , sessionFor, type Role } from "../helpers/actors"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { apiEvent } from "../helpers/api-fixtures"
+import { apiEvent, type ApiPlayerRow } from "../helpers/api-fixtures"
 
 /**
  * The admin console, rendered — with the session and the API's answers seeded.
@@ -47,7 +47,12 @@ const grants = (can: Record<string, boolean>) =>
   entry(orpc.me.mine, undefined, { holdings: [], can })
 
 /** The platform admin, as the model answers for them. */
-const asPlatformAdmin = grants({ MANAGE_ALL_USERS: true, MODERATE_LISTINGS: true, APPROVE_REFEREE: true })
+const asPlatformAdmin = grants({
+  MANAGE_ALL_USERS: true,
+  MODERATE_LISTINGS: true,
+  APPROVE_REFEREE: true,
+  DELETE_PLAYER: true,
+})
 
 /** Anybody else. */
 const asNotAdmin = grants({})
@@ -254,5 +259,69 @@ test.describe("The permission grid reflects what the server granted", () => {
     await seedCache(page, [VISITOR])
     await visit(page, "admin")
     await page.waitForURL("**/#/login")
+  })
+})
+
+/**
+ * Deleting a player, which is not the roster's "Remove".
+ *
+ * `DELETE_PLAYER` is granted to PLATFORM_ADMIN alone and had no screen at all,
+ * so a player created by mistake stayed forever — the same gap `DELETE_TEAM`
+ * had until this console got one. It is deliberately not on the team page: that
+ * roster is a coach's tool, "Remove" there ends a spell on a squad, and the two
+ * controls side by side would invite the mistake.
+ *
+ * Gated on the model's own answer rather than on `isAdmin`. They agree today
+ * because the PO grants both to PLATFORM_ADMIN, and a screen that assumes so is
+ * exactly the second copy this pass exists to remove — so the "hidden" case
+ * seeds an admin who holds MANAGE_ALL_USERS and not this.
+ */
+const players = (items: ApiPlayerRow[]) => entry(orpc.players.list, undefined, { items })
+
+/** A whole row, because `players.list` returns the table and the schema is derived from it. */
+const NIRAN: ApiPlayerRow = {
+  id: "plr_1",
+  userId: null,
+  names: { en: "Niran" },
+  jerseyNumber: 7,
+  positionCode: "GK",
+  dob: "2011-04-02",
+}
+
+test.describe("Deleting a player", () => {
+  test("a platform admin can, and the confirmation names what goes with them", async ({ page }) => {
+    await seedCache(page, [
+      as("ADMIN"),
+      asPlatformAdmin,
+      events({ canCreate: true }),
+      players([NIRAN]),
+    ])
+    await visit(page, "admin")
+
+    await expect(page.getByTestId("admin-players")).toBeVisible()
+    await expect(page.getByTestId("admin-player-plr_1")).toContainText("Niran")
+    await expect(page.getByTestId("delete-player-plr_1")).toBeVisible()
+  })
+
+  test("an admin without the grant does not see it", async ({ page }) => {
+    await seedCache(page, [
+      as("ADMIN"),
+      // Holds the console, does not hold this. If the section were gated on
+      // `isAdmin` it would appear anyway, which is what this asserts against.
+      grants({ MANAGE_ALL_USERS: true }),
+      events({ canCreate: true }),
+      players([NIRAN]),
+    ])
+    await visit(page, "admin")
+
+    await expect(page.getByTestId("admin-console")).toBeVisible()
+    await expect(page.getByTestId("admin-players")).toHaveCount(0)
+  })
+
+  test("says so when there are none, rather than rendering an empty card", async ({ page }) => {
+    await seedCache(page, [as("ADMIN"), asPlatformAdmin, events({ canCreate: true }), players([])])
+    await visit(page, "admin")
+
+    await expect(page.getByTestId("admin-no-players")).toBeVisible()
   })
 })

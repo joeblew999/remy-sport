@@ -77,6 +77,10 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
    * `role` survives below only for display — showing a person what they are.
    */
   const { data: isAdmin } = useCan("MANAGE_ALL_USERS");
+  // Asked of the model, not inferred from `isAdmin`: they happen to have the
+  // same answer today because the PO grants both to PLATFORM_ADMIN, and a
+  // screen that assumes so is the second copy this whole pass removed.
+  const { data: canDeletePlayer } = useCan("DELETE_PLAYER");
 
   const events = useQuery(orpc.events.list.queryOptions());
 
@@ -242,6 +246,10 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
           place it can live. It had no screen at all, which meant a team created
           by mistake stayed forever. */}
       {isAdmin && !impersonatedBy && <DeleteTeams />}
+
+      {/* `DELETE_PLAYER` is PLATFORM_ADMIN alone, the same line as teams — and
+          it is not the roster's "Remove", which ends a spell on a squad. */}
+      {canDeletePlayer && !impersonatedBy && <DeletePlayers />}
 
       {/* Only for an admin who is not already impersonating: Better Auth does
           not model a nested impersonation, and the way out is the banner. */}
@@ -542,6 +550,72 @@ function RoleSwitcher({ current }: { current: string }) {
           </button>
         ))}
       </div>
+    </section>
+  );
+}
+
+/**
+ * Removing a player, which only a platform admin may do.
+ *
+ * The same line the PO drew for teams, drawn again: `DELETE_PLAYER` is granted
+ * to `PLATFORM_ADMIN` and to nobody else. A head coach manages a squad and may
+ * not delete the people in it — so this sits here rather than beside "Remove"
+ * on the roster, which is a coach's tool. Those two buttons mean genuinely
+ * different things and putting them side by side would invite the mistake.
+ *
+ * Removing from a squad *ends the spell*: `playerTeam` carries from and to
+ * dates and the departure stops granting access without making last season's
+ * team sheet wrong. This deletes the person. Four tables carry a non-null FK to
+ * `player.id` — squads, event entries, attendance and guardians — and none is
+ * ON DELETE CASCADE, so the procedure clears them first. The confirmation names
+ * them for the reason the team one does: agreeing to delete a player is not the
+ * same as agreeing to delete who was responsible for them.
+ *
+ * The list is `players.list`, which already existed and is already behind a
+ * session — `domain.ts` holds it stricter than the model on purpose, because
+ * these rows name minors.
+ */
+function DeletePlayers() {
+  const qc = useQueryClient();
+  const { name, label } = useLocale();
+  const { data } = useQuery(orpc.players.list.queryOptions());
+
+  const remove = useMutation({
+    mutationFn: (id: string) => api.players.remove({ id }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: orpc.players.key() }),
+  });
+
+  const players = data?.items ?? [];
+
+  return (
+    <section className="admin-card" data-testid="admin-players">
+      <h2>{m.admin_players()}</h2>
+      {players.length === 0 && (
+        <div className="empty" data-testid="admin-no-players">{m.admin_no_players()}</div>
+      )}
+      {players.map((p) => (
+        <div key={p.id} className="invite-row" data-testid={`admin-player-${p.id}`}>
+          <div>
+            <div className="row-title">{name(p.names)}</div>
+            {/* The code is the model's, not a reader's — `label` is how every
+                other screen turns one into words, in their language. */}
+            <div className="row-meta">
+              {[`#${p.jerseyNumber}`, label("positions", p.positionCode)].join(" · ")}
+            </div>
+          </div>
+          <button
+            className="btn"
+            data-testid={`delete-player-${p.id}`}
+            disabled={remove.isPending}
+            onClick={() => {
+              if (window.confirm(m.admin_delete_player_confirm({ player: name(p.names) })))
+                remove.mutate(p.id);
+            }}
+          >
+            {m.admin_delete_player()}
+          </button>
+        </div>
+      ))}
     </section>
   );
 }
