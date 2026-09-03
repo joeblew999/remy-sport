@@ -24,6 +24,11 @@ interface LiveProps {
   setSpoiler: (fn: boolean | ((prev: boolean) => boolean)) => void;
 }
 
+/**
+ * @answers VIEW_LIVE_SCORES
+ *
+ * Scores as they happen.
+ */
 export function LivePage({ goto, spoiler, setSpoiler }: LiveProps) {
   const { data, isPending } = useLiveGames();
   const games = data?.games ?? [];

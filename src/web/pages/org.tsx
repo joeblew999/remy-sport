@@ -40,6 +40,11 @@ import { formErrors } from "../lib/form-errors";
 import { m } from "../lib/i18n";
 import { useLocale } from "../lib/locale";
 
+/**
+ * @answers VIEW_ORG, EDIT_ORG_PROFILE, INVITE_ORG_MEMBER, REMOVE_ORG_MEMBER, CREATE_TEAM
+ *
+ * A school or club, its people, and the teams it fields.
+ */
 export function OrgsPage({ goto }: { goto: (r: Route) => void }) {
   const orgs = useOrgs();
   /**

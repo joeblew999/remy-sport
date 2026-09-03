@@ -19,6 +19,11 @@ import { m } from "../lib/i18n";
  * to Better Auth, not to an oRPC procedure, and Better Auth answers with
  * `{ code, message }` — there is no `data.issues` to read a per-field message
  * out of. The whole-form message is the only thing there is.
+ *
+ * @answers SIGN_IN_OUT, SIGN_UP_AS_SPECTATOR
+ *
+ * Signing in is signing up: `disableSignUp` is false, so a first-time address
+ * that redeems a code gets an account, and `auth.config.ts` makes it a spectator.
  */
 export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Route }) {
   const [email, setEmail] = useState("");

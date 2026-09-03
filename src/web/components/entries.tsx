@@ -18,6 +18,11 @@ import { useEntries } from "../lib/data";
 import { formErrors } from "../lib/form-errors";
 import { m } from "../lib/i18n";
 
+/**
+ * @answers REGISTER_TEAM_FOR_EVENT
+ *
+ * Teams into events, and out again.
+ */
 export function Entries({ eventId }: { eventId: string }) {
   const qc = useQueryClient();
   const { data, isPending } = useEntries(eventId);

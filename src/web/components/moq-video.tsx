@@ -162,7 +162,11 @@ function useMoqElement(
   }, [el, role, gameId, encoder])
 }
 
-/** Watch one game's broadcast. */
+/** Watch one game's broadcast. *
+ * @answers BROADCAST_GAME
+ *
+ * Starting and stopping the stream, which only a game's people may do.
+ */
 export function GameVideo({ gameId }: { gameId: string }) {
   const config = useRelay("watch")
   const [el, setEl] = useState<HTMLElement | null>(null)

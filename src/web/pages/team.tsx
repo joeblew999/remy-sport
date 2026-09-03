@@ -11,6 +11,12 @@ import { formatDayShort } from "../lib/dates";
 import { formErrors } from "../lib/form-errors";
 import type { Team } from "../data";
 
+/**
+ * @answers VIEW_TEAM, EDIT_TEAM_PROFILE, MANAGE_ROSTER, CREATE_PLAYER
+ *
+ * A team as its coach and its followers see it. The roster is where a player
+ * is created, because that is the moment somebody needs one.
+ */
 export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }) {
   const { data: team, isPending: teamLoading } = useTeam(id);
   const { data: allTeams, isPending: listLoading } = useTeams();

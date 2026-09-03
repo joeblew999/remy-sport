@@ -22,6 +22,11 @@ import { m } from "../lib/i18n"
  * The roles offered come from the model's own grants — see `SELF_ASSIGNABLE` in
  * src/api/me.ts. Admin is absent because the PO does not grant it to PUBLIC,
  * not because this file leaves it out.
+ *
+ * @answers SIGN_UP_AS_PLAYER, SIGN_UP_AS_COACH, SIGN_UP_AS_ORGANIZER, SIGN_UP_AS_REFEREE_REQUEST
+ *
+ * Derived from the grants rather than listed, so the codes here name what the
+ * model already decided is self-assignable.
  */
 export function WhoAreYou() {
   const { user } = useSession()

@@ -50,6 +50,11 @@ const ROLES = ["admin", "organizer", "coach", "player", "spectator", "referee"] 
  * Every flag below is the server's answer now: `canCreate` on the list
  * (`CREATE_EVENT` is a PLATFORM action, so it belongs to the list and not to an
  * event), `canDelete` per event, `canEdit` per event.
+ *
+ * @answers MANAGE_ALL_USERS, APPROVE_REFEREE, CREATE_EVENT, DELETE_EVENT, DELETE_TEAM, DELETE_PLAYER
+ *
+ * The platform-admin console. Every action here is granted to PLATFORM_ADMIN
+ * and to nobody else, which is why they are on one screen.
  */
 export function AdminPage({ goto }: { goto: (r: Route) => void }) {
   const { user, impersonatedBy, loading } = useSession();

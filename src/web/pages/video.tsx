@@ -110,6 +110,11 @@ function Empty({ goto }: { goto: (r: Route) => void }) {
   )
 }
 
+/**
+ * @answers VIEW_LIVE_STREAM
+ *
+ * Watching it, which is public.
+ */
 export function BroadcastPage({ id, goto }: { id?: string; goto: (r: Route) => void }) {
   const { gameId, resolving } = useGameId(id)
   if (resolving) return <div className="empty">{m.loading()}</div>

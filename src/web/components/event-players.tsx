@@ -29,6 +29,11 @@ import { useLocale } from "../lib/locale"
 import { useSession } from "../lib/session"
 import { m } from "../lib/i18n"
 
+/**
+ * @answers REGISTER_PLAYER_FOR_EVENT
+ *
+ * Players into events, and out again.
+ */
 export function EventPlayers({ eventId }: { eventId: string }) {
   const { name } = useLocale()
   const { user } = useSession()

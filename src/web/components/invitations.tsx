@@ -19,6 +19,11 @@ import { orpc } from "../lib/orpc"
 import { useLocale } from "../lib/locale"
 import { m } from "../lib/i18n"
 
+/**
+ * @answers ACCEPT_CO_ORGANIZER_INVITE
+ *
+ * Answering an invitation addressed to you.
+ */
 export function Invitations({ onAccepted }: { onAccepted?: () => void }) {
   const { name } = useLocale()
   const qc = useQueryClient()

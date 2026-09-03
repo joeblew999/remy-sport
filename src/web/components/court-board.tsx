@@ -21,6 +21,12 @@ import { m } from "../lib/i18n";
 /** In play, as the model names it. `game_status` holds both. */
 const PLAYING = new Set(["LIVE", "HALF_TIME"])
 
+/**
+ * @answers VIEW_COURT_STATUS_BOARD, VIEW_COURT_ASSIGNMENTS, VIEW_MATCH_STATUS
+ *
+ * One board answers all three: which court, what is on it, and what state it
+ * is in. `game.statusCode` is the match status.
+ */
 export function CourtBoard({ eventId }: { eventId: string | undefined }) {
   const { data, isPending } = useGames(eventId)
   const games = data?.games ?? []

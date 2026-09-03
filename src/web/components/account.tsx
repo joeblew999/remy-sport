@@ -29,6 +29,11 @@ export function initialsFor(label: string): string {
     .join("");
 }
 
+/**
+ * @answers SIGN_IN_OUT
+ *
+ * The other half — signing out.
+ */
 export function Account({ goto }: { goto: (r: Route) => void }) {
   const { user, loading } = useSession();
   const signOut = useSignOut();

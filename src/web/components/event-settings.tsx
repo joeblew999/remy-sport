@@ -36,6 +36,11 @@ import { formErrors } from "../lib/form-errors"
 import { m } from "../lib/i18n"
 import type { Event } from "../data"
 
+/**
+ * @answers EDIT_EVENT, INVITE_CO_ORGANIZER
+ *
+ * An organiser's own event, and who else may run it.
+ */
 export function EventSettings({ event }: { event: Event }) {
   const qc = useQueryClient()
   const [saved, setSaved] = useState(false)

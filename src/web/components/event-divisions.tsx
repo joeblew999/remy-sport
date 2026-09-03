@@ -25,6 +25,10 @@ import { m } from "../lib/i18n"
  * orphan their entries and silently unregister them. The API refuses it and
  * says which; the box is disabled so the refusal is visible before the click
  * rather than after it.
+ *
+ * @answers MANAGE_DIVISIONS
+ *
+ * Which divisions an event runs.
  */
 export function EventDivisions({ eventId, canEdit }: { eventId: string; canEdit: boolean }) {
   const { name, label } = useLocale()

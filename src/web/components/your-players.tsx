@@ -30,6 +30,11 @@ import { useLocale } from "../lib/locale"
 import { m } from "../lib/i18n"
 import type { Route } from "../lib/router"
 
+/**
+ * @answers SIGN_UP_PLAYER_AS_GUARDIAN, EDIT_PLAYER_PROFILE, VIEW_PLAYER
+ *
+ * A guardian's own children: signing one up, correcting their details, seeing them.
+ */
 export function YourPlayers({ goto }: { goto: (r: Route) => void }) {
   const { name, label } = useLocale()
   const { data } = useQuery(orpc.players.mine.queryOptions())

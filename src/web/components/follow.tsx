@@ -20,6 +20,12 @@ import { Icon } from "./icon"
 
 type ObjectTypeCode = "EVENT" | "TEAM" | "GAME" | "PLAYER" | "ORG"
 
+/**
+ * @answers FOLLOW_PLAYER, UNFOLLOW_PLAYER, FOLLOW_TEAM, UNFOLLOW_TEAM, FOLLOW_EVENT, UNFOLLOW_EVENT
+ *
+ * One control, three object types — the model grants follow and unfollow
+ * separately for each, and this answers all six.
+ */
 export function FollowButton({
   objectTypeCode,
   objectId,

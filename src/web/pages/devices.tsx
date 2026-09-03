@@ -16,6 +16,10 @@ import { useLocale } from "../lib/locale";
  *
  * Not the multiSession plugin, which is account *switching* — a different
  * feature that would not answer this question.
+ *
+ * @answers MANAGE_OWN_NOTIFICATION_CHANNELS
+ *
+ * The devices a notification can reach, and revoking one.
  */
 export function DevicesPage({ goto }: { goto: (r: Route) => void }) {
   const { locale } = useLocale();

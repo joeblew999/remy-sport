@@ -16,6 +16,12 @@ interface DiscoverProps {
 // No "open" tab: nothing can have that status — see src/web/data.ts.
 type Tab = "all" | "live" | "upcoming" | "closed";
 
+/**
+ * @answers BROWSE_EVENTS, VIEW_RESULTS_ARCHIVE
+ *
+ * The Past tab is the archive — finished events with their results, which is
+ * what a results archive is. A separate screen would be a second home for it.
+ */
 export function DiscoverPage({ goto, spoiler, query, setParam }: DiscoverProps) {
   const { locale, reference, name, label } = useLocale();
 

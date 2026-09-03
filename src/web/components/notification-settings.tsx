@@ -58,6 +58,13 @@ const OFFERED = [
   "ROSTER_CHANGE",
 ] as const
 
+/**
+ * @answers RECEIVE_NOTIFICATIONS, RECEIVE_PLAYER_NOTIFICATIONS, RECEIVE_TEAM_NOTIFICATIONS, RECEIVE_EVENT_NOTIFICATIONS, MANAGE_OWN_NOTIFICATION_PREFERENCES
+ *
+ * What you are told about, and how. The per-object ones are preferences on
+ * what you already follow, which is why they are here and not on the follow
+ * button.
+ */
 export function NotificationSettings() {
   const qc = useQueryClient()
   const { locale, label, describe } = useLocale()

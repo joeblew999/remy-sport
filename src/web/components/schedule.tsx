@@ -60,6 +60,11 @@ function timeOf(startsAt: string, locale: string, timeZone: string | null): stri
 /** "Asia/Bangkok" reads as "Bangkok" in a line already dense with detail. */
 const shortZone = (tz: string) => tz.split("/").pop()!.replace(/_/g, " ");
 
+/**
+ * @answers MANAGE_FIXTURES, GENERATE_FIXTURES, ASSIGN_COURTS, ASSIGN_REFEREE, ENTER_SCORES, CONFIRM_MATCH_STATUS
+ *
+ * Everything an organiser does to a fixture list.
+ */
 export function Schedule({
   eventId,
   spoiler,

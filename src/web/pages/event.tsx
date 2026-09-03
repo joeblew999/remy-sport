@@ -38,6 +38,13 @@ interface EventProps {
   spoiler: boolean;
 }
 
+/**
+ * @answers VIEW_EVENT, VIEW_FIXTURE_SCHEDULE, VIEW_GAME_RESULTS, VIEW_STANDINGS, VIEW_RANK_MOVEMENT, VIEW_SEASON_RECORDS
+ *
+ * The event, and its tabs. Standings answer three of these: the table itself,
+ * the movement arrows beside each position, and the won/lost/points that a
+ * season record is.
+ */
 export function EventPage({ id, goto, spoiler }: EventProps) {
   const { reference, name } = useLocale();
   const { data: event, isPending: eventLoading } = useEvent(id);

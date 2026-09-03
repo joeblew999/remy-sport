@@ -22,6 +22,10 @@ import { m } from "../lib/i18n"
  * The form is offered only to somebody who may use it. A coach may not: the
  * model gives them `RECORD_ATTENDANCE` and withholds the schedule, which is a
  * distinction worth keeping rather than flattening to "staff".
+ *
+ * @answers DEFINE_SESSION_SCHEDULE, RECORD_ATTENDANCE
+ *
+ * A camp's sessions, and who turned up.
  */
 export function EventSessions({ eventId }: { eventId: string }) {
   const { name, locale } = useLocale()
