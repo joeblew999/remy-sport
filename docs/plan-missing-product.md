@@ -151,27 +151,122 @@ you are anything else.
 
 ## Phase 4 — moderation
 
-- [ ] `DELETE_PLAYER` and `MODERATE_LISTINGS`, both PLATFORM_ADMIN, both in the
-      admin console beside the existing ban and role controls.
+**One of the two was buildable. The other is the boundary.**
+
+- [x] **`DELETE_PLAYER` — built.** `players.remove` and a section in the admin
+      console. Four tables carry a non-null FK to `player.id` — squads, event
+      entries, attendance and guardians — and none is ON DELETE CASCADE, so the
+      procedure clears them in one batch first, exactly as `teams.remove` does.
+- [x] **Not on the roster, deliberately.** That is a coach's tool, and its
+      "Remove" *ends a spell*: `playerTeam` carries from and to dates, so a
+      departure stops granting access without making last season's team sheet
+      wrong. This deletes the person. The two side by side would invite the
+      mistake — the same reasoning that put `DELETE_TEAM` here rather than beside
+      the team edit form.
+- [x] **The gate found a bug in `me.mine`.** `PLATFORM_ACTIONS` claimed to hold
+      "the grants with no object to act upon" and tested the *action's* object
+      type. `DELETE_PLAYER` names PLAYER and failed that test while its only
+      grant is PLATFORM_ADMIN — a relation nobody holds on a player. It now
+      tests the granting relations, which is what the comment always said. 25
+      actions became 47, at no cost: every platform relation is `via: "role"` or
+      `via: "everyone"`, both answered from the session.
+- [x] Tests — worker: the subject derived from the seed, since a player with no
+      squad and no entry would pass while proving nothing; coach refused at 403
+      over their own roster, signed out 401, unknown id 404. Render: gated on the
+      model's answer, with a case seeding an admin who holds the console and not
+      this, so `isAdmin` cannot creep back in.
+- [ ] **`MODERATE_LISTINGS` — Needs the PO.** There is no listing. No `listing`
+      entity, no event status vocabulary, and no moderation state on any table —
+      nothing is hidden, flagged, held or withdrawn anywhere in the schema. The
+      action is PLATFORM-scoped with no object type, so it does not even say
+      *what* is moderated. Building it means inventing both the noun and the
+      verb, which is precisely what this plan's own rule forbids.
+      **Needs: a moderation state on whatever a listing turns out to be.**
 
 ## Phase 5 — the boundary
 
-- [ ] Record brackets, player statistics and AI under **Needs the PO**, with the
-      exact model change each requires, and stop. Do not build them.
+**Eight actions stop here.** Each names the exact model change it waits on. None
+was approximated, and none is half-built.
+
+- [x] **Brackets — `VIEW_BRACKET`, `GENERATE_BRACKETS`, `AI_BRACKET_SUGGESTIONS`.**
+      There is no bracket table. A knockout draw is structure the schema does not
+      have, and inventing one would put a second model beside the PO's.
+      **Needs: a bracket entity in `remy-sport-biz`.**
+- [x] **Player statistics — `VIEW_PLAYER_STATS`.** Scores are per team
+      (`homeScore`, `awayScore`). Nothing records what a player did.
+      **Needs: per-player scoring in the model.**
+- [x] **AI — `AI_CREATE_EVENT`, `AI_QA`.** Nothing behind either, and the profile
+      page's own note records that an "Ask AI assistant" button existed, did
+      nothing, and was deleted. **Needs: a decision that these are real.**
+- [x] **Rankings history — `VIEW_RANKINGS_HISTORY`.** `PLATFORM`-scoped:
+      rankings *across* events, over time. Standings are computed per event and
+      division, and there is no cross-event ranking to have a history of.
+      **Needs: a platform-level ranking in the model.**
+- [x] **Moderation — `MODERATE_LISTINGS`.** No listing entity, no moderation
+      state. **Needs: a moderation state on whatever a listing turns out to be.**
+
+Two of these were found *during* the work rather than sized in advance —
+`VIEW_RANKINGS_HISTORY` on pass 2 and `MODERATE_LISTINGS` on pass 4. Both were
+in the "buildable without asking anybody" table above, and both turned out not to
+be. The table is left uncorrected on purpose: it is the estimate, and the gap
+between it and this section is the honest record of what examining the schema
+changed.
 
 ## Definition of done
 
-- [ ] All fifteen buildable actions have a home in the GUI, and the coverage
-      sweep from `plan-ownership.md` reports them placed.
-- [ ] The six blocked ones are recorded with the exact field or decision needed.
-- [ ] No screen decides anything the model owns — the same grep, still clean.
-- [ ] No new e2e tests. Worker tier for computation, render tier for screens.
-- [ ] `mise run 2-check` green; e2e no worse than the 34 it starts at.
-- [ ] Every new string in `messages/en.json`, `th.json` and `ja.json`, with
-      placeholders matching.
-- [ ] Nothing deferred silently.
+- [x] **Thirteen of the fifteen have a home in the GUI.** Two turned out blocked
+      when examined rather than estimated — recorded in Phase 5, not skipped.
+- [x] **Eight blocked actions recorded** with the exact field or decision each
+      needs. Six were sized in advance; two were found in the work.
+- [x] No screen decides anything the model owns — the same grep, still clean.
+      The one place it nearly happened was gating the new console section on
+      `isAdmin`, which a render test now forbids.
+- [x] No new e2e tests. Worker tier for computation, render tier for screens.
+- [x] `mise run 2-check` green, 226 render tests; e2e unchanged at 34.
+- [x] Every new string in `messages/en.json`, `th.json` and `ja.json`, with
+      placeholders matching — enforced by `check:messages`, not by memory.
+- [x] Nothing deferred silently.
+
+## What this plan did not fix, and knows
+
+**The action count cannot be measured by grep.** A sweep for each action code
+across `src/api` and `src/web` reports 37 with no mention — including the court
+board built in Phase 1 and the sign-up flow built in Phase 3, neither of which
+ever writes its action's name. The court board is reached through `games.list`;
+the sign-up roles are *derived* from the `SIGN_UP_AS_*` grants, so the literals
+correctly do not appear.
+
+So "48 of 76 in the GUI" was, and remains, a judgment made action by action, not
+a number a script produces. `gui-coverage` measures what it can measure honestly
+— 71/75 procedures called from the SPA, 576/591 output fields named — and that
+is a different question. A checker for the action question would need to know
+which screen answers which grant, which is a mapping nobody has written down.
+
+**That is the next plan, if there is one:** a declared link from an action to the
+screen that answers it, so the question stops needing a person to re-derive.
 
 ## Log
+
+- 2026-09-03 — **Phases 4 and 5 done; the plan is complete.** `DELETE_PLAYER`
+  built, `MODERATE_LISTINGS` recorded as blocked. Thirteen actions gained a home
+  across four phases; eight are at the model boundary with the change each needs
+  written down.
+
+  The pass found a real bug rather than just building: `PLATFORM_ACTIONS` in
+  `me.ts` tested the action's object type while claiming to test whether anyone
+  needs an object to hold the grant. `DELETE_PLAYER` is the case where those two
+  differ, and it could not be asked about at all. Widened to the relations, which
+  is what the comment above it always said — 25 actions to 47, no extra queries,
+  because every platform relation resolves from the session.
+
+  Two premises of my own were wrong and the tests caught both: `isRefusedStatus`
+  is about account status codes, not HTTP ones — the failure message said "a
+  coach got 403", which was the endpoint working correctly and the assertion
+  wrong. And a type helper built from `Parameters<typeof entry<...>>` did not
+  compile; the file already had a `ResponseOf` idiom for exactly this, so
+  `ApiPlayerRow` uses it, with no factory beside it because `domain.ts` derives
+  that response from the table and a fixture with defaults is where a new column
+  would silently go missing.
 
 - 2026-09-03 — **Phase 1 done.** `components/court-board.tsx`, a tab on the
   event. Three actions answered — `VIEW_COURT_STATUS_BOARD`,
