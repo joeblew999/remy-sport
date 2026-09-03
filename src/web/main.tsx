@@ -152,7 +152,7 @@ function App() {
   }, [tweaks.accentColor]);
 
   // A detail page keeps its list highlighted in the nav.
-  const sidebarPage = (route.page === "event" || route.page === "bracket") ? "discover"
+  const sidebarPage = route.page === "event" ? "discover"
     : route.page === "org" ? "orgs"
     : route.page;
 
@@ -188,7 +188,6 @@ function App() {
     ),
     events: () => <MyEventsPage goto={goto}/>,
     event: () => <EventPage id={route.id} goto={goto} spoiler={spoiler}/>,
-    bracket: () => <EventPage id={route.id} goto={goto} spoiler={spoiler}/>,
     live: () => <LivePage goto={goto} spoiler={spoiler} setSpoiler={handleSpoilerSet}/>,
     team: () => <TeamPage id={route.id} goto={goto}/>,
     profile: () => <ProfilePage goto={goto}/>,

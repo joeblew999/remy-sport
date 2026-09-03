@@ -150,9 +150,11 @@ Three tiers, one seed, and only two of them read it.
 | `tests/e2e/` | the real seeded D1 | `src/db/seed.sql` — derived |
 | `tests/render/` | a payload written by hand | `tests/helpers/api-fixtures.ts` and 126 inline literals — **invented** |
 
-The render tier is 24 of the spec files and the fastest of the four, so most
-assertions about what a screen says live there — and every one of them is about
-data no database has ever held.
+`mise run ops tiers` gives the weight: unit 208, worker 290, **render 200**, e2e
+31. Two hundred assertions about what a screen says, across 24 spec files, every
+one of them about data no database has ever held. It is also the only tier that
+draws a browser without a backend, which is exactly why it is the biggest and why
+it must stay that way — the fix is not to move it.
 
 That is not a style problem, it is a feedback loop with a wire cut. **Because the
 render tier does not read the seed, nothing forces the seed to be deep enough to
@@ -164,6 +166,13 @@ test suite that name nothing.
 And the invented values rot in the ordinary way. `apiEvent()` claims
 `playedCount: 17` for `evt_002`. The fixtures say **21**. It typechecks, because
 17 is a number.
+
+The other half of why it went unnoticed is that the report we do have measures
+breadth. `mise run ops coverage data` reads **80/80 vocabulary codes used, 25/25
+relations instantiated** — a green wall. It is answering "does any row use this
+code", which is a real question and not this one. Phase 4 has the example that
+gives the game away: all four guardian rows are one person, holding all four
+guardian types at once, because that is what makes the vocabulary line read 4/4.
 
 ## What that shape costs elsewhere
 
@@ -237,6 +246,71 @@ are the *subject* of most render specs — "offers the form to whoever may defin
 the schedule, and to nobody else". Deriving those would hide the thing under
 test, and would need a database. So the projection computes names, joins and
 counts, and the permission flags remain explicit arguments the spec chooses.
+
+### A projection is smaller than it sounds
+
+"Reimplement fifteen procedures" is the fear, and it is not what this is. Take
+every field `apiEvent()` returns and ask where it comes from:
+
+| kind | fields | what the projection does |
+|---|---|---|
+| row copy | `id`, `typeCode`, `startDate`, `orgId`, `timezone`, … | reads the fixture row |
+| pivot | `name` | `pivot(names)`, the same call the generator makes |
+| lookup by id | `organizerName`, `venueNames` | finds a row in another array |
+| count | `teamCount`, `gameCount`, `playedCount`, `followerCount` | filter-and-length |
+| fixed | `createdAt`, `updatedAt` | the generator's fixed timestamp |
+| stated | `canEdit`, `canDelete`, `canInviteCoOrganizer` | an argument |
+
+No business logic in any row of that table, and the count helpers already exist —
+`gamesIn`, `teamsRegisteredTo`, `gamesFor` are in `tests/helpers/fixtures.ts`
+today, used by four worker files. **The projection layer is that file grown up**,
+not a new idea.
+
+### Not every procedure is entity-shaped, and the ones that aren't stay written
+
+That table describes `apiEvent`. Generalising from one procedure is how the cost
+of this gets underpriced, so here is the whole list the render tier actually
+seeds — 22 procedures, 126 calls:
+
+```
+events.get 21   teams.get 14   events.list 13   games.list 12   teams.roster 10
+orgs.get 9      teams.list 8   events.entries 6  reference.list 4
+events.invitations 4  events.sessions 3   venues.list 2   orgs.list 2
+games.get 2     eventVenues.list 2   events.attendance 2   divisions.list 1
+orgs.members 1  eventPlayers.list 1
+                                             ── entity-shaped, ~113 calls
+
+me.mine 6       players.mine 2   standings.list 1
+                                             ── not, 9 calls
+```
+
+**`standings.list` is not projectable and must not be projected.** It is 126
+lines of aggregation over games plus a ranking rule with two tiebreaks, and it is
+derived rather than stored on purpose. A projection of it would be a second
+implementation of the league table — the one place in this plan where the
+duplication would be real business logic rather than a row copy.
+
+So it keeps a hand-written payload, and that is correct rather than a compromise:
+a render spec about standings asks *how the table draws*, and whether the numbers
+are right is a worker-tier question against real data. **Project the entity
+payloads; prove the computed ones where they are computed.**
+
+`me.mine` and `players.mine` are the third case: projectable in principle, but
+they resolve relations, and duplicating `objectsHeldBy` here would collide with
+`docs/plan-ownership.md`, which is actively building that surface. Leave them.
+**Nine of 126 calls stay hand-written, and each has a reason.**
+
+There is exactly one exception, and it is worth knowing before starting.
+`eventDivision` is not a fixture table: `scripts/lib/seed.ts` derives it from
+`eventTeams`, because the PO's model has no such list. A projection computing
+`divisionNames` would be the **third** implementation of that derivation — the
+generator, the procedure, and itself.
+
+So: **derive it once and import it in both places.** A repo-local module, since
+`src/domain/model/` is copied verbatim from biz and nothing here may edit it. If
+a second derivation like this appears, it goes to the same module rather than
+being written twice — and if one is written twice anyway, the equivalence test is
+what says so.
 
 ### Options considered
 
@@ -326,8 +400,13 @@ repo, and the sync is what brings them here.
    role vocabulary has three values. That is a fixture, not an invention.
 3. **If a hole needs a fact nobody has, declare it.** Write the exception with
    the reason and move on. Do not stall.
-4. **If closing a hole would need a new column, stop and say so.** That is a
-   migration and a model change, and it is the PO's.
+4. **A new fixture field is a biz commit; a new column is a stop.** These look
+   alike and are not. `event.description` needs a *field* added to the PO's
+   entities for a column that already exists — that is a commit in biz, a
+   `mise run ops domain`, and carry on. A hole that needs a column the schema does
+   not have is a migration and a model change: record it and stop. Getting this
+   backwards stalls Phase 3 on its second box, or ships a migration nobody asked
+   for.
 5. **If a test fails because the data grew, the test is wrong.** That is the
    whole premise. Fix it by deriving, per `tests/helpers/fixtures.ts`.
 6. **If the gate and the plan disagree, the gate wins** and this file gets fixed.
@@ -360,7 +439,7 @@ is discovered as it runs.
 ```
 Phase 1  the measurement becomes a gate      ── nothing else can be called done
    |
-Phase 2  every model table has rows          ── 4 empty tables, 2 of them the model's
+Phase 2  every model table has rows          ── 6 empty tables, 2 of them the model's
    |
 Phase 3  every column has a value            ── needs 2, because a new table's columns count
    |
@@ -512,23 +591,35 @@ each one unblocks.
 Breadth without depth is the seed's actual shape: one fat instance per kind and
 husks around it. Five invariants, each with a screen behind it.
 
-- [ ] **Every team has at least one coach.** 11 of 15 have none. Consequences: no
-      roster owner, and no test that a team page renders for somebody who is not
-      its coach — which is the common case and the untested one.
+- [ ] **Every team has at least one coach, bar one.** 11 of 15 have none.
+      Consequences: no roster owner, and no test that a team page renders for
+      somebody who is not its coach — the common case and the untested one. Leave
+      **one** team coachless on purpose and say which: an unclaimed team is a real
+      state, and a screen that has only ever drawn a coached team will break on
+      the first school that signs up before its staff do.
 - [ ] **Every org has at least one member.** 8 of 10 have none, so the ORG
       relations resolve against two schools out of ten.
-- [ ] **Every event has at least two games.** `evt_001` has one, `evt_003` has
-      none (correct — it is a camp, and Phase 2 gives it sessions instead),
-      `evt_004` has none. A standings table built from one game proves nothing,
-      and a showcase with no fixtures cannot exercise the schedule at all.
+- [ ] **Every event that runs games has at least two.** `evt_001` has one — a
+      standings table built from a single game proves nothing. `evt_003` is a camp
+      and correctly has none; Phase 2 gives it sessions instead. **`evt_004` is
+      the open question**: whether a SHOWCASE runs fixtures at all is the PO's,
+      not something to assume because the column exists. Ask, or leave it and say
+      why.
 - [ ] **Every user has a notification channel and a preference.** 5 users have no
       channel, 9 have no preference. Three separate mechanisms that fail
       independently — following, reachability, per-type preference — and most
       seeded people exercise none of them.
-- [ ] **A second player with an account, and a second guardian family.** 2 of 119
-      players have a user; 4 have a guardian. "A player who is also a signed-in
-      person" and "a parent watching their child" are the two hardest identities
-      in the product and each has one instance.
+- [ ] **A second player with an account, and a second guardian.** 2 of 119 players
+      have a user account. All four guardian rows are the **same person**,
+      `usr_spectator_001`, who is simultaneously a PARENT, a GRANDPARENT, a
+      LEGAL_GUARDIAN and an OTHER to four different children.
+
+      That row is worth staring at, because it explains the whole plan. It exists
+      to use all four `GUARDIAN_TYPE` codes, and it succeeds — `coverage data`
+      reports GUARDIAN_TYPE 4/4 ✓. It is also not a family anybody has. **The
+      fixtures were written to satisfy the report, and the report was measuring
+      the wrong thing.** Two or three guardians across two or three households,
+      and let the vocabulary count fall where it falls.
 
 Two more worth stating and *not* fixing, so they are decisions rather than
 oversights:
@@ -569,8 +660,10 @@ seeded data.
       about seeded data — a crash payload, a no-backend empty state — or delete
       it. `playedCount: 17` where the fixtures say 21 goes away by construction.
 
-**Done when** every render spec asserting seeded data imports a projection, and
-the equivalence test covers each procedure they use.
+**Done when** every render spec asserting seeded *entity* data imports a
+projection, and the equivalence test covers each procedure they use. The nine
+calls to `standings.list`, `me.mine` and `players.mine` stay written, with the
+reason on the line — that is a pass, not a remainder.
 
 ## Phase 6 — no test may name a thing that isn't
 
@@ -610,9 +703,15 @@ The user's two conditions, made executable.
 The test, and it is a real one to run, not a claim to make:
 
 - [ ] Add a sixteenth team to a school in biz, sync, `mise run 2-check`. Nothing
-      fails. Today five tests would.
+      fails. **Run this first, before Phase 1, and write the number down** — it is
+      the before-measurement, and the plan is worth what the two numbers differ
+      by. `apiEvent()`'s `teamCount: 15` is a literal, so at minimum every spec
+      reading a team count breaks today.
 - [ ] Give `evt_001` a second game. Nothing fails.
-- [ ] Rename `evt_003`. Nothing fails — because no test restates its name.
+- [ ] Rename `evt_003`. Nothing fails — because no test restates its name. Today
+      `tests/render/event-sessions.spec.ts` calls it "Bangkok Skills Camp", which
+      is not its name now, so this one fails in the other direction: the test
+      passes while being wrong.
 
 - [ ] Zero render specs construct a payload for a seeded id by hand.
 - [ ] Zero ids in `tests/` name a row that does not exist, except those carrying
@@ -653,6 +752,57 @@ The test, and it is a real one to run, not a claim to make:
   complained about on 2026-08-30 and which is still empty. Anybody trying to fill
   it would have read a report saying the fixtures and the schema agreed. That
   direction is now the second box of Phase 1.
+
+- **Pass 3 — the cost estimate audited, because it was the weakest joint.**
+  "A projection is a row copy, no business logic" was derived from **one**
+  procedure, `apiEvent`, and asserted about fifteen. Checked properly: the render
+  tier seeds 22 procedures across 126 calls, and the claim holds for 18 of them
+  (~113 calls) and **fails for `standings.list`**, which is 126 lines of
+  aggregation with a two-level tiebreak. Projecting that would have been a second
+  implementation of the league table — the exact thing the "checked duplication"
+  argument was pricing as cheap.
+
+  Resolved by narrowing rather than by accepting: **project entity payloads,
+  prove computed ones where they are computed.** Standings keeps a written
+  payload; a render spec about it asks how the table draws, and whether the
+  numbers are right belongs in the worker tier. `me.mine` and `players.mine` stay
+  written too, because duplicating `objectsHeldBy` would collide with
+  `docs/plan-ownership.md`, which is building that surface right now.
+
+  Nine calls of 126 stay hand-written and each has a reason. The plan is better
+  for having a remainder — a design with no remainder usually has one that has
+  not been looked for.
+
+- **Pass 2 — the reasoning inspected, not the numbers.** All thirteen still
+  match. Four corrections and one finding:
+
+  1. **The dependency diagram said "4 empty tables" where the table above it says
+     6.** Two numbers for one fact, four hundred lines apart.
+  2. **Decision rule 4 would have stalled Phase 3 on its second box.** It said
+     "if closing a hole needs a new column, stop" — but `event.description` needs
+     a new *fixture field* for a column that already exists, which is a biz commit
+     and not a migration. The two look alike and the rule now separates them.
+  3. **"Every event has at least two games" assumed a showcase runs fixtures.**
+     Nobody has said it does. It is the PO's question and is marked as one, rather
+     than being answered by whoever picks up the box.
+  4. **"Two hardest identities, each with one instance"** — the player side has
+     two, and the guardian side has one person rather than one family.
+
+  The finding, from looking at that guardian row: **all four guardian rows are
+  `usr_spectator_001`**, who is at once a PARENT, a GRANDPARENT, a LEGAL_GUARDIAN
+  and an OTHER, to four different children. It is not a family. It is a row shaped
+  to make `coverage data` print GUARDIAN_TYPE 4/4, and it does. That is the whole
+  diagnosis in one fixture: **the seed was written to satisfy the measurement, and
+  the measurement was of breadth.** It is now the worked example in Phase 4 and
+  the closing argument in "Why it happens".
+
+  Also verified rather than assumed: Wichai Srisuk is `usr_coach_001`, head coach
+  of `team_001` at Assumption with Pranom Chaiyo assisting — so the opening
+  paragraph describes a real seeded person doing a real seeded thing. Tier
+  weights read from `mise run ops tiers` (unit 208, worker 290, render 200, e2e
+  31) rather than guessed from file counts. `eventDivision` confirmed as the
+  seed's only derived domain table, which is what makes the projection layer a
+  row-copy rather than a reimplementation.
 
 - 2026-09-03 — plan written. Facts derived before anything was claimed: 6 empty
   tables, 51 empty columns of 293, 11 coachless teams, 8 memberless orgs, 8 ghost

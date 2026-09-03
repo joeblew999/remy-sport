@@ -610,15 +610,122 @@ Where the script goes: `scripts/check/gui-actions.ts` <!-- docs-check-ignore -->
 Phase 5 has produced placements for it to check against. Not before — a checker
 with nothing to check is the boilerplate this plan is trying not to create.
 
+### Placement, run 1 (2026-09-03)
+
+Generated inventory, then judged per action. **Not built** is a legitimate answer
+and most of them are it — this product's model describes more than has been made.
+
+**Placed — the event's surfaces** (`#/event/<id>`, its tabs, and `schedule.tsx`,
+`event-venues.tsx`, `event-sessions.tsx`, `entries.tsx`, `event-divisions.tsx`,
+`event-settings.tsx`, `invitations.tsx`):
+VIEW_EVENT, EDIT_EVENT, DELETE_EVENT, MANAGE_DIVISIONS, MANAGE_FIXTURES,
+GENERATE_FIXTURES, VIEW_FIXTURE_SCHEDULE, VIEW_STANDINGS, DEFINE_SESSION_SCHEDULE,
+RECORD_ATTENDANCE, ASSIGN_COURTS, INVITE_CO_ORGANIZER, ACCEPT_CO_ORGANIZER_INVITE,
+REGISTER_TEAM_FOR_EVENT, REGISTER_PLAYER_FOR_EVENT, FOLLOW_EVENT, UNFOLLOW_EVENT,
+RECEIVE_EVENT_NOTIFICATIONS.
+
+**Placed — the team** (`#/team`, `#/team/<id>`):
+VIEW_TEAM, EDIT_TEAM_PROFILE, DELETE_TEAM, MANAGE_ROSTER, FOLLOW_TEAM,
+UNFOLLOW_TEAM, RECEIVE_TEAM_NOTIFICATIONS, BROWSE_TEAMS, CREATE_TEAM.
+
+**Placed — the player** (`your-players.tsx`, the roster, `event-players.tsx`):
+VIEW_PLAYER, EDIT_PLAYER_PROFILE, FOLLOW_PLAYER, UNFOLLOW_PLAYER,
+RECEIVE_PLAYER_NOTIFICATIONS, CREATE_PLAYER, SIGN_UP_PLAYER_AS_GUARDIAN.
+
+**Placed — the game** (`schedule.tsx`, `#/live`, `#/broadcast`, `#/watch`):
+VIEW_GAME_RESULTS, ENTER_SCORES, CONFIRM_MATCH_STATUS, ASSIGN_REFEREE,
+BROADCAST_GAME, VIEW_LIVE_SCORES, VIEW_LIVE_STREAM.
+
+**Placed — the organisation** (`#/orgs`, `#/org/<id>`):
+VIEW_ORG, EDIT_ORG_PROFILE, INVITE_ORG_MEMBER, REMOVE_ORG_MEMBER.
+
+**Placed — platform** (topbar, `#/admin`, `#/devices`, notification settings):
+SIGN_IN_OUT, INSTALL_APP, SPOILER_MODE, BROWSE_EVENTS, CREATE_EVENT,
+APPROVE_REFEREE, MANAGE_ALL_USERS, CREATE_USER_ACCOUNT, RECEIVE_NOTIFICATIONS,
+MANAGE_OWN_NOTIFICATION_CHANNELS, MANAGE_OWN_NOTIFICATION_PREFERENCES.
+
+**Not built — brackets.** VIEW_BRACKET, GENERATE_BRACKETS, AI_BRACKET_SUGGESTIONS.
+`event.tsx` says "No 'bracket' tab" in as many words, so this is a decision
+already taken. But `#/bracket/<id>` **is a route**, pointed at the event page on
+2026-09-03 while building the render map — a surface claiming a feature that does
+not exist. Rule 1: delete the route. Boxed below.
+
+**Not built — courts, partly.** ASSIGN_COURTS is built (`schedule.tsx`), and
+`event-venues.tsx` shows which courts an event plays at. VIEW_COURT_ASSIGNMENTS
+and VIEW_COURT_STATUS_BOARD are not — a live board of which game is on which
+court is a real screen nobody has made.
+
+**Not built — history and rankings.** VIEW_RANKINGS_HISTORY, VIEW_RANK_MOVEMENT,
+VIEW_SEASON_RECORDS, VIEW_RESULTS_ARCHIVE. Nothing in the GUI mentions any of
+them. This is the largest coherent missing area and it is one screen's worth.
+
+**Not built — AI.** AI_CREATE_EVENT, AI_QA, AI_BRACKET_SUGGESTIONS. The profile
+page's own note records that an "Ask AI assistant" button existed, did nothing,
+and was deleted. Correctly not built.
+
+**Not built — the sign-up paths.** SIGN_UP_AS_SPECTATOR, _PLAYER, _COACH,
+_ORGANIZER, _REFEREE_REQUEST. There is one sign-in screen and no sign-up
+journey; a person's role is set by an admin. Five actions, one missing flow.
+
+**Not built — the rest.** DELETE_PLAYER, VIEW_PLAYER_STATS, VIEW_MATCH_STATUS,
+MODERATE_LISTINGS.
+
+**Count: 76 actions — 48 placed, 28 not built**, which matches the generated
+inventory exactly.
+
+### Entities
+
+Five kinds can be held. Each has one home:
+
+| kind | one of them | the list | yours |
+|---|---|---|---|
+| event | `#/event/<id>` | `#/discover` | `#/events` |
+| team | `#/team/<id>` | inside org, discover | `#/team` |
+| player | roster row, `your-players` | roster | `your-players` on the profile |
+| org | `#/org/<id>` | `#/orgs` | **missing** |
+| game | `schedule.tsx`, `#/watch` | event schedule, `#/live` | **missing** |
+
+Two holes, both consistent with what the earlier passes found: nobody can ask
+which school is theirs, and a referee cannot see their assignments. Boxed below.
+
 ### Output
+
 
 A table in this file: every action, its home or **not built**; every entity, its
 home. Plus the add / move / delete list that falls out, in priority order, with
 the ones that are only moves done first — those are cheap and they are where
 today's two bugs came from.
 
-**Done when:** a full pass over both lists changes nothing, and every one of the
-76 actions has either a place in the GUI or the words "not built" against it.
+### What falls out — the work, in order
+
+**Delete first.** Cheapest, and it is where the bugs were.
+
+- [x] `#/bracket/<id>` — removed from `PAGES`. `event.tsx` says there is
+      no bracket tab; the route was pointed at the event page on 2026-09-03 while
+      building the render map, so it claims a feature that does not exist. Rule 1.
+      The render map is a `Record<Page, …>`, so this cannot be half-done: removing
+      it from `PAGES` breaks the build until the entry goes too.
+
+**Then the two holes, which the earlier phases already made possible.**
+
+- [x] **Your school.** A "Yours" section above the list on `#/orgs`, marked
+      with the relation. A section rather than a screen: browsing schools is
+      genuinely most of what happens there. Was: `me.mine` returns ORG holdings and nothing reads them.
+      `#/orgs` lists every school; there is no "yours". Rule 3: it belongs on the
+      organisations surface, the same shape `#/team` now has — none, one, several.
+- [x] **A referee's games.** `components/your-games.tsx` on the profile, beside
+      the other things that are yours. Renders nothing for non-referees. Was: `me.mine` returns GAME holdings for GAME_REFEREE and
+      nothing reads them. Adisorn has no screen showing his assignments; the
+      schedule shows an event's games, not his. Rule 3: it belongs beside the
+      other "yours" surfaces, reachable from the profile.
+
+**Not built stays not built.** Brackets, the court board, rankings history, the
+AI features, the five sign-up paths, player stats, match status, moderation.
+Twenty-eight actions, recorded above, none of them started here — a feature is
+the PO's decision and this plan does not make those.
+
+**Done when:** a full pass over both lists changes nothing, and every action the
+model grants has either a place in the GUI or the words "not built" against it.
 
 ## Phase 6 — every screen, interrogated
 
@@ -699,6 +806,27 @@ each, no box, no work — they exist so they are not lost and not followed.
 - AGENTS.md is 674 lines with 114 bolded, against guidance of 150-200.
 
 ### Passes
+
+- **Pass 6 — Phase 5, first run.** All 76 actions placed: **48 in the GUI, 28
+  not built**, matching the generated inventory exactly. Five entity kinds, each
+  with a home, and the sweep found the two holes the earlier passes had implied:
+  nobody could ask which school is theirs, and a referee had no screen at all.
+
+  Both now exist, and both were only possible because `me.mine` was built first.
+  Your schools is a section on `#/orgs` rather than a screen — browsing schools
+  is genuinely most of what happens there. A referee's games is on the profile
+  beside the other things that are yours, and renders nothing for the majority
+  who are not referees.
+
+  `#/bracket` deleted, rule 1. `event.tsx` said "No 'bracket' tab" in as many
+  words while the route pointed at the event page — a claim to a feature that
+  does not exist, and one I introduced myself on 2026-09-03 while building the
+  render map. The `Record<Page, …>` made it impossible to half-remove.
+
+  One flake seen and not chased: `authz-equivalence` timed out at 5s per test
+  inside the shared run and passes 52/52 alone. It is a 26-second file competing
+  with the render tier for the machine. Noted rather than fixed — chasing it is
+  how a day goes.
 
 - **Pass 5 — Phase 4.** Both relation-changing actions clear `me.mine`:
   accepting a co-organiser invitation, and following. The follow case goes in

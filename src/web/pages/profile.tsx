@@ -2,6 +2,7 @@ import { useLiveGames, useMyEvents } from "../lib/data";
 import { useSession } from "../lib/session";
 import { Invitations } from "../components/invitations";
 import { YourPlayers } from "../components/your-players";
+import { YourGames } from "../components/your-games";
 import { Following } from "../components/following";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
@@ -22,10 +23,10 @@ import { m } from "../lib/i18n";
  * dashboard made mostly of fixtures, where it reads as an apology for the page
  * rather than a warning about one section.
  *
- * What is left is true. Your events come from `events.mine` — the ones you own,
- * co-organise, or follow — so a parent following their child sees theirs and
- * not an empty list. The live section is the real broadcast list, the same
- * source the Live page reads.
+ * What is left is true. Everything on it is something the model says is yours:
+ * your events, your children, the games you referee, what you follow — each
+ * from `me.mine`, which answers what you are connected to. The live section is
+ * the real broadcast list, the same source the Live page reads.
  */
 export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
   const { user } = useSession();
@@ -42,12 +43,12 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
    * referee, or a parent following their child saw an empty list — the people
    * this page exists for most.
    *
-   * `events.mine` is the model's own answer: OWNER, CO_ORGANIZER or
-   * FOLLOWER_EVENT, found by asking the resolver which events you hold a
-   * relation on, so the authorisation is the query. Its own note in
-   * src/api/events.ts says this replaced "a nav item that pointed at Discover
-   * and showed everybody the same four events" — that fix landed on the nav
-   * item and this page kept the old behaviour.
+   * `me.mine` is the model's own answer: OWNER, CO_ORGANIZER or FOLLOWER_EVENT,
+   * found by asking the resolver which events you hold a relation on, so the
+   * authorisation is the query. It replaced `events.mine`, which answered the
+   * same question for events only — and that fix had landed on the nav item
+   * while this page kept the old behaviour, which is how the two came to
+   * disagree.
    */
   const mine = [...(myEvents?.organising ?? []), ...(myEvents?.following ?? [])];
   // Only what can actually be watched. A "watch" link on a game nobody is
@@ -110,6 +111,11 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
                 signing in wants to know which team their child is on — this is
                 the first thing on this page that answers it. */}
             <YourPlayers goto={goto} />
+
+            {/* A referee's assignments — the screen Adisorn never had. Renders
+                nothing for everybody else, since most readers are not referees
+                and an empty card explaining that is noise. */}
+            <YourGames goto={goto} />
 
             <div className="section-h">
               <h2>{m.your_events()}</h2>

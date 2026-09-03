@@ -32,7 +32,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, orpc } from "../lib/orpc";
-import { useOrg, useOrgMembers, useOrgs, useTeams } from "../lib/data";
+import { useMine, useOrg, useOrgMembers, useOrgs, useTeams } from "../lib/data";
 import { useSession } from "../lib/session";
 import { ORG_ROLE_CODES } from "../../domain/vocabularies";
 import type { Route } from "../lib/router";
@@ -42,6 +42,22 @@ import { useLocale } from "../lib/locale";
 
 export function OrgsPage({ goto }: { goto: (r: Route) => void }) {
   const orgs = useOrgs();
+  /**
+   * Yours first, then the rest.
+   *
+   * The list showed every school on the platform with no way to find your own —
+   * one of the two holes the action-and-entity sweep in docs/plan-ownership.md
+   * turned up. `me.mine` has answered ORG holdings since it was written and
+   * nothing read them.
+   *
+   * A section rather than a separate screen, and not a filter: this page's job
+   * is browsing, which the model says is genuinely most of what happens here for
+   * schools. Yours is the shortcut on top of it, marked so a person can see why
+   * a row is there.
+   */
+  const { data: mine } = useMine("ORG");
+  const held = new Map(mine.map((h) => [h.id, h.relation]));
+  const yours = (orgs.data ?? []).filter((o) => held.has(o.id));
 
   return (
     <div className="page-inner" data-testid="orgs-page">
@@ -50,6 +66,29 @@ export function OrgsPage({ goto }: { goto: (r: Route) => void }) {
         <h1>{m.orgs_heading()}</h1>
         <div className="sub">{m.orgs_sub()}</div>
       </div>
+
+      {yours.length > 0 && (
+        <>
+          <div className="section-h">
+            <h2>{m.your_orgs()}</h2>
+          </div>
+          <div className="dash-card" data-testid="your-orgs">
+            {yours.map((o) => (
+              <div key={o.id} className="device-row" data-testid={`your-org-${o.id}`}>
+                <div>
+                  <div className="device-label">{o.name}</div>
+                  <div className="device-meta">
+                    {[o.city, held.get(o.id)].filter(Boolean).join(" · ")}
+                  </div>
+                </div>
+                <button className="btn" onClick={() => goto({ page: "org", id: o.id })}>
+                  {m.org_open()}
+                </button>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       {orgs.isPending ? (
         <div className="empty">{m.loading_orgs()}</div>
