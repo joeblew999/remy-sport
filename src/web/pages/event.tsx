@@ -14,6 +14,7 @@ import type { Event } from "../data";
 import type { Route } from "../lib/router";
 import { useLocale } from "../lib/locale";
 import { m } from "../lib/i18n";
+import { CourtBoard } from "../components/court-board";
 
 /**
  * No "bracket" tab.
@@ -28,7 +29,7 @@ import { m } from "../lib/i18n";
  * is a modelling decision for the PO in remy-sport-biz, and when those tables
  * exist the tab comes back reading from them.
  */
-type EventTab = "overview" | "schedule" | "standings" | "teams" | "players" | "venues" | "divisions" | "sessions" | "rules" | "settings";
+type EventTab = "overview" | "schedule" | "courts" | "standings" | "teams" | "players" | "venues" | "divisions" | "sessions" | "rules" | "settings";
 
 interface EventProps {
   id: string | undefined;
@@ -208,6 +209,12 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
           ...((e.type === "CAMP" || e.type === "SHOWCASE"
             ? [["players", m.tab_players()]]
             : []) as [EventTab, string][]),
+          // Which game is on which court, right now. `VIEW_COURT_STATUS_BOARD`
+          // and `VIEW_COURT_ASSIGNMENTS` are PUBLIC in the model, and this is
+          // the screen somebody standing in the hall reads — so no session and
+          // no narrowing by event type. A camp assigns courts as much as a
+          // tournament does.
+          ["courts", m.tab_courts()],
           ["venues", m.tab_venues()],
           // Tournaments, leagues and showcases are organised by division; a
           // camp is organised by session, which is DEFINE_SESSION_SCHEDULE and
@@ -229,6 +236,7 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
         ))}
       </div>
 
+      {tab === "courts" && <CourtBoard eventId={e.id}/>}
       {tab === "overview" && <EventOverview e={e} goto={goto}/>}
       {tab === "settings" && e.canEdit && <EventSettings event={e}/>}
       {tab === "venues" && <EventVenues eventId={e.id}/>}

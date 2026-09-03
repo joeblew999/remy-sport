@@ -116,8 +116,8 @@ Each pass, in this order:
 Never end a pass having neither ticked a box nor recorded why one cannot be
 ticked. That is the only definition of progress here.
 
-When every box is ticked, or every remaining one is marked **Needs the PO** with
-its reason, say so plainly and stop.
+When every box is ticked, say so plainly and stop. There is no second exit —
+see the standing authority under "Rules for this work".
 
 ## The problem, in one line
 
@@ -443,10 +443,34 @@ repo, and the sync is what brings them here.
 
 ## Rules for this work
 
-- **Nothing invented.** A seeded row is a claim about a real Thai school
-  basketball pilot. If a value cannot be reasoned to from what is already
-  there — a camp's dates, a school's city — it is **Needs the PO**, not a
-  plausible-sounding string.
+### Decide for the Product Owner. That is granted, not assumed.
+
+Standing authority, given 2026-09-03: **there is no "Needs the PO" in this plan.**
+An earlier draft deferred four items — a showcase's fixtures, a suspended
+spectator's ban, avatar images, and the shape of the camp's timetable — and every
+one of them is a decision somebody can make now and state.
+
+AGENTS.md already said this and the first draft ignored it: *"Decide, don't ask.
+Questions put to the user this session returned 'not sure' and 'I have no idea'.
+Choose, say what you chose and why, and move; a wrong decision that is stated is
+cheaper than a question that stalls."*
+
+**What that does not license.** Two rules survive intact, and they are about
+different things:
+
+- **Authoring is fine; fabricating is not.** The seed is already fiction —
+  Thanakorn Suksai is not a real person, and Assumption's U16 roster is invented.
+  Writing a coach's name for `team_005` is more of the same, and is now a
+  decision to make rather than a question to raise.
+- **A value that breaks at runtime is not a judgement call.** `user.image` set to
+  a URL at a host that does not exist renders a broken image in the demo, which
+  is worse than the fallback it replaced. That is not the PO's call and never
+  was — it is a defect wearing a decision's clothes. The same goes for a push
+  endpoint, a verification secret, or anything else minted by a live system.
+
+So: decide, write the reason beside it, and move. If a decision turns out to be
+wrong, the PO changes one row in their repo — which is far cheaper than the
+screen that stayed empty for a week waiting to be asked about.
 - **Names are `names`, and there is no `nameTh`.** A new named row carries `th`
   and `en` at minimum, and `ja` where the existing rows have it.
 - **A column filled is a screen to check.** Filling `event.description` means
@@ -491,16 +515,20 @@ pass can tell whether it is nearly done:
 | 1 | steps in `scripts/check.ts` measuring the seed | 1 |
 | 2 | domain tables with no rows | 6 |
 | 3 | columns never non-null | 51 |
-| 4 | depth invariants unmet | 5 |
+| 4 | parent → child edges with no declared expectation | 39 |
 | 5 | procedures the render tier seeds by hand | ~15 |
 | 6 | ids named in tests that no fixture defines | 8 |
 
-Total: **86 items**, each either closed or declared. There is no phase whose size
+Total: **120 items**, each either closed or declared. There is no phase whose size
 is discovered as it runs.
+
+Phase 4 was "5 invariants" until pass 5 replaced the hand-picked list with the
+schema's own 39 foreign-key edges. That is the single biggest change the plan has
+had, and it went the direction these always go: the honest number is larger.
 
 ### What stops the loop
 
-- Every box ticked, or marked **Needs the PO** with its reason.
+- Every box ticked. Every one of them is decidable; see the standing authority.
 - A hole that needs a schema change — record it, do not build it.
 - The gate green with an exception list every line of which has a reason.
 
@@ -632,15 +660,35 @@ each is a commit in biz before it is a row:
 - [ ] `userNotificationChannel.locale_code` — email locale is a feature with a
       written rule about `Accept-Language`, and no seeded channel has a locale.
       A channel whose owner reads Thai.
-- [ ] `user.image` — **Needs the PO.** Every avatar is a fallback today. A seeded
-      value would be a URL, and there is nothing to point it at; inventing one is
-      the rule this repo states most plainly. Either the PO supplies real images
-      or this is declared with that reason. Do not stall on it.
-- [ ] `user.banned`, `ban_reason`, `ban_expires` — **Needs the PO.** The admin
-      console's ban is built and has never been seen with a banned user.
-      `usr_spectator_002` is already SUSPENDED, and whether that person is *also*
-      banned is a business question: they are two mechanisms, and conflating them
-      would be a third spelling of a status this repo has already been bitten by.
+- [ ] `user.image` — **Decided: declare it, do not fill it.** Not because nobody
+      can choose, but because there is nowhere to point a URL. A seeded avatar at
+      a host that does not exist renders a broken image on every screen showing
+      that person — strictly worse than the fallback it replaced. The exception
+      line reads: *no image hosting exists; the fallback is the product's only
+      path today, and a seeded URL would be a defect rather than a fixture.*
+      Revisit when there is a bucket to put one in.
+- [ ] `user.banned`, `ban_reason`, `ban_expires` — **Decided: ban
+      `usr_spectator_002`**, the person already carrying `status_code`
+      `SUSPENDED`. The admin console's ban is built and has never rendered
+      against a banned row.
+
+      These stay two mechanisms and the seed must say so in the same breath:
+      `banned` is Better Auth's and stops a sign-in; `status_code` is the domain's
+      lifecycle. This row is one person where both happen to be true, which is
+      what you would want of a suspended account — it is **not** an assertion that
+      one implies the other, and nothing should derive one from the other.
+
+      **Checked, so the next person does not have to.** `auth.setup.ts` saves a
+      session per seeded address, but `EVERY_SEEDED_ACTOR` in
+      `tests/helpers/auth.ts:257` already filters out SUSPENDED and DEACTIVATED —
+      so no session is ever saved for `usr_spectator_002` and banning them cannot
+      break the e2e tier.
+
+      It also lands somewhere useful. `tests/worker/write.test.ts:124` already
+      asserts the *domain* refuses a SUSPENDED account. Nothing asserts that
+      Better Auth refuses a **banned** one, because no row is banned. So this
+      fills a column and covers a mechanism in the same commit — which is the
+      test the exception list is supposed to apply to every fill.
 - [ ] `userNotificationChannel.secret` — declare. A verification secret is minted
       at verification time and a fixture one would be a lie about a live value.
 
@@ -649,8 +697,10 @@ each is a commit in biz before it is a row:
 - [ ] `account.access_token`, `refresh_token`, `id_token`, `*_expires_at`,
       `scope`, `password` — no OAuth provider, and `emailAndPassword` is off.
 - [ ] the four runtime tables' columns, from Phase 2.
-- [ ] the remainder, one line each. Anything that resists a one-line reason is
-      **Needs the PO**, not a longer sentence.
+- [ ] the remainder, one line each. Anything that resists a one-line reason is a
+      column somebody has not understood yet — read the table's docstring and the
+      code that writes it, then write the line. A longer sentence is not the
+      answer and neither is deferring it.
 
 **Done when** the count is zero-or-declared, each fill has been looked at on
 screen, and the biz-side items are either landed or listed for the PO with what
@@ -659,7 +709,74 @@ each one unblocks.
 ## Phase 4 — depth: nothing exists alone
 
 Breadth without depth is the seed's actual shape: one fat instance per kind and
-husks around it. Five invariants, each with a screen behind it.
+husks around it.
+
+### "All the way down" is a question the schema already answers
+
+The first draft of this phase listed five invariants I had picked by reading the
+data. That is the same mistake as the guardian row one level up — a hand-chosen
+set of checks, which is exactly what "coverage" is supposed to replace.
+
+**The schema knows what depends on what.** There are **66 foreign keys**, and
+narrowed to the nine entity tables a person actually looks at, **39 parent → child
+relationships**. Each one is a question: *of the rows in the parent, how many have
+the thing that hangs off them?*
+
+Measured today, **6 of 39 are complete for every parent row**:
+
+```
+  0%  event -> eventSession (0/4)      0%  player -> sessionAttendance (0/119)
+  0%  game -> gameBroadcast (0/29)     0%  user -> session (0/14)
+  3%  player -> eventPlayer (3/119)    3%  player -> guardian (4/119)
+  7%  user -> guardian (1/14)         14%  user -> gameReferee (2/14)
+ 14%  user -> player (2/14)           14%  user -> eventCoOrganizer (2/14)
+ 20%  org -> org_member (2/10)        21%  user -> event (3/14)
+ 21%  user -> org_member (3/14)       21%  user -> teamCoach (3/14)
+ 27%  team -> teamCoach (4/15)        29%  user -> subscription (4/14)
+ 30%  org -> event (3/10)             36%  user -> userNotificationPreference (5/14)
+ 50%  event -> eventCoOrganizer (2/4) 50%  event -> eventPlayer (2/4)
+ 50%  event -> game (2/4)             50%  division -> eventTeam (3/6)
+ 50%  division -> eventDivision (3/6) 64%  user -> userNotificationChannel (9/14)
+ 73%  team -> game (11/15)            75%  event -> eventDivision (3/4)
+ 75%  event -> eventTeam (3/4)        75%  venue -> eventVenue (3/4)
+ 75%  venue -> game (3/4)             80%  team -> game (12/15)
+ 90%  org -> team (9/10)             100%  user -> account (14/14)
+100%  team -> eventTeam (15/15)      100%  event -> eventVenue (4/4)
+100%  game -> gameReferee (29/29)    100%  player -> playerTeam (119/119)
+100%  team -> playerTeam (15/15)
+```
+
+### 100% is the wrong target, and that is the point
+
+Most of those low numbers are correct and must stay low. Only some users are
+players — `user -> player` at 14% is the model being true, not a hole. Only
+organisers organise. `user -> session` is written at sign-in and belongs at zero.
+119 children do not all attend one camp in Chiang Mai.
+
+So the target is not a percentage. **Each of the 39 edges gets a declared
+expectation**, and there are only three kinds:
+
+| expectation | meaning | example |
+|---|---|---|
+| `every` | every parent row has at least one | `team -> teamCoach` |
+| `some: n` | at least n parents do, and that is deliberate | `user -> player`, n=3 |
+| `none` | zero by design, with the reason | `user -> session` |
+
+That is the same ratchet as the column gate, on the other axis: **39 questions the
+schema asks, each with a written answer, and a new foreign key arrives as an
+unanswered one.**
+
+- [ ] Derive the 39 edges from the drizzle schema's foreign keys — never a
+      hand-maintained list, or it is the five invariants again with more steps.
+- [ ] Give each an expectation and a reason. This is the bulk of the phase and it
+      is mostly *reading*, not writing data.
+- [ ] Fail on an edge with no expectation. Report on ones that miss theirs.
+- [ ] Then fill what the expectations say is missing.
+
+### The ones already known to need filling
+
+These are the edges whose expectation is plainly `every` and plainly unmet, so
+they can be started before the full 39 are triaged:
 
 ### The seed is not small, it is lopsided
 
@@ -686,10 +803,15 @@ has been read wrong.
       relations resolve against two schools out of ten.
 - [ ] **Every event that runs games has at least two.** `evt_001` has one — a
       standings table built from a single game proves nothing. `evt_003` is a camp
-      and correctly has none; Phase 2 gives it sessions instead. **`evt_004` is
-      the open question**: whether a SHOWCASE runs fixtures at all is the PO's,
-      not something to assume because the column exists. Ask, or leave it and say
-      why.
+      and correctly has none; Phase 2 gives it sessions instead.
+
+      **Decided: a SHOWCASE runs exhibition games, so `evt_004` gets two.** A
+      showcase exists to put players in front of scouts, and players are watched
+      playing — it already carries `eventPlayers`, and two teams, and nothing to
+      do with them. The value beyond realism is that it exercises the schedule for
+      a non-league event type, which nothing does today: 28 of the 29 seeded games
+      belong to one league. If the PO says a showcase is drills and interviews,
+      it is one row to delete.
 - [ ] **Every user has a notification channel and a preference.** 5 users have no
       channel, 9 have no preference. Three separate mechanisms that fail
       independently — following, reachability, per-type preference — and most
@@ -745,10 +867,29 @@ seeded data.
       about seeded data — a crash payload, a no-backend empty state — or delete
       it. `playedCount: 17` where the fixtures say 21 goes away by construction.
 
+### The worker tier is half of this and was missing from the plan
+
+Phase 5 was written as if the render tier were the whole problem. It is not.
+The worker tier names **158 seeded ids across 13 files** — twelve per file — and
+`tests/helpers/fixtures.ts`, which exists precisely to stop that, is imported by
+**four** of them.
+
+It is a smaller job than the render tier because the worker tier reads the real
+database, so its ids are at least *real*. What it hardcodes is arithmetic: a
+count, a list, a "these three teams". That is the fragility the user asked about,
+and it is the failure that actually happened — five tests broke when a league
+grew a fifteenth team, none for a reason connected to what they tested.
+
+- [ ] Every count or list a worker test states goes through a helper in
+      `tests/helpers/fixtures.ts`. Naming `team_001` because the test is *about*
+      `team_001` stays fine — that is the existing rule, not a new one.
+- [ ] Grow that file as the specs need it, rather than adding a second one.
+
 **Done when** every render spec asserting seeded *entity* data imports a
-projection, and the equivalence test covers each procedure they use. The nine
-calls to `standings.list`, `me.mine` and `players.mine` stay written, with the
-reason on the line — that is a pass, not a remainder.
+projection, the equivalence test covers each procedure they use, and no test in
+any tier states a number the fixtures compute. The nine calls to
+`standings.list`, `me.mine` and `players.mine` stay written, with the reason on
+the line — that is a pass, not a remainder.
 
 ## Phase 6 — no test may name a thing that isn't
 
@@ -837,6 +978,60 @@ The test, and it is a real one to run, not a claim to make:
   complained about on 2026-08-30 and which is still empty. Anybody trying to fill
   it would have read a report saying the fixtures and the schema agreed. That
   direction is now the second box of Phase 1.
+
+- **Pass 6 — the four deferrals removed.** Standing authority granted: decide for
+  the Product Owner. The plan had four **Needs the PO** items and every one was
+  decidable, so all four are now decisions with reasons:
+
+  1. **A SHOWCASE runs exhibition games** — `evt_004` gets two. Players are
+     watched playing, it already has two teams and nothing to do with them, and
+     28 of the 29 seeded games belong to one league, so nothing exercises the
+     schedule for another event type. One row to delete if that is wrong.
+  2. **`usr_spectator_002` is banned** — the person already `SUSPENDED`. Checked
+     rather than assumed: `EVERY_SEEDED_ACTOR` filters SUSPENDED and DEACTIVATED,
+     so no e2e session is saved for them and nothing breaks. It also covers a
+     mechanism nothing covers — `write.test.ts` asserts the *domain* refuses a
+     suspended account; nothing asserts Better Auth refuses a **banned** one,
+     because no row is banned.
+  3. **`user.image` stays empty and is declared** — and this is the one where
+     deciding means *not* filling. There is nowhere to host an image, so a seeded
+     URL renders broken on every screen showing that person. That is a defect
+     wearing a decision's clothes, and the distinction now has a rule of its own:
+     authoring a coach's name is fine because the seed is already fiction;
+     inventing a value a live system mints is not.
+  4. **The camp's timetable** — Phase 2 already carried enough constraint (the
+     event's dates, its venue, its three registered players) to write it without
+     asking anybody.
+
+  AGENTS.md had already said "Decide, don't ask" and the first draft ignored it
+  four times. The rule is now stated at the top of "Rules for this work" instead
+  of being assumed, because a plan that has to be *told* it may decide will defer
+  again on the fifth thing.
+
+- **Pass 5 — the plan audited against what was actually asked for, and it fell
+  short in two places.** The ask was "all data and the data that relies on other
+  data is complete", and "the tests" — not "the render tests".
+
+  1. **Phase 4's five invariants were hand-picked.** I read the data, noticed five
+     thin spots, and wrote them down as if that were coverage. It is the guardian
+     row's mistake at the level of the plan: a chosen set of checks standing in
+     for a derived one. **The schema already answers the question** — 66 foreign
+     keys, 39 of them between entity tables a person looks at, each one asking
+     "of the rows in the parent, how many have the thing that hangs off them?"
+     **6 of 39 are complete.** Phase 4 is now derived from that graph, and the
+     target is a *declared expectation per edge* (`every` / `some: n` / `none`)
+     rather than a percentage — because `user -> player` at 14% is the model being
+     true, and 119 children do not all attend one camp.
+  2. **The worker tier had no box at all.** Phase 5 was written as though the
+     render tier were the whole of it. The worker tier names **158 ids across 13
+     files** and imports the helper built to prevent that in **four**. Its ids are
+     at least real, so the exposure is arithmetic rather than fiction — but
+     arithmetic is what actually broke five tests when a league grew a fifteenth
+     team.
+
+  The bound went from 86 items to 120. That is the direction these corrections
+  always go, and a plan whose scope only ever shrinks under inspection is not
+  being inspected.
 
 - **Pass 4 — what "more data" would actually mean, measured.** 434 fixture rows,
   and **239 of them are players and playerTeams** — 55% of the seed is one shape,

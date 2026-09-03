@@ -77,14 +77,14 @@ are read-only.
 
 Read-only, over data that exists, and `ASSIGN_COURTS` already writes it.
 
-- [ ] `games.list` grouped by venue for an event — a tab on the event page, not
+- [x] `games.list` grouped by venue for an event — a tab on the event page, not
       a new route. A court board belongs to the event it is for, the same
       reasoning that keeps standings off a page of their own.
-- [ ] Live status per court, from `game.statusCode`. `VIEW_MATCH_STATUS` is the
+- [x] Live status per court, from `game.statusCode`. `VIEW_MATCH_STATUS` is the
       same data and is answered by this.
-- [ ] Public — `GRANTS` opens all three to PUBLIC, so no session is required.
-- [ ] Render tests: a court with a game in play, a court that is free, and an
-      event with no venues assigned.
+- [x] Public — `GRANTS` opens all three to PUBLIC, so no session is required.
+- [x] Render tests — `tests/render/court-board.spec.ts`, 4 passing: in play with
+      the score, free, next up, and an event with no courts assigned.
 
 ## Phase 2 — results and history
 
@@ -137,6 +137,25 @@ The one that blocks people rather than merely omitting a view.
 - [ ] Nothing deferred silently.
 
 ## Log
+
+- 2026-09-03 — **Phase 1 done.** `components/court-board.tsx`, a tab on the
+  event. Three actions answered — `VIEW_COURT_STATUS_BOARD`,
+  `VIEW_COURT_ASSIGNMENTS` and `VIEW_MATCH_STATUS`, since the board reads
+  `game.statusCode` — with no new data, no new request and no model change.
+  `games.list` already returned each game's venue and status; `ASSIGN_COURTS`
+  had been writing the assignment with nowhere to read it.
+
+  Two decisions, both recorded in the component: games with no venue are left
+  out rather than bucketed under "unassigned", because the board answers "what
+  is on court 2" and a game with no court is not happening anywhere; and a court
+  between games says **Free** rather than rendering an empty cell, which reads
+  as a page that failed to load.
+
+  One correction from the compiler: the fixture said `statusCode: "FINAL"` and
+  the model's vocabulary is `FINISHED`. Typecheck caught the invention before it
+  reached a browser.
+
+  `mise run 2-check` green, 158 render tests.
 
 - 2026-09-03 — written, after `plan-ownership.md` completed and its measurement
   showed 28 actions with no home. Sized against the schema: fifteen need no model
