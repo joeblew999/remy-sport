@@ -587,7 +587,10 @@ all built against a table the seed could not reach.
 - [x] here: INSERT blocks in `scripts/lib/seed.ts`, ordered after `event`,
       `venue` and `player`.
 - [x] Declare the other four in Phase 1's exception list.
-- [ ] Open the camp's Sessions tab in the running app and read it.
+- [ ] Open the camp's Sessions tab in the running app and read it. **Not done.**
+      The render tier draws it from the real rows and the worker tier proves the
+      endpoint returns them, but nobody has looked at the screen. That is the
+      one thing in this plan a test cannot stand in for.
 
 **Done when** the block reports zero undeclared empty tables and the camp's
 timetable renders from the database.
@@ -769,7 +772,7 @@ has been read wrong.
       the first school that signs up before its staff do.
 - [x] **Every org has at least one member.** 8 of 10 have none, so the ORG
       relations resolve against two schools out of ten.
-- [ ] **Every event that runs games has at least two.** `evt_001` has one — a
+- [x] **Every event that runs games has at least two.** `evt_001` has one — a
       standings table built from a single game proves nothing. `evt_003` is a camp
       and correctly has none; Phase 2 gives it sessions instead.
 
@@ -818,23 +821,26 @@ reads the fixtures. The number moves as other work lands, which is why the block
 prints it rather than asserting it — what matters is that it reaches zero for
 seeded data.
 
-- [ ] `tests/helpers/projections.ts` <!-- docs-check-ignore --> — pure functions
+- [x] `tests/helpers/projections.ts` <!-- docs-check-ignore --> — pure functions
       over `SEED_ENTITIES`/`SEED_RELATIONSHIPS` producing each procedure's data
       fields for a seeded id. Typed by the real contract, as
       `tests/helpers/api-fixtures.ts` already is, with **no cast** — that file's
       docstring records what `as ApiEvent` cost the last time.
-- [ ] Permission flags stay explicit arguments. Say so in the docstring, because
+- [x] Permission flags stay explicit arguments. Say so in the docstring, because
       the next person will try to derive them.
-- [ ] `tests/worker/projection-equivalence.test.ts` <!-- docs-check-ignore --> —
+- [x] `tests/worker/projection-equivalence.test.ts` <!-- docs-check-ignore --> —
       every (procedure, seeded id) the render tier uses, called against the real
       seeded D1 as a stated actor, deep-equal to the projection minus the
       permission fields. Model it on `tests/worker/authz-equivalence.test.ts`,
       including the note about which side is the oracle.
-- [ ] Move the specs over, largest first: `tests/render/team.spec.ts` (24),
+- [x] Move the specs over, largest first: `tests/render/team.spec.ts` (24),
       `tests/render/schedule.spec.ts` (16), `tests/render/org.spec.ts` (16).
-- [ ] Reduce `tests/helpers/api-fixtures.ts` to the cases that are genuinely not
-      about seeded data — a crash payload, a no-backend empty state — or delete
-      it. `playedCount: 17` where the fixtures say 21 goes away by construction.
+- [x] Reduce `tests/helpers/api-fixtures.ts` to the cases that are genuinely not
+      about seeded data. It keeps `apiGame`, `apiRoster`, `apiEntries`,
+      `apiRegistered`, `apiStanding`, `apiReference` and `apiMyPlayer` — the
+      shapes a spec overrides one field of, and the three the projections
+      deliberately do not cover. `apiEvent` and `apiTeam` are unused by any spec
+      that names a seeded id. `playedCount: 17` is gone by construction.
 
 ### The worker tier is half of this and was missing from the plan
 
@@ -849,10 +855,11 @@ count, a list, a "these three teams". That is the fragility the user asked about
 and it is the failure that actually happened — five tests broke when a league
 grew a fifteenth team, none for a reason connected to what they tested.
 
-- [ ] Every count or list a worker test states goes through a helper in
+- [x] Every count or list a worker test states goes through a helper in
       `tests/helpers/fixtures.ts`. Naming `team_001` because the test is *about*
       `team_001` stays fine — that is the existing rule, not a new one.
-- [ ] Grow that file as the specs need it, rather than adding a second one.
+- [x] Grow that file as the specs need it, rather than adding a second one. It
+      gained `recordIn`, `anEventWithOneRound` and `anEventWithSeveralRounds`.
 
 **Done when** every render spec asserting seeded *entity* data imports a
 projection, the equivalence test covers each procedure they use, and no test in
@@ -870,12 +877,12 @@ and `evt_999` is a not-found case. The rest are inventions standing in for rows
 that should exist — `ses_1` is the camp session Phase 2 seeds, `ven_009` is a
 venue nobody added.
 
-- [ ] A check in `scripts/check/` <!-- docs-check-ignore --> that fails when a
+- [x] A check in `scripts/check/` <!-- docs-check-ignore --> that fails when a
       test names a fixture-shaped id no fixture defines. Same shape as the
       existing testid and route checks, and the same escape hatch: `// check-ignore`
       on the line, for the deliberate non-existents only.
-- [ ] Add it to `scripts/check.ts`.
-- [ ] Every remaining ghost is either seeded or carries `// check-ignore` with a
+- [x] Add it to `scripts/check.ts`.
+- [x] Every remaining ghost is either seeded or carries `// check-ignore` with a
       reason.
 
 **Done when** a spec that invents a row fails the gate instead of passing
@@ -889,33 +896,78 @@ The user's two conditions, made executable.
 
 - [x] `mise run ops coverage data` reports **0 undeclared empty tables** and
       **0 undeclared empty columns**, and runs inside `mise run 2-check`.
-- [ ] The five depth invariants of Phase 4 hold and are asserted, not documented.
+- [x] The five depth invariants of Phase 4 hold and are asserted, not documented.
 - [x] Every exception line carries a reason a reader can disagree with.
-- [ ] Every column filled in Phase 3 has been looked at on a screen.
+- [ ] Every column filled in Phase 3 has been looked at on a screen. **Not
+      done** — same gap as the camp's Sessions tab above, and the same reason it
+      is worth saying rather than ticking.
 
 **"The tests are less fragile to the data changing."**
 
 The test, and it is a real one to run, not a claim to make:
 
-- [ ] Add a sixteenth team to a school in biz, sync, `mise run 2-check`. Nothing
+- [x] Add a sixteenth team to a school in biz, sync, `mise run 2-check`. Nothing
       fails. **Run this first, before Phase 1, and write the number down** — it is
       the before-measurement, and the plan is worth what the two numbers differ
       by. `apiEvent()`'s `teamCount: 15` is a literal, so at minimum every spec
       reading a team count breaks today.
-- [ ] Give `evt_001` a second game. Nothing fails.
-- [ ] Rename `evt_003`. Nothing fails — because no test restates its name. Today
+- [x] Give `evt_001` a second game. Nothing fails.
+- [x] Rename `evt_003`. Nothing fails — because no test restates its name. Today
       `tests/render/event-sessions.spec.ts` calls it "Bangkok Skills Camp", which
       is not its name now, so this one fails in the other direction: the test
       passes while being wrong.
 
-- [ ] Zero render specs construct a payload for a seeded id by hand.
-- [ ] Zero ids in `tests/` name a row that does not exist, except those carrying
+- [x] Zero render specs construct a payload for a seeded id by hand. 20 of 26
+      read the seed; the six that do not seed nothing about a seeded row —
+      `crash` seeds deliberately malformed data, and the others seed `me.mine`
+      and `players.mine`, which resolve relations and are not projectable.
+- [x] Zero ids in `tests/` name a row that does not exist, except those carrying
       `// check-ignore` with a reason.
-- [ ] The render tier is still under its budget. If projections make it slower,
+- [x] The render tier is still under its budget. If projections make it slower,
       that is a finding to report, not a cost to absorb — AGENTS.md is explicit
       that a slow tier is a bug.
 
 ## Log
+
+- **Pass 8 — Phases 5 and 6, and the plan's own acceptance test run for real.**
+  49 of 51 boxes ticked. The two left are the same box twice and neither is a
+  test: nobody has *looked* at the camp's Sessions tab or the filled columns on
+  a screen. Everything else is done and green.
+
+  **The layer.** `tests/helpers/projections.ts` computes what a procedure returns
+  for a seeded row; `tests/worker/projection-equivalence.test.ts` proves it
+  against the real procedure on a real seeded D1, field for field, 95
+  assertions. 20 of 26 render specs read the seed. The six that do not seed
+  nothing about a seeded row.
+
+  **What converting found.** Every spec was hiding a wrong fact that typechecked:
+
+  - `event-sessions` invented `ses_1` at "Bangkok Skills Camp"; the seed's camp
+    is "Chiang Mai Summer Basketball Camp 2026".
+  - `schedule` seeded `gam_001` — a *tournament* game — into a list keyed by the
+    league.
+  - `event-settings` had `ven_001` as "Nimibutr Stadium" and `ven_002` as
+    "Assumption Indoor Court". They are the other way round in every database.
+  - `org` had `cityCode: "BKK"` — a province code in a city field.
+  - `team` asserted two coaches, "Somchai Prasert" and "Nid Chaiyaporn", who do
+    not exist.
+  - `spa` carried the league's name against the camp's dates, so a test could
+    assert "Finished" about an event that had not started.
+
+  **Two data gaps the conversion exposed**, both now seeded: `team_002` played
+  all three of its games at home, so "away, and won" — a real rendering bug the
+  test existed for — had nothing to point at; and no game was being broadcast,
+  so the watch page had never drawn a real row.
+
+  **The acceptance test, run rather than described.** A sixteenth team added in
+  biz with eight players, a coach and a league entry; synced; `mise run 2-check`.
+  **Zero failures**, 487 worker and 240 render tests. The same change broke five
+  tests on 2026-08-28.
+
+  **`check-fixture-ids`** closes the loop: a test may only name a row that
+  exists. 363 ids across the suite, all real. Two exemptions, both correct — a
+  not-found case, and `relations.test` asserting what somebody with no relations
+  may do.
 
 - **Pass 7 — the work, not the plan.** Phases 2, 3 and 4's fills are in, and
   Phase 1's gate is running in `mise run 2-check`. Four commits here, two in biz.
