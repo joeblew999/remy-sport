@@ -17,7 +17,7 @@
  */
 
 import { run as provision } from "./deploy/provision"
-import { prepare } from "./lib/prepare"
+import { prepare, webWatcherRunning } from "./lib/prepare"
 import { Refused, originOf, resolveTarget, wrangler, type Target } from "./lib/cloudflare"
 
 interface Phase {
@@ -167,7 +167,33 @@ What it runs:
   process.exit(0)
 }
 
+/**
+ * The dev server, stood down for the deploy and put back afterwards.
+ *
+ * The e2e tier reuses whatever is on :8787 (`reuseExistingServer`), which is
+ * the dev server when one is up — still serving the directory its own watcher
+ * rewrites on every save. `check --e2e` refuses to run into that, correctly,
+ * and the first version of this made the refusal the operator's problem: "stop
+ * your dev server, then run this again".
+ *
+ * That is a step a person has to remember, in the middle of the one command
+ * that most needs to be uninterrupted. It is also perfectly mechanical, which
+ * is the definition of something a script should do. Announced, and restored in
+ * `finally` so a failed deploy does not leave the machine without a dev server.
+ *
+ * The render tier needs none of this — it builds its own bundle and shares
+ * nothing (see playwright.render.config.ts). Only e2e is entangled, and only
+ * because reusing a running Worker is the right trade for it.
+ */
+let devWasRunning = false
+
 try {
+  if (webWatcherRunning()) {
+    console.log("deploy: stopping the dev server for the e2e tier — it will be back afterwards")
+    Bun.spawnSync(["bun", "scripts/dev.ts", "stop"], { stdout: "ignore", stderr: "ignore" })
+    devWasRunning = true
+  }
+
   // Inside the boundary, so a missing --env prints the refusal rather than a
   // stack trace. It was at module top level, where nothing could catch it.
   prepare()
@@ -186,7 +212,26 @@ try {
 } catch (err) {
   if (err instanceof Refused) {
     console.error(`\ndeploy: ${err.message}\n`)
+    restoreDev()
     process.exit(1)
   }
+  restoreDev()
   throw err
+} finally {
+  restoreDev()
+}
+
+/**
+ * Put it back, once, whatever happened.
+ *
+ * In `finally` as well as on each failure path because `process.exit` in the
+ * Refused branch would otherwise skip it — a deploy that refused would leave
+ * the machine without the dev server it silently took away, which is a worse
+ * failure than the one being reported.
+ */
+function restoreDev(): void {
+  if (!devWasRunning) return
+  devWasRunning = false
+  console.log("\ndeploy: restarting the dev server")
+  Bun.spawnSync(["bun", "scripts/dev.ts", "ensure"], { stdout: "ignore", stderr: "ignore" })
 }

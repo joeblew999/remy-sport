@@ -1,24 +1,17 @@
 {
   "current": {
-    "_generated": "2026-09-02T09:50:26.108Z",
+    "_generated": "2026-09-03T04:20:49.988Z",
     "app": "0.1.0",
     "environment": "dev",
     "url": "http://localhost:8787",
     "git": {
-      "commit": "283870f",
+      "commit": "f936324",
       "branch": "main",
-      "tag": "283870f",
-      "github": "https://github.com/joeblew999/remy-sport/commit/283870fae859f4a5b9c5dd2bbff39d771ff61dac"
+      "tag": "f936324",
+      "github": "https://github.com/joeblew999/remy-sport/commit/f9363249efb546d799feedc31d2fb88d215fad17"
     }
   },
   "cf_versions": [
-    {
-      "id": "c671f9b3-2516-46de-aca2-a2697aea8608",
-      "number": 64,
-      "created": "2026-09-01T05:35:15.751647Z",
-      "source": "version_upload",
-      "url": null
-    },
     {
       "id": "8aaf838b-2e68-43af-a52d-7e65053f769a",
       "number": 65,
@@ -79,6 +72,13 @@
       "id": "7eeb303d-84e7-4eb1-9686-da0538075937",
       "number": 73,
       "created": "2026-09-02T05:50:20.649931Z",
+      "source": "version_upload",
+      "url": null
+    },
+    {
+      "id": "0966c4c4-d5f9-45b2-901a-9f433c08fea3",
+      "number": 74,
+      "created": "2026-09-03T04:16:02.51795Z",
       "source": "version_upload",
       "url": null
     }
