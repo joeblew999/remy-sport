@@ -35,6 +35,23 @@ import { apiEvent } from "../helpers/api-fixtures"
  */
 const as = (role: Role) => sessionFor(role)
 
+/**
+ * Whether the model grants this reader the platform actions, from the server.
+ *
+ * The console asked `role === "admin"` in the browser until 2026-09-03 — a
+ * second copy of a rule `GRANTS` owns. It reads `me.mine`'s `can` now, so these
+ * specs seed the answer rather than relying on the role string in the session.
+ * Three of them failed the moment the source changed, which is the seam working.
+ */
+const grants = (can: Record<string, boolean>) =>
+  entry(orpc.me.mine, undefined, { holdings: [], can })
+
+/** The platform admin, as the model answers for them. */
+const asPlatformAdmin = grants({ MANAGE_ALL_USERS: true, MODERATE_LISTINGS: true, APPROVE_REFEREE: true })
+
+/** Anybody else. */
+const asNotAdmin = grants({})
+
 /** What `events.list` returns, with the permissions the server decided. */
 const events = (over: { canCreate: boolean; canEdit?: boolean; canDelete?: boolean }) =>
   entry(orpc.events.list, undefined, {
@@ -54,6 +71,7 @@ test.describe("The permission grid reflects what the server granted", () => {
   test("a viewer the server says may write sees the form and the badges", async ({ page }) => {
     await seedCache(page, [
       as("ORGANIZER"),
+      asNotAdmin,
       events({ canCreate: true, canEdit: true, canDelete: true }),
     ])
     await visit(page, "admin")
@@ -65,7 +83,7 @@ test.describe("The permission grid reflects what the server granted", () => {
   })
 
   test("a viewer the server says may only read sees the denial", async ({ page }) => {
-    await seedCache(page, [as("COACH"), events({ canCreate: false })])
+    await seedCache(page, [as("COACH"), asNotAdmin, events({ canCreate: false })])
     await visit(page, "admin")
     await expect(page.getByTestId("create-event-denied")).toBeVisible()
     await expect(page.getByTestId("perm-create")).not.toHaveClass(/badge-success/)
@@ -84,6 +102,7 @@ test.describe("The permission grid reflects what the server granted", () => {
   test("editing without deleting is expressible, and shows no Delete button", async ({ page }) => {
     await seedCache(page, [
       as("ORGANIZER"),
+      asNotAdmin,
       events({ canCreate: true, canEdit: true, canDelete: false }),
     ])
     await visit(page, "admin")
@@ -95,6 +114,7 @@ test.describe("The permission grid reflects what the server granted", () => {
   test("a viewer the server says may delete gets the button", async ({ page }) => {
     await seedCache(page, [
       as("ADMIN"),
+      asPlatformAdmin,
       events({ canCreate: true, canEdit: true, canDelete: true }),
     ])
     await visit(page, "admin")
@@ -102,7 +122,7 @@ test.describe("The permission grid reflects what the server granted", () => {
   })
 
   test("a non-admin sees no account console at all", async ({ page }) => {
-    await seedCache(page, [as("COACH"), events({ canCreate: false })])
+    await seedCache(page, [as("COACH"), asNotAdmin, events({ canCreate: false })])
     await visit(page, "admin")
     await expect(page.getByTestId("role-badge")).toHaveText("coach")
     await expect(page.getByTestId("admin-console")).toHaveCount(0)
@@ -111,6 +131,7 @@ test.describe("The permission grid reflects what the server granted", () => {
   test("the role switcher offers all six actors", async ({ page }) => {
     await seedCache(page, [
       as("ADMIN"),
+      asPlatformAdmin,
       events({ canCreate: true }),
       {
         // `useDevAccounts` — the seeded-accounts list the switcher renders. It
@@ -149,7 +170,7 @@ test.describe("The permission grid reflects what the server granted", () => {
    * show it — the Status column knew only "banned" and "active".
    */
   test("shows an admin who is waiting, and offers to approve them", async ({ page }) => {
-    await seedCache(page, [as("ADMIN"), events({ canCreate: true })])
+    await seedCache(page, [as("ADMIN"), asPlatformAdmin, events({ canCreate: true })])
     await page.route("**/api/auth/admin/list-users**", (route) =>
       route.fulfill({
         status: 200,
@@ -172,7 +193,7 @@ test.describe("The permission grid reflects what the server granted", () => {
     // APPROVE_REFEREE is "approve a referee", not "set a status". An active
     // coach is neither waiting nor a referee, so there is nothing to approve —
     // and a control that appears there would be offering a 400.
-    await seedCache(page, [as("ADMIN"), events({ canCreate: true })])
+    await seedCache(page, [as("ADMIN"), asPlatformAdmin, events({ canCreate: true })])
     await page.route("**/api/auth/admin/list-users**", (route) =>
       route.fulfill({
         status: 200,
@@ -201,7 +222,7 @@ test.describe("The permission grid reflects what the server granted", () => {
    * which is also what makes it translated.
    */
   test("a suspended account does not read as active", async ({ page }) => {
-    await seedCache(page, [as("ADMIN"), events({ canCreate: true })])
+    await seedCache(page, [as("ADMIN"), asPlatformAdmin, events({ canCreate: true })])
     await page.route("**/api/auth/admin/list-users**", (route) =>
       route.fulfill({
         status: 200,

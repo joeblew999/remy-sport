@@ -28,7 +28,7 @@ import { useLocale } from "../lib/locale";
 import { api, orpc } from "../lib/orpc";
 import { useAccounts, useAdminAction, useDevAccounts, useRequestCode, useVerifyCode, codeFromOutbox, signOutSilently } from "../lib/auth";
 import { useSession } from "../lib/session";
-import { useTeams } from "../lib/data";
+import { useCan, useTeams } from "../lib/data";
 import type { Route } from "../lib/router";
 
 const ROLES = ["admin", "organizer", "coach", "player", "spectator", "referee"] as const;
@@ -64,7 +64,19 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
   }, [loading, user, goto]);
 
   const role = user?.role || "user";
-  const isAdmin = role === "admin";
+  /**
+   * The model's answer, not a role string read in the browser.
+   *
+   * This was `role === "admin"`, which is a second copy of a rule `GRANTS`
+   * already holds — `MANAGE_ALL_USERS` is granted to PLATFORM_ADMIN there. The
+   * two can disagree, and the note on `events.list`'s `canCreate` records that
+   * they already did once: the console "decided this from a role table copied
+   * into the client, which is a second answer to a question the model already
+   * answers".
+   *
+   * `role` survives below only for display — showing a person what they are.
+   */
+  const { data: isAdmin } = useCan("MANAGE_ALL_USERS");
 
   const events = useQuery(orpc.events.list.queryOptions());
 

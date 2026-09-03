@@ -65,12 +65,8 @@ export interface EventFilters {
  * joined.
  */
 export function useHoldings() {
-  return useQuery(
-    orpc.me.mine.queryOptions({
-      staleTime: 10 * 60 * 1000,
-      select: ({ holdings }) => holdings,
-    }),
-  );
+  const q = useQuery(orpc.me.mine.queryOptions({ staleTime: 10 * 60 * 1000 }));
+  return { ...q, holdings: q.data?.holdings ?? [], can: q.data?.can };
 }
 
 /**
@@ -84,12 +80,24 @@ export function useHoldings() {
  * teams, events and organisations that list is every row there will ever be, so
  * there is no second request.
  */
+/**
+ * Whether the model grants you a platform-wide action.
+ *
+ * `MANAGE_ALL_USERS`, `MODERATE_LISTINGS`, `APPROVE_REFEREE` — the ones with no
+ * object to act upon. The admin console derived these from `role === "admin"`,
+ * which is a second copy of a rule `GRANTS` already holds; this asks instead.
+ *
+ * False while the answer is unknown, which is the safe direction: a console that
+ * flickers into view and back out is worse than one that appears a moment late.
+ */
+export function useCan(action: string) {
+  const q = useHoldings();
+  return { ...q, data: Boolean(q.can?.[action]) };
+}
+
 export function useMine(type: "EVENT" | "TEAM" | "PLAYER" | "GAME" | "ORG") {
   const q = useHoldings();
-  return {
-    ...q,
-    data: (q.data ?? []).filter((h) => h.type === type),
-  };
+  return { ...q, data: q.holdings.filter((h) => h.type === type) };
 }
 
 export function useMyEvents() {

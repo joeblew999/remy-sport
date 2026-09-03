@@ -392,12 +392,16 @@ procedure returns the wrong person's things.
 - [x] `src/web/pages/team.tsx` — three answers, not one: none, one, several.
       Coach_001 holds two teams in the seed, so picking the first of *your*
       teams would be the original bug with a better source. It lists them.
-- [ ] `src/web/pages/event.tsx:47` — `allEvents?.[0]`, the same bug found by the
+- [x] `src/web/pages/event.tsx` — `allEvents?.[0]` **deleted**, rule 1: nothing
+      links to `#/event` without an id, so the fallback gave a meaning to a URL
+      nobody produces, and gave it the wrong one. It also removed an
+      `events.list` request — the whole platform's events — from every event
+      page. Was: the same bug found by the
       DoD check on 2026-09-03. `#/event` with no id shows whichever event is
       first. Rule 1 applies — the sidebar does not link to `#/event` with no id,
       so it claims a destination that has no meaning. Delete the no-id case; a
       bare `#/event` resolves to `not-found`, which now has a screen.
-- [ ] `src/web/pages/admin.tsx:67` — `role === "admin"`. The GUI deciding
+- [x] `src/web/pages/admin.tsx` — `useCan("MANAGE_ALL_USERS")`. Was `role === "admin"`. The GUI deciding
       admin-ness rather than asking. The API already answers this; the console
       previously "decided this from a role table copied into the client", which
       `events.list`'s `canCreate` comment records as the reason that field
@@ -654,6 +658,26 @@ each, no box, no work — they exist so they are not lost and not followed.
 - AGENTS.md is 674 lines with 114 bolded, against guidance of 150-200.
 
 ### Passes
+
+- **Pass 3 — the two bugs the grep found.** `#/event` with no id deleted rather
+  than fixed: nothing in the repo links there, so rule 1 applies, and it took an
+  `events.list` request off every event page with it. The admin console asks
+  `useCan("MANAGE_ALL_USERS")` instead of reading `role === "admin"` — the model
+  answers platform grants now, carried on `me.mine` rather than a new endpoint.
+
+  Three things worth recording:
+
+  1. **I ran `bun x vite build` by hand**, which AGENTS.md forbids in as many
+     words, to read a build error. It used no config, failed differently, and
+     sent me looking for damage that was not there. The rule is in that file
+     because this exact confusion is what it costs.
+  2. **The build broke on a duplicate `useCan` import** that typecheck passed —
+     a scripted edit inserted it into two import lines. The bundler caught what
+     `tsc` did not.
+  3. **Three admin render specs failed the moment the source of truth moved**,
+     because they seeded a role and the console now reads a grant. That is the
+     seam working: the tests were pinned to the old decision, and changing where
+     the decision lives is supposed to break them.
 
 - **Pass 2 — Phase 2 complete** except the two bugs the grep found, which are
   still open. Counts unchanged, grep still 15.

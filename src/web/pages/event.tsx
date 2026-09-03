@@ -9,7 +9,7 @@ import { downloadICS } from "../lib/calendar";
 import { FollowButton } from "../components/follow";
 import { Schedule, AddFixture } from "../components/schedule";
 import { Entries } from "../components/entries";
-import { useEvent, useEvents, useGames, useStandings } from "../lib/data";
+import { useEvent, useGames, useStandings } from "../lib/data";
 import type { Event } from "../data";
 import type { Route } from "../lib/router";
 import { useLocale } from "../lib/locale";
@@ -40,11 +40,24 @@ interface EventProps {
 export function EventPage({ id, goto, spoiler }: EventProps) {
   const { reference, name } = useLocale();
   const { data: event, isPending: eventLoading } = useEvent(id);
-  const { data: allEvents, isPending: listLoading } = useEvents();
   const [tab, setTab] = useState<EventTab>("overview");
 
-  // `#/event` with no id shows whichever event sorts first, as it always has.
-  const e = id ? event : allEvents?.[0];
+  /**
+   * An event or nothing. No fallback to whichever sorts first.
+   *
+   * `#/event` with no id used to render `allEvents[0]` — the same bug as
+   * "My team", found by the plan's own grep rather than reported. Nothing links
+   * here without an id: not the sidebar, not any `goto`, nothing in the repo. So
+   * the fallback existed only to give a meaning to a URL nobody produces, and it
+   * gave it the wrong one.
+   *
+   * Deleted rather than fixed, per rule 1 of docs/plan-ownership.md: a surface
+   * claiming something it cannot deliver is worse than a missing one. A bare
+   * `#/event` now falls through to "that event does not exist", which is true.
+   * It also removes a whole `events.list` request from every event page — the
+   * entire platform's events, fetched to render one of them.
+   */
+  const e = id ? event : undefined;
 
   // The games count, from the games. Cached, and the schedule tab subscribes to
   // the same key — so opening it costs nothing extra.
@@ -55,7 +68,7 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
   // Both accessors are async now, so the page has render states it did not
   // have when the data was a module-level constant. Hooks above run
   // unconditionally; only the output below is short-circuited.
-  if (id ? eventLoading : listLoading) {
+  if (id && eventLoading) {
     return <div className="empty">{m.loading_event()}</div>;
   }
   if (!e) {

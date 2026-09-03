@@ -32,9 +32,9 @@
  * event, which is one query and already exists.
  */
 import { z } from "zod"
-import { authed, infrastructure } from "./base"
+import { authed, can, infrastructure } from "./base"
 import { objectsHeldBy } from "./relations"
-import { RELATION } from "../domain/vocabularies"
+import { ACTION, GRANTS, RELATION } from "../domain/vocabularies"
 
 /**
  * Every relation a person can hold on a specific thing, read off the model.
@@ -56,6 +56,24 @@ const HELD = RELATION.filter((r) => r.via === "table").map((r) => ({
   type: r.objectTypeCode,
 }))
 
+/**
+ * The platform-wide actions, derived — not a list somebody typed.
+ *
+ * These are the grants with no object to act upon: may I manage users, moderate
+ * listings, approve a referee, create an event. The admin console decided this
+ * itself with `role === "admin"`, which is a second copy of a rule the model
+ * owns — `MANAGE_ALL_USERS` is granted to PLATFORM_ADMIN there, and a screen
+ * re-deriving it from a role string is how the two come to disagree.
+ *
+ * `events.list` already carries `canCreate` for exactly this reason, and its
+ * note says so: the admin console "decided this from a role table copied into
+ * the client, which is a second answer to a question the model already
+ * answers".
+ */
+const PLATFORM_ACTIONS = ACTION.filter(
+  (a) => a.objectTypeCode === "PLATFORM" && a.code in GRANTS,
+).map((a) => a.code as keyof typeof GRANTS)
+
 const Holding = z.object({
   /** EVENT, TEAM, PLAYER, GAME or ORG — the model's own object type. */
   type: z.string(),
@@ -70,7 +88,13 @@ export const mine = authed
     path: "/me/mine",
     summary: "Everything I am connected to, and how",
   })
-  .output(z.object({ holdings: z.array(Holding) }))
+  .output(
+    z.object({
+      holdings: z.array(Holding),
+      /** Platform actions this person holds — no object, so no id to check. */
+      can: z.record(z.string(), z.boolean()),
+    }),
+  )
   /**
    * `infrastructure`, because there is no object here to act upon.
    *
@@ -101,9 +125,16 @@ export const mine = authed
     const found = await Promise.all(
       HELD.map((r) => objectsHeldBy(context.db, r.code, context.user.id)),
     )
+    // The platform grants, in parallel with the relations. `can(..., null)`
+    // resolves these against the model rather than against a role string.
+    const allowed = await Promise.all(
+      PLATFORM_ACTIONS.map((a) => can(context.db, a, context.user, null)),
+    )
+
     return {
       holdings: HELD.flatMap((r, i) =>
         found[i]!.map((id) => ({ type: r.type, id, relation: r.code })),
       ),
+      can: Object.fromEntries(PLATFORM_ACTIONS.map((a, i) => [a, allowed[i]!])),
     }
   })

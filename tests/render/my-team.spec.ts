@@ -49,12 +49,15 @@ const teams = [
 /** What `me.mine` returns: ids and how they are held, never rows. */
 const holding = (id: string, type = "TEAM", relation = "HEAD_COACH") => ({ type, id, relation })
 
+/** The whole response. `can` is the platform grants; no test here reads them. */
+const mine = (holdings: ReturnType<typeof holding>[]) => ({ holdings, can: {} })
+
 test.describe("My team", () => {
   test("shows the team you hold, and not the one you do not", async ({ page }) => {
     await seedCache(page, [
       sessionFor("COACH"),
       entry(orpc.teams.list, undefined, { teams }),
-      entry(orpc.me.mine, undefined, { holdings: [holding(ASSUMPTION)] }),
+      entry(orpc.me.mine, undefined, mine([holding(ASSUMPTION)])),
     ])
     await visit(page, "team")
 
@@ -68,7 +71,7 @@ test.describe("My team", () => {
     await seedCache(page, [
       sessionFor("COACH"),
       entry(orpc.teams.list, undefined, { teams }),
-      entry(orpc.me.mine, undefined, { holdings: [holding(ASSUMPTION), holding(TRIAM)] }),
+      entry(orpc.me.mine, undefined, mine([holding(ASSUMPTION), holding(TRIAM)])),
     ])
     await visit(page, "team")
 
@@ -82,7 +85,7 @@ test.describe("My team", () => {
     await seedCache(page, [
       sessionFor("SPECTATOR"),
       entry(orpc.teams.list, undefined, { teams }),
-      entry(orpc.me.mine, undefined, { holdings: [] }),
+      entry(orpc.me.mine, undefined, mine([])),
     ])
     await visit(page, "team")
 
@@ -98,7 +101,7 @@ test.describe("My team", () => {
       sessionFor("SPECTATOR"),
       entry(orpc.teams.get, { id: TRIAM }, teams[1]!),
       entry(orpc.teams.list, undefined, { teams }),
-      entry(orpc.me.mine, undefined, { holdings: [] }),
+      entry(orpc.me.mine, undefined, mine([])),
     ])
     await visit(page, "team", { id: TRIAM })
 
