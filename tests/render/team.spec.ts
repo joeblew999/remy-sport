@@ -2,8 +2,8 @@ import { test, expect } from "./fixture"
 import { sessionFor } from "../helpers/actors"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { apiGame, apiRoster, type ApiGame, type ApiRoster } from "../helpers/api-fixtures"
-import { apiTeam } from "../helpers/api-fixtures"
+import { type ApiGame, type ApiRoster } from "../helpers/api-fixtures"
+import { projectGame, projectRoster, projectTeam } from "../helpers/projections"
 
 /**
  * Rendering, with the cache handed its data instead of the network.
@@ -25,13 +25,22 @@ import { apiTeam } from "../helpers/api-fixtures"
  */
 
 /**
- * From the shared factory, typed, no cast.
+ * The team, read off the seed rather than described.
  *
  * This was a character-for-character copy of `apiTeam`'s body ending in
- * `as never` — so the factory written to stop fixture drift was dead code while
- * the drift it prevents sat in the file next door.
+ * `as never`, then a call to that factory whose defaults were Triam Udom's — so
+ * a test naming a different team had to restate its school, its city and its
+ * division, and one that forgot left `team_001` called "Assumption" at "Triam
+ * Udom Suksa School".
+ *
+ * `projectTeam` takes the id and there is nothing else to state. What it returns
+ * is proven equal to the real procedure by
+ * tests/worker/projection-equivalence.test.ts.
  */
-const team = (over: Partial<Parameters<typeof apiTeam>[0]> = {}) => apiTeam(over)
+const team = (id: string, rights: { canEdit?: boolean } = {}) => projectTeam(id, rights)
+
+/** The seeded team this file is mostly about: Triam Udom's U18 girls. */
+const TEAM = "team_002"
 
 /**
  * One game as `games.list` returns it.
@@ -45,18 +54,11 @@ const team = (over: Partial<Parameters<typeof apiTeam>[0]> = {}) => apiTeam(over
  * so neither the missing half nor a mistyped override was ever going to be
  * noticed.
  */
-const game = (over: Partial<ApiGame>) =>
-  apiGame({
-    eventId: "evt_002",
-    venueId: "ven_004",
-    venueNames: { en: "Triam Udom Indoor Court" },
-    startsAt: "2026-06-14T12:00:00Z",
-    ...over,
-  })
+const game = (over: Partial<ApiGame>) => ({ ...projectGame("gam_002"), ...over })
 
 test.describe("Team page renders what the API returned", () => {
   test("shows the team, its school and its division", async ({ page }) => {
-    await seedCache(page, [entry(orpc.teams.get, { id: "team_002" }, team())])
+    await seedCache(page, [entry(orpc.teams.get, { id: TEAM }, team(TEAM))])
 
     await visit(page, "team", { id: "team_002" })
     await expect(page.getByTestId("team-name")).toHaveText("Triam Udom U18 Girls")
@@ -66,30 +68,24 @@ test.describe("Team page renders what the API returned", () => {
 
   test("a different id renders a different team", async ({ page }) => {
     await seedCache(page, [
-      entry(
-        orpc.teams.get,
-        { id: "team_003" },
-        team({
-          id: "team_003",
-          name: "Montfort U16 Boys",
-          names: { en: "Montfort U16 Boys" },
-          orgName: "Montfort College",
-          orgNames: { en: "Montfort College" },
-          orgCityCode: "CHIANG_MAI",
-          ageGroupCode: "U16",
-          genderCode: "M",
-        }),
-      ),
+      // Nothing but the id. Restating the school, city and division was how a
+      // fixture once had team_001 called "Assumption" at "Triam Udom Suksa
+      // School" — the negative assertion then failed against a page that was
+      // right.
+      entry(orpc.teams.get, { id: "team_003" }, team("team_003")),
     ])
 
     await visit(page, "team", { id: "team_003" })
     await expect(page.getByTestId("team-name")).toHaveText("Montfort U16 Boys")
+    // ...and it is genuinely a different school, not the same one relabelled.
+    await expect(page.locator(".team-hero")).toContainText("Montfort College")
+    await expect(page.locator(".team-hero")).not.toContainText("Triam Udom")
   })
 
   test("record shows a placeholder, not an invented win-loss", async ({ page }) => {
     // No games table exists yet, so "4–0" must not reappear as if it were real.
     // AGENTS.md: never invent a value for a field with no table.
-    await seedCache(page, [entry(orpc.teams.get, { id: "team_002" }, team())])
+    await seedCache(page, [entry(orpc.teams.get, { id: TEAM }, team(TEAM))])
 
     await visit(page, "team", { id: "team_002" })
     await expect(page.locator(".team-hero")).toContainText("RECORD")
@@ -104,17 +100,20 @@ test.describe("Team page, the rest", () => {
    */
   test("the roster renders the squad it was given, without inventing stats", async ({ page }) => {
     await seedCache(page, [
-      entry(orpc.teams.get, { id: "team_002" }, team()),
-      entry(orpc.teams.roster, { teamId: "team_002" }, apiRoster({
-        players: [
-          { playerId: "ply_002", names: { en: "Kanya T." }, jerseyNumber: 7, positionCode: "SG", fromDate: "2026-01-01" },
-        ],
-      })),
+      entry(orpc.teams.get, { id: TEAM }, team(TEAM)),
+      entry(orpc.teams.roster, { teamId: TEAM }, projectRoster(TEAM)),
     ])
-    await visit(page, "team", { id: "team_002" })
+    await visit(page, "team", { id: TEAM })
 
-    await expect(page.getByTestId("player-ply_002")).toContainText("Kanya T.")
-    await expect(page.getByTestId("player-ply_002")).toContainText("7")
+    // The team's real squad, so this asserts what a reader sees rather than a
+    // one-player fixture. Derived, so a roster change does not edit the test.
+    const squad = projectRoster(TEAM).players
+    expect(squad.length, "team_002 should have a seeded squad").toBeGreaterThan(0)
+    for (const player of squad) {
+      const row = page.getByTestId(`player-${player.playerId}`)
+      await expect(row).toContainText(player.names.en!)
+      await expect(row).toContainText(String(player.jerseyNumber))
+    }
     // No per-game averages: there is no stats table, so the numbers the old
     // fixture showed are absent rather than invented again.
     await expect(page.getByTestId("roster")).not.toContainText("PPG")
@@ -123,16 +122,17 @@ test.describe("Team page, the rest", () => {
 
   test("an empty roster says so rather than rendering nothing", async ({ page }) => {
     await seedCache(page, [
-      entry(orpc.teams.get, { id: "team_002" }, team()),
-      entry(orpc.teams.roster, { teamId: "team_002" }, apiRoster()),
+      entry(orpc.teams.get, { id: TEAM }, team(TEAM)),
+      // Empty on purpose: a team whose squad has not been entered yet.
+      entry(orpc.teams.roster, { teamId: TEAM }, { ...projectRoster(TEAM), players: [] }),
     ])
-    await visit(page, "team", { id: "team_002" })
+    await visit(page, "team", { id: TEAM })
     await expect(page.getByTestId("roster-empty")).toBeVisible()
   })
 
   test("the schedule is this team's real games, seen from their end", async ({ page }) => {
     await seedCache(page, [
-      entry(orpc.teams.get, { id: "team_002" }, team()),
+      entry(orpc.teams.get, { id: TEAM }, team(TEAM)),
       entry(
         orpc.games.list,
         { teamId: "team_002" },
@@ -187,8 +187,8 @@ test.describe("Team page, the rest", () => {
 
   test("says so when a team has no fixtures, rather than inventing a season", async ({ page }) => {
     await seedCache(page, [
-      entry(orpc.teams.get, { id: "team_002" }, team()),
-      entry(orpc.games.list, { teamId: "team_002" }, { viewerTimezone: null, games: [] }),
+      entry(orpc.teams.get, { id: TEAM }, team(TEAM)),
+      entry(orpc.games.list, { teamId: TEAM }, { viewerTimezone: null, games: [] }),
     ])
     await visit(page, "team", { id: "team_002" })
     await expect(page.locator(".fixture-row")).toHaveCount(0)
@@ -202,18 +202,19 @@ test.describe("Team page, the rest", () => {
  * asked per team — not on anything the page works out about the viewer.
  */
 test.describe("Squad management", () => {
-  const roster = (over: Partial<ApiRoster>) =>
-    apiRoster({
-      players: [
-        { playerId: "ply_002", names: { en: "Kanya T." }, jerseyNumber: 7, positionCode: "SG", fromDate: "2026-01-01" },
-      ],
-      ...over,
-    })
+  /**
+   * The team's real squad, with whatever this test is about laid over it.
+   *
+   * `available` is the one thing that cannot derive: it is the server's answer
+   * about who *this reader* could add, so a spec that is about adding somebody
+   * states them.
+   */
+  const roster = (over: Partial<ApiRoster>) => ({ ...projectRoster(TEAM), ...over })
 
   const show = async (page: Parameters<typeof seedCache>[0], data: ApiRoster) => {
     await seedCache(page, [
-      entry(orpc.teams.get, { id: "team_002" }, team()),
-      entry(orpc.teams.roster, { teamId: "team_002" }, data),
+      entry(orpc.teams.get, { id: TEAM }, team(TEAM)),
+      entry(orpc.teams.roster, { teamId: TEAM }, data),
     ])
     await visit(page, "team", { id: "team_002" })
   }
@@ -225,13 +226,23 @@ test.describe("Squad management", () => {
   })
 
   test("a coach can remove a player and add one who is not on the squad", async ({ page }) => {
+    // Somebody actually on this squad, and somebody actually on another one —
+    // `ply_002` was neither, having left team_001 in March and never been here.
+    const onSquad = projectRoster(TEAM).players[0]!
+    const elsewhere = projectRoster("team_003").players[0]!
     await show(page, roster({
       canManage: true,
-      available: [{ playerId: "ply_003", names: { en: "Nong P." }, jerseyNumber: 11 }],
+      available: [
+        {
+          playerId: elsewhere.playerId,
+          names: elsewhere.names,
+          jerseyNumber: elsewhere.jerseyNumber,
+        },
+      ],
     }))
     await expect(page.getByTestId("manage-roster")).toBeVisible()
-    await expect(page.getByTestId("remove-player-ply_002")).toBeVisible()
-    await expect(page.getByTestId("add-player-select")).toContainText("Nong P.")
+    await expect(page.getByTestId(`remove-player-${onSquad.playerId}`)).toBeVisible()
+    await expect(page.getByTestId("add-player-select")).toContainText(elsewhere.names.en!)
   })
 
   test("says so when there is nobody left to add", async ({ page }) => {
@@ -314,8 +325,8 @@ test.describe("A team's details", () => {
    */
   test("offers no form to someone who may not edit", async ({ page }) => {
     await seedCache(page, [
-      entry(orpc.teams.get, { id: "team_002" }, team({ canEdit: false })),
-      entry(orpc.teams.roster, { teamId: "team_002" }, apiRoster()),
+      entry(orpc.teams.get, { id: TEAM }, team(TEAM, { canEdit: false })),
+      entry(orpc.teams.roster, { teamId: TEAM }, projectRoster(TEAM)),
     ])
     await visit(page, "team", { id: "team_002" })
 
@@ -325,8 +336,8 @@ test.describe("A team's details", () => {
 
   test("prefills from what is stored, for a coach", async ({ page }) => {
     await seedCache(page, [
-      entry(orpc.teams.get, { id: "team_002" }, team({ canEdit: true })),
-      entry(orpc.teams.roster, { teamId: "team_002" }, apiRoster()),
+      entry(orpc.teams.get, { id: TEAM }, team(TEAM, { canEdit: true })),
+      entry(orpc.teams.roster, { teamId: TEAM }, projectRoster(TEAM)),
     ])
     await visit(page, "team", { id: "team_002" })
 
@@ -341,12 +352,10 @@ test.describe("A team's details", () => {
     // and Japanese names, and nobody reading an English page ever notices.
     let sent = ""
     await seedCache(page, [
-      entry(
-        orpc.teams.get,
-        { id: "team_002" },
-        team({ canEdit: true, names: { en: "Triam Udom U18 Girls", th: "เตรียมอุดม U18 หญิง" } }),
-      ),
-      entry(orpc.teams.roster, { teamId: "team_002" }, apiRoster()),
+      // The seeded team is already bilingual, which is the whole premise: the
+      // Thai name has to survive a save made from the English page.
+      entry(orpc.teams.get, { id: TEAM }, team(TEAM, { canEdit: true })),
+      entry(orpc.teams.roster, { teamId: TEAM }, projectRoster(TEAM)),
     ])
     await page.route("**/rpc/**", async (route) => {
       if (!route.request().url().includes("teams/update")) return route.fallback()
@@ -354,7 +363,7 @@ test.describe("A team's details", () => {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ json: team({ canEdit: true }) }),
+        body: JSON.stringify({ json: team(TEAM, { canEdit: true }) }),
       })
     })
 
@@ -364,7 +373,7 @@ test.describe("A team's details", () => {
 
     await expect.poll(() => sent, { message: "save must reach the server" }).not.toBe("")
     expect(sent).toContain("Triam Udom Girls")
-    expect(sent, "the Thai name must survive").toContain("เตรียมอุดม U18 หญิง")
+    expect(sent, "the Thai name must survive").toContain(projectTeam(TEAM).names.th!)
   })
 })
 
@@ -375,8 +384,8 @@ test.describe("The team hero's buttons", () => {
     // control: pressing it and getting nothing reads as the app being broken.
     // Stats was deleted outright — the model has no per-player statistics.
     await seedCache(page, [
-      entry(orpc.teams.get, { id: "team_002" }, team()),
-      entry(orpc.teams.roster, { teamId: "team_002" }, apiRoster()),
+      entry(orpc.teams.get, { id: TEAM }, team(TEAM)),
+      entry(orpc.teams.roster, { teamId: TEAM }, projectRoster(TEAM)),
     ])
     await visit(page, "team", { id: "team_002" })
 
@@ -396,33 +405,36 @@ test.describe("Coaching staff", () => {
    * a gym wall shows, the adults responsible for them are not — so the page has
    * two empty states that mean different things and must not be confused.
    */
-  const withCoaches = apiRoster({
-    coaches: [
-      { userId: "u1", name: "Somchai Prasert", coachRoleCode: "HEAD" },
-      { userId: "u2", name: "Nid Chaiyaporn", coachRoleCode: "ASSISTANT" },
-    ],
-  })
+  /**
+   * team_001, because it is the seeded team with both a head coach and an
+   * assistant — Wichai Srisuk and Pranom Chaiyo, the two roles this asserts.
+   * The invented `u1`/`u2` it used to carry named nobody.
+   */
+  const COACHED = "team_001"
+  const withCoaches = projectRoster(COACHED, { signedIn: true })
+  const head = withCoaches.coaches.find((c) => c.coachRoleCode === "HEAD")!
+  const assistant = withCoaches.coaches.find((c) => c.coachRoleCode === "ASSISTANT")!
 
   test("names them, with the role in the reader's language", async ({ page }) => {
     await seedCache(page, [
-      entry(orpc.teams.get, { id: "team_002" }, team()),
-      entry(orpc.teams.roster, { teamId: "team_002" }, withCoaches),
+      entry(orpc.teams.get, { id: COACHED }, team(COACHED)),
+      entry(orpc.teams.roster, { teamId: COACHED }, withCoaches),
       sessionFor("SPECTATOR"),
     ])
-    await visit(page, "team", { id: "team_002" })
+    await visit(page, "team", { id: COACHED })
 
-    await expect(page.getByTestId("coach-u1")).toContainText("Somchai Prasert")
+    await expect(page.getByTestId(`coach-${head.userId}`)).toContainText(head.name)
     // From the reference vocabulary, not a map of role codes in the page.
-    await expect(page.getByTestId("coach-u1")).toContainText("Head Coach")
-    await expect(page.getByTestId("coach-u2")).toContainText("Assistant Coach")
+    await expect(page.getByTestId(`coach-${head.userId}`)).toContainText("Head Coach")
+    await expect(page.getByTestId(`coach-${assistant.userId}`)).toContainText("Assistant Coach")
   })
 
   test("tells a signed-out reader why the list is empty", async ({ page }) => {
     // Not the same as "this team has no coaches", and the page must not say
     // that — it would be stating as fact something it was refused.
     await seedCache(page, [
-      entry(orpc.teams.get, { id: "team_002" }, team()),
-      entry(orpc.teams.roster, { teamId: "team_002" }, { ...withCoaches, coaches: [] }),
+      entry(orpc.teams.get, { id: TEAM }, team(TEAM)),
+      entry(orpc.teams.roster, { teamId: TEAM }, { ...withCoaches, coaches: [] }),
     ])
     await visit(page, "team", { id: "team_002" })
 
@@ -432,8 +444,8 @@ test.describe("Coaching staff", () => {
 
   test("says so when a signed-in reader genuinely sees none", async ({ page }) => {
     await seedCache(page, [
-      entry(orpc.teams.get, { id: "team_002" }, team()),
-      entry(orpc.teams.roster, { teamId: "team_002" }, { ...withCoaches, coaches: [] }),
+      entry(orpc.teams.get, { id: TEAM }, team(TEAM)),
+      entry(orpc.teams.roster, { teamId: TEAM }, { ...withCoaches, coaches: [] }),
       sessionFor("SPECTATOR"),
     ])
     await visit(page, "team", { id: "team_002" })
