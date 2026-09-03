@@ -11,6 +11,13 @@ interface Props {
   goto: (r: Route) => void;
 }
 
+/**
+ * @answers SPOILER_MODE
+ *
+ * The same toggle as the live page's spoiler bar, in the chrome, so a reader
+ * who is about to open a result can turn it on before they do rather than
+ * after.
+ */
 export function Topbar({ spoiler, setSpoiler, onMenu, goto }: Props) {
   const { locale, setLocale, available } = useLocale();
   return (

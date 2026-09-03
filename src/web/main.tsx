@@ -102,6 +102,15 @@ function PendingApprovalNotice() {
   );
 }
 
+/**
+ * @answers INSTALL_APP
+ *
+ * `<pwa-install>`, in a browser only — never inside Tauri, where the reader
+ * already has the native app. It asks at the moment the browser says
+ * installing is possible, which a button in the chrome could not: that would
+ * be always visible, correct only sometimes, and unable to tell whether the
+ * app is already installed.
+ */
 function App() {
   const tweaks = { ...DEFAULTS, ...(window.TWEAK_DEFAULTS ?? {}) } as Required<TweakDefaults>;
   const { route, goto, setParam } = useRouter();

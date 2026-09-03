@@ -25,9 +25,11 @@ interface LiveProps {
 }
 
 /**
- * @answers VIEW_LIVE_SCORES
+ * @answers VIEW_LIVE_SCORES, SPOILER_MODE
  *
- * Scores as they happen.
+ * Scores as they happen, and the choice not to see them yet. The spoiler bar
+ * hides the score and nothing else — a reader who came for the fixture still
+ * gets it.
  */
 export function LivePage({ goto, spoiler, setSpoiler }: LiveProps) {
   const { data, isPending } = useLiveGames();

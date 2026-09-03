@@ -1,7 +1,17 @@
 import { test, expect } from "./fixture"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { apiEntries, apiEvent, apiGame, apiRegistered, apiStanding, type ApiEntries, type ApiGame, type ApiStanding } from "../helpers/api-fixtures"
+import { apiEntries, apiRegistered, apiStanding, type ApiEntries, type ApiGame, type ApiStanding } from "../helpers/api-fixtures"
+import { projectEvent, projectGamesIn, projectTeam } from "../helpers/projections"
+
+/**
+ * The seeded league — 15 teams, 28 games, the event this whole file is about.
+ *
+ * Its payload was written out five times as a nine-field literal, each copy
+ * naming the organiser "Niran" where the seed says "Niran Wongthai". Now it is
+ * the id and nothing else.
+ */
+const LEAGUE = "evt_002"
 
 /**
  * The schedule, rendered against seeded games.
@@ -12,18 +22,24 @@ import { apiEntries, apiEvent, apiGame, apiRegistered, apiStanding, type ApiEntr
  * component does not contain.
  */
 
-/** Through `apiGame`, so a row here is the whole response and not nine of its fields. */
-const base = (over: Partial<ApiGame> = {}) =>
-  apiGame({
-    eventId: "evt_002",
-    homeTeamNames: { en: "Assumption U16", th: "อัสสัมชัญ U16" },
-    awayTeamNames: { en: "Montfort U16", th: "มงฟอร์ต U16" },
-    venueNames: { en: "Assumption Indoor Court" },
-    ...over,
-  })
-
-const finished = base({ id: "gam_001", startsAt: "2026-06-10T10:00:00Z", statusCode: "FINISHED", homeScore: 68, awayScore: 54, venueId: "ven_002" })
-const upcoming = base({ id: "gam_003", startsAt: "2026-09-15T10:00:00Z", statusCode: "SCHEDULED", homeScore: null, awayScore: null, venueId: null, venueNames: null })
+/**
+ * A played game and an unplayed one, taken from the league rather than written.
+ *
+ * These were two literals whose team names — "Assumption U16", "Montfort U16" —
+ * are not what any row holds, and whose `finished` claimed `eventId: evt_002`
+ * while naming `gam_001`, a game in the *tournament*. Seeded into a list keyed
+ * by evt_002, so the schedule was drawing a fixture from another competition.
+ */
+const games = projectGamesIn(LEAGUE)
+const finished = games.find((g) => g.statusCode === "FINISHED")!
+/**
+ * The unplayed game, and deliberately the one with no court yet.
+ *
+ * Exactly one seeded game has a null venue, and this file is where "Venue TBC"
+ * is asserted — so picking any scheduled game would have left that branch
+ * untested against real data while still passing on a fabricated null.
+ */
+const upcoming = games.find((g) => g.statusCode === "SCHEDULED" && g.venueId === null)!
 
 /**
  * `canManage` says whether the reader may reschedule or remove a fixture.
@@ -38,7 +54,7 @@ const seed = (
 ) =>
   seedCache(page, [
     entry(orpc.events.entries, { eventId: "evt_002" }, apiEntries({ canManageFixtures: canManage })),
-    entry(orpc.events.get, { id: "evt_002" }, apiEvent({ id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" }, startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK", organizerUserId: "usr_org_002", orgId: null, organizerName: "Niran" })),
+    entry(orpc.events.get, { id: "evt_002" }, projectEvent(LEAGUE)),
     entry(orpc.games.list, { eventId: "evt_002" }, { games, viewerTimezone: null }),
   ])
 
@@ -48,13 +64,13 @@ test.describe("An event's schedule", () => {
     await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
 
-    await expect(page.getByTestId("game-gam_001")).toContainText("Assumption U16")
-    await expect(page.getByTestId("score-gam_001")).toHaveText("68–54")
-    await expect(page.getByTestId("game-status-gam_001")).toHaveText("Finished")
+    await expect(page.getByTestId(`game-${finished.id}`)).toContainText(finished.homeTeamNames.en!)
+    await expect(page.getByTestId(`score-${finished.id}`)).toHaveText(`${finished.homeScore}–${finished.awayScore}`)
+    await expect(page.getByTestId(`game-status-${finished.id}`)).toHaveText("Finished")
 
     // No score yet, and no court assigned — neither is invented.
-    await expect(page.getByTestId("score-gam_003")).toHaveText("—")
-    await expect(page.getByTestId("game-gam_003")).toContainText("Venue TBC")
+    await expect(page.getByTestId(`score-${upcoming.id}`)).toHaveText("—")
+    await expect(page.getByTestId(`game-${upcoming.id}`)).toContainText("Venue TBC")
   })
 
   test("offers score entry only where the server says it may", async ({ page }) => {
@@ -62,18 +78,18 @@ test.describe("An event's schedule", () => {
     await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
 
-    await expect(page.getByTestId("enter-score-gam_001")).toBeVisible()
-    await expect(page.getByTestId("enter-score-gam_003")).toHaveCount(0)
+    await expect(page.getByTestId(`enter-score-${finished.id}`)).toBeVisible()
+    await expect(page.getByTestId(`enter-score-${upcoming.id}`)).toHaveCount(0)
   })
 
   test("the score form opens with the current score in it", async ({ page }) => {
     await seed(page, [{ ...finished, canEnterScore: true }])
     await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
-    await page.getByTestId("enter-score-gam_001").click()
+    await page.getByTestId(`enter-score-${finished.id}`).click()
 
-    await expect(page.getByTestId("home-score-gam_001")).toHaveValue("68")
-    await expect(page.getByTestId("away-score-gam_001")).toHaveValue("54")
+    await expect(page.getByTestId(`home-score-${finished.id}`)).toHaveValue(String(finished.homeScore))
+    await expect(page.getByTestId(`away-score-${finished.id}`)).toHaveValue(String(finished.awayScore))
   })
 
   test("the status becomes a control only for someone who may set it", async ({ page }) => {
@@ -85,8 +101,8 @@ test.describe("An event's schedule", () => {
     await page.getByRole("button", { name: "Schedule" }).click()
 
     // A separate grant from scoring, so a separate control.
-    await expect(page.getByTestId("game-status-gam_001")).toHaveRole("combobox")
-    await expect(page.getByTestId("game-status-gam_003")).not.toHaveRole("combobox")
+    await expect(page.getByTestId(`game-status-${finished.id}`)).toHaveRole("combobox")
+    await expect(page.getByTestId(`game-status-${upcoming.id}`)).not.toHaveRole("combobox")
   })
 
   test("says so when an event has no fixtures, rather than showing an empty table", async ({ page }) => {
@@ -111,19 +127,28 @@ test.describe("Standings", () => {
 
   const seedStandings = (page: Parameters<typeof seedCache>[0], standings: ApiStanding[]) =>
     seedCache(page, [
-      entry(orpc.events.get, { id: "evt_002" }, apiEvent({ id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" }, startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK", organizerUserId: "usr_org_002", orgId: null, organizerName: "Niran" })),
+      entry(orpc.events.get, { id: "evt_002" }, projectEvent(LEAGUE)),
       entry(orpc.standings.list, { eventId: "evt_002" }, { standings }),
     ])
 
   test("renders the table it was given, with the difference signed", async ({ page }) => {
+    /**
+     * The numbers are stated and the names are not.
+     *
+     * A standings row's arithmetic is the subject here — a signed difference,
+     * two points for a win — so it is written. The team names are a row copy
+     * and come from the seed, because "Assumption U16" is not what any row
+     * holds and a test asserting it proves only that the fixture agrees with
+     * itself.
+     */
     await seedStandings(page, [
-      line({}),
-      line({ teamId: "team_003", teamNames: { en: "Montfort U16" }, rank: 2, won: 0, lost: 1, pointsFor: 54, pointsAgainst: 68, pointsDiff: -14, leaguePoints: 0 }),
+      line({ teamNames: projectTeam("team_001").names }),
+      line({ teamId: "team_003", teamNames: projectTeam("team_003").names, rank: 2, won: 0, lost: 1, pointsFor: 54, pointsAgainst: 68, pointsDiff: -14, leaguePoints: 0 }),
     ])
     await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Standings" }).click()
 
-    await expect(page.getByTestId("standing-team_001")).toContainText("Assumption U16")
+    await expect(page.getByTestId("standing-team_001")).toContainText(projectTeam("team_001").name)
     // Two points for a win — the PO's STANDINGS_POINTS, not a number here.
     await expect(page.getByTestId("standing-team_001")).toContainText("+14")
     await expect(page.getByTestId("standing-team_003")).toContainText("-14")
@@ -152,7 +177,7 @@ test.describe("Standings", () => {
  * enter — the page never works that out for itself.
  */
 test.describe("Event entries", () => {
-  const EVENT = apiEvent({ id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" }, startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK", organizerUserId: "usr_org_002", orgId: null, organizerName: "Niran" })
+  const EVENT = projectEvent(LEAGUE)
   const U16M = { id: "div_001", names: { en: "U16 Boys" }, ageGroupCode: "U16", genderCode: "M" }
   const U18F = { id: "div_004", names: { en: "U18 Girls" }, ageGroupCode: "U18", genderCode: "F" }
 
@@ -172,14 +197,14 @@ test.describe("Event entries", () => {
 
   test("shows who is entered, and no form when there is nothing to enter", async ({ page }) => {
     await seedEntries(page, {
-      registered: [apiRegistered({ teamId: "team_001", names: { en: "Assumption U16" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: false })],
+      registered: [apiRegistered({ teamId: "team_001", names: projectTeam("team_001").names, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: false })],
       registrable: [],
       divisions: [U16M],
       canManageFixtures: false,
     })
     await open(page)
 
-    await expect(page.getByTestId("entry-team_001")).toContainText("Assumption U16")
+    await expect(page.getByTestId("entry-team_001")).toContainText(projectTeam("team_001").name)
     await expect(page.getByTestId("entry-team_001")).toContainText("U16 Boys")
     await expect(page.getByTestId("withdraw-team_001")).toHaveCount(0)
     await expect(page.getByTestId("enter-team")).toHaveCount(0)
@@ -238,7 +263,7 @@ test.describe("Event entries", () => {
  * officiates. Both appear on the server's word and never on a role.
  */
 test.describe("Running a schedule", () => {
-  const EV = apiEvent({ id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" }, startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK", organizerUserId: "usr_org_002", orgId: null, organizerName: "Niran" })
+  const EV = projectEvent(LEAGUE)
   const two = [
     apiRegistered({ teamId: "team_001", names: { en: "A" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: false }),
     apiRegistered({ teamId: "team_003", names: { en: "B" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: false }),
@@ -280,8 +305,8 @@ test.describe("Running a schedule", () => {
       canManageFixtures: false,
       game: { referees: [{ userId: "usr_referee_001", name: "Adisorn Boonchai" }] },
     })
-    await expect(page.getByTestId("referees-gam_001")).toContainText("Adisorn Boonchai")
-    await expect(page.getByTestId("assign-referee-gam_001")).toHaveCount(0)
+    await expect(page.getByTestId(`referees-${finished.id}`)).toContainText("Adisorn Boonchai")
+    await expect(page.getByTestId(`assign-referee-${finished.id}`)).toHaveCount(0)
   })
 
   test("and only the organiser can change it", async ({ page }) => {
@@ -293,8 +318,8 @@ test.describe("Running a schedule", () => {
         availableReferees: [{ userId: "usr_referee_002", name: "Waraporn Jaingam" }],
       },
     })
-    await expect(page.getByTestId("unassign-gam_001-usr_referee_001")).toBeVisible()
-    await expect(page.getByTestId("referee-select-gam_001")).toContainText("Waraporn")
+    await expect(page.getByTestId(`unassign-${finished.id}-usr_referee_001`)).toBeVisible()
+    await expect(page.getByTestId(`referee-select-${finished.id}`)).toContainText("Waraporn")
   })
 })
 
@@ -320,9 +345,9 @@ const managed = { ...upcoming, timezone: "Asia/Bangkok" }
     await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
 
-    await expect(page.getByTestId("game-gam_003")).toBeVisible()
-    await expect(page.getByTestId("edit-fixture-gam_003")).toHaveCount(0)
-    await expect(page.getByTestId("remove-fixture-gam_003")).toHaveCount(0)
+    await expect(page.getByTestId(`game-${upcoming.id}`)).toBeVisible()
+    await expect(page.getByTestId(`edit-fixture-${upcoming.id}`)).toHaveCount(0)
+    await expect(page.getByTestId(`remove-fixture-${upcoming.id}`)).toHaveCount(0)
   })
 
   test("prefills the time on the venue's clock, not the machine's", async ({ page }) => {
@@ -332,9 +357,9 @@ const managed = { ...upcoming, timezone: "Asia/Bangkok" }
     await seed(page, [managed], true)
     await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
-    await page.getByTestId("edit-fixture-gam_003").click()
+    await page.getByTestId(`edit-fixture-${upcoming.id}`).click()
 
-    await expect(page.getByTestId("fixture-when-gam_003")).toHaveValue("2026-09-15T17:00")
+    await expect(page.getByTestId(`fixture-when-${upcoming.id}`)).toHaveValue("2026-09-15T17:00")
   })
 
   test("sends back a UTC instant, whatever the box showed", async ({ page }) => {
@@ -353,9 +378,9 @@ const managed = { ...upcoming, timezone: "Asia/Bangkok" }
 
     await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
-    await page.getByTestId("edit-fixture-gam_003").click()
-    await page.getByTestId("fixture-when-gam_003").fill("2026-09-15T19:30")
-    await page.getByTestId("save-fixture-gam_003").click()
+    await page.getByTestId(`edit-fixture-${upcoming.id}`).click()
+    await page.getByTestId(`fixture-when-${upcoming.id}`).fill("2026-09-15T19:30")
+    await page.getByTestId(`save-fixture-${upcoming.id}`).click()
 
     await expect.poll(() => sent, { message: "save must reach the server" }).not.toBe("")
     // 19:30 in Bangkok is 12:30 UTC. Storing the wall clock would be the same
@@ -372,12 +397,12 @@ const managed = { ...upcoming, timezone: "Asia/Bangkok" }
     })
     await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
-    await page.getByTestId("remove-fixture-gam_003").click()
+    await page.getByTestId(`remove-fixture-${upcoming.id}`).click()
 
     // Dismissed, so the fixture is still there. A delete that fires on the
     // first click cannot be taken back — the model keeps no deleted state.
     await expect.poll(() => asked).toContain("Remove this fixture")
-    await expect(page.getByTestId("game-gam_003")).toBeVisible()
+    await expect(page.getByTestId(`game-${upcoming.id}`)).toBeVisible()
   })
 })
 
@@ -409,7 +434,7 @@ test.describe("Generating a whole schedule", () => {
           { teamId: "team_003", team: "B", divisionId: "div_001", division: "U16 Boys" },
         ] as never,
       })),
-      entry(orpc.events.get, { id: "evt_002" }, apiEvent({ id: "evt_002", name: "League", names: { en: "League" } })),
+      entry(orpc.events.get, { id: "evt_002" }, projectEvent(LEAGUE)),
       entry(orpc.games.list, { eventId: "evt_002" }, { games: [], viewerTimezone: null }),
     ])
     await visit(page, "event", { id: "evt_002" })
@@ -428,7 +453,7 @@ test.describe("Generating a whole schedule", () => {
           { teamId: "team_003", team: "B", divisionId: "div_001", division: "U16 Boys" },
         ] as never,
       })),
-      entry(orpc.events.get, { id: "evt_002" }, apiEvent({ id: "evt_002", name: "League", names: { en: "League" } })),
+      entry(orpc.events.get, { id: "evt_002" }, projectEvent(LEAGUE)),
       entry(orpc.games.list, { eventId: "evt_002" }, { games: [], viewerTimezone: null }),
     ])
     await page.route("**/rpc/**", async (route) => {

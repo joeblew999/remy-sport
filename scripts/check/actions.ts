@@ -82,18 +82,11 @@ const BLOCKED: Record<string, string> = {
  * "we have not", which is the honest half of a coverage number.
  */
 const NOT_BUILT: Record<string, string> = {
-  INSTALL_APP:
-    "the manifest and service worker ship and push works in production, but nothing invites " +
-    "anyone to install — topbar.tsx still carries the note justifying the button's removal " +
-    "on the grounds that there was no manifest, which stopped being true",
   BROWSE_TEAMS:
     "there is no teams directory. `teams.list` exists and only the admin console reads it; " +
     "Discover browses events only",
   CREATE_USER_ACCOUNT:
     "sign-up is self-serve, so nobody has needed an admin to make an account for someone else",
-  SPOILER_MODE:
-    "the toggle exists in main.tsx and is passed to Discover, so the state is built and no " +
-    "screen offers it to the reader",
 }
 
 /** Every `@answers` tag under src/web, and the file that carries it. */
