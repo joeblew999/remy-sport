@@ -1,6 +1,7 @@
 import { expect, test, type APIRequestContext, type BrowserContext, type Page } from "@playwright/test"
 import { existsSync, readFileSync } from "node:fs"
 import { SEED_ENTITIES } from "../../src/domain/model/entities"
+import { E2E_EMAIL_DOMAIN, isReservedTestEmail } from "../../src/environment"
 
 /**
  * Signing in, now that there are no passwords (ADR 012).
@@ -46,6 +47,36 @@ export const IS_LOCAL = !process.env.BASE_URL
 export const ADMIN_SIGN_IN = IS_LOCAL || process.env.TEST_ADMIN_SIGNIN === "1"
 
 /**
+ * An account belonging to one test and nobody else.
+ *
+ * This is the fix the rest of this file kept working around. Specs shared the
+ * PO's seeded people, and so does anyone on the dev tunnel — which exists so a
+ * person can use the app while the suite runs. Two writers on one account is why
+ * a session appeared under a running assertion, why "sign out all other devices"
+ * could sign the reader out, why two specs ate each other's OTP, and why every
+ * count assertion was a guess about what everybody else was doing.
+ *
+ * A test that mints its own account owns everything on it. Counts become
+ * legitimate again, `revoke-other-sessions` is scoped to that test by
+ * definition, and a person clicking around on the tunnel cannot be seen.
+ *
+ * Sign-in creates the account on first use — verified against dev on
+ * 2026-09-03: a never-seen `@e2e.test` address returns 200 with a new user. The
+ * address space is reserved and unroutable; see `isReservedTestEmail`.
+ *
+ * Nothing to clean up on purpose. The account holds one session, which the
+ * per-test revoke ends, and an empty ownerless row in a fixture database is not
+ * worth a deletion endpoint that would exist only for tests.
+ */
+let minted = 0
+export function freshActor(): string {
+  // Run id keeps two concurrent runs — a person's and CI's, or two workers —
+  // from ever choosing the same address.
+  const run = process.env.PW_TEST_RUN_ID ?? `${process.pid}`
+  return `e2e-${run}-${++minted}-${Date.now().toString(36)}@${E2E_EMAIL_DOMAIN}`
+}
+
+/**
  * Every session a test creates, so the test can put the system back.
  *
  * The suite is designed to inject into a live system — that is the only way to
@@ -74,16 +105,18 @@ const createdSessions: Array<{ ctx: APIRequestContext; token: string; email: str
  * worth failing a test over — it costs a leaked session, which is what the
  * situation already was.
  */
-async function remember(ctx: APIRequestContext, email: string): Promise<void> {
+async function remember(ctx: APIRequestContext, email: string): Promise<string | null> {
   try {
     const res = await ctx.get("/api/auth/get-session", { headers: { Origin: BASE } })
-    if (!res.ok()) return
+    if (!res.ok()) return null
     const body = (await res.json()) as { session?: { token?: string } } | null
     const token = body?.session?.token
     if (token) createdSessions.push({ ctx, token, email })
+    return token ?? null
   } catch {
     // A context that cannot answer cannot be cleaned up either. Leaking one
     // session is strictly better than failing the test that created it.
+    return null
   }
 }
 
@@ -283,7 +316,10 @@ const SEEDED_EMAILS: ReadonlySet<string> = new Set<string>(
 const LOCAL_TEST_OTP = "424242"
 
 function fixedCodeFor(email: string): string | null {
-  if (!SEEDED_EMAILS.has(email)) return null
+  // Reserved addresses too — the Worker's own predicate is the same union
+  // (src/auth.ts), and the two halves have to agree or a fresh account signs in
+  // locally and fails on a deployment.
+  if (!SEEDED_EMAILS.has(email) && !isReservedTestEmail(email)) return null
   return IS_LOCAL ? LOCAL_TEST_OTP : requireTestOtp()
 }
 
@@ -320,7 +356,7 @@ export async function signIn(
    * up *here*. `auth.teardown.ts` ends them after the whole run.
    */
   opts: { keep?: boolean } = {},
-): Promise<void> {
+): Promise<string | null> {
   const sent = await request.post("/api/auth/email-otp/send-verification-otp", {
     data: { email, type: "sign-in" },
     headers: { Origin: BASE },
@@ -333,7 +369,11 @@ export async function signIn(
     headers: { Origin: BASE },
   })
   expect(res.ok(), `sign-in for ${email} should succeed`).toBeTruthy()
-  if (!opts.keep) await remember(request, email)
+  // The token of the session just created, so a caller can name it later — see
+  // devices.spec.ts. `keep` still skips the ledger, but the token is honest
+  // either way.
+  if (opts.keep) return null
+  return await remember(request, email)
 }
 
 /**

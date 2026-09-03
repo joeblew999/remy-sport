@@ -183,8 +183,32 @@ export function useDevices() {
       ]);
       if (!list.ok) throw new Error("Could not load your sessions.");
       const sessions = await list.json();
-      const session = current.ok ? await current.json() : null;
-      return { sessions, currentToken: session?.session?.token ?? null };
+      /**
+       * Both, or neither — this used to degrade `get-session` to null.
+       *
+       * `currentToken` is what marks the row you are using, and `toDevices`
+       * offers a Sign-out button on every row that is not it. So a failed or
+       * slow `get-session` did not produce a slightly worse list: it produced a
+       * list where the session doing the asking looks like somebody else's, with
+       * a button that ends it. lib/devices.ts states the opposite promise in so
+       * many words — the UI must "refuse to offer revoke on it without warning,
+       * signing yourself out from a device-management screen is a surprise, not
+       * a feature" — and null silently withdrew it.
+       *
+       * It bit the e2e tier first, which is the luckiest possible place: the
+       * spec clicked the first revocable row, that row was its own session, and
+       * the page vanished mid-assertion ("Received: undefined"). A reader would
+       * have experienced the same thing as being mysteriously signed out.
+       *
+       * Throwing puts it in the error branch the page already renders, and lets
+       * React Query retry — which is the right answer for a request that failed,
+       * and a far better one than a list that cannot be trusted.
+       */
+      if (!current.ok) throw new Error("Could not load your sessions.");
+      const session = (await current.json()) as { session?: { token?: string } } | null;
+      const currentToken = session?.session?.token ?? null;
+      if (!currentToken) throw new Error("Could not load your sessions.");
+      return { sessions, currentToken };
     },
   });
 }
@@ -197,7 +221,21 @@ export function useRevokeDevice() {
       token === "others"
         ? call("/api/auth/revoke-other-sessions", {})
         : call("/api/auth/revoke-session", { token }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["devices"] }),
+    /**
+     * Refetch and WAIT, rather than invalidate and hope.
+     *
+     * `invalidateQueries` marks the query stale and returns immediately, so the
+     * mutation settles before the new list exists. `isPending` goes false, the
+     * button re-enables, and the row you just signed out is still on screen
+     * until some later render happens to pick up the refetch. The server had
+     * already done the work — measured on dev: two sessions, revoke the right
+     * one, one left — while the page kept showing the one that was gone.
+     *
+     * Returning the promise makes the mutation stay pending until the list has
+     * actually been replaced, which is what "signing out" means to the person
+     * pressing it.
+     */
+    onSuccess: () => qc.refetchQueries({ queryKey: ["devices"] }),
   });
 }
 

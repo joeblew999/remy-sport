@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm"
 import type { Bindings } from "./types"
 import { buildAuthOptions } from "./auth.config"
 import { mailerFor } from "./mail/mailer"
-import { adminSignInAllowed, fixedSignInCode } from "./environment"
+import { adminSignInAllowed, fixedSignInCode, isReservedTestEmail } from "./environment"
 import { LOCALES, type ReleasedLocale } from "./domain/vocabularies"
 import { FALLBACK } from "./domain/names"
 /**
@@ -325,7 +325,7 @@ export function createAuth(c: AuthHost) {
       ...(fixedSignInCode(c.env)
         ? {
             generateOTP: ({ email }: { email: string }) =>
-              SEEDED_EMAILS.has(email) &&
+              (SEEDED_EMAILS.has(email) || isReservedTestEmail(email)) &&
                 (!ADMIN_EMAILS.has(email) || adminSignInAllowed(c.env))
                 ? fixedSignInCode(c.env)!
                 : String(crypto.getRandomValues(new Uint32Array(1))[0]! % 1_000_000).padStart(6, "0"),

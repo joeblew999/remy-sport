@@ -118,7 +118,20 @@ export function describePlace(s: {
   return parts.length ? parts.join(" · ") : null
 }
 
-export function toDevices(sessions: RawSession[], currentToken: string | null): Device[] {
+/**
+ * `currentToken` is required, and that is the point.
+ *
+ * It was `string | null`, and the null branch quietly inverted this module's
+ * promise: with no token nothing matches, so nothing is `current`, so the caller
+ * offers a Sign-out button on every row — including the session doing the
+ * asking. The comment above says the UI must refuse exactly that. A type that
+ * permits null is a type that permits the surprise.
+ *
+ * Making it required moves the decision to the one place that can answer it:
+ * `useDevices` now fails rather than passing null, so the page renders its error
+ * state instead of a list that can sign you out.
+ */
+export function toDevices(sessions: RawSession[], currentToken: string): Device[] {
   return sessions
     .map((s) => {
       const { browser, platform, label } = describeDevice(s.userAgent)
@@ -133,7 +146,7 @@ export function toDevices(sessions: RawSession[], currentToken: string | null): 
         createdAt: s.createdAt,
         lastSeen: s.updatedAt,
         expiresAt: s.expiresAt,
-        current: currentToken !== null && s.token === currentToken,
+        current: s.token === currentToken,
         impersonated: Boolean(s.impersonatedBy),
       }
     })

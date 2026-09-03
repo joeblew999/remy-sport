@@ -263,3 +263,33 @@ export const fixedSignInCode = (env: HasEnvironment): string | undefined =>
  */
 export const adminSignInAllowed = (env: HasEnvironment): boolean =>
   policyFor(env).offersAdminSignIn || Boolean(env.TEST_ADMIN_OTP)
+
+/**
+ * The address space the e2e suite owns, so it never borrows a person's account.
+ *
+ * Every spec used to sign in as one of the PO's seeded people — and so does
+ * anyone using the dev tunnel, which exists for exactly that. Two writers on one
+ * account: sessions appear and vanish under a running test, two specs consume
+ * each other's OTP, "sign out all other devices" signs the human out, and any
+ * assertion about how many sessions someone has is a guess about what everybody
+ * else is doing. Every one of those was fixed individually at least once, which
+ * is the signature of treating symptoms.
+ *
+ * An account per test removes the class. The test owns every session on it, so
+ * counts mean something again, `revoke-other-sessions` is safe, and a person
+ * clicking around on the tunnel is invisible to it.
+ *
+ * `.test` is IANA-reserved and unroutable (RFC 2606), so a code mailed here
+ * reaches nobody — the same property that lets staging derive a public code for
+ * the seeded `.test` fixtures. And an account minted here starts empty with the
+ * default role: the fixed code opens a door onto nothing, which is strictly less
+ * than the seeded accounts it replaces, since those hold fixture data.
+ *
+ * Deliberately NOT reachable on production by default. There the code lives in a
+ * secret and `signInCode: "secret"` means `fixedSignInCode()` is undefined until
+ * a human runs `ops -- demo on`, so this predicate is never consulted.
+ */
+export const E2E_EMAIL_DOMAIN = "e2e.test"
+
+export const isReservedTestEmail = (email: string): boolean =>
+  email.toLowerCase().endsWith(`@${E2E_EMAIL_DOMAIN}`)
