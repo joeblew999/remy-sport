@@ -187,9 +187,36 @@ const LOCAL: Step[] = [
  * it already says what the rest of the run was depending on.
  */
 function runSteps(steps: Step[]): void {
+  /**
+   * Say what is being done, while it is being done.
+   *
+   * This ran in complete silence unless it failed, and it is the most opaque
+   * thing in the repo: it happens before EVERY command, and it installs
+   * dependencies, writes fonts.css, builds the SPA bundle, generates the Worker
+   * types, writes .dev.vars, migrates the local database, installs a browser,
+   * regenerates seed.sql and stamps versions.json. None of that was visible, so
+   * `mise run 1-dev` looked like it started a server and nothing else.
+   *
+   * The cost of the silence was not curiosity. When the versions step broke, the
+   * only output was one line about a missing environment variable, from a script
+   * nobody had asked to run, before a dev server that then did not start.
+   *
+   * One line, dim, naming each step as it goes. `--verbose` is not the answer:
+   * the default should not hide what the command actually does.
+   */
+  const pad = Math.max(...steps.map((s) => s.name.length))
   for (const step of steps) {
+    const started = Date.now()
     const code = step.go()
-    if (code === 0) continue
+    if (code === 0) {
+      const took = Date.now() - started
+      // Fast means it decided there was nothing to do, which is worth seeing:
+      // it is the difference between "built the bundle" and "the bundle was
+      // already current", and those look identical in silence.
+      const note = took < 150 ? "up to date" : `${(took / 1000).toFixed(1)}s`
+      console.log(`\x1b[2mprepare · ${step.name.padEnd(pad)}  ${note}\x1b[0m`)
+      continue
+    }
     console.error(
       `\nprepare: "${step.name}" failed (exit ${code}) — ${step.why}\n` +
         `Nothing after it ran, so the tree is half-prepared; fix this before reading any later failure.\n`,
