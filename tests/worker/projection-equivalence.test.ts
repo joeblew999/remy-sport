@@ -5,7 +5,9 @@ import {
   projectAttendance,
   projectEntries,
   projectEvent,
+  projectEventVenues,
   projectEvents,
+  projectVenues,
   projectGame,
   projectOrg,
   projectGamesIn,
@@ -149,6 +151,16 @@ describe("Teams", () => {
 describe("Orgs", () => {
   it.each(SEEDED.orgs)("%s is what the projection says", async (id) => {
     same(await get(`/api/orgs/${id}`), projectOrg(id), `orgs.get(${id})`)
+  })
+})
+
+describe("Venues", () => {
+  it("are what the projection says", async () => {
+    same(await get("/api/venues"), projectVenues(), "venues.list")
+  })
+
+  it("and which events use them", async () => {
+    same(await get("/api/event-venues"), projectEventVenues(), "eventVenues.list")
   })
 })
 

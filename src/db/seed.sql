@@ -591,6 +591,8 @@ INSERT OR IGNORE INTO game (id, event_id, home_team_id, away_team_id, venue_id, 
 INSERT OR IGNORE INTO game (id, event_id, home_team_id, away_team_id, venue_id, starts_at, status_code, home_score, away_score) VALUES ('gam_029', 'evt_002', 'team_013', 'team_014', 'ven_001', '2026-09-26T14:00:00Z', 'SCHEDULED', NULL, NULL);
 INSERT OR IGNORE INTO game (id, event_id, home_team_id, away_team_id, venue_id, starts_at, status_code, home_score, away_score) VALUES ('gam_030', 'evt_001', 'team_003', 'team_001', 'ven_001', '2026-06-12T10:00:00Z', 'FINISHED', 61, 66);
 INSERT OR IGNORE INTO game (id, event_id, home_team_id, away_team_id, venue_id, starts_at, status_code, home_score, away_score) VALUES ('gam_031', 'evt_001', 'team_001', 'team_003', 'ven_002', '2026-06-14T10:00:00Z', 'SCHEDULED', NULL, NULL);
+INSERT OR IGNORE INTO game (id, event_id, home_team_id, away_team_id, venue_id, starts_at, status_code, home_score, away_score) VALUES ('gam_032', 'evt_002', 'team_009', 'team_002', 'ven_004', '2026-08-26T10:00:00Z', 'FINISHED', 61, 74);
+INSERT OR IGNORE INTO game (id, event_id, home_team_id, away_team_id, venue_id, starts_at, status_code, home_score, away_score) VALUES ('gam_033', 'evt_002', 'team_002', 'team_010', 'ven_004', '2026-09-19T10:00:00Z', 'SCHEDULED', NULL, NULL);
 
 -- gameReferees
 INSERT OR IGNORE INTO gameReferee (game_id, user_id) VALUES ('gam_001', 'usr_referee_001');
@@ -624,6 +626,8 @@ INSERT OR IGNORE INTO gameReferee (game_id, user_id) VALUES ('gam_028', 'usr_ref
 INSERT OR IGNORE INTO gameReferee (game_id, user_id) VALUES ('gam_029', 'usr_referee_002');
 INSERT OR IGNORE INTO gameReferee (game_id, user_id) VALUES ('gam_030', 'usr_referee_001');
 INSERT OR IGNORE INTO gameReferee (game_id, user_id) VALUES ('gam_031', 'usr_referee_002');
+INSERT OR IGNORE INTO gameReferee (game_id, user_id) VALUES ('gam_032', 'usr_referee_001');
+INSERT OR IGNORE INTO gameReferee (game_id, user_id) VALUES ('gam_033', 'usr_referee_002');
 
 -- eventCoOrganizers
 INSERT OR IGNORE INTO eventCoOrganizer (event_id, user_id, added_at, status_code) VALUES ('evt_001', 'usr_org_002', '2026-04-05', 'ACCEPTED');

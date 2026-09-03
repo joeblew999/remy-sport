@@ -2,7 +2,7 @@ import { test, expect } from "./fixture"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { apiEvent } from "../helpers/api-fixtures"
-import { projectEvent } from "../helpers/projections"
+import { projectEvent, projectEventVenues, projectVenues } from "../helpers/projections"
 
 /**
  * Editing an event, and who is offered the chance.
@@ -234,20 +234,22 @@ test.describe("The Venues tab", () => {
    * seeded since the fixtures were written — the address, the city, and which
    * court is the main one. Nothing needed building; the page never asked.
    */
-  const venues = {
-    items: [
-      { id: "ven_001", names: { en: "Nimibutr Stadium" }, address: "154 Rama I Rd", cityCode: "BANGKOK", provinceCode: "BKK" },
-      { id: "ven_002", names: { en: "Assumption Indoor Court" }, address: "23 Charoen Krung", cityCode: "BANGKOK", provinceCode: "BKK" },
-      { id: "ven_009", names: { en: "Somewhere Else" }, address: "1 Elsewhere", cityCode: "CHIANG_MAI", provinceCode: "CMI" },
-    ],
-  }
-  const links = {
-    items: [
-      { eventId: EVENT_ID, venueId: "ven_002", isPrimary: false },
-      { eventId: EVENT_ID, venueId: "ven_001", isPrimary: true },
-      { eventId: "evt_999", venueId: "ven_009", isPrimary: true },
-    ],
-  }
+  /**
+   * The real venues, and the real links between them and events.
+   *
+   * The literals these replace had `ven_001` named "Nimibutr Stadium" and
+   * `ven_002` "Assumption Indoor Court" — the two are the other way round in
+   * every database. And the "belongs to another event" case was `evt_999`
+   * linked to `ven_009`, neither of which exists. The camp at `evt_003` uses
+   * `ven_003` and nothing else does, so that case is real now.
+   */
+  const venues = projectVenues()
+  const links = projectEventVenues()
+
+  /** This event's primary court, and one that belongs to a different event. */
+  const primary = links.items.find((l) => l.eventId === EVENT_ID && l.isPrimary)!
+  const elsewhere = links.items.find((l) => l.eventId !== EVENT_ID)!
+  const nameOf = (id: string) => venues.items.find((v) => v.id === id)!
 
   const seedVenues = (page: Parameters<typeof seedCache>[0]) =>
     seedCache(page, [
@@ -261,11 +263,11 @@ test.describe("The Venues tab", () => {
     await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-venues").click()
 
-    await expect(page.getByTestId("venue-ven_001")).toContainText("Nimibutr Stadium")
-    await expect(page.getByTestId("venue-ven_001")).toContainText("154 Rama I Rd")
-    await expect(page.getByTestId("venue-ven_002")).toBeVisible()
+    const court = nameOf(primary.venueId)
+    await expect(page.getByTestId(`venue-${court.id}`)).toContainText(court.names.en!)
+    await expect(page.getByTestId(`venue-${court.id}`)).toContainText(court.address)
     // Linked to another event entirely.
-    await expect(page.getByTestId("venue-ven_009")).toHaveCount(0)
+    await expect(page.getByTestId(`venue-${elsewhere.venueId}`)).toHaveCount(0)
   })
 
   test("puts the main court first and marks it", async ({ page }) => {
@@ -275,10 +277,13 @@ test.describe("The Venues tab", () => {
     await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-venues").click()
 
-    await expect(page.getByTestId("venue-primary-ven_001")).toBeVisible()
-    await expect(page.getByTestId("venue-primary-ven_002")).toHaveCount(0)
+    const secondary = links.items.find((l) => l.eventId === EVENT_ID && !l.isPrimary)
+    await expect(page.getByTestId(`venue-primary-${primary.venueId}`)).toBeVisible()
+    if (secondary) {
+      await expect(page.getByTestId(`venue-primary-${secondary.venueId}`)).toHaveCount(0)
+    }
     const order = await page.getByTestId("event-venues").locator(".venue-row").allTextContents()
-    expect(order[0]).toContain("Nimibutr Stadium")
+    expect(order[0]).toContain(nameOf(primary.venueId).names.en!)
   })
 
   test("says so when an event has none, rather than 'not built yet'", async ({ page }) => {

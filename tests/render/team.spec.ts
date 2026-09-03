@@ -2,8 +2,8 @@ import { test, expect } from "./fixture"
 import { sessionFor } from "../helpers/actors"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { type ApiGame, type ApiRoster } from "../helpers/api-fixtures"
-import { projectGame, projectRoster, projectTeam } from "../helpers/projections"
+import { type ApiRoster } from "../helpers/api-fixtures"
+import { projectGamesIn, projectRoster, projectTeam } from "../helpers/projections"
 
 /**
  * Rendering, with the cache handed its data instead of the network.
@@ -42,19 +42,13 @@ const team = (id: string, rights: { canEdit?: boolean } = {}) => projectTeam(id,
 /** The seeded team this file is mostly about: Triam Udom's U18 girls. */
 const TEAM = "team_002"
 
-/**
- * One game as `games.list` returns it.
- *
- * Spread over a base of the fields the row does not read, so each test states
- * only what it is actually about — which side this team was on, and whether the
- * game has been played.
- *
- * From `apiGame`, so the base is the whole response. The literal that was here
- * had nine of the eighteen fields and took `Record<string, unknown>` overrides,
- * so neither the missing half nor a mistyped override was ever going to be
- * noticed.
- */
-const game = (over: Partial<ApiGame>) => ({ ...projectGame("gam_002"), ...over })
+/** This team's own fixtures, from either end, as the schedule shows them. */
+const theirGames = projectGamesIn("evt_002").filter(
+  (g) => g.homeTeamId === TEAM || g.awayTeamId === TEAM,
+)
+const away = theirGames.find((g) => g.awayTeamId === TEAM && g.statusCode === "FINISHED")!
+const unplayed = theirGames.find((g) => g.statusCode === "SCHEDULED")!
+
 
 test.describe("Team page renders what the API returned", () => {
   test("shows the team, its school and its division", async ({ page }) => {
@@ -139,29 +133,19 @@ test.describe("Team page, the rest", () => {
         {
           viewerTimezone: null,
           games: [
-            // Away, and won: the page has to read the score off the correct end
-            // of the fixture. Home-only logic renders this as a 61-74 loss.
-            game({
-              id: "gam_101",
-              homeTeamId: "team_009",
-              awayTeamId: "team_002",
-              homeTeamNames: { en: "Satriwitthaya U18 Girls" },
-              awayTeamNames: { en: "Triam Udom U18 Girls" },
-              statusCode: "FINISHED",
-              homeScore: 61,
-              awayScore: 74,
-            }),
+            /**
+             * Away, and won: the page has to read the score off the correct end
+             * of the fixture. Home-only logic renders this as a loss.
+             *
+             * Both of these were invented — gam_101 and gam_102, ids no row
+             * held — because team_002 played all three of its seeded games at
+             * home, so the away branch had no data. It has one now (gam_032),
+             * added when this test was converted: the premise was real and the
+             * fixtures did not support it.
+             */
+            away,
             // Not played: no score, and no outcome either.
-            game({
-              id: "gam_102",
-              homeTeamId: "team_002",
-              awayTeamId: "team_010",
-              homeTeamNames: { en: "Triam Udom U18 Girls" },
-              awayTeamNames: { en: "Assumption Convent U18 Girls" },
-              statusCode: "SCHEDULED",
-              homeScore: null,
-              awayScore: null,
-            }),
+            unplayed,
           ],
         },
       ),

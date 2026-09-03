@@ -282,6 +282,8 @@ export const SEED_ENTITIES = {
     {"id":"gam_029","eventId":"evt_002","homeTeamId":"team_013","awayTeamId":"team_014","venueId":"ven_001","startsAt":"2026-09-26T14:00:00Z","statusCode":"SCHEDULED","homeScore":null,"awayScore":null},
     {"id":"gam_030","eventId":"evt_001","homeTeamId":"team_003","awayTeamId":"team_001","venueId":"ven_001","startsAt":"2026-06-12T10:00:00Z","statusCode":"FINISHED","homeScore":61,"awayScore":66},
     {"id":"gam_031","eventId":"evt_001","homeTeamId":"team_001","awayTeamId":"team_003","venueId":"ven_002","startsAt":"2026-06-14T10:00:00Z","statusCode":"SCHEDULED","homeScore":null,"awayScore":null},
+    {"id":"gam_032","eventId":"evt_002","homeTeamId":"team_009","awayTeamId":"team_002","venueId":"ven_004","startsAt":"2026-08-26T10:00:00Z","statusCode":"FINISHED","homeScore":61,"awayScore":74},
+    {"id":"gam_033","eventId":"evt_002","homeTeamId":"team_002","awayTeamId":"team_010","venueId":"ven_004","startsAt":"2026-09-19T10:00:00Z","statusCode":"SCHEDULED","homeScore":null,"awayScore":null},
   ],
   venues: [
     {"id":"ven_001","address":"26 Charoen Krung Rd","cityCode":"BANGKOK","provinceCode":"BKK","names":{"th":"สนามกีฬาในร่ม โรงเรียนอัสสัมชัญ","en":"Assumption College Indoor Court"}},
@@ -430,6 +432,8 @@ export const SEED_RELATIONSHIPS = {
     {"gameId":"gam_029","userId":"usr_referee_002"},
     {"gameId":"gam_030","userId":"usr_referee_001"},
     {"gameId":"gam_031","userId":"usr_referee_002"},
+    {"gameId":"gam_032","userId":"usr_referee_001"},
+    {"gameId":"gam_033","userId":"usr_referee_002"},
   ],
   guardians: [
     {"userId":"usr_spectator_001","playerId":"ply_001","guardianTypeCode":"PARENT"},

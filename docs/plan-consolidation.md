@@ -1,700 +1,620 @@
-# Plan — one definition, or none
+# Plan — the write side should derive what the read side already does
 
-Kept, not deleted. The exception lists this plan builds are judgement calls —
-"these two spellings of the same set are both correct" is a decision somebody
-will want the reason for, and the reason belongs beside the list.
+Kept, not deleted. The judgement calls in here — which collections may share a
+mechanism and which must not — are decisions somebody will want the reason for,
+and the reason belongs beside the list.
 
 **Work it in a loop, and inspect yourself on every pass.** The plan is wrong
-until proven otherwise. Eight of the numbers below were wrong when first written
-and were corrected by running the block that checks them, before any work
-started. Three more were assertions that a two-minute check disproved outright,
-and they are recorded in the log rather than quietly dropped.
+until proven otherwise. The first draft of this file was wrong in a way worth
+recording, because it is the failure mode of this whole exercise: it measured
+duplication *syntactically* — verbatim blocks, key-set overlap, type-name
+collisions — found 0.8%, and concluded the codebase was already consolidated.
+Every finding below is invisible to all of those measurements. Five of the
+detectors written for this plan produced false positives that a two-minute check
+disproved; they are in the log.
 
 Each pass, in this order:
 
 1. **Re-derive the facts.** The block in *Deriving the facts* below. If an
-   asserted number differs from what this file says, **fix the file first**,
-   note it in the log, then continue. A plan that disagrees with the code is
-   worse than no plan.
+   asserted number differs, **fix the file first**, note it in the log, then
+   continue. A plan that disagrees with the code is worse than no plan.
 2. **`mise run 2-check` before starting, not only after.** Another session has
-   been committing to this tree throughout the writing of this plan — three
-   commits and three open files while the numbers were being measured. A red
-   gate you did not cause is worth knowing about before you attribute it to your
-   own change.
+   been committing to this tree throughout — five commits while this was being
+   written, two of which swept this file up mid-edit. A red gate you did not
+   cause is worth knowing about before you attribute it to your own change.
 3. **Do the next unticked box**, applying the decision rules rather than asking.
 4. **`mise run 2-check`.** Green before ticking anything.
-5. **Tick it, or write why not.** A box left unticked without a reason beside it
-   is the failure this whole plan exists to correct.
-6. **Append to the log** — what was done, what was found, what changed in the
-   plan itself.
+5. **Tick it, or write why not.**
+6. **Append to the log** — what was done, what was found, what changed here.
 
 Never end a pass having neither ticked a box nor recorded why one cannot be
 ticked. That is the only definition of progress here.
 
-When every box is ticked, or every remaining one is marked **Needs the PO** with
-its reason, say so plainly and stop.
-
 ## The problem, in one line
 
-The code is not copy-pasted — 230 duplicated lines out of the 28,383 that are
-neither blank nor comment, under one percent. What is duplicated is the
-**lists**: the same set of things written out by hand in several places, and one
-of them has already drifted far enough to break a live endpoint.
+The model describes nine join tables structurally, and `src/api/relations.ts`
+reads that description to answer *who holds what* generically — while every
+**write** to those same tables is hand-written, eight times, in six files, under
+five verb conventions, with no two of them returning the same shape.
 
 ## Who it hurts
 
-Somebody is invited to co-organise an event. The invitation is PENDING until
-they accept it, and the app has no word for either state in any language,
-because `/api/reference` — the endpoint whose entire job is to hand the browser
-the Product Owner's own labels — does not publish invite statuses.
+A school hires an assistant coach in March. There is no way to give her access
+to the team.
 
-Not because nobody seeded them. The rows are there, and the handler reads them:
-`src/api/reference.ts` queries all 23 vocabulary tables on every call. Then the
-response contract drops the twenty-third on the floor, because
-`VOCABULARY_SCHEMAS` at line 274 of `src/db/vocabularies-schema.ts` lists 22 of
-the 23 that `VOCABULARY_TABLES` lists at line 241 of the same file. Proven, not
-inferred: parsing the full 23-key payload through `ReferenceSchema` returns 22
-keys, and `inviteStatuses` is not among them.
+`team_coaches` is the table carrying `HEAD_COACH`, `ASSISTANT_COACH` and
+`TEAM_MANAGER` — the three relations that decide who may edit a team, enter a
+roster or record attendance. The read side resolves all three from the model.
+The only code that ever writes a row into it is a side effect of `teams.create`
+(`src/api/teams.ts:134`), and the only code that deletes one is the cascade when
+a team is deleted. There is no add-coach endpoint, and the Product Owner's model
+has no action for one either — the only coach-shaped action is `SIGN_UP_AS_COACH`.
 
-That endpoint's own docstring says it serves "every vocabulary the Product Owner
-defines, with no list of them here". There are three lists of them, all by hand,
-one file away.
+So coaching staff is fixed at the moment a team is created, forever. Nobody
+decided that. It is what happens when each membership is built where somebody
+needed it, and nobody needed that one.
 
 ## Why it happens
 
-**A set is data, and this codebase keeps writing it down as syntax.**
+**The two halves of the same relation are built by opposite methods.**
 
-Everywhere a set has one member-per-line, somebody has to add a line per member
-in each place the set appears. Nothing checks that the places agree, so they
-agree only for as long as everyone remembers all of them.
+The model gives every table-backed relation a full structural description —
+`sourceTable`, `objectColumn`, `userColumn`, `throughTable`, `throughColumn`,
+`filterColumn`/`filterValue`, `activeToColumn`. `TEAM_PLAYER` reads:
 
-The 23 vocabularies are enumerated four times: `VOCABULARY_TABLES`,
-`VOCABULARY_ORDER` and `VOCABULARY_SCHEMAS` in `src/db/vocabularies-schema.ts`,
-and `VOCABULARY` in `src/domain/vocabularies.ts`. Three carry 23 entries. One
-carries 22.
+```
+sourceTable: "player_teams", objectColumn: "team_id", userColumn: "user_id",
+throughTable: "players", throughColumn: "player_id", activeToColumn: "to_date"
+```
 
-The six platform roles are written out in full in **seven files**, in two
-spellings — `ADMIN` as the model codes it, `admin` as the database stores it —
-across the domain layer, the SPA, the auth config and four test files. `STORED_ROLE`
-maps one to the other by hand, and the declaration immediately above it,
-`STORED_ORG_ROLE`, derives exactly that mapping from the model with
-`Object.fromEntries`. The pattern for the fix is on the adjacent line.
+`src/api/relations.ts` consumes **all seven** of those columns to build SQL. Add
+a relation upstream and the read side answers for it with nothing edited here.
+
+The write side reads none of them. `registrations.ts` re-states that
+`player_teams` links a team to a player and that ending a spell means setting
+`to_date` — a fact the model already declares as `activeToColumn` and that
+`relations.ts` already honours at line 92.
 
 ## What that shape costs elsewhere
 
-Three things, all of them already visible and none of them hypothetical:
-
-- **The same drift, one file over, waiting.** `FIXTURE_TABLES` has 17 entries;
-  `FIXTURE_SCHEMAS` has 15. `games` and `gameReferees` are tables with no
-  response schema. Whether that is deliberate cannot be answered by reading it —
-  which is the actual defect, because the vocabulary one was not deliberate and
-  looked identical.
-- **The model gets a second, worse copy.** `src/web/components/follow.tsx`
-  hand-writes `type ObjectTypeCode = "EVENT" | "TEAM" | "GAME" | "PLAYER" |
-  "ORG"`, which is `OBJECT_TYPE_CODES` from the model with the derivation thrown
-  away. AGENTS.md records two of these already — a role string compared in a
-  handler, and a push audience resolved from the wrong table — and calls it "a
-  third spelling of a code that lives in the PO's vocabulary".
-- **A concept gets two incompatible types.** `Names` is declared three times.
-  `src/domain/names.ts` says `Partial<Record<Locale, string>>`;
-  `src/web/lib/localizer.ts` says `Record<string, string>` — **not** partial, and
-  keys unconstrained. So the SPA's type claims every locale is present on every
-  name, which is the one thing `NamesSchema` in `src/domain/api.ts` exists to
-  say is false.
+- **A membership change has no single meaning to the client.** The eight
+  "someone now belongs to something" procedures return eight different shapes:
+  `{orgId,userId,role}`, `{teamId,playerId,fromDate}`,
+  `{eventId,playerId,registeredAt}`, `{eventId,teamId,divisionId}`,
+  `{gameId,userId}`, `{eventId,userId,addedAt}`, `{following}`, and one that
+  returns nothing of the kind. No two agree. So the SPA cannot have one "a
+  membership changed" handler, which is a direct cause of the ~40 hand-written
+  cache invalidations spread across ~17 component files — Class C, whose exact
+  count the block prints rather than asserts because two other plans are moving
+  it.
+- **Soft-delete is a per-endpoint decision.** `removePlayer` ends a spell by
+  setting `to_date`; `removeMember` hard-deletes. Both are correct — the model
+  says so, via `activeToColumn` being set on one and null on the other — but
+  nothing connects the endpoint to the model's answer, so the next collection
+  gets whichever the author remembers.
+- **The GUI repeats the same asymmetry.** The five `event-*.tsx` components are
+  one component written five times: query a collection under an event, render
+  loading / empty / rows as `invite-row` with `data-testid={X-${id}}`, an
+  add and a remove mutation, invalidate `orpc.events.key()`. Every identifier
+  differs, so no text-similarity tool sees it.
 
 ## The architecture
 
 ### The invariant
 
-> **A set is written once. Everything that needs one entry per member derives
-> from it, and a member added upstream reaches every derived form with nothing
-> edited.**
+> **A relation is described once, in the model. Both directions — who holds it,
+> and how it comes to be held — derive from that description.**
 
-Both halves matter. Writing it once is not enough if the derived forms are
-themselves hand-maintained maps keyed by the same names — that is what
-`VOCABULARY_SCHEMAS` is, and it is the one that drifted.
+The read half already satisfies this. This plan is about the write half.
 
-### Why the obvious fix was rejected once already, correctly
+### The prior art is in this repository, twice
 
-`VOCABULARY_SCHEMAS` carries a docstring explaining why it is written out:
+This is not a pattern to import. It is a pattern this codebase already uses and
+already got right:
 
-> Emitted rather than built with Object.fromEntries at runtime, because that
-> erases the key literals and the API would lose its field types — the one thing
-> this whole arrangement exists to keep.
+- **`src/api/relations.ts`** turns the model's structural columns into SQL for
+  every table-backed relation, generically.
+- **`src/api/domain.ts`** does the same for read endpoints: `listOf(builder,
+  key, path, policy)` — one line per resource, response schema derived from the
+  table, route derived from the key.
 
-**That reasoning is right and must be preserved.** A plain `Object.fromEntries`
-widens the result to `Record<string, ZodType>`, and the reference endpoint stops
-being typed — which is worse than the bug being fixed. Any change here that
-makes the OpenAPI document or the `RouterClient` less specific is a regression,
-not a consolidation, and the box is to be left unticked with that written beside
-it.
+`listOf` is the shape the argument turns on, because of how it handles the
+dangerous part: **the policy is a required argument, not an option.** Its
+docstring says why — "an endpoint factory that can produce an undeclared one is
+how 'every generated table is an endpoint' turns into published personal data".
 
-What the docstring does *not* establish is that a hand-written literal is the
-only alternative. A mapped type over `VOCABULARY_TABLES` keeps every key literal
-and every value type, because the key set and the value types are both derivable
-from the table map:
+### The objection already on the record
 
-```ts
-type VocabSchemas = { [K in keyof typeof VOCABULARY_TABLES]: z.ZodArray<...> }
-```
+`src/api/domain.ts` does not just omit writes, it **declines** them, in writing:
 
-Whether TypeScript resolves that to the same inferred shape the literal produces
-today is a **question to settle by trying it and reading the generated OpenAPI
-document**, not by asserting it here. If it does not, the fallback is a
-type-level exhaustiveness assertion beside the literal — the literal stays, and
-a missing key becomes a compile error rather than a silent 22.
+> Writes are absent on purpose. These rows are the PO's fixtures, loaded by
+> /api/seed. When a feature needs to create one it gets a real endpoint with the
+> two access-control questions ADR 009 requires — exactly the kind of thing a
+> factory should not invent on anyone's behalf.
+
+**Take this seriously; it is the strongest argument against this plan.** Writes
+are more dangerous than reads, and a factory that guesses who may write is worse
+than eight hand-written endpoints.
+
+Two things about it, though. First, its objection is to a factory *inventing*
+access control — and `listOf` itself answers that objection by making policy a
+required argument; the same construction answers it for writes. Second, it was
+written when ADR 009 existed, and the ADRs have since been deleted, so the
+sentence now cites a document no reader can consult.
+
+That does not make it wrong. It makes it **a decision to re-take deliberately,
+with the evidence that has accumulated since**: eight collections, six files,
+five verb conventions, eight return shapes, one relation with no write path, and
+a soft-delete rule the model states and the code restates.
+
+**If the re-taken decision is "still no", that is a legitimate outcome** and it
+is recorded here with its reason, and Class A collapses to naming conventions
+and return shapes only. Do not force the factory to justify the plan.
 
 ### Options considered
 
-Three, one of them a deletion.
+Four, one of them a deletion, one of them doing nothing.
 
 | | what it does | costs | verdict |
 |---|---|---|---|
-| **Derive each map from the one above it** | `VOCABULARY_SCHEMAS` and `_ORDER` become mapped types over `VOCABULARY_TABLES`; `STORED_ROLE` becomes `Object.fromEntries(ROLE.map(…))` like its neighbour | the inference has to be proven to hold, per the section above; a mapped type is harder to read than a list | **yes, where the types survive it** |
-| **Delete the second list and let it 404** | drop `inviteStatuses` from `VOCABULARY_TABLES` too, so the three agree at 22 | honest and one line — but it deletes a vocabulary the model defines and the browser will need the moment invitations render a status | **no** — this is the deletion option, and it loses a feature to tidy a list |
-| **A check that fails when two maps of the same set disagree** | leaves every literal in place; adds `scripts/check/sets.ts` <!-- docs-check-ignore --> to the gate | the duplication stays, so the cost of adding a vocabulary stays; a check is weaker than a type | **yes, as the backstop** — for the pairs whose types cannot be made to derive |
+| **Leave it; fix only the names and shapes** | eight endpoints stay, but they agree on verb and return shape | the model still has no influence on writes; the eleventh collection is still hand-built | **the fallback**, and what happens if the factory is refused |
+| **`membershipOf(relation, policy)`, mirroring `listOf`** | one helper reading the model's own structural columns; the relation code and the action are required arguments | a write factory, against a recorded decision; the `filterColumn` and `throughTable` cases are genuinely fiddly | **yes, if the re-taken decision allows it** |
+| **Delete the collections nothing uses** | `eventPlayers`, guardians and follow have thin GUI use | a real reduction — but plan-ownership owns what the GUI offers, and deleting a built endpoint to reduce a count is the worst reason to delete | **no** — this is the deletion option and it is wrong here |
+| **Generate the endpoints from the model at build time** | no runtime factory | a transform between the repos, which AGENTS.md forbids in as many words and which this repo deleted once already | **no** |
 
-**What is being accepted by choosing the first two together:** two mechanisms
-rather than one. Some sets will derive and some will only be checked, and a
-reader has to look to know which. That is the price of not weakening the
-contract, and it is written here so the next person does not "tidy" the checked
-ones into derived ones without re-reading the paragraph above.
+**What is accepted by choosing the second:** a helper that is harder to read than
+the endpoint it replaces, for the three collections with `throughTable` or
+`filterColumn` set. The escape hatch is that a collection may opt out and stay
+hand-written, with the reason on the line — the same shape as `domain.ts`'s
+"deliberately NOT exposed" list.
 
 ## What this plan must not build
 
-The first output is what not to do, and most of this plan is a refusal.
-
-- **Do not merge files, and do not treat 229 as the problem.** The file count is
-  the architecture working. Roughly half the modules in `src/` have exactly one
-  importer — 52 of 109 when measured on 2026-09-03, a ratio that moves as the
-  tree does — and that is one page per route, one API module per router group,
-  one check per rule. Spot-checked, and every one of them correct: `main.tsx`
-  importing each page once is not a smell. There is no box in this plan that
-  moves a file for being small, and the single-importer count is deliberately
-  **not** in the derivation block, because it is context rather than a target.
-- **Do not add an abstraction over the oRPC procedures.** `route` / `input` /
-  `output` / `use` / `handler` reads as boilerplate and is not: it is the
-  contract, the OpenAPI document and the authorisation declaration. A helper
-  that collapsed it would hide the thing `mise run 2-check`'s authz step reads.
-- **Do not write a generator.** `src/db/vocabularies-schema.ts` opens with
-  "AUTHORED. Not generated — this is the root of the chain", and records that a
-  generator was deleted on 2026-08-27 after every silent failure of that day
-  turned out to live inside it. Deriving one map from another *inside one file*
-  is not that; a script that writes the file is.
-- **Do not touch `src/domain/model/`.** It arrives verbatim through
-  `mise run ops domain`. `src/domain/model/names.ts` declaring its own `Names` is
-  the PO's business, and it is why the target count for `Names` is two, not one.
-- **Do not chase the 0.8%.** Verbatim duplication is 230 lines in 28,383. The
-  seven identical lines shared by `authed` and `viewer` in `src/api/base.ts` are
-  in scope because they are one edit; nothing else in that 230 earns a box on
-  size alone.
-- **Do not fix a test by deleting its subject.** `tests/worker/write.test.ts`
-  splits the six roles into `WRITERS` and `READERS`. That is a partition with
-  meaning, not a copy, and it stays.
+- **Do not merge files, and do not treat 229 as the problem.** Roughly half the
+  `src` modules have exactly one importer — 52 of 109 on 2026-09-03 — and that is
+  one page per route and one API module per router group. No box here moves a
+  file for being small.
+- **Do not chase verbatim duplication.** It is 230 lines in 28,383, under one
+  percent. Measured, and it is the wrong measurement — this whole plan is what
+  was found *after* that number came back clean.
+- **Do not touch `src/domain/model/`.** It arrives verbatim via
+  `mise run ops domain`.
+- **Do not write a generator**, per the options table.
+- **Do not add an action to the model.** The missing add-coach endpoint needs
+  `ADD_TEAM_COACH` or similar, and that is the PO's. Record it; do not invent it.
+- **Do not collapse `removePlayer` into `removeMember`.** One ends a spell and
+  one deletes a row. The model distinguishes them via `activeToColumn`; any
+  shared mechanism must read that column, not average the two behaviours.
 
 ## Scope: what belongs to the other two plans
 
-Two plans are already open in this directory and both have unticked boxes. A
-third plan that re-does their work is itself the duplication this one is about.
-
 | finding | whose |
 |---|---|
-| hand-written render payloads, `tests/helpers/api-fixtures.ts` | [plan-seed-coverage.md](plan-seed-coverage.md) Phase 5 |
-| ids in tests naming rows that do not exist | plan-seed-coverage Phase 6 |
-| empty tables and empty columns | plan-seed-coverage Phases 2–3 |
+| hand-written render payloads | [plan-seed-coverage.md](plan-seed-coverage.md) Phase 5 |
+| empty tables and columns | plan-seed-coverage Phases 2–3 |
 | a screen deciding what the model owns | [plan-ownership.md](plan-ownership.md) Phase 2 |
-| where a surface lives in the GUI | plan-ownership Phase 5 |
+| which surfaces the GUI offers at all | plan-ownership Phase 5 |
+| **how a membership is written** | **here** |
+| **a component written once per case** | **here** |
 | **a set enumerated twice** | **here** |
-| **a type declared twice** | **here** |
-| **an export nothing imports** | **here** |
 
-Where they overlap, they overlap on `FIXTURE_TABLES`: this plan cares that it
-disagrees with `FIXTURE_SCHEMAS`, and plan-seed-coverage cares that
-`eventSession` is in neither. Do the structural half here, leave the rows there,
-and say so in both logs.
-
-## Which repo each change belongs in
-
-The rule is AGENTS.md's: could a person from the business disagree with it?
-
-| change | repo |
-|---|---|
-| there are six platform roles, and these are they | biz |
-| a co-organizer invitation can be PENDING | biz |
-| the six roles are written out in seven files here | here |
-| `VOCABULARY_SCHEMAS` is missing one of them | here |
-| the SPA's `Names` is not `Partial` | here |
-
-Nothing in this plan needs a commit in the companion repo. If a box appears to,
-it has been misread — check whether the set is the model's or this repo's
-restatement of it.
+plan-ownership Phase 4 owns wiring invalidation for `follow` and
+`acceptCoOrganizerInvite`. Class C below is the *reason* those are hand-wired;
+do the structural half here and say so in both logs.
 
 ## Rules for this work
 
 - **Every change is a deletion or a derivation.** If a box adds a concept, it is
-  the wrong box. Sessions net-negative on lines, and this one especially.
-- **A type must not get looser.** The reference endpoint, the OpenAPI document
-  and `RouterClient` are the reason several of these literals exist. Before and
-  after any change to `src/domain/api.ts` or `src/db/vocabularies-schema.ts`,
-  diff the generated document — `mise run 1-dev -- ensure`, then
-  `curl -s localhost:8787/openapi.json | python3 -m json.tool`, saved both ways.
-  A change that widens a type to remove a line is refused, and the diff is what
-  proves it did not.
-- **One class per commit.** Not one file. The point is that these are classes,
-  and a commit that fixes the six roles in seven files is legible in a way that
-  seven commits are not.
-- **Delete the check when the type makes it impossible.** If a mapped type makes
-  a set impossible to get wrong, its entry in `scripts/check/sets.ts` <!-- docs-check-ignore -->
-  goes in the same commit. A check list that only grows is the suppressions file
-  this repo has already paid off once.
-- **`mise run 2-check` before committing**, not just `tsc`. The bundler has
-  caught two things typecheck did not, both recorded in plan-ownership's log.
-- **Never run two gates at once.** Recorded here because it cost this plan an
-  hour: a second `mise run 2-check` while the first was still winding down
-  collided on port 4173, and the render tier reported 140 failures that were
-  entirely self-inflicted. Run it once and wait.
+  the wrong box.
+- **A type must not get looser, and a policy must never be inferred.** Diff the
+  generated document either side of a contract change: `mise run 1-dev -- ensure`,
+  then `curl -s localhost:8787/openapi.json | python3 -m json.tool`. Any helper
+  that can produce a procedure with no declared policy is refused outright —
+  `mise run 2-check`'s authz step must still see every one.
+- **One class per commit.**
+- **`mise run 2-check` before committing**, not just `tsc`.
+- **Never run two gates at once.** A second `mise run 2-check` while the first
+  was winding down collided on port 4173 and reported 140 render failures that
+  were entirely self-inflicted. Run it once and wait.
 
 ## Running unattended
 
 ### Decision rules, in priority order
 
-Apply the first that matches.
-
-1. **A drifted pair that breaks something → fix the drift, then make that drift
-   impossible.** `inviteStatuses` is this. Fix the symptom in the same commit as
-   the cause, or the next reader cannot tell which was which.
-2. **A set the model already defines → derive from the model.** Never restate
-   `OBJECT_TYPE_CODES`, `ROLE_CODES` or a vocabulary's members. The SPA may
-   import `src/domain` at runtime — `.dependency-cruiser.cjs` allows exactly
-   that — so "the browser cannot reach the model" is not a reason.
-3. **A set this repo owns, derivable without weakening a type → derive it.**
-4. **Derivable only by widening a type → do not.** Leave the literal, add it to
-   the check, write the reason on the line.
-5. **Two declarations of one type → keep the one nearest the model, import it
-   from the other.** `Names` keeps `src/domain/names.ts`.
+1. **The model already describes it → derive from the model.** Never restate a
+   relation's table, columns or soft-delete rule in a handler.
+2. **A drifted pair that breaks something → fix the drift, then make that drift
+   impossible**, in one commit.
+3. **A write helper may never infer a policy.** Action and relation are required
+   arguments or the helper is not built.
+4. **Derivable only by widening a type or weakening a policy → do not.** Leave
+   it, write the reason on the line.
+5. **Two declarations of one type → keep the one nearest the model.**
 6. **An export nothing imports → delete it**, unless it is a test seam or a
-   documented escape hatch, in which case say which on the line.
-7. **Anything still undecidable** → do not guess and do not stop. Write it in
-   the log under **Needs the PO**, skip the box, carry on.
+   documented escape hatch; say which on the line.
+7. **Needs an action the model lacks → record under Needs the PO, skip, carry
+   on.** Do not add to the model and do not stall.
 
 ### The bound, so this actually finishes
 
-Every box traces to one of six enumerable classes. Nothing else is in scope, and
-a finding that traces to none of them goes under **Noticed, out of scope** — one
-line, no box, no work.
-
-| class | the list it counts down | length today | boxes |
+| class | the list it counts down | today | boxes |
 |---|---|---|---|
-| 1 | groups of maps that enumerate one set and can disagree | 5 | 9 |
-| 2 | concepts whose type is declared more than once | 4 | 4 |
-| 3 | column groups repeated per table | 1, over 23 tables | 2 |
-| 4 | cache-invalidation decisions held at a call site | 38, in 16 files | 2 |
-| 5 | exports and types nothing imports | 41 | 6 |
-| 6 | verbatim blocks worth one edit | 1 | 1 |
+| A | membership collections written by hand | 8, in 6 files | 7 |
+| B | collection components written once per case | 5 | 3 |
+| C | cache invalidations written at a call site | 38, in 16 files | 2 |
+| D | maps enumerating one set that can disagree | 5 | 9 |
+| E | concepts whose type is declared twice | 4 | 4 |
+| F | vocabulary tables repeating a column group | 23 | 2 |
+| G | exports and types nothing imports | 41 | 6 |
+| H | verbatim blocks worth one edit | 1 | 1 |
 
-**24 boxes, over six lists**, plus 12 in the definition of done. The two columns
-count different things on purpose: the middle one is what has to reach zero-or-
-declared, the right one is how much work that is today. They move independently
-— closing class 1 takes nine boxes to fix five drifts — and a pass that
-confuses them will think it is nearly done when it is not.
-
-There is no class whose size is discovered as it runs: every number in the middle
-column comes out of the block below, and if one has grown, recording that is the
-first thing a pass does.
+**34 boxes over eight lists**, plus the definition of done. A and B are the
+architecture; D through H are tidying and were the whole of the first draft.
+**If a pass only ever ticks D–H boxes, it is avoiding the plan.**
 
 ### What stops the loop
 
-Only these:
-
 - every box ticked, or
-- every remaining box marked **Needs the PO** or **type would widen**, with its
-  reason — and if more than three end up there, that is evidence this plan was
-  written wrong rather than that the work is done. Say so, do not present it as
-  finished, or
-- `mise run 2-check` cannot be made green and the cause is outside this plan's
-  scope — recorded, then stop.
-
-Not a class boundary. Not the size of the next box.
+- every remaining one marked **Needs the PO**, **policy would weaken** or
+  **decision re-taken as no**, with its reason — and if more than three land
+  there, this plan was written wrong; say so rather than presenting it as done,
+  or
+- `mise run 2-check` cannot be made green for a cause outside this scope.
 
 ## Deriving the facts
 
-Run this first, every pass. It asserts every number this file states.
-
 ```sh
 python3 - <<'EOF'
-import os, re, sys, hashlib, collections
+import os, re, sys, glob, hashlib, collections
 bad = 0
 def p(label, n, says):
     global bad
     if n != says: bad += 1
-    print(f"  {label:<48}{str(n):>5}   (plan says {says}){'' if n == says else '   <-- DIFFERS'}")
+    print(f"  {label:<50}{str(n):>4}   (says {says}){'' if n == says else '   <-- DIFFERS'}")
+rd = lambda f: open(f, encoding="utf8").read()
+
+# ── A: what the model describes, and what the write side ignores ─────────
+v = rd("src/domain/model/vocabularies.ts")
+g = v[v.index("export const RELATION ="):]
+rows = re.findall(r'\{ code: "([A-Z_]+)", objectTypeCode: "(\w+)", via: "(\w+)", sourceTable: (\S+?),', g)
+srcs = {s.strip('"') for c,o,via,s in rows if via == "table" and s != "null"}
+print("\n  CLASS A — the model describes these; only the read side reads it\n")
+p("join/source tables the model declares", len(srcs), 9)
+structural = ["sourceTable","objectColumn","userColumn","throughTable",
+              "throughColumn","filterColumn","activeToColumn"]
+r = rd("src/api/relations.ts")
+p("  structural columns relations.ts consumes", sum(c in r for c in structural), 7)
+
+PAIRS = {  # collection -> (file, create-procedure)
+ "org_members":("orgs.ts","addMember"), "player_teams":("registrations.ts","addPlayer"),
+ "event_teams":("registrations.ts","registerTeam"), "event_players":("players.ts","registerForEvent"),
+ "game_referees":("games.ts","assignReferee"), "event_co_organizers":("events.ts","addCoOrganizer"),
+ "subscriptions":("notifications.ts","follow"), "guardians":("players.ts","signUpAsGuardian")}
+def shape(f, n):
+    m = re.search(r'export const '+n+r' = (?:pub|authed|viewer)(.*?)\.handler', rd("src/api/"+f), re.S)
+    o = re.search(r'\.output\(\s*z\.object\(\{([^}]*)\}', m.group(1)) if m else None
+    return tuple(sorted(re.findall(r'(\w+):', o.group(1)))) if o else ()
+p("membership collections written by hand", len(PAIRS), 8)
+p("  API files they are spread across", len({f for f,_ in PAIRS.values()}), 6)
+p("  verb conventions among them", len({"add/remove","register/withdraw","assign/unassign",
+                                        "follow/unfollow","signUp"}), 5)
+p("  distinct return shapes (no two agree)", len({shape(f,n) for f,n in PAIRS.values()}), 8)
+tc = rd("src/api/teams.ts")
+p("  team_coaches add/remove endpoints", 0 if "addCoach" not in tc else 1, 0)
+
+# ── B: the collection component, written once per case ───────────────────
+ev = sorted(glob.glob("src/web/components/event-*.tsx"))
+print("\n  CLASS B — one component, five instantiations\n")
+p("event-* collection components", len(ev), 5)
+# 4, not 5: event-settings.tsx is a form, not a collection. That is the box below.
+p('  carrying className="empty"', sum('className="empty"' in rd(f) for f in ev), 4)
+p('  carrying data-testid="event-', sum('data-testid="event-' in rd(f) for f in ev), 5)
+
+# ── C–H: the tidying classes ─────────────────────────────────────────────
 def files(*roots):
     for root in roots:
         for d, dirs, fs in os.walk(root):
             dirs[:] = [x for x in dirs if x not in ("node_modules","paraglide","migrations")]
             for f in sorted(fs):
                 if f.endswith((".ts",".tsx")) and not f.endswith(".d.ts"): yield os.path.join(d,f)
-allf = list(files("src","scripts","tests"))
-rd = lambda f: open(f, encoding="utf8").read()
-
-print("\n  SIZE — context, not a target\n")
-p("TS/TSX files in src+scripts+tests", len(allf), 229)
-print(f"  lines in them (printed: another session moves this)   {sum(len(rd(f).split(chr(10))) for f in allf)}")
-
-def norm(path):
-    return [s for s in (l.strip() for l in open(path, encoding="utf8"))
-            if s and not s.startswith(("//","/*","*","*/"))]
-W, blocks, total = 8, collections.defaultdict(list), 0
-for f in allf:
-    ls = norm(f); total += len(ls)
-    for i in range(len(ls)-W+1):
-        blocks[hashlib.md5("\n".join(ls[i:i+W]).encode()).hexdigest()].append((f,i))
-dupl = set()
-for v in blocks.values():
-    if len(v) > 1:
-        for f,i in v: dupl.update((f,j) for j in range(i,i+W))
-print("\n  CLASS 0 — verbatim duplication. Measured so it is not assumed.\n")
-p(f"duplicated lines at window {W}", len(dupl), 230)
-p("  of non-blank non-comment lines", total, 28383)
-p("  files carrying any of it", len({f for f,_ in dupl}), 14)
+allf = list(files("src","scripts","tests")); web = [f for f in allf if f.startswith("src/web")]
+# PRINTED, not asserted: plan-ownership is actively wiring invalidation, so this
+# moves for reasons that are not drift. Read the trend, not the number.
+print("\n  CLASS C — invalidation decided at each call site (printed)\n")
+inv = sum(len(re.findall(r'invalidateQueries\(', rd(f))) for f in web)
+qcf = sum('useQueryClient()' in rd(f) for f in web)
+print(f"  invalidateQueries() call sites                     {inv}   (was 38 on 2026-09-03)")
+print(f"  files holding a useQueryClient()                   {qcf}   (was 16)")
 
 def keys(path, name):
     m = re.search(r'export const '+name+r'(?::[^=]+)? = \{(.*?)\n\} as const', rd(path), re.S)
     return re.findall(r'^\s{2}["\']?(\w+)["\']?\s*:', m.group(1), re.M) if m else []
 V, F = "src/db/vocabularies-schema.ts", "src/db/fixtures-schema.ts"
-vt, vs, vo = keys(V,"VOCABULARY_TABLES"), keys(V,"VOCABULARY_SCHEMAS"), keys(V,"VOCABULARY_ORDER")
-vv = keys("src/domain/vocabularies.ts","VOCABULARY")
-ft, fsc = keys(F,"FIXTURE_TABLES"), keys(F,"FIXTURE_SCHEMAS")
-print("\n  CLASS 1 — one set, written out by hand in several places\n")
+vt, vs = keys(V,"VOCABULARY_TABLES"), keys(V,"VOCABULARY_SCHEMAS")
+print("\n  CLASS D — one set, written out by hand in several places\n")
 p("VOCABULARY_TABLES entries", len(vt), 23)
-p("VOCABULARY_ORDER entries", len(vo), 23)
-p("VOCABULARY (domain) entries", len(vv), 23)
 p("VOCABULARY_SCHEMAS entries", len(vs), 22)
 p("  queried but absent from the contract", len(set(vt)-set(vs)), 1)
 print(f"       -> {sorted(set(vt)-set(vs))}   (read from D1 every call, then dropped)")
-p("FIXTURE_TABLES entries", len(ft), 17)
-p("FIXTURE_SCHEMAS entries", len(fsc), 15)
-print(f"       -> tables with no schema: {sorted(set(ft)-set(fsc))}")
+# PRINTED: plan-seed-coverage Phase 2 is adding tables here as this runs. It went
+# 2 -> 5 in one afternoon, which is this class arriving faster than it is fixed.
+gap = sorted(set(keys(F,"FIXTURE_TABLES")) - set(keys(F,"FIXTURE_SCHEMAS")))
+print(f"  FIXTURE_TABLES with no FIXTURE_SCHEMA              {len(gap)}   (was 2 on 2026-09-03)")
+print(f"       -> {gap}")
 SIX = ["admin","organizer","coach","player","spectator","referee"]
-rolefiles = []
+rf = []
 for f in allf:
-    if f.startswith("src/domain/model/"): continue    # the PO's file, synced verbatim
+    if f.startswith("src/domain/model/"): continue
     ls = rd(f).split("\n")
     for i in range(len(ls)):
-        w = "\n".join(ls[i:i+12]).lower()
-        if all(re.search(rf'["\']{r}["\']|\b{r}\s*[:,]', w) for r in SIX):
-            rolefiles.append(f"{f}:{i+1}"); break
-p("files writing the six-role set out in full", len(rolefiles), 7)
-for r in rolefiles: print(f"       -> {r}")
-
-print("\n  CLASS 2 — the model's own vocabulary, restated as a literal\n")
-lit = [f"{f}:{rd(f)[:m.start()].count(chr(10))+1} {m.group(1)}" for f in allf
-       for m in re.finditer(r'type (\w+) = ("(?:EVENT|TEAM|GAME|PLAYER|ORG)"\s*\|[^\n]*)', rd(f))]
-p("object-type unions hand-written", len(lit), 1)
-for r in lit: print(f"       -> {r}")
-nm = [f"{f}:{rd(f)[:m.start()].count(chr(10))+1} = {m.group(1).strip()}" for f in allf
-      for m in re.finditer(r'^\s*export type Names = (.+)$', rd(f), re.M)]
-p("declarations of `Names`", len(nm), 3)
-for r in nm: print(f"       -> {r}")
-
-print("\n  CLASS 3 — 23 tables declaring the same columns by hand\n")
-tabs = re.findall(r'export const (\w+) = sqliteTable\("(\w+)", \{(.*?)\n\}\)', rd(V), re.S)
-core, desc = {"code","nameEn","names","sort"}, {"descriptionEn","descriptions"}
-cols = [set(re.findall(r'^\s+(\w+):', b, re.M)) for _,_,b in tabs]
-p("vocabulary tables", len(tabs), 23)
-p("  carrying all of code/nameEn/names/sort", sum(core <= c for c in cols), 23)
-p("  that are exactly those four", sum(c == core for c in cols), 11)
-p("  also carrying descriptionEn/descriptions", sum(desc <= c for c in cols), 6)
-p("  column declarations the repeat costs", sum(len(core & c)+len(desc & c) for c in cols), 104)
-
-web = [f for f in allf if f.startswith("src/web")]
-print("\n  CLASS 4 — which caches a write clears, decided at each call site\n")
-p("useQueryClient() call sites", sum(rd(f).count("useQueryClient()") for f in web), 30)
-p("  files holding one", sum("useQueryClient()" in rd(f) for f in web), 16)
-p("invalidateQueries() call sites", sum(len(re.findall(r'invalidateQueries\(', rd(f))) for f in web), 38)
-p("useMutation() call sites", sum(len(re.findall(r'useMutation\(', rd(f))) for f in web), 43)
-
-b = rd("src/api/base.ts").split("\n")
-blk = lambda a,z: [x.strip() for x in b[a-1:z]]
-print("\n  CLASS 6 — verbatim blocks small enough to have been missed\n")
-p("identical lines shared by `authed` and `viewer`", sum(1 for x,y in zip(blk(118,124), blk(142,148)) if x==y and x), 7)
+        if all(re.search(rf'["\']{x}["\']|\b{x}\s*[:,]', "\n".join(ls[i:i+12]).lower()) for x in SIX):
+            rf.append(f); break
+p("files writing the six-role set out in full", len(rf), 6)
+print("\n  CLASS E/F/H\n")
+p("declarations of `Names`", sum(len(re.findall(r'^\s*export type Names =', rd(f), re.M)) for f in allf), 3)
+p("object-type unions hand-written", sum(len(re.findall(
+    r'type \w+ = "(?:EVENT|TEAM|GAME|PLAYER|ORG)"\s*\|', rd(f))) for f in allf), 1)
+tabs = re.findall(r'sqliteTable\("(\w+)", \{(.*?)\n\}\)', rd(V), re.S)
+core = {"code","nameEn","names","sort"}
+p("vocabulary tables sharing code/nameEn/names/sort",
+  sum(core <= set(re.findall(r'^\s+(\w+):', b, re.M)) for _,b in tabs), 23)
+b = rd("src/api/base.ts").split("\n"); blk = lambda a,z: [x.strip() for x in b[a-1:z]]
+p("identical lines in `authed` and `viewer`",
+  sum(1 for x,y in zip(blk(118,124), blk(142,148)) if x==y and x), 7)
 print(f"\n  {'ALL NUMBERS MATCH' if not bad else str(bad)+' DIFFER — fix the plan first'}\n")
 sys.exit(1 if bad else 0)
 EOF
 ```
 
-Class 5 is knip's, and the gate already runs knip — but not this part of it:
+Class G is knip's, and the gate runs it as `--include files,unlisted`, so
+exports and types are not counted. That is why 41 have accumulated with every
+gate green — invisible rather than tolerated:
 
 ```sh
-bun x knip --include exports,types,duplicates --no-progress
+bun x knip --include exports,types --no-progress
 ```
-
-`scripts/check.ts` runs `knip --include files,unlisted`. **Exports and types are
-not in that list**, which is why 41 of them have accumulated with every gate
-green. That is not a criticism of the choice — `files,unlisted` is the part that
-can break a build — but it does mean this class was invisible rather than
-tolerated, and the numbers below are the first time anyone has counted it.
 
 ## The loop — one stage, walked until it converges
 
-There are no phases. Every box below is independent, every one is shippable on
-its own, and the order is the decision rules, not the numbering. The loop is:
+No phases. Every box is independent and shippable on its own; the order is the
+decision rules, not the numbering.
 
-1. run the block, fix the file if it disagrees
-2. `mise run 2-check`
-3. take the highest-priority unticked box by the rule below
-4. `mise run 2-check`, tick it, log it
-5. go to 1
+**Priority when several are open:** a box that fixes a live defect, then one that
+makes a whole class impossible, then one that only removes lines. Smallest diff
+breaks a tie. **A and B before D–H** — the first draft of this plan was D–H only,
+and that is what made it worth throwing away.
 
-**Priority, when several boxes are open:** a box that fixes a live defect, then
-one that makes a whole class impossible, then one that only removes lines. Within
-a tie, the smallest diff first.
+### Class A — a membership is written the way the model describes it
 
-Boxes may be added while the loop runs, on the same terms plan-ownership sets:
-a new instance of a class already in the table is the plan's own work arriving,
-not scope creep. A finding outside the six classes is not a box.
+- [ ] **Line the eight up and read them side by side.** Table, verb, action,
+      return shape, soft-delete or hard-delete, and which of the model's
+      structural columns each one restates. This table is the evidence for the
+      next box and belongs in this file. Do not write code first.
+- [ ] **Re-take the `domain.ts` decision, explicitly.** Does a write helper with
+      the relation and the action as *required* arguments answer the recorded
+      objection, or not? Write the answer here either way, with the reasoning,
+      because the next person will find that docstring and need to know it was
+      considered rather than missed. **"No" ends Class A at the two boxes below.**
+- [ ] If yes: **`membershipOf(relation, action, …)`** beside `listOf` in
+      `src/api/domain.ts`, reading `sourceTable` / `objectColumn` / `userColumn`
+      / `activeToColumn` off the model exactly as `relations.ts` does. Soft
+      versus hard delete comes from `activeToColumn` and is never a parameter.
+- [ ] If yes: migrate the collections with no `throughTable` or `filterColumn`
+      first — `game_referees`, `event_co_organizers`. Leave `player_teams`
+      (through `players`) and `org_members` (filtered by `org_role_code`) until
+      the simple ones have shipped and the shape is proven.
+- [ ] **One return shape for "a membership now exists"**, whether or not the
+      helper is built. Eight endpoints returning eight shapes is the half of this
+      class that needs no factory and no permission.
+- [ ] **One verb pair.** Pick from the five and say which in this file; rename
+      the rest. This is a breaking change to the OpenAPI document — check
+      `src/web` for every call site, and note that no external integrator exists
+      yet, which is what makes now the cheap moment.
+- [ ] **`team_coaches` has no write path.** Record it under **Needs the PO**: the
+      model has no add-coach action, so this is a commit in biz before it is one
+      here. Say what it unblocks — coaching staff currently cannot change after a
+      team is created.
 
-### Class 1 — one set, written out by hand in several places
+### Class B — the collection component, written five times
 
-- [ ] **`inviteStatuses` reaches the browser.** The live defect. Fix
-      `VOCABULARY_SCHEMAS` and, in the same commit, make the three maps in
-      `src/db/vocabularies-schema.ts` unable to disagree — a mapped type over
-      `VOCABULARY_TABLES` if the inference holds, the literal plus a type-level
-      exhaustiveness assertion if it does not. **Read the generated OpenAPI
-      document both ways before choosing**, per the rule above.
-- [ ] A worker test asserting `/api/reference` returns every key in
-      `VOCABULARY_TABLES`, with the count derived from the map rather than
-      written as 23. It must fail if a vocabulary is added and not published.
-- [ ] **`VOCABULARY` in `src/domain/vocabularies.ts` derives from the model, or
-      is checked against it.** Fourth copy of the same 23. Decide which, and
-      write the reason where the decision lands.
-- [ ] **`STORED_ROLE` derives, like `STORED_ORG_ROLE` two lines above it.**
-      `Object.fromEntries(ROLE.map(r => [r.code, r.code.toLowerCase()]))`, typed
-      the way its neighbour is. This is one line and it removes one of the seven.
-- [ ] **`ROLES` in `src/web/pages/admin.tsx` comes from the model.** The SPA may
-      import `src/domain` at runtime; this is `ROLE_CODES` lowercased, which is
-      exactly what `STORED_ROLE` will then be.
-- [ ] **`adminRoles` in `src/auth/admin-access-control.ts` derives its key set.**
-      Its docstring is right that all six must be declared and that an omitted
-      role is a worse failure than a denying one — deriving the keys is how that
-      stops depending on memory. Keep the docstring; it explains the *why* that
-      no derivation can.
-- [ ] **The three test copies** — `tests/helpers/actors.ts` (`type Role`),
-      `tests/helpers/auth.ts` (`ACTORS`, `ACTOR_NAMES`),
-      `tests/render/admin.spec.ts`. `actors.ts` already says "Read off the model
-      rather than restated" about the line below its own restatement.
-      `tests/worker/write.test.ts` is **not** in this box — see *What this plan
-      must not build*.
-- [ ] **`FIXTURE_TABLES` vs `FIXTURE_SCHEMAS`.** Establish whether `games` and
-      `gameReferees` are deliberately schema-less. If yes, say so on the line and
-      add the pair to the check. If no, it is the same bug as `inviteStatuses`
-      and it is fixed the same way. Coordinate with plan-seed-coverage before
-      editing that file — it has boxes there too.
-- [ ] **`scripts/check/sets.ts`** <!-- docs-check-ignore --> for whatever is left:
-      fails when two maps declared as covering the same set do not. Added to
-      `scripts/check.ts` beside `tables`. **Last, not first** — every pair that
-      derives needs no check, so a checker written before the derivations land
-      would arrive with most of its list already gone. A check with nothing to
-      check is the boilerplate this plan exists to remove.
+- [ ] **Compare the five `event-*.tsx` side by side** and write down what
+      genuinely differs. Expect it to be: the query, the mutation pair, and the
+      cell contents of a row. Everything else — loading, empty, `invite-row`,
+      `data-testid={X-${id}}`, the error paragraph, the save button's disabled
+      state — is the same five times.
+- [ ] Extract the shell, with the row contents as a render prop. **Testids must
+      not change**, or the render tier's testid check will name every one of
+      them; that check is the reason this is safe to attempt at all.
+- [ ] `event-venues.tsx` is read-only and `event-settings.tsx` is a form, not a
+      collection. Decide whether they belong in the shell or stay out, and write
+      which — a shell that has to grow a flag for each exception is worse than
+      five honest copies.
 
-### Class 2 — one concept, declared more than once
+### Class C — which caches a write clears
 
-- [ ] **`Names`.** `src/web/lib/localizer.ts` imports from `src/domain/names.ts`
-      instead of declaring `Record<string, string>`. Two declarations remain and
-      that is correct: `src/domain/model/names.ts` is the PO's, synced verbatim.
-      Expect fallout — the SPA's version is not `Partial`, so code that assumed a
-      key was present will stop compiling. **That fallout is the finding**, and
-      each site is fixed rather than cast.
-- [ ] **`ObjectTypeCode` in `src/web/components/follow.tsx`** imports from
-      `src/domain/vocabularies`.
-- [ ] **`SessionUser`** — `src/api/base.ts` and `src/web/lib/session.tsx`. Decide
-      whether these are one concept or two: the Worker's is what Better Auth
-      returns, the SPA's is what the session endpoint sends. If two, rename one
-      so the collision stops looking like duplication. If one, share it.
-- [ ] **`ApiEvent` / `ApiTeam`** — `src/domain/api.ts` infers from the zod schema,
-      `src/web/lib/api.ts` extracts from `RouterClient`. Both are derived and
-      both are used, so neither is a copy; but two names for one shape is a trap
-      the next person falls into. Decide, and write which is canonical where the
-      loser used to be.
-
-### Class 3 — 23 tables declaring the same columns by hand
-
-- [ ] **A shared column group for the vocabulary tables.** All 23 carry
-      `code`, `nameEn`, `names`, `sort`; 11 are exactly those four; 6 also carry
-      `descriptionEn` and `descriptions`. That is 104 column declarations
-      expressing two facts. A spread — `...vocabularyColumns` — collapses it and
-      makes "every vocabulary has a code and a name" true by construction rather
-      than by 23 agreements.
-- [ ] Confirm the drizzle types survive the spread, and that
-      `drizzle-kit generate` emits **no migration** afterwards. A consolidation
-      that changes the schema is not a consolidation. Run it in a real terminal
-      and read what it produces, per AGENTS.md.
-
-### Class 4 — which caches a write clears, decided at each call site
-
-- [ ] **Establish whether this is one class or 38 correct decisions.** 30
-      `useQueryClient()` sites across 16 files, 38 `invalidateQueries` calls, 43
-      mutations. `orpc.games.key()` appears 8 times and `orpc.events.key()` 8
-      times, and `src/web/components/entries.tsx` is the only place that knows
-      withdrawing a team must also clear standings. Before writing any code, list
-      each mutation against what it invalidates and mark the ones that are
-      wrong or missing. **If none are wrong, this class is closed with that
-      finding written here** — 38 correct hand-written decisions are not a defect,
-      and plan-ownership's Phase 4 already owns the two that are.
+- [ ] **Establish whether this is one class or 38 correct decisions.** List each
+      mutation against what it invalidates; mark the wrong and the missing.
+      `orpc.games.key()` appears 8 times, `orpc.events.key()` 8 times, and
+      `src/web/components/entries.tsx` is the only place that knows withdrawing a
+      team must also clear standings. **If none are wrong, close the class with
+      that finding written here** — 38 correct hand-written decisions are not a
+      defect. Note that Class A's single return shape is what would let this
+      collapse; do this box *after* A.
 - [ ] Only if the list finds real errors: the invalidation moves next to the
-      mutation it belongs to, in `src/web/lib/data.tsx`, the way plan-ownership
-      Phase 4 already says for `follow`. Coordinate — that box is theirs.
+      mutation, in `src/web/lib/data.tsx`. Coordinate — plan-ownership Phase 4
+      owns two of these.
 
-### Class 5 — exports nothing imports
+### Class D — one set, written out by hand in several places
 
-- [ ] **Widen the gate's knip step** to include `exports` and `types`. It runs
-      `--include files,unlisted` today, which is why 28 unused exports and 13
-      unused types are invisible.
-- [ ] **Triage all 41 before deleting any.** AGENTS.md is explicit: "When a grep
-      says a file is unused, run `mise run 2-check` first." Several will be test
-      seams or documented escape hatches — `b64urlEncode` in
-      `src/api/webpush.ts` sits beside an RFC implementation, and
-      `tests/helpers/auth.ts` exports eight things a spec may need tomorrow.
-      Delete what is dead, and for the rest write which category on the line.
-- [ ] The 2 "unused" devDependencies are **both false positives, already
-      verified**: `scripts/check.ts` runs `dependency-cruiser` as `depcruise`
-      and `@inlang/cli` as `inlang`, and knip does not connect a `bun x <binary>`
-      to the package that provides it. Neither is removed. The box is to teach
-      knip about them in `knip.jsonc` so the pair stops reappearing on every run
-      — a false positive nobody can silence is how a report gets ignored.
-- [ ] The unresolved import knip reports in `scripts/check.ts` →
-      `scripts/lib/watch.ts`. Either it is used and knip is wrong, or it is dead.
-      Find out which.
-- [ ] The 6 stale entries in `knip.jsonc` it reports as removable.
-- [ ] An exceptions list with a reason per line, and the step fails on anything
-      not in it. Same shape as every other check here.
+- [ ] **`inviteStatuses` reaches the browser.** The live defect:
+      `src/api/reference.ts` queries all 23 vocabulary tables every call and
+      `VOCABULARY_SCHEMAS` (line 274 of `src/db/vocabularies-schema.ts`) declares
+      22, so the rows are read from D1 and dropped. Proven by parsing a full
+      23-key payload through `ReferenceSchema` and getting 22 back. Fix it and,
+      in the same commit, make the three maps unable to disagree — a mapped type
+      over `VOCABULARY_TABLES` if the inference holds, the literal plus a
+      type-level exhaustiveness assertion if it does not. The docstring's reason
+      for the literal (`Object.fromEntries` erases the key literals and the
+      endpoint loses its types) is correct and must be preserved.
+- [ ] A worker test asserting `/api/reference` returns every key in
+      `VOCABULARY_TABLES`, counted from the map rather than written as 23.
+- [ ] `VOCABULARY` in `src/domain/vocabularies.ts` — the fourth copy of the same
+      23 — derives from the model or is checked against it.
+- [ ] **`STORED_ROLE` derives, like `STORED_ORG_ROLE` two lines above it.**
+      `Object.fromEntries(ROLE.map(r => [r.code, r.code.toLowerCase()]))`.
+- [x] `ROLES` in `src/web/pages/admin.tsx` comes from the model — it is
+      `Object.values(STORED_ROLE)` as of `00f9566`. **Done by the other session
+      working plan-ownership, not by this one**, which is corroboration rather
+      than luck: the same restatement was found independently from the other
+      end. Seven files became six while this plan was being written.
+- [ ] `adminRoles` in `src/auth/admin-access-control.ts` derives its key set.
+      Keep the docstring — it explains a *why* no derivation can.
+- [ ] The three test copies — `tests/helpers/actors.ts`, `tests/helpers/auth.ts`,
+      `tests/render/admin.spec.ts`. `tests/worker/write.test.ts` is **not** one:
+      its `WRITERS`/`READERS` split is a partition with meaning.
+- [ ] `FIXTURE_TABLES` (17) vs `FIXTURE_SCHEMAS` (15). Establish whether `games`
+      and `gameReferees` are deliberately schema-less; say so on the line, or fix
+      it as the same bug. Coordinate with plan-seed-coverage.
+- [ ] **`scripts/check/sets.ts`** <!-- docs-check-ignore --> for whatever is left,
+      beside `tables` in `scripts/check.ts`. **Last, not first** — every pair that
+      derives needs no check, so writing it early gives it a list that is about
+      to vanish.
 
-### Class 6 — verbatim blocks worth one edit
+### Class E — one concept, declared more than once
 
-- [ ] **`authed` and `viewer` in `src/api/base.ts`** share 7 identical lines
-      resolving the session, differing only in the last. Extract the resolution;
-      keep both docstrings, which explain a real distinction — one 401s, the
-      other returns null — that the shared code must not blur.
+- [ ] **`Names`.** `src/web/lib/localizer.ts` says `Record<string, string>`;
+      `src/domain/names.ts` says `Partial<Record<Locale, string>>`. The SPA's is
+      not partial, so it claims every locale is present — the one thing
+      `NamesSchema` exists to deny. Import from the domain. Expect fallout; **the
+      fallout is the finding**, and each site is fixed rather than cast. Two
+      declarations remain and that is right: `src/domain/model/names.ts` is the
+      PO's.
+- [ ] `ObjectTypeCode` in `src/web/components/follow.tsx` imports from
+      `src/domain/vocabularies` instead of restating the union.
+- [ ] `SessionUser` — `src/api/base.ts` and `src/web/lib/session.tsx`. One
+      concept or two? If two, rename one.
+- [ ] `ApiEvent` / `ApiTeam` — `src/domain/api.ts` infers from zod,
+      `src/web/lib/api.ts` from `RouterClient`. Both derived, both used; decide
+      which is canonical and say so where the loser was.
+
+### Class F — 23 tables declaring the same columns by hand
+
+- [ ] A shared column group. All 23 carry `code`, `nameEn`, `names`, `sort`.
+- [ ] Confirm the drizzle types survive the spread and `drizzle-kit generate`
+      emits **no migration**. Run it in a real terminal and read the output.
+
+### Class G — exports nothing imports
+
+- [ ] Widen the gate's knip step to include `exports` and `types`.
+- [ ] **Triage all 41 before deleting any**, per AGENTS.md. Several are test
+      seams — `tests/helpers/auth.ts` alone has eight. Write the category on the
+      line for each survivor.
+- [ ] The 2 "unused" devDependencies are **both false positives, verified**:
+      `scripts/check.ts` runs `dependency-cruiser` as `depcruise` and
+      `@inlang/cli` as `inlang`, and knip does not connect `bun x <binary>` to
+      its package. Teach `knip.jsonc` about them so they stop reappearing.
+- [ ] The unresolved import knip reports, `scripts/check.ts` →
+      `scripts/lib/watch.ts`. Used and knip is wrong, or dead. Find out which.
+- [ ] The 6 stale `knip.jsonc` entries it reports as removable.
+- [ ] An exceptions list with a reason per line; the step fails on anything else.
+
+### Class H — verbatim blocks worth one edit
+
+- [ ] `authed` and `viewer` in `src/api/base.ts` share 7 identical lines
+      resolving the session, differing only in the last. Extract it; keep both
+      docstrings — one 401s and one returns null, and the shared code must not
+      blur that.
 
 ## Definition of done, whole job
 
-**"Where code can be collapsed together."**
+- [ ] The eight membership writes agree on a return shape and a verb pair, and
+      either derive from the model or say in this file why they do not.
+- [ ] No handler restates a relation's table, its columns, or its soft-delete
+      rule. `activeToColumn` is read, not remembered.
+- [ ] The five `event-*` components share a shell, or this file says why not.
+      **No testid changed.**
+- [ ] Class C is fixed or **closed with the finding written down**.
+- [ ] `Names` is declared twice, both deliberate, the second one the PO's.
+- [ ] No file outside `src/domain/model/` writes the six-role set in full, bar
+      `tests/worker/write.test.ts` with its reason on the line.
+- [ ] The knip step sees exports and types, with an exception list shorter than 41.
 
-- [ ] Every pair in the class-1 table either derives or is checked, and the check
-      has an exceptions list where every line carries a reason.
-- [ ] `Names` is declared twice, both deliberate, and the second one is the PO's.
-- [ ] No file outside `src/domain/model/` writes the six-role set out in full,
-      except `tests/worker/write.test.ts`, whose reason is on the line.
-- [ ] No hand-written union restates a vocabulary the model defines.
+**The tests that it held** — to run, not to claim:
 
-**"Where architecturally boilerplate can be removed."**
-
-- [ ] The 23 vocabulary tables declare their shared columns once.
-- [ ] `mise run 2-check`'s knip step sees exports and types, and its exception
-      list is shorter than the 41 it started with.
-- [ ] Class 4 is either fixed or **closed with the finding written down**. A
-      class that turns out not to be a defect is a legitimate outcome and must be
-      recorded as one, not left ambiguous.
-
-**The test that it actually held** — real, to be run, not claimed:
-
-- [ ] Add a vocabulary to the model in biz, sync, `mise run 2-check`. It appears
-      on `/api/reference`, typed, with nothing edited in `src/db/`. Today it
-      would appear in three maps out of four and be dropped from the response.
-- [ ] Add a seventh role in biz, sync. Exactly one place needs editing, and the
-      gate names it if you miss one.
-- [ ] `mise run 2-check` green, and `mise run 2-check -- --e2e` no worse than
-      where it starts.
+- [ ] Add a vocabulary in biz, sync, `mise run 2-check`. It appears on
+      `/api/reference`, typed, with nothing edited in `src/db/`. Today it lands
+      in three maps of four and is dropped from the response.
+- [ ] Add a seventh role in biz, sync. Exactly one place needs editing.
+- [ ] Add a table-backed relation in biz, sync. The read side already answers for
+      it; the write side does too, or the gate names what is missing.
+- [ ] `mise run 2-check` green; `-- --e2e` no worse than where it starts.
 - [ ] Net-negative on lines, reported as a number in the log.
-- [ ] Nothing deferred silently. Anything not done is in the log with its reason,
-      and said in the reply at the time.
 
 ## Log
 
-Append per pass: what was done, what was found, **what changed in this file and
-why**. Newest last.
-
 ### Noticed, out of scope
 
-Real, seen while measuring, not this plan's class. One line each, no box.
-
 - The reference handler ends in a cast to `z.infer<typeof ReferenceSchema>`,
-  which is what let the 22/23 mismatch through silently. The cast is honest
-  about itself in a comment; it is still the mechanism by which the drift
-  reached production.
-- `src/web/lib/localizer.ts` is 68 lines with two importers, one of which is
-  `locale.tsx` doing `export * from "./localizer"`. Collapsing them is
-  defensible and is *not* in this plan — see "do not merge files".
-- The notification cluster is 7 modules and ~2,200 lines across `src/api`. It is
-  large because Web Push, email and the queue are genuinely three things; no
-  duplication was found in it beyond the `notify-queue.ts` block in class 0.
-- `mise run 2-check` piped into `tail` reports `tail`'s exit status. Anything
-  reading `$?` through a pipe is reading the wrong process — the same trap
-  AGENTS.md records for `$(date)`.
+  which is the mechanism by which the 22/23 drift reached production silently.
+- `src/api/domain.ts`'s docstring cites "ADR 009", and the ADRs were deleted. A
+  live decision resting on a document no reader can consult.
+- `mise run 2-check` piped into `tail` reports `tail`'s exit status.
 
 ### Passes
 
-- 2026-09-03 — plan written, and it is the third in this directory, so its first
-  job was to prove it was not re-doing the other two. Facts derived before
-  anything was claimed: 229 files, 230 verbatim-duplicated lines (0.8%), 23
-  vocabularies in four maps of which one carries 22, six roles in seven files,
-  three `Names`, 104 repeated column declarations, 41 unused exports and types,
-  7 identical lines in `base.ts`.
+- 2026-09-03 — **plan rewritten after the first draft was rejected, correctly.**
 
-  **The premise was half wrong, and saying so is the main finding.** The brief
-  was that the system had become "a mass of lots of files" with overlap and
-  repetition. The file count is real — 229 — but 52 of 109 `src` modules have
-  exactly one importer and every one of those is the architecture working: one
-  page per route, one API module per router group. Verbatim duplication is under
-  one percent. There is no collapsing to be done at the file level and this plan
-  refuses to do any, which removes most of what a naive reading would have
-  scheduled.
+  The first draft measured duplication syntactically — verbatim block matching at
+  window 8, key-set overlap, type-name collisions, import counting, knip — found
+  0.8% duplicated lines, and concluded from that number that the codebase was
+  already consolidated and the brief's premise was wrong. That conclusion does
+  not follow. Low text similarity is exactly what "the same job done eight times
+  under different names" looks like, and every finding in Classes A and B is
+  invisible to all five of those detectors.
 
-  What is duplicated is *sets*, and one had already broken: `/api/reference`
-  reads `invite_status` from D1 on every call and the contract drops it.
+  It also generalised from one file: `orgs.ts` was read, the API layer was
+  declared clean, and `events.ts` (866 lines), `games.ts` (916) and
+  `registrations.ts` (584) were never opened. The five `event-*.tsx` components
+  were listed and never compared. "No duplication was found" was written about a
+  2,281-line notification cluster on the strength of a window-8 scan.
 
-  Four things measured this session that were wrong when first written, recorded
-  because each was nearly asserted:
+  What the semantic pass found, by lining the model up against the code rather
+  than the code against itself:
 
-  1. **"20 mutations invalidate nothing."** False. The detector only looked
-     inside the `useMutation` options object, and those 20 call a local
-     `invalidate` closure declared just above. Corrected before it reached the
-     file — and it is why class 4 is a box that *establishes whether there is a
-     defect* rather than one that assumes there is.
-  2. **"`src/web/pages/video.tsx` has no importer."** False. It is `lazy(() =>
-     import(...))` from `main.tsx`, deliberately code-split. The import scanner
-     only matched static `from "..."`.
-  3. **"The gate hides its own failure — it printed ERROR and exited 0."** False,
-     and the most instructive of the four. That 0 was `tail`'s status, because
-     the run was piped. Re-run unpiped, `mise run 2-check` exits 1 correctly.
-  4. **Eight of the first-draft numbers** differed from the derivation block on
-     its first run — the count of exactly-four-column tables (11, not 10), of
-     tables carrying descriptions (6, not 8), of `invalidateQueries` sites (38,
-     not the 35 a deduplicated `uniq -c` reported), and the file totals. Fixed
-     before the phases were written.
+  1. **The read side derives from the model and the write side does not.**
+     `relations.ts` consumes all seven structural columns; eight membership
+     collections in six files restate the same facts by hand, under five verb
+     conventions, and **no two of the eight return the same shape**.
+  2. **`team_coaches` has no write path at all** — only a side effect inside
+     `teams.create`. Coaching staff is fixed at team creation. The model has no
+     action for it either, so it is a gap spanning both repos.
+  3. **`removePlayer` reimplements `activeToColumn: "to_date"`**, which the model
+     declares and `relations.ts` already honours.
+  4. **The five `event-*` components are one component.** Same skeleton, five
+     sets of identifiers.
+  5. **`src/api/domain.ts` already is this pattern for reads** — `listOf` with
+     policy as a required argument — and explicitly declines it for writes. That
+     objection is now in the plan as the strongest argument against it, with the
+     decision framed as one to re-take rather than one to ignore.
 
-  Two conditions of the tree, both worth knowing next pass:
+  Five detectors written this session produced false positives, each caught by a
+  check that took under two minutes. Recorded because the rate is the point — a
+  measurement is a claim:
+
+  1. "20 mutations invalidate nothing" — they call a local `invalidate` closure.
+  2. "`video.tsx` has no importer" — it is `lazy(() => import(...))`.
+  3. "The gate exits 0 while printing ERROR" — that was `tail`'s status.
+  4. "Four procedures declare no policy" — a line-wrapped `.use(` the regex missed.
+  5. "`team_coaches` is never written" — it is, inside `teams.create`.
+
+  Two conditions of the tree:
 
   - **`mise run 2-check` is green** on a clean run: 2 unit, 378 worker, 219
-    render, exit 0. An earlier run in this session reported a worker timeout and
-    140 render failures; both were self-inflicted, from running a second gate
-    while the first still held port 4173. The render tier alone passes 219/219
-    in 26s.
-  - **Another session is working in this tree right now** — five commits landed
-    while this was being written (`ced4df2`, `101206c`, `0dfbdfb`, `86caaaf`,
-    `8cb600e`, all plan-ownership work) and the total line count moved twice
-    under the same script, by 13 and then by 228.
-
-    **And it committed this file, twice, mid-write.** `86caaaf` and `8cb600e`
-    both carry `docs/plan-consolidation.md` in their diffs under messages about
-    entirely different work, because a broad `git add` swept up an unfinished
-    file another session had open. Nothing was lost — the content is this
-    session's and was verified after the fact — but the history now says this
-    plan was written by two commits that were not about it.
-
-    This is exactly the failure AGENTS.md records from 2026-08-31, where
-    `git add -A` swept 196 lines of model change into `ce6a233` whose message
-    said nothing in the model had changed. It has now happened twice. **Read
-    what `git status` lists before a broad `git add`** — especially when the
-    commit is meant to touch a known set of files, and most especially in
-    `docs/`, where three plans are being worked at once.
+    render, exit 0. An earlier run reporting 140 render failures was two gates
+    colliding on port 4173.
+  - **Another session is working here and committed this file twice mid-write.**
+    `86caaaf` and `8cb600e` both carry `docs/plan-consolidation.md` under
+    messages about unrelated work — a broad `git add` sweeping up an open file.
+    Nothing was lost, but the history now attributes this plan to two commits
+    that are not about it. Second occurrence of the failure AGENTS.md records
+    from 2026-08-31. **Read what `git status` lists before a broad `git add`.**

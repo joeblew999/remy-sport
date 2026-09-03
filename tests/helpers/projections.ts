@@ -432,6 +432,28 @@ export function projectAttendance(
   }
 }
 
+/**
+ * The venues, and which events use them, as the generic table endpoints return
+ * them. Whole rows — `domain.ts` derives these straight from the drizzle table.
+ */
+export const projectVenues = () => ({
+  items: E.venues.map((v) => ({
+    id: v.id,
+    address: v.address,
+    cityCode: v.cityCode,
+    provinceCode: v.provinceCode,
+    names: names(v.names),
+  })),
+})
+
+export const projectEventVenues = () => ({
+  items: R.eventVenues.map((v) => ({
+    eventId: v.eventId,
+    venueId: v.venueId,
+    isPrimary: v.isPrimary,
+  })),
+})
+
 /** Every id the projections above can be asked about, for the equivalence test. */
 export const SEEDED = {
   events: E.events.map((e) => e.id),
