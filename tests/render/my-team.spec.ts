@@ -3,6 +3,7 @@ import { sessionFor } from "../helpers/actors"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { apiTeam } from "../helpers/api-fixtures"
+import { projectTeam } from "../helpers/projections"
 
 /**
  * "My team" is yours, and — the half that matters — is nobody else's.
@@ -43,7 +44,7 @@ const teams = [
     orgName: "Assumption College",
     orgNames: { en: "Assumption College" },
   }),
-  apiTeam({ id: TRIAM }),
+  ({ ...projectTeam(TRIAM) }),
 ]
 
 /** What `me.mine` returns: ids and how they are held, never rows. */

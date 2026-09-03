@@ -2,6 +2,7 @@ import { test, expect } from "./fixture"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { apiEvent } from "../helpers/api-fixtures"
+import { projectEvent } from "../helpers/projections"
 
 /**
  * Editing an event, and who is offered the chance.
@@ -20,7 +21,7 @@ import { apiEvent } from "../helpers/api-fixtures"
 const EVENT_ID = "evt_002"
 
 const event = (canEdit: boolean, canInvite = canEdit) =>
-  apiEvent({ id: EVENT_ID, organizerName: "Organiser", canEdit, canInviteCoOrganizer: canInvite })
+  ({ ...projectEvent(EVENT_ID), canEdit, canInviteCoOrganizer: canInvite })
 
 const seed = (canEdit: boolean, canInvite = canEdit) => [
   entry(orpc.events.get, { id: EVENT_ID }, event(canEdit, canInvite)),
@@ -304,7 +305,7 @@ test.describe("The Rules tab", () => {
       entry(
         orpc.events.get,
         { id: EVENT_ID },
-        apiEvent({ id: EVENT_ID, formatCode: "3x3", isFibaCertified: true }),
+        ({ ...projectEvent(EVENT_ID), formatCode: "3x3", isFibaCertified: true }),
       ),
     ])
     await visit(page, "event", { id: EVENT_ID })
@@ -320,7 +321,7 @@ test.describe("The Rules tab", () => {
     // Most school tournaments are not certified. Omitting the row would read as
     // "we did not check", which is a different claim.
     await seedCache(page, [
-      entry(orpc.events.get, { id: EVENT_ID }, apiEvent({ id: EVENT_ID, isFibaCertified: false })),
+      entry(orpc.events.get, { id: EVENT_ID }, ({ ...projectEvent(EVENT_ID), isFibaCertified: false })),
     ])
     await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-rules").click()

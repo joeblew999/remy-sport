@@ -192,7 +192,15 @@ test.describe("Event entries", () => {
 
   const open = async (page: Parameters<typeof seedCache>[0]) => {
     await visit(page, "event", { id: "evt_002" })
-    await page.getByRole("button", { name: "Teams" }).click()
+    /**
+     * The tab, by its testid, not by its accessible name.
+     *
+     * "Teams" is not unique on this page any more — the sidebar grew a nav item
+     * with the same label, and `getByRole` matched both. A test that names a
+     * button by the word on it breaks whenever any other button gets that word,
+     * which is a coupling to the whole page rather than to the tab bar.
+     */
+    await page.getByTestId("tab-teams").click()
   }
 
   test("shows who is entered, and no form when there is nothing to enter", async ({ page }) => {

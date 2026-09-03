@@ -2,7 +2,8 @@ import { test, expect } from "./fixture"
 import { asVisitor } from "../helpers/actors"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { apiEvent, apiGame } from "../helpers/api-fixtures"
+import { apiGame } from "../helpers/api-fixtures"
+import { projectEvent } from "../helpers/projections"
 
 /**
  * The board somebody standing in a sports hall reads.
@@ -26,7 +27,7 @@ const game = (over: Partial<Parameters<typeof apiGame>[0]>) => apiGame(over)
 /** Signed out — `asVisitor` seeds the resolved-and-empty session separately. */
 const seed = (page: Parameters<typeof seedCache>[0], games: ReturnType<typeof game>[]) =>
   seedCache(page, [
-    entry(orpc.events.get, { id: EVENT }, apiEvent({ id: EVENT })),
+    entry(orpc.events.get, { id: EVENT }, ({ ...projectEvent(EVENT) })),
     entry(orpc.games.list, { eventId: EVENT }, { games, viewerTimezone: "Asia/Bangkok" }),
   ])
 

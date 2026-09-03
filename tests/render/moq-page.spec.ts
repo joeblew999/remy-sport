@@ -1,7 +1,8 @@
 import { test, expect } from "./fixture"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { apiEvent, apiGame, type ApiGame } from "../helpers/api-fixtures"
+import { type ApiGame } from "../helpers/api-fixtures"
+import { projectEvent, projectGame, projectGamesIn } from "../helpers/projections"
 
 /**
  * The video pages with no relay configured — which is the majority path.
@@ -12,26 +13,15 @@ import { apiEvent, apiGame, type ApiGame } from "../helpers/api-fixtures"
  * "video is not switched on here" look identical to somebody standing in a gym.
  */
 
-const liveGame = apiGame({
-  id: "gam_002",
-  eventId: "evt_002",
-  homeTeamId: "team_001",
-  awayTeamId: "team_003",
-  homeTeamNames: { en: "Assumption U16" },
-  awayTeamNames: { en: "Montfort U16" },
-  venueId: "ven_001",
-  venueNames: { en: "Assumption Indoor Court" },
-  startsAt: "2026-08-27T13:00:00Z",
-  statusCode: "LIVE",
-  homeScore: 41,
-  awayScore: 38,
-  timezone: "Asia/Bangkok",
-  canEnterScore: false,
-  canSetStatus: false,
-  canAssignReferee: false,
-  referees: [],
-  availableReferees: [],
-})
+/**
+ * gam_002, the league's live game, off the seed.
+ *
+ * This was a literal naming teams "Assumption U16" and "Montfort U16", which is
+ * not what either row holds, at a venue whose name it also invented. It is the
+ * real fixture now — and gam_002 genuinely is LIVE, which is what this file is
+ * about.
+ */
+const liveGame: ApiGame = projectGame("gam_002", { canBroadcast: false })
 
 /**
  * The native notification path must be invisible in a browser.
@@ -91,8 +81,8 @@ test.describe("Live video, before a relay exists", () => {
 
     const heading = page.getByTestId("video-game")
     await expect(heading).toBeVisible()
-    await expect(heading).toContainText("Assumption U16")
-    await expect(heading).toContainText("Montfort U16")
+    await expect(heading).toContainText(liveGame.homeTeamNames.en!)
+    await expect(heading).toContainText(liveGame.awayTeamNames.en!)
   })
 
   test("falls back to the game being played, so the menu entry works on its own", async ({
@@ -105,7 +95,7 @@ test.describe("Live video, before a relay exists", () => {
       entry(orpc.games.get, { id: "gam_002" }, liveGame),
     ])
     await visit(page, "broadcast")
-    await expect(page.getByTestId("video-game")).toContainText("Assumption U16")
+    await expect(page.getByTestId("video-game")).toContainText(liveGame.homeTeamNames.en!)
   })
 
   test("says so when there is no game at all to fall back to", async ({ page }) => {
@@ -126,6 +116,9 @@ test.describe("Live video, before a relay exists", () => {
  * camera is pointed at that game.
  */
 const liveGameRow = (over: Partial<ApiGame>) => ({ ...liveGame, ...over })
+
+/** A fixture in the same league that has not been played yet. */
+const scheduled = projectGamesIn("evt_002").find((g) => g.statusCode === "SCHEDULED")!
 
 test.describe("Finding a game to watch", () => {
   test("offers Watch only on a game somebody is broadcasting", async ({ page }) => {
@@ -190,33 +183,34 @@ test.describe("A broadcaster starts from the fixture they are standing at", () =
     // is still SCHEDULED. Offering this only on Live now — which lists games
     // already in play — is offering it after they needed it.
     await seedCache(page, [
-      entry(orpc.events.get, { id: "evt_002" }, apiEvent({ id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" }, startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK", organizerUserId: "usr_org_002", orgId: null, organizerName: "Niran" })),
+      entry(orpc.events.get, { id: "evt_002" }, projectEvent("evt_002")),
       entry(orpc.games.list, { eventId: "evt_002" }, {
         viewerTimezone: null,
         games: [
-          { ...liveGame, id: "gam_050", statusCode: "SCHEDULED", homeScore: null, awayScore: null,
-            isBroadcasting: false, canBroadcast: true },
+          // A real scheduled fixture in this league, not an invented id: a
+          // referee arriving before tip-off is looking at a game that exists.
+          { ...scheduled, isBroadcasting: false, canBroadcast: true },
         ],
       }),
     ])
     await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
-    await expect(page.getByTestId("broadcast-fixture-gam_050")).toBeVisible()
+    await expect(page.getByTestId(`broadcast-fixture-${scheduled.id}`)).toBeVisible()
   })
 
   test("shows Watch on a fixture somebody is filming, to anyone reading the schedule", async ({
     page,
   }) => {
     await seedCache(page, [
-      entry(orpc.events.get, { id: "evt_002" }, apiEvent({ id: "evt_002", name: "Bangkok Schools League", names: { en: "Bangkok Schools League" }, startDate: "2026-05-01", endDate: "2026-09-30", cityCode: "BANGKOK", provinceCode: "BKK", organizerUserId: "usr_org_002", orgId: null, organizerName: "Niran" })),
+      entry(orpc.events.get, { id: "evt_002" }, projectEvent("evt_002")),
       entry(orpc.games.list, { eventId: "evt_002" }, {
         viewerTimezone: null,
-        games: [{ ...liveGame, id: "gam_051", isBroadcasting: true, canBroadcast: false }],
+        games: [{ ...liveGame, isBroadcasting: true, canBroadcast: false }],
       }),
     ])
     await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
     // Nobody should have to know a second page exists to find the picture.
-    await expect(page.getByTestId("watch-fixture-gam_051")).toBeVisible()
+    await expect(page.getByTestId(`watch-fixture-${liveGame.id}`)).toBeVisible()
   })
 })

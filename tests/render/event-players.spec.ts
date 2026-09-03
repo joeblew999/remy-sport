@@ -2,8 +2,9 @@ import { test, expect } from "./fixture"
 import { sessionFor } from "../helpers/actors"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { apiEvent, apiMyPlayer } from "../helpers/api-fixtures"
+import { apiMyPlayer } from "../helpers/api-fixtures"
 import type { ApiEvent } from "../../src/domain/api"
+import { projectEvent } from "../helpers/projections"
 
 /**
  * Entering your child in a camp — the last of the three grants a guardian holds
@@ -33,7 +34,7 @@ const child = apiMyPlayer({
 const seed = (page: Parameters<typeof seedCache>[0], type: ApiEvent["typeCode"], entered: string[] = []) =>
   seedCache(page, [
     signedIn,
-    entry(orpc.events.get, { id: EVENT_ID }, apiEvent({ id: EVENT_ID, typeCode: type })),
+    entry(orpc.events.get, { id: EVENT_ID }, ({ ...projectEvent(EVENT_ID), typeCode: type })),
     entry(orpc.players.mine, undefined, { players: [child] }),
     entry(orpc.eventPlayers.list, undefined, {
       items: entered.map((playerId) => ({ eventId: EVENT_ID, playerId, registeredAt: "2026-03-20" })),
@@ -104,7 +105,7 @@ test.describe("Entering a player in an event", () => {
     // Two different empty states again: "nobody of yours can enter this" is a
     // fact, "we do not know who you are" is not.
     await seedCache(page, [
-      entry(orpc.events.get, { id: EVENT_ID }, apiEvent({ id: EVENT_ID, typeCode: "CAMP" })),
+      entry(orpc.events.get, { id: EVENT_ID }, ({ ...projectEvent(EVENT_ID), typeCode: "CAMP" })),
     ])
     await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-players").click()
