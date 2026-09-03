@@ -126,7 +126,7 @@ description = "build it here — stop | restart | ensure | watch | --help"
 run = "bun scripts/dev.ts"
 
 [tasks.2-check]
-description = "prove it — --fast | --e2e | --help"
+description = "prove it — --fast | --e2e [--env dev|staging|production] | --help"
 # `web:build` is a dependency rather than a line in the script, so mise builds
 # it once for this task and for `test:render`, which needs it too.
 # dev:vars because the worker tests inside check read .dev.vars — "Using secrets

@@ -34,31 +34,61 @@ const argv = process.argv.slice(3)
 try {
   const target = resolveTarget(argv, "explicit")
 
-  if (POLICY[target.environment].signInCode !== "secret") {
-    throw new Refused(
-      `${target.environment} derives its sign-in code from the policy table, so there is\n` +
-        "  nothing to switch. Seeded sign-in is already on there and cannot be turned off\n" +
-        "  by removing a secret — see `signInCode` in src/environment.ts.",
-    )
-  }
+  /**
+   * Two secrets, because there are two questions.
+   *
+   * `TEST_OTP` fixes the code for every seeded actor, and only production needs
+   * it — dev and staging derive theirs from the policy table, which is why this
+   * used to refuse them outright.
+   *
+   * `TEST_ADMIN_OTP` is the second question and applies everywhere: whether the
+   * seeded ADMIN may use that code. Its default is off on every deployment
+   * (`offersAdminSignIn: false`), so without it the admin console's only two
+   * specs cannot run anywhere but dev — the surface deciding who may impersonate
+   * whom, covered exclusively against a local Worker.
+   *
+   * So staging is no longer refused: it has nothing to switch for `TEST_OTP` and
+   * something real to switch for the admin. `off` removes both regardless, since
+   * "make sure demo is off" must be safe to run against anything.
+   */
+  const fixesEveryone = POLICY[target.environment].signInCode === "secret"
 
   if (action === "on") {
     const code = process.env.DEMO_CODE ?? DEMO_SIGN_IN_CODE
-    const put = wrangler(["secret", "put", "TEST_OTP"], target, { stdin: code, inherit: true })
-    if (put.code !== 0) throw new Refused("could not set TEST_OTP")
+    if (fixesEveryone) {
+      const put = wrangler(["secret", "put", "TEST_OTP"], target, { stdin: code, inherit: true })
+      if (put.code !== 0) throw new Refused("could not set TEST_OTP")
+    } else {
+      console.log(
+        `demo: ${target.environment} derives the seeded code from the policy table, so only\n` +
+          "      admin sign-in is being switched here.",
+      )
+    }
+    // The admin, deliberately last and deliberately separate: turning the
+    // ordinary demo on must never quietly turn this on too.
+    const admin = wrangler(["secret", "put", "TEST_ADMIN_OTP"], target, {
+      stdin: code,
+      inherit: true,
+    })
+    if (admin.code !== 0) throw new Refused("could not set TEST_ADMIN_OTP")
   } else if (action === "off") {
     // No `--force`: wrangler has no such flag and rejects the whole command with
     // "Unknown argument: force", so `demo:off` could not turn demo off at all —
     // the one command AGENTS.md says to run before the platform has real users.
     // It prompts instead, and answers itself with "yes" when nothing is a TTY,
     // which is every way this runs.
-    const gone = wrangler(["secret", "delete", "TEST_OTP"], target)
-    // Already absent is the desired state, not a failure. The old task deleted
-    // unconditionally and errored when there was nothing to delete, which made
-    // "make sure demo is off" a command you could not safely run twice.
-    const goneText = gone.out + gone.err
-    if (gone.code !== 0 && !/not found|does not exist/i.test(goneText)) {
-      throw new Refused(`could not delete TEST_OTP:\n${goneText}`)
+    // Both, unconditionally. "Make sure demo is off" is the command AGENTS.md
+    // says to run before the platform has real users, so it must not depend on
+    // knowing which of the two switches somebody turned on.
+    for (const name of ["TEST_OTP", "TEST_ADMIN_OTP"]) {
+      const gone = wrangler(["secret", "delete", name], target)
+      // Already absent is the desired state, not a failure. The old task deleted
+      // unconditionally and errored when there was nothing to delete, which made
+      // "make sure demo is off" a command you could not safely run twice.
+      const goneText = gone.out + gone.err
+      if (gone.code !== 0 && !/not found|does not exist/i.test(goneText)) {
+        throw new Refused(`could not delete ${name}:\n${goneText}`)
+      }
     }
   } else {
     throw new Refused(`usage: demo.ts <on|off> --env <environment>`)
@@ -89,11 +119,17 @@ try {
   let said = ""
   let observed = false
   for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
-    const status = Bun.spawnSync(["bun", "scripts/ops/demo-status.ts"], {
-      stdout: "pipe",
-      stderr: "pipe",
-      env: { ...process.env },
-    })
+    // `--env`, which this did not pass. demo-status.ts resolves `ambient`, and
+    // ambient means production — so `demo on --env staging` set staging's secret
+    // and then reported production's state back, in production's words:
+    // "demo: OFF at https://remy.ubuntusoftware.net" for a staging command.
+    // Same class as the CF_DEPLOY_URL bug in versions.ts: a reader that cannot
+    // be told which environment it is asking about does not fail, it answers
+    // confidently about the wrong one.
+    const status = Bun.spawnSync(
+      ["bun", "scripts/ops/demo-status.ts", "--env", target.environment],
+      { stdout: "pipe", stderr: "pipe", env: { ...process.env } },
+    )
     said = status.stdout.toString() + status.stderr.toString()
     if ((/demo: ON/.test(said) && new RegExp(`code ${code}`).test(said)) === want) {
       observed = true

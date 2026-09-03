@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test"
-import { ACTOR_NAMES, ADMIN, COACH, EVERY_SEEDED_ACTOR, IS_LOCAL, actor } from "../helpers/auth"
+import { ACTOR_NAMES, ADMIN, COACH, EVERY_SEEDED_ACTOR, actor } from "../helpers/auth"
 
 // ADR 012 + ADR 008 step 4. The SPA had no authentication at all: it never
 // learned who was viewing, which is why the accept-invitation page had to hand
@@ -23,7 +23,24 @@ const LOCAL_CODE = "424242" // fixed for @remy.dev — see tests/helpers/auth.ts
  * `fullyParallel: true` and `workers: 2` any two of them could overlap.
  */
 test.describe.serial("SPA sign-in", () => {
-  test.skip(!IS_LOCAL, "signing in needs the fixed dev code")
+  /**
+   * Runs on a deployment too — the skip here was stale in the same way
+   * devices.spec.ts's was. "Signing in needs the fixed dev code" was written
+   * when dev was the only environment with one; staging has had the identical
+   * code since it took `signInCode: "derived"`, and production has it whenever
+   * `ops -- demo on` has been run, which `check --e2e` now verifies before
+   * starting rather than guessing at.
+   *
+   * The two tests that name ADMIN do not need to BE the admin: one asserts that
+   * requesting a code reveals the code step, the other that a wrong code is
+   * refused. Both are true of an address a deployment will never issue a fixed
+   * code for — sending is allowed to everyone, and a wrong code is wrong either
+   * way. Only actually holding an admin session is refused, which is
+   * admin-console.spec.ts and authz.spec.ts.
+   *
+   * This is the file most worth running remotely: it is the only one whose
+   * subject is sign-in itself, on the one path a real person takes.
+   */
 
   test("the SPA has its own login screen, with no password field", async ({ page }) => {
     await page.goto("/#/login")

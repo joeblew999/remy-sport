@@ -47,6 +47,10 @@
     "tests/**/*.spec.ts",
     "tests/**/*.test.ts",
     "tests/**/*.setup.ts",
+    // And the teardown beside it. Playwright reaches both by `testMatch` regex
+    // from playwright.config.ts, so no import points at either and knip reads
+    // them as dead files — it flagged auth.teardown.ts the moment it was added.
+    "tests/**/*.teardown.ts",
     "tests/**/*.shots.ts"
   ],
 

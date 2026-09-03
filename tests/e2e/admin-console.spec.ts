@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test"
-import { signInThroughLoginForm, stateFor, ADMIN, COACH, ORGANIZER, PLAYER } from "../helpers/auth"
+import { signInThroughLoginForm, stateFor, ADMIN, COACH, ORGANIZER, PLAYER, ADMIN_SIGN_IN } from "../helpers/auth"
 
 // ADR 013. The dashboard stops being a demo harness and becomes a real admin
 // surface, using the plugin endpoints that were configured in ADR 007 and had
@@ -7,6 +7,26 @@ import { signInThroughLoginForm, stateFor, ADMIN, COACH, ORGANIZER, PLAYER } fro
 // so the seeded admin held none of its permissions.
 
 test.describe.serial("Admin console", () => {
+  /**
+   * Being the admin is the premise of every test here, so this runs wherever
+   * that is possible — which is dev always, and a deployment once somebody has
+   * run `ops -- demo on --env X`.
+   *
+   * Not `!IS_LOCAL`, which is what it said before. That conflated "this is a
+   * deployment" with "the admin cannot sign in", and the second is a switch
+   * rather than a property of being deployed. `check --e2e` asks the origin
+   * directly and sets `TEST_ADMIN_SIGNIN` from the answer, so the skip reflects
+   * what the deployment will actually do instead of a guess about it.
+   *
+   * Default is still off on staging and production — `offersAdminSignIn: false`,
+   * because a deployment never *publishes* a way in as the account that can
+   * impersonate. What changed is that it is now reachable deliberately, for a
+   * run, and `demo off` takes it away again. Before, the admin console — the one
+   * surface deciding who may impersonate whom — could only ever be exercised
+   * against a local Worker.
+   */
+  test.skip(!ADMIN_SIGN_IN, "no admin sign-in here — `mise run ops -- demo on --env X` enables it")
+
   test("an admin sees the account list; the plugin's own permission check allows it", async ({ page }) => {
     // Before ADR 013 this endpoint answered "You are not allowed to list users"
     // for the one account that is supposed to be allowed.

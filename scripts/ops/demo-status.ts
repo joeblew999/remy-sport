@@ -37,7 +37,30 @@ import { originOf, resolveTarget } from "../lib/cloudflare"
 import { DEMO_SIGN_IN_CODE } from "../../src/environment"
 import { SEED_ENTITIES } from "../../src/domain/model/entities"
 
-const BASE = process.env.CF_DEPLOY_URL ?? originOf(resolveTarget(process.argv.slice(2), "ambient"))
+/**
+ * An explicit `--env` beats the ambient override, which it did not.
+ *
+ * `CF_DEPLOY_URL` is set to production in this shell, and it was read first — so
+ * `ops -- demo status --env staging` asked production and answered in
+ * production's words: "demo: OFF at https://remy.ubuntusoftware.net". The flag
+ * was passed correctly the whole way down and then ignored at the last step.
+ *
+ * That is the failure `originOf` exists to prevent, and its own comment names
+ * this variable as the thing it replaced: a reader pinned to one hostname
+ * "cannot express three environments, and the failure is not an error — every
+ * caller quietly does the right thing to the wrong environment". Here it made a
+ * *status* command lie, which is worse than a write going astray: somebody
+ * checking whether the admin code is live on staging was shown production's
+ * answer and had no way to tell.
+ *
+ * The override stays for the case it was kept for — pointing this at localhost
+ * or the dev tunnel — but only when nothing more specific was said.
+ */
+const named = process.argv.includes("--env") || process.argv.some((a) => a.startsWith("--env="))
+const BASE =
+  !named && process.env.CF_DEPLOY_URL
+    ? process.env.CF_DEPLOY_URL
+    : originOf(resolveTarget(process.argv.slice(2), "ambient"))
 
 /** The code `demo:on` publishes. `DEMO_CODE` overrides it, as it does there. */
 const CODE = process.env.DEMO_CODE ?? DEMO_SIGN_IN_CODE

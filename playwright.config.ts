@@ -66,7 +66,13 @@ export default defineConfig({
     { name: "seed", testMatch: /seed\.setup\.ts/ },
     // Signs in once per actor and saves cookies; every spec that merely needs
     // to BE someone loads that state instead of signing in for itself.
-    { name: "auth", testMatch: /auth\.setup\.ts/, dependencies: ["seed"] },
+    // `teardown` runs after everything that depended on this project, which is
+    // every spec. The sessions it opens are the suite's credentials, so they
+    // cannot be revoked per-test; they are ended once, at the end, so the run
+    // leaves the system holding no more sessions than it found. That matters
+    // most where it cannot be reset — see tests/e2e/auth.teardown.ts.
+    { name: "auth", testMatch: /auth\.setup\.ts/, dependencies: ["seed"], teardown: "auth-teardown" },
+    { name: "auth-teardown", testMatch: /auth\.teardown\.ts/ },
     {
       name: "e2e",
       testIgnore: [/.*\.setup\.ts/, /devices\.spec\.ts/, /authz\.spec\.ts/],

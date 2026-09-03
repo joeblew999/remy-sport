@@ -32,7 +32,10 @@ setup("sign in as each actor and save session state", async ({ playwright }) => 
     const ctx = await playwright.request.newContext({
       baseURL: process.env.BASE_URL || "http://localhost:8787",
     })
-    await signIn(ctx, email)
+    // `keep`: this session is the deliverable, not a side effect. The per-test
+    // revoke would end it before the first spec adopted it. auth.teardown.ts
+    // ends these instead, after the whole run.
+    await signIn(ctx, email, { keep: true })
     await ctx.storageState({ path: stateFor(email) })
     await ctx.dispose()
   }

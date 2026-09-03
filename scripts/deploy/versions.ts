@@ -77,7 +77,26 @@ const DEPLOYED_URL = IS_DEV
   ? (process.env.DEV_URL ?? "http://localhost:8787")
   : originOf(resolveTarget(argv))
 const GITHUB_REPO = requireEnv("GITHUB_REPO_URL")
-const WORKER_NAME = requireEnv("CF_WORKER_NAME")
+/**
+ * Derived, not required — `mise run 1-dev` could not start without this.
+ *
+ * mise's [env] deliberately stopped setting CF_WORKER_NAME: "CF_DEPLOY_URL,
+ * CF_WORKER_NAME, DEV_URL and CLOUDFLARE_ACCOUNT_ID all used to sit here as
+ * literals pinned to production… All four are derived now." Three of them were.
+ * This line still demanded the fourth from the environment, so `prepare()`
+ * failed at its `versions` step and nothing after it ran:
+ *
+ *   versions.ts: missing required env var CF_WORKER_NAME (expected from mise.toml [env])
+ *
+ * It stayed hidden because the variable is exported in some shells, so whether
+ * the dev server started depended on which terminal you opened.
+ *
+ * `workerName()` reads it from the same resolved wrangler config `originOf()`
+ * uses, so dev, staging and production each get their own name rather than
+ * production's. Still an override when set, which is how CI supplies its own.
+ */
+const WORKER_NAME =
+  process.env.CF_WORKER_NAME ?? workerName(IS_DEV ? { environment: "dev" } : resolveTarget(argv))
 const CF_SUBDOMAIN = requireEnv("CF_SUBDOMAIN")
 
 // --- Current version from git ---

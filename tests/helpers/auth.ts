@@ -1,4 +1,4 @@
-import { expect, type APIRequestContext, type BrowserContext, type Page } from "@playwright/test"
+import { expect, test, type APIRequestContext, type BrowserContext, type Page } from "@playwright/test"
 import { existsSync, readFileSync } from "node:fs"
 import { SEED_ENTITIES } from "../../src/domain/model/entities"
 
@@ -23,6 +23,99 @@ import { SEED_ENTITIES } from "../../src/domain/model/entities"
 
 export const BASE = process.env.BASE_URL || "http://localhost:8787"
 export const IS_LOCAL = !process.env.BASE_URL
+
+/**
+ * Whether the seeded ADMIN can sign in wherever this run points.
+ *
+ * Measured by `check --e2e`, which asks the deployment before starting anything
+ * and sets `TEST_ADMIN_SIGNIN` from the answer. Locally it is always true — dev
+ * has `offersAdminSignIn: true`.
+ *
+ * The specs that need it used to key off `!IS_LOCAL`, which conflated three
+ * different questions: is there a fixed code, does it cover the admin, and is
+ * this a deployment. Staging answers yes, no, yes — so `devices.spec.ts` and
+ * `spa-login.spec.ts`, which need only the first, sat skipped on a deployment
+ * that could have run them the whole time. Fifteen tests reading green while
+ * doing nothing.
+ *
+ * A deployment says yes only after `ops -- demo on`, which sets the secret that
+ * `adminSignInAllowed()` reads, and `demo off` removes. Default is no, which is
+ * what "a deployment never publishes a way in as the account that can
+ * impersonate" is protecting.
+ */
+export const ADMIN_SIGN_IN = IS_LOCAL || process.env.TEST_ADMIN_SIGNIN === "1"
+
+/**
+ * Every session a test creates, so the test can put the system back.
+ *
+ * The suite is designed to inject into a live system — that is the only way to
+ * validate a deployed production, and it is why there is no scratch database to
+ * hide in. Injection is only sound if it is reversible: seeding idempotent, side
+ * effects undone. Sign-in was the one side effect nothing undid. Eleven
+ * sign-ins per run, one sign-out, and sessions accumulated forever — 57 to 77 in
+ * two runs on this machine.
+ *
+ * That is not cosmetic. `devices.spec.ts` asserts on how many sessions a person
+ * has, which is the correct thing for it to assert; against a table that only
+ * ever grows, and that concurrent specs write to, the count moves underneath it.
+ * The two failures it produced were real reports of a real leak.
+ *
+ * Revoked by token, one at a time. Never `revoke-other-sessions`: run against
+ * production that signs real people out of their real devices, which is a far
+ * worse thing than a slow test.
+ */
+const createdSessions: Array<{ ctx: APIRequestContext; token: string; email: string }> = []
+
+/**
+ * Record the session a context just obtained.
+ *
+ * Read back from `get-session` rather than assumed, because the token is what
+ * `revoke-session` takes and only the server knows it. Failure to read it is not
+ * worth failing a test over — it costs a leaked session, which is what the
+ * situation already was.
+ */
+async function remember(ctx: APIRequestContext, email: string): Promise<void> {
+  try {
+    const res = await ctx.get("/api/auth/get-session", { headers: { Origin: BASE } })
+    if (!res.ok()) return
+    const body = (await res.json()) as { session?: { token?: string } } | null
+    const token = body?.session?.token
+    if (token) createdSessions.push({ ctx, token, email })
+  } catch {
+    // A context that cannot answer cannot be cleaned up either. Leaking one
+    // session is strictly better than failing the test that created it.
+  }
+}
+
+/**
+ * Give back every session this test took out.
+ *
+ * Each token is revoked through the context that created it, because
+ * `revoke-session` only accepts one of the caller's own — and both contexts in a
+ * spec belong to the same person anyway.
+ *
+ * Registered here rather than in each spec: the leak was systemic, so the remedy
+ * has to be too. A spec that signs in gets the cleanup by importing the helper
+ * it already imports, and cannot forget it.
+ */
+export async function releaseSessions(): Promise<void> {
+  const taken = createdSessions.splice(0)
+  for (const { ctx, token } of taken) {
+    try {
+      await ctx.post("/api/auth/revoke-session", {
+        data: { token },
+        headers: { Origin: BASE },
+      })
+    } catch {
+      // Best effort. The context may already be disposed, or the session may
+      // have been revoked by the test itself — which is the happy case.
+    }
+  }
+}
+
+test.afterEach(async () => {
+  await releaseSessions()
+})
 
 /** The six seeded actors. No passwords — an address is the whole credential. */
 /**
@@ -129,6 +222,31 @@ export const EVERY_SEEDED_ACTOR = SEED_ENTITIES.users
   // for it fails the whole setup — which is the enforcement working, in the one
   // place that reads as a broken suite. The fixtures gained both on 2026-08-29.
   .filter((u) => u.statusCode !== "SUSPENDED" && u.statusCode !== "DEACTIVATED")
+  /**
+   * The admin, but only against a deployment — where the Worker refuses it.
+   *
+   * `src/auth.ts` scopes the fixed sign-in code to "seeded addresses that are
+   * not the admin": every real address gets a random code, and so does the
+   * seeded admin, deliberately, because that one account can reach everything.
+   * Measured against staging on 2026-09-03 — every other seeded actor signs in
+   * with the demo code and returns 200; the admin returns INVALID_OTP.
+   *
+   * So a deployed run cannot hold an admin session, and `auth.setup.ts` asking
+   * for one failed the setup project outright — 33 tests did not run, and the
+   * reported reason was "sign-in for admin@remysport.test should succeed",
+   * which reads as a broken deployment rather than a rule working as designed.
+   *
+   * Keyed on `ADMIN_SIGN_IN`, the same signal the specs use, so setup and specs
+   * cannot disagree about whether there is an admin session to adopt — and so
+   * `ops -- demo on --env staging` makes both halves change together. Two
+   * separate guesses at one fact is how a spec ends up adopting a state file
+   * that setup was never asked to write.
+   *
+   * Idempotent either way: the list is derived from the answer, so running the
+   * setup again against the same deployment produces the same set, and turning
+   * the switch converges rather than accumulating.
+   */
+  .filter((u) => ADMIN_SIGN_IN || u.roleCode !== "ADMIN")
   .map((u) => u.email)
 
 /**
@@ -187,7 +305,22 @@ async function codeFromOutbox(request: APIRequestContext, email: string): Promis
  * carrying a cookie (ADR 006 §9a). Browsers send Origin automatically;
  * APIRequestContext does not.
  */
-export async function signIn(request: APIRequestContext, email: string): Promise<void> {
+export async function signIn(
+  request: APIRequestContext,
+  email: string,
+  /**
+   * `keep` opts out of the per-test revoke.
+   *
+   * For `auth.setup.ts` alone, whose session is the whole point: it is saved to
+   * `storageState` and adopted by every spec that starts already signed in.
+   * Revoking it after the setup "test" would sign out the suite before it
+   * began — the cleanup would have been strictly worse than the leak.
+   *
+   * Those sessions are not exempt from being cleaned up, only from being cleaned
+   * up *here*. `auth.teardown.ts` ends them after the whole run.
+   */
+  opts: { keep?: boolean } = {},
+): Promise<void> {
   const sent = await request.post("/api/auth/email-otp/send-verification-otp", {
     data: { email, type: "sign-in" },
     headers: { Origin: BASE },
@@ -200,6 +333,7 @@ export async function signIn(request: APIRequestContext, email: string): Promise
     headers: { Origin: BASE },
   })
   expect(res.ok(), `sign-in for ${email} should succeed`).toBeTruthy()
+  if (!opts.keep) await remember(request, email)
 }
 
 /**
@@ -285,6 +419,9 @@ export async function signInViaPage(page: Page, email: string): Promise<void> {
     { address: email, code: otp },
   )
   expect(signInStatus, `sign-in for ${email} should succeed`).toBe(200)
+  // `page.request` shares the page's cookie jar, so this reads the session the
+  // browser just obtained — and can revoke it later.
+  await remember(page.request, email)
 
   // Force a document load so the SPA picks the session up.
   //
@@ -339,6 +476,7 @@ export async function signInThroughLoginForm(page: Page, email: string): Promise
   // Hash routing: the SPA stays on one document, so there is no navigation to
   // wait for. Wait for the identity to appear instead.
   await page.getByTestId("topbar-user").waitFor({ state: "visible", timeout: 20000 })
+  await remember(page.request, email)
 }
 
 async function codeFromOutboxViaPage(page: Page, email: string): Promise<string> {

@@ -196,7 +196,7 @@ export const DEV_ORIGIN = `http://localhost:${DEV_PORT}`
 export const DEMO_SIGN_IN_CODE = "424242"
 
 /** Just enough of the env to answer. Keeps this importable from anywhere. */
-type HasEnvironment = { ENVIRONMENT?: string; TEST_OTP?: string }
+type HasEnvironment = { ENVIRONMENT?: string; TEST_OTP?: string; TEST_ADMIN_OTP?: string }
 
 /**
  * Which environment this is. Anything unrecognised is production.
@@ -238,3 +238,28 @@ export const permits = <K extends keyof Policy>(env: HasEnvironment, capability:
  */
 export const fixedSignInCode = (env: HasEnvironment): string | undefined =>
   policyFor(env).signInCode === "derived" ? DEMO_SIGN_IN_CODE : env.TEST_OTP
+
+/**
+ * Whether the seeded ADMIN may use the fixed code here.
+ *
+ * The policy row is the default and stays false on every deployment, for the
+ * reason written beside it: a deployment never *publishes* a way in as the
+ * account that can impersonate. That property is about what a deployment offers
+ * to the public, and it is preserved — nothing here changes unless a human sets
+ * a secret, and `ops -- demo off` removes it.
+ *
+ * The secret exists because the alternative was worse. `admin-console.spec.ts`
+ * and `authz.spec.ts` are the only cover the admin console has, and they could
+ * not run anywhere but dev — so the surface that decides who may impersonate
+ * whom was verified exclusively against a local Worker, and a deployment could
+ * break it with nothing to say so. Fifteen tests skipped on staging, silently,
+ * which is the shape of coverage that is worse than none because it reads green.
+ *
+ * Separate from `TEST_OTP` on purpose. That one governs every seeded actor and
+ * is derived on dev and staging; this governs the one account that can reach
+ * every other, so it is never derived and never on by default — a human sets it,
+ * for a run, and takes it off. Two questions, two switches, so turning on the
+ * ordinary demo cannot quietly turn on the admin.
+ */
+export const adminSignInAllowed = (env: HasEnvironment): boolean =>
+  policyFor(env).offersAdminSignIn || Boolean(env.TEST_ADMIN_OTP)

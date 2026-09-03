@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test"
-import { ACTORS, stateFor } from "../helpers/auth"
+import { ACTORS, ADMIN_SIGN_IN, stateFor } from "../helpers/auth"
 
 // What is LEFT here after ADR 020: only the tests that genuinely drive a
 // browser. The request-level six-role matrix — 20 tests that never opened one —
@@ -24,6 +24,21 @@ import { ACTORS, stateFor } from "../helpers/auth"
 test.use({ storageState: stateFor(ACTORS.ADMIN) })
 
 test.describe("Layer 1 — event:read is public", () => {
+  /**
+   * The admin's own screen, so local only — see POLICY in src/environment.ts.
+   *
+   * `offersAdminSignIn` is false on staging and production because "a deployment
+   * never publishes a way in as the account that can impersonate". This file
+   * runs entirely as that account, so where the admin cannot sign in there is no
+   * session to adopt and the badge reads nothing at all.
+   *
+   * `ADMIN_SIGN_IN` is measured by `check --e2e` against the origin it is about
+   * to test, not inferred from `!IS_LOCAL` — the same signal `auth.setup.ts`
+   * uses to decide whether to save an admin state at all, so the two halves
+   * cannot disagree about whether that file exists.
+   */
+  test.skip(!ADMIN_SIGN_IN, "no admin sign-in here — `mise run ops -- demo on --env X` enables it")
+
   test("the role switcher actually switches role, not just renders buttons", async ({ page }) => {
     // This is why it broke silently: the old test asserted the six buttons were
     // visible and never clicked one, so the switcher kept posting passwords

@@ -11,6 +11,9 @@
  */
 
 import { prepare, webWatcherRunning } from "./lib/prepare"
+import { originOf, resolveTarget } from "./lib/cloudflare"
+import { DEMO_SIGN_IN_CODE } from "../src/environment"
+import { SEED_ENTITIES } from "../src/domain/model/entities"
 
 import { spawn } from "child_process"
 import { existsSync } from "fs"
@@ -192,7 +195,257 @@ const script = (file: string, ...args: string[]) => bun(`scripts/${file}`, ...ar
  * and `deploy` runs this separately before it ships. Modelled here anyway so
  * there is one place that knows how a tier is timed.
  */
-export const E2E: Step = { name: "e2e", cmd: bun("x", "playwright", "test"), budget: "e2e" }
+/**
+ * Where the e2e tier points, which until now it could not be told.
+ *
+ * The suite is built to run against a live system — that is the only way to
+ * validate a deployed production, and both halves of the harness already knew
+ * it: `playwright.config.ts` gates its `webServer` on `isLocal`, and
+ * `tests/helpers/auth.ts` switches from reading the dev outbox to `TEST_OTP` on
+ * the same signal. Both read `BASE_URL`, and nothing set it.
+ *
+ * The task that did was `test:deployed`. It did not survive the collapse from
+ * ninety-one tasks to six, and four comments still cite it — `smoke.ts`,
+ * `dev-vars.ts`, `src/auth.ts` and the auth helper all describe a capability the
+ * repo had silently lost. The docs rule only checks that a cited `mise run` task
+ * exists, and none of those are `mise run` lines, so nothing caught it.
+ *
+ * Resolved through the same reader `3-deploy` uses, so the gate and the deploy
+ * cannot disagree about which hostname staging is — the bug `versions.ts`
+ * already paid for once by waiting on production's origin after a staging
+ * deploy.
+ */
+/**
+ * Refuse to test a deployment that is not running the code these tests describe.
+ *
+ * A remote run splits the subject in two: the specs come from the working tree,
+ * the code under test comes from whatever was last deployed. Nothing made those
+ * agree, and they did not — measured 2026-09-03, staging and production were
+ * both on f936324 while HEAD was 1dd7112. Every assertion in that run was
+ * written against code the origin was not serving.
+ *
+ * The failure mode is worse than a red suite, because it is usually green. A
+ * spec that passes tells you the deployment is fine when it has not seen your
+ * change at all; one that fails sends you to fix a test against code that is not
+ * there, and the fix cannot work because the premise is wrong.
+ *
+ * `versions.json` and `/api/versions` were built for exactly this question and
+ * `ops -- versions` already answers it — "1 behind HEAD", in those words. This
+ * only asks it at the moment it matters, and names both ways out: bring the
+ * deployment to the tests, or the tests to the deployment.
+ *
+ * Compared on the commit rather than `_generated`, because the question is which
+ * SOURCE is deployed. `deploy.ts` waits on `_generated` instead, and correctly:
+ * there the question is whether the edge has finished serving the artefact just
+ * published, which a commit cannot distinguish between two deploys of the same
+ * source.
+ */
+async function sameCode(origin: string, environment: string): Promise<void> {
+  const head = Bun.spawnSync(["git", "rev-parse", "--short", "HEAD"])
+  const local = head.stdout.toString().trim()
+  const dirty = Bun.spawnSync(["git", "status", "--porcelain"]).stdout.toString().trim()
+
+  const deployed = await fetch(`${origin}/api/versions`, { signal: AbortSignal.timeout(20_000) })
+    .then((r) => (r.ok ? (r.json() as Promise<{ current?: { git?: { commit?: string } } }>) : null))
+    .then((d) => d?.current?.git?.commit ?? null)
+    .catch(() => null)
+
+  if (!deployed) {
+    console.error(
+      `\ncheck --e2e: ${origin} did not say which commit it is running.\n` +
+        "  /api/versions is how a deployment identifies itself, and without it there is\n" +
+        "  no way to know whether these specs describe the code being tested.\n",
+    )
+    process.exit(1)
+  }
+
+  if (deployed === local) {
+    // Uncommitted work is the same split in miniature: the specs about to run
+    // include changes no deployment can be serving. Worth saying, not worth
+    // refusing over — editing a spec is the ordinary way to work on one.
+    if (dirty) {
+      console.log(
+        `check --e2e: ${environment} is on ${deployed}, matching HEAD — but the tree has\n` +
+          "  uncommitted changes, so any of those not yet deployed are untested here.",
+      )
+    }
+    return
+  }
+
+  console.error(
+    `\ncheck --e2e: ${environment} is running ${deployed}, and HEAD is ${local}.\n\n` +
+      "  The specs would come from here and the code from there. A pass would not mean\n" +
+      "  the deployment is good, and a failure could not be fixed from this tree.\n\n" +
+      "  Bring the deployment to the tests:\n" +
+      `    mise run 3-deploy -- --env ${environment}\n\n` +
+      "  or the tests to the deployment:\n" +
+      `    git checkout ${deployed}\n\n` +
+      `    mise run ops -- versions      what every environment is running\n`,
+  )
+  process.exit(1)
+}
+
+/**
+ * Ask the deployment whether it will let the suite in, before running it.
+ *
+ * Each environment answers differently, and the policy table is the reason
+ * rather than an accident — see `POLICY` in src/environment.ts:
+ *
+ *   dev         signInCode "derived", `offersAdminSignIn: true`. Everything,
+ *               including the admin, whose real code the dev outbox carries.
+ *   staging     signInCode "derived". Every seeded actor except the admin:
+ *               "a deployment never publishes a way in as the account that can
+ *               impersonate".
+ *   production  signInCode "secret". Nothing at all until somebody runs
+ *               `mise run ops -- demo on --env production`, and `demo off`
+ *               must be run again before the platform has real users.
+ *
+ * Without this, a production run whose demo secret is off fails thirty-odd
+ * tests with "sign-in for … should succeed" — a message that reads as a broken
+ * deployment when the truth is a switch that is deliberately off. One request,
+ * asked before the suite starts, turns that into a sentence naming the command.
+ *
+ * The session it opens is ended immediately. A preflight that leaks a session
+ * on production to prove sessions can be cleaned up would be its own joke.
+ */
+async function preflight(origin: string, environment: string): Promise<void> {
+  await sameCode(origin, environment)
+  // A seeded actor the policy allows on every environment — never the admin,
+  // which staging and production refuse on purpose.
+  const who = SEED_ENTITIES.users.find(
+    (u) => u.roleCode !== "ADMIN" && u.statusCode !== "SUSPENDED" && u.statusCode !== "DEACTIVATED",
+  )
+  if (!who) throw new Error("no seeded non-admin actor to preflight with")
+
+  const post = (path: string, body: unknown) =>
+    fetch(`${origin}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Origin: origin },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(20_000),
+    })
+
+  await post("/api/auth/email-otp/send-verification-otp", { email: who.email, type: "sign-in" })
+  const res = await post("/api/auth/sign-in/email-otp", {
+    email: who.email,
+    otp: DEMO_SIGN_IN_CODE,
+  })
+
+  // Put it back. The whole premise of running against a live system is that the
+  // run leaves nothing behind.
+  const release = async (r: Response) => {
+    const token = ((await r.json().catch(() => null)) as { token?: string } | null)?.token
+    if (!token) return
+    await fetch(`${origin}/api/auth/sign-out`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Origin: origin, Authorization: `Bearer ${token}` },
+      body: "{}",
+    }).catch(() => {})
+  }
+
+  if (res.ok) {
+    await release(res)
+
+    /**
+     * And separately: may the ADMIN sign in here?
+     *
+     * Measured rather than assumed. The specs used to decide this with
+     * `!IS_LOCAL`, which was a guess about policy that the policy then outgrew —
+     * it skipped `devices.spec.ts` on staging for years of commits over a code
+     * staging had all along. The answer is one request, and the deployment is
+     * the only thing that actually knows it.
+     *
+     * `offersAdminSignIn` is false on every deployment by default, so this is
+     * normally "no" and the admin specs skip with a reason naming the command
+     * that would change it. `ops -- demo on` sets TEST_ADMIN_OTP and this turns
+     * true, which is the whole point of the switch.
+     */
+    const admin = SEED_ENTITIES.users.find((u) => u.roleCode === "ADMIN")
+    if (admin) {
+      await post("/api/auth/email-otp/send-verification-otp", { email: admin.email, type: "sign-in" })
+      const asAdmin = await post("/api/auth/sign-in/email-otp", {
+        email: admin.email,
+        otp: DEMO_SIGN_IN_CODE,
+      })
+      if (asAdmin.ok) {
+        await release(asAdmin)
+        E2E.env = { ...E2E.env, TEST_ADMIN_SIGNIN: "1" }
+        console.log(`check --e2e: ${environment} allows admin sign-in — the admin specs will run`)
+      } else {
+        console.log(
+          `check --e2e: ${environment} refuses admin sign-in, so the admin console specs skip.\n` +
+            `  To include them:  mise run ops -- demo on  --env ${environment}\n` +
+            `  And afterwards:   mise run ops -- demo off --env ${environment}`,
+        )
+      }
+    }
+    return
+  }
+
+  console.error(
+    `\ncheck --e2e: ${environment} will not accept the suite's sign-in code.\n\n` +
+      `  ${who.email} was refused with HTTP ${res.status}, and every spec signs in,\n` +
+      `  so the run would fail thirty-odd times over one switch.\n\n` +
+      (environment === "production"
+        ? "  Production keeps the code in a secret a human sets:\n" +
+          "    mise run ops -- demo on  --env production\n" +
+          "    mise run ops -- demo off --env production   ← before real users\n"
+        : `  ${environment} derives it, so this means the deployment is older than\n` +
+          "  the policy that grants it, or is not seeded:\n" +
+          `    mise run ops -- seed --env ${environment}\n` +
+          `    mise run ops -- demo status --env ${environment}\n`),
+  )
+  process.exit(1)
+}
+
+export function e2eTarget(argv: string[]): { origin: string; environment: string } | null {
+  const at = argv.indexOf("--env")
+  const named = at !== -1 ? argv[at + 1] : argv.find((a) => a.startsWith("--env="))?.split("=")[1]
+  if (!named) return null
+
+  /**
+   * `dev` is answered here, before `resolveTarget` refuses it.
+   *
+   * That refusal is right for everything it guards — dev provisions nothing on
+   * the account, so `--env dev` to a deploy or a secret write is a mistake worth
+   * stopping. Reading is different: dev is a real place to run the suite, and it
+   * is the place it runs by default. Same shape as `deploy/versions.ts`, which
+   * had to answer dev ahead of the same call for the same reason.
+   *
+   * Null rather than a localhost origin, deliberately: leaving `BASE_URL` unset
+   * is what keeps `IS_LOCAL` true, and with it the dev outbox, the real emailed
+   * code, and the `webServer` block that starts a Worker if none is up. Naming
+   * dev explicitly and saying nothing are the same run.
+   */
+  if (named === "dev") return null
+
+  const target = resolveTarget(argv, "explicit")
+  return { origin: originOf(target), environment: target.environment }
+}
+
+const TARGET = e2eTarget(process.argv.slice(2))
+
+export const E2E: Step = {
+  name: "e2e",
+  cmd: bun("x", "playwright", "test"),
+  // Timed only against localhost. The ceiling describes this machine talking to
+  // a Worker on loopback; the same suite over the network to Bangkok is slower
+  // for reasons no budget should be reporting as a regression.
+  ...(TARGET ? {} : { budget: "e2e" }),
+  /**
+   * Absent for a local run, so `IS_LOCAL` stays true and the tier keeps reading
+   * real codes out of the dev outbox rather than relying on TEST_OTP.
+   *
+   * `TEST_OTP` comes from the model, not from the operator's shell. It is the
+   * same `DEMO_SIGN_IN_CODE` that `dev-vars.ts` writes locally and that
+   * `provision.ts` puts on the deployment as a secret — one constant, three
+   * places, so a deployed run cannot be checking a code the Worker never had.
+   * Requiring it in the environment instead made "run the suite against staging"
+   * fail on setup with a message about a missing variable, which is a
+   * prerequisite the repo already knows the answer to.
+   */
+  ...(TARGET && { env: { BASE_URL: TARGET.origin, TEST_OTP: DEMO_SIGN_IN_CODE } }),
+}
 
 export const PHASES: Step[][] = [
   /**
@@ -276,7 +529,10 @@ export const PHASES: Step[][] = [
  * enough that it usually survives, and worth saying rather than leaving as a
  * coin flip.
  */
-if (process.argv.includes("--e2e") && webWatcherRunning()) {
+// Only when the tier is pointed at :8787. Against staging or production the dev
+// bundler is irrelevant — it feeds a server the run never touches, and refusing
+// there would make "test what is deployed" require stopping local development.
+if (process.argv.includes("--e2e") && !TARGET && webWatcherRunning()) {
   console.error(
     "\ncheck --e2e: the dev bundler is running, and this tier reuses the server it feeds.\n" +
       "  `vite build --watch` rewrites dist/web on every save, and the Worker on :8787\n" +
@@ -339,11 +595,23 @@ const FAST = new Set(["typecheck-worker", "typecheck-spa", "typecheck-tests", "u
 
 if (import.meta.main && process.argv.includes("--help")) {
   console.log(`
-mise run 2-check [-- --fast | --e2e]
+mise run 2-check [-- --fast | --e2e [--env dev|staging|production]]
 
   (no argument)  the whole gate, about 30s
   --fast         typecheck and unit tests only, about 6s
-  --e2e          the end-to-end tier, which needs a dev server
+  --e2e          the end-to-end tier, which needs a server to run against
+
+  --env picks WHICH server, and only means anything beside --e2e:
+
+    dev         localhost:8787 — the default. Starts a Worker if none is up,
+                and reads the real emailed code out of the dev outbox.
+    staging     the deployed origin, resolved from the same config 3-deploy
+    production  uses, so the two cannot disagree about a hostname.
+
+  Against a deployment the suite signs in with TEST_OTP, which the Worker only
+  honours for the seeded accounts and only when its own secret is set. Nothing
+  is reset there and nothing can be: a test that injects into a live system has
+  to put back what it took, which is why sign-ins are revoked afterwards.
 
 What it runs:
 `)
@@ -362,6 +630,12 @@ if (import.meta.main) {
   prepare()
   const fast = process.argv.includes("--fast")
   const e2e = process.argv.includes("--e2e")
+  // Said out loud, because "which system am I about to write to" is not a
+  // question an operator should have to infer from an absent flag.
+  if (e2e) console.log(`check --e2e: against ${TARGET ? `${TARGET.environment} — ${TARGET.origin}` : "dev — http://localhost:8787"}`)
+  // Ask before running: a deployment that will not sign the suite in fails every
+  // spec, and the reason is a policy switch rather than anything the tests did.
+  if (e2e && TARGET) await preflight(TARGET.origin, TARGET.environment)
   const phases = e2e ? [[E2E]] : fast ? [PHASES.flat().filter((s) => FAST.has(s.name))] : PHASES
   const failed = await gate(phases)
   if (failed.length) {
