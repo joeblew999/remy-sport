@@ -194,6 +194,18 @@ The exemption is `// check-ignore` on the line, and there are three: two specs
 iterate `ROUTES` and one asserts the route a crash beacon *reports* — where the
 route is the subject, name the route.
 
+**A testid a test names is one a component renders.** Rename a `data-testid`
+and nothing complains until a spec times out five seconds later saying an
+element was not found — the same message a genuinely broken feature gives, so
+the two are indistinguishable until somebody reads the diff. The check names the
+testid and the line instead.
+
+Most testids are built rather than written, so the templates are extracted from
+`data-testid={...}` and matched as patterns. Brace-matched rather than regexed,
+because one lives inside a ternary and a shallower reader misses it — the
+difference is ninety-three false positives. `// check-ignore` on the line where
+a test names a testid to assert it is *gone*.
+
 **A slow test suite is a bug. Fix it, do not wait it out.** Standing
 instruction: if a tier takes longer than it should, finding out why *is* the
 work.

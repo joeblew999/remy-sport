@@ -64,6 +64,83 @@ const grepSrc = (re: RegExp) =>
 const RULES: Rule[] = [
   {
     /**
+     * A testid a test names must be one a component actually renders.
+     *
+     * Rename `data-testid="push-toggle"` and nothing complains until a spec
+     * times out five seconds later saying an element was not found — which is
+     * the same message a genuinely broken feature gives, so the two are
+     * indistinguishable until somebody reads the diff. This says which testid
+     * and where, instantly.
+     *
+     * ## Matching a dynamic testid
+     *
+     * Most of them are built rather than written: `data-testid={`approve-${a.email}`}`
+     * renders `approve-ref@remy.test`, and a spec names the concrete one. So the
+     * templates are extracted and turned into patterns — every backtick literal
+     * inside a `data-testid={...}` expression, brace-matched rather than
+     * regexed, because one of them lives inside a ternary
+     * (`a.statusCode === "PENDING_APPROVAL" ? `pending-${a.email}` : undefined`)
+     * and a shallower reader misses it. Eighty-six templates, and the
+     * difference between finding them and not is ninety-three false positives.
+     *
+     * Only STATIC uses are checked — `getByTestId("literal")`. A test that
+     * builds its own testid cannot be resolved without running it, and guessing
+     * would be the same false-positive problem from the other side.
+     *
+     * `// check-ignore` for a testid a test names in order to assert it is
+     * GONE. There is one, and it is load-bearing: it holds the removal of a
+     * status line that duplicated the button above it.
+     */
+    claim: '"A testid a test names is one a component renders."',
+    check: () => {
+      const templatesIn = (body: string): string[] => {
+        const out: string[] = []
+        for (const m of body.matchAll(/data-testid=\{/g)) {
+          let i = m.index! + m[0].length
+          let depth = 1
+          while (i < body.length && depth > 0) {
+            if (body[i] === "{") depth++
+            else if (body[i] === "}") depth--
+            i++
+          }
+          for (const t of body.slice(m.index! + m[0].length, i).matchAll(/`([^`]+)`/g)) out.push(t[1]!)
+        }
+        return out
+      }
+
+      const statics = new Set<string>()
+      const patterns: RegExp[] = []
+      for (const { body } of src) {
+        for (const m of body.matchAll(/data-testid="([^"]+)"/g)) statics.add(m[1]!)
+        for (const t of templatesIn(body)) {
+          const rx = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\\\$\\\{[^}]*\\\}/g, ".+")
+          patterns.push(new RegExp(`^${rx}$`))
+        }
+      }
+
+      const bad: string[] = []
+      const walk = (dir: string): string[] =>
+        readdirSync(join(ROOT, dir), { withFileTypes: true }).flatMap((e) =>
+          e.isDirectory() ? walk(`${dir}/${e.name}`) : e.name.endsWith(".ts") ? [`${dir}/${e.name}`] : [],
+        )
+      for (const path of walk("tests")) {
+        read(path)
+          .split("\n")
+          .forEach((line, i) => {
+            if (/check-ignore/.test(line)) return
+            for (const m of line.matchAll(/getByTestId\("([^"]+)"\)/g)) {
+              const id = m[1]!
+              if (statics.has(id) || patterns.some((r) => r.test(id))) continue
+              bad.push(`${path}:${i + 1}  getByTestId("${id}") — no component renders it`)
+            }
+          })
+      }
+      return bad
+    },
+  },
+
+  {
+    /**
      * The rule Phase 1 exists to make true, and this is what keeps it true.
      *
      * Moving the notification settings between two pages cost fifteen edits

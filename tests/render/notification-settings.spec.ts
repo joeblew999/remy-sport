@@ -126,7 +126,9 @@ test.describe("The notification section, as a reader sees it", () => {
     // "On for this device" sat under a button already reading "Turn off on this
     // device" — the verb after the fact it was derived from, and one more thing
     // that could disagree with the list below.
-    await expect(page.getByTestId("push-on-here")).toHaveCount(0)
+    // Named in order to assert it is GONE: the status line that duplicated the
+    // button above it.
+    await expect(page.getByTestId("push-on-here")).toHaveCount(0) // check-ignore: asserts absence
   })
 
   test("does not carry the follow list, which is content rather than a device setting", async ({ page }) => {
