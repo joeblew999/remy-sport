@@ -569,7 +569,7 @@ INSERT OR IGNORE INTO game (id, event_id, home_team_id, away_team_id, venue_id, 
 INSERT OR IGNORE INTO game (id, event_id, home_team_id, away_team_id, venue_id, starts_at, status_code, home_score, away_score) VALUES ('gam_007', 'evt_002', 'team_001', 'team_008', 'ven_002', '2026-06-10T10:00:00Z', 'FINISHED', 82, 72);
 INSERT OR IGNORE INTO game (id, event_id, home_team_id, away_team_id, venue_id, starts_at, status_code, home_score, away_score) VALUES ('gam_008', 'evt_002', 'team_003', 'team_005', 'ven_004', '2026-06-21T10:00:00Z', 'FINISHED', 52, 50);
 INSERT OR IGNORE INTO game (id, event_id, home_team_id, away_team_id, venue_id, starts_at, status_code, home_score, away_score) VALUES ('gam_009', 'evt_002', 'team_003', 'team_006', 'ven_001', '2026-07-02T10:00:00Z', 'FINISHED', 88, 80);
-INSERT OR IGNORE INTO game (id, event_id, home_team_id, away_team_id, venue_id, starts_at, status_code, home_score, away_score) VALUES ('gam_010', 'evt_002', 'team_003', 'team_007', 'ven_001', '2026-07-13T10:00:00Z', 'FINISHED', 60, 88);
+INSERT OR IGNORE INTO game (id, event_id, home_team_id, away_team_id, venue_id, starts_at, status_code, home_score, away_score) VALUES ('gam_010', 'evt_002', 'team_003', 'team_007', 'ven_004', '2026-07-13T10:00:00Z', 'FINISHED', 60, 88);
 INSERT OR IGNORE INTO game (id, event_id, home_team_id, away_team_id, venue_id, starts_at, status_code, home_score, away_score) VALUES ('gam_011', 'evt_002', 'team_003', 'team_008', 'ven_002', '2026-07-23T10:00:00Z', 'FINISHED', 53, 75);
 INSERT OR IGNORE INTO game (id, event_id, home_team_id, away_team_id, venue_id, starts_at, status_code, home_score, away_score) VALUES ('gam_012', 'evt_002', 'team_005', 'team_006', 'ven_002', '2026-08-03T10:00:00Z', 'FINISHED', 79, 67);
 INSERT OR IGNORE INTO game (id, event_id, home_team_id, away_team_id, venue_id, starts_at, status_code, home_score, away_score) VALUES ('gam_013', 'evt_002', 'team_005', 'team_007', 'ven_002', '2026-08-14T10:00:00Z', 'FINISHED', 51, 58);
@@ -622,6 +622,8 @@ INSERT OR IGNORE INTO gameReferee (game_id, user_id) VALUES ('gam_026', 'usr_ref
 INSERT OR IGNORE INTO gameReferee (game_id, user_id) VALUES ('gam_027', 'usr_referee_001');
 INSERT OR IGNORE INTO gameReferee (game_id, user_id) VALUES ('gam_028', 'usr_referee_001');
 INSERT OR IGNORE INTO gameReferee (game_id, user_id) VALUES ('gam_029', 'usr_referee_002');
+INSERT OR IGNORE INTO gameReferee (game_id, user_id) VALUES ('gam_030', 'usr_referee_001');
+INSERT OR IGNORE INTO gameReferee (game_id, user_id) VALUES ('gam_031', 'usr_referee_002');
 
 -- eventCoOrganizers
 INSERT OR IGNORE INTO eventCoOrganizer (event_id, user_id, added_at, status_code) VALUES ('evt_001', 'usr_org_002', '2026-04-05', 'ACCEPTED');
@@ -637,6 +639,8 @@ INSERT OR IGNORE INTO eventPlayer (event_id, player_id, registered_at) VALUES ('
 -- eventTeams
 INSERT OR IGNORE INTO eventTeam (event_id, team_id, division_id, registered_at) VALUES ('evt_001', 'team_001', 'div_001', '2026-04-01');
 INSERT OR IGNORE INTO eventTeam (event_id, team_id, division_id, registered_at) VALUES ('evt_001', 'team_003', 'div_001', '2026-04-02');
+INSERT OR IGNORE INTO eventTeam (event_id, team_id, division_id, registered_at) VALUES ('evt_001', 'team_012', 'div_005', '2026-05-21');
+INSERT OR IGNORE INTO eventTeam (event_id, team_id, division_id, registered_at) VALUES ('evt_001', 'team_005', 'div_006', '2026-05-22');
 INSERT OR IGNORE INTO eventTeam (event_id, team_id, division_id, registered_at) VALUES ('evt_001', 'team_004', 'div_002', '2026-04-03');
 INSERT OR IGNORE INTO eventTeam (event_id, team_id, division_id, registered_at) VALUES ('evt_002', 'team_001', 'div_001', '2026-04-15');
 INSERT OR IGNORE INTO eventTeam (event_id, team_id, division_id, registered_at) VALUES ('evt_002', 'team_002', 'div_004', '2026-04-16');
@@ -660,6 +664,7 @@ INSERT OR IGNORE INTO eventTeam (event_id, team_id, division_id, registered_at) 
 INSERT OR IGNORE INTO eventVenue (event_id, venue_id, is_primary) VALUES ('evt_001', 'ven_002', 1);
 INSERT OR IGNORE INTO eventVenue (event_id, venue_id, is_primary) VALUES ('evt_001', 'ven_001', 0);
 INSERT OR IGNORE INTO eventVenue (event_id, venue_id, is_primary) VALUES ('evt_002', 'ven_001', 1);
+INSERT OR IGNORE INTO eventVenue (event_id, venue_id, is_primary) VALUES ('evt_002', 'ven_004', 0);
 INSERT OR IGNORE INTO eventVenue (event_id, venue_id, is_primary) VALUES ('evt_003', 'ven_003', 1);
 INSERT OR IGNORE INTO eventVenue (event_id, venue_id, is_primary) VALUES ('evt_004', 'ven_002', 1);
 
@@ -913,6 +918,8 @@ INSERT OR IGNORE INTO gameBroadcast (game_id, user_id, started_at, last_seen_at)
 -- eventDivisions (derived from eventTeams — see the note in seed.ts)
 INSERT OR IGNORE INTO eventDivision (event_id, division_id) VALUES ('evt_001', 'div_001');
 INSERT OR IGNORE INTO eventDivision (event_id, division_id) VALUES ('evt_001', 'div_002');
+INSERT OR IGNORE INTO eventDivision (event_id, division_id) VALUES ('evt_001', 'div_005');
+INSERT OR IGNORE INTO eventDivision (event_id, division_id) VALUES ('evt_001', 'div_006');
 INSERT OR IGNORE INTO eventDivision (event_id, division_id) VALUES ('evt_002', 'div_001');
 INSERT OR IGNORE INTO eventDivision (event_id, division_id) VALUES ('evt_002', 'div_002');
 INSERT OR IGNORE INTO eventDivision (event_id, division_id) VALUES ('evt_002', 'div_004');
