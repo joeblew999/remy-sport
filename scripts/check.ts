@@ -517,6 +517,7 @@ export const PHASES: Step[][] = [
     { name: "authz", cmd: script("check/authz.ts") },
     { name: "conventions", cmd: script("check/conventions.ts") },
     { name: "seed-order", cmd: script("check/seed-order.ts") },
+    { name: "seed-coverage", cmd: script("check/seed-coverage.ts") },
     { name: "domain", cmd: script("ops/domain.ts", "--check") },
     { name: "tables", cmd: script("check/tables.ts") },
     { name: "assets", cmd: script("check/assets.ts") },
