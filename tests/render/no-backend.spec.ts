@@ -46,7 +46,7 @@ for (const route of ROUTES) {
     const rejections: string[] = []
     page.on("pageerror", (e) => rejections.push(e.message))
 
-    await page.goto(route === "/" ? "/" : `/${route}`)
+    await page.goto(route === "/" ? "/" : `/${route}`) // check-ignore: iterates ROUTES — the route IS the subject
     // Long enough for the queries to fail and the effects to run. The failures
     // are local and immediate; this is not waiting on a network.
     await page.waitForTimeout(350)

@@ -64,6 +64,70 @@ const grepSrc = (re: RegExp) =>
 const RULES: Rule[] = [
   {
     /**
+     * The rule Phase 1 exists to make true, and this is what keeps it true.
+     *
+     * Moving the notification settings between two pages cost fifteen edits
+     * across three specs, because a hundred and thirty `page.goto` calls knew
+     * where things were. They name a surface now — `visit(page,
+     * "notifications")` — so the same move is one line in
+     * tests/helpers/surfaces.ts.
+     *
+     * Nothing stopped the next spec typing a route again, and a rule that must
+     * be remembered is the same class of thing that already failed. This is the
+     * mechanism.
+     *
+     * Two exemptions, both because the route IS the subject: specs that iterate
+     * `ROUTES` from the router, and the crash beacon's test, which asserts what
+     * route a report carries — "/" and "/#/discover" both render discover and
+     * report differently. Marked with the same `docs-check-ignore` comment the
+     * docs rule already uses, so an exemption is a deliberate line rather than
+     * a pattern this has to guess at.
+     */
+    claim: '"A render spec names a surface, not a route." — tests/helpers/surfaces.ts',
+    check: () => {
+      const bad: string[] = []
+      for (const file of readdirSync(join(ROOT, "tests/render")).filter((f) => f.endsWith(".spec.ts"))) {
+        const path = `tests/render/${file}`
+        read(path)
+          .split("\n")
+          .forEach((line, i) => {
+            if (!/page\.goto\(/.test(line)) return
+            if (/check-ignore/.test(line)) return
+            bad.push(`${path}:${i + 1}  page.goto — use visit(page, "<surface>") from tests/helpers/surfaces.ts`)
+          })
+      }
+      return bad
+    },
+  },
+  {
+    /**
+     * The other half. Ten specs each wrote their own session object, and they
+     * disagreed with the model and with each other — one seeded `usr_org_001`'s
+     * id beside a fabricated email and a different person's name, and four
+     * claimed `role: "user"`, which the model does not have.
+     *
+     * `sessionFor(role)` reads SEED_ENTITIES.users, so "as a coach" is the same
+     * person the worker and e2e tiers mean.
+     */
+    claim: '"A render spec signs in as a seeded person." — tests/helpers/actors.ts',
+    check: () => {
+      const bad: string[] = []
+      for (const file of readdirSync(join(ROOT, "tests/render")).filter((f) => f.endsWith(".spec.ts"))) {
+        const path = `tests/render/${file}`
+        read(path)
+          .split("\n")
+          .forEach((line, i) => {
+            if (!/queryKey: sessionKey/.test(line)) return
+            if (/check-ignore/.test(line)) return
+            bad.push(`${path}:${i + 1}  hand-built session — use sessionFor(role) or VISITOR from tests/helpers/actors.ts`)
+          })
+      }
+      return bad
+    },
+  },
+
+  {
+    /**
      * AGENTS.md is read at the start of every session, so a command named there
      * that no longer exists becomes wrong work rather than a confused reader.
      *

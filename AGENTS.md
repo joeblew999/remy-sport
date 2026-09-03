@@ -176,6 +176,24 @@ Nothing enforces this yet, which is why it is written down. The mechanism would
 be a gate over the schema — 48 tables, 282 columns are enumerable — and a rule
 that must be remembered is the same class of thing that already failed.
 
+**A render spec names a surface, not a route — and signs in as a seeded person.**
+Moving the notification settings from the profile to `/#/devices` cost fifteen
+edits across three specs, because a hundred and thirty `page.goto` calls knew
+where things lived. They call `visit(page, "notifications")` now, so the same
+move is one line in [tests/helpers/surfaces.ts](tests/helpers/surfaces.ts).
+
+Identity was worse than duplicated, it was wrong. Ten specs each wrote their own
+session object: one seeded `usr_org_001`'s id beside a fabricated email and a
+*different person's* name, and four claimed `role: "user"`, which the model does
+not have — so a spec asserting what a coach may do asserted it about somebody
+nobody has heard of. `sessionFor(role)` reads `SEED_ENTITIES.users`, the same
+people the worker and e2e tiers use.
+
+Both are checked, because both are rules you would otherwise have to remember.
+The exemption is `// check-ignore` on the line, and there are three: two specs
+iterate `ROUTES` and one asserts the route a crash beacon *reports* — where the
+route is the subject, name the route.
+
 **A slow test suite is a bug. Fix it, do not wait it out.** Standing
 instruction: if a tier takes longer than it should, finding out why *is* the
 work.

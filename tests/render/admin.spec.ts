@@ -1,9 +1,8 @@
 import { test, expect } from "./fixture"
-import { VISITOR } from "../helpers/actors"
+import { VISITOR , sessionFor, type Role } from "../helpers/actors"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { apiEvent } from "../helpers/api-fixtures"
-import { sessionKey } from "../../src/web/lib/session"
 
 /**
  * The admin console, rendered — with the session and the API's answers seeded.
@@ -27,13 +26,14 @@ import { sessionKey } from "../../src/web/lib/session"
  * that would have caught `canCreate` being added to the response.
  */
 
-const as = (role: string) => ({
-  queryKey: sessionKey as unknown as readonly unknown[],
-  data: {
-    user: { id: `u_${role}`, email: `${role}@remy.test`, name: role, role },
-    session: { activeOrganizationId: null, impersonatedBy: null },
-  },
-})
+/**
+ * The seeded person for a role, not an invented one.
+ *
+ * This built `u_coach` / `coach@remy.test` from whatever string it was handed,
+ * so a spec asserting what a coach may do was asserting it about somebody the
+ * model has never heard of. `sessionFor` reads SEED_ENTITIES.users.
+ */
+const as = (role: Role) => sessionFor(role)
 
 /** What `events.list` returns, with the permissions the server decided. */
 const events = (over: { canCreate: boolean; canEdit?: boolean; canDelete?: boolean }) =>
@@ -53,7 +53,7 @@ const events = (over: { canCreate: boolean; canEdit?: boolean; canDelete?: boole
 test.describe("The permission grid reflects what the server granted", () => {
   test("a viewer the server says may write sees the form and the badges", async ({ page }) => {
     await seedCache(page, [
-      as("organizer"),
+      as("ORGANIZER"),
       events({ canCreate: true, canEdit: true, canDelete: true }),
     ])
     await visit(page, "admin")
@@ -65,7 +65,7 @@ test.describe("The permission grid reflects what the server granted", () => {
   })
 
   test("a viewer the server says may only read sees the denial", async ({ page }) => {
-    await seedCache(page, [as("coach"), events({ canCreate: false })])
+    await seedCache(page, [as("COACH"), events({ canCreate: false })])
     await visit(page, "admin")
     await expect(page.getByTestId("create-event-denied")).toBeVisible()
     await expect(page.getByTestId("perm-create")).not.toHaveClass(/badge-success/)
@@ -83,7 +83,7 @@ test.describe("The permission grid reflects what the server granted", () => {
    */
   test("editing without deleting is expressible, and shows no Delete button", async ({ page }) => {
     await seedCache(page, [
-      as("organizer"),
+      as("ORGANIZER"),
       events({ canCreate: true, canEdit: true, canDelete: false }),
     ])
     await visit(page, "admin")
@@ -94,7 +94,7 @@ test.describe("The permission grid reflects what the server granted", () => {
 
   test("a viewer the server says may delete gets the button", async ({ page }) => {
     await seedCache(page, [
-      as("admin"),
+      as("ADMIN"),
       events({ canCreate: true, canEdit: true, canDelete: true }),
     ])
     await visit(page, "admin")
@@ -102,7 +102,7 @@ test.describe("The permission grid reflects what the server granted", () => {
   })
 
   test("a non-admin sees no account console at all", async ({ page }) => {
-    await seedCache(page, [as("coach"), events({ canCreate: false })])
+    await seedCache(page, [as("COACH"), events({ canCreate: false })])
     await visit(page, "admin")
     await expect(page.getByTestId("role-badge")).toHaveText("coach")
     await expect(page.getByTestId("admin-console")).toHaveCount(0)
@@ -110,7 +110,7 @@ test.describe("The permission grid reflects what the server granted", () => {
 
   test("the role switcher offers all six actors", async ({ page }) => {
     await seedCache(page, [
-      as("admin"),
+      as("ADMIN"),
       events({ canCreate: true }),
       {
         // `useDevAccounts` — the seeded-accounts list the switcher renders. It
@@ -136,7 +136,7 @@ test.describe("The permission grid reflects what the server granted", () => {
   })
 
   test("the events table renders the events it was given", async ({ page }) => {
-    await seedCache(page, [as("organizer"), events({ canCreate: true })])
+    await seedCache(page, [as("ORGANIZER"), events({ canCreate: true })])
     await visit(page, "admin")
     const table = page.getByTestId("events-table")
     await expect(table).toBeVisible()
@@ -149,7 +149,7 @@ test.describe("The permission grid reflects what the server granted", () => {
    * show it — the Status column knew only "banned" and "active".
    */
   test("shows an admin who is waiting, and offers to approve them", async ({ page }) => {
-    await seedCache(page, [as("admin"), events({ canCreate: true })])
+    await seedCache(page, [as("ADMIN"), events({ canCreate: true })])
     await page.route("**/api/auth/admin/list-users**", (route) =>
       route.fulfill({
         status: 200,
@@ -172,7 +172,7 @@ test.describe("The permission grid reflects what the server granted", () => {
     // APPROVE_REFEREE is "approve a referee", not "set a status". An active
     // coach is neither waiting nor a referee, so there is nothing to approve —
     // and a control that appears there would be offering a 400.
-    await seedCache(page, [as("admin"), events({ canCreate: true })])
+    await seedCache(page, [as("ADMIN"), events({ canCreate: true })])
     await page.route("**/api/auth/admin/list-users**", (route) =>
       route.fulfill({
         status: 200,
@@ -201,7 +201,7 @@ test.describe("The permission grid reflects what the server granted", () => {
    * which is also what makes it translated.
    */
   test("a suspended account does not read as active", async ({ page }) => {
-    await seedCache(page, [as("admin"), events({ canCreate: true })])
+    await seedCache(page, [as("ADMIN"), events({ canCreate: true })])
     await page.route("**/api/auth/admin/list-users**", (route) =>
       route.fulfill({
         status: 200,

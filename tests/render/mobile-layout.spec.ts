@@ -105,7 +105,7 @@ test.describe("no screen overflows on a phone", () => {
 
       const failures: string[] = []
       for (const route of ROUTES) {
-        await page.goto(`/#${route}`)
+        await page.goto(`/#${route}`) // check-ignore: iterates ROUTES — every route must fit
         await page.waitForFunction(() => !!document.querySelector(".page"))
         // The view swaps on hash change; give React a frame to commit it.
         await page.waitForTimeout(250)

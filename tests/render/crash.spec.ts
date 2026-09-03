@@ -130,7 +130,7 @@ test.describe("When a page throws", () => {
     // The explicit route, not the surface helper: this test asserts the route
     // the beacon REPORTS, and "/" and "/#/discover" both render discover while
     // reporting differently. Where the route is the subject, name the route.
-    await page.goto("/#/discover")
+    await page.goto("/#/discover") // check-ignore: asserts the route a beacon REPORTS
     await expect(page.getByTestId("crash")).toBeVisible()
 
     const sent = await page
