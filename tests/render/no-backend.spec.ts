@@ -1,7 +1,7 @@
 import { test, expect } from "./fixture"
-import { ROUTES } from "../../src/web/lib/router"
 import { as } from "../helpers/actors"
-import { open } from "../helpers/surfaces"
+import { ROUTES } from "../../src/web/lib/router"
+import { visit } from "../helpers/surfaces"
 
 /**
  * Every route, with no backend, rejecting nothing.
@@ -80,7 +80,7 @@ for (const route of ROUTES) {
 test.describe("A push state that could not be determined", () => {
   test("says so, and offers a way to try again", async ({ page }) => {
     await as(page, "ADMIN")
-    await open(page, "notifications")
+    await visit(page, "notifications")
     await expect(page.getByTestId("push-unknown")).toBeVisible()
     await expect(page.getByTestId("push-retry")).toBeVisible()
     // Not the blank that shipped: the section renders something a reader can
@@ -92,7 +92,7 @@ test.describe("A push state that could not be determined", () => {
     // "not-configured" says push is switched off for this deployment, which
     // sends a reader with a dropped connection to entirely the wrong place.
     await as(page, "ADMIN")
-    await open(page, "notifications")
+    await visit(page, "notifications")
     await expect(page.getByTestId("push-unknown")).toBeVisible()
     await expect(page.getByTestId("push-blocked")).toHaveCount(0)
   })
@@ -107,7 +107,7 @@ test.describe("A push state that could not be determined", () => {
       if (route.request().url().includes("notifications/key")) asked++
       return route.fallback()
     })
-    await open(page, "notifications")
+    await visit(page, "notifications")
     await expect(page.getByTestId("push-retry")).toBeVisible()
     const before = asked
     await page.getByTestId("push-retry").click()
@@ -143,7 +143,7 @@ test.describe("Unhandled rejections in dev", () => {
   }
 
   test("shows the rejection, outside the app's root", async ({ page }) => {
-    await page.goto("/")
+    await visit(page, "discover")
     await expect(page.locator("#root")).not.toBeEmpty()
     await page.evaluate(provoke).catch(() => undefined)
 
@@ -161,7 +161,7 @@ test.describe("Unhandled rejections in dev", () => {
   })
 
   test("does not replace the app the way a crash boundary would", async ({ page }) => {
-    await page.goto("/")
+    await visit(page, "discover")
     await page.evaluate(provoke).catch(() => undefined)
     await expect(page.locator("[data-dev-rejections]")).toBeVisible()
     // Still a working page. A rejection is usually not fatal, and a crash
@@ -171,7 +171,7 @@ test.describe("Unhandled rejections in dev", () => {
   })
 
   test("a rejection loop does not grow the DOM without bound", async ({ page }) => {
-    await page.goto("/")
+    await visit(page, "discover")
     await page.evaluate(async () => {
       for (let i = 0; i < 25; i++) {
         void Promise.reject(new Error(`burst ${i}`))
@@ -188,7 +188,7 @@ test.describe("Unhandled rejections in dev", () => {
     // would make whatever sits under it unclickable the moment a rejection
     // happened — and the test that then failed would name a button, not a
     // rejection.
-    await page.goto("/")
+    await visit(page, "discover")
     await page.evaluate(provoke)
     await expect(page.locator("[data-dev-rejections]")).toBeVisible()
     const swallows = await page.evaluate(() => {
@@ -204,7 +204,7 @@ test.describe("Unhandled rejections in dev", () => {
     // The module is imported dynamically behind import.meta.env.DEV, so it is
     // not in the shipped bundle at all — asserted against dist/ in the build,
     // and here only that nothing renders it unprovoked.
-    await page.goto("/")
+    await visit(page, "discover")
     await expect(page.locator("[data-dev-rejections]")).toHaveCount(0)
   })
 })

@@ -1,7 +1,8 @@
 import { test, expect } from "./fixture"
+import { sessionFor } from "../helpers/actors"
+import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { apiMyPlayer, type ApiMyPlayer } from "../helpers/api-fixtures"
-import { sessionKey } from "../../src/web/lib/session"
 
 /**
  * A guardian's children, on their own profile.
@@ -12,13 +13,7 @@ import { sessionKey } from "../../src/web/lib/session"
  * whole point.
  */
 
-const signedIn = {
-  queryKey: sessionKey as unknown as readonly unknown[],
-  data: {
-    user: { id: "usr_spectator_001", email: "parent@remy.test", name: "Parent", role: "user" },
-    session: { activeOrganizationId: null, impersonatedBy: null },
-  },
-}
+const signedIn = sessionFor("SPECTATOR")
 
 // Through `apiMyPlayer`, so `guardianTypeCode` and `positionCode` stay their
 // vocabularies. The `Record<string, unknown>` overrides here widened both to
@@ -46,7 +41,7 @@ const seed = (page: Parameters<typeof seedCache>[0], players: ApiMyPlayer[]) =>
 test.describe("Your players", () => {
   test("names each child, their relationship, position and team", async ({ page }) => {
     await seed(page, [child()])
-    await page.goto("/#/profile")
+    await visit(page, "dashboard")
 
     const row = page.getByTestId("your-player-ply_001")
     await expect(row).toContainText("Somchai Prasert")
@@ -59,7 +54,7 @@ test.describe("Your players", () => {
 
   test("goes to the team, which is what a guardian came for", async ({ page }) => {
     await seed(page, [child()])
-    await page.goto("/#/profile")
+    await visit(page, "dashboard")
     await page.getByTestId("goto-team-ply_001").click()
 
     await expect(page).toHaveURL(/#\/team\/team_001/)
@@ -69,7 +64,7 @@ test.describe("Your players", () => {
     // A real state: a player registered but not yet placed. A row that looks
     // clickable and goes nowhere is the dead-button problem again.
     await seed(page, [child({ teamId: null, teamNames: null })])
-    await page.goto("/#/profile")
+    await visit(page, "dashboard")
 
     await expect(page.getByTestId("your-player-ply_001")).toContainText("Not on a team")
     // The navigating control is disabled, not the row — a row that looks
@@ -81,7 +76,7 @@ test.describe("Your players", () => {
     // SELF is not a guardianship. "Self · Parent" would be nonsense, and the
     // API sends null for exactly this case.
     await seed(page, [child({ guardianTypeCode: null })])
-    await page.goto("/#/profile")
+    await visit(page, "dashboard")
 
     const row = page.getByTestId("your-player-ply_001")
     await expect(row).toContainText("Assumption U18 Boys")
@@ -100,7 +95,7 @@ test.describe("Your players", () => {
     // list and had nowhere to go. A card that hides itself when empty is right;
     // one that hides the only way to stop being empty is a dead end.
     await seed(page, [])
-    await page.goto("/#/profile")
+    await visit(page, "dashboard")
 
     await expect(page.getByTestId("profile-events")).toBeVisible()
     await expect(page.getByTestId("your-players")).toHaveCount(0)
@@ -117,7 +112,7 @@ test.describe("Signing up a child", () => {
    */
   test("asks for the child, and for how you are related to them", async ({ page }) => {
     await seed(page, [])
-    await page.goto("/#/profile")
+    await visit(page, "dashboard")
     await page.getByTestId("add-player").click()
 
     await expect(page.getByTestId("add-player-form")).toBeVisible()
@@ -133,14 +128,14 @@ test.describe("Signing up a child", () => {
     // how "18/04/2012" reaches an API that wants YYYY-MM-DD and comes back a
     // 400 the parent cannot read.
     await seed(page, [])
-    await page.goto("/#/profile")
+    await visit(page, "dashboard")
     await page.getByTestId("add-player").click()
     await expect(page.getByTestId("add-player-dob")).toHaveAttribute("type", "date")
   })
 
   test("sends what was typed, as the contract wants it", async ({ page }) => {
     await seed(page, [])
-    await page.goto("/#/profile")
+    await visit(page, "dashboard")
 
     let sent = ""
     await page.route("**/rpc/**", async (route) => {
@@ -163,7 +158,7 @@ test.describe("Signing up a child", () => {
 
   test("closes without saving when cancelled", async ({ page }) => {
     await seed(page, [])
-    await page.goto("/#/profile")
+    await visit(page, "dashboard")
     await page.getByTestId("add-player").click()
     await expect(page.getByTestId("add-player-form")).toBeVisible()
     await page.getByRole("button", { name: "Cancel" }).click()
@@ -179,14 +174,14 @@ test.describe("Correcting a player's details", () => {
    */
   test("is offered only where the model says the reader may edit", async ({ page }) => {
     await seed(page, [child({ canEdit: false })])
-    await page.goto("/#/profile")
+    await visit(page, "dashboard")
     await expect(page.getByTestId("your-player-ply_001")).toBeVisible()
     await expect(page.getByTestId("edit-player-ply_001")).toHaveCount(0)
   })
 
   test("opens a form prefilled with what is stored", async ({ page }) => {
     await seed(page, [child()])
-    await page.goto("/#/profile")
+    await visit(page, "dashboard")
     await page.getByTestId("edit-player-ply_001").click()
 
     await expect(page.getByTestId("player-number-ply_001")).toHaveValue("7")
@@ -200,7 +195,7 @@ test.describe("Correcting a player's details", () => {
     // screen reader was told about a button containing a button. It behaved
     // with a mouse, which is what made it look finished.
     await seed(page, [child()])
-    await page.goto("/#/profile")
+    await visit(page, "dashboard")
 
     await page.getByTestId("edit-player-ply_001").focus()
     await page.keyboard.press("Enter")
@@ -222,7 +217,7 @@ test.describe("Correcting a player's details", () => {
       })
     })
 
-    await page.goto("/#/profile")
+    await visit(page, "dashboard")
     await page.getByTestId("edit-player-ply_001").click()
     await page.getByTestId("player-number-ply_001").fill("12")
     await page.getByTestId("player-position-ply_001").selectOption("SG")
@@ -237,7 +232,7 @@ test.describe("Correcting a player's details", () => {
   test("edits one child at a time", async ({ page }) => {
     // Two open forms on one card is a way to save the wrong child's number.
     await seed(page, [child(), child({ playerId: "ply_002", names: { en: "Nid Chai" } })])
-    await page.goto("/#/profile")
+    await visit(page, "dashboard")
 
     await page.getByTestId("edit-player-ply_001").click()
     await expect(page.getByTestId("player-form-ply_001")).toBeVisible()

@@ -1,4 +1,5 @@
 import { test, expect } from "./fixture"
+import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { apiEvent, apiReference } from "../helpers/api-fixtures"
 import { VOCABULARY as REF } from "../../src/domain/vocabularies"
@@ -50,7 +51,7 @@ const seeded = (page: Parameters<typeof seedCache>[0], events = [bangkok, chiang
 test.describe("Filtering events by province", () => {
   test("offers only provinces that have an event, with how many", async ({ page }) => {
     await seeded(page)
-    await page.goto("/")
+    await visit(page, "discover")
 
     const filter = page.getByTestId("province-filter")
     await expect(filter).toBeVisible()
@@ -69,7 +70,7 @@ test.describe("Filtering events by province", () => {
 
   test("selecting one narrows the list to that province", async ({ page }) => {
     await seeded(page)
-    await page.goto("/")
+    await visit(page, "discover")
     await expect(page.locator(".event-row")).toHaveCount(3)
 
     await page.getByTestId("province-filter").selectOption("CMI")
@@ -93,7 +94,7 @@ test.describe("Filtering events by province", () => {
    */
   test("survives a language switch, which used to silently clear it", async ({ page }) => {
     await seeded(page)
-    await page.goto("/")
+    await visit(page, "discover")
     await page.getByTestId("province-filter").selectOption("CMI")
     await expect(page.locator(".event-row")).toHaveCount(1)
 
@@ -106,14 +107,14 @@ test.describe("Filtering events by province", () => {
 
   test("is a link somebody can send", async ({ page }) => {
     await seeded(page)
-    await page.goto("/#/?province=CMI")
+    await visit(page, "discover", { query: { province: "CMI" } })
     await expect(page.locator(".event-row")).toHaveCount(1)
     await expect(page.locator(".event-row")).toContainText("Northern Classic")
   })
 
   test("the tab and the chips go in the address bar too", async ({ page }) => {
     await seeded(page)
-    await page.goto("/")
+    await visit(page, "discover")
     await page.getByTestId("province-filter").selectOption("BKK")
     await expect(page).toHaveURL(/province=BKK/)
 
@@ -126,13 +127,13 @@ test.describe("Filtering events by province", () => {
     // One province is not a filter. A select with a single real option is a
     // control that cannot change what the reader sees.
     await seeded(page, [bangkok, alsoBangkok])
-    await page.goto("/")
+    await visit(page, "discover")
     await expect(page.getByTestId("province-filter")).toHaveCount(0)
   })
 
   test("shows the province on the event row, beside the city", async ({ page }) => {
     await seeded(page)
-    await page.goto("/")
+    await visit(page, "discover")
     const row = page.locator(".event-row").filter({ hasText: "Northern Classic" })
     await expect(row.locator(".city")).toContainText("Chiang Mai")
   })

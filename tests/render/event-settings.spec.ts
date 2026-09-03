@@ -1,4 +1,5 @@
 import { test, expect } from "./fixture"
+import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { apiEvent } from "../helpers/api-fixtures"
 
@@ -29,7 +30,7 @@ const seed = (canEdit: boolean, canInvite = canEdit) => [
 test.describe("An event's settings tab", () => {
   test("is not offered to someone who may not edit", async ({ page }) => {
     await seedCache(page, seed(false))
-    await page.goto(`/#/event/${EVENT_ID}`)
+    await visit(page, "event", { id: EVENT_ID })
 
     await expect(page.getByTestId("tab-overview")).toBeVisible()
     await expect(page.getByTestId("tab-settings")).toHaveCount(0)
@@ -37,7 +38,7 @@ test.describe("An event's settings tab", () => {
 
   test("is offered to an organiser, prefilled with what is stored", async ({ page }) => {
     await seedCache(page, seed(true))
-    await page.goto(`/#/event/${EVENT_ID}`)
+    await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-settings").click()
 
     await expect(page.getByTestId("event-settings")).toBeVisible()
@@ -65,7 +66,7 @@ test.describe("An event's settings tab", () => {
       })
     })
 
-    await page.goto(`/#/event/${EVENT_ID}`)
+    await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-settings").click()
     await page.getByTestId("event-name-input").fill("Bangkok Schools League 2026")
     await page.getByTestId("event-save").click()
@@ -91,7 +92,7 @@ test.describe("An event's settings tab", () => {
       })
     })
 
-    await page.goto(`/#/event/${EVENT_ID}`)
+    await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-settings").click()
     await page.getByTestId("event-end-input").fill("2026-01-01")
     await page.getByTestId("event-save").click()
@@ -104,7 +105,7 @@ test.describe("An event's settings tab", () => {
 
   test("offers the invite form to an owner", async ({ page }) => {
     await seedCache(page, seed(true))
-    await page.goto(`/#/event/${EVENT_ID}`)
+    await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-settings").click()
 
     await expect(page.getByTestId("invite-co-organizer")).toBeVisible()
@@ -122,7 +123,7 @@ test.describe("An event's settings tab", () => {
      * two flags agree for an owner, so nothing else in the suite would notice.
      */
     await seedCache(page, seed(true, false))
-    await page.goto(`/#/event/${EVENT_ID}`)
+    await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-settings").click()
 
     await expect(page.getByTestId("event-settings")).toBeVisible()
@@ -144,7 +145,7 @@ test.describe("An event's settings tab", () => {
       })
     })
 
-    await page.goto(`/#/event/${EVENT_ID}`)
+    await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-settings").click()
     await page.getByTestId("invite-email-input").fill("niran.k@bat.test")
     await page.getByTestId("invite-send").click()
@@ -173,7 +174,7 @@ test.describe("The event hero's actions", () => {
         { ...event(false), startDate: "2026-01-01", endDate: "2026-12-31" },
       ),
     ])
-    await page.goto(`/#/event/${EVENT_ID}`)
+    await visit(page, "event", { id: EVENT_ID })
 
     await page.getByTestId("hero-register").click()
     await expect(page.getByTestId("tab-teams")).toHaveClass(/active/)
@@ -186,13 +187,13 @@ test.describe("The event hero's actions", () => {
     await seedCache(page, [
       entry(orpc.events.get, { id: EVENT_ID }, { ...event(false), startDate: null, endDate: null }),
     ])
-    await page.goto(`/#/event/${EVENT_ID}`)
+    await visit(page, "event", { id: EVENT_ID })
     await expect(page.getByTestId("add-to-calendar")).toHaveCount(0)
   })
 
   test("downloads a real .ics when it does", async ({ page }) => {
     await seedCache(page, seed(false))
-    await page.goto(`/#/event/${EVENT_ID}`)
+    await visit(page, "event", { id: EVENT_ID })
 
     const download = page.waitForEvent("download")
     await page.getByTestId("add-to-calendar").click()
@@ -216,7 +217,7 @@ test.describe("The event hero's actions", () => {
       ;(window as unknown as { __copied: () => string }).__copied = () => copied
     })
     await seedCache(page, seed(false))
-    await page.goto(`/#/event/${EVENT_ID}`)
+    await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("share").click()
 
     await expect(page.getByTestId("share")).toContainText("Link copied")
@@ -256,7 +257,7 @@ test.describe("The Venues tab", () => {
 
   test("lists this event's venues with their address, and nobody else's", async ({ page }) => {
     await seedVenues(page)
-    await page.goto(`/#/event/${EVENT_ID}`)
+    await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-venues").click()
 
     await expect(page.getByTestId("venue-ven_001")).toContainText("Nimibutr Stadium")
@@ -270,7 +271,7 @@ test.describe("The Venues tab", () => {
     // It is the one printed on a fixture list and the one somebody asks for
     // directions to, so a stable order is not cosmetic.
     await seedVenues(page)
-    await page.goto(`/#/event/${EVENT_ID}`)
+    await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-venues").click()
 
     await expect(page.getByTestId("venue-primary-ven_001")).toBeVisible()
@@ -285,7 +286,7 @@ test.describe("The Venues tab", () => {
       entry(orpc.venues.list, undefined, venues),
       entry(orpc.eventVenues.list, undefined, { items: [] }),
     ])
-    await page.goto(`/#/event/${EVENT_ID}`)
+    await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-venues").click()
 
     await expect(page.getByTestId("event-venues-empty")).toBeVisible()
@@ -306,7 +307,7 @@ test.describe("The Rules tab", () => {
         apiEvent({ id: EVENT_ID, formatCode: "3x3", isFibaCertified: true }),
       ),
     ])
-    await page.goto(`/#/event/${EVENT_ID}`)
+    await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-rules").click()
 
     // From the reference vocabulary, so "3x3" and "5-on-5" are rows in the
@@ -321,7 +322,7 @@ test.describe("The Rules tab", () => {
     await seedCache(page, [
       entry(orpc.events.get, { id: EVENT_ID }, apiEvent({ id: EVENT_ID, isFibaCertified: false })),
     ])
-    await page.goto(`/#/event/${EVENT_ID}`)
+    await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-rules").click()
 
     await expect(page.getByTestId("event-fiba")).toHaveText("No")
@@ -335,14 +336,14 @@ test.describe("The Rules tab", () => {
         apiEvent({ id: EVENT_ID, description: "Round-robin group stage, then knockouts." }),
       ),
     ])
-    await page.goto(`/#/event/${EVENT_ID}`)
+    await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-rules").click()
     await expect(page.getByTestId("event-description")).toContainText("Round-robin group stage")
 
     await seedCache(page, [
       entry(orpc.events.get, { id: EVENT_ID }, apiEvent({ id: EVENT_ID, description: null })),
     ])
-    await page.goto(`/#/event/${EVENT_ID}`)
+    await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-rules").click()
     await expect(page.getByTestId("event-no-details")).toBeVisible()
   })

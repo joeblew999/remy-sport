@@ -1,8 +1,9 @@
 import { test, expect } from "./fixture"
+import { sessionFor } from "../helpers/actors"
+import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { apiTeam } from "../helpers/api-fixtures"
 import type { ApiTeam } from "../../src/domain/api"
-import { sessionKey } from "../../src/web/lib/session"
 
 /**
  * The organisation pages, rendered against seeded data.
@@ -32,18 +33,12 @@ const ORG = {
   canCreateTeam: true,
 }
 
-const signedIn = {
-  queryKey: sessionKey as unknown as readonly unknown[],
-  data: {
-    user: { id: "usr_coach_001", email: "coach@remy.test", name: "Coach", role: "coach" },
-    session: { activeOrganizationId: null, impersonatedBy: null },
-  },
-}
+const signedIn = sessionFor("COACH")
 
 test.describe("The organisation list", () => {
   test("renders the schools it was given", async ({ page }) => {
     await seedCache(page, [entry(orpc.orgs.list, undefined, { orgs: [ORG] })])
-    await page.goto("/#/orgs")
+    await visit(page, "orgs")
 
     await expect(page.getByTestId("orgs-page")).toBeVisible()
     await expect(page.getByTestId("org-org_001")).toContainText("Assumption College")
@@ -51,7 +46,7 @@ test.describe("The organisation list", () => {
 
   test("says so when there are none, rather than rendering an empty box", async ({ page }) => {
     await seedCache(page, [entry(orpc.orgs.list, undefined, { orgs: [] })])
-    await page.goto("/#/orgs")
+    await visit(page, "orgs")
 
     await expect(page.getByTestId("orgs-list")).toBeHidden()
     await expect(page.getByTestId("orgs-page")).toContainText("No organisations yet")
@@ -61,7 +56,7 @@ test.describe("The organisation list", () => {
 test.describe("An organisation page", () => {
   test("shows the profile form with the current name in it", async ({ page }) => {
     await seedCache(page, [signedIn, entry(orpc.orgs.get, { id: "org_001" }, ORG)])
-    await page.goto("/#/org/org_001")
+    await visit(page, "org", { id: "org_001" })
 
     await expect(page.getByTestId("org-page")).toContainText("Assumption College")
     await expect(page.getByTestId("org-name-input")).toHaveValue("Assumption College")
@@ -74,7 +69,7 @@ test.describe("An organisation page", () => {
       signedIn,
       entry(orpc.orgs.get, { id: "org_001" }, { ...ORG, canEdit: false }),
     ])
-    await page.goto("/#/org/org_001")
+    await visit(page, "org", { id: "org_001" })
 
     await expect(page.getByTestId("org-name-readonly")).toHaveText("Assumption College")
     await expect(page.getByTestId("org-name-input")).toHaveCount(0)
@@ -91,7 +86,7 @@ test.describe("An organisation page", () => {
         ],
       }),
     ])
-    await page.goto("/#/org/org_001")
+    await visit(page, "org", { id: "org_001" })
 
     await expect(page.getByTestId("org-members")).toBeVisible()
     // The model's name for the role, not the code. This asserted "ADMIN",
@@ -108,7 +103,7 @@ test.describe("An organisation page", () => {
     // No members entry — the harness answers 404, which is how a 403 reaches
     // this component: as an error, not as data.
     await seedCache(page, [signedIn, entry(orpc.orgs.get, { id: "org_001" }, ORG)])
-    await page.goto("/#/org/org_001")
+    await visit(page, "org", { id: "org_001" })
 
     await expect(page.getByTestId("org-members-denied")).toBeVisible()
     await expect(page.getByTestId("org-members")).toBeHidden()
@@ -117,7 +112,7 @@ test.describe("An organisation page", () => {
 
   test("offers a signed-out visitor no members section at all", async ({ page }) => {
     await seedCache(page, [entry(orpc.orgs.get, { id: "org_001" }, ORG)])
-    await page.goto("/#/org/org_001")
+    await visit(page, "org", { id: "org_001" })
 
     await expect(page.getByTestId("org-profile")).toBeVisible()
     await expect(page.getByTestId("org-members")).toBeHidden()
@@ -163,7 +158,7 @@ test.describe("A school's teams", () => {
         teams: [team(), team({ id: "team_009", name: "Somewhere Else U16", orgId: "org_002" })],
       }),
     ])
-    await page.goto("/#/org/org_001")
+    await visit(page, "org", { id: "org_001" })
 
     await expect(page.getByTestId("org-team-team_001")).toBeVisible()
     await expect(page.getByTestId("org-team-team_009")).toHaveCount(0)
@@ -175,7 +170,7 @@ test.describe("A school's teams", () => {
       entry(orpc.orgs.get, { id: "org_001" }, ORG),
       entry(orpc.teams.list, undefined, { teams: [] }),
     ])
-    await page.goto("/#/org/org_001")
+    await visit(page, "org", { id: "org_001" })
 
     await expect(page.getByTestId("org-no-teams")).toBeVisible()
   })
@@ -186,7 +181,7 @@ test.describe("A school's teams", () => {
       entry(orpc.orgs.get, { id: "org_001" }, { ...ORG, canCreateTeam: false }),
       entry(orpc.teams.list, undefined, { teams: [team()] }),
     ])
-    await page.goto("/#/org/org_001")
+    await visit(page, "org", { id: "org_001" })
 
     // The list is still there — seeing a school's teams is not the same
     // permission as making one.
@@ -211,7 +206,7 @@ test.describe("A school's teams", () => {
       })
     })
 
-    await page.goto("/#/org/org_001")
+    await visit(page, "org", { id: "org_001" })
     await page.getByTestId("new-team-name").fill("Assumption U14 Girls")
     await page.getByTestId("new-team-age").selectOption("U14")
     await page.getByTestId("new-team-gender").selectOption("F")

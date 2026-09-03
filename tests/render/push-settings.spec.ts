@@ -1,7 +1,7 @@
 import { test, expect } from "./fixture"
-import { deviceFingerprint } from "../../src/domain/device-fingerprint"
 import { as } from "../helpers/actors"
-import { open } from "../helpers/surfaces"
+import { deviceFingerprint } from "../../src/domain/device-fingerprint"
+import { visit } from "../helpers/surfaces"
 import { ENDPOINT, stubPushRpc, withNotificationPermission, withSubscription } from "../helpers/push"
 
 /**
@@ -41,7 +41,7 @@ test.describe("Push settings, with a subscription this browser actually holds", 
     await as(page, "ADMIN")
     await stubPushRpc(page, { sendTestStatus: 401 })
 
-    await open(page, "notifications")
+    await visit(page, "notifications")
     await page.getByTestId("push-test").click()
 
     // The whole bug: this used to be a click with no consequence on screen.
@@ -54,7 +54,7 @@ test.describe("Push settings, with a subscription this browser actually holds", 
     await as(page, "ADMIN")
     await stubPushRpc(page, { sendTest: { sent: 0, gone: 0, failed: 1, configured: true } })
 
-    await open(page, "notifications")
+    await visit(page, "notifications")
     await page.getByTestId("push-test").click()
 
     const result = page.getByTestId("push-test-result")
@@ -69,7 +69,7 @@ test.describe("Push settings, with a subscription this browser actually holds", 
     await as(page, "ADMIN")
     await stubPushRpc(page, { sendTest: { sent: 0, gone: 0, failed: 0, configured: false } })
 
-    await open(page, "notifications")
+    await visit(page, "notifications")
     await page.getByTestId("push-test").click()
 
     await expect(page.getByTestId("push-test-result")).toContainText(/push keys/i)
@@ -92,7 +92,7 @@ test.describe("Push settings, with a subscription this browser actually holds", 
     await as(page, "ADMIN")
     await stubPushRpc(page, { devices: { devices: [{ label: "Safari on Mac", enabled: true, id }] } })
 
-    await open(page, "notifications")
+    await visit(page, "notifications")
     await expect(page.getByTestId("device-0-here")).toBeVisible()
     await expect(page.getByTestId("device-not-registered")).toHaveCount(0)
   })
@@ -107,7 +107,7 @@ test.describe("Push settings, with a subscription this browser actually holds", 
       devices: { devices: [{ label: "Safari on Mac", enabled: true, id: "ffffffffffff" }] },
     })
 
-    await open(page, "notifications")
+    await visit(page, "notifications")
     await expect(page.getByTestId("device-not-registered")).toBeVisible()
     await expect(page.getByTestId("device-0-here")).toHaveCount(0)
   })
@@ -123,7 +123,7 @@ test.describe("Push settings, with a subscription this browser actually holds", 
      * button is on, so a working tap and a dead one rendered identically and
      * the reader's only possible report was "nothing happened".
      */
-    await open(page, "notifications", { pushtest: "1756800000000" })
+    await visit(page, "notifications", { query: { pushtest: "1756800000000" } })
 
     await expect(page.getByTestId("push-test-tapped")).toBeVisible()
     await page.getByTestId("push-test-tapped-clear").click()
@@ -140,7 +140,7 @@ test.describe("Push settings, with a subscription this browser actually holds", 
     // to leave `toggle()` rejecting with nothing rendered.
     await stubPushRpc(page, { subscribeStatus: 401 })
 
-    await open(page, "notifications")
+    await visit(page, "notifications")
     await page.getByTestId("push-toggle").click()
 
     const err = page.getByTestId("push-toggle-error")
@@ -158,7 +158,7 @@ test.describe("Push settings, with a subscription this browser actually holds", 
     await withNotificationPermission(page)
     await stubPushRpc(page, {})
 
-    await open(page, "notifications")
+    await visit(page, "notifications")
     await page.getByTestId("push-toggle").click()
 
     const err = page.getByTestId("push-toggle-error")

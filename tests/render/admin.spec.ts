@@ -1,4 +1,6 @@
 import { test, expect } from "./fixture"
+import { VISITOR } from "../helpers/actors"
+import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { apiEvent } from "../helpers/api-fixtures"
 import { sessionKey } from "../../src/web/lib/session"
@@ -54,7 +56,7 @@ test.describe("The permission grid reflects what the server granted", () => {
       as("organizer"),
       events({ canCreate: true, canEdit: true, canDelete: true }),
     ])
-    await page.goto("/#/admin")
+    await visit(page, "admin")
     await expect(page.getByTestId("create-event-form")).toBeVisible()
     await expect(page.getByTestId("perm-create")).toHaveClass(/badge-success/)
     await expect(page.getByTestId("perm-read")).toHaveClass(/badge-success/)
@@ -64,7 +66,7 @@ test.describe("The permission grid reflects what the server granted", () => {
 
   test("a viewer the server says may only read sees the denial", async ({ page }) => {
     await seedCache(page, [as("coach"), events({ canCreate: false })])
-    await page.goto("/#/admin")
+    await visit(page, "admin")
     await expect(page.getByTestId("create-event-denied")).toBeVisible()
     await expect(page.getByTestId("perm-create")).not.toHaveClass(/badge-success/)
     await expect(page.getByTestId("perm-delete")).not.toHaveClass(/badge-success/)
@@ -84,7 +86,7 @@ test.describe("The permission grid reflects what the server granted", () => {
       as("organizer"),
       events({ canCreate: true, canEdit: true, canDelete: false }),
     ])
-    await page.goto("/#/admin")
+    await visit(page, "admin")
     await expect(page.getByTestId("perm-update")).toHaveClass(/badge-success/)
     await expect(page.getByTestId("perm-delete")).not.toHaveClass(/badge-success/)
     await expect(page.getByTestId("events-table").locator("button.danger")).toHaveCount(0)
@@ -95,13 +97,13 @@ test.describe("The permission grid reflects what the server granted", () => {
       as("admin"),
       events({ canCreate: true, canEdit: true, canDelete: true }),
     ])
-    await page.goto("/#/admin")
+    await visit(page, "admin")
     await expect(page.getByTestId("events-table").locator("button.danger")).toHaveCount(1)
   })
 
   test("a non-admin sees no account console at all", async ({ page }) => {
     await seedCache(page, [as("coach"), events({ canCreate: false })])
-    await page.goto("/#/admin")
+    await visit(page, "admin")
     await expect(page.getByTestId("role-badge")).toHaveText("coach")
     await expect(page.getByTestId("admin-console")).toHaveCount(0)
   })
@@ -127,7 +129,7 @@ test.describe("The permission grid reflects what the server granted", () => {
         },
       },
     ])
-    await page.goto("/#/admin")
+    await visit(page, "admin")
     const switcher = page.getByTestId("role-switcher")
     await expect(switcher).toBeVisible()
     await expect(switcher.locator("button")).toHaveCount(6)
@@ -135,7 +137,7 @@ test.describe("The permission grid reflects what the server granted", () => {
 
   test("the events table renders the events it was given", async ({ page }) => {
     await seedCache(page, [as("organizer"), events({ canCreate: true })])
-    await page.goto("/#/admin")
+    await visit(page, "admin")
     const table = page.getByTestId("events-table")
     await expect(table).toBeVisible()
     await expect(table.locator("tbody tr")).not.toHaveCount(0)
@@ -160,7 +162,7 @@ test.describe("The permission grid reflects what the server granted", () => {
         }),
       }),
     )
-    await page.goto("/#/admin")
+    await visit(page, "admin")
 
     await expect(page.getByTestId("pending-ref@remy.test")).toBeVisible()
     await expect(page.getByTestId("approve-ref@remy.test")).toBeVisible()
@@ -183,7 +185,7 @@ test.describe("The permission grid reflects what the server granted", () => {
         }),
       }),
     )
-    await page.goto("/#/admin")
+    await visit(page, "admin")
 
     await expect(page.getByTestId("accounts-table")).toBeVisible()
     await expect(page.getByTestId("approve-coach@remy.test")).toHaveCount(0)
@@ -213,7 +215,7 @@ test.describe("The permission grid reflects what the server granted", () => {
         }),
       }),
     )
-    await page.goto("/#/admin")
+    await visit(page, "admin")
 
     const table = page.getByTestId("accounts-table")
     await expect(table).toBeVisible()
@@ -228,8 +230,8 @@ test.describe("The permission grid reflects what the server granted", () => {
   test("a signed-out visitor is sent to the login screen", async ({ page }) => {
     // Seeded as nobody: `useSession` resolves to a null user without a request,
     // so the redirect happens on first paint rather than after a round trip.
-    await seedCache(page, [{ queryKey: sessionKey as unknown as readonly unknown[], data: null }])
-    await page.goto("/#/admin")
+    await seedCache(page, [VISITOR])
+    await visit(page, "admin")
     await page.waitForURL("**/#/login")
   })
 })

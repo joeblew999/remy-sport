@@ -1,4 +1,5 @@
 import { test, expect } from "./fixture"
+import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 
 /**
@@ -64,7 +65,7 @@ const brokenProvider = () =>
 test.describe("When a page throws", () => {
   test("the reader gets a message and a way back, not a white screen", async ({ page }) => {
     await seedCache(page, [brokenPage()])
-    await page.goto("/#/discover")
+    await visit(page, "discover")
 
     const crash = page.getByTestId("crash")
     await expect(crash).toBeVisible()
@@ -81,7 +82,7 @@ test.describe("When a page throws", () => {
     // precisely when they were least able to cope with it.
     await page.addInitScript(() => localStorage.setItem("remy.locale", "th"))
     await seedCache(page, [brokenPage()])
-    await page.goto("/#/discover")
+    await visit(page, "discover")
 
     await expect(page.getByTestId("crash")).toContainText("หน้านี้หยุดทำงาน")
   })
@@ -93,7 +94,7 @@ test.describe("When a page throws", () => {
     // by this test seeding a reference payload with a field missing.
     await page.addInitScript(() => localStorage.setItem("remy.locale", "th"))
     await seedCache(page, [brokenProvider()])
-    await page.goto("/#/discover")
+    await visit(page, "discover")
 
     const crash = page.getByTestId("crash")
     await expect(crash).toBeVisible()
@@ -126,6 +127,9 @@ test.describe("When a page throws", () => {
     })
 
     await seedCache(page, [brokenPage()])
+    // The explicit route, not the surface helper: this test asserts the route
+    // the beacon REPORTS, and "/" and "/#/discover" both render discover while
+    // reporting differently. Where the route is the subject, name the route.
     await page.goto("/#/discover")
     await expect(page.getByTestId("crash")).toBeVisible()
 

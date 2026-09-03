@@ -52,13 +52,26 @@ function seeded(role: Role): SeededUser {
   return found
 }
 
-/** The session entry for one seeded person, as the cache holds it. */
-export function sessionFor(role: Role) {
+/**
+ * The session entry for one seeded person, as the cache holds it.
+ *
+ * `overrides` because a role is not the whole of an identity: the same referee
+ * can be ACTIVE or PENDING_APPROVAL, and which one decides whether the page
+ * tells them they are waiting. Those are states of a person rather than
+ * different people, so they belong here rather than in a second literal.
+ */
+export function sessionFor(role: Role, overrides: Record<string, unknown> = {}) {
   const u = seeded(role)
   return {
     queryKey: sessionKey as unknown as readonly unknown[],
     data: {
-      user: { id: u.id, email: u.email, name: u.names?.en ?? u.email, role: u.roleCode.toLowerCase() },
+      user: {
+        id: u.id,
+        email: u.email,
+        name: u.names?.en ?? u.email,
+        role: u.roleCode.toLowerCase(),
+        ...overrides,
+      },
       session: { activeOrganizationId: null, impersonatedBy: null },
     },
   }

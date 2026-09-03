@@ -1,6 +1,7 @@
 import { test, expect } from "./fixture"
+import { sessionFor } from "../helpers/actors"
+import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { sessionKey } from "../../src/web/lib/session"
 
 /**
  * The screen an invitation had no way to reach.
@@ -16,13 +17,7 @@ import { sessionKey } from "../../src/web/lib/session"
  * something on the page at all, and that pressing it asks the server.
  */
 
-const signedIn = {
-  queryKey: sessionKey as unknown as readonly unknown[],
-  data: {
-    user: { id: "usr_org_001", email: "organizer@remy.test", name: "Organiser", role: "user" },
-    session: { activeOrganizationId: null, impersonatedBy: null },
-  },
-}
+const signedIn = sessionFor("SPECTATOR")
 
 const invitation = {
   eventId: "evt_002",
@@ -37,7 +32,7 @@ test.describe("A pending co-organiser invitation", () => {
       signedIn,
       entry(orpc.events.invitations, undefined, { invitations: [invitation] }),
     ])
-    await page.goto("/#/profile")
+    await visit(page, "dashboard")
 
     const card = page.getByTestId("invite-evt_002")
     await expect(card).toBeVisible()
@@ -57,7 +52,7 @@ test.describe("A pending co-organiser invitation", () => {
       signedIn,
       entry(orpc.events.invitations, undefined, { invitations: [invitation] }),
     ])
-    await page.goto("/#/profile")
+    await visit(page, "dashboard")
 
     await expect(page.getByTestId("invite-evt_002")).toContainText(invitation.names.th)
   })
@@ -70,7 +65,7 @@ test.describe("A pending co-organiser invitation", () => {
       signedIn,
       entry(orpc.events.invitations, undefined, { invitations: [] }),
     ])
-    await page.goto("/#/profile")
+    await visit(page, "dashboard")
 
     await expect(page.getByTestId("profile-events")).toBeVisible()
     await expect(page.getByTestId("invitations")).toHaveCount(0)
@@ -100,7 +95,7 @@ test.describe("A pending co-organiser invitation", () => {
       })
     })
 
-    await page.goto("/#/profile")
+    await visit(page, "dashboard")
     await page.getByTestId("accept-evt_002").click()
 
     await expect.poll(() => asked.length, { message: "accept must reach the server" }).toBe(1)

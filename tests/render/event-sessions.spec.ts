@@ -1,4 +1,5 @@
 import { test, expect } from "./fixture"
+import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { apiEvent } from "../helpers/api-fixtures"
 
@@ -46,7 +47,7 @@ const seed = (page: Parameters<typeof seedCache>[0], opts: { canDefine: boolean;
   ])
 
 const open = async (page: Parameters<typeof seedCache>[0]) => {
-  await page.goto("/#/event/evt_003")
+  await visit(page, "event", { id: "evt_003" })
   await page.getByTestId("tab-sessions").click()
 }
 
@@ -163,7 +164,7 @@ test.describe("A camp's sessions", () => {
         typeCode: "LEAGUE",
       })),
     ])
-    await page.goto("/#/event/evt_002")
+    await visit(page, "event", { id: "evt_002" })
     await expect(page.getByTestId("tab-sessions")).toHaveCount(0)
   })
 })

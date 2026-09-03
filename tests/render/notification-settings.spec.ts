@@ -1,6 +1,6 @@
 import { test, expect } from "./fixture"
 import { as } from "../helpers/actors"
-import { open } from "../helpers/surfaces"
+import { visit } from "../helpers/surfaces"
 
 /**
  * How the notification section READS, which nothing checked.
@@ -32,7 +32,7 @@ import { open } from "../helpers/surfaces"
 test.describe("The notification section, as a reader sees it", () => {
   test("a status line reads as a line, not as a page with nothing on it", async ({ page }) => {
     await as(page, "ADMIN")
-    await open(page, "notifications")
+    await visit(page, "notifications")
 
     const note = page.getByTestId("push-unknown")
     await expect(note).toBeVisible()
@@ -48,7 +48,7 @@ test.describe("The notification section, as a reader sees it", () => {
 
   test("sub-headings sit below the section title, not above it", async ({ page }) => {
     await as(page, "ADMIN")
-    await open(page, "notifications")
+    await visit(page, "notifications")
 
     const section = page.getByTestId("notification-settings")
     const size = (sel: string) =>
@@ -60,7 +60,7 @@ test.describe("The notification section, as a reader sees it", () => {
 
   test("the preference list is a list of settings, not a bulleted list", async ({ page }) => {
     await as(page, "ADMIN")
-    await open(page, "notifications")
+    await visit(page, "notifications")
 
     const list = page.getByTestId("notification-settings").locator("ul.pref-list").first()
     await expect(list).toBeVisible()
@@ -88,19 +88,19 @@ test.describe("The notification section, as a reader sees it", () => {
    */
   test("lives beside the sessions list, not on the profile dashboard", async ({ page }) => {
     await as(page, "ADMIN")
-    await open(page, "dashboard")
+    await visit(page, "dashboard")
     await expect(
       page.getByTestId("notification-settings"),
       "settings on a dashboard is how the two device lists ended up apart",
     ).toHaveCount(0)
 
-    await open(page, "notifications")
+    await visit(page, "notifications")
     await expect(page.getByTestId("notification-settings")).toBeVisible()
   })
 
   test("puts the devices before the preferences, because a device is the prerequisite", async ({ page }) => {
     await as(page, "ADMIN")
-    await open(page, "notifications")
+    await visit(page, "notifications")
 
     /**
      * Order as the reader meets it: this device, then which devices, then what
@@ -122,7 +122,7 @@ test.describe("The notification section, as a reader sees it", () => {
 
   test("says the device state once, not twice", async ({ page }) => {
     await as(page, "ADMIN")
-    await open(page, "notifications")
+    await visit(page, "notifications")
     // "On for this device" sat under a button already reading "Turn off on this
     // device" — the verb after the fact it was derived from, and one more thing
     // that could disagree with the list below.
@@ -131,14 +131,14 @@ test.describe("The notification section, as a reader sees it", () => {
 
   test("does not carry the follow list, which is content rather than a device setting", async ({ page }) => {
     await as(page, "ADMIN")
-    await open(page, "notifications")
+    await visit(page, "notifications")
     // "Kanya Thongdee · Player" under two browsers and a row of checkboxes, in
     // a section about where push is delivered.
     await expect(
       page.getByTestId("notification-settings").getByTestId("following-list"),
     ).toHaveCount(0)
 
-    await open(page, "dashboard")
+    await visit(page, "dashboard")
     await expect(page.getByTestId("following-card")).toBeVisible()
   })
 
@@ -161,7 +161,7 @@ test.describe("The notification section, as a reader sees it", () => {
    */
   test("the install prompt is not covering anything in this tier", async ({ page }) => {
     await as(page, "ADMIN")
-    await open(page, "notifications")
+    await visit(page, "notifications")
     await page.waitForTimeout(600)
 
     const seen = await page.evaluate(() => {

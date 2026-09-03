@@ -29,6 +29,7 @@
  * not the fault.
  */
 import { test, expect } from "./fixture"
+import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { apiEvent } from "../helpers/api-fixtures"
 
@@ -128,7 +129,7 @@ test.describe("no screen overflows on a phone", () => {
     // check above passes it deliberately rather than by accident.
     await page.setViewportSize({ width: 390, height: 844 })
     await seedCache(page, [entry(orpc.events.list, undefined, { events: [event], canCreate: false })])
-    await page.goto("/#/")
+    await visit(page, "discover")
 
     const scrolls = await page.evaluate(() => {
       const el = document.querySelector(".tab-row")!
@@ -148,7 +149,7 @@ test.describe("no screen overflows on a phone", () => {
     // floor that makes that impossible; this pins it.
     await page.setViewportSize({ width: 390, height: 844 })
     await seedCache(page, [entry(orpc.events.list, undefined, { events: [event], canCreate: false })])
-    await page.goto("/#/")
+    await visit(page, "discover")
     const overflowX = await page.evaluate(
       () => getComputedStyle(document.querySelector(".page")!).overflowX,
     )

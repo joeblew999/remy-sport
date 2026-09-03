@@ -1,6 +1,7 @@
 import { test, expect } from "./fixture"
+import { VISITOR, sessionFor } from "../helpers/actors"
+import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { sessionKey } from "../../src/web/lib/session"
 import { apiEvent } from "../helpers/api-fixtures"
 
 /**
@@ -32,13 +33,13 @@ test.describe("The SPA shell", () => {
   test("React mounts and renders into #root", async ({ page }) => {
     // Router defaults to discover when there is no hash.
     await seedCache(page, [entry(orpc.events.list, undefined, { events: [], canCreate: false })])
-    await page.goto("/")
+    await visit(page, "discover")
     await expect(page.locator("#root")).not.toBeEmpty()
     await expect(page.locator("#root *").first()).toBeVisible()
   })
 
   test("a hash deep-link resolves client-side, with no server round trip", async ({ page }) => {
-    await page.goto("/#/live")
+    await visit(page, "live")
     await expect(page.locator("#root")).not.toBeEmpty()
     expect(page.url()).toContain("#/live")
   })
@@ -46,7 +47,7 @@ test.describe("The SPA shell", () => {
   test("a deep link renders rather than 404ing", async ({ page }) => {
     // Hash routing means every deep link resolves to the same document; there
     // is no server-side rewrite table and there must not need to be one.
-    await page.goto("/#/admin")
+    await visit(page, "admin")
     await expect(page.locator("#root")).toBeAttached()
   })
 })
@@ -56,7 +57,7 @@ test.describe("Event view models are derived, not stored", () => {
     // No status column exists in D1; the SPA computes it. An event whose window
     // has passed must read as finished.
     await seedCache(page, [entry(orpc.events.list, undefined, { events: [EVENT], canCreate: false })])
-    await page.goto("/")
+    await visit(page, "discover")
 
     const row = page.locator(".event-row", { hasText: "Bangkok Schools Basketball League 2026" })
     await expect(row).toBeVisible()
@@ -71,7 +72,7 @@ test.describe("Event view models are derived, not stored", () => {
 
   test("an event deep-link renders that event", async ({ page }) => {
     await seedCache(page, [entry(orpc.events.get, { id: "evt_002" }, EVENT)])
-    await page.goto("/#/event/evt_002")
+    await visit(page, "event", { id: "evt_002" })
     await expect(page.locator(".event-hero")).toContainText("Bangkok Schools Basketball League 2026")
   })
 
@@ -87,15 +88,9 @@ test.describe("Event view models are derived, not stored", () => {
 test.describe("The sidebar identity", () => {
   test("is the signed-in user, and matches the topbar", async ({ page }) => {
     await seedCache(page, [
-      {
-        queryKey: sessionKey as unknown as readonly unknown[],
-        data: {
-          user: { id: "u1", email: "wichai.s@assumption.test", name: "Wichai Srisuk", role: "coach" },
-          session: { activeOrganizationId: null, impersonatedBy: null },
-        },
-      },
+      sessionFor("COACH"),
     ])
-    await page.goto("/#/")
+    await visit(page, "discover")
 
     await expect(page.getByTestId("sidebar-user")).toContainText("Wichai Srisuk")
     await expect(page.getByTestId("sidebar-user")).toContainText("coach")
@@ -108,9 +103,9 @@ test.describe("The sidebar identity", () => {
     page,
   }) => {
     await seedCache(page, [
-      { queryKey: sessionKey as unknown as readonly unknown[], data: { user: null, session: null } },
+      VISITOR,
     ])
-    await page.goto("/#/")
+    await visit(page, "discover")
     await expect(page.getByTestId("sidebar-user")).toHaveCount(0)
   })
 })

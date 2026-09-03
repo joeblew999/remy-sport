@@ -1,4 +1,5 @@
 import { test, expect } from "./fixture"
+import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { apiEvent, apiGame, type ApiGame } from "../helpers/api-fixtures"
 
@@ -52,7 +53,7 @@ test.describe("The native notification path stays out of the browser's way", () 
 
     // A page that does not render notification settings. The root-level effect
     // ran here regardless, which was the bug.
-    await page.goto("/#/broadcast/gam_002")
+    await visit(page, "broadcast", { id: "gam_002" })
     await page.waitForTimeout(800)
 
     expect(errors, "the app root must not reject unhandled").toEqual([])
@@ -67,7 +68,7 @@ test.describe("Live video, before a relay exists", () => {
     const errors: string[] = []
     page.on("pageerror", (e) => errors.push(e.message))
 
-    await page.goto("/#/broadcast/gam_002")
+    await visit(page, "broadcast", { id: "gam_002" })
 
     await expect(page.getByTestId("moq-unconfigured")).toBeVisible()
     await expect(page.getByTestId("moq-publish")).toHaveCount(0)
@@ -75,7 +76,7 @@ test.describe("Live video, before a relay exists", () => {
   })
 
   test("and so does the watch page", async ({ page }) => {
-    await page.goto("/#/watch/gam_002")
+    await visit(page, "watch", { id: "gam_002" })
     await expect(page.getByTestId("moq-unconfigured")).toBeVisible()
     await expect(page.getByTestId("moq-watch")).toHaveCount(0)
   })
@@ -86,7 +87,7 @@ test.describe("Live video, before a relay exists", () => {
     await seedCache(page, [
       entry(orpc.games.get, { id: "gam_002" }, liveGame),
     ])
-    await page.goto("/#/broadcast/gam_002")
+    await visit(page, "broadcast", { id: "gam_002" })
 
     const heading = page.getByTestId("video-game")
     await expect(heading).toBeVisible()
@@ -103,7 +104,7 @@ test.describe("Live video, before a relay exists", () => {
       entry(orpc.games.list, {}, { viewerTimezone: null, games: [liveGame] }),
       entry(orpc.games.get, { id: "gam_002" }, liveGame),
     ])
-    await page.goto("/#/broadcast")
+    await visit(page, "broadcast")
     await expect(page.getByTestId("video-game")).toContainText("Assumption U16")
   })
 
@@ -111,7 +112,7 @@ test.describe("Live video, before a relay exists", () => {
     await seedCache(page, [
       entry(orpc.games.list, {}, { viewerTimezone: null, games: [] }),
     ])
-    await page.goto("/#/broadcast")
+    await visit(page, "broadcast")
     await expect(page.getByTestId("video-no-game")).toBeVisible()
   })
 })
@@ -137,7 +138,7 @@ test.describe("Finding a game to watch", () => {
         ],
       }),
     ])
-    await page.goto("/#/live")
+    await visit(page, "live")
 
     await expect(page.getByTestId("watch-gam_002")).toBeVisible()
     // A Watch link on a game nobody is broadcasting is a link to a black
@@ -155,7 +156,7 @@ test.describe("Finding a game to watch", () => {
         ],
       }),
     ])
-    await page.goto("/#/live")
+    await visit(page, "live")
 
     await expect(page.getByTestId("broadcast-gam_002")).toBeVisible()
     await expect(page.getByTestId("broadcast-gam_014")).toHaveCount(0)
@@ -167,7 +168,7 @@ test.describe("Finding a game to watch", () => {
     await seedCache(page, [
       entry(orpc.games.list, {}, { viewerTimezone: null, games: [] }),
     ])
-    await page.goto("/#/live")
+    await visit(page, "live")
     await expect(page.getByTestId("no-live-games")).toBeVisible()
   })
 
@@ -175,7 +176,7 @@ test.describe("Finding a game to watch", () => {
     // Video belongs to a game. "Watch" with no game is a question the nav
     // cannot answer, and when it was there it guessed — sending two devices to
     // whatever each thought was the current game.
-    await page.goto("/#/live")
+    await visit(page, "live")
     const nav = page.locator(".sidebar .nav-item")
     await expect(nav.filter({ hasText: "Watch" })).toHaveCount(0)
     await expect(nav.filter({ hasText: "Broadcast" })).toHaveCount(0)
@@ -198,7 +199,7 @@ test.describe("A broadcaster starts from the fixture they are standing at", () =
         ],
       }),
     ])
-    await page.goto("/#/event/evt_002")
+    await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
     await expect(page.getByTestId("broadcast-fixture-gam_050")).toBeVisible()
   })
@@ -213,7 +214,7 @@ test.describe("A broadcaster starts from the fixture they are standing at", () =
         games: [{ ...liveGame, id: "gam_051", isBroadcasting: true, canBroadcast: false }],
       }),
     ])
-    await page.goto("/#/event/evt_002")
+    await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
     // Nobody should have to know a second page exists to find the picture.
     await expect(page.getByTestId("watch-fixture-gam_051")).toBeVisible()

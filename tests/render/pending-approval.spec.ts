@@ -1,6 +1,7 @@
 import { test, expect } from "./fixture"
+import { sessionFor } from "../helpers/actors"
+import { visit } from "../helpers/surfaces"
 import { seedCache } from "../helpers/seed-cache"
-import { sessionKey } from "../../src/web/lib/session"
 
 /**
  * A referee awaiting approval is told so.
@@ -15,13 +16,7 @@ import { sessionKey } from "../../src/web/lib/session"
  * about one status and not a general banner.
  */
 
-const withStatus = (statusCode: string | null) => ({
-  queryKey: sessionKey as unknown as readonly unknown[],
-  data: {
-    user: { id: "u1", email: "ref@remy.test", name: "Waraporn", role: "referee", statusCode },
-    session: { activeOrganizationId: null, impersonatedBy: null },
-  },
-})
+const withStatus = (statusCode: string | null) => sessionFor("REFEREE", { statusCode })
 
 test.describe("Waiting for approval", () => {
   test("tells a pending referee, wherever they are", async ({ page }) => {
@@ -29,16 +24,16 @@ test.describe("Waiting for approval", () => {
     // true on every route, which is why it sits where the impersonation banner
     // does.
     await seedCache(page, [withStatus("PENDING_APPROVAL")])
-    await page.goto("/#/profile")
+    await visit(page, "dashboard")
     await expect(page.getByTestId("pending-approval-banner")).toBeVisible()
 
-    await page.goto("/#/discover")
+    await visit(page, "discover")
     await expect(page.getByTestId("pending-approval-banner")).toBeVisible()
   })
 
   test("says nothing to an active account", async ({ page }) => {
     await seedCache(page, [withStatus("ACTIVE")])
-    await page.goto("/#/profile")
+    await visit(page, "dashboard")
     await expect(page.getByTestId("pending-approval-banner")).toHaveCount(0)
   })
 
@@ -46,7 +41,7 @@ test.describe("Waiting for approval", () => {
     // Null is what an account created before migration 0008 carries, and what
     // Better Auth writes for a row it made itself. It is not "pending".
     await seedCache(page, [withStatus(null)])
-    await page.goto("/#/profile")
+    await visit(page, "dashboard")
     await expect(page.getByTestId("pending-approval-banner")).toHaveCount(0)
   })
 })

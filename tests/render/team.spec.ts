@@ -1,7 +1,8 @@
 import { test, expect } from "./fixture"
+import { sessionFor } from "../helpers/actors"
+import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { apiGame, apiRoster, type ApiGame, type ApiRoster } from "../helpers/api-fixtures"
-import { sessionKey } from "../../src/web/lib/session"
 import { apiTeam } from "../helpers/api-fixtures"
 
 /**
@@ -57,7 +58,7 @@ test.describe("Team page renders what the API returned", () => {
   test("shows the team, its school and its division", async ({ page }) => {
     await seedCache(page, [entry(orpc.teams.get, { id: "team_002" }, team())])
 
-    await page.goto("/#/team/team_002")
+    await visit(page, "team", { id: "team_002" })
     await expect(page.getByTestId("team-name")).toHaveText("Triam Udom U18 Girls")
     await expect(page.locator(".team-hero")).toContainText("Triam Udom Suksa School")
     await expect(page.locator(".team-hero")).toContainText("U18 Girls")
@@ -81,7 +82,7 @@ test.describe("Team page renders what the API returned", () => {
       ),
     ])
 
-    await page.goto("/#/team/team_003")
+    await visit(page, "team", { id: "team_003" })
     await expect(page.getByTestId("team-name")).toHaveText("Montfort U16 Boys")
   })
 
@@ -90,7 +91,7 @@ test.describe("Team page renders what the API returned", () => {
     // AGENTS.md: never invent a value for a field with no table.
     await seedCache(page, [entry(orpc.teams.get, { id: "team_002" }, team())])
 
-    await page.goto("/#/team/team_002")
+    await visit(page, "team", { id: "team_002" })
     await expect(page.locator(".team-hero")).toContainText("RECORD")
     await expect(page.locator(".team-hero")).not.toContainText("4–0")
   })
@@ -110,7 +111,7 @@ test.describe("Team page, the rest", () => {
         ],
       })),
     ])
-    await page.goto("/#/team/team_002")
+    await visit(page, "team", { id: "team_002" })
 
     await expect(page.getByTestId("player-ply_002")).toContainText("Kanya T.")
     await expect(page.getByTestId("player-ply_002")).toContainText("7")
@@ -125,7 +126,7 @@ test.describe("Team page, the rest", () => {
       entry(orpc.teams.get, { id: "team_002" }, team()),
       entry(orpc.teams.roster, { teamId: "team_002" }, apiRoster()),
     ])
-    await page.goto("/#/team/team_002")
+    await visit(page, "team", { id: "team_002" })
     await expect(page.getByTestId("roster-empty")).toBeVisible()
   })
 
@@ -165,7 +166,7 @@ test.describe("Team page, the rest", () => {
         },
       ),
     ])
-    await page.goto("/#/team/team_002")
+    await visit(page, "team", { id: "team_002" })
 
     const schedule = page.locator(".fixture-row")
     await expect(schedule).toHaveCount(2)
@@ -189,7 +190,7 @@ test.describe("Team page, the rest", () => {
       entry(orpc.teams.get, { id: "team_002" }, team()),
       entry(orpc.games.list, { teamId: "team_002" }, { viewerTimezone: null, games: [] }),
     ])
-    await page.goto("/#/team/team_002")
+    await visit(page, "team", { id: "team_002" })
     await expect(page.locator(".fixture-row")).toHaveCount(0)
     await expect(page.getByText("No games scheduled yet.")).toBeVisible()
   })
@@ -214,7 +215,7 @@ test.describe("Squad management", () => {
       entry(orpc.teams.get, { id: "team_002" }, team()),
       entry(orpc.teams.roster, { teamId: "team_002" }, data),
     ])
-    await page.goto("/#/team/team_002")
+    await visit(page, "team", { id: "team_002" })
   }
 
   test("a reader who may not manage sees no controls at all", async ({ page }) => {
@@ -316,7 +317,7 @@ test.describe("A team's details", () => {
       entry(orpc.teams.get, { id: "team_002" }, team({ canEdit: false })),
       entry(orpc.teams.roster, { teamId: "team_002" }, apiRoster()),
     ])
-    await page.goto("/#/team/team_002")
+    await visit(page, "team", { id: "team_002" })
 
     await expect(page.getByTestId("team-name")).toBeVisible()
     await expect(page.getByTestId("team-settings")).toHaveCount(0)
@@ -327,7 +328,7 @@ test.describe("A team's details", () => {
       entry(orpc.teams.get, { id: "team_002" }, team({ canEdit: true })),
       entry(orpc.teams.roster, { teamId: "team_002" }, apiRoster()),
     ])
-    await page.goto("/#/team/team_002")
+    await visit(page, "team", { id: "team_002" })
 
     await expect(page.getByTestId("team-settings")).toBeVisible()
     await expect(page.getByTestId("team-name-input")).toHaveValue("Triam Udom U18 Girls")
@@ -357,7 +358,7 @@ test.describe("A team's details", () => {
       })
     })
 
-    await page.goto("/#/team/team_002")
+    await visit(page, "team", { id: "team_002" })
     await page.getByTestId("team-name-input").fill("Triam Udom Girls")
     await page.getByTestId("team-save").click()
 
@@ -377,7 +378,7 @@ test.describe("The team hero's buttons", () => {
       entry(orpc.teams.get, { id: "team_002" }, team()),
       entry(orpc.teams.roster, { teamId: "team_002" }, apiRoster()),
     ])
-    await page.goto("/#/team/team_002")
+    await visit(page, "team", { id: "team_002" })
 
     await expect(page.getByRole("link", { name: "Roster" })).toHaveAttribute("href", "#roster")
     await expect(page.getByRole("link", { name: "Schedule" })).toHaveAttribute(
@@ -406,12 +407,9 @@ test.describe("Coaching staff", () => {
     await seedCache(page, [
       entry(orpc.teams.get, { id: "team_002" }, team()),
       entry(orpc.teams.roster, { teamId: "team_002" }, withCoaches),
-      {
-        queryKey: sessionKey as unknown as readonly unknown[],
-        data: { user: { id: "u9", email: "a@b.test", name: "A", role: "user" }, session: {} },
-      },
+      sessionFor("SPECTATOR"),
     ])
-    await page.goto("/#/team/team_002")
+    await visit(page, "team", { id: "team_002" })
 
     await expect(page.getByTestId("coach-u1")).toContainText("Somchai Prasert")
     // From the reference vocabulary, not a map of role codes in the page.
@@ -426,7 +424,7 @@ test.describe("Coaching staff", () => {
       entry(orpc.teams.get, { id: "team_002" }, team()),
       entry(orpc.teams.roster, { teamId: "team_002" }, { ...withCoaches, coaches: [] }),
     ])
-    await page.goto("/#/team/team_002")
+    await visit(page, "team", { id: "team_002" })
 
     await expect(page.getByTestId("coaches-signin")).toBeVisible()
     await expect(page.getByTestId("coaches-empty")).toHaveCount(0)
@@ -436,12 +434,9 @@ test.describe("Coaching staff", () => {
     await seedCache(page, [
       entry(orpc.teams.get, { id: "team_002" }, team()),
       entry(orpc.teams.roster, { teamId: "team_002" }, { ...withCoaches, coaches: [] }),
-      {
-        queryKey: sessionKey as unknown as readonly unknown[],
-        data: { user: { id: "u9", email: "a@b.test", name: "A", role: "user" }, session: {} },
-      },
+      sessionFor("SPECTATOR"),
     ])
-    await page.goto("/#/team/team_002")
+    await visit(page, "team", { id: "team_002" })
 
     await expect(page.getByTestId("coaches-empty")).toBeVisible()
     await expect(page.getByTestId("coaches-signin")).toHaveCount(0)

@@ -1,4 +1,5 @@
 import { test, expect } from "./fixture"
+import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { apiEntries, apiEvent, apiGame, apiRegistered, apiStanding, type ApiEntries, type ApiGame, type ApiStanding } from "../helpers/api-fixtures"
 
@@ -44,7 +45,7 @@ const seed = (
 test.describe("An event's schedule", () => {
   test("shows each fixture, its score and its status", async ({ page }) => {
     await seed(page, [finished, upcoming])
-    await page.goto("/#/event/evt_002")
+    await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
 
     await expect(page.getByTestId("game-gam_001")).toContainText("Assumption U16")
@@ -58,7 +59,7 @@ test.describe("An event's schedule", () => {
 
   test("offers score entry only where the server says it may", async ({ page }) => {
     await seed(page, [{ ...finished, canEnterScore: true }, upcoming])
-    await page.goto("/#/event/evt_002")
+    await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
 
     await expect(page.getByTestId("enter-score-gam_001")).toBeVisible()
@@ -67,7 +68,7 @@ test.describe("An event's schedule", () => {
 
   test("the score form opens with the current score in it", async ({ page }) => {
     await seed(page, [{ ...finished, canEnterScore: true }])
-    await page.goto("/#/event/evt_002")
+    await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
     await page.getByTestId("enter-score-gam_001").click()
 
@@ -80,7 +81,7 @@ test.describe("An event's schedule", () => {
       { ...finished, canSetStatus: true },
       upcoming,
     ])
-    await page.goto("/#/event/evt_002")
+    await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
 
     // A separate grant from scoring, so a separate control.
@@ -90,7 +91,7 @@ test.describe("An event's schedule", () => {
 
   test("says so when an event has no fixtures, rather than showing an empty table", async ({ page }) => {
     await seed(page, [])
-    await page.goto("/#/event/evt_002")
+    await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
 
     await expect(page.getByTestId("schedule-empty")).toBeVisible()
@@ -119,7 +120,7 @@ test.describe("Standings", () => {
       line({}),
       line({ teamId: "team_003", teamNames: { en: "Montfort U16" }, rank: 2, won: 0, lost: 1, pointsFor: 54, pointsAgainst: 68, pointsDiff: -14, leaguePoints: 0 }),
     ])
-    await page.goto("/#/event/evt_002")
+    await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Standings" }).click()
 
     await expect(page.getByTestId("standing-team_001")).toContainText("Assumption U16")
@@ -132,14 +133,14 @@ test.describe("Standings", () => {
     await seedStandings(page, [
       line({ teamId: "team_004", teamNames: { en: "Assumption U18" }, played: 0, won: 0, lost: 0, pointsFor: 0, pointsAgainst: 0, pointsDiff: 0, leaguePoints: 0 }),
     ])
-    await page.goto("/#/event/evt_002")
+    await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Standings" }).click()
     await expect(page.getByTestId("standing-team_004")).toBeVisible()
   })
 
   test("an event with no registrations says so", async ({ page }) => {
     await seedStandings(page, [])
-    await page.goto("/#/event/evt_002")
+    await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Standings" }).click()
     await expect(page.getByTestId("standings-empty")).toBeVisible()
     await expect(page.getByTestId("standings")).toHaveCount(0)
@@ -165,7 +166,7 @@ test.describe("Event entries", () => {
     ])
 
   const open = async (page: Parameters<typeof seedCache>[0]) => {
-    await page.goto("/#/event/evt_002")
+    await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Teams" }).click()
   }
 
@@ -257,7 +258,7 @@ test.describe("Running a schedule", () => {
         viewerTimezone: null,
       }),
     ])
-    await page.goto("/#/event/evt_002")
+    await visit(page, "event", { id: "evt_002" })
     await page.getByTestId("tab-schedule").click()
   }
 
@@ -316,7 +317,7 @@ const managed = { ...upcoming, timezone: "Asia/Bangkok" }
 
   test("offers nothing to a reader who may not manage fixtures", async ({ page }) => {
     await seed(page, [upcoming])
-    await page.goto("/#/event/evt_002")
+    await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
 
     await expect(page.getByTestId("game-gam_003")).toBeVisible()
@@ -329,7 +330,7 @@ const managed = { ...upcoming, timezone: "Asia/Bangkok" }
     // that showed 10:00 would have an organiser change nothing, press Save, and
     // move the game seven hours. Nothing errors; people just turn up wrong.
     await seed(page, [managed], true)
-    await page.goto("/#/event/evt_002")
+    await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
     await page.getByTestId("edit-fixture-gam_003").click()
 
@@ -350,7 +351,7 @@ const managed = { ...upcoming, timezone: "Asia/Bangkok" }
       })
     })
 
-    await page.goto("/#/event/evt_002")
+    await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
     await page.getByTestId("edit-fixture-gam_003").click()
     await page.getByTestId("fixture-when-gam_003").fill("2026-09-15T19:30")
@@ -369,7 +370,7 @@ const managed = { ...upcoming, timezone: "Asia/Bangkok" }
       asked = d.message()
       void d.dismiss()
     })
-    await page.goto("/#/event/evt_002")
+    await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
     await page.getByTestId("remove-fixture-gam_003").click()
 
@@ -391,7 +392,7 @@ test.describe("Generating a whole schedule", () => {
     // Same server answer that gates the manual form. Two teams alone is not
     // permission.
     await seed(page, [], false)
-    await page.goto("/#/event/evt_002")
+    await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
     await expect(page.getByTestId("generate-fixtures")).toHaveCount(0)
   })
@@ -411,7 +412,7 @@ test.describe("Generating a whole schedule", () => {
       entry(orpc.events.get, { id: "evt_002" }, apiEvent({ id: "evt_002", name: "League", names: { en: "League" } })),
       entry(orpc.games.list, { eventId: "evt_002" }, { games: [], viewerTimezone: null }),
     ])
-    await page.goto("/#/event/evt_002")
+    await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
 
     await expect(page.getByTestId("generate-start")).toHaveAttribute("type", "date")
@@ -439,7 +440,7 @@ test.describe("Generating a whole schedule", () => {
       })
     })
 
-    await page.goto("/#/event/evt_002")
+    await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
     await page.getByTestId("generate-start").fill("2026-10-03")
     await page.getByTestId("generate-submit").click()

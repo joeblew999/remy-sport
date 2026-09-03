@@ -1,8 +1,9 @@
 import { test, expect } from "./fixture"
+import { sessionFor } from "../helpers/actors"
+import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { apiEvent, apiMyPlayer } from "../helpers/api-fixtures"
 import type { ApiEvent } from "../../src/domain/api"
-import { sessionKey } from "../../src/web/lib/session"
 
 /**
  * Entering your child in a camp — the last of the three grants a guardian holds
@@ -16,13 +17,7 @@ import { sessionKey } from "../../src/web/lib/session"
 
 const EVENT_ID = "evt_003"
 
-const signedIn = {
-  queryKey: sessionKey as unknown as readonly unknown[],
-  data: {
-    user: { id: "usr_spectator_001", email: "parent@remy.test", name: "Parent", role: "user" },
-    session: { activeOrganizationId: null, impersonatedBy: null },
-  },
-}
+const signedIn = sessionFor("SPECTATOR")
 
 const child = apiMyPlayer({
   playerId: "ply_001",
@@ -49,7 +44,7 @@ test.describe("Entering a player in an event", () => {
   for (const type of ["CAMP", "SHOWCASE"] as const) {
     test(`offers the tab on a ${type}`, async ({ page }) => {
       await seed(page, type)
-      await page.goto(`/#/event/${EVENT_ID}`)
+      await visit(page, "event", { id: EVENT_ID })
       await expect(page.getByTestId("tab-players")).toBeVisible()
     })
   }
@@ -57,7 +52,7 @@ test.describe("Entering a player in an event", () => {
   for (const type of ["TOURNAMENT", "LEAGUE"] as const) {
     test(`withholds it on a ${type}, which teams enter`, async ({ page }) => {
       await seed(page, type)
-      await page.goto(`/#/event/${EVENT_ID}`)
+      await visit(page, "event", { id: EVENT_ID })
       await expect(page.getByTestId("tab-teams")).toBeVisible()
       await expect(page.getByTestId("tab-players")).toHaveCount(0)
     })
@@ -65,7 +60,7 @@ test.describe("Entering a player in an event", () => {
 
   test("lists your children with a way to enter each", async ({ page }) => {
     await seed(page, "CAMP")
-    await page.goto(`/#/event/${EVENT_ID}`)
+    await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-players").click()
 
     await expect(page.getByTestId("entry-ply_001")).toContainText("Somchai Prasert")
@@ -75,7 +70,7 @@ test.describe("Entering a player in an event", () => {
 
   test("shows Withdraw instead once they are in", async ({ page }) => {
     await seed(page, "CAMP", ["ply_001"])
-    await page.goto(`/#/event/${EVENT_ID}`)
+    await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-players").click()
 
     await expect(page.getByTestId("entry-ply_001")).toContainText("Entered")
@@ -96,7 +91,7 @@ test.describe("Entering a player in an event", () => {
       })
     })
 
-    await page.goto(`/#/event/${EVENT_ID}`)
+    await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-players").click()
     await page.getByTestId("enter-ply_001").click()
 
@@ -111,7 +106,7 @@ test.describe("Entering a player in an event", () => {
     await seedCache(page, [
       entry(orpc.events.get, { id: EVENT_ID }, apiEvent({ id: EVENT_ID, typeCode: "CAMP" })),
     ])
-    await page.goto(`/#/event/${EVENT_ID}`)
+    await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-players").click()
 
     await expect(page.getByTestId("event-players-signin")).toBeVisible()

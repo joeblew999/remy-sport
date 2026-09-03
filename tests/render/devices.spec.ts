@@ -1,6 +1,7 @@
 import { test, expect } from "./fixture"
+import { VISITOR, sessionFor } from "../helpers/actors"
+import { visit } from "../helpers/surfaces"
 import { seedCache } from "../helpers/seed-cache"
-import { sessionKey } from "../../src/web/lib/session"
 
 /**
  * The devices screen, rendered — with the session and the device list seeded.
@@ -15,13 +16,7 @@ import { sessionKey } from "../../src/web/lib/session"
  * is that the *server* forgets — so they run against a real Worker.
  */
 
-const signedIn = {
-  queryKey: sessionKey as unknown as readonly unknown[],
-  data: {
-    user: { id: "u_coach", email: "coach@remy.test", name: "Coach", role: "coach" },
-    session: { activeOrganizationId: null, impersonatedBy: null },
-  },
-}
+const signedIn = sessionFor("COACH")
 
 /** Shape of `useDevices` — Better Auth's list plus which token is ours. */
 const devices = {
@@ -53,14 +48,14 @@ const devices = {
 
 test.describe("Devices", () => {
   test("signed out, the page asks you to sign in rather than erroring", async ({ page }) => {
-    await seedCache(page, [{ queryKey: sessionKey as unknown as readonly unknown[], data: null }])
-    await page.goto("/#/devices")
+    await seedCache(page, [VISITOR])
+    await visit(page, "notifications")
     await expect(page.getByTestId("devices-signed-out")).toBeVisible()
   })
 
   test("the current session is marked, and cannot be revoked by accident", async ({ page }) => {
     await seedCache(page, [signedIn, devices])
-    await page.goto("/#/devices")
+    await visit(page, "notifications")
     await expect(page.getByTestId("devices-list")).toBeVisible()
     await expect(page.getByTestId("device-current")).toBeVisible()
 
@@ -76,7 +71,7 @@ test.describe("Devices", () => {
     page,
   }) => {
     await seedCache(page, [signedIn, devices])
-    await page.goto("/")
+    await visit(page, "discover")
     await page.getByTestId("topbar-devices").click()
     await expect(page.getByTestId("devices-page")).toBeVisible()
   })

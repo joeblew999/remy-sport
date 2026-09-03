@@ -1,4 +1,5 @@
 import { test, expect } from "./fixture"
+import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { m } from "../../src/web/lib/i18n"
 import { VOCABULARY, LOCALES } from "../../src/domain/vocabularies"
@@ -50,13 +51,13 @@ const seeded = (page: Parameters<typeof seedCache>[0]) =>
 test.describe("Localisation, rendered", () => {
   test("the switcher offers one button per released locale", async ({ page }) => {
     await seeded(page)
-    await page.goto("/")
+    await visit(page, "discover")
     await expect(page.locator(".lang-switch button")).toHaveCount(LOCALES.length)
   })
 
   test("switching to Thai translates the chrome AND the data together", async ({ page }) => {
     await seeded(page)
-    await page.goto("/")
+    await visit(page, "discover")
     await expect(page.locator(".page-header h1")).toHaveText(m.discover_heading({}, { locale: "en" }))
 
     await page.locator(".lang-switch button", { hasText: "TH" }).click()
@@ -75,7 +76,7 @@ test.describe("Localisation, rendered", () => {
 
   test("the choice survives a reload", async ({ page }) => {
     await seeded(page)
-    await page.goto("/")
+    await visit(page, "discover")
     await page.locator(".lang-switch button", { hasText: "TH" }).click()
     await expect(page.locator(".page-header h1")).toHaveText(m.discover_heading({}, { locale: "th" }))
 
@@ -90,7 +91,7 @@ test.describe("Localisation, rendered", () => {
     // paint is already right. Before that, a page rendered `CHIANG_MAI` for as
     // long as /api/reference took — a database code, shown to a reader.
     await seeded(page)
-    await page.goto("/")
+    await visit(page, "discover")
     await expect(page.locator(".event-row").first()).toBeVisible()
     const body = (await page.locator(".main").textContent()) ?? ""
     // Codes that could not be mistaken for prose: BANGKOK collides with the
@@ -124,7 +125,7 @@ test.describe("the document's language attribute", () => {
       await seedCache(page, [entry(orpc.events.list, undefined, { events: [event], canCreate: false })])
       await page.addInitScript((l) => localStorage.setItem("remy.locale", l), locale)
 
-      await page.goto("/#/")
+      await visit(page, "discover")
       await expect(page.locator("html")).toHaveAttribute("lang", locale)
     })
   }
@@ -133,7 +134,7 @@ test.describe("the document's language attribute", () => {
     await seedCache(page, [entry(orpc.events.list, undefined, { events: [event], canCreate: false })])
     await page.addInitScript(() => localStorage.setItem("remy.locale", "en"))
 
-    await page.goto("/#/")
+    await visit(page, "discover")
     await expect(page.locator("html")).toHaveAttribute("lang", "en")
 
     await page.getByRole("button", { name: "TH", exact: true }).click()

@@ -1,8 +1,9 @@
 import { test, expect } from "./fixture"
+import { VISITOR, sessionFor } from "../helpers/actors"
+import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { apiEvent, apiReference } from "../helpers/api-fixtures"
 import { VOCABULARY } from "../../src/domain/vocabularies"
-import { sessionKey } from "../../src/web/lib/session"
 
 /**
  * My Events, rendered — the screen that replaced a nav item pointing at
@@ -15,13 +16,7 @@ import { sessionKey } from "../../src/web/lib/session"
  * console carried until it was removed.
  */
 
-const signedIn = {
-  queryKey: sessionKey as unknown as readonly unknown[],
-  data: {
-    user: { id: "usr_org_001", email: "organiser@remy.test", name: "Niran", role: "organizer" },
-    session: { activeOrganizationId: null, impersonatedBy: null },
-  },
-}
+const signedIn = sessionFor("ORGANIZER")
 
 /** `events.mine` as the contract declares it, relation and all. */
 const mine = (
@@ -44,7 +39,7 @@ test.describe("My Events", () => {
       { id: "evt_b", name: "Chiang Mai Invitational", relation: "CO_ORGANIZER" },
       { id: "evt_c", name: "Phuket Beach Classic", relation: "FOLLOWER_EVENT" },
     ])
-    await page.goto("/#/events")
+    await visit(page, "myEvents")
 
     const organising = page.getByTestId("my-events-organising")
     const following = page.getByTestId("my-events-following")
@@ -64,7 +59,7 @@ test.describe("My Events", () => {
     // Organising something and following nothing is an ordinary state, and the
     // two sections have to say different things about it.
     await seed(page, [{ id: "evt_a", name: "Bangkok Schools League", relation: "OWNER" }])
-    await page.goto("/#/events")
+    await visit(page, "myEvents")
 
     await expect(page.getByTestId("my-event-evt_a")).toBeVisible()
     await expect(page.getByTestId("organising-none")).toHaveCount(0)
@@ -74,8 +69,8 @@ test.describe("My Events", () => {
   test("asks a signed-out reader to sign in rather than erroring", async ({ page }) => {
     // The list is defined by relations to you; a stranger holds none, so there
     // is nothing to show and nothing has gone wrong.
-    await seedCache(page, [{ queryKey: sessionKey as unknown as readonly unknown[], data: null }])
-    await page.goto("/#/events")
+    await seedCache(page, [VISITOR])
+    await visit(page, "myEvents")
     await expect(page.getByTestId("my-events-signin")).toBeVisible()
   })
 
@@ -83,7 +78,7 @@ test.describe("My Events", () => {
     // The entry was deleted because it led to Discover. A test that the nav
     // reaches this screen is the one that would have caught that.
     await seed(page, [{ id: "evt_a", name: "Bangkok Schools League", relation: "OWNER" }])
-    await page.goto("/#/discover")
+    await visit(page, "discover")
     await page.locator(".sidebar").getByRole("button", { name: "My events" }).click()
     await expect(page.getByTestId("my-events-organising")).toBeVisible()
     await expect(page.getByTestId("my-event-evt_a")).toBeVisible()
