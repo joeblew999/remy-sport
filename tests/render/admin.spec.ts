@@ -2,7 +2,8 @@ import { test, expect } from "./fixture"
 import { VISITOR , sessionFor, type Role } from "../helpers/actors"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { apiEvent, type ApiPlayerRow } from "../helpers/api-fixtures"
+import { type ApiPlayerRow } from "../helpers/api-fixtures"
+import { projectEvent } from "../helpers/projections"
 
 /**
  * The admin console, rendered — with the session and the API's answers seeded.
@@ -61,10 +62,7 @@ const asNotAdmin = grants({})
 const events = (over: { canCreate: boolean; canEdit?: boolean; canDelete?: boolean }) =>
   entry(orpc.events.list, undefined, {
     events: [
-      apiEvent({
-        id: "e1",
-        name: "Visible in the table",
-        names: { en: "Visible in the table" },
+      projectEvent("evt_002", {
         canEdit: over.canEdit ?? false,
         canDelete: over.canDelete ?? false,
       }),

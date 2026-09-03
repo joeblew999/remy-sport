@@ -31,20 +31,13 @@
 import { test, expect } from "./fixture"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { apiEvent } from "../helpers/api-fixtures"
+import { projectEvent } from "../helpers/projections"
 
 /** iPhone SE, iPhone 15/16, iPhone 16 Pro, Pro Max. The narrow one matters most. */
 const WIDTHS = [360, 390, 402, 430]
 
-const event = apiEvent({
-  id: "e1",
-  names: { en: "Bangkok Schools Basketball League 2026" },
-  startDate: "2026-05-01",
-  endDate: "2026-05-30",
-  cityCode: "BANGKOK",
-  provinceCode: "BKK",
-  organizerName: "Niran Wongthai",
-})
+/** The league. Its real name is the longest of the four, which is the point. */
+const event = projectEvent("evt_002")
 
 /**
  * Anything wider than the viewport that neither clips nor scrolls, reported

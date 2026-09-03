@@ -2,6 +2,7 @@ import { test, expect } from "./fixture"
 import { sessionFor } from "../helpers/actors"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
+import { projectEvent } from "../helpers/projections"
 
 /**
  * The screen an invitation had no way to reach.
@@ -19,10 +20,12 @@ import { seedCache, entry, orpc } from "../helpers/seed-cache"
 
 const signedIn = sessionFor("SPECTATOR")
 
+/** An invitation to co-organise the league, named as the league is named. */
+const league = projectEvent("evt_002")
 const invitation = {
-  eventId: "evt_002",
-  names: { en: "Bangkok Schools Basketball League 2026", th: "ลีกบาสเกตบอลโรงเรียนกรุงเทพ" },
-  name: "Bangkok Schools Basketball League 2026",
+  eventId: league.id,
+  names: league.names,
+  name: league.name,
   addedAt: "2026-08-20",
 }
 
@@ -54,7 +57,7 @@ test.describe("A pending co-organiser invitation", () => {
     ])
     await visit(page, "dashboard")
 
-    await expect(page.getByTestId("invite-evt_002")).toContainText(invitation.names.th)
+    await expect(page.getByTestId("invite-evt_002")).toContainText(invitation.names.th!)
   })
 
   test("shows nothing at all when there is nothing outstanding", async ({ page }) => {

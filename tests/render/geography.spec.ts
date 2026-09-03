@@ -1,8 +1,9 @@
 import { test, expect } from "./fixture"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { apiEvent, apiReference } from "../helpers/api-fixtures"
+import { apiReference } from "../helpers/api-fixtures"
 import { VOCABULARY as REF } from "../../src/domain/vocabularies"
+import { projectEvents } from "../helpers/projections"
 
 /**
  * Where an event is, which the app could not say.
@@ -17,30 +18,15 @@ import { VOCABULARY as REF } from "../../src/domain/vocabularies"
  * match the assertions.
  */
 
-const bangkok = apiEvent({
-  id: "e_bkk",
-  name: "Bangkok Invitational",
-  names: { en: "Bangkok Invitational" },
-  cityCode: "BANGKOK",
-  provinceCode: "BKK",
-})
-
-const chiangMai = apiEvent({
-  id: "e_cmi",
-  name: "Northern Classic",
-  names: { en: "Northern Classic" },
-  cityCode: "CHIANG_MAI",
-  provinceCode: "CMI",
-})
-
-/** A second event in Bangkok, so the filter's count has something to count. */
-const alsoBangkok = apiEvent({
-  id: "e_bkk2",
-  name: "Riverside Cup",
-  names: { en: "Riverside Cup" },
-  cityCode: "BANGKOK",
-  provinceCode: "BKK",
-})
+/**
+ * The seeded events, which already run in two provinces: three in Bangkok and
+ * the camp in Chiang Mai. Three invented ones proved the filter could tell
+ * "BKK" from "CMI" in an array somebody built for it.
+ */
+const all = projectEvents()
+const bangkok = all.find((e) => e.provinceCode === "BKK")!
+const chiangMai = all.find((e) => e.provinceCode === "CMI")!
+const alsoBangkok = all.filter((e) => e.provinceCode === "BKK")[1]!
 
 const seeded = (page: Parameters<typeof seedCache>[0], events = [bangkok, chiangMai, alsoBangkok]) =>
   seedCache(page, [
@@ -75,7 +61,7 @@ test.describe("Filtering events by province", () => {
 
     await page.getByTestId("province-filter").selectOption("CMI")
     await expect(page.locator(".event-row")).toHaveCount(1)
-    await expect(page.locator(".event-row")).toContainText("Northern Classic")
+    await expect(page.locator(".event-row")).toContainText(chiangMai.name)
 
     // And back, so the test cannot pass by filtering everything away.
     await page.getByTestId("province-filter").selectOption("")
@@ -109,7 +95,7 @@ test.describe("Filtering events by province", () => {
     await seeded(page)
     await visit(page, "discover", { query: { province: "CMI" } })
     await expect(page.locator(".event-row")).toHaveCount(1)
-    await expect(page.locator(".event-row")).toContainText("Northern Classic")
+    await expect(page.locator(".event-row")).toContainText(chiangMai.name)
   })
 
   test("the tab and the chips go in the address bar too", async ({ page }) => {
@@ -134,7 +120,7 @@ test.describe("Filtering events by province", () => {
   test("shows the province on the event row, beside the city", async ({ page }) => {
     await seeded(page)
     await visit(page, "discover")
-    const row = page.locator(".event-row").filter({ hasText: "Northern Classic" })
+    const row = page.locator(".event-row").filter({ hasText: chiangMai.name })
     await expect(row.locator(".city")).toContainText("Chiang Mai")
   })
 })

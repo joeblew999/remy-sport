@@ -4,7 +4,8 @@ import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { m } from "../../src/web/lib/i18n"
 import { VOCABULARY, LOCALES } from "../../src/domain/vocabularies"
 import { VOCABULARY as REF } from "../../src/domain/vocabularies"
-import { apiEvent, apiReference } from "../helpers/api-fixtures"
+import { apiReference } from "../helpers/api-fixtures"
+import { projectEvent } from "../helpers/projections"
 
 /**
  * The bilingual chrome, rendered — with the events handed straight to the cache.
@@ -22,17 +23,12 @@ import { apiEvent, apiReference } from "../helpers/api-fixtures"
  * tests/unit/i18n.test.ts, where they run in Node with no browser at all.
  */
 
-const event = apiEvent({
-  id: "e1",
-  name: "Bangkok Schools League",
-  names: { en: "Bangkok Schools League", th: "ลีกโรงเรียนกรุงเทพ" },
-  startDate: "2026-06-10",
-  endDate: "2026-06-14",
-  cityCode: "CHIANG_MAI",
-  provinceCode: "CMI",
-  organizerUserId: "u1",
-  organizerName: "Someone",
-})
+/**
+ * The league, which is genuinely bilingual — this file asserts Thai rendering,
+ * so it needs an event with a Thai name, and inventing one proved only that the
+ * fixture could hold two strings.
+ */
+const event = projectEvent("evt_002")
 
 /**
  * Events AND the reference vocabularies.

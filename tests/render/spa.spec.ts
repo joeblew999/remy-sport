@@ -2,7 +2,7 @@ import { test, expect } from "./fixture"
 import { VISITOR, sessionFor } from "../helpers/actors"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { apiEvent } from "../helpers/api-fixtures"
+import { projectEvent } from "../helpers/projections"
 
 /**
  * The shell and the derived view models, with the cache handed its data.
@@ -21,13 +21,21 @@ import { apiEvent } from "../helpers/api-fixtures"
 
 // From the shared factory, typed as the real ApiEvent — see
 // tests/helpers/api-fixtures.ts for why the hand-written literal went.
-const EVENT = apiEvent({
-  names: { en: "Bangkok Schools Basketball League 2026" },
-  startDate: "2026-04-15",
-  endDate: "2026-04-19",
-  organizerUserId: "u1",
-  organizerName: "Bangkok Schools League",
-})
+/**
+ * The seeded league. The literal here carried its real name against the camp's
+ * dates and an organiser called "u1" — a person no row holds.
+ */
+const LEAGUE = "evt_002"
+const EVENT = projectEvent(LEAGUE)
+
+/**
+ * The camp, whose window closed in April.
+ *
+ * "status comes from the stored date window" needs an event that has finished,
+ * and the seed has one — the literal this replaces borrowed the camp's dates
+ * and wore the league's name.
+ */
+const FINISHED = projectEvent("evt_003")
 
 test.describe("The SPA shell", () => {
   test("React mounts and renders into #root", async ({ page }) => {
@@ -56,10 +64,10 @@ test.describe("Event view models are derived, not stored", () => {
   test("status and date come from the stored date window", async ({ page }) => {
     // No status column exists in D1; the SPA computes it. An event whose window
     // has passed must read as finished.
-    await seedCache(page, [entry(orpc.events.list, undefined, { events: [EVENT], canCreate: false })])
+    await seedCache(page, [entry(orpc.events.list, undefined, { events: [FINISHED], canCreate: false })])
     await visit(page, "discover")
 
-    const row = page.locator(".event-row", { hasText: "Bangkok Schools Basketball League 2026" })
+    const row = page.locator(".event-row", { hasText: FINISHED.name })
     await expect(row).toBeVisible()
     await expect(row.locator(".date .day")).toHaveText("15")
     // "Apr", not "APR": the month comes from Intl.DateTimeFormat now, and the
@@ -71,7 +79,7 @@ test.describe("Event view models are derived, not stored", () => {
   })
 
   test("an event deep-link renders that event", async ({ page }) => {
-    await seedCache(page, [entry(orpc.events.get, { id: "evt_002" }, EVENT)])
+    await seedCache(page, [entry(orpc.events.get, { id: LEAGUE }, EVENT)])
     await visit(page, "event", { id: "evt_002" })
     await expect(page.locator(".event-hero")).toContainText("Bangkok Schools Basketball League 2026")
   })

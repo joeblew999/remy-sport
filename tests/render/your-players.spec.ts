@@ -2,6 +2,7 @@ import { test, expect } from "./fixture"
 import { sessionFor } from "../helpers/actors"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
+import { m } from "../../src/web/lib/i18n"
 import { apiMyPlayer, type ApiMyPlayer } from "../helpers/api-fixtures"
 
 /**
@@ -66,7 +67,7 @@ test.describe("Your players", () => {
     await seed(page, [child({ teamId: null, teamNames: null })])
     await visit(page, "dashboard")
 
-    await expect(page.getByTestId("your-player-ply_001")).toContainText("Not on a team")
+    await expect(page.getByTestId("your-player-ply_001")).toContainText(m.player_no_team())
     // The navigating control is disabled, not the row — a row that looks
     // clickable and goes nowhere is the dead-button problem again.
     await expect(page.getByTestId("goto-team-ply_001")).toBeDisabled()
