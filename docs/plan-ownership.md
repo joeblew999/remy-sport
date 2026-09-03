@@ -292,6 +292,39 @@ Apply the first that matches.
    log under **Needs the PO**, skip that box, and carry on with the next one.
    The plan finishes; that box stays unticked with its reason beside it.
 
+### The plan changes itself as it runs
+
+A plan fixed at the moment of writing is wrong by the second pass. This one is
+expected to grow, shrink and be rewritten while it runs, and the log is where
+that is justified.
+
+**Add a box** when a pass finds another instance of a class already in scope.
+This already happened: the DoD's grep found `event.tsx:47` and `admin.tsx:67`,
+and both became boxes in Phase 2 the same hour. New instances of a known class
+are the plan's own work arriving, not scope creep.
+
+**Rewrite a phase** when a decision invalidates it. Deleting the `bracket` route
+changes what Phase 6 walks; Phase 6 says "whatever screens exist afterwards" for
+exactly that reason. When a rewrite is needed, do it and say so in the log —
+do not work to a phase you know is wrong.
+
+**Delete a box** that turns out to be unnecessary, with the reason written where
+it stood. A box removed silently is indistinguishable from one forgotten.
+
+**Correct a fact** the moment step 1 says it moved, before any other work.
+
+#### The bound, so this actually finishes
+
+New boxes only for **the class this plan is about**: something claiming to be
+yours that is not, a second copy of a grant rule, a surface that lies about what
+exists. Everything else found along the way goes under **Noticed, out of scope**
+in the log — one line, no box, no work.
+
+That distinction is what stops a self-evolving plan becoming an infinite one.
+Today's session is the warning: it started with one broken push notification and
+had, by the afternoon, rewritten the test harness, the CLI and the agent
+instructions. All defensible individually. None of it was the thing asked for.
+
 ### What stops the loop
 
 Only these:
@@ -585,8 +618,22 @@ what was found. A screen with nothing written against it is not done.
 
 ## Log
 
-Append one line per session: what was done, what was found, what is next. Newest
-last.
+Append per pass: what was done, what was found, **what changed in this file and
+why**. Newest last. A pass that altered the plan without saying so here is the
+same failure as a box ticked without the work.
+
+### Noticed, out of scope
+
+Things seen while working that are real but are not this plan's class. One line
+each, no box, no work — they exist so they are not lost and not followed.
+
+- The gate's phases run cheapest-first as of 2026-09-03, but `2-check --e2e`
+  still cannot run against a deployment without stopping the dev server first.
+- `mise` tasks use three different argument grammars, and four of six do work
+  when run with no arguments while two print help.
+- AGENTS.md is 674 lines with 114 bolded, against guidance of 150-200.
+
+### Passes
 
 - 2026-09-03 — plan verified over ten passes against the code. Four things were
   wrong and are fixed: the headline "101 relations, 68 person-scoped" conflated
