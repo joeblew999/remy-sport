@@ -360,7 +360,24 @@ function EventOverview({ e, goto }: OverviewProps) {
             </div>
             {(standings ?? []).slice(0, 6).map(s => (
               <div key={s.teamId} className="standing-row">
-                <span className="rank">#{s.rank}</span>
+                <span className="rank">
+                  #{s.rank}
+                  {/* `VIEW_RANK_MOVEMENT`. Null means there is no previous table
+                      to compare against, which is not the same as unchanged —
+                      so nothing is drawn rather than a flat dash implying a
+                      comparison that has not happened. */}
+                  {s.movement !== null && s.movement !== 0 && (
+                    <span
+                      className="meta"
+                      data-testid={`movement-${s.teamId}`}
+                      title={String(s.movement)}
+                    >
+                      {" "}
+                      {s.movement > 0 ? "▲" : "▼"}
+                      {Math.abs(s.movement)}
+                    </span>
+                  )}
+                </span>
                 <span className="team">{s.team}</span>
                 <span className="num">{s.won}</span>
                 <span className="num">{s.lost}</span>

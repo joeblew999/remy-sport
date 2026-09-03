@@ -642,6 +642,19 @@ timetable renders from the database.
 51 of 293, in three groups — and the groups matter more than the number, because
 they go to different places.
 
+**The split is exact, and most of it is documentation rather than data:**
+
+| | columns | what happens |
+|---|---|---|
+| filled | **15** | 9 arrive with Phase 2's two tables; 6 are real fills |
+| declared | **36** | 27 in the four runtime tables, 7 in `account`, plus `user.image` and `userNotificationChannel.secret` |
+
+Worth sitting with before starting: **two thirds of "every column has a value" is
+writing down why a column correctly has none.** Nobody should start Phase 3
+expecting to author 51 columns of data — the work is 6 real fills and 36
+sentences, and the sentences are the part that stops the next empty column from
+being an accident.
+
 **Fillable here and now — the field exists and every row is null:**
 
 - [ ] `playerTeam.to_date` — 0 of 120. Nobody has ever left a team, so "former

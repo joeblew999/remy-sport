@@ -242,6 +242,9 @@ export function apiStanding(over: Partial<ApiStanding> = {}): ApiStanding {
     played: 1,
     won: 1,
     lost: 0,
+    // Null rather than 0: before a second round there is nothing to compare
+    // against, and "unchanged" would claim a comparison that has not happened.
+    movement: null,
     pointsFor: 68,
     pointsAgainst: 54,
     pointsDiff: 14,

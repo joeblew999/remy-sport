@@ -357,6 +357,18 @@ export const StandingsSchema = z.object({
   pointsFor: z.number().int().min(0),
   pointsAgainst: z.number().int().min(0),
   pointsDiff: z.number().int(),
+  /**
+   * How far this team has moved since the last round, or null.
+   *
+   * `VIEW_RANK_MOVEMENT` in the model, and the table is where it belongs — a
+   * position is only meaningful against the one before it. Positive is upward.
+   *
+   * Null, not zero, when there is nothing to compare against: before a second
+   * round has been played, "unchanged" would be a claim about a comparison that
+   * has not happened. A team with no previous position is new to the table
+   * rather than static in it.
+   */
+  movement: z.number().int().nullable(),
   /** By the Product Owner's STANDINGS_POINTS — two for a win, today. */
   leaguePoints: z.number().int().min(0),
 })

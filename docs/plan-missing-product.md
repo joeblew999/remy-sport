@@ -88,15 +88,36 @@ Read-only, over data that exists, and `ASSIGN_COURTS` already writes it.
 
 ## Phase 2 — results and history
 
-Four actions over games that have already been played.
+**Rewritten on pass 2. Two of the four were already built**, and building them
+would have created second homes for things that already had one — the mistake
+rule 2 exists to prevent.
 
-- [ ] Results archive: past games for an event, with scores. `VIEW_RESULTS_ARCHIVE`.
-- [ ] Season records: a team's record across an event. `VIEW_SEASON_RECORDS`.
-- [ ] Rankings history and rank movement: standings over time, computed from the
-      order games were played in. `VIEW_RANKINGS_HISTORY`, `VIEW_RANK_MOVEMENT`.
-- [ ] All four are PUBLIC. None needs a new table.
-- [ ] Worker tests for the computation, render tests for the screens. The
-      computation is where a bug hides, and it is cheap to test there.
+- [x] **`VIEW_RESULTS_ARCHIVE` — already built.** Discover has a Past tab
+      (`m.tab_past()`), and each event's schedule shows finished games with
+      their scores. That is the archive. A separate screen would be a second
+      home for the same rows.
+- [x] **`VIEW_SEASON_RECORDS` — already built.** The standings tab shows Team,
+      Won, Lost and Points per team for the event, which is what a season record
+      is. `EVENT`-scoped in the model, so this is the right granularity.
+- [x] **`VIEW_RANK_MOVEMENT` — built.** `standings.list` returns `movement` per
+      row, and the table draws ▲/▼ beside the position.
+- [ ] **`VIEW_RANKINGS_HISTORY` — Needs the PO.** `PLATFORM`-scoped: rankings
+      *across* events, over time. Standings are computed per event and division,
+      and the model has no cross-event ranking to have a history of. Same
+      boundary as brackets. **Needs: a platform-level ranking in the model.**
+
+Movement is computed, not stored: the same function over the games that finished
+before the latest day of play. A `standings_history` table would be a second copy
+able to disagree with the games it came from.
+
+Null rather than zero when there is nothing earlier — before a second round,
+"unchanged" claims a comparison that has not happened. The seed plays each
+event on one day, so every row is null there, and the worker test asserts exactly
+that rather than pretending otherwise.
+
+- [x] Worker tests — `tests/worker/read.test.ts`, the null case and the presence
+      of the field on every row.
+- [x] Render: the table draws nothing when movement is null or zero.
 
 ## Phase 3 — signing up
 

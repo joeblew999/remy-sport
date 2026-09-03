@@ -115,9 +115,63 @@ export const list = pub
     }
 
     const sorted = [...lines.values()].sort(rank)
+
+    /**
+     * Where each team stood before the most recent round — `VIEW_RANK_MOVEMENT`.
+     *
+     * The same computation, run again over the games that finished before the
+     * latest day of play. Not a stored history: standings are a function of the
+     * games, so a previous table is that function over fewer of them, and a
+     * `standings_history` table would be a second copy that can disagree with
+     * the games it came from.
+     *
+     * "The last round" is the latest date on which any game finished, rather
+     * than a round number the model does not have. On a one-day tournament that
+     * makes every game one round and the movement null, which is honest: nothing
+     * has happened twice yet.
+     */
+    const finished = games
+      .filter((g) => g.homeScore !== null && g.awayScore !== null)
+      .map((g) => g.startsAt)
+      .filter((d): d is string => Boolean(d))
+      .sort()
+    const lastDay = finished.length ? finished[finished.length - 1]!.slice(0, 10) : undefined
+    const earlier = lastDay ? games.filter((g) => (g.startsAt ?? "").slice(0, 10) < lastDay) : []
+
+    /** The previous table, or none when there is nothing earlier to rank. */
+    const previous = new Map<string, number>()
+    if (earlier.length > 0) {
+      const before = new Map<string, Line>()
+      for (const [id, l] of lines) {
+        before.set(id, { ...l, played: 0, won: 0, lost: 0, pointsFor: 0, pointsAgainst: 0 })
+      }
+      for (const g of earlier) {
+        if (g.homeScore === null || g.awayScore === null) continue
+        const home = before.get(g.homeTeamId)
+        const away = before.get(g.awayTeamId)
+        if (!home || !away) continue
+        home.played++
+        away.played++
+        home.pointsFor += g.homeScore
+        home.pointsAgainst += g.awayScore
+        away.pointsFor += g.awayScore
+        away.pointsAgainst += g.homeScore
+        if (g.homeScore > g.awayScore) {
+          home.won++
+          away.lost++
+        } else if (g.awayScore > g.homeScore) {
+          away.won++
+          home.lost++
+        }
+      }
+      ;[...before.values()].sort(rank).forEach((l, i) => previous.set(l.teamId, i + 1))
+    }
+
     return {
       standings: sorted.map((line, i) => ({
         ...line,
+        // Positive is upward: rank 4 becoming rank 2 is +2.
+        movement: previous.has(line.teamId) ? previous.get(line.teamId)! - (i + 1) : null,
         rank: i + 1,
         pointsDiff: line.pointsFor - line.pointsAgainst,
         leaguePoints: line.won * STANDINGS_POINTS.win + line.lost * STANDINGS_POINTS.loss,

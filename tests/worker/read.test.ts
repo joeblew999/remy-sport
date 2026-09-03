@@ -725,3 +725,43 @@ describe("The players you are responsible for", () => {
     expect((await api("/api/players/mine")).status).not.toBe(200)
   })
 })
+
+describe("Rank movement", () => {
+  /**
+   * How far a team has moved since the last round — `VIEW_RANK_MOVEMENT`.
+   *
+   * Not stored. Standings are a function of the games, so a previous table is
+   * that function over the games that finished before the latest day of play. A
+   * `standings_history` table would be a second copy able to disagree with the
+   * games it came from, which is the class of bug this repo keeps finding.
+   *
+   * The seed plays every game of an event on one day, so the honest answer for
+   * it is null: nothing has happened twice, and "unchanged" would claim a
+   * comparison that has not been made. That is what this asserts — the null
+   * case is the one that ships, and a zero here would be a lie.
+   */
+  it("is null while every game was played on the same day", async () => {
+    const event = SEED_ENTITIES.events[0]!
+    const { standings } = (await (await api(`/api/standings?eventId=${event.id}`)).json()) as {
+      standings: { teamId: string; movement: number | null }[]
+    }
+    expect(standings.length, "the seed should register teams for this event").toBeGreaterThan(0)
+    for (const row of standings) {
+      expect(row.movement, `${row.teamId} claims movement with no earlier round`).toBeNull()
+    }
+  })
+
+  /**
+   * Every row carries the field, whatever its value.
+   *
+   * A missing key and a null one read the same in JavaScript and differently in
+   * a schema. This is the cheap guard that the contract is actually being met.
+   */
+  it("is present on every row", async () => {
+    const event = SEED_ENTITIES.events[0]!
+    const { standings } = (await (await api(`/api/standings?eventId=${event.id}`)).json()) as {
+      standings: Record<string, unknown>[]
+    }
+    for (const row of standings) expect(row).toHaveProperty("movement")
+  })
+})
