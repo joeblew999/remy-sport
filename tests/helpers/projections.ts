@@ -186,6 +186,48 @@ export function projectTeams(rights: Record<string, { canEdit?: boolean }> = {})
   return E.teams.map((t) => projectTeam(t.id, rights[t.id] ?? {}))
 }
 
+/**
+ * One seeded school or club, as `orgs.get` returns it.
+ *
+ * `canCreateTeam` is on this payload and is not about this org: CREATE_TEAM is
+ * granted to ANY_COACH with no relation to any organisation, so it is a platform
+ * answer that happens to be delivered here because this is the page that needs
+ * it. Stated like the rest, and the reason is worth carrying — a spec that reads
+ * it as "may create a team *here*" would be asserting a rule the model does not
+ * have.
+ */
+export function projectOrg(
+  id: string,
+  rights: { canEdit?: boolean; canCreateTeam?: boolean } = {},
+) {
+  const o = orgById(id)
+  return {
+    id: o.id,
+    slug: o.slug,
+    orgTypeCode: o.orgTypeCode,
+    cityCode: o.cityCode,
+    provinceCode: o.provinceCode,
+    names: names(o.names),
+    canEdit: rights.canEdit ?? false,
+    canCreateTeam: rights.canCreateTeam ?? false,
+  }
+}
+
+/** Who may act for a school, as `orgs.members` returns it. */
+export function projectOrgMembers(id: string, rights: { canManage?: boolean } = {}) {
+  return {
+    members: R.orgMembers
+      .filter((m) => m.orgId === id)
+      .map((m) => ({
+        userId: m.userId,
+        email: userById(m.userId).email,
+        name: pivotOf(userById(m.userId).names),
+        orgRoleCode: m.orgRoleCode,
+      })),
+    canManage: rights.canManage ?? false,
+  }
+}
+
 export interface GameRights {
   canEnterScore?: boolean
   canSetStatus?: boolean
@@ -395,5 +437,6 @@ export const SEEDED = {
   events: E.events.map((e) => e.id),
   teams: E.teams.map((t) => t.id),
   games: E.games.map((g) => g.id),
+  orgs: E.orgs.map((o) => o.id),
   sessions: R.eventSessions.map((s) => ({ id: s.id, eventId: s.eventId })),
 } as const

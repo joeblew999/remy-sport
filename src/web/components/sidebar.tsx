@@ -76,6 +76,7 @@ const navItems = (): NavItem[] => [
   // lists what is actually being played and offers Watch on the games somebody
   // is broadcasting.
   { id: "live",      label: m.nav_live() },
+  { id: "teams",     label: m.nav_teams() },
   { id: "orgs",      label: m.nav_orgs() },
   { id: "profile",   label: m.nav_profile() },
 ];

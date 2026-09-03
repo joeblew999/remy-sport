@@ -28,6 +28,7 @@ export const PAGES = [
   "event",
   "live",
   "team",
+  "teams",
   "profile",
   "login",
   "devices",

@@ -7,6 +7,7 @@ import {
   projectEvent,
   projectEvents,
   projectGame,
+  projectOrg,
   projectGamesIn,
   projectRoster,
   projectSessions,
@@ -142,6 +143,12 @@ describe("Teams", () => {
 
   it.each(SEEDED.teams)("%s's roster is what the projection says", async (id) => {
     same(await get(`/api/teams/${id}/players`), projectRoster(id), `teams.roster(${id})`)
+  })
+})
+
+describe("Orgs", () => {
+  it.each(SEEDED.orgs)("%s is what the projection says", async (id) => {
+    same(await get(`/api/orgs/${id}`), projectOrg(id), `orgs.get(${id})`)
   })
 })
 
