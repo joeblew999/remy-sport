@@ -104,7 +104,22 @@ export default defineConfig({
     // devices" revokes the very cookies auth.setup.ts saved for that actor —
     // which any concurrently-running file is relying on. Running it after
     // everything else makes that harmless instead of a coin flip.
-    { name: "devices", testMatch: /devices\.spec\.ts/, dependencies: ["e2e"] },
+    /**
+     * After `authz`, not merely after `e2e`.
+     *
+     * Both sign in for real, and depending on the same project made them
+     * siblings — dispatched concurrently, racing for the same seeded accounts'
+     * verification rows. That is the failure AGENTS.md describes twice: a
+     * second code request for one address invalidates the first, and the loser
+     * reports a missing identity element rather than a rejected code.
+     *
+     * It survived while the tier shared the dev server because that database
+     * carried enough accumulated state to blur the timing. On a database that
+     * starts empty every run it is deterministic, and this test failed every
+     * time — which is the isolation doing its job before it had finished
+     * paying for itself.
+     */
+    { name: "devices", testMatch: /devices\.spec\.ts/, dependencies: ["authz"] },
   ],
   ...(isLocal && {
     webServer: {
