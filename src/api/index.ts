@@ -106,7 +106,7 @@ export const router = {
   standings: { list: standings.list },
   reference: { list: reference.list },
   health: { get: health.get },
-  me: { mine: me.mine },
+  me: { mine: me.mine, chooseRole: me.chooseRole },
 
   // The Product Owner's domain model. One generic implementation serves all of
   // them — see src/api/domain.ts for why, and the contract for which.

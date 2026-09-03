@@ -410,31 +410,6 @@ INSERT OR IGNORE INTO event (id, name, names, type_code, format_code, descriptio
 INSERT OR IGNORE INTO event (id, name, names, type_code, format_code, description, start_date, end_date, timezone, city_code, province_code, is_fiba_certified, org_id, organizer_user_id, created_at, updated_at) VALUES ('evt_003', 'Chiang Mai Summer Basketball Camp 2026', '{"th":"ค่ายฝึกบาสเกตบอลภาคฤดูร้อน เชียงใหม่ 2026","en":"Chiang Mai Summer Basketball Camp 2026"}', 'CAMP', '5x5', 'A five-day skills camp for players aged 13 to 17. Mornings are technical work; the closing afternoon is for families. Bring indoor shoes and a water bottle.', '2026-04-15', '2026-04-19', 'Asia/Bangkok', 'CHIANG_MAI', 'CMI', 0, 'org_003', 'usr_org_003', 1767225600000, 1767225600000);
 INSERT OR IGNORE INTO event (id, name, names, type_code, format_code, description, start_date, end_date, timezone, city_code, province_code, is_fiba_certified, org_id, organizer_user_id, created_at, updated_at) VALUES ('evt_004', 'Thailand Basketball Showcase 2026', '{"th":"การโชว์ผู้เล่นบาสเกตบอลประเทศไทย 2026","en":"Thailand Basketball Showcase 2026"}', 'SHOWCASE', '5x5', NULL, '2026-08-01', '2026-08-02', 'Asia/Bangkok', 'BANGKOK', 'BKK', 1, 'org_004', 'usr_org_001', 1767225600000, 1767225600000);
 
--- eventSessions
-INSERT OR IGNORE INTO eventSession (id, event_id, venue_id, starts_at, ends_at, names) VALUES ('ses_001', 'evt_003', 'ven_003', '2026-04-15T02:00:00Z', '2026-04-15T04:30:00Z', '{"th":"พื้นฐานการเลี้ยงและส่งบอล","en":"Ball handling and passing"}');
-INSERT OR IGNORE INTO eventSession (id, event_id, venue_id, starts_at, ends_at, names) VALUES ('ses_002', 'evt_003', 'ven_003', '2026-04-16T02:00:00Z', '2026-04-16T04:30:00Z', '{"th":"พื้นฐานการยิงประตู","en":"Shooting fundamentals"}');
-INSERT OR IGNORE INTO eventSession (id, event_id, venue_id, starts_at, ends_at, names) VALUES ('ses_003', 'evt_003', 'ven_003', '2026-04-17T02:00:00Z', '2026-04-17T04:30:00Z', '{"th":"การป้องกันและการรีบาวด์","en":"Defence and rebounding"}');
-INSERT OR IGNORE INTO eventSession (id, event_id, venue_id, starts_at, ends_at, names) VALUES ('ses_004', 'evt_003', 'ven_003', '2026-04-18T02:00:00Z', '2026-04-18T04:30:00Z', '{"th":"เกมทีมและการเคลื่อนที่","en":"Team play and movement"}');
-INSERT OR IGNORE INTO eventSession (id, event_id, venue_id, starts_at, ends_at, names) VALUES ('ses_005', 'evt_003', NULL, '2026-04-19T07:00:00Z', '2026-04-19T09:00:00Z', '{"th":"วันปิดค่ายและมอบเกียรติบัตร","en":"Closing day and certificates"}');
-
--- sessionAttendances
-INSERT OR IGNORE INTO sessionAttendance (session_id, player_id, recorded_at) VALUES ('ses_001', 'ply_001', '2026-04-15T02:10:00Z');
-INSERT OR IGNORE INTO sessionAttendance (session_id, player_id, recorded_at) VALUES ('ses_001', 'ply_004', '2026-04-15T02:10:00Z');
-INSERT OR IGNORE INTO sessionAttendance (session_id, player_id, recorded_at) VALUES ('ses_001', 'ply_006', '2026-04-15T02:10:00Z');
-INSERT OR IGNORE INTO sessionAttendance (session_id, player_id, recorded_at) VALUES ('ses_002', 'ply_001', '2026-04-16T02:10:00Z');
-INSERT OR IGNORE INTO sessionAttendance (session_id, player_id, recorded_at) VALUES ('ses_002', 'ply_004', '2026-04-16T02:10:00Z');
-INSERT OR IGNORE INTO sessionAttendance (session_id, player_id, recorded_at) VALUES ('ses_003', 'ply_001', '2026-04-17T02:10:00Z');
-INSERT OR IGNORE INTO sessionAttendance (session_id, player_id, recorded_at) VALUES ('ses_003', 'ply_004', '2026-04-17T02:10:00Z');
-INSERT OR IGNORE INTO sessionAttendance (session_id, player_id, recorded_at) VALUES ('ses_004', 'ply_001', '2026-04-18T02:10:00Z');
-INSERT OR IGNORE INTO sessionAttendance (session_id, player_id, recorded_at) VALUES ('ses_004', 'ply_004', '2026-04-18T02:10:00Z');
-INSERT OR IGNORE INTO sessionAttendance (session_id, player_id, recorded_at) VALUES ('ses_004', 'ply_006', '2026-04-18T02:10:00Z');
-INSERT OR IGNORE INTO sessionAttendance (session_id, player_id, recorded_at) VALUES ('ses_005', 'ply_001', '2026-04-19T07:10:00Z');
-INSERT OR IGNORE INTO sessionAttendance (session_id, player_id, recorded_at) VALUES ('ses_005', 'ply_004', '2026-04-19T07:10:00Z');
-INSERT OR IGNORE INTO sessionAttendance (session_id, player_id, recorded_at) VALUES ('ses_005', 'ply_006', '2026-04-19T07:10:00Z');
-
--- gameBroadcasts
-INSERT OR IGNORE INTO gameBroadcast (game_id, user_id, started_at, last_seen_at) VALUES ('gam_002', 'usr_org_002', '2026-05-02T09:55:00Z', '2026-05-02T10:32:00Z');
-
 -- orgMembers
 INSERT OR IGNORE INTO org_member (org_id, user_id, org_role_code) VALUES ('org_001', 'usr_org_001', 'OWNER');
 INSERT OR IGNORE INTO org_member (org_id, user_id, org_role_code) VALUES ('org_001', 'usr_coach_001', 'ADMIN');
@@ -909,6 +884,31 @@ INSERT OR IGNORE INTO userNotificationPreference (user_id, notification_type_cod
 INSERT OR IGNORE INTO userNotificationPreference (user_id, notification_type_code, channel_code, is_enabled) VALUES ('usr_referee_002', 'APPROVAL_GRANTED', 'LINE', 1);
 INSERT OR IGNORE INTO userNotificationPreference (user_id, notification_type_code, channel_code, is_enabled) VALUES ('usr_spectator_004', 'SCORE_UPDATE', 'LINE', 1);
 INSERT OR IGNORE INTO userNotificationPreference (user_id, notification_type_code, channel_code, is_enabled) VALUES ('usr_spectator_005', 'MATCH_END', 'SMS', 1);
+
+-- eventSessions
+INSERT OR IGNORE INTO eventSession (id, event_id, venue_id, starts_at, ends_at, names) VALUES ('ses_001', 'evt_003', 'ven_003', '2026-04-15T02:00:00Z', '2026-04-15T04:30:00Z', '{"th":"พื้นฐานการเลี้ยงและส่งบอล","en":"Ball handling and passing"}');
+INSERT OR IGNORE INTO eventSession (id, event_id, venue_id, starts_at, ends_at, names) VALUES ('ses_002', 'evt_003', 'ven_003', '2026-04-16T02:00:00Z', '2026-04-16T04:30:00Z', '{"th":"พื้นฐานการยิงประตู","en":"Shooting fundamentals"}');
+INSERT OR IGNORE INTO eventSession (id, event_id, venue_id, starts_at, ends_at, names) VALUES ('ses_003', 'evt_003', 'ven_003', '2026-04-17T02:00:00Z', '2026-04-17T04:30:00Z', '{"th":"การป้องกันและการรีบาวด์","en":"Defence and rebounding"}');
+INSERT OR IGNORE INTO eventSession (id, event_id, venue_id, starts_at, ends_at, names) VALUES ('ses_004', 'evt_003', 'ven_003', '2026-04-18T02:00:00Z', '2026-04-18T04:30:00Z', '{"th":"เกมทีมและการเคลื่อนที่","en":"Team play and movement"}');
+INSERT OR IGNORE INTO eventSession (id, event_id, venue_id, starts_at, ends_at, names) VALUES ('ses_005', 'evt_003', NULL, '2026-04-19T07:00:00Z', '2026-04-19T09:00:00Z', '{"th":"วันปิดค่ายและมอบเกียรติบัตร","en":"Closing day and certificates"}');
+
+-- sessionAttendances
+INSERT OR IGNORE INTO sessionAttendance (session_id, player_id, recorded_at) VALUES ('ses_001', 'ply_001', '2026-04-15T02:10:00Z');
+INSERT OR IGNORE INTO sessionAttendance (session_id, player_id, recorded_at) VALUES ('ses_001', 'ply_004', '2026-04-15T02:10:00Z');
+INSERT OR IGNORE INTO sessionAttendance (session_id, player_id, recorded_at) VALUES ('ses_001', 'ply_006', '2026-04-15T02:10:00Z');
+INSERT OR IGNORE INTO sessionAttendance (session_id, player_id, recorded_at) VALUES ('ses_002', 'ply_001', '2026-04-16T02:10:00Z');
+INSERT OR IGNORE INTO sessionAttendance (session_id, player_id, recorded_at) VALUES ('ses_002', 'ply_004', '2026-04-16T02:10:00Z');
+INSERT OR IGNORE INTO sessionAttendance (session_id, player_id, recorded_at) VALUES ('ses_003', 'ply_001', '2026-04-17T02:10:00Z');
+INSERT OR IGNORE INTO sessionAttendance (session_id, player_id, recorded_at) VALUES ('ses_003', 'ply_004', '2026-04-17T02:10:00Z');
+INSERT OR IGNORE INTO sessionAttendance (session_id, player_id, recorded_at) VALUES ('ses_004', 'ply_001', '2026-04-18T02:10:00Z');
+INSERT OR IGNORE INTO sessionAttendance (session_id, player_id, recorded_at) VALUES ('ses_004', 'ply_004', '2026-04-18T02:10:00Z');
+INSERT OR IGNORE INTO sessionAttendance (session_id, player_id, recorded_at) VALUES ('ses_004', 'ply_006', '2026-04-18T02:10:00Z');
+INSERT OR IGNORE INTO sessionAttendance (session_id, player_id, recorded_at) VALUES ('ses_005', 'ply_001', '2026-04-19T07:10:00Z');
+INSERT OR IGNORE INTO sessionAttendance (session_id, player_id, recorded_at) VALUES ('ses_005', 'ply_004', '2026-04-19T07:10:00Z');
+INSERT OR IGNORE INTO sessionAttendance (session_id, player_id, recorded_at) VALUES ('ses_005', 'ply_006', '2026-04-19T07:10:00Z');
+
+-- gameBroadcasts
+INSERT OR IGNORE INTO gameBroadcast (game_id, user_id, started_at, last_seen_at) VALUES ('gam_002', 'usr_org_002', '2026-05-02T09:55:00Z', '2026-05-02T10:32:00Z');
 
 -- eventDivisions (derived from eventTeams — see the note in seed.ts)
 INSERT OR IGNORE INTO eventDivision (event_id, division_id) VALUES ('evt_001', 'div_001');

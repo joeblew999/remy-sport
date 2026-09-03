@@ -443,9 +443,6 @@ export const eventTeamRelations = relations(eventTeam, ({ one }) => ({
 }))
 
 export const FIXTURE_TABLES = {
-  eventSessions: eventSession,
-  sessionAttendances: sessionAttendance,
-  gameBroadcasts: gameBroadcast,
   orgMembers: orgMember,
   divisions: division,
   orgs: org,
@@ -463,6 +460,12 @@ export const FIXTURE_TABLES = {
   teamCoaches: teamCoach,
   userNotificationChannels: userNotificationChannel,
   userNotificationPreferences: userNotificationPreference,
+  // After event, venue, player and game: every one of these points at one of
+  // them, and a fresh database checks that. sessionAttendance is last of all,
+  // because it references eventSession two lines above it.
+  eventSessions: eventSession,
+  sessionAttendances: sessionAttendance,
+  gameBroadcasts: gameBroadcast,
 } as const
 
 export const FIXTURE_SCHEMAS = {

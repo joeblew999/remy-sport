@@ -32,9 +32,11 @@
  * event, which is one query and already exists.
  */
 import { z } from "zod"
+import { eq } from "drizzle-orm"
+import * as schema from "../db/schema"
 import { authed, can, infrastructure } from "./base"
 import { objectsHeldBy } from "./relations"
-import { ACTION, GRANTS, RELATION } from "../domain/vocabularies"
+import { ACTION, GRANTS, RELATION, STORED_ROLE } from "../domain/vocabularies"
 
 /**
  * Every relation a person can hold on a specific thing, read off the model.
@@ -137,4 +139,72 @@ export const mine = authed
       ),
       can: Object.fromEntries(PLATFORM_ACTIONS.map((a, i) => [a, allowed[i]!])),
     }
+  })
+
+/**
+ * The roles a person may take for themselves, read off the grants.
+ *
+ * `SIGN_UP_AS_COACH`, `_PLAYER`, `_ORGANIZER`, `_SPECTATOR` and
+ * `_REFEREE_REQUEST` are all granted to PUBLIC in the model — the PO's decision
+ * that anybody may say what they are. Derived rather than listed, so removing
+ * one upstream removes it here without anybody remembering to.
+ *
+ * The referee is the exception the model names in its own code: a *request*,
+ * not an assumption. It lands `PENDING_APPROVAL`, which `session.create` already
+ * refuses to act on, `main.tsx` already explains to the person waiting, and
+ * `admin.approveReferee` already resolves. Three of the four pieces existed and
+ * only the request was missing.
+ */
+const SELF_ASSIGNABLE = new Map<string, { role: string; pending: boolean }>(
+  (Object.keys(GRANTS) as string[])
+    .filter((a) => a.startsWith("SIGN_UP_AS_"))
+    .map((a) => {
+      const request = a.endsWith("_REQUEST")
+      const name = a.replace("SIGN_UP_AS_", "").replace("_REQUEST", "")
+      return [name, { role: STORED_ROLE[name as keyof typeof STORED_ROLE], pending: request }] as const
+    })
+    .filter(([, v]) => Boolean(v.role)),
+)
+
+export const chooseRole = authed
+  .route({ method: "POST", path: "/me/role", summary: "Say what you are" })
+  .input(z.object({ roleCode: z.enum([...SELF_ASSIGNABLE.keys()] as [string, ...string[]]) }))
+  .output(z.object({ role: z.string(), statusCode: z.string() }))
+  /**
+   * `infrastructure`, and the check is in the handler, because the guard is not
+   * an action on an object — it is *who you already are*.
+   *
+   * Only a spectator may choose. That is the default a new account gets
+   * (`auth.config.ts` assigns it in `user.create.before`), so this is the
+   * sign-up question asked late rather than a way to change role: a coach cannot
+   * promote themselves to organiser, and nobody can reach admin at all, because
+   * ADMIN is not granted to PUBLIC and so is not in the map above.
+   */
+  .use(
+    infrastructure(
+      "no object to check: this sets the caller's own role, and only while it " +
+        "is still the default a new account gets",
+    ),
+  )
+  .handler(async ({ context, input }) => {
+    const chosen = SELF_ASSIGNABLE.get(input.roleCode)!
+    const [current] = await context.db
+      .select({ role: schema.user.role, statusCode: schema.user.statusCode })
+      .from(schema.user)
+      .where(eq(schema.user.id, context.user.id))
+
+    // Anyone who is already something keeps it. Silent rather than an error:
+    // the screen only offers this to a spectator, so reaching here means a
+    // stale page, and telling somebody their own role is "wrong" helps nobody.
+    if (current?.role !== STORED_ROLE.SPECTATOR) {
+      return { role: current?.role ?? "", statusCode: current?.statusCode ?? "" }
+    }
+
+    const statusCode = chosen.pending ? "PENDING_APPROVAL" : "ACTIVE"
+    await context.db
+      .update(schema.user)
+      .set({ role: chosen.role, statusCode })
+      .where(eq(schema.user.id, context.user.id))
+
+    return { role: chosen.role, statusCode }
   })
