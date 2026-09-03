@@ -36,10 +36,10 @@ its reason, say so plainly and stop.
 
 ## The problem, in one line
 
-The code is not copy-pasted — 230 duplicated lines in 49,000, under one percent.
-What is duplicated is the **lists**: the same set of things written out by hand
-in several places, and one of them has already drifted far enough to break a
-live endpoint.
+The code is not copy-pasted — 230 duplicated lines out of the 28,383 that are
+neither blank nor comment, under one percent. What is duplicated is the
+**lists**: the same set of things written out by hand in several places, and one
+of them has already drifted far enough to break a live endpoint.
 
 ## Who it hurts
 
@@ -51,8 +51,8 @@ the Product Owner's own labels — does not publish invite statuses.
 Not because nobody seeded them. The rows are there, and the handler reads them:
 `src/api/reference.ts` queries all 23 vocabulary tables on every call. Then the
 response contract drops the twenty-third on the floor, because
-`VOCABULARY_SCHEMAS` in `src/db/vocabularies-schema.ts` lists 22 of the 23 that
-`VOCABULARY_TABLES` lists, four lines further down the same file. Proven, not
+`VOCABULARY_SCHEMAS` at line 274 of `src/db/vocabularies-schema.ts` lists 22 of
+the 23 that `VOCABULARY_TABLES` lists at line 241 of the same file. Proven, not
 inferred: parsing the full 23-key payload through `ReferenceSchema` returns 22
 keys, and `inviteStatuses` is not among them.
 
@@ -73,12 +73,12 @@ The 23 vocabularies are enumerated four times: `VOCABULARY_TABLES`,
 and `VOCABULARY` in `src/domain/vocabularies.ts`. Three carry 23 entries. One
 carries 22.
 
-The six platform roles are written out in full in **seven files**, in three
-different spellings — `ADMIN` in the model, `admin` in the database, `"admin"` in
-a component's array. `STORED_ROLE` maps the first to the second by hand, and the
-declaration immediately above it, `STORED_ORG_ROLE`, derives exactly the same
-mapping from the model with `Object.fromEntries`. The pattern for the fix is on
-the adjacent line.
+The six platform roles are written out in full in **seven files**, in two
+spellings — `ADMIN` as the model codes it, `admin` as the database stores it —
+across the domain layer, the SPA, the auth config and four test files. `STORED_ROLE`
+maps one to the other by hand, and the declaration immediately above it,
+`STORED_ORG_ROLE`, derives exactly that mapping from the model with
+`Object.fromEntries`. The pattern for the fix is on the adjacent line.
 
 ## What that shape costs elsewhere
 
@@ -165,10 +165,13 @@ ones into derived ones without re-reading the paragraph above.
 The first output is what not to do, and most of this plan is a refusal.
 
 - **Do not merge files, and do not treat 229 as the problem.** The file count is
-  the architecture working. 51 of 108 modules in `src/` have exactly one
-  importer, and that is one page per route, one API module per router group, one
-  check per rule — measured, and every one of them correct. There is no box in
-  this plan that moves a file for being small.
+  the architecture working. Roughly half the modules in `src/` have exactly one
+  importer — 52 of 109 when measured on 2026-09-03, a ratio that moves as the
+  tree does — and that is one page per route, one API module per router group,
+  one check per rule. Spot-checked, and every one of them correct: `main.tsx`
+  importing each page once is not a smell. There is no box in this plan that
+  moves a file for being small, and the single-importer count is deliberately
+  **not** in the derivation block, because it is context rather than a target.
 - **Do not add an abstraction over the oRPC procedures.** `route` / `input` /
   `output` / `use` / `handler` reads as boilerplate and is not: it is the
   contract, the OpenAPI document and the authorisation declaration. A helper
@@ -231,17 +234,19 @@ restatement of it.
 - **Every change is a deletion or a derivation.** If a box adds a concept, it is
   the wrong box. Sessions net-negative on lines, and this one especially.
 - **A type must not get looser.** The reference endpoint, the OpenAPI document
-  and `RouterClient` are the reason several of these literals exist. Read the
-  generated document before and after any change to `src/domain/api.ts` or
-  `src/db/vocabularies-schema.ts`; a change that widens a type to remove a line
-  is refused.
+  and `RouterClient` are the reason several of these literals exist. Before and
+  after any change to `src/domain/api.ts` or `src/db/vocabularies-schema.ts`,
+  diff the generated document — `mise run 1-dev -- ensure`, then
+  `curl -s localhost:8787/openapi.json | python3 -m json.tool`, saved both ways.
+  A change that widens a type to remove a line is refused, and the diff is what
+  proves it did not.
 - **One class per commit.** Not one file. The point is that these are classes,
   and a commit that fixes the six roles in seven files is legible in a way that
   seven commits are not.
 - **Delete the check when the type makes it impossible.** If a mapped type makes
-  a set undrictable, the `sets.ts` entry for it goes in the same commit. A check
-  list that only grows is the suppressions file this repo has already paid off
-  once.
+  a set impossible to get wrong, its entry in `scripts/check/sets.ts` <!-- docs-check-ignore -->
+  goes in the same commit. A check list that only grows is the suppressions file
+  this repo has already paid off once.
 - **`mise run 2-check` before committing**, not just `tsc`. The bundler has
   caught two things typecheck did not, both recorded in plan-ownership's log.
 - **Never run two gates at once.** Recorded here because it cost this plan an
@@ -255,9 +260,9 @@ restatement of it.
 
 Apply the first that matches.
 
-1. **A drifted pair that breaks something → fix the drift, then make it
-   underivable.** `inviteStatuses` is this. Fix the symptom in the same commit
-   as the cause, or the next reader cannot tell which was which.
+1. **A drifted pair that breaks something → fix the drift, then make that drift
+   impossible.** `inviteStatuses` is this. Fix the symptom in the same commit as
+   the cause, or the next reader cannot tell which was which.
 2. **A set the model already defines → derive from the model.** Never restate
    `OBJECT_TYPE_CODES`, `ROLE_CODES` or a vocabulary's members. The SPA may
    import `src/domain` at runtime — `.dependency-cruiser.cjs` allows exactly
@@ -278,18 +283,24 @@ Every box traces to one of six enumerable classes. Nothing else is in scope, and
 a finding that traces to none of them goes under **Noticed, out of scope** — one
 line, no box, no work.
 
-| class | the list | length today |
-|---|---|---|
-| 1 | maps of the same set that can disagree | 5 pairs |
-| 2 | types declared more than once | 3 |
-| 3 | column groups repeated per table | 1 (× 23 tables) |
-| 4 | cache-invalidation decisions held at a call site | 38 in 16 files |
-| 5 | exports nothing imports | 41 |
-| 6 | verbatim blocks worth one edit | 1 |
+| class | the list it counts down | length today | boxes |
+|---|---|---|---|
+| 1 | groups of maps that enumerate one set and can disagree | 5 | 9 |
+| 2 | concepts whose type is declared more than once | 4 | 4 |
+| 3 | column groups repeated per table | 1, over 23 tables | 2 |
+| 4 | cache-invalidation decisions held at a call site | 38, in 16 files | 2 |
+| 5 | exports and types nothing imports | 41 | 6 |
+| 6 | verbatim blocks worth one edit | 1 | 1 |
 
-Total: **89 items**, each either closed or declared. There is no class whose
-size is discovered as it runs — every one of those numbers comes out of the
-block below, and if one has grown, that is the first thing a pass records.
+**24 boxes, over six lists**, plus 12 in the definition of done. The two columns
+count different things on purpose: the middle one is what has to reach zero-or-
+declared, the right one is how much work that is today. They move independently
+— closing class 1 takes nine boxes to fix five drifts — and a pass that
+confuses them will think it is nearly done when it is not.
+
+There is no class whose size is discovered as it runs: every number in the middle
+column comes out of the block below, and if one has grown, recording that is the
+first thing a pass does.
 
 ### What stops the loop
 

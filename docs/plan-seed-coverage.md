@@ -222,6 +222,31 @@ Two halves, and each one has a mechanism:
 - *derived from the seed* — projections in the render tier, proved against the
   real procedures in the worker tier.
 
+### This job is half done already, and the done half is the proof
+
+The render tier answers two questions on every test: **who is looking**, and
+**what are they looking at**. The first was fixed a week ago and the second was
+not.
+
+Ten specs used to paste a session object inline, each inventing a user id and a
+role — one seeded `usr_org_001`'s id beside a fabricated email and a *different
+person's* name, and four claimed `role: "user"`, which the model does not have.
+A spec asserting what a coach may do was asserting it about nobody. The fix was
+`sessionFor(role)` in `tests/helpers/actors.ts`, which reads `SEED_ENTITIES.users`
+— the same people the worker and e2e tiers use.
+
+Count the two questions across the 24 render specs today:
+
+| | specs |
+|---|---|
+| know **who** they are, from the seed | **14** |
+| know **what they are looking at**, from the seed | **0** |
+
+So this is not a new idea being proposed. It is the identical move, applied to
+the other half of the same problem, and the argument for it was already accepted
+and written down when it was about people. The counts, names and rows a page
+draws are still invented exactly the way the identities used to be.
+
 ### The pattern for the second half, and its prior art
 
 Pure functions over `SEED_ENTITIES`/`SEED_RELATIONSHIPS` that compute what a

@@ -466,8 +466,12 @@ assignment are actions the API has and the GUI never calls, so they belong to th
       `components/following.tsx`, `components/notification-settings.tsx`, and
       `lib/data.tsx`. Four call sites, one operation; the invalidation belongs in
       the shared hook in `data.tsx`, not repeated in three components.
-- [ ] When Phase 5 adds roster or referee-assignment surfaces, they clear it too.
-      Written here so that is not forgotten rather than assumed.
+- [x] When Phase 5 adds roster or referee-assignment surfaces, they clear it too.
+      **Nothing to do: Phase 5 added no mutations.** A referee's games and Your
+      schools are both read-only, and org.tsx's five existing mutations were
+      untouched. Roster changes and referee assignment remain unreachable from
+      the GUI and are recorded as not built, so there is still nothing to clear.
+      Checked rather than assumed — the diff adds zero `useMutation` calls.
 
 **Done when:** both are wired, and the decision about testing them is recorded.
 
@@ -847,6 +851,16 @@ each, no box, no work — they exist so they are not lost and not followed.
 - AGENTS.md is 674 lines with 114 bolded, against guidance of 150-200.
 
 ### Passes
+
+- **Pass 8 — done.** Last box checked rather than assumed: Phase 5 added no
+  mutations, so there was nothing new to invalidate. A referee's games and Your
+  schools are both read-only, and the diff adds zero `useMutation` calls. Roster
+  changes and referee assignment are still unreachable from the GUI and recorded
+  as not built.
+
+  **Every box in this plan is ticked.** `mise run 2-check` green, e2e 34 passed
+  and 0 failed, `tests/worker/me.test.ts` 4 passed. Nothing is marked "Needs the
+  PO", so nothing is waiting on anybody.
 
 - **Pass 7 — Phase 5 converged, Phase 6 walked, DoD met.**
 
