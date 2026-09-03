@@ -82,11 +82,11 @@ const BLOCKED: Record<string, string> = {
  * "we have not", which is the honest half of a coverage number.
  */
 const NOT_BUILT: Record<string, string> = {
-  BROWSE_TEAMS:
-    "there is no teams directory. `teams.list` exists and only the admin console reads it; " +
-    "Discover browses events only",
-  CREATE_USER_ACCOUNT:
-    "sign-up is self-serve, so nobody has needed an admin to make an account for someone else",
+  // Empty, and worth keeping. It held four entries when this check was written;
+  // two of those turned out to be built already and badly measured, and the
+  // other two — a teams directory and an admin creating an account — were built
+  // the same day rather than left in a list. An empty list is the state to
+  // return to, not a reason to delete the mechanism.
 }
 
 /** Every `@answers` tag under src/web, and the file that carries it. */
@@ -101,11 +101,29 @@ function declared(): Map<string, string[]> {
         continue
       }
       if (!/\.tsx?$/.test(name)) continue
-      const src = readFileSync(path, "utf8")
-      // One tag, one line: `@answers CODE, CODE, CODE`. Anything after a
-      // closing `*/` on the same line is not swallowed.
-      for (const [, list] of src.matchAll(/@answers\s+([A-Z0-9_,\s]+?)(?:\*\/|\n)/g)) {
-        for (const code of list.split(/[,\s]+/).filter(Boolean)) {
+      const lines = readFileSync(path, "utf8").split("\n")
+
+      /**
+       * A tag may wrap. A screen answering seven actions on one line is a line
+       * nobody can read, and the first version of this silently dropped
+       * everything after the wrap — the check went green while two actions had
+       * no screen. So continuation lines count: after `@answers`, every
+       * following line that is only codes and commas belongs to the same tag.
+       */
+      for (let i = 0; i < lines.length; i++) {
+        const start = /@answers\s+(.*)$/.exec(lines[i]!)
+        if (!start) continue
+
+        let text = start[1]!
+        for (let j = i + 1; j < lines.length; j++) {
+          const next = lines[j]!.replace(/^\s*\*?/, "").trim()
+          // Only codes and separators continue a tag. A blank comment line, a
+          // sentence, or `*/` ends it.
+          if (!next || !/^[A-Z0-9_,\s]+$/.test(next)) break
+          text += " " + next
+        }
+
+        for (const code of text.replace(/\*\/.*$/, "").split(/[,\s]+/).filter(Boolean)) {
           found.set(code, [...(found.get(code) ?? []), path])
         }
       }

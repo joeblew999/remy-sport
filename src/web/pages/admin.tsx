@@ -29,9 +29,23 @@ import { api, orpc } from "../lib/orpc";
 import { useAccounts, useAdminAction, useDevAccounts, useRequestCode, useVerifyCode, codeFromOutbox, signOutSilently } from "../lib/auth";
 import { useSession } from "../lib/session";
 import { useCan, useTeams } from "../lib/data";
+import { STORED_ROLE } from "../../domain/vocabularies";
 import type { Route } from "../lib/router";
 
-const ROLES = ["admin", "organizer", "coach", "player", "spectator", "referee"] as const;
+/**
+ * The roles, as Better Auth stores them — derived, not typed out again.
+ *
+ * This was a literal array of the same six strings. It agreed with the model,
+ * which is what a second copy does right up until it does not: a role the
+ * Product Owner adds upstream would appear in `label("roles", …)` and be absent
+ * from every select on this page, and nothing would fail.
+ */
+const ROLES = Object.values(STORED_ROLE);
+
+/** The model's own code for a stored role, for `label("roles", …)`. */
+const ROLE_CODE = Object.fromEntries(
+  Object.entries(STORED_ROLE).map(([code, stored]) => [stored, code]),
+) as Record<string, string>;
 
 /**
  * There is no role→permission table here any more.
@@ -51,7 +65,8 @@ const ROLES = ["admin", "organizer", "coach", "player", "spectator", "referee"] 
  * (`CREATE_EVENT` is a PLATFORM action, so it belongs to the list and not to an
  * event), `canDelete` per event, `canEdit` per event.
  *
- * @answers MANAGE_ALL_USERS, APPROVE_REFEREE, CREATE_EVENT, DELETE_EVENT, DELETE_TEAM, DELETE_PLAYER
+ * @answers MANAGE_ALL_USERS, APPROVE_REFEREE, CREATE_EVENT, DELETE_EVENT, DELETE_TEAM,
+ *          DELETE_PLAYER, CREATE_USER_ACCOUNT
  *
  * The platform-admin console. Every action here is granted to PLATFORM_ADMIN
  * and to nobody else, which is why they are on one screen.
@@ -86,6 +101,7 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
   // same answer today because the PO grants both to PLATFORM_ADMIN, and a
   // screen that assumes so is the second copy this whole pass removed.
   const { data: canDeletePlayer } = useCan("DELETE_PLAYER");
+  const { data: canCreateAccount } = useCan("CREATE_USER_ACCOUNT");
 
   const events = useQuery(orpc.events.list.queryOptions());
 
@@ -255,6 +271,9 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
       {/* `DELETE_PLAYER` is PLATFORM_ADMIN alone, the same line as teams — and
           it is not the roster's "Remove", which ends a spell on a squad. */}
       {canDeletePlayer && !impersonatedBy && <DeletePlayers />}
+
+      {/* Asked of the model, like the two above it. */}
+      {canCreateAccount && !impersonatedBy && <CreateAccount />}
 
       {/* Only for an admin who is not already impersonating: Better Auth does
           not model a nested impersonation, and the way out is the banner. */}
@@ -555,6 +574,75 @@ function RoleSwitcher({ current }: { current: string }) {
           </button>
         ))}
       </div>
+    </section>
+  );
+}
+
+/**
+ * Making an account for somebody who cannot make their own.
+ *
+ * `CREATE_USER_ACCOUNT` is granted to PLATFORM_ADMIN and had no screen — one of
+ * the last two actions the model granted and the app did not offer. Sign-up is
+ * self-serve and passwordless, so this is not the way most people arrive; it is
+ * for the coach who has to exist as a user before a team can name them, and for
+ * the person whose address keeps bouncing.
+ *
+ * ## No password, on purpose
+ *
+ * `emailAndPassword` is disabled in auth.config.ts and Better Auth's
+ * `create-user` treats `password` as optional — it links a credential account
+ * only `if (ctx.body.password)`. So this sends none, the row exists with no way
+ * to sign in by password, and the person gets in the way everybody else does:
+ * they ask for a code. Sending a throwaway password would create a credential
+ * account nobody can use and one more thing to explain.
+ *
+ * The role is sent explicitly and survives: the `user.create.before` hook reads
+ * `u.role ?? "spectator"`, so it fills a gap rather than overwriting a choice.
+ * Better Auth refuses a duplicate address itself, with
+ * USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL, so there is no check here that could
+ * disagree with it.
+ */
+function CreateAccount() {
+  const { label } = useLocale();
+  const create = useAdminAction();
+  const issue = create.error ? formErrors(create.error).form : null;
+
+  return (
+    <section className="admin-card" data-testid="create-account">
+      <h2>{m.admin_create_account()}</h2>
+      <p className="muted">{m.admin_create_account_sub()}</p>
+      {issue && <div className="admin-error" data-testid="create-account-error">{issue}</div>}
+      <form
+        className="admin-form"
+        data-testid="create-account-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const f = new FormData(e.currentTarget);
+          create.mutate({
+            path: "create-user",
+            // No `password` key at all, not an empty one: Better Auth branches
+            // on its presence.
+            body: {
+              email: String(f.get("email")),
+              name: String(f.get("name")),
+              role: String(f.get("role")),
+            },
+          });
+        }}
+      >
+        <input name="email" type="email" required data-testid="create-account-email"
+               placeholder={m.admin_create_account_email()} />
+        <input name="name" required data-testid="create-account-name"
+               placeholder={m.admin_create_account_name()} />
+        <select name="role" data-testid="create-account-role" defaultValue={STORED_ROLE.SPECTATOR}>
+          {ROLES.map((r) => (
+            <option key={r} value={r}>{label("roles", ROLE_CODE[r] ?? r)}</option>
+          ))}
+        </select>
+        <button type="submit" data-testid="create-account-submit" disabled={create.isPending}>
+          {m.admin_create_account_submit()}
+        </button>
+      </form>
     </section>
   );
 }

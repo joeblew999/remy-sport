@@ -37,18 +37,6 @@ export function TeamsPage({ goto }: { goto: (r: Route) => void }) {
   const held = new Map(mine.map((h) => [h.id, h.relation]));
   const yours = (teams.data ?? []).filter((t) => held.has(t.id));
 
-  const row = (t: NonNullable<typeof teams.data>[number], meta: string, testid: string) => (
-    <div key={t.id} className="device-row" data-testid={testid}>
-      <div>
-        <div className="device-label">{t.name}</div>
-        <div className="device-meta">{meta}</div>
-      </div>
-      <button className="btn" onClick={() => goto({ page: "team", id: t.id })}>
-        {m.team_open()}
-      </button>
-    </div>
-  );
-
   return (
     <div className="page-inner" data-testid="teams-page">
       <div className="page-header">
@@ -63,11 +51,22 @@ export function TeamsPage({ goto }: { goto: (r: Route) => void }) {
             <h2>{m.your_teams()}</h2>
           </div>
           <div className="dash-card" data-testid="your-teams">
-            {yours.map((t) =>
-              // The relation, in the reader's language — "Head Coach", not
-              // HEAD_COACH. Why this row is yours is the useful half.
-              row(t, [t.orgName, held.get(t.id)].filter(Boolean).join(" · "), `your-team-${t.id}`),
-            )}
+            {yours.map((t) => (
+              <div key={t.id} className="device-row" data-testid={`your-team-${t.id}`}>
+                <div>
+                  <div className="device-label">{t.name}</div>
+                  {/* Why this row is above the fold, in the model's own word for
+                      it — head coach, assistant, follower. "Yours" alone would
+                      be the page deciding. */}
+                  <div className="device-meta">
+                    {[t.orgName, held.get(t.id)].filter(Boolean).join(" · ")}
+                  </div>
+                </div>
+                <button className="btn" onClick={() => goto({ page: "team", id: t.id })}>
+                  {m.team_open()}
+                </button>
+              </div>
+            ))}
           </div>
         </>
       )}
@@ -76,15 +75,21 @@ export function TeamsPage({ goto }: { goto: (r: Route) => void }) {
         <div className="empty">{m.loading_teams()}</div>
       ) : teams.data?.length ? (
         <div className="dash-card" data-testid="teams-list">
-          {teams.data.map((t) =>
-            row(
-              t,
-              // Age group and gender come from the reference vocabulary in the
-              // reader's language; `toTeam` has already resolved them.
-              [t.orgName, t.ageGroupCode, t.genderLabel].filter(Boolean).join(" · "),
-              `team-row-${t.id}`,
-            ),
-          )}
+          {teams.data.map((t) => (
+            <div key={t.id} className="device-row" data-testid={`team-row-${t.id}`}>
+              <div>
+                <div className="device-label">{t.name}</div>
+                {/* Age group and gender in the reader's language — `toTeam` has
+                    already resolved them from the reference vocabulary. */}
+                <div className="device-meta">
+                  {[t.orgName, t.ageGroupCode, t.genderLabel].filter(Boolean).join(" · ")}
+                </div>
+              </div>
+              <button className="btn" onClick={() => goto({ page: "team", id: t.id })}>
+                {m.team_open()}
+              </button>
+            </div>
+          ))}
         </div>
       ) : (
         <div className="empty" data-testid="teams-empty">

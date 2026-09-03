@@ -50,6 +50,8 @@ const SURFACES = {
   myEvents: () => "/#/events",
   /** Schools and clubs. */
   orgs: () => "/#/orgs",
+  /** Every squad on the platform. */
+  teams: () => "/#/teams",
   /**
    * No id means no id — not the string "undefined".
    *

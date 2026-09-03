@@ -325,3 +325,45 @@ test.describe("Deleting a player", () => {
     await expect(page.getByTestId("admin-no-players")).toBeVisible()
   })
 })
+
+/**
+ * Creating an account for somebody who cannot create their own.
+ *
+ * `CREATE_USER_ACCOUNT` is PLATFORM_ADMIN and was the last action the model
+ * granted with no screen at all. Sign-up is self-serve and passwordless, so this
+ * is the exception: a coach who must exist before a team can name them.
+ *
+ * The assertion that matters is the body. `emailAndPassword` is disabled and
+ * Better Auth links a credential account only `if (ctx.body.password)` — so the
+ * key must be *absent*, not empty, or the row gets a login nobody can use.
+ */
+test.describe("Creating an account", () => {
+  const withGrant = grants({ MANAGE_ALL_USERS: true, CREATE_USER_ACCOUNT: true })
+
+  test("sends no password at all, so no credential account is made", async ({ page }) => {
+    await seedCache(page, [as("ADMIN"), withGrant, events({ canCreate: true })])
+    let body: Record<string, unknown> | undefined
+    await page.route("**/api/auth/admin/create-user", async (route) => {
+      body = JSON.parse(route.request().postData() ?? "{}")
+      await route.fulfill({ status: 200, contentType: "application/json", body: "{}" })
+    })
+    await visit(page, "admin")
+
+    await page.getByTestId("create-account-email").fill("newcoach@remy.test")
+    await page.getByTestId("create-account-name").fill("Wichai Somsak")
+    await page.getByTestId("create-account-role").selectOption("coach")
+    await page.getByTestId("create-account-submit").click()
+
+    await expect.poll(() => body?.email).toBe("newcoach@remy.test")
+    expect(body?.role, "the role must survive the user.create hook's default").toBe("coach")
+    expect("password" in (body ?? {}), "no password key at all").toBe(false)
+  })
+
+  test("is not offered to an admin without the grant", async ({ page }) => {
+    await seedCache(page, [as("ADMIN"), grants({ MANAGE_ALL_USERS: true }), events({ canCreate: true })])
+    await visit(page, "admin")
+
+    await expect(page.getByTestId("admin-console")).toBeVisible()
+    await expect(page.getByTestId("create-account")).toHaveCount(0)
+  })
+})
