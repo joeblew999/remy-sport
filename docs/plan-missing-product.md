@@ -121,19 +121,33 @@ that rather than pretending otherwise.
 
 ## Phase 3 — signing up
 
-The one that blocks people rather than merely omitting a view.
+**Rewritten on pass 3: signing up already worked.** `auth.config.ts` keeps
+`disableSignUp` false, so a first-time address that receives a code gets an
+account, and `user.create.before` gives it `spectator`. So
+`SIGN_UP_AS_SPECTATOR` had been built all along. What did not exist was saying
+you are anything else.
 
-- [ ] Four straightforward paths — spectator, player, coach, organiser. The
-      model grants each to PUBLIC and `user.roleCode` already holds the answer.
-- [ ] The referee path is different by design: `SIGN_UP_AS_REFEREE_REQUEST`
-      creates a `PENDING_APPROVAL` account, which `APPROVE_REFEREE` already
-      resolves in the admin console, and `main.tsx` already tells such a person
-      they are waiting. Three of the four pieces exist; only the request is
-      missing.
-- [ ] Sign-in exists and is email-OTP with no passwords (ADR 012). Sign-up is
-      the same mechanism plus a role, so this adds a choice, not an auth system.
-- [ ] Worker tests: each role signs up and lands with the right role and status;
-      a referee lands `PENDING_APPROVAL` and cannot act until approved.
+- [x] `me.chooseRole` — a spectator says what they are. The roles offered are
+      **derived from the grants**: every `SIGN_UP_AS_*` action the model has,
+      minus the `_REQUEST` suffix. Admin is absent because the PO does not grant
+      it to PUBLIC, not because a list here leaves it out.
+- [x] Only while you are still a spectator. That is the default a new account
+      gets, so this is the sign-up question asked late rather than a way to
+      change role — a coach cannot promote themselves to organiser.
+- [x] The referee path is a **request**, as the model's own naming says. It
+      lands `PENDING_APPROVAL`, which `session.create` already refuses to act
+      on, `main.tsx` already explains to the person waiting, and
+      `admin.approveReferee` already resolves. Three pieces existed; only the
+      request was missing.
+- [x] `components/who-are-you.tsx`, on the profile. Not on the login screen: it
+      cannot know an address is new until the code is verified, so the question
+      would be asked of everybody to serve almost nobody.
+- [x] Worker tests — `tests/worker/sign-up.test.ts`, 6 passing: each role lands
+      correctly, a referee lands pending, a coach cannot promote themselves, and
+      admin is refused by the input schema rather than by a check somebody
+      remembered to write.
+- [x] `coverage-gui` caught `reference.list.roleCode` leaving its OFFSCREEN list
+      the moment a screen rendered it. Removed with the reason.
 
 ## Phase 4 — moderation
 
