@@ -91,7 +91,6 @@ const OFFSCREEN: Record<string, string> = {
   "reference.list.throughTable": "relation resolver configuration",
   "reference.list.throughColumn": "relation resolver configuration",
   "reference.list.activeToColumn": "relation resolver configuration",
-  "reference.list.roleCode": "relation resolver configuration",
   "reference.list.tableName": "which table a vocabulary lives in — plumbing, not a label",
 }
 

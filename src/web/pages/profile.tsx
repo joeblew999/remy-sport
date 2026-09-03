@@ -1,6 +1,7 @@
 import { useLiveGames, useMyEvents } from "../lib/data";
 import { useSession } from "../lib/session";
 import { Invitations } from "../components/invitations";
+import { WhoAreYou } from "../components/who-are-you";
 import { YourPlayers } from "../components/your-players";
 import { YourGames } from "../components/your-games";
 import { Following } from "../components/following";
@@ -118,6 +119,10 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
           <div>
             {/* Above "Your events" because it is the thing to act on, and
                 because accepting one moves an event into the list below it. */}
+            {/* Only for a spectator, which is what every new account starts as.
+                Signing up worked all along; saying what you are did not. */}
+            <WhoAreYou />
+
             <Invitations />
 
             {/* The `guardians` table, which no screen had ever read. A parent

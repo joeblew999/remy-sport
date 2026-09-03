@@ -85,5 +85,79 @@ export const aTeamWithNoGamesIn = (eventId: string): string => {
   return idle
 }
 
+/**
+ * One team's record in one event, from the finished games only.
+ *
+ * The arithmetic a standings row states, derived rather than restated. Two tests
+ * used to carry it as literals — `played: 1, won: 1, pointsFor: 68` — which was
+ * true while `evt_001` had a single game and wrong the moment it had three.
+ *
+ * This is **not** a projection of the standings endpoint and must not become
+ * one. It does not rank, and ranking is where the real logic lives: league
+ * points, then point difference, then points scored, with the Product Owner's
+ * `STANDINGS_POINTS` deciding the first. A test wanting to know the order asks
+ * the API. A test wanting to know that a finished game counted for both sides,
+ * and a scheduled one did not, asks this.
+ */
+export const recordIn = (
+  eventId: string,
+  teamId: string,
+): { played: number; won: number; lost: number; pointsFor: number; pointsAgainst: number } => {
+  const record = { played: 0, won: 0, lost: 0, pointsFor: 0, pointsAgainst: 0 }
+  for (const g of gamesIn(eventId)) {
+    if (g.statusCode !== "FINISHED" || g.homeScore === null || g.awayScore === null) continue
+    const home = g.homeTeamId === teamId
+    if (!home && g.awayTeamId !== teamId) continue
+    const [mine, theirs] = home ? [g.homeScore, g.awayScore] : [g.awayScore, g.homeScore]
+    record.played += 1
+    record.pointsFor += mine
+    record.pointsAgainst += theirs
+    if (mine > theirs) record.won += 1
+    else record.lost += 1
+  }
+  return record
+}
+
+/** The days an event's finished games were played on. */
+const roundsIn = (eventId: string): Set<string> =>
+  new Set(
+    gamesIn(eventId)
+      .filter((g) => g.statusCode === "FINISHED")
+      .map((g) => g.startsAt.slice(0, 10)),
+  )
+
+/**
+ * An event with only one round played, so a standings row cannot have moved.
+ *
+ * "Movement is null until there is something to compare against" was asserted
+ * against `SEED_ENTITIES.events[0]` and a comment claiming the seed plays every
+ * game of an event on one day. That was never true of the league — 17 finished
+ * games on 17 days — it was only true of a tournament that had a single game.
+ *
+ * Both of these throw rather than returning undefined, so a fixture change that
+ * removes the case fails loudly instead of leaving a test asserting nothing.
+ */
+export const anEventWithOneRound = (): string => {
+  const found = SEED_ENTITIES.events.find(
+    (e) => roundsIn(e.id).size < 2 && teamsRegisteredTo(e.id).length > 0,
+  )
+  if (!found) {
+    throw new Error(
+      "every seeded event has played more than one round — nothing covers the " +
+        "case where movement must be null, which is the one that ships",
+    )
+  }
+  return found.id
+}
+
+/** An event with more than one round, where movement is a real number. */
+export const anEventWithSeveralRounds = (): string => {
+  const found = SEED_ENTITIES.events.find((e) => roundsIn(e.id).size > 1)
+  if (!found) {
+    throw new Error("no seeded event has played two rounds — movement can never be non-null")
+  }
+  return found.id
+}
+
 /** An id no fixture uses, for asserting that a filter is applied at all. */
 export const NO_SUCH_TEAM = "team_not_in_the_fixtures"

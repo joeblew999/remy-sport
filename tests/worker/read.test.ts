@@ -12,6 +12,10 @@ import { actorFor, api, post, signIn } from "./helpers"
 import { SEED_ENTITIES, SEED_RELATIONSHIPS } from "../../src/domain/model/entities"
 import {
   aTeamWithNoGamesIn,
+  anEventWithOneRound,
+  gamesIn,
+  anEventWithSeveralRounds,
+  recordIn,
   teamById,
   teamsCoachedBy,
   teamsRegisteredTo,
@@ -391,28 +395,36 @@ describe("Standings are derived from the games, never stored", () => {
   })
 
   it("counts a finished game for both teams, and only a finished one", async () => {
-    // evt_001: gam_001 is FINISHED, team_001 68 – team_003 54.
     const { standings } = (await (await api("/api/standings?eventId=evt_001")).json()) as {
       standings: {
         teamId: string; rank: number; played: number; won: number; lost: number
         pointsFor: number; pointsAgainst: number; pointsDiff: number; leaguePoints: number
       }[]
     }
-    const winner = standings.find((s) => s.teamId === "team_001")!
-    const loser = standings.find((s) => s.teamId === "team_003")!
 
-    expect(winner).toMatchObject({
-      rank: 1, played: 1, won: 1, lost: 0,
-      pointsFor: 68, pointsAgainst: 54, pointsDiff: 14,
-      // The PO's STANDINGS_POINTS: two for a win.
-      leaguePoints: 2,
-    })
-    expect(loser).toMatchObject({
-      played: 1, won: 0, lost: 1,
-      pointsFor: 54, pointsAgainst: 68, pointsDiff: -14, leaguePoints: 0,
-    })
-    // team_004 is registered to evt_001 and has no fixture.
-    expect(standings.find((s) => s.teamId === "team_004")?.played).toBe(0)
+    /**
+     * Derived, not restated. This asserted `played: 1, pointsFor: 68` as
+     * literals, which was true while evt_001 had one game and broke the day it
+     * had three — for a reason with nothing to do with what it tests.
+     */
+    for (const teamId of teamsRegisteredTo("evt_001")) {
+      const row = standings.find((s) => s.teamId === teamId)!
+      const expected = recordIn("evt_001", teamId)
+      expect(row, `${teamId}'s record should be the finished games and nothing else`).toMatchObject({
+        ...expected,
+        pointsDiff: expected.pointsFor - expected.pointsAgainst,
+        // The PO's STANDINGS_POINTS: two for a win.
+        leaguePoints: expected.won * 2,
+      })
+    }
+
+    // The point of the test: a scheduled game is not a played one. evt_001 has
+    // at least one of each, and the totals above must not have counted it.
+    const scheduled = gamesIn("evt_001").filter((g) => g.statusCode !== "FINISHED")
+    expect(scheduled.length, "evt_001 should still hold an unplayed game").toBeGreaterThan(0)
+    const playedRows = standings.reduce((n, s) => n + s.played, 0)
+    const finished = gamesIn("evt_001").filter((g) => g.statusCode === "FINISHED").length
+    expect(playedRows, "each finished game counts once for each of its two teams").toBe(finished * 2)
   })
 
   it("is public — reading a table needs no account", async () => {
@@ -740,14 +752,34 @@ describe("Rank movement", () => {
    * comparison that has not been made. That is what this asserts — the null
    * case is the one that ships, and a zero here would be a lie.
    */
-  it("is null while every game was played on the same day", async () => {
-    const event = SEED_ENTITIES.events[0]!
-    const { standings } = (await (await api(`/api/standings?eventId=${event.id}`)).json()) as {
+  it("is null until a second round has been played", async () => {
+    const eventId = anEventWithOneRound()
+    const { standings } = (await (await api(`/api/standings?eventId=${eventId}`)).json()) as {
       standings: { teamId: string; movement: number | null }[]
     }
     expect(standings.length, "the seed should register teams for this event").toBeGreaterThan(0)
     for (const row of standings) {
       expect(row.movement, `${row.teamId} claims movement with no earlier round`).toBeNull()
+    }
+  })
+
+  /**
+   * The other half, which nothing covered until the fixtures grew a second round.
+   *
+   * `movement` was null in every seeded row, so the branch that computes it had
+   * never run against real data — the same defect as a column no row fills. It
+   * was invisible because the null case is the one that ships and the test above
+   * asserted exactly that.
+   */
+  it("is a number once there is an earlier round to compare against", async () => {
+    const eventId = anEventWithSeveralRounds()
+    const { standings } = (await (await api(`/api/standings?eventId=${eventId}`)).json()) as {
+      standings: { teamId: string; played: number; movement: number | null }[]
+    }
+    const played = standings.filter((s) => s.played > 0)
+    expect(played.length, "an event with two rounds should have teams that played").toBeGreaterThan(0)
+    for (const row of played) {
+      expect(row.movement, `${row.teamId} has played and reports no movement`).not.toBeNull()
     }
   })
 
