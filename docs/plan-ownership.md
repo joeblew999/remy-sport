@@ -315,10 +315,20 @@ it stood. A box removed silently is indistinguishable from one forgotten.
 
 #### The bound, so this actually finishes
 
-New boxes only for **the class this plan is about**: something claiming to be
-yours that is not, a second copy of a grant rule, a surface that lies about what
-exists. Everything else found along the way goes under **Noticed, out of scope**
-in the log — one line, no box, no work.
+**The bound is the model, not a count of boxes.** Every box must trace to one of
+three finite lists:
+
+- one of the **actions** the model grants,
+- one of the **entity kinds** a person can be related to,
+- one of the **screens that exist** at the time of the pass.
+
+When every action has a home or a "not built", every entity kind has a home, and
+every screen has been walked, there is nothing left that can generate a box. That
+is why this terminates.
+
+If a finding cannot be traced to one of those three, it is not this plan's work,
+however real. It goes under **Noticed, out of scope** in the log — one line, no
+box, no work.
 
 That distinction is what stops a self-evolving plan becoming an infinite one.
 Today's session is the warning: it started with one broken push notification and
