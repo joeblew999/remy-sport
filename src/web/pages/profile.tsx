@@ -1,4 +1,4 @@
-import { useEvents, useLiveGames } from "../lib/data";
+import { useLiveGames, useMyEvents } from "../lib/data";
 import { useSession } from "../lib/session";
 import { Invitations } from "../components/invitations";
 import { YourPlayers } from "../components/your-players";
@@ -22,20 +22,34 @@ import { m } from "../lib/i18n";
  * dashboard made mostly of fixtures, where it reads as an apology for the page
  * rather than a warning about one section.
  *
- * What is left is true. Your events are the ones the model says you may edit —
- * `canEdit`, resolved per event and per viewer, so a co-organiser sees theirs
- * and a spectator sees none. The live section is the real broadcast list, the
- * same source the Live page reads.
+ * What is left is true. Your events come from `events.mine` — the ones you own,
+ * co-organise, or follow — so a parent following their child sees theirs and
+ * not an empty list. The live section is the real broadcast list, the same
+ * source the Live page reads.
  */
 export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
   const { user } = useSession();
-  const { data: events = [], isPending: eventsLoading } = useEvents();
+  const { data: myEvents, isPending: eventsLoading } = useMyEvents();
   const { data: live, isPending: liveLoading } = useLiveGames();
 
-  // Yours, by the model's answer rather than by a heading. `canEdit` is
-  // EDIT_EVENT resolved for this reader, so this is empty for a spectator —
-  // which is correct, and is what the old version hid by showing everybody's.
-  const mine = events.filter((e) => e.canEdit);
+  /**
+   * Yours, as the server resolves it — not "everything, filtered by canEdit".
+   *
+   * This page used to fetch `events.list` and keep the rows where `canEdit`
+   * was true. Two things wrong with that. It downloads every event on the
+   * platform to show you a handful, on the phone-in-a-school-gym network this
+   * product is for. And it defines "yours" as "editable by you", so a player, a
+   * referee, or a parent following their child saw an empty list — the people
+   * this page exists for most.
+   *
+   * `events.mine` is the model's own answer: OWNER, CO_ORGANIZER or
+   * FOLLOWER_EVENT, found by asking the resolver which events you hold a
+   * relation on, so the authorisation is the query. Its own note in
+   * src/api/events.ts says this replaced "a nav item that pointed at Discover
+   * and showed everybody the same four events" — that fix landed on the nav
+   * item and this page kept the old behaviour.
+   */
+  const mine = [...(myEvents?.organising ?? []), ...(myEvents?.following ?? [])];
   // Only what can actually be watched. A "watch" link on a game nobody is
   // filming is a link to a black rectangle.
   const watchable = (live?.games ?? []).filter((g) => g.isBroadcasting);

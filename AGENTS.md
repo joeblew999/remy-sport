@@ -34,7 +34,11 @@ Short. Plain. Answer the question that was asked.
   flatly, with no cushioning around them.
 - Never explain at length instead of answering. If the reply is longer than the
   question deserves, it is deflection wearing a suit.
-- Skip the recap of what you just did. They watched.
+- Say what you are about to do, before you do it. One line. Not after.
+- Command output is not an explanation. After a change, say what changed and
+  what it means for a person using the app — in words, not a transcript.
+- If they ask "what?" or "why?", the last thing you said was wrong. Answer in
+  two sentences. No headings, no tables.
 
 **Only the traps live here.** Anything you can get from `mise tasks`, from the
 code, or from a ten-second grep has been deleted — prose rots and nothing checks

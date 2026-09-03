@@ -317,6 +317,7 @@
   "roster": "ロースター",
   "roster_empty": "このロースターにはまだ選手がいません。",
   "roster_since": "{date}から",
+  "route_not_found": "そのページは存在しません。",
   "sample_data": "サンプルデータ",
   "sample_data_note": "この画面の内容はすべて架空です。まだデータのない機能のプレビューです。",
   "schedule": "日程",

@@ -317,6 +317,7 @@
   "roster": "Roster",
   "roster_empty": "No players on this roster yet.",
   "roster_since": "Since {date}",
+  "route_not_found": "That page does not exist.",
   "sample_data": "SAMPLE DATA",
   "sample_data_note": "Nothing on this screen is real — it is a preview of a feature that has no data behind it yet.",
   "schedule": "Schedule",

@@ -3,6 +3,7 @@ import { BuildStamp } from "./build-stamp";
 import { initialsFor } from "./account";
 import { useSession } from "../lib/session";
 import { m } from "../lib/i18n";
+import type { Page } from "../lib/router";
 
 /**
  * Who is actually signed in.
@@ -33,7 +34,7 @@ function UserCard() {
 }
 
 interface NavItem {
-  id: string;
+  id: Page;
   label: string;
 }
 
@@ -79,7 +80,7 @@ const navItems = (): NavItem[] => [
   { id: "profile",   label: m.nav_profile() },
 ];
 
-export function Sidebar({ page, setPage }: { page: string; setPage: (p: string) => void }) {
+export function Sidebar({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
   const NAV_ITEMS = navItems();
   return (
     <aside className="sidebar">

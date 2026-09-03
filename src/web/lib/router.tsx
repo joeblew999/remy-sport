@@ -4,8 +4,48 @@
 
 import { useEffect, useState } from "react";
 
+/**
+ * Every page, once. This is the list; nothing else may declare one.
+ *
+ * There were three, and they disagreed. `parseHash` accepted any string as a
+ * page, `main.tsx` was sixteen hand-written `route.page === "x"` branches, and
+ * `ROUTES` below was a third array maintained for the tests. Nothing tied them
+ * together, so the app shipped with `my-events` listed in ROUTES and rendered
+ * by nothing: `#/my-events` was a blank pane inside the chrome. `#roster`, or
+ * any typo, did the same — the branches all missed and the page rendered
+ * nothing at all, with no error anywhere.
+ *
+ * The route-walking spec did not catch it because it asserts `#root` is
+ * non-empty, and the sidebar is always there.
+ *
+ * With `Page` as a union, an unknown page is a compile error rather than an
+ * empty screen, `renderPage` in main.tsx is a `Record<Page, …>` so a page with
+ * no screen will not build, and ROUTES is derived rather than restated.
+ */
+export const PAGES = [
+  "discover",
+  "events",
+  "event",
+  "bracket",
+  "live",
+  "team",
+  "profile",
+  "login",
+  "devices",
+  "admin",
+  "orgs",
+  "org",
+  "broadcast",
+  "watch",
+  "not-found",
+] as const;
+
+export type Page = (typeof PAGES)[number];
+
+const isPage = (s: string): s is Page => (PAGES as readonly string[]).includes(s);
+
 export interface Route {
-  page: string;
+  page: Page;
   id?: string;
   /**
    * Everything after `?`, for state that belongs in the address bar.
@@ -33,11 +73,10 @@ function parseHash(): Route {
     for (const [key, value] of new URLSearchParams(search)) query[key] = value;
   }
   const parts = (path ?? "").split("/").filter(Boolean);
-  const base: Route = parts.length === 0
-    ? { page: "discover" }
-    : parts[1]
-      ? { page: parts[0]!, id: parts[1] }
-      : { page: parts[0]! };
+  // An unrecognised page is "not-found", never itself. This is the line that
+  // turned `#roster` into a blank pane: it used to take `parts[0]` on trust.
+  const page: Page = parts.length === 0 ? "discover" : isPage(parts[0]!) ? (parts[0] as Page) : "not-found";
+  const base: Route = parts[1] ? { page, id: parts[1] } : { page };
   return Object.keys(query).length ? { ...base, query } : base;
 }
 
@@ -62,23 +101,33 @@ function serialize(route: Route): string {
  * Kept beside the router rather than in the test because it is a fact about the
  * app, and because a second list in a test file is the thing that drifts.
  */
-export const ROUTES = [
+/**
+ * Derived from PAGES, not restated beside it.
+ *
+ * This was a hand-written array and it had drifted: it listed `#/my-events`,
+ * which no branch in main.tsx rendered, so the spec walked to a blank page and
+ * passed. A list maintained next to the thing it describes is a list that will
+ * disagree with it.
+ *
+ * The ids are seeded fixtures — a detail page has to render something to be
+ * worth visiting. `not-found` is excluded because it is the answer to an
+ * unroutable hash rather than a destination.
+ */
+const DETAIL_IDS: Partial<Record<Page, string>> = {
+  event: "evt_001",
+  org: "org_001",
+  team: "team_001",
+  bracket: "evt_001",
+  broadcast: "gam_002",
+  watch: "gam_002",
+};
+
+export const ROUTES: readonly string[] = [
   "/",
-  "#/live",
-  "#/events",
-  "#/my-events",
-  "#/profile",
-  "#/team",
-  "#/orgs",
-  "#/admin",
-  "#/devices",
-  "#/login",
-  "#/event/evt_001",
-  "#/org/org_001",
-  "#/team/team_001",
-  "#/broadcast/gam_002",
-  "#/watch/gam_002",
-] as const
+  ...PAGES.filter((p) => p !== "discover" && p !== "not-found").map((p) =>
+    DETAIL_IDS[p] ? `#/${p}/${DETAIL_IDS[p]}` : `#/${p}`,
+  ),
+]
 
 export interface RouterAPI {
   route: Route;

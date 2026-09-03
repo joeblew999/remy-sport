@@ -5,7 +5,7 @@ import { Sidebar } from "./components/sidebar";
 import { Topbar } from "./components/topbar";
 import { isNativeApp, pushState } from "./lib/push";
 import { useNativeScoreNotifications } from "./lib/data";
-import { useRouter } from "./lib/router";
+import { useRouter, type Page } from "./lib/router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LocaleProvider, useLocale, type Locale } from "./lib/locale";
 import { useSession } from "./lib/session";
@@ -160,9 +160,65 @@ function App() {
     setSpoiler(prev => typeof fn === "function" ? fn(prev) : fn);
   };
 
-  const setPageAndCloseDrawer = (p: string) => {
+  const setPageAndCloseDrawer = (p: Page) => {
     goto({ page: p });
     setNavOpen(false);
+  };
+
+  /**
+   * Every page's screen, keyed by page. Exhaustive by type.
+   *
+   * `broadcast` and `watch` are the only lazy ones and share a Suspense
+   * boundary, because they are one chunk — see the note on their imports. The
+   * fallback is the app's ordinary loading line rather than a spinner: this is
+   * a page arriving, which is what every other page does too.
+   *
+   * There is deliberately no `standings` page. A league table belongs to an
+   * event — there is no such thing as "the standings" across all of them — and
+   * the standalone page carried a hardcoded header to hide that. It lives on
+   * the event's Standings tab.
+   */
+  const lazily = (node: React.ReactNode) => (
+    <Suspense fallback={<div className="empty">{loadingLabel()}</div>}>{node}</Suspense>
+  );
+
+  const RENDER: Record<Page, () => React.ReactNode> = {
+    discover: () => (
+      <DiscoverPage goto={goto} spoiler={spoiler} query={route.query} setParam={setParam}/>
+    ),
+    events: () => <MyEventsPage goto={goto}/>,
+    event: () => <EventPage id={route.id} goto={goto} spoiler={spoiler}/>,
+    bracket: () => <EventPage id={route.id} goto={goto} spoiler={spoiler}/>,
+    live: () => <LivePage goto={goto} spoiler={spoiler} setSpoiler={handleSpoilerSet}/>,
+    team: () => <TeamPage id={route.id} goto={goto}/>,
+    profile: () => <ProfilePage goto={goto}/>,
+    login: () => <LoginPage goto={goto}/>,
+    devices: () => <DevicesPage goto={goto}/>,
+    admin: () => <AdminPage goto={goto}/>,
+    orgs: () => <OrgsPage goto={goto}/>,
+    org: () => <OrgPage id={route.id} goto={goto}/>,
+    // Two surfaces, one per direction. `#/broadcast/<gameId>` points a camera
+    // at a game; `#/watch/<gameId>` receives it. Separate pages rather than one
+    // with a mode, because they need different permissions from the browser and
+    // fail in different ways.
+    broadcast: () => lazily(<BroadcastPage id={route.id} goto={goto}/>),
+    watch: () => lazily(<WatchPage id={route.id} goto={goto}/>),
+    /**
+     * The address bar said something this app does not serve.
+     *
+     * Reached from `parseHash`, which now resolves an unrecognised page here
+     * rather than passing it through. Says so, and offers the way back — the
+     * previous behaviour was an empty pane, which reads as the app being broken
+     * rather than the link being wrong.
+     */
+    "not-found": () => (
+      <div className="empty" data-testid="route-not-found">
+        <p>{m.route_not_found()}</p>
+        <button className="btn primary" onClick={() => goto({ page: "discover" })}>
+          {m.browse()}
+        </button>
+      </div>
+    ),
   };
 
   return (
@@ -174,32 +230,21 @@ function App() {
           <Topbar spoiler={spoiler} setSpoiler={handleSpoilerSet} onMenu={() => setNavOpen(o => !o)} goto={goto}/>
           <PendingApprovalNotice />
           <div className="page">
-            {route.page === "discover" && (
-              <DiscoverPage goto={goto} spoiler={spoiler} query={route.query} setParam={setParam}/>
-            )}
-            {route.page === "events" && <MyEventsPage goto={goto}/>}
-            {route.page === "event" && <EventPage id={route.id} goto={goto} spoiler={spoiler}/>}
-            {route.page === "live" && <LivePage goto={goto} spoiler={spoiler} setSpoiler={handleSpoilerSet}/>}
-            {route.page === "team" && <TeamPage id={route.id} goto={goto}/>}
-            {route.page === "profile" && <ProfilePage goto={goto}/>}
-            {route.page === "login" && <LoginPage goto={goto}/>}
-            {route.page === "devices" && <DevicesPage goto={goto}/>}
-            {route.page === "admin" && <AdminPage goto={goto}/>}
-            {route.page === "orgs" && <OrgsPage goto={goto}/>}
-            {/* Two surfaces, one per direction. `#/broadcast/<gameId>` points a
-                camera at a game; `#/watch/<gameId>` receives it. Separate pages
-                rather than one with a mode, because they need different
-                permissions from the browser and fail in different ways. */}
-            {(route.page === "broadcast" || route.page === "watch") && (
-              /* One boundary for both, because they are one chunk. The fallback
-                 is the app's ordinary loading line rather than a spinner: this
-                 is a page arriving, which is what every other page does too. */
-              <Suspense fallback={<div className="empty">{loadingLabel()}</div>}>
-                {route.page === "broadcast" && <BroadcastPage id={route.id} goto={goto}/>}
-                {route.page === "watch" && <WatchPage id={route.id} goto={goto}/>}
-              </Suspense>
-            )}
-            {route.page === "org" && <OrgPage id={route.id} goto={goto}/>}
+            {/*
+              One entry per page, and the type makes that mandatory.
+
+              This was sixteen `route.page === "x"` branches with no else, so a
+              page nobody had written a branch for rendered NOTHING — the
+              sidebar and an empty pane, no error, no clue. `#/my-events` shipped
+              that way: listed in ROUTES, rendered by no branch, and walked by
+              the route spec, which passed because it only checks that `#root`
+              is non-empty and the chrome always is.
+
+              `Record<Page, …>` is what stops it recurring. Adding a page to
+              PAGES without a screen here is a compile error, not a blank
+              screen a reader finds.
+            */}
+            {RENDER[route.page]()}
             {/* No standalone #/standings. A league table belongs to an event —
                 there is no such thing as "the standings" across all of them —
                 and the page carried a hardcoded header to hide that: "Bangkok
