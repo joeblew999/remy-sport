@@ -443,6 +443,9 @@ export const eventTeamRelations = relations(eventTeam, ({ one }) => ({
 }))
 
 export const FIXTURE_TABLES = {
+  eventSessions: eventSession,
+  sessionAttendances: sessionAttendance,
+  gameBroadcasts: gameBroadcast,
   orgMembers: orgMember,
   divisions: division,
   orgs: org,

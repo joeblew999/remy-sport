@@ -210,6 +210,16 @@ for (const u of SEED_ENTITIES.users) {
       names: JSON.stringify(u.names),
       localeCode: u.localeCode,
       statusCode: u.statusCode,
+      /**
+       * Banned is Better Auth's, `status_code` is the domain's, and they are not
+       * the same fact. One refuses a sign-in; the other is where a person is in
+       * their lifecycle. The seed has one row where both are true, which is what
+       * you would want of a suspended account — it is not a rule, and nothing
+       * should derive either from the other.
+       */
+      banned: "banned" in u ? u.banned : null,
+      banReason: "banReason" in u ? u.banReason : null,
+      banExpires: "banExpires" in u ? u.banExpires : null,
       } satisfies Partial<typeof schema.user.$inferInsert>,
       // Upserted, not ignored. These rows outlive the schema — `status_code`
       // was added by migration 0008 and every existing row kept a null,
@@ -292,6 +302,10 @@ for (const e of SEED_ENTITIES.events) {
       // no column until migration 0008, so a page could only say who organises
       // an event and never which school or federation runs it.
       orgId: e.orgId,
+      // Optional in the model and optional here. Two of the four seeded events
+      // carry one and two do not, so the section's empty state stays covered —
+      // a column every row fills is one whose empty branch has never rendered.
+      description: "description" in e ? e.description : null,
       organizerUserId: e.organizerUserId,
       createdAt: AT,
       updatedAt: AT,

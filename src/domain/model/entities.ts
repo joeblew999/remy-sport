@@ -51,9 +51,9 @@ export const SEED_ENTITIES = {
     {"id":"div_006","ageGroupCode":"U16","genderCode":"M","skillTierCode":"PREMIER","names":divisionName("U16","M","PREMIER")},
   ],
   events: [
-    {"id":"evt_001","typeCode":"TOURNAMENT","timezone":"Asia/Bangkok","formatCode":"5x5","organizerUserId":"usr_org_001","orgId":"org_001","startDate":"2026-06-10","endDate":"2026-06-15","cityCode":"BANGKOK","provinceCode":"BKK","isFibaCertified":false,"names":{"th":"การแข่งขัน Sponsor Thailand Basketball League 2026 รอบกรุงเทพ","en":"Sponsor Thailand Basketball League 2026 — Bangkok Round"}},
+    {"id":"evt_001","typeCode":"TOURNAMENT","timezone":"Asia/Bangkok","formatCode":"5x5","organizerUserId":"usr_org_001","orgId":"org_001","startDate":"2026-06-10","endDate":"2026-06-15","description":"Four days of U16 and U18 boys' basketball at Assumption College, opening the 2026 league season. Group stage on the Wednesday and Thursday, finals on the Saturday.","cityCode":"BANGKOK","provinceCode":"BKK","isFibaCertified":false,"names":{"th":"การแข่งขัน Sponsor Thailand Basketball League 2026 รอบกรุงเทพ","en":"Sponsor Thailand Basketball League 2026 — Bangkok Round"}},
     {"id":"evt_002","typeCode":"LEAGUE","timezone":"Asia/Bangkok","formatCode":"5x5","organizerUserId":"usr_org_002","orgId":null,"startDate":"2026-05-01","endDate":"2026-09-30","cityCode":"BANGKOK","provinceCode":"BKK","isFibaCertified":false,"names":{"th":"ลีกบาสเกตบอลโรงเรียนกรุงเทพ ฤดูกาล 2026","en":"Bangkok Schools Basketball League 2026"}},
-    {"id":"evt_003","typeCode":"CAMP","timezone":"Asia/Bangkok","formatCode":"5x5","organizerUserId":"usr_org_003","orgId":"org_003","startDate":"2026-04-15","endDate":"2026-04-19","cityCode":"CHIANG_MAI","provinceCode":"CMI","isFibaCertified":false,"names":{"th":"ค่ายฝึกบาสเกตบอลภาคฤดูร้อน เชียงใหม่ 2026","en":"Chiang Mai Summer Basketball Camp 2026"}},
+    {"id":"evt_003","typeCode":"CAMP","timezone":"Asia/Bangkok","formatCode":"5x5","organizerUserId":"usr_org_003","orgId":"org_003","startDate":"2026-04-15","endDate":"2026-04-19","description":"A five-day skills camp for players aged 13 to 17. Mornings are technical work; the closing afternoon is for families. Bring indoor shoes and a water bottle.","cityCode":"CHIANG_MAI","provinceCode":"CMI","isFibaCertified":false,"names":{"th":"ค่ายฝึกบาสเกตบอลภาคฤดูร้อน เชียงใหม่ 2026","en":"Chiang Mai Summer Basketball Camp 2026"}},
     {"id":"evt_004","typeCode":"SHOWCASE","timezone":"Asia/Bangkok","formatCode":"5x5","organizerUserId":"usr_org_001","orgId":"org_004","startDate":"2026-08-01","endDate":"2026-08-02","cityCode":"BANGKOK","provinceCode":"BKK","isFibaCertified":true,"names":{"th":"การโชว์ผู้เล่นบาสเกตบอลประเทศไทย 2026","en":"Thailand Basketball Showcase 2026"}},
   ],
   orgs: [
@@ -223,7 +223,18 @@ export const SEED_ENTITIES = {
     {"id":"usr_referee_001","roleCode":"REFEREE","statusCode":"ACTIVE","email":"adisorn.b@bat.test","phone":"+66812340041","lineId":"ref_adisorn","localeCode":"th","names":{"th":"อดิศร บุญชัย","en":"Adisorn Boonchai"}},
     {"id":"usr_referee_002","roleCode":"REFEREE","statusCode":"PENDING_APPROVAL","email":"waraporn.j@bat.test","phone":"+66812340042","lineId":"ref_waraporn","localeCode":"th","names":{"th":"วราภรณ์ ใจงาม","en":"Waraporn Jaingam"}},
 
-    {"id":"usr_spectator_002","roleCode":"SPECTATOR","statusCode":"SUSPENDED","email":"suspended.s@example.test","phone":"+66812340041","lineId":"suspended_s","localeCode":"th","names":{"th":"สมพร ระงับ","en":"Somporn Rangap"}},
+
+    {"id":"usr_coach_004","roleCode":"COACH","statusCode":"ACTIVE","email":"chalerm.n@stgabriel.test","phone":"+66812340014","lineId":"coach_chalerm","localeCode":"th","names":{"th":"เฉลิม นาคสุข","en":"Chalerm Naksuk"}},
+    {"id":"usr_coach_005","roleCode":"COACH","statusCode":"ACTIVE","email":"duangjai.p@suankularb.test","phone":"+66812340015","lineId":"coach_duangjai","localeCode":"th","names":{"th":"ดวงใจ ผลบุญ","en":"Duangjai Phonbun"}},
+    {"id":"usr_coach_006","roleCode":"COACH","statusCode":"ACTIVE","email":"anan.t@bcc.test","phone":"+66812340016","lineId":"coach_anan","localeCode":"th","names":{"th":"อนันต์ ธรรมรักษ์","en":"Anan Thammarak"}},
+    {"id":"usr_coach_007","roleCode":"COACH","statusCode":"ACTIVE","email":"suphaporn.r@bangkokbc.test","phone":"+66812340017","lineId":"coach_suphaporn","localeCode":"th","names":{"th":"สุภาพร รุ่งเรือง","en":"Suphaporn Rungrueang"}},
+    {"id":"usr_coach_008","roleCode":"COACH","statusCode":"ACTIVE","email":"malee.k@satriwit.test","phone":"+66812340018","lineId":"coach_malee","localeCode":"th","names":{"th":"มาลี กิจเจริญ","en":"Malee Kitcharoen"}},
+    {"id":"usr_coach_009","roleCode":"COACH","statusCode":"ACTIVE","email":"nongnuch.s@acconvent.test","phone":"+66812340019","lineId":"coach_nongnuch","localeCode":"th","names":{"th":"นงนุช สมบูรณ์","en":"Nongnuch Somboon"}},
+
+    {"id":"usr_spectator_004","roleCode":"SPECTATOR","statusCode":"ACTIVE","email":"nattaya.b@example.test","phone":"+66812340032","lineId":"nattaya_mom","localeCode":"th","names":{"th":"ณัฐญา บุญรอด","en":"Nattaya Boonrod"}},
+    {"id":"usr_spectator_005","roleCode":"SPECTATOR","statusCode":"ACTIVE","email":"prasit.j@example.test","phone":"+66812340033","lineId":"prasit_pa","localeCode":"th","names":{"th":"ประสิทธิ์ ใจดี","en":"Prasit Jaidee"}},
+
+    {"id":"usr_spectator_002","roleCode":"SPECTATOR","statusCode":"SUSPENDED","email":"suspended.s@example.test","phone":"+66812340041","lineId":"suspended_s","localeCode":"th","names":{"th":"สมพร ระงับ","en":"Somporn Rangap"},"banned":true,"banReason":"Repeated abusive comments on a team page, after two warnings.","banExpires":"2026-12-31"},
     {"id":"usr_spectator_003","roleCode":"SPECTATOR","statusCode":"DEACTIVATED","email":"closed.c@example.test","phone":"+66812340042","lineId":"closed_c","localeCode":"en","names":{"th":"ชนิดา ปิดบัญชี","en":"Chanida Pidbanchi"}},
   ],
   /**
@@ -269,6 +280,8 @@ export const SEED_ENTITIES = {
     {"id":"gam_027","eventId":"evt_002","homeTeamId":"team_012","awayTeamId":"team_013","venueId":"ven_002","startsAt":"2026-08-28T14:00:00Z","statusCode":"HALF_TIME","homeScore":28,"awayScore":46},
     {"id":"gam_028","eventId":"evt_002","homeTeamId":"team_012","awayTeamId":"team_014","venueId":"ven_002","startsAt":"2026-09-01T14:00:00Z","statusCode":"SCHEDULED","homeScore":null,"awayScore":null},
     {"id":"gam_029","eventId":"evt_002","homeTeamId":"team_013","awayTeamId":"team_014","venueId":"ven_001","startsAt":"2026-09-26T14:00:00Z","statusCode":"SCHEDULED","homeScore":null,"awayScore":null},
+    {"id":"gam_030","eventId":"evt_001","homeTeamId":"team_003","awayTeamId":"team_001","venueId":"ven_001","startsAt":"2026-06-12T10:00:00Z","statusCode":"FINISHED","homeScore":61,"awayScore":66},
+    {"id":"gam_031","eventId":"evt_001","homeTeamId":"team_001","awayTeamId":"team_003","venueId":"ven_002","startsAt":"2026-06-14T10:00:00Z","statusCode":"SCHEDULED","homeScore":null,"awayScore":null},
   ],
   venues: [
     {"id":"ven_001","address":"26 Charoen Krung Rd","cityCode":"BANGKOK","provinceCode":"BKK","names":{"th":"สนามกีฬาในร่ม โรงเรียนอัสสัมชัญ","en":"Assumption College Indoor Court"}},
@@ -280,6 +293,55 @@ export const SEED_ENTITIES = {
 
 /** The join rows between them: rosters, registrations, guardians, follows. */
 export const SEED_RELATIONSHIPS = {
+  /**
+   * A camp trains rather than competes, so it has sessions where a league has
+   * fixtures. evt_003 runs 2026-04-15..19 at ven_003 in Chiang Mai; these are
+   * its four mornings and one closing afternoon.
+   *
+   * Times are stored as UTC instants and read in the venue's zone — 02:00Z is
+   * 09:00 in Bangkok, which is what a parent dropping a child off needs.
+   * Getting that backwards is the mistake this data exists to catch.
+   */
+  eventSessions: [
+    {"id":"ses_001","eventId":"evt_003","venueId":"ven_003","startsAt":"2026-04-15T02:00:00Z","endsAt":"2026-04-15T04:30:00Z","names":{"th":"พื้นฐานการเลี้ยงและส่งบอล","en":"Ball handling and passing"}},
+    {"id":"ses_002","eventId":"evt_003","venueId":"ven_003","startsAt":"2026-04-16T02:00:00Z","endsAt":"2026-04-16T04:30:00Z","names":{"th":"พื้นฐานการยิงประตู","en":"Shooting fundamentals"}},
+    {"id":"ses_003","eventId":"evt_003","venueId":"ven_003","startsAt":"2026-04-17T02:00:00Z","endsAt":"2026-04-17T04:30:00Z","names":{"th":"การป้องกันและการรีบาวด์","en":"Defence and rebounding"}},
+    {"id":"ses_004","eventId":"evt_003","venueId":"ven_003","startsAt":"2026-04-18T02:00:00Z","endsAt":"2026-04-18T04:30:00Z","names":{"th":"เกมทีมและการเคลื่อนที่","en":"Team play and movement"}},
+    // No venue: the closing session is wherever the families can be gathered,
+    // and it is not decided until the week. The product renders "Venue TBC".
+    {"id":"ses_005","eventId":"evt_003","venueId":null,"startsAt":"2026-04-19T07:00:00Z","endsAt":"2026-04-19T09:00:00Z","names":{"th":"วันปิดค่ายและมอบเกียรติบัตร","en":"Closing day and certificates"}},
+  ],
+  /**
+   * Who turned up. Three players are registered to the camp through
+   * eventPlayers, and ply_006 misses the middle two days — an attendance table
+   * whose every row says yes has not been tested.
+   */
+  sessionAttendances: [
+    {"sessionId":"ses_001","playerId":"ply_001","recordedAt":"2026-04-15T02:10:00Z"},
+    {"sessionId":"ses_001","playerId":"ply_004","recordedAt":"2026-04-15T02:10:00Z"},
+    {"sessionId":"ses_001","playerId":"ply_006","recordedAt":"2026-04-15T02:10:00Z"},
+    {"sessionId":"ses_002","playerId":"ply_001","recordedAt":"2026-04-16T02:10:00Z"},
+    {"sessionId":"ses_002","playerId":"ply_004","recordedAt":"2026-04-16T02:10:00Z"},
+    {"sessionId":"ses_003","playerId":"ply_001","recordedAt":"2026-04-17T02:10:00Z"},
+    {"sessionId":"ses_003","playerId":"ply_004","recordedAt":"2026-04-17T02:10:00Z"},
+    {"sessionId":"ses_004","playerId":"ply_001","recordedAt":"2026-04-18T02:10:00Z"},
+    {"sessionId":"ses_004","playerId":"ply_004","recordedAt":"2026-04-18T02:10:00Z"},
+    {"sessionId":"ses_004","playerId":"ply_006","recordedAt":"2026-04-18T02:10:00Z"},
+    {"sessionId":"ses_005","playerId":"ply_001","recordedAt":"2026-04-19T07:10:00Z"},
+    {"sessionId":"ses_005","playerId":"ply_004","recordedAt":"2026-04-19T07:10:00Z"},
+    {"sessionId":"ses_005","playerId":"ply_006","recordedAt":"2026-04-19T07:10:00Z"},
+  ],
+  /**
+   * One game being broadcast right now.
+   *
+   * gam_002 is LIVE, and until this row existed the watch and broadcast pages
+   * had only ever rendered against payloads a test invented. A broadcast is
+   * app-level bookkeeping rather than the sport, but a seeded one is the
+   * difference between a page that has been seen working and one that has not.
+   */
+  gameBroadcasts: [
+    {"gameId":"gam_002","userId":"usr_org_002","startedAt":"2026-05-02T09:55:00Z","lastSeenAt":"2026-05-02T10:32:00Z"},
+  ],
   eventCoOrganizers: [
     {"eventId":"evt_001","userId":"usr_org_002","addedAt":"2026-04-05","statusCode":"ACCEPTED"},
 
@@ -366,20 +428,31 @@ export const SEED_RELATIONSHIPS = {
   ],
   guardians: [
     {"userId":"usr_spectator_001","playerId":"ply_001","guardianTypeCode":"PARENT"},
+    {"userId":"usr_spectator_001","playerId":"ply_002","guardianTypeCode":"PARENT"},
 
-    {"playerId":"ply_002","userId":"usr_spectator_001","guardianTypeCode":"GRANDPARENT"},
-    {"playerId":"ply_003","userId":"usr_spectator_001","guardianTypeCode":"LEGAL_GUARDIAN"},
-    {"playerId":"ply_006","userId":"usr_spectator_001","guardianTypeCode":"OTHER"},
+    {"userId":"usr_spectator_004","playerId":"ply_003","guardianTypeCode":"PARENT"},
+    {"userId":"usr_spectator_005","playerId":"ply_003","guardianTypeCode":"GRANDPARENT"},
+    {"userId":"usr_spectator_005","playerId":"ply_006","guardianTypeCode":"LEGAL_GUARDIAN"},
   ],
   orgMembers: [
     {"orgId":"org_001","userId":"usr_org_001","orgRoleCode":"OWNER"},
     {"orgId":"org_001","userId":"usr_coach_001","orgRoleCode":"ADMIN"},
     {"orgId":"org_002","userId":"usr_org_002","orgRoleCode":"MEMBER"},
+
+    {"orgId":"org_003","userId":"usr_org_003","orgRoleCode":"OWNER"},
+    {"orgId":"org_003","userId":"usr_coach_003","orgRoleCode":"ADMIN"},
+    {"orgId":"org_004","userId":"usr_org_001","orgRoleCode":"MEMBER"},
+    {"orgId":"org_005","userId":"usr_coach_007","orgRoleCode":"OWNER"},
+    {"orgId":"org_006","userId":"usr_coach_004","orgRoleCode":"OWNER"},
+    {"orgId":"org_007","userId":"usr_coach_005","orgRoleCode":"OWNER"},
+    {"orgId":"org_008","userId":"usr_coach_006","orgRoleCode":"OWNER"},
+    {"orgId":"org_009","userId":"usr_coach_008","orgRoleCode":"OWNER"},
+    {"orgId":"org_010","userId":"usr_coach_009","orgRoleCode":"OWNER"},
   ],
   playerTeams: [
     {"playerId":"ply_001","teamId":"team_001","fromDate":"2026-01-01","toDate":null},
     {"playerId":"ply_001","teamId":"team_004","fromDate":"2026-03-01","toDate":null},
-    {"playerId":"ply_002","teamId":"team_001","fromDate":"2026-01-01","toDate":null},
+    {"playerId":"ply_002","teamId":"team_001","fromDate":"2026-01-01","toDate":"2026-03-31"},
     {"playerId":"ply_003","teamId":"team_001","fromDate":"2026-01-01","toDate":null},
     {"playerId":"ply_004","teamId":"team_002","fromDate":"2026-01-01","toDate":null},
     {"playerId":"ply_005","teamId":"team_002","fromDate":"2026-01-01","toDate":null},
@@ -517,17 +590,29 @@ export const SEED_RELATIONSHIPS = {
     {"teamId":"team_003","userId":"usr_coach_003","coachRoleCode":"HEAD"},
     {"teamId":"team_004","userId":"usr_coach_001","coachRoleCode":"HEAD"},
     {"teamId":"team_002","userId":"usr_coach_003","coachRoleCode":"MANAGER"},
+
+    {"teamId":"team_005","userId":"usr_coach_004","coachRoleCode":"HEAD"},
+    {"teamId":"team_012","userId":"usr_coach_004","coachRoleCode":"HEAD"},
+    {"teamId":"team_006","userId":"usr_coach_005","coachRoleCode":"HEAD"},
+    {"teamId":"team_013","userId":"usr_coach_005","coachRoleCode":"ASSISTANT"},
+    {"teamId":"team_007","userId":"usr_coach_006","coachRoleCode":"HEAD"},
+    {"teamId":"team_014","userId":"usr_coach_006","coachRoleCode":"HEAD"},
+    {"teamId":"team_008","userId":"usr_coach_007","coachRoleCode":"HEAD"},
+    {"teamId":"team_011","userId":"usr_coach_007","coachRoleCode":"MANAGER"},
+    {"teamId":"team_009","userId":"usr_coach_008","coachRoleCode":"HEAD"},
+    {"teamId":"team_010","userId":"usr_coach_009","coachRoleCode":"HEAD"},
+    {"teamId":"team_013","userId":"usr_coach_005","coachRoleCode":"MANAGER"},
   ],
   userNotificationChannels: [
-    {"userId":"usr_admin_001","channelCode":"EMAIL","address":"admin@remysport.test","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-01-15"},
+    {"userId":"usr_admin_001","channelCode":"EMAIL","address":"admin@remysport.test","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-01-15","localeCode":"en"},
     {"userId":"usr_admin_001","channelCode":"LINE","address":"remy_admin","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-01-15"},
     {"userId":"usr_org_001","channelCode":"LINE","address":"somchai_ad","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-02-10"},
     {"userId":"usr_org_001","channelCode":"EMAIL","address":"somchai.p@assumption.test","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-02-10"},
-    {"userId":"usr_coach_001","channelCode":"LINE","address":"coach_wichai","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-03-01"},
+    {"userId":"usr_coach_001","channelCode":"LINE","address":"coach_wichai","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-03-01","localeCode":"th"},
     {"userId":"usr_coach_001","channelCode":"EMAIL","address":"wichai.s@assumption.test","addressLabel":"primary","isEnabled":false,"verifiedAt":"2026-03-01"},
     {"userId":"usr_player_001","channelCode":"LINE","address":"thanakorn_b","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-03-15"},
     {"userId":"usr_player_002","channelCode":"LINE","address":"kanya_g","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-03-20"},
-    {"userId":"usr_spectator_001","channelCode":"LINE","address":"pim_mom","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-04-01"},
+    {"userId":"usr_spectator_001","channelCode":"LINE","address":"pim_mom","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-04-01","localeCode":"ja"},
     {"userId":"usr_spectator_001","channelCode":"LINE","address":"suksai_family_group","addressLabel":"family_group","isEnabled":true,"verifiedAt":"2026-04-05"},
     {"userId":"usr_spectator_001","channelCode":"EMAIL","address":"pim.s@example.test","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-04-01"},
     {"userId":"usr_referee_001","channelCode":"LINE","address":"ref_adisorn","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-03-10"},
@@ -535,6 +620,21 @@ export const SEED_RELATIONSHIPS = {
 
     {"userId":"usr_spectator_001","channelCode":"SMS","address":"+66812340031","addressLabel":"mobile","isEnabled":true,"verifiedAt":"2026-04-12"},
     {"userId":"usr_coach_002","channelCode":"IN_APP","address":"usr_coach_002","addressLabel":"in-app","isEnabled":true,"verifiedAt":"2026-03-05"},
+
+    {"userId":"usr_org_002","channelCode":"EMAIL","address":"niran.w@bsbl.test","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-02-01"},
+    {"userId":"usr_org_003","channelCode":"EMAIL","address":"apinya.k@cmcamp.test","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-02-20"},
+    {"userId":"usr_org_003","channelCode":"LINE","address":"apinya_cm","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-02-20"},
+    {"userId":"usr_coach_003","channelCode":"EMAIL","address":"sutee.k@montfort.test","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-03-08"},
+    {"userId":"usr_coach_004","channelCode":"EMAIL","address":"chalerm.n@stgabriel.test","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-03-12"},
+    {"userId":"usr_coach_005","channelCode":"LINE","address":"coach_duangjai","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-03-12"},
+    {"userId":"usr_coach_006","channelCode":"EMAIL","address":"anan.t@bcc.test","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-03-14"},
+    {"userId":"usr_coach_007","channelCode":"LINE","address":"coach_suphaporn","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-03-14"},
+    {"userId":"usr_coach_008","channelCode":"EMAIL","address":"malee.k@satriwit.test","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-03-16"},
+    {"userId":"usr_coach_009","channelCode":"LINE","address":"coach_nongnuch","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-03-16"},
+    {"userId":"usr_player_002","channelCode":"EMAIL","address":"kanya.t@example.test","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-03-20"},
+    {"userId":"usr_referee_001","channelCode":"EMAIL","address":"adisorn.b@bat.test","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-03-10"},
+    {"userId":"usr_spectator_004","channelCode":"LINE","address":"nattaya_mom","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-04-02"},
+    {"userId":"usr_spectator_005","channelCode":"SMS","address":"+66812340033","addressLabel":"mobile","isEnabled":true,"verifiedAt":"2026-04-03"},
   ],
   userNotificationPreferences: [
     {"userId":"usr_spectator_001","notificationTypeCode":"SCORE_UPDATE","channelCode":"LINE","isEnabled":true},
@@ -554,5 +654,21 @@ export const SEED_RELATIONSHIPS = {
     {"userId":"usr_org_001","notificationTypeCode":"ANNOUNCEMENT","channelCode":"EMAIL","isEnabled":true},
     {"userId":"usr_org_002","notificationTypeCode":"APPROVAL_GRANTED","channelCode":"LINE","isEnabled":true},
     {"userId":"usr_org_002","notificationTypeCode":"INVITATION","channelCode":"EMAIL","isEnabled":true},
+
+    {"userId":"usr_admin_001","notificationTypeCode":"ANNOUNCEMENT","channelCode":"EMAIL","isEnabled":true},
+    {"userId":"usr_org_003","notificationTypeCode":"REGISTRATION_OPEN","channelCode":"EMAIL","isEnabled":true},
+    {"userId":"usr_coach_002","notificationTypeCode":"ROSTER_CHANGE","channelCode":"IN_APP","isEnabled":true},
+    {"userId":"usr_coach_003","notificationTypeCode":"MATCH_START","channelCode":"EMAIL","isEnabled":false},
+    {"userId":"usr_coach_004","notificationTypeCode":"ROSTER_CHANGE","channelCode":"EMAIL","isEnabled":true},
+    {"userId":"usr_coach_005","notificationTypeCode":"MATCH_END","channelCode":"LINE","isEnabled":true},
+    {"userId":"usr_coach_006","notificationTypeCode":"EVENT_REMINDER","channelCode":"EMAIL","isEnabled":true},
+    {"userId":"usr_coach_007","notificationTypeCode":"SCORE_UPDATE","channelCode":"LINE","isEnabled":false},
+    {"userId":"usr_coach_008","notificationTypeCode":"REGISTRATION_CLOSING","channelCode":"EMAIL","isEnabled":true},
+    {"userId":"usr_coach_009","notificationTypeCode":"ANNOUNCEMENT","channelCode":"LINE","isEnabled":true},
+    {"userId":"usr_player_002","notificationTypeCode":"MATCH_START","channelCode":"EMAIL","isEnabled":true},
+    {"userId":"usr_referee_001","notificationTypeCode":"EVENT_REMINDER","channelCode":"EMAIL","isEnabled":true},
+    {"userId":"usr_referee_002","notificationTypeCode":"APPROVAL_GRANTED","channelCode":"LINE","isEnabled":true},
+    {"userId":"usr_spectator_004","notificationTypeCode":"SCORE_UPDATE","channelCode":"LINE","isEnabled":true},
+    {"userId":"usr_spectator_005","notificationTypeCode":"MATCH_END","channelCode":"SMS","isEnabled":true},
   ],
 } as const
