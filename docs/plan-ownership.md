@@ -207,6 +207,16 @@ message no screen renders.
 Same sweep applies to empty states and filter copy — "No events match your
 filters" promises filtering, which today happens in the browser.
 
+## Order, and what depends on what
+
+Phase 5 is analysis and can start at any time — it needs no code. Everything else
+is a chain: **1 → 2 → 3**, because the hook needs the request and the deletions
+need the replacement. Phase 4 needs 2. Phase 6 needs 5, since it walks whatever
+screens exist afterwards.
+
+The loop reads: do the next unticked box in 1, 2, 3, 4, 6 in order, and pick up
+5 whenever the next box needs a decision about where something goes.
+
 ## Phase 1 — the app can ask
 
 - [ ] `mine` procedure in `src/api/relations.ts`, exposed as `me.mine`, returning `{ type, id, relation }[]`
@@ -245,8 +255,17 @@ procedure returns the wrong person's things.
       previously "decided this from a role table copied into the client", which
       `events.list`'s `canCreate` comment records as the reason that field
       exists. Same class, still present.
+- [ ] **Decide what nothing looks like.** A new spectator holds no relations, so
+      "My team" has nothing to show. That is the common case for most readers of
+      this product, not an edge case — and an unanswered version of it is what
+      renders a blank pane, which is the other bug fixed today. It needs a real
+      empty state: what a person with no team should see, and what they can do
+      about it. Same question for a referee with no assignments and a parent
+      whose child is on no roster.
 - [ ] Render tests: with holdings planted, **My team** shows Assumption and does
       **not** show Triam Udom. The negative assertion is the one that matters.
+      Plus the empty case: holdings empty renders the empty state, not a blank
+      pane and not somebody else's team.
 
 **Done when:** the sidebar's My team is yours, proven by a test that fails if it
 shows somebody else's.
@@ -322,9 +341,14 @@ This is the interrogation, and it runs until it converges rather than once.
 1. **Place every action.** For each of the 76: which part of the GUI offers it,
    for whom, and reached from where? Write the answer, or write **not built**.
    An action with neither is not done.
-2. **Place every entity.** Seven kinds — org, team, player, event, game, venue,
-   division. Where do you see one, where do you see the list, where do you see
-   *yours*? A kind with no home is a hole; a kind with three is a mess.
+2. **Place every entity.** **Five kinds can be related to a person** — event,
+   team, player, game, org. Where do you see one, where the list, where *yours*?
+   A kind with no home is a hole; a kind with three is a mess.
+
+   Venue and division are tables, not relation-bearing kinds — nobody is the
+   owner of a venue. They appear inside an event's surfaces and need no *yours*.
+   Saying "seven entities" conflates what the database stores with what a person
+   can hold, and the plan said that until the eleventh pass.
 3. **Then decide, for the GUI as a whole** — not screen by screen:
    - **add** where an action or entity has no home
    - **move** where something sits under the wrong parent (the follow list lived
@@ -338,6 +362,29 @@ This is the interrogation, and it runs until it converges rather than once.
    that is a genuine judgement call, not convergence: write both options and the
    reason in this file, pick one, and move on. A loop with no bound is how this
    phase quietly becomes the rest of the year.
+
+### Decisions already made that Phase 5 must revisit
+
+- **`#/bracket/<id>` renders the event page.** It had no branch in `main.tsx`
+  and rendered nothing; building the render map on 2026-09-03 required every
+  page in `PAGES` to have a screen, so it was pointed at `EventPage` — a
+  decision taken silently while doing something else. `VIEW_BRACKET` and
+  `GENERATE_BRACKETS` have nothing behind them, so this is a route claiming a
+  feature that does not exist. Phase 5 decides: build it, or delete the route.
+
+### Also true of every placement
+
+- **Two form factors.** `styles.css` carries media queries and `main.tsx` a
+  drawer for narrow screens. A placement that reads well on a desktop grid can
+  put a full screen of scroll between two things on a phone — which is exactly
+  what moving the notification settings fixed. Judge each placement on the
+  narrow layout too, not only the wide one.
+- **Two shells.** The app also runs inside Tauri, where `isNativeApp()` already
+  hides the install prompt. A new surface has to be right in both, or gated the
+  same way.
+- **Three languages.** Anything added needs `messages/en.json` plus th and ja,
+  with placeholders matching — `check:i18n` fails the gate on a hardcoded
+  string, so this is enforced rather than remembered.
 
 ### The constraints on where things go
 
