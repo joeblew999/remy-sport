@@ -57,6 +57,25 @@ const q = (v: string | null | undefined) =>
  * keys by LOCALES — a `names` column written `{"th":…,"en":…}` by one path and
  * `{"en":…,"th":…}` by the other holds different bytes for the same name.
  */
+/**
+ * A timestamp column's unit, which drizzle decides and the raw SQL must match.
+ *
+ * `mode: "timestamp"` stores **seconds**; `mode: "timestamp_ms"` stores
+ * milliseconds. Our own tables use the first and Better Auth's generated schema
+ * uses the second, so one constant written into both is wrong in one of them.
+ *
+ * It was. The seed wrote 1767225600000 everywhere, so `event.created_at` and
+ * `team.created_at` were read back as **year 57971** — every seeded event and
+ * team, in every environment, since the seed became SQL. Nothing noticed
+ * because nothing rendered a creation date and no test compared one; it was
+ * found by tests/worker/projection-equivalence.test.ts on its first run.
+ *
+ * Drizzle applies this conversion for the app's own writes, which is why only
+ * the seed was wrong and why the fix belongs here rather than in the schema.
+ */
+const isSeconds = (column: unknown): boolean =>
+  !!column && typeof column === "object" && (column as { mode?: string }).mode === "timestamp"
+
 const lit = (v: unknown): string => {
   if (v === null || v === undefined) return "NULL"
   if (v instanceof Date) return String(v.getTime())
@@ -121,10 +140,17 @@ function insertOf<T extends SQLiteTable>(
 ): string {
   const cols = getTableColumns(table)
   const present = Object.keys(cols).filter((k) => k in row)
+  const value = (k: string) => {
+    const v = row[k]
+    // Seconds or milliseconds is the column's decision, not the caller's.
+    if (typeof v === "number" && isSeconds(cols[k])) return String(Math.floor(v / 1000))
+    if (v instanceof Date && isSeconds(cols[k])) return String(Math.floor(v.getTime() / 1000))
+    return lit(v)
+  }
   const head =
     `INSERT INTO ${getTableName(table)} ` +
     `(${present.map((k) => cols[k]!.name).join(", ")}) VALUES ` +
-    `(${present.map((k) => lit(row[k])).join(", ")})`
+    `(${present.map(value).join(", ")})`
 
   const key = opts.upsertOn
   if (!key) return `INSERT OR IGNORE${head.slice("INSERT".length)};`

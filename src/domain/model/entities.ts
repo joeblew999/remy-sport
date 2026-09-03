@@ -606,7 +606,7 @@ export const SEED_RELATIONSHIPS = {
     {"teamId":"team_011","userId":"usr_coach_007","coachRoleCode":"MANAGER"},
     {"teamId":"team_009","userId":"usr_coach_008","coachRoleCode":"HEAD"},
     {"teamId":"team_010","userId":"usr_coach_009","coachRoleCode":"HEAD"},
-    {"teamId":"team_013","userId":"usr_coach_005","coachRoleCode":"MANAGER"},
+    {"teamId":"team_013","userId":"usr_coach_004","coachRoleCode":"MANAGER"},
   ],
   userNotificationChannels: [
     {"userId":"usr_admin_001","channelCode":"EMAIL","address":"admin@remysport.test","addressLabel":"primary","isEnabled":true,"verifiedAt":"2026-01-15","localeCode":"en"},
