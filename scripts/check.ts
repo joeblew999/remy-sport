@@ -462,25 +462,36 @@ export const PHASES: Step[][] = [
    * Cheap enough (~100ms) that serialising it costs nothing.
    */
   [{ name: "seed", cmd: script("lib/seed.ts", "--check") }],
-  [
-    {
-      name: "render",
-      cmd: bun("x", "playwright", "test", "--config", "playwright.render.config.ts"),
-      env: { RENDER_WORKERS: "3", BUDGET_SHARED: "1" },
-      budget: "render",
-    },
-    {
-      name: "worker",
-      cmd: bun("x", "vitest", "run", "--config", "vitest.config.ts", "--exclude", "tests/worker/assets.test.ts"),
-      env: { BUDGET_SHARED: "1" },
-      budget: "worker",
-    },
-  ],
+  /**
+   * Phase 1 — seconds, and deterministic. The first thing that can fail should
+   * be the fastest thing that can fail.
+   *
+   * This ran LAST, after the two browser-and-workerd tiers. A missing semicolon
+   * cost thirty-five seconds of Playwright before anything mentioned it, and a
+   * flaky browser test failed the gate ahead of the typecheck that would have
+   * named the actual mistake. The `--fast` mode is these exact four steps, which
+   * was the standing admission that they belong first.
+   *
+   * Reordering is free on the green path. Phases run in sequence, so the total
+   * is the sum of the phases either way — nothing gets slower when everything
+   * passes. What changes is the red path, which is the one you are on when you
+   * care.
+   */
   [
     { name: "typecheck-worker", cmd: bun("x", "tsc", "--noEmit", "-p", "tsconfig.json", "--incremental", "false") },
     { name: "typecheck-spa", cmd: bun("x", "tsc", "--noEmit", "-p", "src/web/tsconfig.json", "--incremental", "false") },
     { name: "typecheck-tests", cmd: bun("x", "tsc", "--noEmit", "-p", "tsconfig.tests.json", "--incremental", "false") },
     { name: "unit", cmd: bun("test", "tests/unit/"), budget: "unit" },
+  ],
+  /**
+   * Phase 2 — everything that reads the tree and answers without a runtime.
+   *
+   * Static and cheap: dead code, dependency direction, translations, the
+   * consistency checks between the model and what is generated from it. They
+   * cost a few seconds together and none of them can flake, so they belong ahead
+   * of anything that starts a browser.
+   */
+  [
     { name: "worker-assets", cmd: bun("x", "vitest", "run", "--config", "vitest.config.ts", "tests/worker/assets.test.ts") },
     { name: "dead", cmd: bun("x", "knip", "--include", "files,unlisted", "--no-config-hints") },
     { name: "deps", cmd: bun("x", "depcruise", "src", "--config", ".dependency-cruiser.cjs") },
@@ -498,6 +509,34 @@ export const PHASES: Step[][] = [
     { name: "coverage-gui", cmd: script("ops/coverage-gui.ts") },
     { name: "bundle", cmd: script("check/bundle.ts") },
     { name: "envs", cmd: script("check/envs.ts") },
+  ],
+  /**
+   * Phase 3 — the tiers that start something. Last, because they are the
+   * slowest and the only ones that can flake.
+   *
+   * Together, as they always were: the budgets' `shared` figures were measured
+   * with these two alongside each other and nothing else, and that is still what
+   * happens here. Moving them did not change what they share.
+   *
+   * They are last for the reason a test pyramid has an order at all. A failure
+   * here is worth reading — it means the code typechecks, the model agrees with
+   * what is generated from it, and something still does not work when run. A
+   * failure here *before* those is usually just noise about a mistake the cheap
+   * steps would have named exactly.
+   */
+  [
+    {
+      name: "worker",
+      cmd: bun("x", "vitest", "run", "--config", "vitest.config.ts", "--exclude", "tests/worker/assets.test.ts"),
+      env: { BUDGET_SHARED: "1" },
+      budget: "worker",
+    },
+    {
+      name: "render",
+      cmd: bun("x", "playwright", "test", "--config", "playwright.render.config.ts"),
+      env: { RENDER_WORKERS: "3", BUDGET_SHARED: "1" },
+      budget: "render",
+    },
   ],
 ]
 
@@ -593,33 +632,65 @@ export async function gate(phases: Step[][]): Promise<string[]> {
  */
 const FAST = new Set(["typecheck-worker", "typecheck-spa", "typecheck-tests", "unit"])
 
+/**
+ * The order, written down, so neither a person nor an agent has to guess it.
+ *
+ * Every step of this existed and none of it was stated anywhere: which command
+ * comes after which, what each one is for, when the slow one is worth paying
+ * for. Both of us reconstructed it from the scripts every time, and got it wrong
+ * — the gate itself ran the two browser tiers ahead of the typecheck for months.
+ */
 if (import.meta.main && process.argv.includes("--help")) {
   console.log(`
 mise run 2-check [-- --fast | --e2e [--env dev|staging|production]]
 
-  (no argument)  the whole gate, about 30s
-  --fast         typecheck and unit tests only, about 6s
-  --e2e          the end-to-end tier, which needs a server to run against
+THE LOOP, in order. Each step is worth the one before it having passed.
 
-  --env picks WHICH server, and only means anything beside --e2e:
+  1  mise run 1-dev                     work. leave it running.
+  2  mise run 2-check -- --fast         ~6s   after a change. typecheck + unit.
+  3  mise run 2-check                   ~60s  before you commit. everything but e2e.
+  4  mise run 2-check -- --e2e          ~50s  before you deploy. real browser,
+                                              real Worker, real database.
+  5  mise run 3-deploy -- --env staging       ships it. runs 3 and 4 again first.
+  6  mise run 2-check -- --e2e --env staging  the suite against what is deployed.
+  7  mise run 3-deploy -- --env production
 
-    dev         localhost:8787 — the default. Starts a Worker if none is up,
-                and reads the real emailed code out of the dev outbox.
-    staging     the deployed origin, resolved from the same config 3-deploy
-    production  uses, so the two cannot disagree about a hostname.
+  Nothing here is optional-but-nice. 3 is what 5 runs; 4 is what catches the
+  things 3 cannot see. Running 3 before 2 only means waiting longer to be told
+  the same thing.
 
-  Against a deployment the suite signs in with TEST_OTP, which the Worker only
-  honours for the seeded accounts and only when its own secret is set. Nothing
-  is reset there and nothing can be: a test that injects into a live system has
-  to put back what it took, which is why sign-ins are revoked afterwards.
+WHICH SERVER --env picks. Only meaningful beside --e2e.
 
-What it runs:
+    dev         localhost:8787. Starts a Worker if none is up, and reads the
+                real emailed code from the dev outbox. The default.
+    staging     the deployed origin, resolved from the config 3-deploy uses,
+    production  so the gate and the deploy cannot disagree about a hostname.
+
+  Against a deployment it first checks two things and refuses rather than
+  guessing: that the origin is serving THIS commit (otherwise the specs and the
+  code under test are different software), and that it will accept the suite's
+  sign-in code (otherwise every spec fails on a switch that is deliberately
+  off, and says so). Sessions it opens are given back.
+
+  Production keeps that code in a secret nobody sets by default:
+    mise run ops -- demo on  --env production      before
+    mise run ops -- demo off --env production      after, always
+
+WHAT IT RUNS, in the order it runs it — cheapest and most certain first, so the
+first thing that fails is the fastest thing that could have told you.
 `)
   PHASES.forEach((phase, i) => {
-    console.log(`  phase ${i}${phase.length > 1 ? "  (these run in parallel)" : ""}`)
+    const why = [
+      "the generator. everything after it reads what it writes",
+      "seconds, and cannot flake. the first failure should be the fastest one",
+      "static: dead code, dependency direction, translations, model consistency",
+      "the tiers that start a browser or a workerd. slowest, and the only flaky ones",
+    ][i]
+    console.log(`\n  phase ${i}${phase.length > 1 ? "  (in parallel)" : ""}   ${why ?? ""}`)
     for (const s of phase) console.log(`    ${s.name}`)
   })
   console.log("\n  A phase finishes before the next starts. Within one, there is no order.")
+  console.log("  A phase that fails stops the run — later phases would only repeat it.")
   console.log("  bun scripts/lib/prepare.ts --help  — what runs before all of this\n")
   process.exit(0)
 }
@@ -653,10 +724,23 @@ if (import.meta.main) {
         : null
     if (tier) console.log(`  you touched code ${tier} covers — run 'mise run 2-check' before you commit`)
   }
-  console.log(
-    `\ncheck: green${e2e ? " (e2e)" : fast ? " (fast)" : ""}\n` +
-      (fast || e2e
-        ? ""
-        : "\n  Commit it, then:\n    mise run 3-deploy -- --env staging\n    mise run 3-deploy -- --env production\n"),
-  )
+  /**
+   * Say what comes next, every time, whichever step this was.
+   *
+   * Only the full gate said anything, and only "commit it, then deploy" — which
+   * skips the e2e tier entirely. So the sequence lived in nobody's head and got
+   * reconstructed from the scripts each time, wrongly.
+   */
+  const next = fast
+    ? "  Next:\n    mise run 2-check                    everything but e2e, before you commit\n"
+    : e2e
+      ? TARGET
+        ? `  ${TARGET.environment} is good.\n` +
+          (TARGET.environment === "staging"
+            ? "\n  Next:\n    mise run 3-deploy -- --env production\n"
+            : "")
+        : "  Next:\n    mise run 3-deploy -- --env staging   ships it (runs this again first)\n"
+      : "  Next:\n    mise run 2-check -- --e2e           real browser, real Worker, real database\n" +
+        "    mise run 3-deploy -- --env staging   ships it (runs both of the above first)\n"
+  console.log(`\ncheck: green${e2e ? " (e2e)" : fast ? " (fast)" : ""}\n\n${next}`)
 }

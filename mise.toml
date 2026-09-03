@@ -104,7 +104,7 @@ BIZ_TOKEN_KEY = "GITHUB_BIZ_REPO_TOKEN"
 # ── Core ────────────────────────────────────────────────────────────────────
 
 [tasks.1-dev]
-description = "build it here — stop | restart | ensure | watch | --help"
+description = "1st · work here — leave it running. stop | restart | ensure | watch | --help"
 # One command, one port, and dist/web is never stale.
 #
 # This used to be three tasks and a footgun. `dev` served the built bundle, so
@@ -126,7 +126,7 @@ description = "build it here — stop | restart | ensure | watch | --help"
 run = "bun scripts/dev.ts"
 
 [tasks.2-check]
-description = "prove it — --fast | --e2e [--env dev|staging|production] | --help"
+description = "2nd · prove it — --fast (~6s, after a change) | no args (~60s, before commit) | --e2e (~50s, before deploy) [--env dev|staging|production] | --help for the whole order"
 # `web:build` is a dependency rather than a line in the script, so mise builds
 # it once for this task and for `test:render`, which needs it too.
 # dev:vars because the worker tests inside check read .dev.vars — "Using secrets
@@ -152,7 +152,7 @@ description = "occasional · operate a deployment — no args to list them"
 run = "bun scripts/ops.ts"
 
 [tasks.3-deploy]
-description = "ship it — --env staging|production | --help"
+description = "3rd · ship it — staging first, then production. runs 2-check and --e2e itself. --env staging|production | --help"
 # The order lives in scripts/deploy.ts, where it can be read, and where the
 # origin to verify against is derived per environment instead of being the one
 # hostname a TOML template could interpolate.
