@@ -21,7 +21,7 @@ import { SEED_ENTITIES } from "../../src/domain/model/entities"
  *     only for that domain.
  */
 
-export const BASE = process.env.BASE_URL || "http://localhost:8787"
+export const BASE = process.env.BASE_URL || "http://localhost:8788"
 export const IS_LOCAL = !process.env.BASE_URL
 
 /** The six seeded actors. No passwords — an address is the whole credential. */

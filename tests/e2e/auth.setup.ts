@@ -1,6 +1,6 @@
 import { test as setup } from "@playwright/test"
 import { mkdirSync } from "node:fs"
-import { EVERY_SEEDED_ACTOR, signIn, stateFor, AUTH_STATE_DIR } from "../helpers/auth"
+import { BASE, EVERY_SEEDED_ACTOR, signIn, stateFor, AUTH_STATE_DIR } from "../helpers/auth"
 
 /**
  * Sign in once per actor and save the cookies to disk.
@@ -29,9 +29,11 @@ setup("sign in as each actor and save session state", async ({ playwright }) => 
     // A fresh context per actor: reusing one would carry the previous actor's
     // cookie into the next sign-in, and Better Auth would refuse the origin
     // check on a request that already has a session (ADR 006 §9a).
-    const ctx = await playwright.request.newContext({
-      baseURL: process.env.BASE_URL || "http://localhost:8787",
-    })
+    // `BASE`, not a fourth copy of the URL. This held "localhost:8787" while
+    // the config had moved the tier onto its own Worker, so every actor signed
+    // in against the DEV server and the saved states pointed at a database the
+    // tests were not using.
+    const ctx = await playwright.request.newContext({ baseURL: BASE })
     await signIn(ctx, email)
     await ctx.storageState({ path: stateFor(email) })
     await ctx.dispose()

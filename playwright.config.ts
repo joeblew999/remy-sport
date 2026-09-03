@@ -1,6 +1,15 @@
 import { defineConfig } from "@playwright/test"
 
-const baseURL = process.env.BASE_URL || "http://localhost:8787"
+/**
+ * Port 8788, not 8787.
+ *
+ * The e2e tier runs its own Worker with its own assets and its own D1 (see
+ * scripts/lib/e2e-server.ts). 8787 is the developer's dev server, and sharing
+ * it meant test runs mutating data somebody was using and rebuilds landing
+ * mid-run. BASE_URL still overrides, which is how this suite is pointed at a
+ * real deployment.
+ */
+const baseURL = process.env.BASE_URL || "http://localhost:8788"
 const isLocal = !process.env.BASE_URL
 
 export default defineConfig({
@@ -99,13 +108,21 @@ export default defineConfig({
   ],
   ...(isLocal && {
     webServer: {
-      // --host localhost matches the mise dev tasks: without it wrangler
-      // simulates the [[routes]] custom domain and every request reaches the
-      // Worker as http://remy.ubuntusoftware.net rather than localhost.
-      command: "bunx wrangler dev --host localhost",
-      url: "http://localhost:8787/api/health",
-      reuseExistingServer: !process.env.CI,
-      timeout: 15000,
+      /**
+       * This tier's own Worker. See scripts/lib/e2e-server.ts for what it
+       * isolates and why — assets, database and port, none of them shared with
+       * a running dev server.
+       *
+       * `reuseExistingServer: false` unconditionally: reusing was the whole
+       * problem. On its own port there is nothing to reuse, and a leftover
+       * process from a killed run should be replaced rather than trusted.
+       */
+      command: "bun scripts/lib/e2e-server.ts",
+      url: "http://localhost:8788/api/health",
+      reuseExistingServer: false,
+      // Longer than the old 15s: this one builds its assets and applies
+      // migrations before the Worker starts.
+      timeout: 60000,
     },
   }),
 })
