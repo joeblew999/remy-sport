@@ -245,6 +245,42 @@ which screen answers which grant, which is a mapping nobody has written down.
 **That is the next plan, if there is one:** a declared link from an action to the
 screen that answers it, so the question stops needing a person to re-derive.
 
+## The residue, triaged — 2026-09-03, after the fixtures grew
+
+`ops coverage data` now reports **79/80 vocabulary codes used and 25/25
+relations instantiated**: the tables have rows they did not have. So the question
+worth asking again is what the GUI still does not do with them.
+`ops coverage gui` says **71/75 procedures called, 576/591 fields named**. Every
+item behind those numbers, checked:
+
+- **`teamCoaches.list`, `playerTeams.list`, `eventTeams.list` — not gaps.** They
+  are the whole-table endpoints `domain.ts` generates. The screens use the
+  joined ones instead: coaching staff is on the team page through
+  `roster.coaches`, the squad through `roster.players`, the entrants through
+  `events.entries`. A screen calling the raw table would be a second home for
+  rows that already have one.
+- **`health.get` — not a gap.** Infrastructure. It has no reader.
+- **`toDate` on `playerTeams` and `teams.removePlayer` — a recorded decision,
+  not an oversight.** `players.mine` fetches every spell and keeps the current
+  one, and says why: a profile listing every team a child ever played for
+  "answers a different question from where is my child playing". The seed does
+  hold a real departure — `ply_002` left `team_001` on 2026-03-31 — so a squad
+  history is now *buildable*. Whether it is *wanted* is the PO's call, and
+  overriding a written decision on the strength of an unused field would be
+  building from leftovers rather than from the model.
+- **`withdrawn`, `addedAt` — mutation receipts.** The screens invalidate and
+  re-read rather than rendering the acknowledgement, which is the pattern
+  everywhere else here.
+- **`reference.list`, 9 of 49 fields.** `minAge`/`maxAge` on age groups is the
+  only one with obvious product in it — an event showing "U16 · ages 13–16"
+  instead of a bare code. The rest are catalogue plumbing
+  (`notificationCategories`, `addressFormat`, `fullNameEn`).
+
+**So: no screen is missing that the model asks for.** Two candidates are
+buildable and are product decisions rather than gaps — a player's squad history,
+and age ranges beside age-group codes. Both are recorded here rather than built,
+for the same reason `MODERATE_LISTINGS` was.
+
 ## Log
 
 - 2026-09-03 — **Phases 4 and 5 done; the plan is complete.** `DELETE_PLAYER`
