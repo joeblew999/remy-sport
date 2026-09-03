@@ -492,9 +492,10 @@ not scope creep. A finding outside the six classes is not a box.
       editing that file — it has boxes there too.
 - [ ] **`scripts/check/sets.ts`** <!-- docs-check-ignore --> for whatever is left:
       fails when two maps declared as covering the same set do not. Added to
-      `scripts/check.ts` beside `tables`. **Not before the derivations land** — a
-      checker whose whole list has just become underivable is boilerplate, which
-      is what this plan is against.
+      `scripts/check.ts` beside `tables`. **Last, not first** — every pair that
+      derives needs no check, so a checker written before the derivations land
+      would arrive with most of its list already gone. A check with nothing to
+      check is the boilerplate this plan exists to remove.
 
 ### Class 2 — one concept, declared more than once
 
@@ -555,10 +556,12 @@ not scope creep. A finding outside the six classes is not a box.
       `src/api/webpush.ts` sits beside an RFC implementation, and
       `tests/helpers/auth.ts` exports eight things a spec may need tomorrow.
       Delete what is dead, and for the rest write which category on the line.
-- [ ] The 2 unused devDependencies (`@inlang/cli`, `dependency-cruiser`) —
-      note that `dependency-cruiser` **is** run by the gate as `depcruise`, so
-      this is knip not seeing it rather than a dependency to remove. Verify
-      before touching `package.json`.
+- [ ] The 2 "unused" devDependencies are **both false positives, already
+      verified**: `scripts/check.ts` runs `dependency-cruiser` as `depcruise`
+      and `@inlang/cli` as `inlang`, and knip does not connect a `bun x <binary>`
+      to the package that provides it. Neither is removed. The box is to teach
+      knip about them in `knip.jsonc` so the pair stops reappearing on every run
+      — a false positive nobody can silence is how a report gets ignored.
 - [ ] The unresolved import knip reports in `scripts/check.ts` →
       `scripts/lib/watch.ts`. Either it is used and knip is wrong, or it is dead.
       Find out which.
@@ -640,7 +643,7 @@ Real, seen while measuring, not this plan's class. One line each, no box.
 
   **The premise was half wrong, and saying so is the main finding.** The brief
   was that the system had become "a mass of lots of files" with overlap and
-  repetition. The file count is real — 229 — but 51 of 108 `src` modules have
+  repetition. The file count is real — 229 — but 52 of 109 `src` modules have
   exactly one importer and every one of those is the architecture working: one
   page per route, one API module per router group. Verbatim duplication is under
   one percent. There is no collapsing to be done at the file level and this plan
@@ -677,10 +680,21 @@ Real, seen while measuring, not this plan's class. One line each, no box.
     140 render failures; both were self-inflicted, from running a second gate
     while the first still held port 4173. The render tier alone passes 219/219
     in 26s.
-  - **Another session is working in this tree right now** — three commits landed
-    during the measuring (`ced4df2`, `101206c`, `0dfbdfb`, all plan-ownership
-    work) and `docs/plan-ownership.md`, `docs/plan-seed-coverage.md` and
-    `src/web/pages/profile.tsx` were modified under it. The line total moved by
-    13 between two runs of the same script. This is the hazard AGENTS.md records
-    from 2026-08-31; read `git status` before a broad `git add`, and expect the
-    printed line count to move without anyone here having touched it.
+  - **Another session is working in this tree right now** — five commits landed
+    while this was being written (`ced4df2`, `101206c`, `0dfbdfb`, `86caaaf`,
+    `8cb600e`, all plan-ownership work) and the total line count moved twice
+    under the same script, by 13 and then by 228.
+
+    **And it committed this file, twice, mid-write.** `86caaaf` and `8cb600e`
+    both carry `docs/plan-consolidation.md` in their diffs under messages about
+    entirely different work, because a broad `git add` swept up an unfinished
+    file another session had open. Nothing was lost — the content is this
+    session's and was verified after the fact — but the history now says this
+    plan was written by two commits that were not about it.
+
+    This is exactly the failure AGENTS.md records from 2026-08-31, where
+    `git add -A` swept 196 lines of model change into `ce6a233` whose message
+    said nothing in the model had changed. It has now happened twice. **Read
+    what `git status` lists before a broad `git add`** — especially when the
+    commit is meant to touch a known set of files, and most especially in
+    `docs/`, where three plans are being worked at once.
