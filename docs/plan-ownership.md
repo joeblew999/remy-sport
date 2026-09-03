@@ -4,12 +4,50 @@ Kept, not deleted. This is the record of what was decided and why — the
 placements in Phase 5 are judgement calls that will be re-read the next time
 somebody wonders why a thing lives where it lives.
 
-**Work it in a loop.** Each pass: re-read this file, do the next unticked box,
-run `mise run 2-check`, tick it, append to the log. Keep going until every box in
-the Definition of Done is ticked. Do not stop at a phase boundary and ask what to
-do next — the next thing is the next unticked box.
+**Work it in a loop, and inspect yourself on every pass.** The plan is wrong
+until proven otherwise — eleven verification passes on the day it was written
+found sixteen defects in it, four of them in numbers stated as fact.
 
-When they are all ticked, say so plainly and stop. Not before.
+Each pass, in this order:
+
+1. **Re-derive the facts.** This exact block. If any number differs from what
+   this file says, **fix the file first**, note it in the log, then continue. A
+   plan that disagrees with the code is worse than no plan.
+
+   ```sh
+   python3 - <<'EOF'
+   import re, pathlib, subprocess
+   v = pathlib.Path("src/domain/model/vocabularies.ts").read_text()
+   g = v[v.index("export const GRANTS"):]
+   acts = set(re.findall(r'\n  ([A-Z_]+): \[', g))
+   rows = re.findall(r'\{ code: "([A-Z_]+)", objectTypeCode: "([A-Z_]+)"', v)
+   rels = [(c,t) for c,t in rows if c not in acts]
+   via  = re.findall(r'\{ code: "([A-Z_]+)", objectTypeCode: "([A-Z_]+)", via: "([a-z]+)"', v)
+   held = [x for x in via if x[1] != "PLATFORM"]
+   print("actions              ", len(acts),        "(plan says 76)")
+   print("relations            ", len(rels),        "(plan says 25)")
+   print("  to a specific thing", len(held),        "(plan says 17)")
+   print("  table-backed       ", sum(1 for x in held if x[2]=="table"), "(plan says 15)")
+   print("  derived (parent)   ", sum(1 for x in held if x[2]=="parent"), "(plan says 2)")
+   print("entity kinds         ", sorted({t for _,t in rels if t!="PLATFORM"}))
+   named = lambda d: sum(1 for a in acts if subprocess.run(["grep","-rqF",f'"{a}"',d]).returncode==0)
+   print("actions named in API ", named("src/api"), "(plan says 48)")
+   EOF
+   ```
+2. **Re-run the DoD's grep** and triage anything new. It found two unreported
+   bugs the first time it was run for real.
+3. **Do the next unticked box**, applying the decision rules rather than asking.
+4. **`mise run 2-check`.** Green before ticking anything.
+5. **Tick it, or write why not.** A box left unticked without a reason beside it
+   is the failure this whole plan exists to correct.
+6. **Append to the log** — what was done, what was found, what changed in the
+   plan itself.
+
+Never end a pass having neither ticked a box nor recorded why one cannot be
+ticked. That is the only definition of progress here.
+
+When every box is ticked, or every remaining one is marked **Needs the PO** with
+its reason, say so plainly and stop. Not before, and not at a phase boundary.
 
 ## The problem, in one line
 
@@ -207,6 +245,67 @@ message no screen renders.
 Same sweep applies to empty states and filter copy — "No events match your
 filters" promises filtering, which today happens in the browser.
 
+## Running unattended
+
+**This plan completes without asking anybody anything.** That is only possible if
+every judgement is decided *here*, in advance. Where the text below says
+"decide", the rule for deciding is written beside it. A rule that is missing is a
+bug in this plan, not a reason to stop and ask.
+
+### The boundary: nothing new gets built
+
+**No new features. Ever, in this plan.** A feature is a product decision and the
+PO owns those. What this plan does is make what already exists tell the truth,
+and write down what does not exist.
+
+So for any action with nothing behind it — brackets, courts, rankings history,
+the AI features, the sign-up paths — the answer is always **"not built"**,
+recorded, never implemented. That single rule removes most of what would
+otherwise need asking.
+
+### Decision rules, in priority order
+
+Apply the first that matches.
+
+1. **A surface claiming something that does not exist → delete the surface.**
+   `#/bracket` renders the event page while brackets do not exist. Delete the
+   route. A route that lies is worse than a missing one, and deleting is
+   reversible in git while a half-feature is not.
+2. **A thing with two homes → keep the one closer to what it belongs to, link
+   from the other.** Follow relations, not tables: a game belongs to its event,
+   a player to their team.
+3. **A thing with no home, that exists in the API → put it on the surface of the
+   entity it belongs to.** A roster action goes on the team, a referee
+   assignment on the game.
+4. **A thing with no home and no API → "not built".** Record and move on.
+5. **Placement genuinely ambiguous after 1–4 → leave it where it is**, and write
+   both options and the reason in this file. Not moving is the safe default;
+   moving is what broke the two device lists apart.
+6. **Empty state, when a person holds nothing** → say what is missing and offer
+   the way to browse. "You are not on a team yet" plus a link to Discover.
+   Never a blank pane, never somebody else's data, never a spinner that
+   never resolves. This is the default answer everywhere the question arises.
+7. **A test that cannot be written without a fixture the seed does not have** →
+   plant the fixture in the test, derived from the model, rather than asking the
+   PO to seed one. The render tier already works this way.
+8. **Anything still undecidable** → do not guess and do not stop. Write it in the
+   log under **Needs the PO**, skip that box, and carry on with the next one.
+   The plan finishes; that box stays unticked with its reason beside it.
+
+### What stops the loop
+
+Only these:
+
+- every box ticked, or
+- every remaining box is marked **Needs the PO** with its reason — and if more
+  than three end up there, that is evidence this plan was written wrong, not
+  that the work is finished. Say so rather than presenting it as done, or
+- `mise run 2-check` cannot be made green and the cause is not in this plan's
+  scope — recorded, then stop.
+
+Nothing else is a reason to stop. Not a phase boundary, not an unclear
+requirement, not the size of the next box.
+
 ## Order, and what depends on what
 
 Phase 5 is analysis and can start at any time — it needs no code. Everything else
@@ -248,14 +347,15 @@ procedure returns the wrong person's things.
 - [ ] `src/web/pages/team.tsx:24` — `allTeams?.[0]` becomes Wichai's team.
 - [ ] `src/web/pages/event.tsx:47` — `allEvents?.[0]`, the same bug found by the
       DoD check on 2026-09-03. `#/event` with no id shows whichever event is
-      first. Decide whether a no-id event route should exist at all: the sidebar
-      does not link to it, so it may be dead and deleting it is the better fix.
+      first. Rule 1 applies — the sidebar does not link to `#/event` with no id,
+      so it claims a destination that has no meaning. Delete the no-id case; a
+      bare `#/event` resolves to `not-found`, which now has a screen.
 - [ ] `src/web/pages/admin.tsx:67` — `role === "admin"`. The GUI deciding
       admin-ness rather than asking. The API already answers this; the console
       previously "decided this from a role table copied into the client", which
       `events.list`'s `canCreate` comment records as the reason that field
       exists. Same class, still present.
-- [ ] **Decide what nothing looks like.** A new spectator holds no relations, so
+- [ ] **Empty state, by rule 6.** A new spectator holds no relations, so
       "My team" has nothing to show. That is the common case for most readers of
       this product, not an edge case — and an unanswered version of it is what
       renders a blank pane, which is the other bug fixed today. It needs a real
@@ -370,7 +470,10 @@ This is the interrogation, and it runs until it converges rather than once.
   page in `PAGES` to have a screen, so it was pointed at `EventPage` — a
   decision taken silently while doing something else. `VIEW_BRACKET` and
   `GENERATE_BRACKETS` have nothing behind them, so this is a route claiming a
-  feature that does not exist. Phase 5 decides: build it, or delete the route.
+  feature that does not exist. **Rule 1: delete the route.** `VIEW_BRACKET`
+  becomes a "not built" entry, and `bracket` leaves `PAGES` — which the render
+  map will then refuse to compile until the entry is gone, so this cannot be
+  half-done.
 
 ### Also true of every placement
 
