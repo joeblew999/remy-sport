@@ -16,92 +16,43 @@ Each pass, in this order:
    continue. A plan that disagrees with the code is worse than no plan.
 
    ```sh
-   cat > /tmp/seed-derive.ts <<'TS'
-   import { readFileSync, readdirSync, statSync } from "fs"
-   import { join } from "path"
-   import { getTableColumns, getTableName } from "drizzle-orm"
-   import type { SQLiteTable } from "drizzle-orm/sqlite-core"
-   const ROOT = process.cwd()
-   const schema = await import(join(ROOT, "src/db/schema.ts"))
-   const { SEED_ENTITIES: E, SEED_RELATIONSHIPS: R } =
-     await import(join(ROOT, "src/domain/model/entities.ts"))
-
-   // Per-column non-null counts, parsed from the seed's own INSERTs. The seed is
-   // one statement per line, which is what makes this honest rather than a
-   // second model of the data — it reads the bytes the database receives.
-   const seen: Record<string, { rows: number; nonNull: Record<string, number> }> = {}
-   for (const line of readFileSync(join(ROOT, "src/db/seed.sql"), "utf8").split("\n")) {
-     const m = line.match(/^INSERT (?:OR IGNORE )?INTO `?(\w+)`? \(([^)]*)\) VALUES \((.*?)\)(?: ON CONFLICT|;|$)/)
-     if (!m) continue
-     const cols = m[2]!.split(",").map((c) => c.trim().replace(/`/g, ""))
-     const vals: string[] = []
-     let cur = "", depth = 0, inStr = false
-     const raw = m[3]!
-     for (let i = 0; i < raw.length; i++) {
-       const ch = raw[i]!
-       if (inStr) { if (ch === "'" && raw[i+1] === "'") { cur += "''"; i++; continue } if (ch === "'") inStr = false; cur += ch; continue }
-       if (ch === "'") { inStr = true; cur += ch; continue }
-       if (ch === "(") depth++; if (ch === ")") depth--
-       if (ch === "," && depth === 0) { vals.push(cur.trim()); cur = ""; continue }
-       cur += ch
-     }
-     vals.push(cur.trim())
-     const s = (seen[m[1]!] ??= { rows: 0, nonNull: {} })
-     s.rows++
-     cols.forEach((c, i) => { s.nonNull[c] ??= 0; if ((vals[i] ?? "NULL").toUpperCase() !== "NULL") s.nonNull[c]!++ })
-   }
-
-   const tables: Record<string, string[]> = {}
-   for (const v of Object.values(schema)) {
-     try {
-       const n = getTableName(v as SQLiteTable)
-       const c = Object.values(getTableColumns(v as SQLiteTable)).map((x: any) => x.name)
-       if (n && c.length) tables[n] = c
-     } catch { /* a relations() definition or a zod schema, not a table */ }
-   }
-   const empty = Object.keys(tables).filter((t) => !seen[t]).sort()
-   let cols = 0, holes = 0
-   for (const [t, cs] of Object.entries(tables)) { cols += cs.length; for (const c of cs) if (!(seen[t]?.nonNull[c])) holes++ }
-
-   const all = new Set<string>()
-   for (const t of [...Object.values(E), ...Object.values(R)]) for (const r of t as any[]) for (const v of Object.values(r)) if (typeof v === "string") all.add(v)
-   const files: string[] = []
-   const walk = (d: string) => { for (const e of readdirSync(d)) { const p = join(d, e); statSync(p).isDirectory() ? walk(p) : p.endsWith(".ts") && files.push(p) } }
-   walk(join(ROOT, "tests"))
-   const ghosts = new Set<string>()
-   for (const f of files) for (const m of readFileSync(f, "utf8").match(/"(?:team|evt|ply|org|usr|gam|div|ven|ses)_[a-z]*_?\d+"/g) ?? []) {
-     const id = m.slice(1, -1); if (!all.has(id)) ghosts.add(id)
-   }
-   const p = (label: string, n: number, says: number) =>
-     console.log(`${label.padEnd(42)} ${String(n).padStart(4)}   (plan says ${says})${n === says ? "" : "   <-- DIFFERS"}`)
-
-   console.log("\n  ASSERTED — a difference means fix this file first\n")
-   p("domain tables with no seeded row", empty.length, 6)
-   console.log("     " + empty.join(", "))
-   p("columns never non-null in any seeded row", holes, 51)
-   p("  of a total column count of", cols, 293)
-   p("teams with no coach", E.teams.filter((t) => !R.teamCoaches.some((c) => c.teamId === t.id)).length, 11)
-   p("orgs with no member", E.orgs.filter((o) => !R.orgMembers.some((m) => m.orgId === o.id)).length, 8)
-   p("events with fewer than two games", E.events.filter((e) => E.games.filter((g) => g.eventId === e.id).length < 2).length, 3)
-   p("players with a user account", E.players.filter((x) => x.userId).length, 2)
-   p("players with a guardian", new Set(R.guardians.map((g) => g.playerId)).size, 4)
-   p("users with no notification channel", E.users.filter((u) => !R.userNotificationChannels.some((c) => c.userId === u.id)).length, 5)
-   p("users with no notification preference", E.users.filter((u) => !R.userNotificationPreferences.some((x) => x.userId === u.id)).length, 9)
-   p("render specs reading the seed", files.filter((f) => f.includes("/render/") && /domain\/model\/entities|helpers\/fixtures|helpers\/projections/.test(readFileSync(f, "utf8"))).length, 0)
-   p("ids named in tests that no fixture defines", ghosts.size, 8)
-   console.log("     " + [...ghosts].sort().join(", "))
-
-   console.log("\n  PRINTED — context, expected to move as the work lands\n")
-   const payloads = files.filter((f) => f.includes("/render/")).reduce((n, f) => n + (readFileSync(f, "utf8").match(/entry\(orpc/g) ?? []).length, 0)
-   console.log(`  entry() payloads in the render tier          ${payloads}`)
-   TS
-   bun /tmp/seed-derive.ts
+   bun scripts/check/seed-coverage.ts   # tables, columns, and all 40 dependencies
    ```
 
-   Once Phase 1 lands, this block is deleted and step 1 becomes
-   `mise run ops coverage data`. Deleting it is part of ticking Phase 1's first
-   box — a plan carrying its own private copy of a check the gate now runs is the
-   drift this file exists to prevent.
+   That was a 70-line block this file carried privately until Phase 1 landed.
+   It is the gate now, so the plan no longer holds its own copy of a check — a
+   document with a private measurement is the drift this file exists to prevent.
+
+   What the gate does not cover is the test side, which Phases 5 and 6 close:
+
+   ```sh
+   bun -e '
+   import { readdirSync, readFileSync, statSync } from "fs"
+   import { join } from "path"
+   const { SEED_ENTITIES: E, SEED_RELATIONSHIPS: R } =
+     await import(join(process.cwd(), "src/domain/model/entities.ts"))
+   const all = new Set()
+   for (const t of [...Object.values(E), ...Object.values(R)])
+     for (const r of t) for (const v of Object.values(r)) if (typeof v === "string") all.add(v)
+   const files = []
+   const walk = (d) => { for (const e of readdirSync(d)) { const f = join(d, e)
+     statSync(f).isDirectory() ? walk(f) : f.endsWith(".ts") && files.push(f) } }
+   walk(join(process.cwd(), "tests"))
+   const ghosts = new Set()
+   for (const f of files)
+     for (const m of readFileSync(f, "utf8").match(/"(?:team|evt|ply|org|usr|gam|div|ven|ses)_[a-z]*_?\d+"/g) ?? [])
+       if (!all.has(m.slice(1, -1))) ghosts.add(m.slice(1, -1))
+   const render = files.filter((f) => f.includes("/render/"))
+   const say = (l, n, says) =>
+     console.log(`${l.padEnd(42)} ${String(n).padStart(4)}   (plan says ${says})${n === says ? "" : "   <-- DIFFERS"}`)
+   say("render specs reading the seed",
+     render.filter((f) => /domain\/model\/entities|helpers\/fixtures|helpers\/projections/.test(readFileSync(f, "utf8"))).length, 0)
+   say("ids named in tests that no fixture defines", ghosts.size, 8)
+   console.log("     " + [...ghosts].sort().join(", "))
+   console.log("  entry() payloads in the render tier (moves; not asserted)",
+     render.reduce((n, f) => n + (readFileSync(f, "utf8").match(/entry\(orpc/g) ?? []).length, 0))
+   '
+   ```
 
 2. **`mise run 2-check`** before starting, not only after. This tree has had two
    sessions in it at once; a red gate you did not cause is worth knowing about
@@ -587,18 +538,22 @@ reading said the fixtures and the schema agreed.
 Both directions, then. A column with no fixture field is a different finding from
 a column with no value, and it goes to a different repo.
 
-- [ ] Add a per-table and per-column pass to `mise run ops coverage data`,
-      reading `src/db/seed.sql` the way the block at the top of this file does —
-      the bytes the database receives, not a second model of them.
-- [ ] Add the missing direction: columns no fixture field feeds, minus the ones
-      the generator synthesises. Name the seven, and say that each is a biz
-      change rather than a local one.
-- [ ] Give it an exceptions list with a reason per line, seeded with today's six
-      empty tables and 51 empty columns. **Report, do not fail, on those.**
-- [ ] Fail on anything *not* in the list. A new column with no seeded value is a
-      failing gate from the day it exists.
-- [ ] Add the step to `scripts/check.ts` beside `coverage-gui`.
-- [ ] Delete the block at the top of this file; step 1 becomes the task.
+- [x] A per-table and per-column pass, reading `src/db/seed.sql` — the bytes the
+      database receives, not a second model of them.
+- [x] The missing direction: columns no fixture field feeds, minus the ones the
+      generator synthesises, with the message saying which repo the fix is in.
+- [x] The dependency graph, derived from the schema's own foreign keys. Forty
+      edges, each with `every` / `some: n` / `none` and a reason.
+- [x] An exceptions list with a reason per line. Three tables and nine columns.
+- [x] Fail on anything *not* declared.
+- [x] Wired into `scripts/check.ts` as `seed-coverage`, beside `seed-order`.
+- [x] Step 1 of the loop is now the gate, not a block this file carries.
+
+**It went in `scripts/check/seed-coverage.ts` rather than into
+`mise run ops coverage data`**, which is what this plan said. The distinction the
+repo already draws: `scripts/ops/` is where you go for a number,
+`scripts/check/` is where things fail. This fails, so it is a check. The
+vocabulary report keeps its own job and neither duplicates the other.
 
 **Done when** `mise run 2-check` runs it, a deliberately-unfilled new column
 fails it, and every exception carries a sentence.
@@ -621,17 +576,17 @@ Six tables have none. Two are the model's and four are not:
 That absence is the whole bug: the endpoints, the tab and the render spec were
 all built against a table the seed could not reach.
 
-- [ ] biz: sessions for `evt_003`, the Chiang Mai camp. Four or five over its
+- [x] biz: sessions for `evt_003`, the Chiang Mai camp. Four or five over its
       2026-04-15 to 2026-04-19 window, in `Asia/Bangkok`, at `ven_003` — the
       venue `eventVenues` already gives it. Times a parent could act on.
-- [ ] biz: attendance rows against those sessions for the three players already
+- [x] biz: attendance rows against those sessions for the three players already
       registered to `evt_003` via `eventPlayers` — `ply_001`, `ply_004`,
       `ply_006` — with at least one of them absent from at least one session. An
       attendance table whose every row says yes has not been tested.
-- [ ] here: add both to `FIXTURE_TABLES` and `FIXTURE_SCHEMAS`.
-- [ ] here: INSERT blocks in `scripts/lib/seed.ts`, ordered after `event`,
+- [x] here: add both to `FIXTURE_TABLES` and `FIXTURE_SCHEMAS`.
+- [x] here: INSERT blocks in `scripts/lib/seed.ts`, ordered after `event`,
       `venue` and `player`.
-- [ ] Declare the other four in Phase 1's exception list.
+- [x] Declare the other four in Phase 1's exception list.
 - [ ] Open the camp's Sessions tab in the running app and read it.
 
 **Done when** the block reports zero undeclared empty tables and the camp's
@@ -657,7 +612,7 @@ being an accident.
 
 **Fillable here and now — the field exists and every row is null:**
 
-- [ ] `playerTeam.to_date` — 0 of 120. Nobody has ever left a team, so "former
+- [x] `playerTeam.to_date` — 0 of 120. Nobody has ever left a team, so "former
       player" has never rendered and `teams.removePlayer` returns a field
       `coverage-gui` says no screen names. One player who left mid-season, in
       biz's `playerTeams`. This is the only hole in the whole phase that needs
@@ -666,21 +621,21 @@ being an accident.
 **Needs a field in the PO's model first** — these are the seven from Phase 1, and
 each is a commit in biz before it is a row:
 
-- [ ] `event.description` — named in AGENTS.md on 2026-08-30; its section has
+- [x] `event.description` — named in AGENTS.md on 2026-08-30; its section has
       only ever shown an empty state. Add the field, then at least one event with
       a description and at least one without, or the empty state stops being
       covered.
-- [ ] `userNotificationChannel.locale_code` — email locale is a feature with a
+- [x] `userNotificationChannel.locale_code` — email locale is a feature with a
       written rule about `Accept-Language`, and no seeded channel has a locale.
       A channel whose owner reads Thai.
-- [ ] `user.image` — **Decided: declare it, do not fill it.** Not because nobody
+- [x] `user.image` — **Decided: declare it, do not fill it.** Not because nobody
       can choose, but because there is nowhere to point a URL. A seeded avatar at
       a host that does not exist renders a broken image on every screen showing
       that person — strictly worse than the fallback it replaced. The exception
       line reads: *no image hosting exists; the fallback is the product's only
       path today, and a seeded URL would be a defect rather than a fixture.*
       Revisit when there is a bucket to put one in.
-- [ ] `user.banned`, `ban_reason`, `ban_expires` — **Decided: ban
+- [x] `user.banned`, `ban_reason`, `ban_expires` — **Decided: ban
       `usr_spectator_002`**, the person already carrying `status_code`
       `SUSPENDED`. The admin console's ban is built and has never rendered
       against a banned row.
@@ -702,15 +657,15 @@ each is a commit in biz before it is a row:
       Better Auth refuses a **banned** one, because no row is banned. So this
       fills a column and covers a mechanism in the same commit — which is the
       test the exception list is supposed to apply to every fill.
-- [ ] `userNotificationChannel.secret` — declare. A verification secret is minted
+- [x] `userNotificationChannel.secret` — declare. A verification secret is minted
       at verification time and a fixture one would be a lie about a live value.
 
 **Declare — with the reason on the line:**
 
-- [ ] `account.access_token`, `refresh_token`, `id_token`, `*_expires_at`,
+- [x] `account.access_token`, `refresh_token`, `id_token`, `*_expires_at`,
       `scope`, `password` — no OAuth provider, and `emailAndPassword` is off.
-- [ ] the four runtime tables' columns, from Phase 2.
-- [ ] the remainder, one line each. Anything that resists a one-line reason is a
+- [x] the four runtime tables' columns, from Phase 2.
+- [x] the remainder, one line each. Anything that resists a one-line reason is a
       column somebody has not understood yet — read the table's docstring and the
       code that writes it, then write the line. A longer sentence is not the
       answer and neither is deferring it.
@@ -779,12 +734,12 @@ That is the same ratchet as the column gate, on the other axis: **39 questions t
 schema asks, each with a written answer, and a new foreign key arrives as an
 unanswered one.**
 
-- [ ] Derive the 39 edges from the drizzle schema's foreign keys — never a
+- [x] Derive the 39 edges from the drizzle schema's foreign keys — never a
       hand-maintained list, or it is the five invariants again with more steps.
-- [ ] Give each an expectation and a reason. This is the bulk of the phase and it
+- [x] Give each an expectation and a reason. This is the bulk of the phase and it
       is mostly *reading*, not writing data.
-- [ ] Fail on an edge with no expectation. Report on ones that miss theirs.
-- [ ] Then fill what the expectations say is missing.
+- [x] Fail on an edge with no expectation. Report on ones that miss theirs.
+- [x] Then fill what the expectations say is missing.
 
 ### The ones already known to need filling
 
@@ -806,30 +761,31 @@ non-player half growing by a fifth. **The corollary is a rule: this plan adds no
 players.** If a box here can be satisfied by writing more of the cheap row, it
 has been read wrong.
 
-- [ ] **Every team has at least one coach, bar one.** 11 of 15 have none.
+- [x] **Every team has at least one coach, bar one.** 11 of 15 have none.
       Consequences: no roster owner, and no test that a team page renders for
       somebody who is not its coach — the common case and the untested one. Leave
       **one** team coachless on purpose and say which: an unclaimed team is a real
       state, and a screen that has only ever drawn a coached team will break on
       the first school that signs up before its staff do.
-- [ ] **Every org has at least one member.** 8 of 10 have none, so the ORG
+- [x] **Every org has at least one member.** 8 of 10 have none, so the ORG
       relations resolve against two schools out of ten.
 - [ ] **Every event that runs games has at least two.** `evt_001` has one — a
       standings table built from a single game proves nothing. `evt_003` is a camp
       and correctly has none; Phase 2 gives it sessions instead.
 
-      **Decided: a SHOWCASE runs exhibition games, so `evt_004` gets two.** A
+      ~~**Decided: a SHOWCASE runs exhibition games, so `evt_004` gets two.**~~
+      **Reversed on contact with the data — see above.** A
       showcase exists to put players in front of scouts, and players are watched
       playing — it already carries `eventPlayers`, and two teams, and nothing to
       do with them. The value beyond realism is that it exercises the schedule for
       a non-league event type, which nothing does today: 28 of the 29 seeded games
       belong to one league. If the PO says a showcase is drills and interviews,
       it is one row to delete.
-- [ ] **Every user has a notification channel and a preference.** 5 users have no
+- [x] **Every user has a notification channel and a preference.** 5 users have no
       channel, 9 have no preference. Three separate mechanisms that fail
       independently — following, reachability, per-type preference — and most
       seeded people exercise none of them.
-- [ ] **A second player with an account, and a second guardian.** 2 of 119 players
+- [x] **A second player with an account, and a second guardian.** 2 of 119 players
       have a user account. All four guardian rows are the **same person**,
       `usr_spectator_001`, who is simultaneously a PARENT, a GRANDPARENT, a
       LEGAL_GUARDIAN and an OTHER to four different children.
@@ -931,10 +887,10 @@ The user's two conditions, made executable.
 
 **"All data, and the data that relies on other data, is complete."**
 
-- [ ] `mise run ops coverage data` reports **0 undeclared empty tables** and
+- [x] `mise run ops coverage data` reports **0 undeclared empty tables** and
       **0 undeclared empty columns**, and runs inside `mise run 2-check`.
 - [ ] The five depth invariants of Phase 4 hold and are asserted, not documented.
-- [ ] Every exception line carries a reason a reader can disagree with.
+- [x] Every exception line carries a reason a reader can disagree with.
 - [ ] Every column filled in Phase 3 has been looked at on a screen.
 
 **"The tests are less fragile to the data changing."**
@@ -960,6 +916,58 @@ The test, and it is a real one to run, not a claim to make:
       that a slow tier is a bug.
 
 ## Log
+
+- **Pass 7 — the work, not the plan.** Phases 2, 3 and 4's fills are in, and
+  Phase 1's gate is running in `mise run 2-check`. Four commits here, two in biz.
+
+  **The data.** Two model tables that had never held a row now do: the Chiang Mai
+  camp has five sessions and thirteen attendance rows, and `ply_006` misses the
+  middle two days because an attendance table whose every row says yes has not
+  been tested. Eleven coachless teams became one, deliberately —`team_015` stays
+  unclaimed because a school that signs up before its staff do is a real state
+  and the only row covering it. Eight memberless schools became none. A player
+  left a team in March, two events got a description and two deliberately did
+  not, a spectator is banned, a game is being broadcast, and fourteen channels
+  and fifteen preferences arrived. **No players were added.**
+
+  6 empty tables → 3, all correct. 242/293 columns → 261/293. The 32 that remain
+  are all declared, and three of them would break something if filled:
+  `notification_sent` is the scheduler's idempotency record, so a seeded row
+  means "already sent" and the notification never goes out.
+
+  **The gate.** `scripts/check/seed-coverage.ts`, wired in beside `seed-order`.
+  It asks four questions where the old report asked one, and the fourth —
+  *does every column have a fixture field at all?* — is the one that hid
+  `event.description` for four days. Forty dependency edges, each with `every` /
+  `some: n` / `none` and a reason. Verified by deleting one of the twelve
+  exceptions and watching it fail with the column, the row count and the repo the
+  fix belongs in.
+
+  **Three things the work found that the plan did not predict:**
+
+  1. **`check-seed-order` caught a real bug within a minute.** I appended the
+     three new tables to the top of `FIXTURE_TABLES`, so `eventSession` was
+     written before `venue`. Every database we have would have accepted it,
+     because the parents were already there from an earlier seed; a fresh one
+     refuses it, which is how `seed:remote` failed the first time staging was
+     built from nothing.
+  2. **The showcase decision was wrong and the data said so.** "A SHOWCASE runs
+     exhibition games" survived one query: `evt_004`'s two entries are a U16 boys
+     team and a U18 girls team and cannot meet. Making it true would have meant
+     adding teams to satisfy a metric — the failure this plan is named after,
+     nearly committed by the plan's own author.
+  3. **Two worker tests broke, and were the thesis arriving on cue.** Both
+     restated arithmetic from `evt_001`, which grew from one game to three;
+     neither broke for a reason connected to what it tested. One rested on a
+     premise that was never true — "the seed plays every game of an event on one
+     day", while the league has 17 finished games on 17 days. It was only ever
+     true of a tournament with a single game. Fixing it revealed that
+     `movement` was null in **every** seeded row, so the branch computing it had
+     never run against real data. There is a test for that half now.
+
+  Still open: Phase 5 and 6, the test side. 128 hand-written render payloads and
+  eight ids naming nothing — `ses_1` among them, because the camp's real sessions
+  are `ses_001`..`ses_005`.
 
 - **Pass 1 — the plan inspected against the code, no work started.** The block
   extracted from this file and run: all thirteen asserted numbers matched. Five
