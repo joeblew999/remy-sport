@@ -46,6 +46,7 @@
 import type { ApiEvent, ApiTeam } from "../../src/domain/api"
 import { SEED_ENTITIES, SEED_RELATIONSHIPS } from "../../src/domain/model/entities"
 import { clean } from "../../src/domain/names"
+import type { Names } from "../../src/domain/names"
 import type { ApiEntries, ApiGame, ApiRegistered, ApiRoster } from "./api-fixtures"
 
 /**
@@ -57,8 +58,6 @@ import type { ApiEntries, ApiGame, ApiRegistered, ApiRoster } from "./api-fixtur
  */
 const AT = new Date(1_767_225_600_000).toISOString()
 
-type Names = Record<string, string>
-
 const E = SEED_ENTITIES
 const R = SEED_RELATIONSHIPS
 
@@ -68,7 +67,7 @@ const R = SEED_RELATIONSHIPS
  * order — equal by `toMatchObject`, unequal by `toEqual`, and only one of those
  * is the test anybody wants to debug.
  */
-const names = (n: Names): Names => clean(n) as Names
+const names = (n: Names): Names => clean(n)
 
 const eventById = (id: string) => E.events.find((e) => e.id === id)!
 const teamById = (id: string) => E.teams.find((t) => t.id === id)!
