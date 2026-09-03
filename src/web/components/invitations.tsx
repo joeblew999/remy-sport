@@ -33,6 +33,11 @@ export function Invitations({ onAccepted }: { onAccepted?: () => void }) {
         // nowhere.
         void qc.invalidateQueries({ queryKey: orpc.events.invitations.key() })
         void qc.invalidateQueries({ queryKey: orpc.events.key() })
+        // And what you are connected to: accepting makes you CO_ORGANIZER of
+        // this event, which is a relation `me.mine` reports and every "yours"
+        // screen reads. Cached for ten minutes, so without this the event
+        // arrives on the profile some time after you accepted it.
+        void qc.invalidateQueries({ queryKey: orpc.me.mine.key() })
         onAccepted?.()
       },
     }),

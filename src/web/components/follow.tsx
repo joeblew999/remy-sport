@@ -40,8 +40,20 @@ export function FollowButton({
     data?.following.some((f) => f.objectTypeCode === objectTypeCode && f.objectId === objectId),
   )
 
-  const invalidate = () =>
-    qc.invalidateQueries({ queryKey: orpc.notifications.following.key() })
+  /**
+   * Following changes what you are connected to, so holdings goes stale too.
+   *
+   * `me.mine` answers "what am I connected to" for every screen and is cached
+   * for ten minutes, because the answer changes rarely. Following is one of the
+   * two things in this app that changes it — accepting a co-organiser invitation
+   * is the other. Without this, following a team and opening My team shows the
+   * old answer until the cache expires, which is indistinguishable from the bug
+   * that endpoint was written to fix.
+   */
+  const invalidate = () => {
+    void qc.invalidateQueries({ queryKey: orpc.notifications.following.key() })
+    void qc.invalidateQueries({ queryKey: orpc.me.mine.key() })
+  }
 
   const toggle = useMutation({
     // Annotated, because the two calls return `{following: false}` and

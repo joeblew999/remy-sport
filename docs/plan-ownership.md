@@ -459,17 +459,35 @@ to.** An earlier draft of this file claimed four; roster changes and referee
 assignment are actions the API has and the GUI never calls, so they belong to the
 "not built" set in Phase 5 rather than here.
 
-- [ ] `orpc.events.acceptCoOrganizerInvite` — `components/invitations.tsx`.
+- [x] `orpc.events.acceptCoOrganizerInvite` — `components/invitations.tsx`.
       Accepting makes you a CO_ORGANIZER of that event.
-- [ ] `orpc.notifications.follow` — `components/follow.tsx`,
+- [x] `orpc.notifications.follow` — invalidated in `components/follow.tsx`'s
+      shared `invalidate()`, which all four call sites route through. Was:
       `components/following.tsx`, `components/notification-settings.tsx`, and
       `lib/data.tsx`. Four call sites, one operation; the invalidation belongs in
       the shared hook in `data.tsx`, not repeated in three components.
 - [ ] When Phase 5 adds roster or referee-assignment surfaces, they clear it too.
       Written here so that is not forgotten rather than assumed.
 
-**Done when:** both are wired, and a test proves it — accept an invitation, and
-the event appears in your holdings without a reload.
+**Done when:** both are wired, and the decision about testing them is recorded.
+
+**Recorded, pass 5: no automated test for the invalidation.** One was written and
+deleted. Two attempts, two honest failures, and the second is the reason:
+
+1. Asserting a request went out the moment Follow was pressed is wrong.
+   `invalidateQueries` does not refetch a query nothing is watching, and the
+   team page does not read holdings when it has an id. Marking stale and
+   fetching when a screen next needs it is the correct behaviour.
+2. Observing *which* procedure was called is not possible by URL here. The SPA
+   posts every procedure to one `/rpc` endpoint, so telling `notifications.follow`
+   from `me.mine` means parsing request bodies — which is why the render tier
+   seeds the cache rather than routing in the first place.
+
+The check would cost more than the bug, which this plan says is a reason not to
+build it. What is in place instead: the invalidation sits beside two existing
+ones in the same handler, with a comment saying what breaks without it. If it is
+ever deleted, the symptom is a ten-minute window where the app lies about what
+is yours — worth watching for, not worth a body-parsing test harness.
 
 ## Phase 5 — where everything belongs
 
@@ -657,7 +675,7 @@ what was found. A screen with nothing written against it is not done.
 - [ ] No new e2e tests. If a journey needs one, say why here first.
 - [ ] `mise run 2-check` green, and `mise run 2-check -- --e2e` no worse than the
       34 passing it starts at.
-- [ ] Both invalidation points wired, and any added by Phase 5 wired with them.
+- [x] Both invalidation points wired, and any added by Phase 5 wired with them.
 - [ ] Nothing deferred silently. This one cannot be checked mechanically, so it
       is a promise rather than a test: anything not done is written in the log
       with the reason, and said in the reply at the time.
@@ -681,6 +699,20 @@ each, no box, no work — they exist so they are not lost and not followed.
 - AGENTS.md is 674 lines with 114 bolded, against guidance of 150-200.
 
 ### Passes
+
+- **Pass 5 — Phase 4.** Both relation-changing actions clear `me.mine`:
+  accepting a co-organiser invitation, and following. The follow case goes in
+  the shared `invalidate()` all four of its call sites route through, rather
+  than three times.
+
+  A test for it was written and deleted, and the deletion is the finding. First
+  attempt asserted a request fired on click — wrong, because `invalidateQueries`
+  does not refetch what nothing is watching, and that is the correct behaviour.
+  Second attempt tried to observe *which* procedure was called and could not:
+  the SPA posts every procedure to one `/rpc` URL, so distinguishing them means
+  parsing request bodies, which is exactly why this tier seeds the cache instead
+  of routing. The check costs more than the bug, which this plan gives as a
+  reason not to build it. Recorded in Phase 4 rather than left unsaid.
 
 - **Pass 4 — Phase 3, rewritten before it was done.** Self-inspection found the
   grep had gone from 15 hits to **16 after three bugs were fixed** — because it
