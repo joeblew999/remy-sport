@@ -347,6 +347,32 @@ export function projectRoster(
   } as ApiRoster
 }
 
+/**
+ * One player, as `players.get` returns them.
+ *
+ * The current spell only, matching the procedure: a player who left a team in
+ * March is not on it now, and `playerTeam` carries the dates that decide it.
+ * `canEdit` is stated rather than derived, like every other permission here —
+ * whether the form appears is usually the thing a spec is testing.
+ */
+export function projectPlayer(id: string, rights: { canEdit?: boolean } = {}) {
+  const p = playerById(id)
+  const today = new Date().toISOString().slice(0, 10)
+  const spell = R.playerTeams.find(
+    (pt) => pt.playerId === id && (!pt.toDate || pt.toDate >= today),
+  )
+  return {
+    playerId: p.id,
+    names: names(p.names),
+    dob: p.dob,
+    jerseyNumber: p.jerseyNumber,
+    positionCode: p.positionCode,
+    teamId: spell?.teamId ?? null,
+    teamNames: spell ? names(teamById(spell.teamId).names) : null,
+    canEdit: rights.canEdit ?? false,
+  }
+}
+
 /** One registered team, as `events.entries` returns it. */
 function registered(eventId: string, teamId: string, canWithdraw: boolean): ApiRegistered {
   const entry = R.eventTeams.find((t) => t.eventId === eventId && t.teamId === teamId)!

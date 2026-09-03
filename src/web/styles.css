@@ -845,6 +845,14 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 }
 .player-card { position: relative;}
 .player-card .name { font-weight: 500; font-size: 14px;}
+/* The roster name is a way in to the player page, so it is a button. Styled
+   back to reading as the text it replaced — a bordered control per player
+   turns a squad list into a wall of buttons. */
+.link-button {
+  background: none; border: 0; padding: 0; margin: 0;
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+}
+.link-button:hover { text-decoration: underline;}
 .player-card .pos { font-family:'IBM Plex Mono',monospace; font-size: 10px; color: var(--ink-3); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 2px;}
 .player-card .stats { display: flex; gap: 8px; margin-top: 8px; font-family:'IBM Plex Mono',monospace; font-size: 11px; color: var(--ink-2); letter-spacing: 0.04em;}
 .player-card .stats span { display: inline-flex; gap: 3px;}

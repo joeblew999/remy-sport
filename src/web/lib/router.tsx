@@ -29,6 +29,7 @@ export const PAGES = [
   "live",
   "team",
   "teams",
+  "player",
   "profile",
   "login",
   "devices",
@@ -117,6 +118,7 @@ const DETAIL_IDS: Partial<Record<Page, string>> = {
   event: "evt_001",
   org: "org_001",
   team: "team_001",
+  player: "ply_001",
   broadcast: "gam_002",
   watch: "gam_002",
 };

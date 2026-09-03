@@ -120,6 +120,7 @@ export const router = {
      * Whose players they are — the guardians table, which nothing read until
      * 2026-08-30. See src/api/players.ts.
      */
+    get: playersApi.get,
     mine: playersApi.mine,
     remove: playersApi.remove,
     /**

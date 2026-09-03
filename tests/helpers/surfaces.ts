@@ -67,6 +67,7 @@ const SURFACES = {
   org: (id?: string) => (id ? `/#/org/${id}` : "/#/org"),
   event: (id?: string) => (id ? `/#/event/${id}` : "/#/event"),
   team: (id?: string) => (id ? `/#/team/${id}` : "/#/team"),
+  player: (id?: string) => (id ? `/#/player/${id}` : "/#/player"),
   broadcast: (id?: string) => (id ? `/#/broadcast/${id}` : "/#/broadcast"),
   watch: (id?: string) => (id ? `/#/watch/${id}` : "/#/watch"),
 } as const

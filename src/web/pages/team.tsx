@@ -159,7 +159,16 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
               <div key={p.playerId} className="player-card" data-testid={`player-${p.playerId}`}>
                 <div className="ava">{p.name.split(" ").map(x => x[0]).join("")}</div>
                 <div>
-                  <div className="name">{p.name}</div>
+                  {/* The way in to the player page. The roster was the only place
+                      a player appeared and there was nowhere to go from it —
+                      which is why FOLLOW_PLAYER had a button nothing rendered. */}
+                  <button
+                    className="link-button name"
+                    data-testid={`open-player-${p.playerId}`}
+                    onClick={() => goto({ page: "player", id: p.playerId })}
+                  >
+                    {p.name}
+                  </button>
                   <div className="pos">
                     {p.position}
                     {p.since && <span className="since">{m.roster_since({ date: p.since })}</span>}

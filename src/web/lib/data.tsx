@@ -496,6 +496,18 @@ export function useOrgMembers(id: string | undefined) {
   );
 }
 
+/**
+ * One player, for the page that shows them.
+ *
+ * `enabled` on the id, like `useTeam` beside it: a route with no id must not
+ * fire a request for the string "undefined".
+ */
+export function usePlayer(id: string | undefined) {
+  return useQuery(
+    orpc.players.get.queryOptions({ input: { id: id! }, enabled: id !== undefined }),
+  );
+}
+
 export function useTeam(id: string | undefined) {
   const loc = useLocalizer();
   return useQuery(

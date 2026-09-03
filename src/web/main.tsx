@@ -24,6 +24,7 @@ import { DevicesPage } from "./pages/devices";
 import { AdminPage } from "./pages/admin";
 import { OrgsPage, OrgPage } from "./pages/org";
 import { TeamsPage } from "./pages/teams";
+import { PlayerPage } from "./pages/player";
 /**
  * The only lazily-loaded pages, and the reason is the bundle.
  *
@@ -165,6 +166,7 @@ function App() {
   const sidebarPage = route.page === "event" ? "discover"
     : route.page === "org" ? "orgs"
     : route.page === "team" ? "teams"
+    : route.page === "player" ? "teams"
     : route.page;
 
   const handleSpoilerSet = (fn: boolean | ((prev: boolean) => boolean)) => {
@@ -207,6 +209,7 @@ function App() {
     admin: () => <AdminPage goto={goto}/>,
     orgs: () => <OrgsPage goto={goto}/>,
     teams: () => <TeamsPage goto={goto}/>,
+    player: () => <PlayerPage id={route.id} goto={goto}/>,
     org: () => <OrgPage id={route.id} goto={goto}/>,
     // Two surfaces, one per direction. `#/broadcast/<gameId>` points a camera
     // at a game; `#/watch/<gameId>` receives it. Separate pages rather than one

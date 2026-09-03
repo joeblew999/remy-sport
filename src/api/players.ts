@@ -30,7 +30,7 @@ import { and, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import * as schema from "../db/schema"
 import { GUARDIAN_TYPE_CODES, POSITION_CODES, type GuardianTypeCode } from "../domain/vocabularies"
-import { authed, authedRoute, can, checkedInHandler, requireAction , found } from "./base"
+import { authed, authedRoute, can, checkedInHandler, requireAction, stricterThanModel, found } from "./base"
 import { CreatePlayerInput, SignUpPlayerInput } from "../domain/api"
 import { clean } from "../domain/names"
 import { objectsHeldBy } from "./relations"
@@ -425,4 +425,90 @@ export const remove = authed
     // between the two. Still a 404 to the caller.
     if (res.meta.changes === 0) throw new ORPCError("NOT_FOUND", { message: "Not found" })
     return { deleted: input.id }
+  })
+
+/**
+ * One player, as a page shows them.
+ *
+ * `VIEW_PLAYER` is granted to PUBLIC and there was no way to look at a player.
+ * The model has five object types and the app had a page for four — a player was
+ * a row in somebody else's roster and nothing else. So `FOLLOW_PLAYER` had a
+ * button that was never rendered, `RECEIVE_PLAYER_NOTIFICATIONS` had nothing to
+ * attach to, and `VIEW_PLAYER` was answered only for a guardian looking at their
+ * own child.
+ *
+ * ## Behind a session, which is stricter than the model
+ *
+ * The same decision `domain.ts` already made for every player list, and for the
+ * same reason in its own words: "these rows name minors, so a session is
+ * required". A public page naming a child, their school and their fixtures is
+ * not what PUBLIC is for here, whatever the matrix says. Declared as `stricter`
+ * so the gap between this and the model is visible to `check-authz` rather than
+ * hidden in a handler.
+ *
+ * ## What it does not return
+ *
+ * No guardians. `domain.ts` deliberately does not expose that table at all —
+ * who is responsible for a child is not part of looking at a player, and a page
+ * is exactly where it would leak.
+ *
+ * The current spell only, for the reason `mine` gives: a player who left a team
+ * in March is not on it now. Squad history is a decision nobody has made.
+ */
+export const get = authed
+  .route({ method: "GET", path: "/players/{id}", summary: "One player" })
+  .input(z.object({ id: z.string() }))
+  .output(
+    PlayerRow.extend({
+      /** The team they play for now, if any — names for the reader's locale. */
+      teamId: z.string().nullable(),
+      teamNames: z.record(z.string(), z.string()).nullable(),
+      /** The model's answer, so the page never works it out from a role. */
+      canEdit: z.boolean(),
+    }),
+  )
+  .use(
+    stricterThanModel(
+      "VIEW_PLAYER",
+      "the model grants this to PUBLIC; this row names a minor, their school and " +
+        "their fixtures, so a session is required — the same line domain.ts draws " +
+        "for every player list",
+    ),
+  )
+  .handler(async ({ context, input }) => {
+    const [row] = await context.db
+      .select({
+        id: schema.player.id,
+        names: schema.player.names,
+        dob: schema.player.dob,
+        jerseyNumber: schema.player.jerseyNumber,
+        positionCode: schema.player.positionCode,
+      })
+      .from(schema.player)
+      .where(eq(schema.player.id, input.id))
+    found(row)
+
+    const today = new Date().toISOString().slice(0, 10)
+    const spells = await context.db
+      .select({
+        teamId: schema.team.id,
+        teamNames: schema.team.names,
+        toDate: schema.playerTeam.toDate,
+      })
+      .from(schema.playerTeam)
+      .innerJoin(schema.team, eq(schema.team.id, schema.playerTeam.teamId))
+      .where(eq(schema.playerTeam.playerId, input.id))
+      .all()
+    const current = spells.find((s) => !s.toDate || s.toDate >= today)
+
+    return {
+      playerId: row.id,
+      names: row.names as Record<string, string>,
+      dob: row.dob,
+      jerseyNumber: row.jerseyNumber,
+      positionCode: row.positionCode,
+      teamId: current?.teamId ?? null,
+      teamNames: (current?.teamNames as Record<string, string>) ?? null,
+      canEdit: await can(context.db, "EDIT_PLAYER_PROFILE", context.user, row.id),
+    }
   })
