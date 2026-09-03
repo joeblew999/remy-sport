@@ -50,7 +50,20 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
    * while this page kept the old behaviour, which is how the two came to
    * disagree.
    */
-  const mine = [...(myEvents?.organising ?? []), ...(myEvents?.following ?? [])];
+  /**
+   * The ones you run. Followed events are below, under Following.
+   *
+   * This concatenated organising and following, which put every followed event
+   * on this page twice — once here and once in the Following card — and lost the
+   * distinction the model draws deliberately. The deleted `events.mine` said why:
+   * "a page that cannot tell an event you organise from one you follow has to
+   * offer the same controls for both, and the difference is exactly what the
+   * reader came to see."
+   *
+   * The full split lives at `#/events`, which is the screen for it. This is a
+   * summary, so it shows the half a person acts on.
+   */
+  const mine = myEvents?.organising ?? [];
   // Only what can actually be watched. A "watch" link on a game nobody is
   // filming is a link to a black rectangle.
   const watchable = (live?.games ?? []).filter((g) => g.isBroadcasting);

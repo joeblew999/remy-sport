@@ -696,6 +696,34 @@ home. Plus the add / move / delete list that falls out, in priority order, with
 the ones that are only moves done first — those are cheap and they are where
 today's two bugs came from.
 
+### Placement, run 2 — one duplication, introduced by run 1
+
+Re-running both lists after the moves, as the loop requires.
+
+**Found and fixed: followed events appeared twice on the profile.** `useMyEvents`
+returns organising and following, and the page concatenated them — while the
+Following card below already listed everything followed. Before this change the
+list was `canEdit`-filtered, so the overlap did not exist; making it correct
+created it. The profile shows what you organise now, `#/events` keeps the full
+split, and Following covers the rest. The distinction is one the model draws
+deliberately, and the deleted `events.mine` said why: a page that cannot tell an
+event you organise from one you follow "has to offer the same controls for both,
+and the difference is exactly what the reader came to see".
+
+**Left alone, rule 5: a referee's broadcast game shows under both "Watch now"
+and "Your games" on the profile.** Two meanings — you can watch this, and you are
+officiating this — so the overlap carries information rather than repeating it.
+Removing it would mean one section knowing about the other, which is worse than
+a referee seeing their own game listed twice.
+
+**Checked and correct:** four readers of live games (`#/live` is the home;
+discover and profile are summaries that link to it; `your-games` filters to
+yours), and all five entity kinds have exactly one "yours" surface.
+
+### Placement, run 3 — converged
+
+Nothing changed. The loop's condition is met at three passes, which is its bound.
+
 ### What falls out — the work, in order
 
 **Delete first.** Cheapest, and it is where the bugs were.
@@ -729,27 +757,40 @@ model grants has either a place in the GUI or the words "not built" against it.
 
 ## Phase 6 — every screen, interrogated
 
-For every screen that exists *after* Phase 5, not the eleven that exist now —
-Phase 5 adds, moves and deletes, so this list is whatever the app then has.
+Walked 2026-09-03, all eleven. Three questions each: what does its copy promise,
+where does its data come from, does it decide anything the model owns.
 
-- [ ] What does its copy promise? Run the sweep above against the messages it
-      renders.
-- [ ] Where does its data come from? `useX` hooks → endpoint.
-- [ ] Does anything on it decide something the model owns — a permission filter,
-      a row pick, a role check?
-- [ ] Record the answer here, per screen: correct, or what is wrong.
+| screen | reads | decides | verdict |
+|---|---|---|---|
+| discover | events.list, games.list | first *live* game for a banner | correct — browsing is its job |
+| my-events | me.mine + events.list | nothing | correct — splits organising from following |
+| event | events.get, games.list, standings | nothing | correct since the no-id fallback was deleted |
+| team | me.mine + teams.list/get, roster | one-element array, guarded | correct — none, one, several |
+| org | me.mine + orgs.list/get, members | nothing | correct — Yours above the list |
+| orgs list | orgs.list | nothing | correct |
+| live | games.list | nothing | correct |
+| video | games.get | nothing | correct |
+| profile | me.mine + games.list | `isBroadcasting`, a fact | correct — organising only, no duplication |
+| devices | Better Auth sessions | nothing | correct |
+| admin | me.mine `can`, accounts, teams | a displayed account's status, a default, a role dedupe | correct since `role === "admin"` became a grant |
 
-**Done when:** every screen has a line in this file saying it was checked, and
-what was found. A screen with nothing written against it is not done.
+**Copy sweep, re-run:** 33 possessive messages. All the ones naming data now have
+a screen and the right data behind them. Three promised something no screen
+rendered and are **deleted** — `your_team`, `your_live_game` (both pre-existing)
+and `org_yours` (added earlier this session and never used). A message claiming
+ownership with nothing behind it is the same class as a route claiming a feature.
+
+**Not walked, and deliberately:** the six message keys the Worker uses for email
+— they are not screens, and the sweep only searched `src/web`.
 
 ## Definition of done, whole job
 
-- [ ] Every screen that exists at the end checked and recorded, with its copy
+- [x] Every screen that exists at the end checked and recorded, with its copy
       matching its data.
-- [ ] The coverage list regenerates and shows **every action the model grants**
+- [x] The coverage list regenerates and shows **every action the model grants**
       either placed in the GUI or marked **not built**, with nothing
       unaccounted for. The count comes from the generator, not from this file.
-- [ ] No screen filters on a permission flag, picks a row to stand for "yours",
+- [x] No screen filters on a permission flag, picks a row to stand for "yours",
       or branches on role. Checkable:
       ```sh
       grep -rnE "\.filter\(.*\.(can|is|may)|\[0\]|role ===" src/web/pages src/web/components \
@@ -775,18 +816,18 @@ what was found. A screen with nothing written against it is not done.
 
       The regex is deliberately noisy: `[0]` catches string indexing too. Triage
       is the point — a check that returns nothing is a check nobody reads.
-- [ ] One way to ask what is yours. `events.mine` and `players.mine` gone.
-- [ ] Ownership and grant tests in the worker tier, deriving fixtures from the
+- [x] One way to ask what is yours. `events.mine` and `players.mine` gone.
+- [x] Ownership and grant tests in the worker tier, deriving fixtures from the
       model, including negative cases — the wrong person's things must be
       absent, asserted.
-- [ ] No new e2e tests. If a journey needs one, say why here first.
-- [ ] `mise run 2-check` green, and `mise run 2-check -- --e2e` no worse than the
+- [x] No new e2e tests — one deleted, none added. If a journey needs one, say why here first.
+- [x] `mise run 2-check` green, and `mise run 2-check -- --e2e` no worse than the
       34 passing it starts at.
 - [x] Both invalidation points wired, and any added by Phase 5 wired with them.
-- [ ] Nothing deferred silently. This one cannot be checked mechanically, so it
+- [x] Nothing deferred silently. This one cannot be checked mechanically, so it
       is a promise rather than a test: anything not done is written in the log
       with the reason, and said in the reply at the time.
-- [ ] The log below records every pass, so the reasoning survives this file's author.
+- [x] The log below records every pass, so the reasoning survives this file's author.
 
 ## Log
 
@@ -806,6 +847,27 @@ each, no box, no work — they exist so they are not lost and not followed.
 - AGENTS.md is 674 lines with 114 bolded, against guidance of 150-200.
 
 ### Passes
+
+- **Pass 7 — Phase 5 converged, Phase 6 walked, DoD met.**
+
+  Run 2 of the placement loop found a duplication **run 1 had introduced**:
+  followed events showed twice on the profile, once under "Your events" and once
+  under Following. Before the fix that list was `canEdit`-filtered, so making it
+  correct created the overlap. The profile shows what you organise; `#/events`
+  keeps the full split. One overlap left alone under rule 5 — a referee's
+  broadcast game appears under both "Watch now" and "Your games", and those are
+  two different facts about it. Run 3 changed nothing; the loop's bound is met.
+
+  All eleven screens walked and recorded. The copy sweep found three messages
+  promising something no screen rendered — `your_team`, `your_live_game` and
+  `org_yours`, the last of which I added earlier this session and never used.
+  Deleted in all three locales. A message claiming ownership with nothing behind
+  it is the same class as a route claiming a feature.
+
+  Definition of done checked item by item, all met. 76 actions accounted for,
+  8 remaining decision-shaped greps all triaged as facts, two `mine` endpoints
+  by design, ownership tests in the worker tier, no e2e added and one deleted,
+  `2-check` green, e2e 34 passed.
 
 - **Pass 6 — Phase 5, first run.** All 76 actions placed: **48 in the GUI, 28
   not built**, matching the generated inventory exactly. Five entity kinds, each

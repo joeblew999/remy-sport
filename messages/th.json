@@ -257,7 +257,6 @@
   "org_team_created": "สร้างทีมแล้ว",
   "org_teams": "ทีม",
   "org_type": "ประเภท",
-  "org_yours": "ของคุณ",
   "organised_by": "จัดโดย {name}",
   "orgs_empty": "ยังไม่มีองค์กร",
   "orgs_heading": "องค์กร",
@@ -436,12 +435,10 @@
   "you": "คุณ",
   "your_events": "รายการของคุณ",
   "your_games": "เกมที่คุณเป็นกรรมการ",
-  "your_live_game": "เกมสดของคุณ",
   "your_orgs": "โรงเรียนของคุณ",
   "your_permissions": "สิทธิ์ของคุณ (การแข่งขัน)",
   "your_players": "ผู้เล่นของคุณ",
   "your_players_none": "ยังไม่มีบุตรหลาน เพิ่มเพื่อสมัครเข้าค่ายหรือติดตามทีม",
-  "your_team": "ทีมของคุณ",
   "your_teams": "ทีมของคุณ",
   "your_time": "{time} ตามเวลาของคุณ"
 }

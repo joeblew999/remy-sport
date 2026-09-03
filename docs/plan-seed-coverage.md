@@ -351,6 +351,51 @@ declared, and a declaration with a reason is a pass.
 
 ## Which repo each change belongs in
 
+### The seeding is here. The rows are not.
+
+This is the thing to get straight before reading the table, because the obvious
+assumption is wrong in a reasonable way. "The PO owns the model, we do the
+seeding" is half true, and the half that is false is the half this plan is about.
+
+| | where it lives |
+|---|---|
+| the schema — 51 tables, 293 columns | here, `src/db/` |
+| the generator that turns rows into SQL | here, `scripts/lib/seed.ts` |
+| the generated SQL, committed | here, `src/db/seed.sql` |
+| **the rows themselves** | **biz**, `domain/model/entities.ts` |
+
+`src/domain/model/entities.ts` is **byte-identical** to
+`../remy-sport-biz/domain/model/entities.ts` — `mise run ops domain` copies it
+verbatim and `mise run 2-check` fails if it has drifted. Nothing in this repo may
+edit it. So the 119 named players, the four events with their dates, the ten Thai
+schools and the fourteen people are all *upstream*, and every machine that turns
+them into a database is *here*.
+
+The name is what misleads. `domain/model/` sounds like it holds the shape of
+things, and beside it `vocabularies.ts` does exactly that. But `entities.ts` in
+the same directory is not a shape — it is 558 lines of named Thai teenagers. Add
+a coach and you are editing the PO's file, through their repo, and syncing.
+
+### The seed serves two masters, and that is the real tension
+
+It is the demo's content *and* the test suite's fixtures, and those want opposite
+things. Content wants believable and sparse. Fixtures want every edge case
+present. **The guardian row is what happens when one file serves both**: one
+person who is a PARENT, GRANDPARENT, LEGAL_GUARDIAN and OTHER at once is perfect
+coverage and an absurd family.
+
+Splitting them was considered and refused. A repo-local overlay of edge-case rows
+on top of the PO's content would give each master what it wants — and it would
+mean two definitions of "seeded", when the thing that makes the current design
+sound is that `/api/seed` and the worker tests execute *the same bytes*.
+
+So the rule, and it decides several boxes in Phase 4: **the seed is the PO's
+content, and a test that needs an edge case asks for it as content or does
+without.** That is why "leave one team coachless" is written as a decision about
+a real unclaimed team, not as a test hook.
+
+### The table
+
 The rule is AGENTS.md's: could a person from the business disagree with it?
 
 | change | repo |
@@ -591,6 +636,21 @@ each one unblocks.
 Breadth without depth is the seed's actual shape: one fat instance per kind and
 husks around it. Five invariants, each with a screen behind it.
 
+### The seed is not small, it is lopsided
+
+434 fixture rows. **239 of them — 55% — are players and their team memberships**:
+119 players, 8 per team, each on exactly one team, 2 with an account, 4 with a
+guardian, none who ever left. The largest thing in the seed is also its most
+uniform, and it is uniform because a player is the cheapest row to write.
+
+Everything the product is actually about is in the other **195**: 4 events, 10
+orgs, 15 teams, 14 users, 4 venues, 6 divisions, and the links between them.
+
+So this phase adds roughly 35 rows and that is not a rounding error — it is the
+non-player half growing by a fifth. **The corollary is a rule: this plan adds no
+players.** If a box here can be satisfied by writing more of the cheap row, it
+has been read wrong.
+
 - [ ] **Every team has at least one coach, bar one.** 11 of 15 have none.
       Consequences: no roster owner, and no test that a team page renders for
       somebody who is not its coach — the common case and the untested one. Leave
@@ -752,6 +812,18 @@ The test, and it is a real one to run, not a claim to make:
   complained about on 2026-08-30 and which is still empty. Anybody trying to fill
   it would have read a report saying the fixtures and the schema agreed. That
   direction is now the second box of Phase 1.
+
+- **Pass 4 — what "more data" would actually mean, measured.** 434 fixture rows,
+  and **239 of them are players and playerTeams** — 55% of the seed is one shape,
+  eight per team, one team each, two with accounts. Everything the product is
+  about lives in the other 195 rows.
+
+  That changes what Phase 4 is. It reads like "add data" and it is not: it adds
+  about 35 rows, all of them in the thin half, growing the non-player seed by
+  roughly a fifth while the total grows 7%. And it produces a rule the phase
+  needed and did not have — **this plan adds no players.** A box that can be
+  closed by writing more of the cheapest row has been read wrong. The 119 players
+  are why `coverage data` looks healthy and the product looks empty.
 
 - **Pass 3 — the cost estimate audited, because it was the weakest joint.**
   "A projection is a row copy, no business logic" was derived from **one**

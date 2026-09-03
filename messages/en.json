@@ -257,7 +257,6 @@
   "org_team_created": "Team created.",
   "org_teams": "Teams",
   "org_type": "Type",
-  "org_yours": "Yours",
   "organised_by": "Organised by {name}",
   "orgs_empty": "No organisations yet.",
   "orgs_heading": "Organisations",
@@ -436,12 +435,10 @@
   "you": "you",
   "your_events": "Your events",
   "your_games": "Games you are refereeing",
-  "your_live_game": "Your live game",
   "your_orgs": "Your schools",
   "your_permissions": "Your permissions (event)",
   "your_players": "Your players",
   "your_players_none": "No children yet. Add one to enter them in a camp or follow their team.",
-  "your_team": "Your team",
   "your_teams": "Your teams",
   "your_time": "{time} your time"
 }

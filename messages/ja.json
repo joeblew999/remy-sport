@@ -257,7 +257,6 @@
   "org_team_created": "チームを作成しました。",
   "org_teams": "チーム",
   "org_type": "種別",
-  "org_yours": "あなたの",
   "organised_by": "主催: {name}",
   "orgs_empty": "団体はまだありません。",
   "orgs_heading": "団体",
@@ -436,12 +435,10 @@
   "you": "自分",
   "your_events": "あなたの大会",
   "your_games": "あなたが審判を務める試合",
-  "your_live_game": "あなたの試合",
   "your_orgs": "あなたの学校",
   "your_permissions": "あなたの権限（大会）",
   "your_players": "あなたの選手",
   "your_players_none": "登録された子どもはいません。追加するとキャンプへの申し込みやチームのフォローができます。",
-  "your_team": "あなたのチーム",
   "your_teams": "あなたのチーム",
   "your_time": "{time}（あなたの現地時刻）"
 }
