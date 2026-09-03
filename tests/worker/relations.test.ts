@@ -91,7 +91,11 @@ describe("every relation resolves against the seeded data", () => {
       // Fails closed, so a resolver that matches nothing would pass a
       // "should be false" assertion for the wrong reason — the positive case
       // above is what proves this one means something.
-      expect(await holds(db, code, { id: "usr_nobody_000", role: null }, tuple.objectId)).toBe(false)
+      // The point is somebody the fixtures do NOT contain. Naming a real person
+      // would make this depend on that person having no relation to this object,
+      // which the fixtures do not promise and could change.
+      const nobody = { id: "usr_nobody_000", role: null } // check-ignore: must not exist
+      expect(await holds(db, code, nobody, tuple.objectId)).toBe(false)
     },
   )
 })
