@@ -1,5 +1,6 @@
 import { FollowButton } from "../components/follow";
 import { usePlayer, useTeamGames } from "../lib/data";
+import { useSession } from "../lib/session";
 import { m } from "../lib/i18n";
 import { useLocale } from "../lib/locale";
 import type { Route } from "../lib/router";
@@ -40,10 +41,31 @@ import type { Route } from "../lib/router";
  */
 export function PlayerPage({ id, goto }: { id?: string; goto: (r: Route) => void }) {
   const { label, name } = useLocale();
+  const { user, loading } = useSession();
   const player = usePlayer(id);
   const games = useTeamGames(player.data?.teamId ?? undefined);
 
-  if (player.isPending) return <div className="empty">{m.loading_player()}</div>;
+  /**
+   * Signed out is not "no such player".
+   *
+   * `players.get` is declared stricter than the model and refuses without a
+   * session, so a visitor's query fails and `data` is undefined — which the
+   * first version reported as "No such player." A page telling somebody a child
+   * does not exist, when the truth is that they have not signed in, is a lie
+   * the reader has no way to see through.
+   *
+   * The same distinction event-players.tsx already draws, and the reason this
+   * page has to draw it at all: it is the one screen here that the model grants
+   * to PUBLIC and the app keeps behind a session.
+   */
+  if (!user && !loading) {
+    return (
+      <div className="empty" data-testid="player-signin">
+        {m.player_signin()}
+      </div>
+    );
+  }
+  if (player.isPending || loading) return <div className="empty">{m.loading_player()}</div>;
   if (!player.data) {
     return (
       <div className="empty" data-testid="player-not-found">

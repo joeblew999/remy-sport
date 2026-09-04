@@ -1,5 +1,5 @@
 import { test, expect } from "./fixture"
-import { sessionFor } from "../helpers/actors"
+import { asVisitor, sessionFor } from "../helpers/actors"
 import { projectPlayer } from "../helpers/projections"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
@@ -81,5 +81,27 @@ test.describe("The player page", () => {
     const first = projectRoster(TEAM, { signedIn: true }).players[0]!
     await page.getByTestId(`open-player-${first.playerId}`).click()
     await expect(page).toHaveURL(new RegExp(`#/player/${first.playerId}$`))
+  })
+})
+
+/**
+ * Signed out is not "no such player".
+ *
+ * `players.get` is stricter than the model and refuses without a session, so a
+ * visitor's query fails and the page has no data — which it first reported as
+ * "No such player." Telling somebody a child does not exist, when the truth is
+ * that they have not signed in, is a lie the reader cannot see through.
+ *
+ * This page is the only one that has to draw the distinction: it is the single
+ * screen the model grants to PUBLIC and the app deliberately keeps behind a
+ * session, because these rows name minors.
+ */
+test.describe("The player page, signed out", () => {
+  test("asks the visitor to sign in rather than denying the player exists", async ({ page }) => {
+    await asVisitor(page)
+    await visit(page, "player", { id: PLAYER })
+
+    await expect(page.getByTestId("player-signin")).toBeVisible()
+    await expect(page.getByTestId("player-not-found")).toHaveCount(0)
   })
 })
