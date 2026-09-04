@@ -141,6 +141,13 @@ const BUDGETS: Record<string, Budget> = {
  * the ten real ones. It is not a step — it is how check times the steps it has —
  * so it lives with the runner that calls it.
  */
+/** What this tier took when its budget was set, in seconds, or null. */
+export function measuredFor(tier: string, shared: boolean): number | null {
+  const budget = BUDGETS[tier]
+  if (!budget) return null
+  return shared && budget.shared ? budget.shared.measured : budget.measured
+}
+
 export function budgetFor(tier: string, elapsedMs: number, shared: boolean): boolean {
   const budget = BUDGETS[tier]
   if (!budget) {
@@ -608,6 +615,22 @@ for (const step of [...PHASES.flat(), E2E]) {
   }
 }
 
+/**
+ * How far over its measured time a failing tier has to be before the failure is
+ * more likely to be the machine than the code.
+ *
+ * Measured on 2026-09-04, on a laptop running a browser, a desktop app and two
+ * agents: `render` reported **149 failures in 1.5 minutes** and 240 passes in 25
+ * seconds a minute later; `worker` failed `authz-equivalence` at 21s and passed
+ * it at 14s; `moq-support` timed out spawning a probe that runs in 40ms. None
+ * of those was a defect and each cost a re-run to find out.
+ *
+ * Three is deliberate and not tight. Ordinary variation on this tier is ~1.4s
+ * against 27s. A run that took three times its own measurement was not running
+ * the same experiment.
+ */
+const CONTENTION = 3
+
 export function run(step: Step): Promise<{ name: string; ok: boolean }> {
   return new Promise((resolve) => {
     const started = Date.now()
@@ -617,12 +640,35 @@ export function run(step: Step): Promise<{ name: string; ok: boolean }> {
     })
     child.on("exit", (code) => {
       const ok = code === 0
+      const took = Date.now() - started
       // Timed, and the number is printed on every run. A tier that got six
       // times slower went unnoticed for a whole session because nothing ever
       // said how long it took.
       if (ok && step.budget) {
-        const within = budgetFor(step.budget, Date.now() - started, step.env?.BUDGET_SHARED === "1")
+        const within = budgetFor(step.budget, took, step.env?.BUDGET_SHARED === "1")
         return resolve({ name: step.name, ok: within })
+      }
+      /**
+       * Say which kind of failure this was. Do not retry it.
+       *
+       * A gate that goes red for reasons outside the repo teaches you to re-run
+       * it, and once that habit exists the signal is gone — this file's own note
+       * on the render budget says exactly that. But hiding the failure behind an
+       * automatic retry is worse: it would swallow a real one.
+       *
+       * So the run still fails and the reader is told which experiment they
+       * just ran. One sentence, and it names the command that settles it.
+       */
+      if (!ok && step.budget) {
+        const measured = measuredFor(step.budget, step.env?.BUDGET_SHARED === "1")
+        if (measured && took > measured * CONTENTION * 1000) {
+          console.error(
+            `\n  ${step.name} failed after ${(took / 1000).toFixed(0)}s, against ${measured}s measured.\n` +
+              `  That is ${Math.round(took / 1000 / measured)}x, which is the machine rather than the code —\n` +
+              `  this tier starves when something else is using the CPU.\n` +
+              `  Settle it: mise run 2-check -- --only ${step.name}\n`,
+          )
+        }
       }
       resolve({ name: step.name, ok })
     })
@@ -649,6 +695,35 @@ export async function gate(phases: Step[][]): Promise<string[]> {
  * drift.
  */
 const FAST = new Set(["typecheck-worker", "typecheck-spa", "typecheck-tests", "unit"])
+
+/**
+ * `--only <step>` runs one step, on its own, with nothing before it.
+ *
+ * A step lives in a phase, and a phase only starts when the one before it
+ * passed — which is right for a gate and wrong for a person who wants to know
+ * about *one* thing. An agent asked how to run `i18n` while typecheck was red
+ * and there was no answer but "read check.ts and copy the command out", which
+ * is a second place for that command to live and drift.
+ *
+ * It is not a way around the gate. `2-check` still runs everything in order;
+ * this is for the loop where you are fixing one check and want its output in a
+ * second rather than in a minute.
+ */
+function only(name: string): Step[][] {
+  const all = [...PHASES.flat(), E2E]
+  const step = all.find((s) => s.name === name)
+  if (!step) {
+    console.error(
+      `check --only: no step named "${name}".\n\n  Steps:\n` +
+        PHASES.map((phase, i) => `    phase ${i}  ${phase.map((s) => s.name).join(" ")}`).join("\n") +
+        `\n    e2e      ${E2E.name}\n`,
+    )
+    process.exit(1)
+  }
+  // No budget: a step run alone is not sharing the machine, and a solo ceiling
+  // measured inside `check` would be the wrong number to hold it to.
+  return [[{ ...step, budget: undefined }]]
+}
 
 /**
  * The order, written down, so neither a person nor an agent has to guess it.
@@ -719,13 +794,25 @@ if (import.meta.main) {
   prepare()
   const fast = process.argv.includes("--fast")
   const e2e = process.argv.includes("--e2e")
+  const onlyAt = process.argv.indexOf("--only")
+  const onlyName = onlyAt === -1 ? null : process.argv[onlyAt + 1]
+  if (onlyAt !== -1 && !onlyName) {
+    console.error("check --only: needs a step name. 'mise run 2-check -- --help' lists them.")
+    process.exit(1)
+  }
   // Said out loud, because "which system am I about to write to" is not a
   // question an operator should have to infer from an absent flag.
   if (e2e) console.log(`check --e2e: against ${TARGET ? `${TARGET.environment} — ${TARGET.origin}` : "dev — http://localhost:8787"}`)
   // Ask before running: a deployment that will not sign the suite in fails every
   // spec, and the reason is a policy switch rather than anything the tests did.
   if (e2e && TARGET) await preflight(TARGET.origin, TARGET.environment)
-  const phases = e2e ? [[E2E]] : fast ? [PHASES.flat().filter((s) => FAST.has(s.name))] : PHASES
+  const phases = onlyName
+    ? only(onlyName)
+    : e2e
+      ? [[E2E]]
+      : fast
+        ? [PHASES.flat().filter((s) => FAST.has(s.name))]
+        : PHASES
   const failed = await gate(phases)
   if (failed.length) {
     console.error(`\ncheck: ${failed.length} failed — ${failed.join(", ")}\n`)
@@ -760,5 +847,9 @@ if (import.meta.main) {
         : "  Next:\n    mise run 3-deploy -- --env staging   ships it (runs this again first)\n"
       : "  Next:\n    mise run 2-check -- --e2e           real browser, real Worker, real database\n" +
         "    mise run 3-deploy -- --env staging   ships it (runs both of the above first)\n"
+  if (onlyName) {
+    console.log(`\ncheck: green (${onlyName} only — the gate is 'mise run 2-check')\n`)
+    process.exit(0)
+  }
   console.log(`\ncheck: green${e2e ? " (e2e)" : fast ? " (fast)" : ""}\n\n${next}`)
 }
