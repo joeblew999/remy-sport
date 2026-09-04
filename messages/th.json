@@ -301,7 +301,7 @@
   "player_relationship": "ความสัมพันธ์ของคุณ",
   "player_signin": "เข้าสู่ระบบเพื่อดูข้อมูลผู้เล่นรายนี้ ชื่อ โรงเรียน และโปรแกรมแข่งขันไม่เปิดเผยต่อสาธารณะ",
   "player_spell_dates": "{from} ถึง {to}",
-  "player_stats": "สถิติผู้เล่น →",
+  "player_stats": "สถิติฤดูกาลนี้",
   "player_team": "ทีมที่สังกัด",
   "profile_crumb": "โปรไฟล์",
   "profile_no_events": "คุณยังไม่ได้จัดการแข่งขันใด ๆ",
@@ -478,5 +478,12 @@
   "your_players": "ผู้เล่นของคุณ",
   "your_players_none": "ยังไม่มีบุตรหลาน เพิ่มเพื่อสมัครเข้าค่ายหรือติดตามทีม",
   "your_teams": "ทีมของคุณ",
-  "your_time": "{time} ตามเวลาของคุณ"
+  "your_time": "{time} ตามเวลาของคุณ",
+  "player_stats_none": "ยังไม่มีการบันทึกสถิติของผู้เล่นคนนี้",
+  "stat_points": "แต้ม",
+  "stat_rebounds": "รีบาวด์",
+  "stat_assists": "แอสซิสต์",
+  "stat_fouls": "ฟาวล์",
+  "player_stats_games": "บันทึกแล้ว {n} เกม",
+  "player_stats_per_game": "ต่อเกม"
 }

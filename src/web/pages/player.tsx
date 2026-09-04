@@ -1,12 +1,13 @@
 import { FollowButton } from "../components/follow";
-import { usePlayer, useTeamGames } from "../lib/data";
+import { usePlayer, usePlayerStats, useTeamGames } from "../lib/data";
 import { useSession } from "../lib/session";
 import { m } from "../lib/i18n";
 import { useLocale } from "../lib/locale";
 import type { Route } from "../lib/router";
 
 /**
- * @answers VIEW_PLAYER, FOLLOW_PLAYER, UNFOLLOW_PLAYER, RECEIVE_PLAYER_NOTIFICATIONS
+ * @answers VIEW_PLAYER, VIEW_PLAYER_STATS, FOLLOW_PLAYER, UNFOLLOW_PLAYER,
+ * RECEIVE_PLAYER_NOTIFICATIONS
  *
  * A player, as anybody signed in can look at them.
  *
@@ -31,9 +32,16 @@ import type { Route } from "../lib/router";
  * No guardians. `domain.ts` does not expose that table at all, and a page is
  * exactly where it would leak.
  *
- * No statistics. `VIEW_PLAYER_STATS` is at the model boundary: scores are per
- * team, and nothing records what a player did. A "Points" heading over a blank
- * column would be a promise the schema cannot keep.
+ * Statistics, since 2026-09-04. This paragraph used to say the opposite — that
+ * `VIEW_PLAYER_STATS` was at the model boundary because scores are per team and
+ * nothing recorded what a player did, and that a "Points" heading over a blank
+ * column would be a promise the schema could not keep. `playerGameStat` is that
+ * promise being made good: four columns a paper scoresheet actually carries,
+ * entered by whoever may `ENTER_SCORES`.
+ *
+ * The section is absent, not empty, for a player with no lines — most have
+ * none, and a blank stat block on every page is the same noise a
+ * "Previously: nothing" card would be.
  *
  * The fixtures are their team's, and say so. A player has no games of their own
  * in this model — `game` joins two teams — so labelling their squad's fixtures
@@ -44,6 +52,7 @@ export function PlayerPage({ id, goto }: { id?: string; goto: (r: Route) => void
   const { user, loading } = useSession();
   const player = usePlayer(id);
   const games = useTeamGames(player.data?.teamId ?? undefined);
+  const stats = usePlayerStats(id);
 
   /**
    * Signed out is not "no such player".
@@ -142,6 +151,47 @@ export function PlayerPage({ id, goto }: { id?: string; goto: (r: Route) => void
                 <button className="btn" onClick={() => goto({ page: "team", id: spell.teamId })}>
                   {m.team_open()}
                 </button>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/**
+        * Totals, then the games they came from.
+        *
+        * Per-game averages are shown beside each total rather than instead of
+        * it: a season total answers "how much has this player done" and an
+        * average answers "how good are they", and a reader wants the first
+        * before the second. Divided by lines recorded, not games played — a
+        * player can be on a squad for a game nobody kept a sheet for, and
+        * dividing by those would flatter nobody and confuse everybody.
+        */}
+      {stats.data && stats.data.recorded > 0 && (
+        <>
+          <div className="section-h">
+            <h2>{m.player_stats()}</h2>
+            <span className="section-note" data-testid="player-stats-games">
+              {m.player_stats_games({ n: stats.data.recorded })}
+            </span>
+          </div>
+          <div className="dash-card" data-testid="player-stats">
+            {(
+              [
+                ["points", m.stat_points()],
+                ["rebounds", m.stat_rebounds()],
+                ["assists", m.stat_assists()],
+                ["fouls", m.stat_fouls()],
+              ] as const
+            ).map(([key, heading]) => (
+              <div key={key} className="device-row" data-testid={`stat-${key}`}>
+                <div className="device-label">{heading}</div>
+                <div className="device-meta">
+                  {stats.data!.totals[key]}
+                  {" · "}
+                  {(stats.data!.totals[key] / stats.data!.recorded).toFixed(1)}{" "}
+                  {m.player_stats_per_game()}
+                </div>
               </div>
             ))}
           </div>

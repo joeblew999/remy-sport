@@ -596,24 +596,6 @@ export function projectPlayerStats(playerId: string) {
   }
 }
 
-/** One game's box score, as `games.stats` returns it: top scorer first. */
-export function projectGameStats(gameId: string) {
-  return {
-    lines: R.playerGameStats
-      .filter((l) => l.gameId === gameId)
-      .map((l) => ({
-        gameId: l.gameId,
-        playerId: l.playerId,
-        names: names(playerById(l.playerId).names),
-        points: l.points,
-        rebounds: l.rebounds,
-        assists: l.assists,
-        fouls: l.fouls,
-      }))
-      .sort((a, b) => (b.points ?? 0) - (a.points ?? 0) || a.playerId.localeCompare(b.playerId)),
-  }
-}
-
 /** Every id the projections above can be asked about, for the equivalence test. */
 export const SEEDED = {
   events: E.events.map((e) => e.id),

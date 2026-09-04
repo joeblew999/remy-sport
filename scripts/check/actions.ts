@@ -100,18 +100,7 @@ const BLOCKED: Record<string, string> = {
  * "we have not", which is the honest half of a coverage number.
  */
 const NOT_BUILT: Record<string, string> = {
-  /**
-   * The data and the API landed 2026-09-04; the screen has not.
-   *
-   * `playerGameStat` exists, `players.stats` and `games.stats` serve it, and
-   * gam_001 has a real box score whose points add up to 68–54. What is missing
-   * is a place to look at it — a section on the player page, and a box score on
-   * the game. Neither needs a model change or a decision, which is what makes
-   * this NOT_BUILT rather than BLOCKED, and the difference is the whole reason
-   * these are two lists.
-   */
-  VIEW_PLAYER_STATS: "table, endpoints and seeded rows exist; no screen renders them yet",
-  // Empty otherwise, and worth keeping. It held four entries when this check was written;
+  // Empty, and worth keeping. It held four entries when this check was written;
   // two of those turned out to be built already and badly measured, and the
   // other two — a teams directory and an admin creating an account — were built
   // the same day rather than left in a list. An empty list is the state to

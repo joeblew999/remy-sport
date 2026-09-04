@@ -113,34 +113,3 @@ export const forPlayer = authed
       },
     }
   })
-
-export const forGame = authed
-  .use(stricterThanModel("VIEW_PLAYER_STATS",
-    "the model grants this to PUBLIC; a box score names minors, so a session is required"))
-  .route({ method: "GET", path: "/games/{gameId}/stats", summary: "One game's box score" })
-  .input(z.object({ gameId: z.string() }))
-  .output(z.object({ lines: z.array(LineSchema.extend({ names: z.record(z.string(), z.string()) })) }))
-  .handler(async ({ context, input }) => {
-    const lines = await context.db
-      .select({
-        gameId: schema.playerGameStat.gameId,
-        playerId: schema.playerGameStat.playerId,
-        names: schema.player.names,
-        points: schema.playerGameStat.points,
-        rebounds: schema.playerGameStat.rebounds,
-        assists: schema.playerGameStat.assists,
-        fouls: schema.playerGameStat.fouls,
-      })
-      .from(schema.playerGameStat)
-      .innerJoin(schema.player, eq(schema.player.id, schema.playerGameStat.playerId))
-      .where(eq(schema.playerGameStat.gameId, input.gameId))
-      // By points, then by name. A box score is read to find out who scored,
-      // and two players on nine points should not swap places between requests.
-      .all()
-
-    return {
-      lines: [...lines]
-        .map((l) => ({ ...l, names: l.names as Record<string, string> }))
-        .sort((a, b) => (b.points ?? 0) - (a.points ?? 0) || a.playerId.localeCompare(b.playerId)),
-    }
-  })

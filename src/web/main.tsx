@@ -4,7 +4,6 @@ import { createRoot } from "react-dom/client";
 import { Sidebar } from "./components/sidebar";
 import { Topbar } from "./components/topbar";
 import { isNativeApp, pushState } from "./lib/push";
-import { watchForInstall } from "./lib/install";
 import { useNativeScoreNotifications } from "./lib/data";
 import { useRouter, type Page } from "./lib/router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -105,6 +104,30 @@ function PendingApprovalNotice() {
   );
 }
 
+/**
+ * @answers INSTALL_APP
+ *
+ * `<pwa-install>`, in a browser only — never inside Tauri, where the reader
+ * already has the native app.
+ *
+ * ## It asks when asked, not on arrival
+ *
+ * It used to prompt by itself, and on localhost that looked fine: the install
+ * criteria are never met there, so the element stays inert and every local test
+ * passed. On staging — a real origin, a real manifest, a real service worker —
+ * it threw its dialog over the app on load at z-index 2147483001, and the first
+ * e2e run against a deployment could not click Sign out. Playwright named the
+ * element: "<pwa-install> intercepts pointer events".
+ *
+ * A reader would have hit the same thing, one dialog before they had seen
+ * anything to want installed.
+ *
+ * `manual-apple` and `manual-chrome` turn the automatic prompt off. The way in
+ * is a menu item beside Devices and Admin, which appears only while the element
+ * reports that installing is actually available — so it is not the "always
+ * visible, correct only sometimes" button this comment used to warn against.
+ * The element knows; it just was not being asked.
+ */
 function App() {
   const tweaks = { ...DEFAULTS, ...(window.TWEAK_DEFAULTS ?? {}) } as Required<TweakDefaults>;
   const { route, goto, setParam } = useRouter();
@@ -260,6 +283,18 @@ function App() {
           </div>
         </div>
       </div>
+      {/* Browser only — see the isNativeApp() gate on the import below.
+          `manual-*` because it must not prompt on arrival; components/account.tsx
+          calls showDialog() when a reader asks. */}
+      {!isNativeApp() && (
+        <pwa-install
+          id="pwa-install"
+          manifest-url="/manifest.webmanifest"
+          use-local-storage
+          manual-apple="true"
+          manual-chrome="true"
+        />
+      )}
     </>
   );
 }
@@ -340,18 +375,34 @@ if (
 }
 
 /**
- * Listen for the browser's own install offer — a browser only, never Tauri.
+ * The install-prompt component — in a browser only, never inside Tauri.
  *
- * Same reasoning as the service worker block above: a Tauri reader already has
- * the native app, so there is nothing to install. Gated on the same
- * `isNativeApp()` this file already imports for push.
+ * Same reasoning as the service worker block above: Tauri users already have
+ * the native app, so beforeinstallprompt/Web Install concepts do not apply
+ * and showing an "Add to Home Screen" dialog inside an already-installed
+ * native shell would be confusing at best. Gated on the same isNativeApp()
+ * this file already imports for push, rather than re-deriving the check.
  *
- * This replaced `@khmyznikov/pwa-install`, which did the job and cost more than
- * it was worth — 128KB of 33 locales, none of them Thai, and a dialog it threw
- * over the app on arrival at z-index 2147483001. src/web/lib/install.ts has the
- * whole account.
+ * Its dialog is not translated into Thai, and that cannot be fixed from here.
+ * 0.6.4 ships 33 locales and `th` is not among them, so a Thai reader gets
+ * English copy inside an otherwise Thai app. The component resolves its
+ * language from navigator.language alone — exact code, then the two-letter
+ * prefix, then a bare `catch {}` that leaves it on English — so an unsupported
+ * language is indistinguishable from a supported one at runtime, which is why
+ * this went unnoticed. That lookup also ignores our locale, which is
+ * localStorage-first (lib/locale.tsx), so a reader on a Japanese browser who
+ * chose English still gets a Japanese dialog; en and ja mismatch that way
+ * today. It declares `changeLocale` in its .d.ts but does not expose it
+ * through `exports` — the entry resolves to a bundle whose only export is
+ * PWAInstallElement — so there is nothing to call and no local workaround
+ * short of importing past the exports map. Both asked upstream:
+ * https://github.com/khmyznikov/pwa-install/issues/169
  */
-if (typeof window !== "undefined" && !isNativeApp()) watchForInstall();
+if (typeof window !== "undefined" && !isNativeApp()) {
+  import("@khmyznikov/pwa-install").catch(() => {
+    /* no install prompt: the app still works, install just isn't offered */
+  });
+}
 
 // Forward webview console output to the Rust logger when running inside Tauri.
 // src-tauri/src/lib.rs registers tauri-plugin-log for debug builds, but only

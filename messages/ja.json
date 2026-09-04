@@ -301,7 +301,7 @@
   "player_relationship": "あなたとの関係",
   "player_signin": "この選手を見るにはサインインしてください。氏名、学校、日程は公開されていません。",
   "player_spell_dates": "{from}〜{to}",
-  "player_stats": "選手成績 →",
+  "player_stats": "今シーズンの成績",
   "player_team": "所属チーム",
   "profile_crumb": "プロフィール",
   "profile_no_events": "主催しているイベントはまだありません。",
@@ -478,5 +478,12 @@
   "your_players": "あなたの選手",
   "your_players_none": "登録された子どもはいません。追加するとキャンプへの申し込みやチームのフォローができます。",
   "your_teams": "あなたのチーム",
-  "your_time": "{time}（あなたの現地時刻）"
+  "your_time": "{time}（あなたの現地時刻）",
+  "player_stats_none": "この選手のスタッツはまだ記録されていません。",
+  "stat_points": "得点",
+  "stat_rebounds": "リバウンド",
+  "stat_assists": "アシスト",
+  "stat_fouls": "ファウル",
+  "player_stats_games": "{n} 試合を記録",
+  "player_stats_per_game": "1試合あたり"
 }

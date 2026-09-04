@@ -10,7 +10,6 @@ import {
   projectEvents,
   projectVenues,
   projectGame,
-  projectGameStats,
   projectMyPlayers,
   projectOrg,
   projectPlayerStats,
@@ -233,13 +232,8 @@ describe("What only a signed-in reader sees", () => {
    * names a child and what they did — so it cannot be read in the anonymous
    * pass above.
    */
-  it("a box score is what the projection says, per game and per player", async () => {
+  it("a box score is what the projection says", async () => {
     const cookie = await signIn(actorFor("SPECTATOR"))
-    for (const gameId of SEEDED.games) {
-      const res = await api(`/api/games/${gameId}/stats`, { cookie })
-      expect(res.status, `${gameId}'s box score should be readable`).toBe(200)
-      same(await res.json(), projectGameStats(gameId), `games.stats(${gameId})`)
-    }
     for (const playerId of SEEDED.playersWithStats) {
       const res = await api(`/api/players/${playerId}/stats`, { cookie })
       expect(res.status, `${playerId}'s stats should be readable`).toBe(200)

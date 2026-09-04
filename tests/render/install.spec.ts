@@ -4,63 +4,45 @@ import { visit } from "../helpers/surfaces"
 import { seedCache } from "../helpers/seed-cache"
 
 /**
- * Offering to install the app.
+ * The install prompt must never cover the app.
  *
- * `@khmyznikov/pwa-install` prompted on arrival at z-index 2147483001, and the
- * first e2e run against a real deployment could not click Sign out — Playwright
- * named the element. Thirty-four local runs had passed, because localhost never
- * meets the install criteria and the component stayed inert.
+ * `<pwa-install>` used to prompt on arrival, and on a real origin it put its
+ * dialog over everything at z-index 2147483001 — the first e2e run against a
+ * deployment could not click Sign out, and Playwright named the element.
+ * Thirty-four local runs had passed, because localhost never meets the install
+ * criteria and the element stays inert here.
  *
- * These tests fire the platform event themselves, which is what localhost never
- * does. That is the whole reason the bug reached staging: the condition under
- * test could not occur in the tier that was testing it.
+ * That is the trap this file exists for: the condition could not occur in the
+ * tier that was testing it, so the only honest thing to assert locally is that
+ * the element is mounted and *inert*. `manual-apple` and `manual-chrome` are
+ * what keep it that way; the account menu opens it when a reader asks.
+ *
+ * The dialog itself — the icon, the manifest screenshots, the iOS steps — is
+ * the component's, and is why it is here rather than eighty lines of our own.
  */
-const fireInstallPrompt = (page: Parameters<typeof visit>[0]) =>
-  page.evaluate(() => {
-    const e = new Event("beforeinstallprompt") as Event & {
-      prompt?: () => Promise<void>
-      userChoice?: Promise<{ outcome: string }>
-    }
-    e.prompt = () => Promise.resolve()
-    e.userChoice = Promise.resolve({ outcome: "accepted" })
-    window.dispatchEvent(e)
-  })
-
-test.describe("Installing the app", () => {
-  test("is not offered until the browser says it is possible", async ({ page }) => {
+test.describe("The install prompt", () => {
+  test("is mounted, and does not intercept clicks", async ({ page }) => {
     await seedCache(page, [sessionFor("COACH")])
     await visit(page, "discover")
 
-    // The default state everywhere, including every other render test: no
-    // event, so no offer. A button here would be the guess the old comment in
-    // topbar.tsx objected to.
-    await expect(page.getByTestId("install-app")).toHaveCount(0)
-  })
-
-  test("appears once the browser offers, and nothing covers the page", async ({ page }) => {
-    await seedCache(page, [sessionFor("COACH")])
-    await visit(page, "discover")
-    await fireInstallPrompt(page)
-
-    await expect(page.getByTestId("install-app")).toBeVisible()
+    await expect(page.locator("pwa-install")).toHaveCount(1)
 
     /**
-     * The actual regression. The old component put a fixed dialog over
-     * everything at z-index 2147483001, so whatever sat underneath could not be
-     * clicked. Asserting the offer exists would not have caught that — this
-     * asserts the page still works while it is showing.
+     * The regression, asserted the only way that would have caught it: click
+     * something else and require that it works. Checking the element exists
+     * would have passed on the day this broke.
      */
     await page.getByTestId("topbar-user").click({ timeout: 5_000 })
   })
 
-  test("asking removes the offer, because the event is spent", async ({ page }) => {
+  test("is set to manual, so it cannot prompt on arrival", async ({ page }) => {
     await seedCache(page, [sessionFor("COACH")])
     await visit(page, "discover")
-    await fireInstallPrompt(page)
-    await page.getByTestId("install-app").click()
 
-    // Chromium refuses a second prompt on the same event, so an offer that
-    // stayed would be a button that does nothing the next time.
-    await expect(page.getByTestId("install-app")).toHaveCount(0)
+    // Without both of these the component decides for itself when to appear,
+    // which is exactly what put a dialog over the app on staging.
+    const el = page.locator("pwa-install")
+    await expect(el).toHaveAttribute("manual-apple", "true")
+    await expect(el).toHaveAttribute("manual-chrome", "true")
   })
 })

@@ -301,7 +301,7 @@
   "player_relationship": "Your relationship to them",
   "player_signin": "Sign in to see this player. Their name, school and fixtures are not public.",
   "player_spell_dates": "{from} to {to}",
-  "player_stats": "Player stats →",
+  "player_stats": "Season so far",
   "player_team": "Squad",
   "profile_crumb": "PROFILE",
   "profile_no_events": "You are not organising any events yet.",
@@ -478,5 +478,12 @@
   "your_players": "Your players",
   "your_players_none": "No children yet. Add one to enter them in a camp or follow their team.",
   "your_teams": "Your teams",
-  "your_time": "{time} your time"
+  "your_time": "{time} your time",
+  "player_stats_none": "No box score has been kept for this player yet.",
+  "stat_points": "Points",
+  "stat_rebounds": "Rebounds",
+  "stat_assists": "Assists",
+  "stat_fouls": "Fouls",
+  "player_stats_games": "{n} games recorded",
+  "player_stats_per_game": "per game"
 }

@@ -508,6 +508,20 @@ export function usePlayer(id: string | undefined) {
   );
 }
 
+/**
+ * What this player did, game by game.
+ *
+ * Separate from `usePlayer` rather than folded into it: a page can render a
+ * name, a number and a squad before any box score arrives, and most players
+ * have no lines at all. Joining them would make the whole page wait for the
+ * part most readers will not see.
+ */
+export function usePlayerStats(id: string | undefined) {
+  return useQuery(
+    orpc.players.stats.queryOptions({ input: { playerId: id! }, enabled: id !== undefined }),
+  );
+}
+
 export function useTeam(id: string | undefined) {
   const loc = useLocalizer();
   return useQuery(

@@ -82,8 +82,6 @@ export const router = {
   games: {
     list: games.list,
     get: games.get,
-    /** This game's box score. See src/api/stats.ts. */
-    stats: stats.forGame,
     create: games.create,
     generateFixtures: games.generateFixtures,
     update: games.update,

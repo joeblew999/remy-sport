@@ -1,6 +1,6 @@
 import { test, expect } from "./fixture"
 import { asVisitor, sessionFor } from "../helpers/actors"
-import { projectPlayer } from "../helpers/projections"
+import { projectPlayer, projectPlayerStats } from "../helpers/projections"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 
@@ -144,5 +144,62 @@ test.describe("A player's past squads", () => {
     // Not an empty card. "Previously: nothing" on every page is noise on the
     // common case.
     await expect(page.getByTestId("player-past")).toHaveCount(0)
+  })
+
+  /**
+   * The box score, which this page could not show until 2026-09-04.
+   *
+   * Scores were per team and nothing recorded what a player did, so the page's
+   * own docstring said a "Points" heading over a blank column would be a
+   * promise the schema could not keep. `playerGameStat` is that promise made
+   * good, and `ply_001` has a real line from Assumption 68 – Montfort 54.
+   */
+  test("shows the season totals, and a per-game average beside each", async ({ page }) => {
+    const stats = projectPlayerStats(PLAYER)
+    expect(stats.recorded, "ply_001 should have a seeded box score").toBeGreaterThan(0)
+
+    await seedCache(page, [
+      signedIn,
+      entry(orpc.players.get, { id: PLAYER }, projectPlayer(PLAYER)),
+      entry(orpc.players.stats, { playerId: PLAYER }, stats),
+    ])
+    await visit(page, "player", { id: PLAYER })
+
+    await expect(page.getByTestId("player-stats")).toBeVisible()
+    for (const key of ["points", "rebounds", "assists", "fouls"] as const) {
+      const row = page.getByTestId(`stat-${key}`)
+      await expect(row).toContainText(String(stats.totals[key]))
+      // The average, to one place — the number beside the total, not instead
+      // of it.
+      await expect(row).toContainText((stats.totals[key] / stats.recorded).toFixed(1))
+    }
+  })
+
+  test("says how many games the numbers come from, not how many were played", async ({ page }) => {
+    // A player can be on a squad for a game nobody kept a sheet for, so the
+    // denominator is lines recorded. Calling it "games played" would make a
+    // season look shorter than it was.
+    const stats = projectPlayerStats(PLAYER)
+    await seedCache(page, [
+      signedIn,
+      entry(orpc.players.get, { id: PLAYER }, projectPlayer(PLAYER)),
+      entry(orpc.players.stats, { playerId: PLAYER }, stats),
+    ])
+    await visit(page, "player", { id: PLAYER })
+    await expect(page.getByTestId("player-stats-games")).toContainText(String(stats.recorded))
+  })
+
+  test("shows no stat block at all for a player nobody kept a sheet on", async ({ page }) => {
+    // Absent, not empty. Most players have no lines, and a blank stat card on
+    // every page is the noise a "Previously: nothing" card would be.
+    const none = { lines: [], recorded: 0, totals: { points: 0, rebounds: 0, assists: 0, fouls: 0 } }
+    await seedCache(page, [
+      signedIn,
+      entry(orpc.players.get, { id: PLAYER }, projectPlayer(PLAYER)),
+      entry(orpc.players.stats, { playerId: PLAYER }, none),
+    ])
+    await visit(page, "player", { id: PLAYER })
+    await expect(page.getByTestId("player-page")).toBeVisible()
+    await expect(page.getByTestId("player-stats")).toHaveCount(0)
   })
 })
