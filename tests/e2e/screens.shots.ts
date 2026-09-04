@@ -78,9 +78,7 @@ const SCREENS: { name: string; path: string; as: string | null; open?: string }[
  */
 const YOURS = [
   { name: "home", path: "/#/" },
-  { name: "my-events", path: "/#/events" },
-  { name: "my-team", path: "/#/team" },
-  { name: "dashboard", path: "/#/profile" },
+  { name: "profile", path: "/#/profile" },
 ]
 for (const [role, email] of Object.entries(ACTORS)) {
   for (const s of YOURS) SCREENS.push({ name: `${s.name}-${role.toLowerCase()}`, path: s.path, as: email })

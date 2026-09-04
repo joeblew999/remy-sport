@@ -219,6 +219,32 @@ export function useGames(eventId: string | undefined) {
  *
  * Polled, because a game goes live while somebody is looking at the page.
  */
+/**
+ * Every game on the platform, for the screens that pick out yours.
+ *
+ * A referee's assignments are spread across events, so "your games" cannot
+ * ask per event. The same request `useLiveGames` narrows, so the two share a
+ * cache entry rather than fetching twice.
+ */
+export function useAllGames() {
+  const loc = useLocalizer();
+  return useQuery(
+    orpc.games.list.queryOptions({
+      input: {},
+      select: ({ games, viewerTimezone }) => ({
+        viewerTimezone,
+        games: games.map((g) => ({
+          ...g,
+          homeTeam: loc.name(g.homeTeamNames),
+          awayTeam: loc.name(g.awayTeamNames),
+          venue: g.venueNames ? loc.name(g.venueNames) : null,
+          statusLabel: loc.label("gameStatuses", g.statusCode),
+        })),
+      }),
+    }),
+  );
+}
+
 export function useLiveGames({ enabled = true }: { enabled?: boolean } = {}) {
   const loc = useLocalizer();
   return useQuery(

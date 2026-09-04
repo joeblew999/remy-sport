@@ -30,12 +30,15 @@ import type { Page } from "@playwright/test"
  * test that says "notifications" survives both.
  */
 const SURFACES = {
-  /** Everything on, the list a visitor lands on. */
-  discover: () => "/",
-  /** The reader's own dashboard — invitations, their children, their events. */
-  dashboard: () => "/#/profile",
-  /** What this reader follows: teams, events, players. On the dashboard today. */
-  following: () => "/#/profile",
+  /** The root: Home for somebody signed in, Discover for a visitor. */
+  home: () => "/",
+  /** Everything on, by name — the same list a visitor gets at the root. */
+  discover: () => "/#/discover",
+  /** What the reader holds — invitations, children, teams, events, following — is Home. */
+  dashboard: () => "/",
+  following: () => "/",
+  /** The account: who you are here, and the children you are guardian to. */
+  profile: () => "/#/profile",
   /** Push: this device, the devices receiving them, and what they are for. */
   notifications: () => "/#/devices",
   /** Where you are signed in. Sessions, not subscriptions — a different list. */
@@ -46,8 +49,6 @@ const SURFACES = {
   admin: () => "/#/admin",
   /** Games in progress. */
   live: () => "/#/live",
-  /** The events this reader organises. */
-  myEvents: () => "/#/events",
   /** Schools and clubs. */
   orgs: () => "/#/orgs",
   /** Every squad on the platform. */

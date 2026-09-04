@@ -3,11 +3,12 @@
 import type { JSX } from "react";
 
 export type IconName =
-  | "discover" | "events" | "teams" | "live" | "standings" | "profile"
+  | "home" | "discover" | "events" | "teams" | "live" | "standings" | "profile"
   | "orgs" | "bell" | "download" | "arrow" | "plus" | "search"
   | "eye" | "eyeoff" | "follow" | "share";
 
 const PATHS: Record<IconName, JSX.Element> = {
+  home: <><path d="M2 8.5L8 3l6 5.5" stroke="currentColor" strokeWidth="1.3" fill="none"/><path d="M3.5 7.5V14h9V7.5" stroke="currentColor" strokeWidth="1.3" fill="none"/><path d="M6.5 14v-3.5h3V14" stroke="currentColor" strokeWidth="1.2" fill="none"/></>,
   events: <><rect x="2" y="3" width="12" height="12" stroke="currentColor" strokeWidth="1.3" fill="none"/><path d="M2 6h12M5 1v3M11 1v3" stroke="currentColor" strokeWidth="1.3"/></>,
   discover: <><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3" fill="none"/><path d="M8 1v14M1 8h14" stroke="currentColor" strokeWidth="1.3"/></>,
   teams: <><circle cx="5.5" cy="6" r="2.2" stroke="currentColor" strokeWidth="1.2" fill="none"/><circle cx="10.5" cy="6" r="2.2" stroke="currentColor" strokeWidth="1.2" fill="none"/><path d="M2 13c0-1.8 1.5-3 3.5-3s3.5 1.2 3.5 3M7 13c0-1.8 1.5-3 3.5-3s3.5 1.2 3.5 3" stroke="currentColor" strokeWidth="1.2" fill="none"/></>,

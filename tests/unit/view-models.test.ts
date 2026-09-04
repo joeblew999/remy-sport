@@ -12,7 +12,7 @@
  */
 
 import { expect, test, describe } from "bun:test"
-import { shortCode, toEvent, type ApiEvent } from "../../src/web/lib/api"
+import { nextOf, shortCode, toEvent, type ApiEvent } from "../../src/web/lib/api"
 import type { Localizer } from "../../src/web/lib/localizer"
 import { apiEvent } from "../helpers/api-fixtures"
 
@@ -265,5 +265,28 @@ describe("shortCode — initials only", () => {
 
   test("survives empty input without throwing", () => {
     expect(() => shortCode("")).not.toThrow()
+  })
+})
+
+describe("the next fixture is what is on now, else what is coming", () => {
+  const g = (id: string, statusCode: string, day: string) => ({ id, statusCode, startsAt: `${day}T10:00:00.000Z` })
+  const today = on("2026-09-05")
+
+  test("a live game beats an earlier stale fixture and a later scheduled one", () => {
+    const games = [g("stale", "SCHEDULED", "2026-06-14"), g("live", "LIVE", "2026-09-05"), g("later", "SCHEDULED", "2026-09-26")]
+    expect(nextOf(games, today)?.id).toBe("live")
+  })
+
+  test("otherwise the first fixture from today, not the earliest ever", () => {
+    const games = [g("stale", "SCHEDULED", "2026-06-14"), g("soon", "SCHEDULED", "2026-09-12"), g("later", "SCHEDULED", "2026-09-26")]
+    expect(nextOf(games, today)?.id).toBe("soon")
+  })
+
+  test("a stale unplayed fixture is still shown when there is nothing else — it is the honest answer", () => {
+    expect(nextOf([g("stale", "SCHEDULED", "2026-06-14"), g("done", "FINISHED", "2026-09-01")], today)?.id).toBe("stale")
+  })
+
+  test("nothing unplayed is nothing", () => {
+    expect(nextOf([g("done", "FINISHED", "2026-09-01")], today)).toBeUndefined()
   })
 })

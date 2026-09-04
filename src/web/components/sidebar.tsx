@@ -61,52 +61,53 @@ interface NavItem {
  * No "Standings" entry: a league table belongs to an event, so there is nothing
  * for a top-level one to show. It is a tab on the event page.
  */
-// "My Events" is back, and now it goes somewhere. It was removed on 2026-08-29
-// because it routed to #/events and #/events rendered Discover — two entries
-// going to one screen, one of them named for a screen that did not exist.
-// pages/my-events.tsx is that screen: what you organise, and what you follow,
-// grouped by the relation the server says you hold.
-const navItems = (): NavItem[] => [
-  { id: "discover",  label: m.nav_discover() },
-  { id: "events",    label: m.nav_my_events() },
-  { id: "team",      label: m.nav_my_team() },
-  // No Watch or Broadcast entries. Video belongs to a game, not to the app:
-  // "Watch" with no game is a question the nav cannot answer, and it used to
-  // guess — sending two devices to whatever each thought was current. Live now
-  // lists what is actually being played and offers Watch on the games somebody
-  // is broadcasting.
-  { id: "live",      label: m.nav_live() },
-  { id: "teams",     label: m.nav_teams() },
-  { id: "orgs",      label: m.nav_orgs() },
-  { id: "profile",   label: m.nav_profile() },
+/**
+ * Two groups, and which is which was the first thing wrong with this sidebar.
+ *
+ * "My events" and "My team" sat under BROWSE while the Teams and Organisations
+ * directories sat under YOU. Now YOU is what is yours — Home, built from what
+ * you hold, and your account — and BROWSE is the platform: what is on, what is
+ * live, every team, every school. YOU is offered only to somebody signed in;
+ * a visitor has nothing to hold and lands on Discover.
+ *
+ * No Watch or Broadcast entries. Video belongs to a game, not to the app:
+ * "Watch" with no game is a question the nav cannot answer, and it used to
+ * guess — sending two devices to whatever each thought was current. Live now
+ * lists what is actually being played and offers Watch on the games somebody
+ * is broadcasting.
+ */
+const YOU = (): NavItem[] => [
+  { id: "home",    label: m.nav_home() },
+  { id: "profile", label: m.nav_profile() },
+];
+const BROWSE = (): NavItem[] => [
+  { id: "discover", label: m.nav_discover() },
+  { id: "live",     label: m.nav_live() },
+  { id: "teams",    label: m.nav_teams() },
+  { id: "orgs",     label: m.nav_orgs() },
 ];
 
 export function Sidebar({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
-  const NAV_ITEMS = navItems();
+  const { user } = useSession();
+  const group = (title: string, items: NavItem[]) => (
+    <div className="nav-group">
+      <div className="label">{title}</div>
+      {items.map(it => (
+        <button key={it.id} className={`nav-item ${page === it.id ? "active" : ""}`} onClick={() => setPage(it.id)}>
+          <span className="ico"><Icon name={it.id} /></span>
+          <span>{it.label}</span>
+        </button>
+      ))}
+    </div>
+  );
   return (
     <aside className="sidebar">
       <div className="brand">
         <div className="brand-mark"></div>
         <div className="brand-name">Remy Sport<span className="sub">เรมีสปอร์ต</span></div>
       </div>
-      <div className="nav-group">
-        <div className="label">{m.browse()}</div>
-        {NAV_ITEMS.slice(0, 4).map(it => (
-          <button key={it.id} className={`nav-item ${page === it.id ? "active" : ""}`} onClick={() => setPage(it.id)}>
-            <span className="ico"><Icon name={it.id === "team" ? "teams" : it.id} /></span>
-            <span>{it.label}</span>
-          </button>
-        ))}
-      </div>
-      <div className="nav-group">
-        <div className="label">{m.nav_you()}</div>
-        {NAV_ITEMS.slice(4).map(it => (
-          <button key={it.id} className={`nav-item ${page === it.id ? "active" : ""}`} onClick={() => setPage(it.id)}>
-            <span className="ico"><Icon name={it.id} /></span>
-            <span>{it.label}</span>
-          </button>
-        ))}
-      </div>
+      {user && group(m.nav_you(), YOU())}
+      {group(m.browse(), BROWSE())}
       {/* No "Following" group. It listed Saint Gabriel's and Bangkok Cup '26 for
           every viewer, signed in or not, and neither button did anything.
           The model has a `subscriptions` table and the FOLLOWER_TEAM and

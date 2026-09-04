@@ -147,6 +147,28 @@ export function toEvent(e: ApiEvent, loc: Localizer, today: Date = new Date()): 
   };
 }
 
+/**
+ * The fixture that is next: one being played now, else the first from today,
+ * else the earliest still unplayed.
+ *
+ * The first walk of the new Home showed a coach "Next: Montfort · Jun 14" for
+ * a team that was on court at that moment — a stale scheduled fixture sorted
+ * ahead of the live game, because "earliest unfinished" is not "next". `today`
+ * is a parameter for the same reason `toEvent` takes one: the boundary is a
+ * day, and a test has to be able to stand on either side of it.
+ */
+export function nextOf<G extends { statusCode: string; startsAt: string }>(
+  games: G[],
+  today: Date = new Date(),
+): G | undefined {
+  const unplayed = games
+    .filter((g) => g.statusCode !== "FINISHED")
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  const live = unplayed.find((g) => g.statusCode === "LIVE" || g.statusCode === "HALF_TIME");
+  const day = today.toISOString().slice(0, 10);
+  return live ?? unplayed.find((g) => g.startsAt >= day) ?? unplayed[0];
+}
+
 // ── Teams ──────────────────────────────────────────────────────────────────
 
 /** One team, as the contract declares it. Inferred, never written out. */

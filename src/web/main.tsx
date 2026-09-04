@@ -14,7 +14,7 @@ import { CrashBoundary } from "./components/crash";
 import { watchForClientErrors } from "./lib/report";
 
 import { DiscoverPage } from "./pages/discover";
-import { MyEventsPage } from "./pages/my-events";
+import { HomePage } from "./pages/home";
 import { EventPage } from "./pages/event";
 import { LivePage } from "./pages/live";
 import { TeamPage } from "./pages/team";
@@ -172,13 +172,19 @@ function App() {
   }, []);
   useNativeScoreNotifications(nativeOn);
 
+  // Who is here decides what the root is: Home for a person, Discover for a
+  // visitor. Nothing else in the shell depends on the session.
+  const { user, loading: sessionLoading } = useSession();
+
   useEffect(() => {
     document.documentElement.style.setProperty("--accent", tweaks.accentColor);
     document.documentElement.style.setProperty("--accent-deep", tweaks.accentColor);
   }, [tweaks.accentColor]);
 
-  // A detail page keeps its list highlighted in the nav.
-  const sidebarPage = route.page === "event" ? "discover"
+  // A detail page keeps its list highlighted in the nav, and the root is
+  // Discover's for a visitor, who has no Home.
+  const sidebarPage = route.page === "home" && !user ? "discover"
+    : route.page === "event" ? "discover"
     : route.page === "org" ? "orgs"
     : route.page === "team" ? "teams"
     : route.page === "player" ? "teams"
@@ -214,10 +220,16 @@ function App() {
     discover: () => (
       <DiscoverPage goto={goto} spoiler={spoiler} query={route.query} setParam={setParam}/>
     ),
-    events: () => <MyEventsPage goto={goto}/>,
+    // What is yours when signed in; the platform when not. Held until the
+    // session is known, so a coach does not see Discover flash before Home.
+    home: () =>
+      sessionLoading ? <div className="empty">{loadingLabel()}</div>
+      : user ? <HomePage goto={goto}/>
+      : <DiscoverPage goto={goto} spoiler={spoiler} query={route.query} setParam={setParam}/>,
     event: () => <EventPage id={route.id} goto={goto} spoiler={spoiler}/>,
     live: () => <LivePage goto={goto} spoiler={spoiler} setSpoiler={handleSpoilerSet}/>,
-    team: () => <TeamPage id={route.id} goto={goto}/>,
+    // No id: the directory, which already puts yours on top.
+    team: () => route.id ? <TeamPage id={route.id} goto={goto}/> : <TeamsPage goto={goto}/>,
     profile: () => <ProfilePage goto={goto}/>,
     login: () => <LoginPage goto={goto}/>,
     devices: () => <DevicesPage goto={goto}/>,

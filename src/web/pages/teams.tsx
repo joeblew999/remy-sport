@@ -1,4 +1,5 @@
 import { useMine, useTeams } from "../lib/data";
+import { useLocale } from "../lib/locale";
 import { m } from "../lib/i18n";
 import type { Route } from "../lib/router";
 
@@ -25,6 +26,7 @@ import type { Route } from "../lib/router";
  */
 export function TeamsPage({ goto }: { goto: (r: Route) => void }) {
   const teams = useTeams();
+  const { label } = useLocale();
 
   /**
    * Which of them are yours, from the model rather than from a role.
@@ -56,10 +58,11 @@ export function TeamsPage({ goto }: { goto: (r: Route) => void }) {
                 <div>
                   <div className="device-label">{t.name}</div>
                   {/* Why this row is above the fold, in the model's own word for
-                      it — head coach, assistant, follower. "Yours" alone would
-                      be the page deciding. */}
+                      it — "Head Coach", "Team Follower" — in the reader's
+                      language. This printed the code, HEAD_COACH, until the
+                      2026-09-04 walk. */}
                   <div className="device-meta">
-                    {[t.orgName, held.get(t.id)].filter(Boolean).join(" · ")}
+                    {[t.orgName, label("relations", held.get(t.id)!)].filter(Boolean).join(" · ")}
                   </div>
                 </div>
                 <button className="btn" onClick={() => goto({ page: "team", id: t.id })}>

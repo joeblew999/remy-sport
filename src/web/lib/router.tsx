@@ -23,8 +23,8 @@ import { useEffect, useState } from "react";
  * no screen will not build, and ROUTES is derived rather than restated.
  */
 export const PAGES = [
+  "home",
   "discover",
-  "events",
   "event",
   "live",
   "team",
@@ -76,7 +76,8 @@ function parseHash(): Route {
   const parts = (path ?? "").split("/").filter(Boolean);
   // An unrecognised page is "not-found", never itself. This is the line that
   // turned `#roster` into a blank pane: it used to take `parts[0]` on trust.
-  const page: Page = parts.length === 0 ? "discover" : isPage(parts[0]!) ? (parts[0] as Page) : "not-found";
+  // The root is Home — what is yours when signed in, Discover for a visitor.
+  const page: Page = parts.length === 0 ? "home" : isPage(parts[0]!) ? (parts[0] as Page) : "not-found";
   const base: Route = parts[1] ? { page, id: parts[1] } : { page };
   return Object.keys(query).length ? { ...base, query } : base;
 }
@@ -86,7 +87,7 @@ function serialize(route: Route): string {
   // filter should leave no trace in a link somebody is about to send.
   const entries = Object.entries(route.query ?? {}).filter(([, v]) => v !== "");
   const search = entries.length ? `?${new URLSearchParams(entries)}` : "";
-  if (!route || !route.page || route.page === "discover") return `#/${search}`;
+  if (!route || !route.page || route.page === "home") return `#/${search}`;
   if (route.id) return `#/${route.page}/${route.id}${search}`;
   return `#/${route.page}${search}`;
 }
@@ -125,7 +126,7 @@ const DETAIL_IDS: Partial<Record<Page, string>> = {
 
 export const ROUTES: readonly string[] = [
   "/",
-  ...PAGES.filter((p) => p !== "discover" && p !== "not-found").map((p) =>
+  ...PAGES.filter((p) => p !== "home" && p !== "not-found").map((p) =>
     DETAIL_IDS[p] ? `#/${p}/${DETAIL_IDS[p]}` : `#/${p}`,
   ),
 ]

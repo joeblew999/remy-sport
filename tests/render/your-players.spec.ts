@@ -102,7 +102,7 @@ test.describe("Your players", () => {
     await seed(page, [])
     await visit(page, "dashboard")
 
-    await expect(page.getByTestId("profile-events")).toBeVisible()
+    await expect(page.getByTestId("home")).toBeVisible()
     await expect(page.getByTestId("your-players")).toHaveCount(0)
     await expect(page.getByTestId("add-player")).toBeVisible()
   })

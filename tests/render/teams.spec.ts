@@ -1,7 +1,8 @@
 import { test, expect } from "./fixture"
 import { asVisitor, sessionFor } from "../helpers/actors"
-import { apiMine } from "../helpers/api-fixtures"
+import { apiMine, apiReference } from "../helpers/api-fixtures"
 import { projectTeams } from "../helpers/projections"
+import { VOCABULARY } from "../../src/domain/vocabularies"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 
@@ -39,14 +40,18 @@ test.describe("The teams directory", () => {
     await seedCache(page, [
       sessionFor("COACH"),
       teams(),
+      entry(orpc.reference.list, undefined, apiReference(VOCABULARY)),
       // The relation comes back from ListObjects with the id. A row saying only
-      // "yours" would be the page deciding; this is the model's own word for it.
+      // "yours" would be the page deciding; this is the model's own word for it
+      // — the word, in the reader's language, not the code. It printed
+      // HEAD_COACH until the 2026-09-04 walk.
       holdings([{ type: "TEAM", id: "team_001", relation: "HEAD_COACH" }]),
     ])
     await visit(page, "teams")
 
     await expect(page.getByTestId("your-teams")).toBeVisible()
-    await expect(page.getByTestId("your-team-team_001")).toContainText("HEAD_COACH")
+    await expect(page.getByTestId("your-team-team_001")).toContainText("Head Coach")
+    await expect(page.getByTestId("your-team-team_001")).not.toContainText("HEAD_COACH")
     // And still in the full list below: this is a shortcut, not a filter.
     await expect(page.getByTestId("team-row-team_001")).toBeVisible()
   })

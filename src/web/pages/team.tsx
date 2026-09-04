@@ -2,7 +2,7 @@ import { useState } from "react";
 import { FollowButton } from "../components/follow";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, orpc } from "../lib/orpc";
-import { useMine, useRoster, useTeam, useTeamGames, useTeams } from "../lib/data";
+import { useRoster, useTeam, useTeamGames } from "../lib/data";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
 import { useLocale } from "../lib/locale";
@@ -17,90 +17,21 @@ import type { Team } from "../data";
  * A team as its coach and its followers see it. The roster is where a player
  * is created, because that is the moment somebody needs one.
  */
-export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }) {
-  const { data: team, isPending: teamLoading } = useTeam(id);
-  const { data: allTeams, isPending: listLoading } = useTeams();
+/**
+ * One team, by id. Which teams are *yours* is Home's question, answered from
+ * `me.mine`; `#/team` with no id renders the directory. This page used to
+ * guess at "your team" from a list when it had no id, and guessed wrong.
+ */
+export function TeamPage({ id, goto }: { id: string; goto: (r: Route) => void }) {
+  const { data: t, isPending: teamLoading } = useTeam(id);
   const { data: roster } = useRoster(id);
   const { locale, label } = useLocale();
   const { user } = useSession();
-
-  /**
-   * "My team" means yours, which needs three answers rather than one.
-   *
-   * The sidebar links here with no id, and this used to resolve that to
-   * `allTeams[0]` — whichever team sorted first on the whole platform. A coach
-   * at Assumption was shown Triam Udom's team under a possessive heading, and
-   * every reader saw the same one.
-   *
-   * `useMine("TEAM")` is the model's answer: head coach, assistant, manager,
-   * player or follower, resolved server-side. It can return none, one or
-   * several, and all three are ordinary:
-   *
-   *   none      most readers. A spectator is on no team, and saying so is the
-   *             honest answer — see the empty state below.
-   *   one       show it. This is the common case for a coach or a parent.
-   *   several   coach_001 holds team_001 and team_004 in the seed today, so
-   *             picking one would be the original bug with a better source.
-   *             The list is rendered instead.
-   */
-  const { data: mine, isPending: mineLoading } = useMine("TEAM");
-  const myTeams = (allTeams ?? []).filter((x) => mine.some((h) => h.id === x.id));
-  const t = id ? team : myTeams.length === 1 ? myTeams[0] : undefined;
-  // Keyed off the *resolved* team, not the route param.
-  const { data: teamGames, isPending: gamesLoading } = useTeamGames(t?.id);
+  const { data: teamGames, isPending: gamesLoading } = useTeamGames(id);
   const games = teamGames?.games ?? [];
 
-  if (id ? teamLoading : listLoading || mineLoading) {
+  if (teamLoading) {
     return <div className="empty">{m.loading_team()}</div>;
-  }
-
-  /**
-   * No id, and you hold no team. The common case, and it must say so.
-   *
-   * Rule 6 of the plan: never a blank pane, never somebody else's data. Most
-   * readers of this product are spectators and parents who follow a player
-   * rather than belonging to a team, so this is the ordinary answer and not an
-   * error — hence a way onward rather than an apology.
-   */
-  if (!id && myTeams.length === 0) {
-    return (
-      <div className="empty" data-testid="team-none">
-        <p>{m.no_team_yet()}</p>
-        <button className="btn primary" onClick={() => goto({ page: "discover" })}>
-          {m.browse_teams()}
-        </button>
-      </div>
-    );
-  }
-
-  /**
-   * No id, and you hold several. Choose, rather than being chosen for.
-   *
-   * coach_001 is head coach of one team and of another; a parent may follow two
-   * children's teams. Picking the first would be the bug this page was fixed
-   * for, sourced from the right place instead of the wrong one.
-   */
-  if (!id && myTeams.length > 1) {
-    return (
-      <div className="page-inner" data-testid="team-choose">
-        <div className="page-header">
-          <h1>{m.your_teams()}</h1>
-        </div>
-        <div className="dash-card">
-          {myTeams.map((x) => (
-            <button
-              key={x.id}
-              className="row-button"
-              data-testid={`my-team-${x.id}`}
-              onClick={() => goto({ page: "team", id: x.id })}
-            >
-              <div className="row-title">{x.name}</div>
-              <div className="row-meta">{x.city}</div>
-            </button>
-          ))}
-        </div>
-      </div>
-    );
   }
 
   if (!t) {

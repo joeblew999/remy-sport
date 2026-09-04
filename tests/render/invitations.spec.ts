@@ -70,7 +70,7 @@ test.describe("A pending co-organiser invitation", () => {
     ])
     await visit(page, "dashboard")
 
-    await expect(page.getByTestId("profile-events")).toBeVisible()
+    await expect(page.getByTestId("home")).toBeVisible()
     await expect(page.getByTestId("invitations")).toHaveCount(0)
   })
 

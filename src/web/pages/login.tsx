@@ -52,7 +52,7 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
     e.preventDefault();
     await verifyCode
       .mutateAsync({ email, otp })
-      .then(() => goto(next ?? { page: "discover" }))
+      .then(() => goto(next ?? { page: "home" }))
       .catch(() => undefined);
   }
 
@@ -81,7 +81,7 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
       if (!code) return;
       setOtp(code);
       await verifyCode.mutateAsync({ email: address, otp: code });
-      goto(next ?? { page: "discover" });
+      goto(next ?? { page: "home" });
     } catch {
       /* the mutation already carries the error */
     }
