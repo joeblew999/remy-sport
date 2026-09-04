@@ -24,7 +24,9 @@
  * single column because migration 0015 gave the seeded users their fixture ids.
  */
 
-import { sql } from "drizzle-orm"
+import { getTableName, sql } from "drizzle-orm"
+import { getTableConfig } from "drizzle-orm/sqlite-core"
+import { FIXTURE_TABLES } from "../db/fixtures-schema"
 import { holdsPlatform } from "../domain/grants"
 import { ACTION, FIXTURE_TABLE, GRANTS, OBJECT_TYPE, RELATION } from "../domain/vocabularies"
 // From ./db, not ./base: base imports this module, and importing back — even
@@ -545,4 +547,180 @@ export async function objectExists(db: Db, table: string, id: string): Promise<b
     sql`SELECT 1 AS ok FROM ${sql.identifier(table)} WHERE ${sql.identifier("id")} = ${id} LIMIT 1`,
   )
   return row !== undefined && row !== null
+}
+
+// ── The write half ─────────────────────────────────────────────────────────
+//
+// A relation is described once, in the model, and both directions derive from
+// it: who holds it (above) and how it comes to be held (below). Until this
+// existed every write restated what the model already says — which table,
+// which two columns, that `coach_role_code = HEAD` is what makes a head coach,
+// that leaving a team sets `to_date` rather than deleting the spell — eight
+// times in six files under five verb pairs, and one relation (the coaching
+// staff) had no write path at all. The soft-delete rule is the tell: the read
+// half honoured `activeToColumn` in `holdsTableRelation` while `removePlayer`
+// remembered to set `to_date` by hand and `removeMember` remembered to delete.
+//
+// Nothing here is a procedure and nothing here decides policy. A handler keeps
+// its route, its input, its `requireAction` and its own validation — does this
+// user exist, is this person a referee — and calls `grant` or `revoke` for the
+// row. That is the same division as the read half: `holds` answers, `can`
+// decides. A write helper that produced endpoints would have to guess who may
+// write, which is the objection src/api/domain.ts records against exactly that.
+
+/**
+ * The relation a table's row means, chosen by the value in its filter column.
+ *
+ * `org_members` carries three relations — OWNER, ADMIN, MEMBER — told apart by
+ * `org_role_code`, and a handler that took a role code and picked the relation
+ * by hand would be a map of the model's own column, kept elsewhere. Without a
+ * value, the table's one relation, or its first: for a revoke the identity is
+ * the same row whichever role it holds.
+ */
+export function relationWith(sourceTable: string, filterValue?: string): string {
+  const rows = RELATION.filter((r) => r.via === "table" && r.sourceTable === sourceTable)
+  const r = filterValue === undefined ? rows[0] : rows.find((x) => x.filterValue === filterValue)
+  if (!r) throw new Error(`no relation on ${sourceTable}${filterValue ? ` for ${filterValue}` : ""}`)
+  return r.code
+}
+
+/**
+ * A relation held through a column on the object itself — `OWNER` is
+ * `events.organizer_user_id`, `SELF` is `players.user_id` — is not a membership
+ * row and is edited through the object. Refused here rather than turned into an
+ * UPDATE somebody did not mean.
+ */
+function membership(relationCode: string): RelationRow {
+  const r = RELATION.find((x) => x.code === relationCode)
+  if (!r || r.via !== "table" || !r.sourceTable) throw new Error(`${relationCode} is not table-backed`)
+  if (r.objectColumn === "id") throw new Error(`${relationCode} is a column on the object, not a membership`)
+  return r
+}
+
+/**
+ * The columns that identify one row of the relation's table: its unique key,
+ * read off the drizzle table rather than restated. `subscription`'s key carries
+ * `object_type_code` and `team_coach`'s does not carry `coach_role_code`, which
+ * is exactly the difference between a filter that is part of who-follows-what
+ * and one that is a role somebody holds — and it decides below whether a
+ * revoke narrows by the filter or removes the row whatever its role.
+ */
+function identityOf(sourceTable: string): string[] {
+  const name = tableFor(sourceTable)
+  const table = Object.values(FIXTURE_TABLES).find((t) => getTableName(t) === name)
+  if (!table) throw new Error(`no drizzle table for ${sourceTable}`)
+  const unique = getTableConfig(table).indexes.find((i) => i.config.unique)
+  return unique ? unique.config.columns.map((c) => ("name" in c ? c.name : "")) : []
+}
+
+/** The column the subject goes in: the user, or the entity that carries them. */
+const subjectColumn = (r: RelationRow) => (r.throughTable ? r.throughColumn! : r.userColumn!)
+
+const today = () => new Date().toISOString().slice(0, 10)
+
+/**
+ * Give `subject` the relation on `objectId`. Idempotent.
+ *
+ * `subject` is a user id, or for a relation reached through another entity the
+ * id of that entity — `TEAM_PLAYER` is granted to a *player*, because
+ * `player_teams` carries `player_id` and the model says so via `throughColumn`.
+ * `extra` is whatever the row needs that the relation does not describe:
+ * `from_date` on a spell, `guardian_type_code` on a guardian. Snake case,
+ * because these are column names.
+ *
+ * Where the filter column is a role rather than part of the row's identity,
+ * granting a different role to the same person updates the row: promoting an
+ * assistant to head coach is one write, not a remove and an add.
+ *
+ * A relation that ends rather than vanishes (`activeToColumn`) is granted only
+ * when no current spell exists; a second current spell for the same player on
+ * the same team is what an unguarded insert used to allow.
+ */
+export async function grant(
+  db: Db,
+  relationCode: string,
+  objectId: string,
+  subject: string,
+  extra: Record<string, string | null> = {},
+): Promise<void> {
+  const r = membership(relationCode)
+  const src = sql.identifier(tableFor(r.sourceTable!))
+  const subjectCol = subjectColumn(r)
+
+  if (r.activeToColumn) {
+    const to = sql.identifier(r.activeToColumn)
+    const current = await db.get(
+      sql`SELECT 1 AS ok FROM ${src}
+          WHERE ${sql.identifier(r.objectColumn!)} = ${objectId}
+            AND ${sql.identifier(subjectCol)} = ${subject}
+            AND (${src}.${to} IS NULL OR ${src}.${to} >= ${today()})
+          LIMIT 1`,
+    )
+    if (current) return
+  }
+
+  const values: Record<string, string | null> = {
+    [r.objectColumn!]: objectId,
+    [subjectCol]: subject,
+    ...(r.filterColumn ? { [r.filterColumn]: r.filterValue! } : {}),
+    ...extra,
+  }
+  const cols = Object.keys(values)
+  const identity = identityOf(r.sourceTable!)
+  // A role-shaped filter is not part of the key, so a conflict means "same
+  // person, different role" and the role is what changes.
+  const updates = r.filterColumn && !identity.includes(r.filterColumn) ? [r.filterColumn] : []
+
+  await db.run(
+    sql`INSERT INTO ${src} (${sql.join(cols.map((c) => sql.identifier(c)), sql`, `)})
+        VALUES (${sql.join(cols.map((c) => sql`${values[c]}`), sql`, `)})
+        ON CONFLICT (${sql.join(identity.map((c) => sql.identifier(c)), sql`, `)})
+        DO ${
+          updates.length
+            ? sql`UPDATE SET ${sql.join(updates.map((c) => sql`${sql.identifier(c)} = ${values[c]}`), sql`, `)}`
+            : sql`NOTHING`
+        }`,
+  )
+}
+
+/**
+ * Take the relation on `objectId` away from `subject`. Returns how many rows
+ * that touched, so a handler can say NOT_A_MEMBER when it was none.
+ *
+ * Ends the spell where the model says the relation ends (`activeToColumn`): the
+ * row stays, with today as its last day, because a deleted spell would make
+ * last season's team sheet wrong retrospectively. Deletes the row otherwise —
+ * and where the filter is a role rather than identity, whatever role the row
+ * holds: removing someone from a school removes them, owner or member.
+ */
+export async function revoke(
+  db: Db,
+  relationCode: string,
+  objectId: string,
+  subject: string,
+): Promise<number> {
+  const r = membership(relationCode)
+  const src = sql.identifier(tableFor(r.sourceTable!))
+  const where = [
+    sql`${sql.identifier(r.objectColumn!)} = ${objectId}`,
+    sql`${sql.identifier(subjectColumn(r))} = ${subject}`,
+  ]
+  if (r.filterColumn && identityOf(r.sourceTable!).includes(r.filterColumn)) {
+    where.push(sql`${sql.identifier(r.filterColumn)} = ${r.filterValue}`)
+  }
+
+  if (r.activeToColumn) {
+    // Only a spell that has not ended: no end date, or one still ahead. A spell
+    // ending today is still *held* today (`holds` reads `>= today`) but it has
+    // been ended, and ending it again is not a change — which is what makes a
+    // second revoke report nothing left.
+    const to = sql.identifier(r.activeToColumn)
+    const res = await db.run(
+      sql`UPDATE ${src} SET ${to} = ${today()}
+          WHERE ${sql.join(where, sql` AND `)} AND (${to} IS NULL OR ${to} > ${today()})`,
+    )
+    return res.meta.changes
+  }
+  const res = await db.run(sql`DELETE FROM ${src} WHERE ${sql.join(where, sql` AND `)}`)
+  return res.meta.changes
 }

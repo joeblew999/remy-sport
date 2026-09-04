@@ -27,6 +27,7 @@ import type { Bindings } from "../types"
 import { ERRORS } from "./errors"
 import type { PerRowAction } from "../domain/grants"
 import { authed, authedRoute, canFor, found, openTo, requireAction, viewer, viewerTimezone, type Db, type SessionUser } from "./base"
+import { grant, revoke } from "./relations"
 
 const IdInput = z.object({ id: z.string() })
 
@@ -876,10 +877,7 @@ export const assignReferee = authed
     // coach as referee is not a permission question, it is a mistake.
     if (person.role !== STORED_ROLE.REFEREE) throw errors.NOT_A_REFEREE()
 
-    await context.db
-      .insert(schema.gameReferee)
-      .values({ gameId: input.id, userId: input.userId })
-      .onConflictDoNothing()
+    await grant(context.db, "GAME_REFEREE", input.id, input.userId)
     return { gameId: input.id, userId: input.userId }
   })
 
@@ -890,11 +888,7 @@ export const unassignReferee = authed
   .output(z.object({ removed: z.string() }))
   .use(requireAction("ASSIGN_REFEREE"))
   .handler(async ({ context, input, errors }) => {
-    const res = await context.db
-      .delete(schema.gameReferee)
-      .where(
-        and(eq(schema.gameReferee.gameId, input.id), eq(schema.gameReferee.userId, input.userId)),
-      )
-    if (res.meta.changes === 0) throw errors.NOT_ASSIGNED()
+    const changes = await revoke(context.db, "GAME_REFEREE", input.id, input.userId)
+    if (changes === 0) throw errors.NOT_ASSIGNED()
     return { removed: input.userId }
   })

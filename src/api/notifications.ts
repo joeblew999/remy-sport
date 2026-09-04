@@ -40,7 +40,7 @@ import {
   type NotificationTypeCode,
   type ObjectTypeCode,
 } from "../domain/vocabularies"
-import { objectExists, tableForObjectType } from "./relations"
+import { grant, objectExists, relationWith, revoke, tableForObjectType } from "./relations"
 import { m } from "../paraglide/messages.js"
 import { pivot, type Names } from "../domain/names"
 
@@ -285,15 +285,15 @@ export const follow = authed
     if (!(await can(context.db, action.follow as keyof typeof GRANTS, context.user, input.objectId))) {
       throw new ORPCError("FORBIDDEN")
     }
-    await context.db
-      .insert(schema.subscription)
-      .values({
-        userId: context.user.id,
-        objectTypeCode: input.objectTypeCode,
-        objectId: input.objectId,
-        subscribedAt: new Date().toISOString(),
-      })
-      .onConflictDoNothing()
+    // FOLLOWER_TEAM, FOLLOWER_EVENT, FOLLOWER_PLAYER: one table, told apart by
+    // `object_type_code`, and the model says which relation each value means.
+    await grant(
+      context.db,
+      relationWith("subscriptions", input.objectTypeCode),
+      input.objectId,
+      context.user.id,
+      { subscribed_at: new Date().toISOString() },
+    )
     return { following: true as const }
   })
 
@@ -304,24 +304,21 @@ export const unfollow = authed
   .output(z.object({ following: z.literal(false) }))
   .handler(async ({ context, input }) => {
     const action = followActionFor(input.objectTypeCode)
+    // The same caller error `follow` refuses: a type the model has no FOLLOW_*
+    // for. This used to fall through to a delete that matched nothing.
+    if (!action) throw new ORPCError("BAD_REQUEST")
     // UNFOLLOW_* is granted to FOLLOWER_* and PLATFORM_ADMIN, so this is the
     // model saying "you may stop following what you follow" — and it is what
     // lets an admin clear somebody's subscription without a special case here.
-    if (
-      action &&
-      !(await can(context.db, action.unfollow as keyof typeof GRANTS, context.user, input.objectId))
-    ) {
+    if (!(await can(context.db, action.unfollow as keyof typeof GRANTS, context.user, input.objectId))) {
       throw new ORPCError("FORBIDDEN")
     }
-    await context.db
-      .delete(schema.subscription)
-      .where(
-        and(
-          eq(schema.subscription.userId, context.user.id),
-          eq(schema.subscription.objectTypeCode, input.objectTypeCode),
-          eq(schema.subscription.objectId, input.objectId),
-        ),
-      )
+    await revoke(
+      context.db,
+      relationWith("subscriptions", input.objectTypeCode),
+      input.objectId,
+      context.user.id,
+    )
     return { following: false as const }
   })
 

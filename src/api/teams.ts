@@ -20,7 +20,7 @@ import { z } from "zod"
 import { CreateTeamInput, TeamSchema, UpdateTeamInput } from "../domain/api"
 import { ERRORS } from "./errors"
 import { authed, authedRoute, canFor, openTo, requireAction, viewer, type Db, type SessionUser, found } from "./base"
-import { holds } from "./relations"
+import { grant, holds } from "./relations"
 
 const IdInput = z.object({ id: z.string() })
 
@@ -129,10 +129,7 @@ export const create = authed
     // stale silently — this branch failing open writes an admin into a school's
     // staff, which nothing would catch.
     if (!(await holds(context.db, "PLATFORM_ADMIN", context.user, null))) {
-      await context.db
-        .insert(schema.teamCoach)
-        .values({ teamId: row.id, userId: context.user.id, coachRoleCode: "HEAD" })
-        .onConflictDoNothing()
+      await grant(context.db, "HEAD_COACH", row.id, context.user.id)
     }
 
     return serializeOne(context.db, context.user, { ...row, org })

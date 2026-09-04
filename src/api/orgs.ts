@@ -11,7 +11,7 @@
  * accept because the model has one for that.
  */
 
-import { and, eq } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import { z } from "zod"
 import * as schema from "../db/schema"
 import { OrgSchema, UpdateOrgInput, canSchema } from "../domain/api"
@@ -19,6 +19,7 @@ import { clean } from "../domain/names"
 import { ORG_ROLE_CODES } from "../domain/vocabularies"
 import { ERRORS } from "./errors"
 import { authed, authedRoute, canFor, openTo, pub, requireAction, viewer, found } from "./base"
+import { grant, relationWith, revoke } from "./relations"
 
 const IdInput = z.object({ id: z.string() })
 
@@ -158,12 +159,10 @@ export const addMember = authed
       .get()
     if (!person) throw errors.UNKNOWN_USER()
 
-    // The PO says ADMIN; the column holds admin. One mapping, generated.
+    // The role code names the relation — ORG_OWNER, ORG_ADMIN, ORG_MEMBER are
+    // one table told apart by `org_role_code`, and the model says which is which.
     const orgRoleCode = input.orgRoleCode ?? "MEMBER"
-    await context.db
-      .insert(schema.orgMember)
-      .values({ orgId: input.id, userId: person.id, orgRoleCode })
-      .onConflictDoNothing()
+    await grant(context.db, relationWith("org_members", orgRoleCode), input.id, person.id)
 
     return { orgId: input.id, userId: person.id, role: orgRoleCode }
   })
@@ -180,11 +179,8 @@ export const removeMember = authed
   .output(z.object({ removed: z.string() }))
   .use(requireAction("REMOVE_ORG_MEMBER"))
   .handler(async ({ context, input, errors }) => {
-    const res = await context.db
-      .delete(schema.orgMember)
-      .where(
-        and(eq(schema.orgMember.orgId, input.id), eq(schema.orgMember.userId, input.userId)),
-      )
-    if (res.meta.changes === 0) throw errors.NOT_A_MEMBER()
+    // Whatever role they held: the row's identity is the person and the school.
+    const changes = await revoke(context.db, relationWith("org_members"), input.id, input.userId)
+    if (changes === 0) throw errors.NOT_A_MEMBER()
     return { removed: input.userId }
   })

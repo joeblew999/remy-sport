@@ -23,6 +23,7 @@ import * as schema from "../db/schema"
 import { ERRORS } from "./errors"
 import { answersFor } from "../domain/api"
 import { authed, authedRoute, can, canAll, openTo, requireAction, viewer, type Db } from "./base"
+import { grant, revoke } from "./relations"
 import { notify } from "./push"
 import { pick, type Names } from "../domain/names"
 import type { ReleasedLocale } from "../domain/vocabularies"
@@ -214,10 +215,8 @@ export const addPlayer = authed
     if (!player) throw errors.UNKNOWN_PLAYER()
 
     const fromDate = input.fromDate ?? today()
-    await context.db
-      .insert(schema.playerTeam)
-      .values({ teamId: input.teamId, playerId: input.playerId, fromDate, toDate: null })
-      .onConflictDoNothing()
+    // A spell, so `from_date` is the one thing the relation does not describe.
+    await grant(context.db, "TEAM_PLAYER", input.teamId, input.playerId, { from_date: fromDate })
 
     await announceRoster(context.db, context.env, "added", input, context.user.id)
     return { teamId: input.teamId, playerId: input.playerId, fromDate }
@@ -236,18 +235,11 @@ export const removePlayer = authed
   .use(requireAction("MANAGE_ROSTER", (i: { teamId: string }) => i.teamId))
   .handler(async ({ context, input, errors }) => {
     const toDate = today()
-    // Ends the spell, does not delete it. A deleted row would make last
-    // season's team sheet wrong retrospectively.
-    const res = await context.db
-      .update(schema.playerTeam)
-      .set({ toDate })
-      .where(
-        and(
-          eq(schema.playerTeam.teamId, input.teamId),
-          eq(schema.playerTeam.playerId, input.playerId),
-        ),
-      )
-    if (res.meta.changes === 0) throw errors.NOT_ON_ROSTER()
+    // Ends the spell rather than deleting it — the model's `activeToColumn`,
+    // which `revoke` reads. A deleted row would make last season's team sheet
+    // wrong retrospectively.
+    const changes = await revoke(context.db, "TEAM_PLAYER", input.teamId, input.playerId)
+    if (changes === 0) throw errors.NOT_ON_ROSTER()
     await announceRoster(context.db, context.env, "removed", input, context.user.id)
     return { playerId: input.playerId, toDate }
   })

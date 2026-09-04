@@ -33,7 +33,7 @@ import { GUARDIAN_TYPE_CODES, POSITION_CODES, type GuardianTypeCode } from "../d
 import { authed, authedRoute, canFor, checkedInHandler, requireAction, stricterThanModel, found } from "./base"
 import { CreatePlayerInput, SignUpPlayerInput, canSchema } from "../domain/api"
 import { clean } from "../domain/names"
-import { objectsHeldBy } from "./relations"
+import { grant, objectsHeldBy } from "./relations"
 
 /** The relations that make a player yours. See the note above. */
 const MINE = ["GUARDIAN", "SELF"] as const
@@ -266,10 +266,8 @@ export const signUpAsGuardian = authed
   .handler(async ({ context, input }) => {
     const row = playerRow(input)
     await context.db.insert(schema.player).values(row)
-    await context.db.insert(schema.guardian).values({
-      userId: context.user.id,
-      playerId: row.id,
-      guardianTypeCode: input.guardianTypeCode,
+    await grant(context.db, "GUARDIAN", row.id, context.user.id, {
+      guardian_type_code: input.guardianTypeCode,
     })
     return { playerId: row.id, ...row, guardianTypeCode: input.guardianTypeCode }
   })
