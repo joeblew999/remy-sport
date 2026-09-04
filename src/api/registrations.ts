@@ -425,7 +425,17 @@ export const roster = viewer
             })
             .from(schema.teamCoach)
             .innerJoin(schema.user, eq(schema.user.id, schema.teamCoach.userId))
+            .innerJoin(schema.coachRole, eq(schema.coachRole.code, schema.teamCoach.coachRoleCode))
             .where(eq(schema.teamCoach.teamId, input.teamId))
+            /**
+             * Head coach first, then assistant, then manager — the order
+             * `COACH_ROLE` is already written in, which is why the table has a
+             * `sort` column. It had no ORDER BY at all, so the staff list came
+             * back in whatever order SQLite joined them and a team page could
+             * show the manager above the head coach on one deploy and not the
+             * next. Name is the tiebreak, so two assistants are stable.
+             */
+            .orderBy(schema.coachRole.sort, schema.user.name)
             // The column is declared with the vocabulary's enum, but a select
             // projection widens it back to `string`. The output schema checks
             // the value at runtime either way, so this only restores what the
@@ -515,6 +525,17 @@ export const eventTeams = viewer
     const rows = await context.db.query.eventTeam.findMany({
       where: (et, { eq }) => eq(et.eventId, input.eventId),
       with: { team: { columns: { id: true, names: true } }, division: true },
+      /**
+       * By division, then by team — which is how somebody reads an entry list.
+       *
+       * There was no ORDER BY, so a fifteen-team league came back in whatever
+       * order SQLite scanned the join and the same page could list them
+       * differently on the next deploy. Division id is the Product Owner's own
+       * sequence (U16 Boys, U18 Boys, U16 Girls, U18 Girls, then the Premier
+       * tiers), so grouping by it needs no second table to say what the order
+       * of divisions is.
+       */
+      orderBy: (et, { asc }) => [asc(et.divisionId), asc(et.teamId)],
     })
 
     const registered = []
@@ -568,6 +589,8 @@ export const eventTeams = viewer
     const divisions = (
       await context.db.query.eventDivision.findMany({
         where: (ed, { eq: is }) => is(ed.eventId, input.eventId),
+        // The model's own sequence — see the note on `rows` above.
+        orderBy: (ed, { asc }) => [asc(ed.divisionId)],
         with: { division: true },
       })
     )

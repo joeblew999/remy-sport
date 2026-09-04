@@ -26,7 +26,7 @@
  */
 
 import { ORPCError } from "@orpc/server"
-import { and, eq, inArray } from "drizzle-orm"
+import { and, desc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import * as schema from "../db/schema"
 import { GUARDIAN_TYPE_CODES, POSITION_CODES, type GuardianTypeCode } from "../domain/vocabularies"
@@ -118,14 +118,34 @@ export const mine = authed
         .from(schema.playerTeam)
         .innerJoin(schema.team, eq(schema.team.id, schema.playerTeam.teamId))
         .where(inArray(schema.playerTeam.playerId, ids))
+        /**
+         * Most recent spell first, because a player can hold two at once.
+         *
+         * `ply_001` is on Assumption's U16 and U18 sides — a child playing up
+         * an age group, which is real — so "where is my child playing" has more
+         * than one answer and this picked whichever row came back first. It
+         * happened to agree with the latest `from_date`; now it says so.
+         */
+        .orderBy(desc(schema.playerTeam.fromDate))
         .all(),
     ])
 
     const today = new Date().toISOString().slice(0, 10)
     const guardianOf = new Map(guardianships.map((g) => [g.playerId, g.guardianTypeCode]))
-    const teamOf = new Map(
-      spells.filter((s) => !s.toDate || s.toDate >= today).map((s) => [s.playerId, s]),
-    )
+    /**
+     * The most recent current spell, and the first row wins.
+     *
+     * `new Map(entries)` keeps the **last** entry for a repeated key, so pairing
+     * it with "newest first" would have selected the oldest — which is the trap
+     * this is written out to avoid. A player can hold two spells at once
+     * (`ply_001` is on Assumption's U16 and U18 sides, a child playing up an age
+     * group), so which one is picked is a real decision and not a formality.
+     */
+    const teamOf = new Map<string, (typeof spells)[number]>()
+    for (const spell of spells) {
+      if (spell.toDate && spell.toDate < today) continue
+      if (!teamOf.has(spell.playerId)) teamOf.set(spell.playerId, spell)
+    }
 
     return {
       players: await Promise.all(

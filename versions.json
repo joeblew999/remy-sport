@@ -1,14 +1,14 @@
 {
   "current": {
-    "_generated": "2026-09-04T04:17:06.184Z",
+    "_generated": "2026-09-04T04:30:00.209Z",
     "app": "0.1.0",
-    "environment": "dev",
-    "url": "http://localhost:8787",
+    "environment": "staging",
+    "url": "https://staging-remy.ubuntusoftware.net",
     "git": {
-      "commit": "2e5cbcd",
+      "commit": "d0966a3",
       "branch": "main",
-      "tag": "2e5cbcd",
-      "github": "https://github.com/joeblew999/remy-sport/commit/2e5cbcdaec4b95325578d12857c153cb5d734241"
+      "tag": "d0966a3",
+      "github": "https://github.com/joeblew999/remy-sport/commit/d0966a30756f6c60bfebd7827ee119425a12b7a2"
     }
   },
   "cf_versions": [

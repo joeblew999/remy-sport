@@ -46,6 +46,7 @@
 import type { ApiEvent, ApiTeam } from "../../src/domain/api"
 import { SEED_ENTITIES, SEED_RELATIONSHIPS } from "../../src/domain/model/entities"
 import { clean } from "../../src/domain/names"
+import { COACH_ROLE } from "../../src/domain/vocabularies"
 import type { Names } from "../../src/domain/names"
 import type { ApiEntries, ApiGame, ApiRegistered, ApiRoster } from "./api-fixtures"
 
@@ -90,7 +91,9 @@ const pivotOf = (n: Names): string => n.en!
 function factsFor(eventId: string) {
   const entries = R.eventTeams.filter((t) => t.eventId === eventId)
   const teamCount = new Set(entries.map((t) => t.teamId)).size
-  const divisionIds = [...new Set(entries.map((t) => t.divisionId))]
+  // By division id, which is the order the endpoint now selects in — the Product
+  // Owner's own sequence, U16 Boys through the Premier tiers.
+  const divisionIds = [...new Set(entries.map((t) => t.divisionId))].sort()
   const venues = R.eventVenues.filter((v) => v.eventId === eventId)
   // The primary one wins; otherwise the first seen, so a single unflagged venue
   // still names the place rather than reading "Venue TBC".
@@ -334,8 +337,15 @@ export function projectRoster(
       })
       .sort((a, b) => a.jerseyNumber - b.jerseyNumber),
     coaches: rights.signedIn
-      ? R.teamCoaches
-          .filter((c) => c.teamId === teamId)
+      ? // Head, then assistant, then manager — COACH_ROLE's own order, which is
+        // what the endpoint joins `coach_role.sort` to get.
+        [...R.teamCoaches.filter((c) => c.teamId === teamId)]
+          .sort(
+            (a, b) =>
+              COACH_ROLE.findIndex((r) => r.code === a.coachRoleCode) -
+                COACH_ROLE.findIndex((r) => r.code === b.coachRoleCode) ||
+              pivotOf(userById(a.userId).names).localeCompare(pivotOf(userById(b.userId).names)),
+          )
           .map((c) => ({
             userId: c.userId,
             name: pivotOf(userById(c.userId).names),
@@ -403,8 +413,12 @@ export function projectEntries(
   eventId: string,
   rights: { canManageFixtures?: boolean; canAssignCourts?: boolean; canWithdraw?: boolean } = {},
 ): ApiEntries {
-  const entries = R.eventTeams.filter((t) => t.eventId === eventId)
-  const divisionIds = [...new Set(entries.map((t) => t.divisionId))]
+  // Division, then team — how somebody reads an entry list, and what the
+  // endpoint orders by since 2026-09-04.
+  const entries = [...R.eventTeams.filter((t) => t.eventId === eventId)].sort(
+    (a, b) => a.divisionId.localeCompare(b.divisionId) || a.teamId.localeCompare(b.teamId),
+  )
+  const divisionIds = [...new Set(entries.map((t) => t.divisionId))].sort()
   return {
     registered: entries.map((t) => registered(eventId, t.teamId, rights.canWithdraw ?? false)),
     registrable: [],

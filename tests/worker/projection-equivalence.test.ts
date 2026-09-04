@@ -70,33 +70,26 @@ import {
 const READER_SPECIFIC = ["availableReferees", "available", "coaches"] as const
 
 /**
- * Lists the endpoint returns in no declared order.
+ * Every list this compares is now ordered by the endpoint, so nothing is
+ * compared as a set any more.
  *
- * Four of them, found by this test rather than by reading: `divisionNames`,
- * `divisions`, `registered` and `coaches` all come out of a query with no ORDER BY, so
- * their order is SQLite's plan and nothing else. Asserting it would hold the API
- * to a promise it never made, and would fail on a future plan change for a
- * reason with nothing to do with the data.
+ * Five were not. `divisionNames`, `divisions`, `registered`, `coaches` and the
+ * current-team pick in `players.mine` all came out of a query with no ORDER BY,
+ * so their order was SQLite's plan — and this file worked around it by sorting
+ * both sides before comparing, which is a test agreeing not to look.
  *
- * Compared as sets, then. **But a list of entered teams is something a screen
- * shows in an order**, and right now that order is luck — `games.list` and
- * `events.list` both sort explicitly and these do not. Worth an ORDER BY on the
- * endpoint; when it gets one, delete it from here and assert it instead.
+ * That was the wrong shape for a list a page prints. A team page could show the
+ * manager above the head coach on one deploy and not the next, and nothing would
+ * fail. The endpoints sort explicitly now, and the projections reproduce the
+ * same rule, so this asserts the order like everything else.
  */
-const UNORDERED = new Set(["divisionNames", "divisions", "registered"])
-
-const sorted = (list: unknown[]) =>
-  [...list].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))
-
 const withoutReaderFields = <T>(value: T): T => {
   if (Array.isArray(value)) return value.map(withoutReaderFields) as T
   if (value && typeof value === "object") {
     const out: Record<string, unknown> = {}
     for (const [k, v] of Object.entries(value)) {
       if ((READER_SPECIFIC as readonly string[]).includes(k)) continue
-      out[k] = UNORDERED.has(k) && Array.isArray(v)
-        ? sorted(v.map(withoutReaderFields))
-        : withoutReaderFields(v)
+      out[k] = withoutReaderFields(v)
     }
     return out as T
   }
@@ -285,9 +278,10 @@ describe("What only a signed-in reader sees", () => {
       const res = await api(`/api/teams/${id}/players`, { cookie })
       expect(res.status, `${id}'s roster should be readable`).toBe(200)
       const { coaches } = (await res.json()) as { coaches: unknown[] }
-      // Unordered, like the other three — no ORDER BY on this query either.
-      expect(sorted(coaches), `teams.roster(${id}).coaches`).toEqual(
-        sorted(projectRoster(id, { signedIn: true }).coaches),
+      // Ordered: head coach, then assistant, then manager — the sequence
+      // COACH_ROLE is written in, which is why that table carries a `sort`.
+      expect(coaches, `teams.roster(${id}).coaches`).toEqual(
+        projectRoster(id, { signedIn: true }).coaches,
       )
     }
   })

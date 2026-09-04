@@ -76,6 +76,13 @@ async function factsFor(db: Db, eventIds: string[]): Promise<Map<string, EventFa
       .from(schema.eventTeam)
       .innerJoin(schema.division, eq(schema.division.id, schema.eventTeam.divisionId))
       .where(inArray(schema.eventTeam.eventId, eventIds))
+      /**
+       * `divisionNames` is a list a page prints, so its order is the product's
+       * and not the query planner's. Division id is the Product Owner's own
+       * sequence — U16 Boys, U18 Boys, U16 Girls, U18 Girls, then the Premier
+       * tiers — so an event card reads the same on every deploy.
+       */
+      .orderBy(schema.eventTeam.divisionId)
       .all(),
     db
       .select({
