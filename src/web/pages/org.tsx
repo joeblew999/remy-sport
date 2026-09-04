@@ -447,7 +447,7 @@ function OrgTeams({
           onClick={() => goto({ page: "team", id: t.id })}
         >
           <div className="row-title">{t.name}</div>
-          <div className="row-meta">{t.ageGroupCode} · {t.genderLabel}</div>
+          <div className="row-meta">{t.ageGroupLabel} · {t.genderLabel}</div>
         </button>
       ))}
 

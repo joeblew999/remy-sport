@@ -66,3 +66,25 @@ test.describe("The teams directory", () => {
     await expect(page.getByTestId("teams-empty")).toBeVisible()
   })
 })
+
+/**
+ * A model code is not a word anybody reads.
+ *
+ * Gender has been localised on a team since ADR 015 and the age group beside it
+ * never was, so four screens rendered "U16 หญิง" — a code next to a translated
+ * word, in the same sentence. The vocabulary has carried "อายุไม่เกิน 16 ปี"
+ * all along and nothing asked for it.
+ *
+ * Asserted in English here because the render tier reads the default locale;
+ * what matters is that the row shows the vocabulary's name and not the code,
+ * which is the difference the bug turned on.
+ */
+test("a team row names the age group rather than its code", async ({ page }) => {
+  await asVisitor(page)
+  await seedCache(page, [teams()])
+  await visit(page, "teams")
+
+  const row = page.getByTestId("team-row-team_001")
+  await expect(row).toContainText("Under 16")
+  await expect(row).not.toContainText("U16")
+})

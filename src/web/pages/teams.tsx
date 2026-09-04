@@ -82,7 +82,7 @@ export function TeamsPage({ goto }: { goto: (r: Route) => void }) {
                 {/* Age group and gender in the reader's language — `toTeam` has
                     already resolved them from the reference vocabulary. */}
                 <div className="device-meta">
-                  {[t.orgName, t.ageGroupCode, t.genderLabel].filter(Boolean).join(" · ")}
+                  {[t.orgName, t.ageGroupLabel, t.genderLabel].filter(Boolean).join(" · ")}
                 </div>
               </div>
               <button className="btn" onClick={() => goto({ page: "team", id: t.id })}>

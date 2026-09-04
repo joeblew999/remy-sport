@@ -58,6 +58,8 @@ export interface Team {
   /** The id, so a school's page can show its own teams. */
   orgId: string;
   ageGroupCode: string;
+  /** The same fact in the reader's language — see `toTeam`. */
+  ageGroupLabel: string;
   genderCode: "M" | "F" | "COED";
   /** Display form of genderCode, from /api/reference in the reader's language. */
   genderLabel: string;

@@ -744,7 +744,7 @@ function DeleteTeams() {
         <div key={t.id} className="invite-row" data-testid={`admin-team-${t.id}`}>
           <div>
             <div className="row-title">{t.name}</div>
-            <div className="row-meta">{[t.orgName, t.ageGroupCode, t.genderLabel].filter(Boolean).join(" · ")}</div>
+            <div className="row-meta">{[t.orgName, t.ageGroupLabel, t.genderLabel].filter(Boolean).join(" · ")}</div>
           </div>
           <button
             className="btn"

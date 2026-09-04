@@ -218,6 +218,18 @@ export function toTeam(t: ApiTeam, loc: Localizer): Team {
     // From /api/reference, not a map written out here. The hardcoded one said
     // "Mixed" where the PO says "Co-ed" — the exact drift ADR 015 was about.
     genderLabel: loc.label("genders", t.genderCode),
+    /**
+     * "Under 16", not "U16".
+     *
+     * Gender has been localised here since ADR 015 and the age group beside it
+     * never was, so four screens rendered a model code next to a translated
+     * word — a Thai reader got "U16 หญิง". The vocabulary has carried
+     * `อายุไม่เกิน 16 ปี` all along.
+     *
+     * The code stays on the object because forms post it and `entries.tsx`
+     * matches divisions on it. This is the reader's half of the same fact.
+     */
+    ageGroupLabel: loc.label("ageGroups", t.ageGroupCode),
     canEdit: t.canEdit,
     names: t.names as Record<string, string>,
   };

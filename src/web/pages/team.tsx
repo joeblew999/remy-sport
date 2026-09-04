@@ -120,7 +120,7 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
           <div className="meta thai" style={{ fontFamily: "Noto Sans Thai, sans-serif", fontSize: 16, color: "var(--ink-2)", marginTop: 4 }}>
             {[t.orgName, t.city].filter(x => x && x !== "—").join(" · ")}
           </div>
-          <div className="meta">{t.ageGroupCode} {t.genderLabel} · {t.short}</div>
+          <div className="meta">{t.ageGroupLabel} {t.genderLabel} · {t.short}</div>
           <div className="event-actions" style={{ marginTop: 16 }}>
             {t.id && <FollowButton objectTypeCode="TEAM" objectId={t.id} />}
             {/* These three were `<button className="btn">` with no onClick —

@@ -34,6 +34,7 @@
 import { writeFileSync } from "fs"
 import { resolve } from "path"
 import { getTableColumns, getTableName } from "drizzle-orm"
+import { getTableConfig } from "drizzle-orm/sqlite-core"
 import type { SQLiteTable } from "drizzle-orm/sqlite-core"
 import { FIXTURE_TABLES } from "../../src/db/fixtures-schema"
 import { VOCABULARY_TABLES } from "../../src/db/vocabularies-schema"
@@ -120,6 +121,44 @@ const lines: string[] = [
  * the row is typed against the table, so a renamed or removed column stops the
  * build here rather than surfacing as a broken database later.
  */
+/**
+ * The columns SQLite should treat as "this row already exists".
+ *
+ * A single-column primary key where there is one, otherwise the table's first
+ * unique index — which is what every join table here has instead of a key.
+ *
+ * Derived rather than passed in. `upsertOn` was an option each caller supplied,
+ * so a table nobody remembered to pass it for stayed `INSERT OR IGNORE`, and
+ * IGNORE cannot repair a row that is already there. That is not a hypothetical
+ * and it was live on 2026-09-04: `event.description` and `playerTeam.to_date`
+ * were both added to the model, both written by this generator, and neither
+ * reached the development database — the rows predated them, the seed said
+ * "823 statements, 291 written", and nothing said which 532 it had skipped or
+ * why. The Sessions tab worked and the description did not, on the same re-seed.
+ *
+ * The worker tests never saw it because they apply migrations to a fresh
+ * database every run. Only a long-lived one — a laptop, staging, production —
+ * has rows old enough to be skipped.
+ */
+function conflictTarget(table: SQLiteTable): string[] {
+  const config = getTableConfig(table)
+  const pk = config.columns.filter((c) => c.primary).map((c) => c.name)
+  if (pk.length === 1) return pk
+  /**
+   * A *whole* unique index. A partial one cannot be a plain conflict target.
+   *
+   * `userNotificationChannel_key` is unique `WHERE channel_code <> 'PUSH'` —
+   * a push endpoint is minted per browser and two of them are not a duplicate.
+   * SQLite will not match `ON CONFLICT(user_id, channel_code, address_label)`
+   * against it unless the statement repeats that predicate, and answers
+   * "ON CONFLICT clause does not match any PRIMARY KEY or UNIQUE constraint",
+   * which is what a whole seed failing looks like. The table's other unique
+   * index is whole and does the job.
+   */
+  const unique = config.indexes.find((i) => i.config.unique && !i.config.where)
+  return unique?.config.columns.map((c) => (c as { name: string }).name) ?? []
+}
+
 function insertOf<T extends SQLiteTable>(
   table: T,
   row: Record<string, unknown>,
@@ -152,17 +191,24 @@ function insertOf<T extends SQLiteTable>(
     `(${present.map((k) => cols[k]!.name).join(", ")}) VALUES ` +
     `(${present.map(value).join(", ")})`
 
-  const key = opts.upsertOn
-  if (!key) return `INSERT OR IGNORE${head.slice("INSERT".length)};`
+  const key = opts.upsertOn ? [opts.upsertOn] : conflictTarget(table)
+  // Nothing to conflict on, so nothing to update. Only a table with neither a
+  // primary key nor a unique index reaches this, and there are none.
+  if (key.length === 0) return `INSERT OR IGNORE${head.slice("INSERT".length)};`
+
+  const set = present
+    .filter((k) => !key.includes(cols[k]!.name))
+    .map((k) => `${cols[k]!.name} = excluded.${cols[k]!.name}`)
+    .join(", ")
+  // A row whose every column is part of the key has nothing to update, and
+  // `DO UPDATE SET` with an empty list is a syntax error. `DO NOTHING` is the
+  // same outcome as IGNORE and says so.
+  if (!set) return `${head} ON CONFLICT(${key.join(", ")}) DO NOTHING;`
 
   // Update in place rather than replace: the key is a foreign key, and
   // INSERT OR REPLACE deletes the row first, which would take its children with
   // it or fail outright.
-  const set = present
-    .filter((k) => cols[k]!.name !== key)
-    .map((k) => `${cols[k]!.name} = excluded.${cols[k]!.name}`)
-    .join(", ")
-  return `${head} ON CONFLICT(${key}) DO UPDATE SET ${set};`
+  return `${head} ON CONFLICT(${key.join(", ")}) DO UPDATE SET ${set};`
 }
 
 /**
@@ -358,14 +404,9 @@ function emitFixtures(wanted: (name: string) => boolean): void {
     const rows = source[name] ?? (SEED_RELATIONSHIPS as Record<string, readonly Record<string, unknown>[]>)[name]
     if (!rows?.length) continue
 
-    const cols = getTableColumns(table)
     lines.push("", `-- ${name}`)
     for (const row of rows) {
-      const present = Object.keys(cols).filter((k) => k in row)
-      lines.push(
-        `INSERT OR IGNORE INTO ${getTableName(table)} (${present.map((k) => cols[k]!.name).join(", ")}) VALUES ` +
-          `(${present.map((k) => lit(row[k])).join(", ")});`,
-      )
+      lines.push(insertOf(table, row))
       fixtureRows++
     }
   }
