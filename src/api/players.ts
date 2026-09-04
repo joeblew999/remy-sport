@@ -452,8 +452,20 @@ export const remove = authed
  * who is responsible for a child is not part of looking at a player, and a page
  * is exactly where it would leak.
  *
- * The current spell only, for the reason `mine` gives: a player who left a team
- * in March is not on it now. Squad history is a decision nobody has made.
+ * ## Where they have played, which `mine` deliberately does not answer
+ *
+ * `players.mine` keeps the current spell and says why: a guardian's dashboard
+ * asks "where is my child playing", and a list of every team they ever played
+ * for answers a different question. That reasoning is about *that list* and it
+ * still holds there.
+ *
+ * This is that other question. A player's own page is where "where have they
+ * played" belongs, and `playerTeam` has carried `fromDate` and `toDate` since
+ * the fixtures were written — `ply_002` left `team_001` on 2026-03-31 and no
+ * screen has ever been able to say so. Ending a spell is not deleting one:
+ * that is the whole reason the roster's button says "remove from squad" rather
+ * than "delete", and until now the distinction was invisible to everybody
+ * except the person who wrote it.
  */
 export const get = authed
   .route({ method: "GET", path: "/players/{id}", summary: "One player" })
@@ -463,6 +475,20 @@ export const get = authed
       /** The team they play for now, if any — names for the reader's locale. */
       teamId: z.string().nullable(),
       teamNames: z.record(z.string(), z.string()).nullable(),
+      /**
+       * Spells that have ended, most recent first.
+       *
+       * `toDate` is never null here — that is what makes a spell past — so the
+       * page can render the date without deciding whether one exists.
+       */
+      past: z.array(
+        z.object({
+          teamId: z.string(),
+          teamNames: z.record(z.string(), z.string()),
+          fromDate: z.string(),
+          toDate: z.string(),
+        }),
+      ),
       /** The model's answer, so the page never works it out from a role. */
       canEdit: z.boolean(),
     }),
@@ -493,6 +519,7 @@ export const get = authed
       .select({
         teamId: schema.team.id,
         teamNames: schema.team.names,
+        fromDate: schema.playerTeam.fromDate,
         toDate: schema.playerTeam.toDate,
       })
       .from(schema.playerTeam)
@@ -500,6 +527,14 @@ export const get = authed
       .where(eq(schema.playerTeam.playerId, input.id))
       .all()
     const current = spells.find((s) => !s.toDate || s.toDate >= today)
+    /**
+     * Ended, most recent first. `toDate` in the past is the whole definition,
+     * and the same comparison that decides `current` decides this — one rule,
+     * so a spell cannot be both or neither.
+     */
+    const past = spells
+      .filter((s): s is typeof s & { toDate: string } => Boolean(s.toDate && s.toDate < today))
+      .sort((a, b) => b.toDate.localeCompare(a.toDate))
 
     return {
       playerId: row.id,
@@ -509,6 +544,12 @@ export const get = authed
       positionCode: row.positionCode,
       teamId: current?.teamId ?? null,
       teamNames: (current?.teamNames as Record<string, string>) ?? null,
+      past: past.map((s) => ({
+        teamId: s.teamId,
+        teamNames: s.teamNames as Record<string, string>,
+        fromDate: s.fromDate,
+        toDate: s.toDate,
+      })),
       canEdit: await can(context.db, "EDIT_PLAYER_PROFILE", context.user, row.id),
     }
   })

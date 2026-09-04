@@ -13,6 +13,7 @@ import {
   projectMyPlayers,
   projectOrg,
   projectGamesIn,
+  projectPlayer,
   projectRoster,
   projectSessions,
   projectTeam,
@@ -238,6 +239,43 @@ describe("What only a signed-in reader sees", () => {
       const res = await api(`/api/events/${eventId}/sessions/${id}/attendance`, { cookie })
       expect(res.status, `${id}'s register should be readable when signed in`).toBe(200)
       same(await res.json(), projectAttendance(eventId, id), `attendance(${id})`)
+    }
+  })
+
+  /**
+   * `players.get` is behind a session on purpose — stricter than the model,
+   * because the row names a minor — so this cannot use the signed-out `get`.
+   *
+   * It covers every player who has ever been on a squad, which is what makes it
+   * worth having: `projectPlayer` splits spells into current and past by
+   * comparing `toDate` against today, and the procedure does the same
+   * comparison in SQL. Two implementations of one rule, and `ply_002` left
+   * `team_001` on 2026-03-31, so the past branch runs against real data rather
+   * than an empty array everywhere.
+   */
+  it("describes every player's spells the way the API does", async () => {
+    const cookie = await signIn(actorFor("SPECTATOR"))
+    for (const id of SEEDED.playersWithSpells) {
+      const res = await api(`/api/players/${id}`, { cookie })
+      expect(res.status, `${id} should be readable when signed in`).toBe(200)
+
+      /**
+       * The facts, without `canEdit`.
+       *
+       * Every other projection here is read *signed out*, so the API answers
+       * `false` and the projection's stated default happens to agree. This one
+       * cannot be — `players.get` requires a session — so the server resolves
+       * EDIT_PLAYER_PROFILE for a real reader and answers `true` wherever this
+       * spectator is a guardian. Comparing it would assert the grant resolver,
+       * which is `authz-equivalence.test.ts`'s job and would mean duplicating
+       * `objectsHeldBy` here, exactly what the note at the top refuses.
+       *
+       * What is left is what this test is for: the spells, split into current
+       * and past by the same comparison in two implementations.
+       */
+      const { canEdit: _served, ...served } = (await res.json()) as Record<string, unknown>
+      const { canEdit: _stated, ...stated } = projectPlayer(id)
+      same(served, stated, `players.get(${id})`)
     }
   })
 

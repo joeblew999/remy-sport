@@ -108,6 +108,46 @@ export function PlayerPage({ id, goto }: { id?: string; goto: (r: Route) => void
         </div>
       )}
 
+      {/**
+        * Where they have played before.
+        *
+        * `playerTeam` has carried `fromDate` and `toDate` since the fixtures
+        * were written and no screen had ever read the second — `ply_002` left
+        * `team_001` on 2026-03-31 and the app could not say so anywhere.
+        *
+        * This is why the roster's button says "remove from squad" rather than
+        * "delete": ending a spell keeps last season's team sheet true. Until
+        * now that distinction was real in the database and invisible to
+        * everybody except whoever wrote it.
+        *
+        * Absent rather than empty when there is none. Most players have only
+        * ever been on one squad, and a "Previously: nothing" card on every page
+        * is noise on the common case.
+        */}
+      {p.past.length > 0 && (
+        <>
+          <div className="section-h">
+            <h2>{m.player_past_teams()}</h2>
+          </div>
+          <div className="dash-card" data-testid="player-past">
+            {p.past.map((spell) => (
+              <div key={`${spell.teamId}-${spell.toDate}`} className="device-row"
+                   data-testid={`player-past-${spell.teamId}`}>
+                <div>
+                  <div className="device-label">{name(spell.teamNames)}</div>
+                  <div className="device-meta">
+                    {m.player_spell_dates({ from: spell.fromDate, to: spell.toDate })}
+                  </div>
+                </div>
+                <button className="btn" onClick={() => goto({ page: "team", id: spell.teamId })}>
+                  {m.team_open()}
+                </button>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
       <div className="section-h">
         <h2>{m.player_fixtures()}</h2>
       </div>

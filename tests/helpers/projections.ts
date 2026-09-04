@@ -361,6 +361,17 @@ export function projectPlayer(id: string, rights: { canEdit?: boolean } = {}) {
   const spell = R.playerTeams.find(
     (pt) => pt.playerId === id && (!pt.toDate || pt.toDate >= today),
   )
+  // Ended spells, most recent first — the same rule the procedure uses, so a
+  // spell cannot be current here and past there.
+  const past = R.playerTeams
+    .filter((pt) => pt.playerId === id && pt.toDate && pt.toDate < today)
+    .sort((a, b) => (b.toDate ?? "").localeCompare(a.toDate ?? ""))
+    .map((pt) => ({
+      teamId: pt.teamId,
+      teamNames: names(teamById(pt.teamId).names),
+      fromDate: pt.fromDate,
+      toDate: pt.toDate!,
+    }))
   return {
     playerId: p.id,
     names: names(p.names),
@@ -369,6 +380,7 @@ export function projectPlayer(id: string, rights: { canEdit?: boolean } = {}) {
     positionCode: p.positionCode,
     teamId: spell?.teamId ?? null,
     teamNames: spell ? names(teamById(spell.teamId).names) : null,
+    past,
     canEdit: rights.canEdit ?? false,
   }
 }
@@ -539,4 +551,7 @@ export const SEEDED = {
   games: E.games.map((g) => g.id),
   orgs: E.orgs.map((o) => o.id),
   sessions: R.eventSessions.map((s) => ({ id: s.id, eventId: s.eventId })),
+  // Every player who has ever been on a squad — the ones whose spells this
+  // projection has to get right, current and ended.
+  playersWithSpells: [...new Set(R.playerTeams.map((pt) => pt.playerId))],
 } as const

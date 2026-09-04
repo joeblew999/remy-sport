@@ -105,3 +105,44 @@ test.describe("The player page, signed out", () => {
     await expect(page.getByTestId("player-not-found")).toHaveCount(0)
   })
 })
+
+/**
+ * Where they have played before.
+ *
+ * `playerTeam` has carried `fromDate` and `toDate` since the fixtures were
+ * written and `toDate` was the one field in the whole API that no screen read —
+ * `ply_002` left `team_001` on 2026-03-31 and the app could not say so.
+ *
+ * It is why the roster's button says "remove from squad" rather than "delete":
+ * ending a spell keeps last season's team sheet true. The distinction was real
+ * in the database and invisible everywhere else.
+ */
+test.describe("A player's past squads", () => {
+  test("names the team and the dates, for somebody who left one", async ({ page }) => {
+    // Derived: whichever seeded player actually has an ended spell. Naming one
+    // would be a literal about the seed, which is what projections replaced.
+    const departed = projectPlayer("ply_002")
+    expect(departed.past.length, "ply_002 left team_001 in the seed").toBeGreaterThan(0)
+
+    await seedCache(page, [
+      signedIn,
+      entry(orpc.players.get, { id: "ply_002" }, departed),
+    ])
+    await visit(page, "player", { id: "ply_002" })
+
+    const spell = departed.past[0]!
+    await expect(page.getByTestId(`player-past-${spell.teamId}`)).toContainText(spell.toDate)
+  })
+
+  test("says nothing at all for somebody who has only ever been on one squad", async ({ page }) => {
+    await seedCache(page, [
+      signedIn,
+      entry(orpc.players.get, { id: PLAYER }, { ...projectPlayer(PLAYER), past: [] }),
+    ])
+    await visit(page, "player", { id: PLAYER })
+
+    // Not an empty card. "Previously: nothing" on every page is noise on the
+    // common case.
+    await expect(page.getByTestId("player-past")).toHaveCount(0)
+  })
+})
