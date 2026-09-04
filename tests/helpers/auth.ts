@@ -146,9 +146,17 @@ export async function releaseSessions(): Promise<void> {
   }
 }
 
-test.afterEach(async () => {
-  await releaseSessions()
-})
+// Registered only where a runner exists. `test.afterEach` throws when called
+// outside Playwright, which made this whole module un-importable from a plain
+// script — and the sign-in above is exactly what a script that wants to look
+// at the app as a seeded person needs. No runner, no hook; the API stays.
+try {
+  test.afterEach(async () => {
+    await releaseSessions()
+  })
+} catch {
+  // Not under `playwright test`: sessions a script keeps are its own to end.
+}
 
 /** The six seeded actors. No passwords — an address is the whole credential. */
 /**

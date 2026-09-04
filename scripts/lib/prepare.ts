@@ -18,7 +18,7 @@
  * it runs at the head of every command.
  */
 
-import { existsSync, readdirSync, statSync } from "fs"
+import { existsSync, readFileSync, readdirSync, statSync } from "fs"
 import { join } from "path"
 
 /**
@@ -140,6 +140,19 @@ interface Step {
   go: () => number
 }
 
+/** `bun x @playwright/mcp@<pin> install-browser <browser>`, both read from the MCP's own config. */
+function mcpBrowserInstall(): string[] {
+  const { mcpServers } = JSON.parse(readFileSync(".mcp.json", "utf8")) as {
+    mcpServers: { playwright: { args: string[] } }
+  }
+  const pkg = mcpServers.playwright.args.find((a) => a.startsWith("@playwright/mcp@"))
+  if (!pkg) throw new Error(".mcp.json: the playwright server's args carry no @playwright/mcp@<version> pin")
+  const { browser } = JSON.parse(readFileSync("playwright-mcp.json", "utf8")) as {
+    browser: { browserName: string }
+  }
+  return ["bun", "x", pkg, "install-browser", browser.browserName]
+}
+
 const INSTALL: Step = {
   name: "install",
   why: "everything below is a node_modules binary",
@@ -161,6 +174,16 @@ const LOCAL: Step[] = [
   { name: "dev-vars", why: ".dev.vars before anything runs the Worker, including the tests", go: () => sh(["bun", "scripts/lib/dev-vars.ts"]) },
   { name: "migrate-local", why: "the local database gets its schema before anything seeds it", go: () => sh(["bun", "scripts/db.ts", "migrate-local"]) },
   { name: "browsers", why: "webkit for the render tier; a no-op once installed", go: () => sh(["bun", "x", "playwright", "install", "webkit"]) },
+  /**
+   * The Playwright MCP is its own Playwright build and wants its own browser
+   * under the same PLAYWRIGHT_BROWSERS_PATH — the repo's webkit-2336 is not
+   * its webkit-2342, and an agent's first `browser_navigate` of a session
+   * failed on exactly that, which is the whole real-time half of looking at
+   * the app gone. The package pin is read off .mcp.json and the browser off
+   * playwright-mcp.json, so what gets installed is what the MCP will ask for
+   * and bumping either file is the only edit.
+   */
+  { name: "mcp-browser", why: "the Playwright MCP's own webkit, so an agent can drive the app live; a no-op once installed", go: () => sh(mcpBrowserInstall()) },
   { name: "seed", why: "seed.sql regenerated from the model, after the schema it targets exists", go: () => sh(["bun", "scripts/lib/seed.ts"]) },
   /**
    * The local server bundles versions.json and serves it at /api/versions, so

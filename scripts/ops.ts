@@ -99,6 +99,13 @@ const OPS: Record<string, Op> = {
     cmd: ([what = "gui", ...rest]) => ["bun", `scripts/ops/coverage-${what}.ts`, ...rest],
     help: "coverage <gui|data|model>        how much of each surface is exercised",
   },
+  shots: {
+    group: "report",
+    // tests/e2e/screens.shots.ts, against the running dev server. Playwright's
+    // own filter passes through: `shots -g "my-team"`, `shots -g "· en · desktop"`.
+    cmd: (rest) => ["bun", "x", "playwright", "test", "--config", "playwright.shots.config.ts", ...rest],
+    help: "shots [-g filter]                every screen as every seeded person, into screenshots/",
+  },
   keys: {
     group: "setup",
     cmd: (rest) => ["bun", "scripts/ops/keys.ts", ...rest],

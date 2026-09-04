@@ -1,10 +1,11 @@
 import { test } from "@playwright/test"
-import { mkdirSync, rmSync } from "node:fs"
+import { mkdirSync, rmSync, writeFileSync } from "node:fs"
 import { LOCALES } from "../../src/domain/vocabularies"
-import { stateFor, actor, ADMIN, COACH } from "../helpers/auth"
+import { stateFor, actor, ACTORS, ADMIN, COACH } from "../helpers/auth"
 
 /**
- * Screenshots of every screen, in every released language, into `screenshots/`.
+ * Screenshots of every screen, in every released language, into `screenshots/`
+ * — `mise run ops shots`, with Playwright's own `-g` to take one slice of it.
  *
  * Not a test — nothing here asserts anything, and it must never fail a build.
  * It exists because a green suite says a page *works*, not that it *looks*
@@ -13,10 +14,16 @@ import { stateFor, actor, ADMIN, COACH } from "../helpers/auth"
  * English after switching to Thai. Both were invisible to 165 passing tests and
  * obvious in a picture.
  *
+ * Beside every picture, the same screen as text: the sidebar entries this
+ * person is offered and everything the page says. A picture is for a person;
+ * the text is for an agent asked whether the GUI makes sense, which is a
+ * question about what each seeded person is shown — and it went unanswered for
+ * a session because this file had lost its task and nothing else could look.
+ *
  * Deliberately not a `.spec.ts`. Playwright's default `testMatch` only collects
- * `*.spec.ts` / `*.test.ts`, so `mise run test` does not see this file at all
- * and needs no `testIgnore` entry to keep ignoring it. `mise run shots` points
- * playwright.shots.config.ts at it explicitly.
+ * `*.spec.ts` / `*.test.ts`, so the gate does not see this file at all and
+ * needs no `testIgnore` entry to keep ignoring it. playwright.shots.config.ts
+ * points at it explicitly.
  *
  * It reuses the E2E tier's whole apparatus — the seeded database, the signed-in
  * states from auth.setup.ts, the wrangler dev server — because "what does a
@@ -54,16 +61,30 @@ const SCREENS: { name: string; path: string; as: string | null; open?: string }[
   { name: "entries", path: "/#/event/evt_004", as: COACH, open: "teams" },
   // The coach's own team page, where the squad is editable.
   { name: "roster", path: "/#/team/team_001", as: COACH },
-  // Both of these are in the product and were in neither this list nor any
-  // test: `live` has its own sidebar entry, and `bracket` is a whole tab. A
-  // screen nobody photographs is a screen nobody looks at.
+  // `live` has its own sidebar entry and was in neither this list nor any test.
+  // A screen nobody photographs is a screen nobody looks at. (The bracket tab
+  // that used to sit beside it was deleted with the invented data behind it.)
   { name: "live", path: "/#/live", as: null },
-  { name: "bracket", path: "/#/event/evt_002", as: null, open: "bracket" },
   { name: "admin", path: "/#/admin", as: ADMIN },
   { name: "devices", path: "/#/devices", as: COACH },
-  { name: "profile", path: "/#/profile", as: COACH },
   { name: "login", path: "/#/login", as: null },
 ]
+
+/**
+ * Every seeded role on the screens that say *yours*, which are the ones this
+ * app has been wrong about most. The same URL six times over is the point:
+ * what a coach, a parent and a referee are each shown on "My team" is the
+ * product, and no single screenshot of it can be right for all of them.
+ */
+const YOURS = [
+  { name: "home", path: "/#/" },
+  { name: "my-events", path: "/#/events" },
+  { name: "my-team", path: "/#/team" },
+  { name: "dashboard", path: "/#/profile" },
+]
+for (const [role, email] of Object.entries(ACTORS)) {
+  for (const s of YOURS) SCREENS.push({ name: `${s.name}-${role.toLowerCase()}`, path: s.path, as: email })
+}
 
 /**
  * Desktop and phone, because the two disagree and only one was ever looked at.
@@ -117,6 +138,16 @@ for (const screen of SCREENS) {
         path: `${OUT}/${vp.name}/${screen.name}.${locale}.png`,
         fullPage: true,
       })
+      // The same screen as text, for a reader without eyes: what the sidebar
+      // offers this person, then everything the page says.
+      const text = await page.evaluate(() => {
+        const nav = [...document.querySelectorAll("aside .nav-item")]
+          .map((n) => (n as HTMLElement).innerText.trim())
+          .join(" | ")
+        const main = (document.querySelector("main") ?? document.body) as HTMLElement
+        return `nav: ${nav}\n\n${main.innerText.replace(/\n{3,}/g, "\n\n").trim()}\n`
+      })
+      writeFileSync(`${OUT}/${vp.name}/${screen.name}.${locale}.txt`, text)
       await ctx.close()
     })
    }
