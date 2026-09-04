@@ -1,6 +1,7 @@
 import { useSession, useSignOut } from "../lib/session";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
+import { useCan } from "../lib/data";
 
 /**
  * Who you are, and how to stop being them.
@@ -36,6 +37,7 @@ export function initialsFor(label: string): string {
  */
 export function Account({ goto }: { goto: (r: Route) => void }) {
   const { user, loading } = useSession();
+  const { data: canAdmin } = useCan("MANAGE_ALL_USERS");
   const signOut = useSignOut();
 
   // Render nothing rather than a flash of "Sign in" that turns into a name a
@@ -66,6 +68,26 @@ export function Account({ goto }: { goto: (r: Route) => void }) {
           chrome was translated, so the topbar stayed in English on a Thai page —
           visible in the first screenshot run. The messages already existed and
           nothing called them. */}
+      {/**
+        * The way in to the admin console, which had none.
+        *
+        * `/#/admin` was reachable only by typing it. Nothing in the sidebar,
+        * the topbar or any page linked to it — so the account list, the role
+        * controls, approving a referee, deleting a team or a player and
+        * creating an account were all built, enforced, and findable by somebody
+        * who already knew the URL.
+        *
+        * Gated on the model's answer, not on `user.role === "admin"`. The
+        * console itself asks `useCan("MANAGE_ALL_USERS")`, and a nav entry that
+        * decided it differently is the second copy that keeps being the bug
+        * here — a link to a page the API then refuses is a 403 with extra
+        * steps.
+        */}
+      {canAdmin && (
+        <button className="btn" data-testid="topbar-admin" onClick={() => goto({ page: "admin" })}>
+          {m.nav_admin()}
+        </button>
+      )}
       <button className="btn" data-testid="topbar-devices" onClick={() => goto({ page: "devices" })}>
         {m.devices()}
       </button>
