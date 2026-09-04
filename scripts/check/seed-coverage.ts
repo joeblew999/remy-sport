@@ -165,6 +165,8 @@ const EXPECTED: Record<string, Expectation> = {
   "user->eventCoOrganizer via user_id": { some: 2, why: "Two people have been invited to co-organise." },
   "user->userNotificationChannel via user_id": { some: 20, why: "Everyone who can hold a session is reachable. The two without are SUSPENDED and DEACTIVATED, who are refused before a notification is ever addressed to them." },
   "user->userNotificationPreference via user_id": { some: 20, why: "As above. A preference row is how a reader turns one type off." },
+  "game->playerGameStat via game_id": { some: 1, why: "One seeded game has a box score. A volunteer at the scorer's table fills these in and most games would not have one — lines for all 33 would make the product look like it collects something it does not." },
+  "player->playerGameStat via player_id": { some: 13, why: "The fourteen who played gam_001, minus ply_050, who is on Montfort's roster and did not get on the floor — the only row covering 'no line recorded' as distinct from 'scored nothing'." },
   "game->gameBroadcast via game_id": { some: 1, why: "One LIVE game is being broadcast, so the watch and broadcast pages have been seen against a real row." },
   "user->gameBroadcast via user_id": { some: 1, why: "The organiser running that broadcast." },
 

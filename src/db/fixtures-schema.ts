@@ -135,6 +135,49 @@ export const game = sqliteTable("game", {
 })
 
 /**
+ * What one player did in one game — the box score.
+ *
+ * The `game` docstring has said since it was written that per-quarter scoring is
+ * absent and "a box score is a separate table when it arrives, not four more
+ * columns here". This is it arriving.
+ *
+ * Until now a score was per team — `homeScore`, `awayScore` — and nothing
+ * recorded what anybody did. So a player's page was a name, a number and a
+ * position, `VIEW_PLAYER_STATS` was granted to the public and answered by no
+ * screen, and a "Top performers" section was deleted rather than faked because
+ * the numbers existed nowhere.
+ *
+ * ## Four columns, and why not more
+ *
+ * Points, rebounds, assists and fouls are what a paper scoresheet at a Thai
+ * school game actually carries, and a volunteer at the scorer's table is who
+ * fills it in. Steals, blocks, turnovers and minutes are a different level of
+ * competition and a different person keeping them; adding columns nobody
+ * records would put us back where `event.description` was — a field with no row
+ * and a renderer that has only ever shown its empty state.
+ *
+ * ## Who writes it
+ *
+ * `ENTER_SCORES`, which the model grants to a game's event owner,
+ * co-organiser, assigned referee and the platform admin — the people at the
+ * table with the sheet. There is deliberately no new action: the person typing
+ * 68–54 is the person reading the player lines off the same page, and the model
+ * already says who that is.
+ *
+ * Nullable counts rather than zero-defaults, for the reason the game's own
+ * scores are nullable: a player with no line recorded is not a player who
+ * scored nothing.
+ */
+export const playerGameStat = sqliteTable("playerGameStat", {
+  gameId: text("game_id").notNull().references(() => game.id),
+  playerId: text("player_id").notNull().references(() => player.id),
+  points: integer("points"),
+  rebounds: integer("rebounds"),
+  assists: integer("assists"),
+  fouls: integer("fouls"),
+}, (t) => [uniqueIndex("playerGameStat_key").on(t.gameId, t.playerId)])
+
+/**
  * Who is broadcasting this game right now.
  *
  * This table exists because the relay cannot answer the question. `@moq/net`
@@ -421,6 +464,11 @@ export const userNotificationPreference = sqliteTable("userNotificationPreferenc
  * mechanical consequence of the table existing.
  */
 /** Standings read the registration to learn a team's division. */
+export const playerGameStatRelations = relations(playerGameStat, ({ one }) => ({
+  game: one(game, { fields: [playerGameStat.gameId], references: [game.id] }),
+  player: one(player, { fields: [playerGameStat.playerId], references: [player.id] }),
+}))
+
 export const sessionAttendanceRelations = relations(sessionAttendance, ({ one }) => ({
   session: one(eventSession, { fields: [sessionAttendance.sessionId], references: [eventSession.id] }),
   player: one(player, { fields: [sessionAttendance.playerId], references: [player.id] }),
@@ -466,6 +514,7 @@ export const FIXTURE_TABLES = {
   eventSessions: eventSession,
   sessionAttendances: sessionAttendance,
   gameBroadcasts: gameBroadcast,
+  playerGameStats: playerGameStat,
 } as const
 
 export const FIXTURE_SCHEMAS = {

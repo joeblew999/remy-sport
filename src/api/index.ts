@@ -21,6 +21,7 @@ import * as domain from "./domain"
 import * as moq from "./moq"
 import * as notifications from "./notifications"
 import * as playersApi from "./players"
+import * as stats from "./stats"
 
 export const router = {
   /**
@@ -81,6 +82,8 @@ export const router = {
   games: {
     list: games.list,
     get: games.get,
+    /** This game's box score. See src/api/stats.ts. */
+    stats: stats.forGame,
     create: games.create,
     generateFixtures: games.generateFixtures,
     update: games.update,
@@ -121,6 +124,8 @@ export const router = {
      * 2026-08-30. See src/api/players.ts.
      */
     get: playersApi.get,
+    /** What this player did, game by game. See src/api/stats.ts. */
+    stats: stats.forPlayer,
     mine: playersApi.mine,
     remove: playersApi.remove,
     /**

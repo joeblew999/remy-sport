@@ -341,6 +341,40 @@ export const SEED_RELATIONSHIPS = {
    * app-level bookkeeping rather than the sport, but a seeded one is the
    * difference between a page that has been seen working and one that has not.
    */
+  /**
+   * The box score for gam_001 — Assumption 68, Montfort 54.
+   *
+   * The points add up to each team's score, which is the one piece of
+   * arithmetic anybody reading a box score checks. Getting that wrong in a
+   * fixture teaches a page to render a total that disagrees with the result
+   * beside it.
+   *
+   * `ply_050` is on Montfort's roster and has no row here. A squad member who
+   * did not get on the floor is a real state and the only thing covering "this
+   * player has no line" as distinct from "this player scored nothing" —
+   * `ply_012` and `ply_049` are the second of those, with a recorded zero.
+   *
+   * One game, not twenty-nine. A box score is entered by a volunteer at the
+   * scorer's table and most seeded games would not have one; inventing lines
+   * for all of them would make the table look complete and the product look
+   * like it collects something it does not.
+   */
+  playerGameStats: [
+    {"gameId":"gam_001","playerId":"ply_001","points":18,"rebounds":4,"assists":6,"fouls":2},
+    {"gameId":"gam_001","playerId":"ply_003","points":15,"rebounds":9,"assists":1,"fouls":3},
+    {"gameId":"gam_001","playerId":"ply_008","points":12,"rebounds":2,"assists":4,"fouls":1},
+    {"gameId":"gam_001","playerId":"ply_009","points":9,"rebounds":3,"assists":2,"fouls":0},
+    {"gameId":"gam_001","playerId":"ply_010","points":8,"rebounds":5,"assists":1,"fouls":2},
+    {"gameId":"gam_001","playerId":"ply_011","points":6,"rebounds":7,"assists":0,"fouls":4},
+    {"gameId":"gam_001","playerId":"ply_012","points":0,"rebounds":1,"assists":1,"fouls":1},
+    {"gameId":"gam_001","playerId":"ply_006","points":16,"rebounds":3,"assists":5,"fouls":3},
+    {"gameId":"gam_001","playerId":"ply_007","points":11,"rebounds":6,"assists":2,"fouls":2},
+    {"gameId":"gam_001","playerId":"ply_045","points":9,"rebounds":4,"assists":1,"fouls":1},
+    {"gameId":"gam_001","playerId":"ply_046","points":7,"rebounds":8,"assists":0,"fouls":4},
+    {"gameId":"gam_001","playerId":"ply_047","points":6,"rebounds":2,"assists":3,"fouls":0},
+    {"gameId":"gam_001","playerId":"ply_048","points":5,"rebounds":5,"assists":1,"fouls":2},
+    {"gameId":"gam_001","playerId":"ply_049","points":0,"rebounds":2,"assists":0,"fouls":1},
+  ],
   gameBroadcasts: [
     {"gameId":"gam_002","userId":"usr_org_002","startedAt":"2026-05-02T09:55:00Z","lastSeenAt":"2026-05-02T10:32:00Z"},
   ],

@@ -558,12 +558,73 @@ export function projectMyPlayers(userId: string, rights: { canEdit?: boolean } =
   }
 }
 
+/**
+ * One player's box scores, as `players.stats` returns them.
+ *
+ * Ordered by when the game was played, and the totals are summed from the lines
+ * rather than stored — both of which the endpoint does, and both of which this
+ * has to reproduce or the equivalence test is comparing two different answers.
+ *
+ * `recorded` counts lines, not games played. A player can be on a squad for a
+ * game nobody kept a sheet for, so this is the denominator the averages
+ * actually have.
+ */
+export function projectPlayerStats(playerId: string) {
+  const byId = new Map(E.games.map((g) => [g.id, g]))
+  const lines = R.playerGameStats
+    .filter((l) => l.playerId === playerId)
+    .map((l) => ({
+      gameId: l.gameId,
+      playerId: l.playerId,
+      points: l.points,
+      rebounds: l.rebounds,
+      assists: l.assists,
+      fouls: l.fouls,
+    }))
+    .sort((a, b) => byId.get(a.gameId)!.startsAt.localeCompare(byId.get(b.gameId)!.startsAt))
+  const sum = (of: (l: (typeof lines)[number]) => number | null) =>
+    lines.reduce((n, l) => n + (of(l) ?? 0), 0)
+  return {
+    lines,
+    recorded: lines.length,
+    totals: {
+      points: sum((l) => l.points),
+      rebounds: sum((l) => l.rebounds),
+      assists: sum((l) => l.assists),
+      fouls: sum((l) => l.fouls),
+    },
+  }
+}
+
+/** One game's box score, as `games.stats` returns it: top scorer first. */
+export function projectGameStats(gameId: string) {
+  return {
+    lines: R.playerGameStats
+      .filter((l) => l.gameId === gameId)
+      .map((l) => ({
+        gameId: l.gameId,
+        playerId: l.playerId,
+        names: names(playerById(l.playerId).names),
+        points: l.points,
+        rebounds: l.rebounds,
+        assists: l.assists,
+        fouls: l.fouls,
+      }))
+      .sort((a, b) => (b.points ?? 0) - (a.points ?? 0) || a.playerId.localeCompare(b.playerId)),
+  }
+}
+
 /** Every id the projections above can be asked about, for the equivalence test. */
 export const SEEDED = {
   events: E.events.map((e) => e.id),
   teams: E.teams.map((t) => t.id),
   games: E.games.map((g) => g.id),
   orgs: E.orgs.map((o) => o.id),
+  /** Players with at least one recorded line, plus one without, for the zero case. */
+  playersWithStats: [
+    ...new Set(R.playerGameStats.map((l) => l.playerId)),
+    "ply_050",
+  ],
   sessions: R.eventSessions.map((s) => ({ id: s.id, eventId: s.eventId })),
   // Every player who has ever been on a squad — the ones whose spells this
   // projection has to get right, current and ended.

@@ -121,9 +121,7 @@ export const ACTION = [
   { code: "MANAGE_OWN_NOTIFICATION_PREFERENCES", objectTypeCode: "PLATFORM", category: "Live", names: {"th":"จัดการการตั้งค่าการแจ้งเตือนของตัวเอง","en":"Manage own per-type notification preferences (which type via which channel)","ja":"通知種別ごとの設定を管理（どの種別をどのチャネルで受け取るか）"} },
   { code: "VIEW_LIVE_STREAM", objectTypeCode: "EVENT", category: "Live", names: {"th":"ดูถ่ายทอดสด","en":"View live stream links","ja":"ライブ配信リンクを表示"} },
   { code: "VIEW_COURT_STATUS_BOARD", objectTypeCode: "EVENT", category: "Live", names: {"th":"ดูกระดานสถานะสนาม","en":"View court status board","ja":"コート状況ボードを表示"} },
-  { code: "AI_CREATE_EVENT", objectTypeCode: "PLATFORM", category: "AI", names: {"th":"สร้างอีเวนต์ผ่านแชต","en":"Create event via AI chat","ja":"AIチャットでイベントを作成"} },
   { code: "AI_BRACKET_SUGGESTIONS", objectTypeCode: "EVENT", category: "AI", names: {"th":"คำแนะนำสายแข่งขัน","en":"AI bracket suggestions","ja":"AIによるトーナメント表の提案"} },
-  { code: "AI_QA", objectTypeCode: "PLATFORM", category: "AI", names: {"th":"ถาม-ตอบ AI","en":"AI Q&A","ja":"AIへの質問"} },
   { code: "VIEW_ORG", objectTypeCode: "ORG", category: "Organisation", names: {"th":"ดูโปรไฟล์องค์กร","en":"View organisation profile","ja":"団体プロフィールを表示"} },
   { code: "EDIT_ORG_PROFILE", objectTypeCode: "ORG", category: "Organisation", names: {"th":"แก้ไขโปรไฟล์องค์กร","en":"Edit organisation profile","ja":"団体プロフィールを編集"} },
   { code: "INVITE_ORG_MEMBER", objectTypeCode: "ORG", category: "Organisation", names: {"th":"เชิญสมาชิกเข้าองค์กร","en":"Invite someone to an organisation","ja":"団体にメンバーを招待"} },
@@ -200,9 +198,7 @@ export const ACTION_CODES = ACTION.map((t) => t.code) as unknown as [
   "MANAGE_OWN_NOTIFICATION_PREFERENCES",
   "VIEW_LIVE_STREAM",
   "VIEW_COURT_STATUS_BOARD",
-  "AI_CREATE_EVENT",
   "AI_BRACKET_SUGGESTIONS",
-  "AI_QA",
   "VIEW_ORG",
   "EDIT_ORG_PROFILE",
   "INVITE_ORG_MEMBER",
@@ -1071,17 +1067,10 @@ export const GRANTS = {
   VIEW_COURT_STATUS_BOARD: [
     { relation: "PUBLIC", eventTypes: ["TOURNAMENT", "LEAGUE", "SHOWCASE"] },
   ],
-  AI_CREATE_EVENT: [
-    { relation: "ANY_ORGANIZER", eventTypes: [] },
-    { relation: "PLATFORM_ADMIN", eventTypes: [] },
-  ],
   AI_BRACKET_SUGGESTIONS: [
     { relation: "OWNER", eventTypes: ["TOURNAMENT", "SHOWCASE"] },
     { relation: "CO_ORGANIZER", eventTypes: ["TOURNAMENT", "SHOWCASE"] },
     { relation: "PLATFORM_ADMIN", eventTypes: ["TOURNAMENT", "SHOWCASE"] },
-  ],
-  AI_QA: [
-    { relation: "PUBLIC", eventTypes: [] },
   ],
   SIGN_UP_AS_SPECTATOR: [
     { relation: "PUBLIC", eventTypes: [] },
