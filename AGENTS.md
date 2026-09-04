@@ -233,6 +233,17 @@ The exemption is `// check-ignore` on the line, and there are three: two specs
 iterate `ROUTES` and one asserts the route a crash beacon *reports* — where the
 route is the subject, name the route.
 
+**A green test tier is not evidence that a re-seed reaches a real database.**
+Every worker test applies migrations to a *fresh* D1, so every seeded row is an
+insert. A long-lived database — your laptop, staging, production — has rows that
+predate a new column, and `ON CONFLICT ... DO UPDATE` is the only thing that
+repairs them. `insertOf` derives the conflict target now rather than taking it as
+an option somebody remembers, because for months it did not: `event.description`
+and `playerTeam.to_date` were added to the model, written by the generator, and
+reached no database that already had the row. `/api/seed` said "823 statements,
+291 written" and named none of the 532 it skipped. **When you add a field, re-seed
+a database that already has data and look at the screen.**
+
 **`mise run 2-check -- --only <step>` runs one check with nothing before it.**
 A step lives in a phase and a phase waits for the one before it, which is right
 for a gate and useless when you are fixing one thing and typecheck is red on

@@ -587,10 +587,10 @@ all built against a table the seed could not reach.
 - [x] here: INSERT blocks in `scripts/lib/seed.ts`, ordered after `event`,
       `venue` and `player`.
 - [x] Declare the other four in Phase 1's exception list.
-- [ ] Open the camp's Sessions tab in the running app and read it. **Not done.**
-      The render tier draws it from the real rows and the worker tier proves the
-      endpoint returns them, but nobody has looked at the screen. That is the
-      one thing in this plan a test cannot stand in for.
+- [x] Open the camp's Sessions tab in the running app and read it. **It found a
+      live bug in the work the box was checking** — see the log below. The
+      timetable was there; `event.description` was not, on the same re-seed,
+      because the seed emitted INSERT OR IGNORE for every table but `user`.
 
 **Done when** the block reports zero undeclared empty tables and the camp's
 timetable renders from the database.
@@ -902,9 +902,8 @@ The user's two conditions, made executable.
       **0 undeclared empty columns**, and runs inside `mise run 2-check`.
 - [x] The five depth invariants of Phase 4 hold and are asserted, not documented.
 - [x] Every exception line carries a reason a reader can disagree with.
-- [ ] Every column filled in Phase 3 has been looked at on a screen. **Not
-      done** — same gap as the camp's Sessions tab above, and the same reason it
-      is worth saying rather than ticking.
+- [x] Every column filled in Phase 3 has been looked at through the running app.
+      Half of them were not reaching it.
 
 **"The tests are less fragile to the data changing."**
 
@@ -932,6 +931,34 @@ The test, and it is a real one to run, not a claim to make:
       that a slow tier is a bug.
 
 ## Log
+
+- **Pass 10 — the last box, which was not a formality.** "Open the camp's
+  Sessions tab in the running app and read it" was the one thing left, kept
+  unticked because a test cannot stand in for it. It found a live bug in the
+  work it was checking.
+
+  The timetable rendered. `event.description` did not, on the same re-seed, and
+  neither did `playerTeam.to_date` — `ply_002` was still on team_001 in the
+  running app weeks after leaving it. `/api/seed` reported **"823 statements,
+  291 written"** and said nothing about which 532 it skipped.
+
+  **`insertOf` took `upsertOn` as an option each caller supplied**, and without
+  it emitted INSERT OR IGNORE — right for a row that only needs to exist, wrong
+  for any row the model later gives a new column. Only `user` passed it. Its own
+  docstring describes this exact failure happening to `status_code` in migration
+  0008, and it went on happening, because the fix was something to remember.
+
+  The conflict target is derived now: the single-column primary key, else the
+  first *whole* unique index. Partial ones are skipped —
+  `userNotificationChannel_key` is unique `WHERE channel_code <> 'PUSH'`, and
+  SQLite refuses a plain ON CONFLICT against a partial index in a way that takes
+  the entire seed down with it, which is how that came up. **291 written became
+  780.**
+
+  **Why nothing caught it:** the worker tier applies migrations to a fresh
+  database every run, so every row is an insert and IGNORE never fires. Only a
+  long-lived database — a laptop, staging, production — has rows old enough to
+  be skipped. A green tier was not evidence about the one thing that mattered.
 
 - **Pass 9 — "all of them" was not true when I said it.** Six specs still
   carried hand-written payloads after the pass that claimed the tier was
