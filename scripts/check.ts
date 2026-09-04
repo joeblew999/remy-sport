@@ -533,6 +533,7 @@ export const PHASES: Step[][] = [
     { name: "notifications", cmd: script("check/notifications.ts") },
     { name: "coverage-gui", cmd: script("ops/coverage-gui.ts") },
     { name: "actions", cmd: script("check/actions.ts") },
+    { name: "reachable", cmd: script("check/reachable.ts") },
     { name: "bundle", cmd: script("check/bundle.ts") },
     { name: "envs", cmd: script("check/envs.ts") },
   ],
