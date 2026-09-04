@@ -243,25 +243,49 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
         ))}
       </div>
 
-      {tab === "courts" && <CourtBoard eventId={e.id}/>}
-      {tab === "overview" && <EventOverview e={e} goto={goto}/>}
-      {tab === "settings" && e.canEdit && <EventSettings event={e}/>}
-      {tab === "venues" && <EventVenues eventId={e.id}/>}
-      {tab === "divisions" && <EventDivisions eventId={e.id} canEdit={e.canEdit}/>}
-      {tab === "sessions" && <EventSessions eventId={e.id}/>}
-      {tab === "players" && <EventPlayers eventId={e.id}/>}
-      {tab === "rules" && <EventRules event={e}/>}
-      {tab === "schedule" && (
-        <div className="page-inner">
-          <Schedule eventId={e.id} spoiler={spoiler} goto={goto}/>
-          <AddFixture eventId={e.id}/>
-        </div>
-      )}
-      {tab === "standings" && <StandingsTable eventId={e.id}/>}
-      {tab === "teams" && <div className="page-inner"><Entries eventId={e.id}/></div>}
-      {!["overview", "schedule", "standings", "teams", "settings", "venues", "rules", "players"].includes(tab) && (
-        <div className="page-inner"><div className="empty">{m.tab_not_built()}</div></div>
-      )}
+      {/**
+        * One entry per tab, and the fallback is what the map does not hold.
+        *
+        * This was thirteen `tab === "x" &&` lines followed by an array of the
+        * eight that were built — the same list written twice, and the second
+        * copy was missing `courts`, `divisions` and `sessions`. So opening the
+        * court board rendered the board *and* "not built yet" underneath it,
+        * and the same for divisions and sessions. Three tabs that worked told
+        * the reader they did not.
+        *
+        * Nothing caught it: court-board.spec.ts clicks the tab and asserts the
+        * board is visible, which it was. Asserting what is absent is the harder
+        * half and there was no reason to think of it.
+        *
+        * A `Record<EventTab, …>` cannot drift, because a tab added to the type
+        * without a screen is a compile error rather than a silent fallthrough.
+        */}
+      {(({
+        overview: () => <EventOverview e={e} goto={goto}/>,
+        schedule: () => (
+          <div className="page-inner">
+            <Schedule eventId={e.id} spoiler={spoiler} goto={goto}/>
+            <AddFixture eventId={e.id}/>
+          </div>
+        ),
+        courts: () => <CourtBoard eventId={e.id}/>,
+        standings: () => <StandingsTable eventId={e.id}/>,
+        teams: () => <div className="page-inner"><Entries eventId={e.id}/></div>,
+        players: () => <EventPlayers eventId={e.id}/>,
+        venues: () => <EventVenues eventId={e.id}/>,
+        divisions: () => <EventDivisions eventId={e.id} canEdit={e.canEdit}/>,
+        sessions: () => <EventSessions eventId={e.id}/>,
+        rules: () => <EventRules event={e}/>,
+        // Guarded twice on purpose: the tab is only offered to somebody who may
+        // edit, and hand-typing the hash must not get past that.
+        settings: () =>
+          e.canEdit ? (
+            <EventSettings event={e}/>
+          ) : (
+            <div className="page-inner"><div className="empty">{m.tab_not_built()}</div></div>
+          ),
+      } satisfies Record<EventTab, () => React.ReactNode>)[tab] ??
+        (() => <div className="page-inner"><div className="empty">{m.tab_not_built()}</div></div>))()}
     </>
   );
 }

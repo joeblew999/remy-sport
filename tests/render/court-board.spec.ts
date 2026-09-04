@@ -86,3 +86,28 @@ test.describe("The court board", () => {
     await expect(page.getByTestId("court-board-none")).toBeVisible()
   })
 })
+
+/**
+ * A tab that works must not also say it does not exist.
+ *
+ * The tabs were rendered by thirteen `tab === "x" &&` lines followed by an array
+ * naming the eight that were built — the same list twice, and the second copy
+ * omitted `courts`, `divisions` and `sessions`. Opening the court board showed
+ * the board *and* "This section is not built yet" underneath it.
+ *
+ * The tests above did not catch it because every one of them asserts the board
+ * is visible, which it always was. This asserts what must be absent, which is
+ * the half nobody thinks of until it has already shipped.
+ */
+test.describe("A built tab says nothing about being unbuilt", () => {
+  for (const tab of ["courts", "venues", "divisions"] as const) {
+    test(`${tab} renders its own screen and no "not built" message`, async ({ page }) => {
+      await asVisitor(page)
+      await seed(page, [game({ id: "g1", venueId: COURT_A, venueNames: { en: "Court A" } })])
+      await visit(page, "event", { id: EVENT })
+      await page.getByTestId(`tab-${tab}`).click()
+
+      await expect(page.getByText("This section is not built yet.")).toHaveCount(0)
+    })
+  }
+})
