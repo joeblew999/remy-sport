@@ -233,6 +233,26 @@ The exemption is `// check-ignore` on the line, and there are three: two specs
 iterate `ROUTES` and one asserts the route a crash beacon *reports* — where the
 route is the subject, name the route.
 
+**`mise run 2-check -- --only <step>` runs one check with nothing before it.**
+A step lives in a phase and a phase waits for the one before it, which is right
+for a gate and useless when you are fixing one thing and typecheck is red on
+somebody else's file. A wrong name lists every step. The gate is still the whole
+of `2-check`; this is for the loop, not for skipping it.
+
+**A failing tier that took more than 3x its measured time says so.** Two agents
+and a browser on one laptop is enough to make `render` report 149 failures in
+90s and 240 passes in 25s a minute later, and `worker` fail a test at 21s that
+passes at 14s. It still fails — an automatic retry would swallow a real one —
+but it names `--only` so you can settle it in one command instead of re-running
+the gate and guessing.
+
+**A source file with a raw NUL in it is binary to git, and its diffs cannot be
+read.** Two had one: `authz-equivalence.test.ts` and `ops/analytics.ts` join
+cache keys with a NUL separator, which is the right technique written the wrong
+way. Nine bytes of one agent's in-flight edit went into another's commit behind
+that, because there was no diff to notice. `check-text` fails on the byte; write
+`\0` in the literal, which is identical at runtime.
+
 **A testid a test names is one a component renders.** Rename a `data-testid`
 and nothing complains until a spec times out five seconds later saying an
 element was not found — the same message a genuinely broken feature gives, so

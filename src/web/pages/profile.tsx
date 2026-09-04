@@ -30,7 +30,7 @@ import { m } from "../lib/i18n";
  * the real broadcast list, the same source the Live page reads.
  */
 export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
-  const { user } = useSession();
+  const { user, loading } = useSession();
   const { data: myEvents, isPending: eventsLoading } = useMyEvents();
   const { data: live, isPending: liveLoading } = useLiveGames();
 
@@ -77,10 +77,37 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
             entire job is to show you yourself, with no SAMPLE DATA label
             because it did not look like sample data. */}
         <div className="crumbs">{m.profile_crumb()}</div>
-        <h1>{m.welcome_back({ name: user?.name || user?.email || "" })}</h1>
-        <div className="sub">{user?.email ?? ""}</div>
+        {/**
+          * A stranger is not welcomed back.
+          *
+          * `welcome_back` interpolates the name, and with no session that
+          * resolved to "Welcome back, " — an empty greeting over a stack of
+          * empty cards, reached from a sidebar entry every visitor can see.
+          * my-events.tsx and team.tsx both handle having no reader; this page,
+          * whose entire job is to show you yourself, did not.
+          */}
+        <h1>
+          {user ? m.welcome_back({ name: user.name || user.email }) : m.profile_signed_out()}
+        </h1>
+        <div className="sub">{user?.email ?? (loading ? "" : m.profile_signed_out_sub())}</div>
       </div>
 
+      {/* Everything below is defined by a relation to the reader, so with no
+          reader there is nothing to render but the way in. Live scores stay
+          public and stay on Discover — this is not the screen for them. */}
+      {!user && !loading && (
+        <div className="page-inner">
+          <div className="dash-card" data-testid="profile-signin">
+            <div className="push-note">{m.profile_signed_out_why()}</div>
+            <button className="btn primary" data-testid="profile-signin-button"
+                    onClick={() => goto({ page: "login" })}>
+              {m.sign_in()}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {user && (
       <div className="page-inner">
         <div className="dash-grid">
           <div>
@@ -169,6 +196,7 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
           </div>
         </div>
       </div>
+      )}
     </>
   );
 }
