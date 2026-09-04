@@ -66,14 +66,22 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
    *
    * Either way this completes a *real* sign-in — request a code, redeem it — so
    * what you get is an ordinary session and nothing here bypasses Better Auth.
+   *
+   * One click, as the picker promises. This used to fill the code in and stop
+   * at the Verify button — a second click every demo and every agent paid,
+   * while AGENTS.md said "sign in with one click". With a code in hand it signs
+   * in; without one it stays on the code step so a person can type what they got.
    */
   async function fillDev(address: string) {
     setEmail(address);
     try {
       await requestCode.mutateAsync(address);
       const code = devAccounts.data?.code ?? (await codeFromOutbox(address));
-      if (code) setOtp(code);
       setStep("code");
+      if (!code) return;
+      setOtp(code);
+      await verifyCode.mutateAsync({ email: address, otp: code });
+      goto(next ?? { page: "discover" });
     } catch {
       /* the mutation already carries the error */
     }

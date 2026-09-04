@@ -20,6 +20,7 @@ import { useQuery } from "@tanstack/react-query";
 import { orpc } from "./orpc";
 import { toEvent, toTeam } from "./api";
 import { useLocalizer } from "./locale";
+import { useSession } from "./session";
 import { formatIsoDay, formatMonthYear } from "./dates";
 import { changedScores, listenForTaps, notify, scoreBody } from "./native-notify";
 import { type EventStatus, type EventType } from "../data";
@@ -57,7 +58,13 @@ export interface EventFilters {
  * joined.
  */
 export function useHoldings() {
-  const q = useQuery(orpc.me.mine.queryOptions({ staleTime: 10 * 60 * 1000 }));
+  // Only with a session. A stranger holds nothing and the answer for them is
+  // already known; asking anyway was a 401 in the console on every signed-out
+  // screen, which is noise for a person and a false lead for an agent.
+  const { user } = useSession();
+  const q = useQuery(
+    orpc.me.mine.queryOptions({ staleTime: 10 * 60 * 1000, enabled: Boolean(user) }),
+  );
   return { ...q, holdings: q.data?.holdings ?? [], can: q.data?.can };
 }
 

@@ -122,6 +122,29 @@ export function BuildStamp() {
   // shell names a different bundle, or /api/versions is somewhere this page is
   // not. One button, because it is one thing to the reader.
   const stale = swReady || bundleStale;
+  /**
+   * On a developer's own machine, reload rather than ask.
+   *
+   * An agent driving the page edits code, the watcher rebuilds in a second, and
+   * the next navigation still ran the previous bundle — with the button that
+   * would have fixed it below the fold. A session went by looking at the
+   * app before the edit and reasoning about it. Readers on a deployment keep
+   * the button: a page pulled from under someone mid-read is worse than a
+   * stale one for them.
+   *
+   * Once per bundle, remembered in sessionStorage: if a reload does not clear
+   * the staleness — a worker still serving the old shell — the button shows as
+   * it always did, rather than the page reloading forever.
+   */
+  useEffect(() => {
+    if (!stale) return;
+    if (location.hostname !== "localhost" && location.hostname !== "127.0.0.1") return;
+    const mine = loadedScript() ?? "";
+    const key = "remy:auto-reloaded-for";
+    if (sessionStorage.getItem(key) === mine) return;
+    sessionStorage.setItem(key, mine);
+    window.location.reload();
+  }, [stale]);
   const env = server?.environment;
 
   // Nothing to say without a server to say it about. The render tier has none,

@@ -144,11 +144,12 @@ test.describe.serial("SPA sign-in", () => {
     await expect(page.getByTestId(`spa-dev-${actor("SPECTATOR")}`)).toContainText("GUARDIAN ply_001")
   })
 
-  test("a dev account button signs you in end to end", async ({ page }) => {
+  test("a dev account button signs you in end to end, in one click", async ({ page }) => {
     await page.goto("/#/login")
     await page.getByTestId(`spa-dev-${actor("REFEREE")}`).click()
-    await expect(page.getByTestId("spa-otp-input")).toBeVisible()
-    await page.getByTestId("spa-verify-code").click()
+    // No Verify to press: with a code in hand the button redeems it itself.
+    // This test used to click Verify, which is the second click the picker
+    // promised nobody would need.
     await expect(page.getByTestId("topbar-role")).toHaveText("referee")
   })
 
