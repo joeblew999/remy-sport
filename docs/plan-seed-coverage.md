@@ -833,8 +833,12 @@ seeded data.
       seeded D1 as a stated actor, deep-equal to the projection minus the
       permission fields. Model it on `tests/worker/authz-equivalence.test.ts`,
       including the note about which side is the oracle.
-- [x] Move the specs over, largest first: `tests/render/team.spec.ts` (24),
-      `tests/render/schedule.spec.ts` (16), `tests/render/org.spec.ts` (16).
+- [x] Move the specs over — **all of them**. Twenty-one of the twenty-six render
+      specs seed something and all twenty-one read the seed; the other five seed
+      nothing. No hand-written `apiEvent`, `apiTeam`, `apiMyPlayer` or
+      `apiRoster` call remains in the tier, and those three factories are
+      deleted. `crash.spec.ts` is the one file that must not read the seed and
+      now says so: it asserts what happens when a payload is malformed.
 - [x] Reduce `tests/helpers/api-fixtures.ts` to the cases that are genuinely not
       about seeded data. It keeps `apiGame`, `apiRoster`, `apiEntries`,
       `apiRegistered`, `apiStanding`, `apiReference` and `apiMyPlayer` — the
@@ -928,6 +932,35 @@ The test, and it is a real one to run, not a claim to make:
       that a slow tier is a bug.
 
 ## Log
+
+- **Pass 9 — "all of them" was not true when I said it.** Six specs still
+  carried hand-written payloads after the pass that claimed the tier was
+  converted, and `event-divisions` had not been touched at all. Every one held a
+  false fact that typechecked: `org` called team_001 "Assumption U18 Boys" (it
+  is the U16 side), `your-players` and `event-players` both called `ply_001`
+  "Somchai Prasert" at number 7 (he is Thanakorn Suksai at number 4), and
+  `event-divisions` labelled two events by hand and then asserted a rule about
+  event types against the labels.
+
+  The lesson is about the claim, not the code: I reported the tier converted
+  from a count of files importing the projections, which is a proxy. The audit
+  that found these greps for the factory calls themselves — the thing that would
+  have to be absent for the claim to be true.
+
+  Two findings while finishing:
+
+  1. **`ply_001` is on two teams at once**, Assumption's U16 and U18 sides — a
+     child playing up an age group, which is real. So "which team is my child
+     on" has more than one answer, and `players.mine` picks whichever row SQLite
+     returns first with no ORDER BY. It agrees with "latest `fromDate`" by luck;
+     the projection picks that deliberately. Fifth undeclared-order list.
+  2. **`event-settings` asserted both description branches in one test**,
+     switching event mid-test — and `/#/event/a` to `/#/event/b` is a
+     same-document navigation, so the second `seedCache` never reached the page.
+     Two tests now, which is also what the data supports: two seeded events carry
+     a description and two deliberately do not.
+
+  488 worker, 244 render, `mise run 2-check` green.
 
 - **Pass 8 — Phases 5 and 6, and the plan's own acceptance test run for real.**
   49 of 51 boxes ticked. The two left are the same box twice and neither is a
