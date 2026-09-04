@@ -56,13 +56,11 @@ export function Topbar({ spoiler, setSpoiler, onMenu, goto }: Props) {
           does not exist. The model has `user_notification_channels` and
           `user_notification_preferences`, so this is buildable — it is not built.
 
-          No "Install app" either, but the reason is no longer the one that used
-          to be written here — that there was no manifest and no service worker.
-          Both have shipped since, and main.tsx now renders <pwa-install>, which
-          asks at the moment the browser says installing is possible. A button
-          in the chrome would be a second, worse answer: always visible, correct
-          only sometimes, and unable to tell whether the app is already
-          installed. */}
+          "Install app" lives in the account menu now, and the objection this
+          comment used to make — always visible, correct only sometimes, unable
+          to tell whether the app is already installed — was an objection to a
+          button that *guessed*. src/web/lib/install.ts asks the platform, so
+          the offer is absent unless installing is genuinely possible. */}
       <Account goto={goto}/>
     </header>
   );
