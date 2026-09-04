@@ -64,6 +64,18 @@ const grepSrc = (re: RegExp) =>
 const RULES: Rule[] = [
   {
     /**
+     * The cruiser rule `screens-never-decide` refuses `src/domain/grants.ts`
+     * from the SPA, but `GRANTS` itself is exported from vocabularies.ts beside
+     * the codes every page legitimately needs, and a module rule cannot forbid
+     * one export. This can. A screen that reads the grant table is holding the
+     * access matrix — the second copy the resolver exists to prevent — when
+     * every answer it could want is already on the row as `can.<ACTION>`.
+     */
+    claim: '"A row answers by the model\'s action names … The SPA must not import it."',
+    check: () => grepSrc(/\bGRANTS\b/).filter((loc) => loc.startsWith("src/web/")),
+  },
+  {
+    /**
      * A testid a test names must be one a component actually renders.
      *
      * Rename `data-testid="push-toggle"` and nothing complains until a spec
