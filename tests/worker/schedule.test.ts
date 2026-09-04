@@ -41,24 +41,28 @@ describe("Games — the object type ENTER_SCORES was missing", () => {
     const res = await api("/api/games?eventId=evt_002")
     expect(res.status).toBe(200)
     const { games } = (await res.json()) as {
-      games: { id: string; statusCode: string; homeScore: number | null; canEnterScore: boolean }[]
+      games: { id: string; statusCode: string; homeScore: number | null; can: { ENTER_SCORES: boolean } }[]
     }
     // As many as the fixtures schedule for this event — derived, not typed
     // here, so another round of matches does not fail a test about visibility.
     expect(games.map((g) => g.id).sort()).toEqual(gamesIn("evt_002").map((g) => g.id).sort())
     expect(games.find((g) => g.id === "gam_002")!.statusCode).toBe("LIVE")
     // Nobody is signed in, so nobody may score — for any of them.
-    expect(games.every((g) => !g.canEnterScore)).toBe(true)
+    expect(games.every((g) => !g.can.ENTER_SCORES)).toBe(true)
   })
 
   it("the assigned referee may enter a score, and it is read back", async () => {
     const adisorn = await signIn("adisorn.b@bat.test")
     const res = await put("/api/games/gam_002/score", { homeScore: 55, awayScore: 47 }, adisorn)
     expect(res.status).toBe(200)
-    const game = (await res.json()) as { homeScore: number; awayScore: number; canEnterScore: boolean }
+    const game = (await res.json()) as {
+      homeScore: number
+      awayScore: number
+      can: { ENTER_SCORES: boolean }
+    }
     expect(game.homeScore).toBe(55)
     expect(game.awayScore).toBe(47)
-    expect(game.canEnterScore, "the API tells them they may do it again").toBe(true)
+    expect(game.can.ENTER_SCORES, "the API tells them they may do it again").toBe(true)
   })
 
   it("a referee assigned to another game may NOT — this is the whole point", async () => {
@@ -130,9 +134,9 @@ describe("Fixtures — the half of scheduling that did not exist", () => {
       organiser,
     )
     expect(res.status).toBe(201)
-    const game = (await res.json()) as { id: string; statusCode: string; canEnterScore: boolean }
+    const game = (await res.json()) as { id: string; statusCode: string; can: { ENTER_SCORES: boolean } }
     expect(game.statusCode, "a new fixture has not been played").toBe("SCHEDULED")
-    expect(game.canEnterScore, "the organiser may score it too").toBe(true)
+    expect(game.can.ENTER_SCORES, "the organiser may score it too").toBe(true)
 
     // And it is in the schedule immediately.
     const { games } = (await (await api("/api/games?eventId=evt_002")).json()) as {
@@ -573,8 +577,13 @@ describe("A camp's session schedule", () => {
   const list = async (eventId: string, cookie?: string) =>
     (await (await api(`/api/events/${eventId}/sessions`, cookie ? { cookie } : {})).json()) as {
       sessions: { id: string; names: Record<string, string>; startsAt: string }[]
-      canDefine: boolean
     }
+  // The event's own answer: DEFINE_SESSION_SCHEDULE acts on the event, so it
+  // rides on the event row rather than on the timetable.
+  const mayDefine = async (eventId: string, cookie?: string) =>
+    ((await (await api(`/api/events/${eventId}`, cookie ? { cookie } : {})).json()) as {
+      can: { DEFINE_SESSION_SCHEDULE: boolean }
+    }).can.DEFINE_SESSION_SCHEDULE
 
   it("lets the camp's organiser add one, and anybody read it", async () => {
     const cookie = await signIn(owner(camp.id).email)
@@ -583,14 +592,14 @@ describe("A camp's session schedule", () => {
 
     // Public: a parent deciding whether to enter their child reads the
     // timetable before they register, so this must answer without a session.
-    const { sessions, canDefine } = await list(camp.id)
+    const { sessions } = await list(camp.id)
     expect(sessions.map((s) => s.names.en)).toContain("Shooting fundamentals")
-    expect(canDefine, "an anonymous reader may not define").toBe(false)
+    expect(await mayDefine(camp.id), "an anonymous reader may not define").toBe(false)
   })
 
   it("tells the organiser they may define, and a stranger they may not", async () => {
-    expect((await list(camp.id, await signIn(owner(camp.id).email))).canDefine).toBe(true)
-    expect((await list(camp.id, await signIn(actorFor("SPECTATOR")))).canDefine).toBe(false)
+    expect(await mayDefine(camp.id, await signIn(owner(camp.id).email))).toBe(true)
+    expect(await mayDefine(camp.id, await signIn(actorFor("SPECTATOR")))).toBe(false)
   })
 
   it("refuses a coach — they record attendance, they do not move the timetable", async () => {
@@ -682,7 +691,13 @@ describe("The register for a camp session", () => {
   const register = async (sessionId: string, cookie: string) =>
     (await (
       await api(`/api/events/${camp.id}/sessions/${sessionId}/attendance`, { cookie })
-    ).json()) as { players: { playerId: string; attended: boolean }[]; canRecord: boolean }
+    ).json()) as { players: { playerId: string; attended: boolean }[] }
+
+  // RECORD_ATTENDANCE acts on the event, so the event row answers it.
+  const mayRecord = async (cookie: string) =>
+    ((await (await api(`/api/events/${camp.id}`, { cookie })).json()) as {
+      can: { RECORD_ATTENDANCE: boolean }
+    }).can.RECORD_ATTENDANCE
 
   const mark = (sessionId: string, playerId: string, attended: boolean, cookie: string) =>
     SELF.fetch(
@@ -766,16 +781,15 @@ describe("The register for a camp session", () => {
      * places that has to change.
      */
     const cookie = await signIn(owner.email)
-    const sessionId = await makeSession(cookie)
     const coach = await signIn(actorFor("COACH"))
 
     expect(
-      (await register(sessionId, coach)).canRecord,
+      await mayRecord(coach),
       "no coach can hold a TEAM relation on an EVENT — see KNOWN_UNRESOLVABLE",
     ).toBe(false)
 
     // The organisers, who the grant does reach.
-    expect((await register(sessionId, cookie)).canRecord).toBe(true)
+    expect(await mayRecord(cookie)).toBe(true)
   })
 
   it("refuses a spectator, and an anonymous caller", async () => {

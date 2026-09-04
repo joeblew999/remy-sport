@@ -525,16 +525,37 @@ described and the database had no room for, so the seed dropped it in silence.
 inventoried.** `mise run 2-check` fails with the instruction attached.
 `POST /api/seed` sat unauthenticated for months because nothing listed it.
 
-**`can()` is the entire cost of a list, and it has no set-wise form.** Proven by
-stubbing it: a 28-game schedule goes 0.23s to **0.01s**. Roughly five queries per
-call, four calls per game, 112 for one page, re-resolving the same three GAME
-relations each time. The fix is one query per relation for the whole set, then
-every action answered in memory. **Do not fix it by moving the decision into the
-client** — that is the copy of the access matrix this file exists to prevent.
-Two wrong answers preceded the right one: the cause was asserted without
-measuring, then a bad experiment (an anonymous request is equally slow) was read
-as a disproof, when `can()` does not short-circuit for anonymous either. Stub
-what you suspect; it took two minutes.
+**A row answers by the model's action names — `can.MANAGE_ROSTER` — never by a
+flag an endpoint invents.** Eighteen spellings used to carry these: `canEdit`
+meant three different actions in three files, beside `canDefine`, `canRecord`,
+`canSetStatus`, each composed by hand in a component — so a page had to be right
+for every combination of booleans, when the model produces about six kinds of
+team page. Measured 2026-09-04 over every seeded person × every seeded object:
+team 6 states, player 4, org 2, game 3, event ~5 × 4 subtypes. `canFor` in
+[src/api/base.ts](src/api/base.ts) answers every action of a type for a whole
+list — one query per *relation*, then the grant table in memory — and
+[src/domain/grants.ts](src/domain/grants.ts) is that table applied, shared with
+the render fixtures (`granted("TEAM", ["HEAD_COACH"])`) so a spec can only
+describe a state the model produces. The SPA must not import it, and
+dependency-cruiser refuses. The two pair actions (`REGISTER_*_FOR_EVENT`) are
+the exception by rule: they are narrowed by an event the row is not in, so the
+registration row answers them, not the team.
+
+**`PUBLIC` and `ANY_SIGNED_IN` are both `via: "everyone"` in the model.** The
+derivation column cannot tell them apart; `holdsPlatform` in grants.ts does, and
+until 2026-09-04 nothing did — a stranger "held" ANY_SIGNED_IN and `can()` said
+they might follow an event. Latent only because no public read emitted that
+answer; the moment every row carried `can`, it would have been a Follow button
+that 401s.
+
+**`can()` per row is the entire cost of a list.** Proven by stubbing it: a
+28-game schedule goes 0.23s to **0.01s** — five queries per call, four calls per
+game, re-resolving the same three GAME relations each time. **Do not fix it by
+moving the decision into the client** — that is the copy of the access matrix
+this file exists to prevent. Two wrong answers preceded the right one: the cause
+was asserted without measuring, then a bad experiment (an anonymous request is
+equally slow) was read as a disproof, when `can()` did not short-circuit for
+anonymous either. Stub what you suspect; it took two minutes.
 
 **An action can be about a *pair*, and the model can only name one object.**
 `REGISTER_TEAM_FOR_EVENT` named EVENT while every relation granting it is about a

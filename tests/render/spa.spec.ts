@@ -40,7 +40,7 @@ const FINISHED = projectEvent("evt_003")
 test.describe("The SPA shell", () => {
   test("React mounts and renders into #root", async ({ page }) => {
     // Router defaults to discover when there is no hash.
-    await seedCache(page, [entry(orpc.events.list, undefined, { events: [], canCreate: false })])
+    await seedCache(page, [entry(orpc.events.list, undefined, { events: [] })])
     await visit(page, "discover")
     await expect(page.locator("#root")).not.toBeEmpty()
     await expect(page.locator("#root *").first()).toBeVisible()
@@ -64,7 +64,7 @@ test.describe("Event view models are derived, not stored", () => {
   test("status and date come from the stored date window", async ({ page }) => {
     // No status column exists in D1; the SPA computes it. An event whose window
     // has passed must read as finished.
-    await seedCache(page, [entry(orpc.events.list, undefined, { events: [FINISHED], canCreate: false })])
+    await seedCache(page, [entry(orpc.events.list, undefined, { events: [FINISHED] })])
     await visit(page, "discover")
 
     const row = page.locator(".event-row", { hasText: FINISHED.name })

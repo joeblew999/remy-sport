@@ -2,7 +2,7 @@ import { test, expect } from "./fixture"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { apiEntries } from "../helpers/api-fixtures"
-import { projectEvent } from "../helpers/projections"
+import { projectEvent, type Held } from "../helpers/projections"
 
 /**
  * Which divisions an event runs.
@@ -24,10 +24,10 @@ const DIVISIONS = {
 
 const seed = (
   page: Parameters<typeof seedCache>[0],
-  opts: { canEdit: boolean; running: string[]; occupied?: string[] },
+  opts: { as?: Held; running: string[]; occupied?: string[] },
 ) =>
   seedCache(page, [
-    entry(orpc.events.get, { id: "evt_002" }, projectEvent("evt_002", { canEdit: opts.canEdit })),
+    entry(orpc.events.get, { id: "evt_002" }, projectEvent("evt_002", opts.as)),
     entry(orpc.divisions.list, undefined, DIVISIONS as never),
     entry(orpc.events.entries, { eventId: "evt_002" }, apiEntries({
       divisions: DIVISIONS.items.filter((d) => opts.running.includes(d.id)) as never,
@@ -47,7 +47,7 @@ const open = async (page: Parameters<typeof seedCache>[0]) => {
 
 test.describe("An event's divisions", () => {
   test("ticks the ones it runs and leaves the rest clear", async ({ page }) => {
-    await seed(page, { canEdit: true, running: ["div_001", "div_004"] })
+    await seed(page, { as: ["OWNER"], running: ["div_001", "div_004"] })
     await open(page)
 
     await expect(page.getByTestId("division-check-div_001")).toBeChecked()
@@ -59,7 +59,7 @@ test.describe("An event's divisions", () => {
     // Dropping it would orphan their entries and silently unregister them. The
     // API refuses; disabling the box makes the refusal visible before the click
     // rather than after it.
-    await seed(page, { canEdit: true, running: ["div_001", "div_004"], occupied: ["div_001"] })
+    await seed(page, { as: ["OWNER"], running: ["div_001", "div_004"], occupied: ["div_001"] })
     await open(page)
 
     await expect(page.getByTestId("division-check-div_001")).toBeDisabled()
@@ -68,7 +68,7 @@ test.describe("An event's divisions", () => {
 
   test("is read-only for somebody who may not edit the event", async ({ page }) => {
     // The server's answer, not a role check here.
-    await seed(page, { canEdit: false, running: ["div_001"] })
+    await seed(page, { running: ["div_001"] })
     await open(page)
 
     await expect(page.getByTestId("division-check-div_001")).toBeDisabled()
@@ -76,7 +76,7 @@ test.describe("An event's divisions", () => {
   })
 
   test("sends the whole set, so removing one is expressible", async ({ page }) => {
-    await seed(page, { canEdit: true, running: ["div_001"] })
+    await seed(page, { as: ["OWNER"], running: ["div_001"] })
 
     let sent = ""
     await page.route("**/rpc/**", async (route) => {
@@ -99,7 +99,7 @@ test.describe("An event's divisions", () => {
     await seedCache(page, [
       // The seeded camp, which genuinely has typeCode CAMP — the literal this
       // replaces asserted the rule against an event it had labelled one.
-      entry(orpc.events.get, { id: "evt_003" }, projectEvent("evt_003", { canEdit: true })),
+      entry(orpc.events.get, { id: "evt_003" }, projectEvent("evt_003", ["OWNER"])),
     ])
     await visit(page, "event", { id: "evt_003" })
     await expect(page.getByTestId("tab-divisions")).toHaveCount(0)

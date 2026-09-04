@@ -2,7 +2,7 @@ import { test, expect } from "./fixture"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { apiEntries, apiRegistered, apiStanding, type ApiEntries, type ApiGame, type ApiStanding } from "../helpers/api-fixtures"
-import { projectEvent, projectGamesIn, projectTeam } from "../helpers/projections"
+import { granted, projectEvent, projectGamesIn, projectTeam, type Held } from "../helpers/projections"
 
 /**
  * The seeded league — 15 teams, 28 games, the event this whole file is about.
@@ -17,7 +17,7 @@ const LEAGUE = "evt_002"
  * The schedule, rendered against seeded games.
  *
  * The one decision this component makes is whether to offer score entry, and it
- * makes it from `canEnterScore` — the server's answer, per game. So the tests
+ * makes it from `can.ENTER_SCORES` — the server's answer, per game. So the tests
  * seed that field rather than a role: seeding a role would assert a rule the
  * component does not contain.
  */
@@ -41,20 +41,21 @@ const finished = games.find((g) => g.statusCode === "FINISHED")!
  */
 const upcoming = games.find((g) => g.statusCode === "SCHEDULED" && g.venueId === null)!
 
+/** The referee assigned to a league game: may score it, set its status, film it. */
+const referee = granted("GAME", ["GAME_REFEREE"], "LEAGUE")
+
 /**
- * `canManage` says whether the reader may reschedule or remove a fixture.
- *
- * It is seeded on `events.entries`, not on the game, because MANAGE_FIXTURES is
- * EVENT-scoped — the schedule asks once for the event rather than once per row.
+ * `as` says who the reader is on the event. MANAGE_FIXTURES is EVENT-scoped, so
+ * it rides on `events.get` and the schedule asks once rather than once per row.
  */
 const seed = (
   page: Parameters<typeof seedCache>[0],
   games: ApiGame[],
-  canManage = false,
+  as: Held = [],
 ) =>
   seedCache(page, [
-    entry(orpc.events.entries, { eventId: "evt_002" }, apiEntries({ canManageFixtures: canManage })),
-    entry(orpc.events.get, { id: "evt_002" }, projectEvent(LEAGUE)),
+    entry(orpc.events.entries, { eventId: "evt_002" }, apiEntries()),
+    entry(orpc.events.get, { id: "evt_002" }, projectEvent(LEAGUE, as)),
     entry(orpc.games.list, { eventId: "evt_002" }, { games, viewerTimezone: null }),
   ])
 
@@ -74,7 +75,7 @@ test.describe("An event's schedule", () => {
   })
 
   test("offers score entry only where the server says it may", async ({ page }) => {
-    await seed(page, [{ ...finished, canEnterScore: true }, upcoming])
+    await seed(page, [{ ...finished, can: referee }, upcoming])
     await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
 
@@ -83,7 +84,7 @@ test.describe("An event's schedule", () => {
   })
 
   test("the score form opens with the current score in it", async ({ page }) => {
-    await seed(page, [{ ...finished, canEnterScore: true }])
+    await seed(page, [{ ...finished, can: referee }])
     await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
     await page.getByTestId(`enter-score-${finished.id}`).click()
@@ -94,7 +95,7 @@ test.describe("An event's schedule", () => {
 
   test("the status becomes a control only for someone who may set it", async ({ page }) => {
     await seed(page, [
-      { ...finished, canSetStatus: true },
+      { ...finished, can: referee },
       upcoming,
     ])
     await visit(page, "event", { id: "evt_002" })
@@ -205,10 +206,9 @@ test.describe("Event entries", () => {
 
   test("shows who is entered, and no form when there is nothing to enter", async ({ page }) => {
     await seedEntries(page, {
-      registered: [apiRegistered({ teamId: "team_001", names: projectTeam("team_001").names, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: false })],
+      registered: [apiRegistered({ teamId: "team_001", names: projectTeam("team_001").names, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, can: { REGISTER_TEAM_FOR_EVENT: false } })],
       registrable: [],
       divisions: [U16M],
-      canManageFixtures: false,
     })
     await open(page)
 
@@ -224,7 +224,6 @@ test.describe("Event entries", () => {
       registrable: [{ teamId: "team_004", names: { en: "Assumption U18" }, ageGroupCode: "U18", genderCode: "M" }],
       // Neither division matches a U18 boys' team.
       divisions: [U16M, U18F],
-      canManageFixtures: false,
     })
     await open(page)
 
@@ -239,7 +238,6 @@ test.describe("Event entries", () => {
       registered: [],
       registrable: [{ teamId: "team_001", names: { en: "Assumption U16" }, ageGroupCode: "U16", genderCode: "M" }],
       divisions: [U16M, U18F],
-      canManageFixtures: false,
     })
     await open(page)
 
@@ -252,12 +250,11 @@ test.describe("Event entries", () => {
   test("a withdraw button appears only where the server allows it", async ({ page }) => {
     await seedEntries(page, {
       registered: [
-        apiRegistered({ teamId: "team_001", names: { en: "Mine" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: true }),
-        apiRegistered({ teamId: "team_003", names: { en: "Theirs" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: false }),
+        apiRegistered({ teamId: "team_001", names: { en: "Mine" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, can: { REGISTER_TEAM_FOR_EVENT: true } }),
+        apiRegistered({ teamId: "team_003", names: { en: "Theirs" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, can: { REGISTER_TEAM_FOR_EVENT: false } }),
       ],
       registrable: [],
       divisions: [U16M],
-      canManageFixtures: false,
     })
     await open(page)
 
@@ -271,21 +268,18 @@ test.describe("Event entries", () => {
  * officiates. Both appear on the server's word and never on a role.
  */
 test.describe("Running a schedule", () => {
-  const EV = projectEvent(LEAGUE)
   const two = [
-    apiRegistered({ teamId: "team_001", names: { en: "A" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: false }),
-    apiRegistered({ teamId: "team_003", names: { en: "B" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, canWithdraw: false }),
+    apiRegistered({ teamId: "team_001", names: { en: "A" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, can: { REGISTER_TEAM_FOR_EVENT: false } }),
+    apiRegistered({ teamId: "team_003", names: { en: "B" }, divisionId: "div_001", divisionNames: { en: "U16 Boys" }, can: { REGISTER_TEAM_FOR_EVENT: false } }),
   ]
 
   const show = async (
     page: Parameters<typeof seedCache>[0],
-    opts: { canManageFixtures: boolean; game?: Partial<ApiGame> },
+    opts: { as?: Held; game?: Partial<ApiGame> },
   ) => {
     await seedCache(page, [
-      entry(orpc.events.get, { id: "evt_002" }, EV),
-      entry(orpc.events.entries, { eventId: "evt_002" }, apiEntries({
-        registered: two, canManageFixtures: opts.canManageFixtures,
-      })),
+      entry(orpc.events.get, { id: "evt_002" }, projectEvent(LEAGUE, opts.as)),
+      entry(orpc.events.entries, { eventId: "evt_002" }, apiEntries({ registered: two })),
       entry(orpc.games.list, { eventId: "evt_002" }, {
         games: [{ ...finished, ...(opts.game ?? {}) }],
         viewerTimezone: null,
@@ -298,19 +292,18 @@ test.describe("Running a schedule", () => {
   // One seed per test: seedCache installs an init script, and re-seeding inside
   // a test stacks a second one whose ordering is not worth relying on.
   test("no fixture form for someone who may not add one, however many teams", async ({ page }) => {
-    await show(page, { canManageFixtures: false })
+    await show(page, {})
     await expect(page.getByTestId("schedule")).toBeVisible()
     await expect(page.getByTestId("add-fixture")).toHaveCount(0)
   })
 
   test("the organiser gets it", async ({ page }) => {
-    await show(page, { canManageFixtures: true })
+    await show(page, { as: ["OWNER"] })
     await expect(page.getByTestId("add-fixture")).toBeVisible()
   })
 
   test("a referee's name is shown to everyone — that is what makes it accountable", async ({ page }) => {
     await show(page, {
-      canManageFixtures: false,
       game: { referees: [{ userId: "usr_referee_001", name: "Adisorn Boonchai" }] },
     })
     await expect(page.getByTestId(`referees-${finished.id}`)).toContainText("Adisorn Boonchai")
@@ -319,10 +312,11 @@ test.describe("Running a schedule", () => {
 
   test("and only the organiser can change it", async ({ page }) => {
     await show(page, {
-      canManageFixtures: true,
+      as: ["OWNER"],
       game: {
         referees: [{ userId: "usr_referee_001", name: "Adisorn Boonchai" }],
-        canAssignReferee: true,
+        // Whoever owns the event owns its games — ASSIGN_REFEREE among them.
+        can: granted("GAME", ["GAME_EVENT_OWNER"], "LEAGUE"),
         availableReferees: [{ userId: "usr_referee_002", name: "Waraporn Jaingam" }],
       },
     })
@@ -362,7 +356,7 @@ const managed = { ...upcoming, timezone: "Asia/Bangkok" }
     // The bug this guards is silent: 10:00 UTC is 17:00 in Bangkok, and a form
     // that showed 10:00 would have an organiser change nothing, press Save, and
     // move the game seven hours. Nothing errors; people just turn up wrong.
-    await seed(page, [managed], true)
+    await seed(page, [managed], ["OWNER"])
     await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
     await page.getByTestId(`edit-fixture-${upcoming.id}`).click()
@@ -372,7 +366,7 @@ const managed = { ...upcoming, timezone: "Asia/Bangkok" }
 
   test("sends back a UTC instant, whatever the box showed", async ({ page }) => {
     let sent = ""
-    await seed(page, [managed], true)
+    await seed(page, [managed], ["OWNER"])
     await page.route("**/rpc/**", async (route) => {
       const url = route.request().url()
       if (!url.includes("games/update")) return route.fallback()
@@ -397,7 +391,7 @@ const managed = { ...upcoming, timezone: "Asia/Bangkok" }
   })
 
   test("asks before removing, because the referees go with it", async ({ page }) => {
-    await seed(page, [managed], true)
+    await seed(page, [managed], ["OWNER"])
     let asked = ""
     page.on("dialog", (d) => {
       asked = d.message()
@@ -424,7 +418,7 @@ test.describe("Generating a whole schedule", () => {
   }) => {
     // Same server answer that gates the manual form. Two teams alone is not
     // permission.
-    await seed(page, [], false)
+    await seed(page, [])
     await visit(page, "event", { id: "evt_002" })
     await page.getByRole("button", { name: "Schedule" }).click()
     await expect(page.getByTestId("generate-fixtures")).toHaveCount(0)
@@ -436,13 +430,12 @@ test.describe("Generating a whole schedule", () => {
     // when the season starts.
     await seedCache(page, [
       entry(orpc.events.entries, { eventId: "evt_002" }, apiEntries({
-        canManageFixtures: true,
         registered: [
           { teamId: "team_001", team: "A", divisionId: "div_001", division: "U16 Boys" },
           { teamId: "team_003", team: "B", divisionId: "div_001", division: "U16 Boys" },
         ] as never,
       })),
-      entry(orpc.events.get, { id: "evt_002" }, projectEvent(LEAGUE)),
+      entry(orpc.events.get, { id: "evt_002" }, projectEvent(LEAGUE, ["OWNER"])),
       entry(orpc.games.list, { eventId: "evt_002" }, { games: [], viewerTimezone: null }),
     ])
     await visit(page, "event", { id: "evt_002" })
@@ -455,13 +448,12 @@ test.describe("Generating a whole schedule", () => {
   test("says what it did, rather than leaving the organiser to count rows", async ({ page }) => {
     await seedCache(page, [
       entry(orpc.events.entries, { eventId: "evt_002" }, apiEntries({
-        canManageFixtures: true,
         registered: [
           { teamId: "team_001", team: "A", divisionId: "div_001", division: "U16 Boys" },
           { teamId: "team_003", team: "B", divisionId: "div_001", division: "U16 Boys" },
         ] as never,
       })),
-      entry(orpc.events.get, { id: "evt_002" }, projectEvent(LEAGUE)),
+      entry(orpc.events.get, { id: "evt_002" }, projectEvent(LEAGUE, ["OWNER"])),
       entry(orpc.games.list, { eventId: "evt_002" }, { games: [], viewerTimezone: null }),
     ])
     await page.route("**/rpc/**", async (route) => {

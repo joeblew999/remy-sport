@@ -33,7 +33,7 @@ export function Invitations({ onAccepted }: { onAccepted?: () => void }) {
     orpc.events.acceptCoOrganizerInvite.mutationOptions({
       onSuccess: () => {
         // Both lists move: the invitation goes, and the event appears under
-        // "Your events" because `canEdit` is now true for this reader. Letting
+        // "Your events" because `can.EDIT_EVENT` is now true for this reader. Letting
         // the first refetch without the second would show it vanishing into
         // nowhere.
         void qc.invalidateQueries({ queryKey: orpc.events.invitations.key() })

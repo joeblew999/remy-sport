@@ -1,5 +1,6 @@
 import { test, expect } from "./fixture"
 import { asVisitor, sessionFor } from "../helpers/actors"
+import { apiMine } from "../helpers/api-fixtures"
 import { projectTeams } from "../helpers/projections"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
@@ -21,7 +22,7 @@ const teams = () => entry(orpc.teams.list, undefined, { teams: projectTeams() })
 
 /** Which teams the model says are this reader's, and how. */
 const holdings = (held: { type: string; id: string; relation: string }[]) =>
-  entry(orpc.me.mine, undefined, { holdings: held, can: {} })
+  entry(orpc.me.mine, undefined, apiMine(held))
 
 test.describe("The teams directory", () => {
   test("lists every squad, signed out — the model grants this to PUBLIC", async ({ page }) => {

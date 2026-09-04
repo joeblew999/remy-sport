@@ -1,14 +1,14 @@
 import { test, expect } from "./fixture"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { projectEvent, projectEventVenues, projectEvents, projectVenues } from "../helpers/projections"
+import { projectEvent, projectEventVenues, projectEvents, projectVenues, type Held } from "../helpers/projections"
 
 /**
  * Editing an event, and who is offered the chance.
  *
  * `events.update` was enforced by `EDIT_EVENT` from the day events existed and
  * nothing in the app could call it, so an organiser could create a tournament
- * and never fix a typo in its name. The tab is the fix; `canEdit` is what
+ * and never fix a typo in its name. The tab is the fix; `can.EDIT_EVENT` is what
  * decides who sees it.
  *
  * That second part is the one worth testing hardest. Showing the tab to
@@ -19,17 +19,17 @@ import { projectEvent, projectEventVenues, projectEvents, projectVenues } from "
 
 const EVENT_ID = "evt_002"
 
-const event = (canEdit: boolean, canInvite = canEdit) =>
-  ({ ...projectEvent(EVENT_ID), canEdit, canInviteCoOrganizer: canInvite })
+/** Who the reader is on the event: an owner edits and invites, a co-organiser edits only. */
+const event = (as: Held = []) => projectEvent(EVENT_ID, as)
 
-const seed = (canEdit: boolean, canInvite = canEdit) => [
-  entry(orpc.events.get, { id: EVENT_ID }, event(canEdit, canInvite)),
-  entry(orpc.events.list, undefined, { events: [event(canEdit, canInvite)], canCreate: false }),
+const seed = (as: Held) => [
+  entry(orpc.events.get, { id: EVENT_ID }, event(as)),
+  entry(orpc.events.list, undefined, { events: [event(as)] }),
 ]
 
 test.describe("An event's settings tab", () => {
   test("is not offered to someone who may not edit", async ({ page }) => {
-    await seedCache(page, seed(false))
+    await seedCache(page, seed([]))
     await visit(page, "event", { id: EVENT_ID })
 
     await expect(page.getByTestId("tab-overview")).toBeVisible()
@@ -37,14 +37,14 @@ test.describe("An event's settings tab", () => {
   })
 
   test("is offered to an organiser, prefilled with what is stored", async ({ page }) => {
-    await seedCache(page, seed(true))
+    await seedCache(page, seed(["OWNER"]))
     await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-settings").click()
 
     await expect(page.getByTestId("event-settings")).toBeVisible()
     // Prefilled, not blank. A form that starts empty invites someone to save a
     // partial record over a complete one.
-    await expect(page.getByTestId("event-name-input")).toHaveValue(event(true).names.en!)
+    await expect(page.getByTestId("event-name-input")).toHaveValue(event(["OWNER"]).names.en!)
     await expect(page.getByTestId("event-start-input")).toHaveValue("2026-05-01")
     await expect(page.getByTestId("event-end-input")).toHaveValue("2026-09-30")
   })
@@ -54,7 +54,7 @@ test.describe("An event's settings tab", () => {
     // would delete the Thai and Japanese names on the first save, and nobody
     // reading an English page would ever notice.
     let sent = ""
-    await seedCache(page, seed(true))
+    await seedCache(page, seed(["OWNER"]))
     await page.route("**/rpc/**", async (route) => {
       const url = route.request().url()
       if (!url.includes("events/update")) return route.fallback()
@@ -62,7 +62,7 @@ test.describe("An event's settings tab", () => {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ json: event(true) }),
+        body: JSON.stringify({ json: event(["OWNER"]) }),
       })
     })
 
@@ -79,7 +79,7 @@ test.describe("An event's settings tab", () => {
   test("says what is wrong when the API refuses the dates", async ({ page }) => {
     // BAD_DATE_RANGE is a defined error, so the sentence comes from the code by
     // convention — err_bad_date_range — rather than from a table in the client.
-    await seedCache(page, seed(true))
+    await seedCache(page, seed(["OWNER"]))
     await page.route("**/rpc/**", async (route) => {
       const url = route.request().url()
       if (!url.includes("events/update")) return route.fallback()
@@ -104,7 +104,7 @@ test.describe("An event's settings tab", () => {
   })
 
   test("offers the invite form to an owner", async ({ page }) => {
-    await seedCache(page, seed(true))
+    await seedCache(page, seed(["OWNER"]))
     await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-settings").click()
 
@@ -119,10 +119,10 @@ test.describe("An event's settings tab", () => {
      * PLATFORM_ADMIN — deciding who else runs your tournament is not something
      * you delegate by having been delegated to.
      *
-     * Reusing `canEdit` here would have shown a form that answers 403, and the
+     * Reusing `can.EDIT_EVENT` here would have shown a form that answers 403, and the
      * two flags agree for an owner, so nothing else in the suite would notice.
      */
-    await seedCache(page, seed(true, false))
+    await seedCache(page, seed(["CO_ORGANIZER"]))
     await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-settings").click()
 
@@ -132,7 +132,7 @@ test.describe("An event's settings tab", () => {
 
   test("invites by email, because nobody knows a user id", async ({ page }) => {
     let sent = ""
-    await seedCache(page, seed(true))
+    await seedCache(page, seed(["OWNER"]))
     await page.route("**/rpc/**", async (route) => {
       if (!route.request().url().includes("addCoOrganizer")) return route.fallback()
       sent = route.request().postData() ?? ""
@@ -171,7 +171,7 @@ test.describe("The event hero's actions", () => {
       entry(
         orpc.events.get,
         { id: EVENT_ID },
-        { ...event(false), startDate: "2026-01-01", endDate: "2026-12-31" },
+        { ...event(), startDate: "2026-01-01", endDate: "2026-12-31" },
       ),
     ])
     await visit(page, "event", { id: EVENT_ID })
@@ -185,14 +185,14 @@ test.describe("The event hero's actions", () => {
     // would put a wrong entry in somebody's diary, which is worse than no
     // button — see tests/unit/calendar.test.ts.
     await seedCache(page, [
-      entry(orpc.events.get, { id: EVENT_ID }, { ...event(false), startDate: null, endDate: null }),
+      entry(orpc.events.get, { id: EVENT_ID }, { ...event(), startDate: null, endDate: null }),
     ])
     await visit(page, "event", { id: EVENT_ID })
     await expect(page.getByTestId("add-to-calendar")).toHaveCount(0)
   })
 
   test("downloads a real .ics when it does", async ({ page }) => {
-    await seedCache(page, seed(false))
+    await seedCache(page, seed([]))
     await visit(page, "event", { id: EVENT_ID })
 
     const download = page.waitForEvent("download")
@@ -216,7 +216,7 @@ test.describe("The event hero's actions", () => {
       })
       ;(window as unknown as { __copied: () => string }).__copied = () => copied
     })
-    await seedCache(page, seed(false))
+    await seedCache(page, seed([]))
     await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("share").click()
 
@@ -252,7 +252,7 @@ test.describe("The Venues tab", () => {
 
   const seedVenues = (page: Parameters<typeof seedCache>[0]) =>
     seedCache(page, [
-      ...seed(false),
+      ...seed([]),
       entry(orpc.venues.list, undefined, venues),
       entry(orpc.eventVenues.list, undefined, links),
     ])
@@ -287,7 +287,7 @@ test.describe("The Venues tab", () => {
 
   test("says so when an event has none, rather than 'not built yet'", async ({ page }) => {
     await seedCache(page, [
-      ...seed(false),
+      ...seed([]),
       entry(orpc.venues.list, undefined, venues),
       entry(orpc.eventVenues.list, undefined, { items: [] }),
     ])

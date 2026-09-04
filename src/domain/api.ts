@@ -16,6 +16,7 @@ import { createSelectSchema } from "drizzle-zod"
 import { z } from "zod"
 import * as schema from "../db/schema"
 import { VOCABULARY_SCHEMAS } from "../db/vocabularies-schema"
+import { PER_ROW_ACTIONS, type ObjectTypeCode } from "./grants"
 import {
   AGE_GROUP_CODES,
   GAME_STATUS_CODES,
@@ -42,6 +43,33 @@ export const NamesSchema = z
 const NamesInput = NamesSchema.refine((n) => Object.values(n).some((v) => v?.trim()), {
   message: "at least one locale must carry a name",
 })
+
+// ── What the reader may do ────────────────────────────────────────────────
+
+/**
+ * Yes or no to each named action — `record`, not `partialRecord`, so every key
+ * must be answered. A missing one is a server bug, not "no".
+ */
+export const answersFor = <K extends string>(actions: readonly K[]) =>
+  z.record(z.enum(actions), z.boolean())
+
+/**
+ * The reader's answers on one row, keyed by the model's own action codes.
+ *
+ * `can.MANAGE_ROSTER`, not `canManage`. Eighteen invented spellings used to
+ * carry these across six endpoints — `canEdit` meant three different actions in
+ * three files, and nothing checked any of them against the model. The keys are
+ * the actions the model declares on the row's object type, so a new grant
+ * upstream is on the wire the day it exists and a misspelt read is a compile
+ * error. The two pair actions are excluded by rule; see `PairAction`.
+ *
+ * Per row because the answer is per row: a referee is assigned to one game and
+ * not the next, a co-organiser may edit an event and may not invite to it. The
+ * distinctions the old flags each carried a paragraph to defend are the model's
+ * distinctions, and they arrive as separate keys because they are separate
+ * actions.
+ */
+export const canSchema = <T extends ObjectTypeCode>(type: T) => answersFor(PER_ROW_ACTIONS[type])
 
 // ── Reference vocabularies ────────────────────────────────────────────────
 
@@ -77,44 +105,11 @@ export const EventSchema = createSelectSchema(schema.event)
      */
     organizerName: z.string().nullable(),
     /**
-     * May the reader edit this event?
-     *
-     * The model's answer to `EDIT_EVENT`, resolved per event and per viewer —
-     * the same shape games already use for `canEnterScore`. Two things needed
-     * it: the profile's "Your events" listed *every* event on the platform
-     * under a possessive heading, and there is no edit screen yet because
-     * nothing could say who should see one.
-     *
-     * False for a signed-out reader, which is what makes the list empty rather
-     * than wrong.
+     * Every EVENT action, answered for this reader — `can.EDIT_EVENT`,
+     * `can.VIEW_STANDINGS`, twenty-five of them. The subtype narrowing is
+     * applied: a camp answers `VIEW_BRACKET: false` to everybody.
      */
-    canEdit: z.boolean(),
-    /**
-     * May the reader invite a co-organiser?
-     *
-     * A **separate** flag from `canEdit`, and the difference is the point.
-     * `EDIT_EVENT` is granted to OWNER, CO_ORGANIZER and PLATFORM_ADMIN;
-     * `INVITE_CO_ORGANIZER` only to OWNER and PLATFORM_ADMIN. So a co-organiser
-     * may change the event and may not recruit another one — deciding who else
-     * runs your tournament is not something you delegate by being delegated to.
-     *
-     * Reusing `canEdit` for the invite form would have quietly granted that,
-     * and the API would have refused with a 403 nobody could explain.
-     */
-    canInviteCoOrganizer: z.boolean(),
-    /**
-     * May the reader delete this event?
-     *
-     * A third flag rather than a reuse, for the same reason as the second.
-     * `DELETE_EVENT` is granted to OWNER and PLATFORM_ADMIN — not to
-     * CO_ORGANIZER, who may edit the event but not destroy it.
-     *
-     * The admin console used to answer this itself, from a role table copied
-     * into the client and an `organizerUserId === user.id` test written beside
-     * it. That is the OWNER relation, reimplemented in a component, next to a
-     * comment claiming the copy decided nothing.
-     */
-    canDelete: z.boolean(),
+    can: canSchema("EVENT"),
     /**
      * What the event actually contains, counted from the tables that hold it.
      *
@@ -190,15 +185,7 @@ export const TeamSchema = createSelectSchema(schema.team)
     orgNames: NamesSchema,
     orgCityCode: z.string().nullable(),
     orgProvinceCode: z.string().nullable(),
-    /**
-     * May the reader edit this team's profile?
-     *
-     * `EDIT_TEAM_PROFILE`, resolved per team and per viewer. Without it the
-     * page had no way to decide whether to offer a form, so it offered none —
-     * `teams.update` was enforced and unreachable, and a team named wrong at
-     * creation stayed named wrong.
-     */
-    canEdit: z.boolean(),
+    can: canSchema("TEAM"),
   })
 
 export const CreateTeamInput = z.object({
@@ -256,13 +243,13 @@ export const SignUpPlayerInput = CreatePlayerInput.extend({
 })
 
 /**
- * One game, with the names a schedule needs and the answer to "may I score it".
+ * One game, with the names a schedule needs and what the reader may do to it.
  *
- * `canEnterScore` is the server's answer, the same way `orgs.get` returns
- * `canEdit`: the page must not work it out from the viewer's role, because that
- * is a second copy of the access matrix. It is per row because the answer is per
- * row — a referee is assigned to one game and not the next, which is the whole
- * reason GAME exists as an object type.
+ * `can` carries the GAME actions only. `MANAGE_FIXTURES` and `ASSIGN_COURTS`
+ * are EVENT actions and identical for every game in an event, so they are on
+ * the event row — a capability that does not vary per row does not belong on
+ * the row, and computing it per game once cost twenty-eight identical reads to
+ * render one schedule.
  */
 export const GameSchema = createSelectSchema(schema.game)
   .extend({
@@ -271,34 +258,13 @@ export const GameSchema = createSelectSchema(schema.game)
     awayTeamNames: NamesSchema,
     // Null until a court is assigned. The product renders "Venue TBC".
     venueNames: NamesSchema.nullable(),
-    canEnterScore: z.boolean(),
-    /**
-     * A separate action in the model, and separate here. Today the same people
-     * hold both, but `ENTER_SCORES` and `CONFIRM_MATCH_STATUS` are distinct
-     * grants — deciding a game is over is not the same as writing what the score
-     * was — and collapsing them here would be this file guessing that they stay
-     * identical.
-     */
-    canSetStatus: z.boolean(),
+    can: canSchema("GAME"),
     /**
      * The venue's clock, from the event — "Asia/Bangkok". `startsAt` is UTC and
      * unambiguous; this is what lets a schedule say the time the game actually
      * starts where it is played. Null where nobody said.
      */
     timezone: z.string().nullable(),
-    canAssignReferee: z.boolean(),
-    /**
-     * No `canManageFixture` here, deliberately.
-     *
-     * `MANAGE_FIXTURES` is EVENT-scoped, so the answer is identical for every
-     * game in an event — computing it per row meant twenty-eight identical
-     * `can()` calls to render one schedule, and a second name for something
-     * `events.entries` already returns as `canManageFixtures`.
-     *
-     * The schedule is always rendered for one event and already loads those
-     * entries, so it passes the one answer down. A capability that does not
-     * vary per row does not belong on the row.
-     */
     /**
      * Whether somebody is broadcasting this game right now.
      *
@@ -308,8 +274,6 @@ export const GameSchema = createSelectSchema(schema.game)
      * to open the player and stare at a black rectangle.
      */
     isBroadcasting: z.boolean(),
-    /** Whether the viewer may point a camera at this game. `BROADCAST_GAME`. */
-    canBroadcast: z.boolean(),
     /**
      * Who is officiating. Public, and deliberately: a referee's name on a
      * fixture is what makes an assignment accountable, and it is the visible

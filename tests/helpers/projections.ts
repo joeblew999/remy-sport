@@ -25,13 +25,16 @@
  * against a real seeded D1. **Do not change one of these without running that
  * test** — its whole value is that the shortcut cannot quietly stop matching.
  *
- * ## Facts derive; permissions are stated
+ * ## Facts derive; relations are stated; permissions follow
  *
- * `canEdit`, `canDelete`, `canManage` are the *subject* of most render specs —
- * "offers the form to whoever may define the schedule, and to nobody else".
- * Deriving them would hide the thing under test, and would need the grant
- * resolver and therefore a database. They stay arguments the spec chooses, and
- * the equivalence test excludes them for the same reason.
+ * A spec says who the reader *is* — `["HEAD_COACH"]`, `["PLATFORM_ADMIN"]`,
+ * nobody — and `granted` applies the model's grant table to that: the same
+ * lookup the server applies once D1 has said which relations are held. The spec
+ * still chooses the state under test ("offers the form to whoever may define
+ * the schedule, and to nobody else"); what it can no longer do is plant a
+ * combination the model never produces, like edit-but-not-roster on a team.
+ * The equivalence test still excludes `can`, because resolving *which*
+ * relations a real reader holds is the resolver's job and needs a database.
  *
  * ## What does not belong here
  *
@@ -47,6 +50,15 @@ import type { ApiEvent, ApiTeam } from "../../src/domain/api"
 import { SEED_ENTITIES, SEED_RELATIONSHIPS } from "../../src/domain/model/entities"
 import { clean } from "../../src/domain/names"
 import { COACH_ROLE } from "../../src/domain/vocabularies"
+import {
+  PLATFORM_ACTIONS,
+  allowedBy,
+  grantAllows,
+  platformRelations,
+  type ObjectTypeCode,
+  type PlatformAction,
+  type RelationCode,
+} from "../../src/domain/grants"
 import type { Names } from "../../src/domain/names"
 import type { ApiEntries, ApiGame, ApiRegistered, ApiRoster } from "./api-fixtures"
 
@@ -112,15 +124,40 @@ function factsFor(eventId: string) {
   }
 }
 
-/** What the reader may do. Stated, never derived — see the note at the top. */
-export interface EventRights {
-  canEdit?: boolean
-  canInviteCoOrganizer?: boolean
-  canDelete?: boolean
+/**
+ * Who the reader is: the relations they hold on the row, or `null` for a
+ * stranger. A signed-in reader holds PUBLIC and ANY_SIGNED_IN on top of these;
+ * a role relation — `"ANY_COACH"`, `"PLATFORM_ADMIN"` — is listed like any other.
+ */
+export type Held = readonly RelationCode[] | null
+
+const READER = { id: "reader", role: null }
+const heldBy = (as: Held) =>
+  new Set<string>([...platformRelations(as === null ? null : READER), ...(as ?? [])])
+
+/**
+ * What a reader holding these relations may do to a row of this type — the
+ * model's grant table applied, exactly as src/api/base.ts applies it once D1
+ * has said which relations are held. See the note at the top.
+ */
+export function granted<T extends ObjectTypeCode>(
+  type: T,
+  as: Held = [],
+  subtype: string | null = null,
+) {
+  return allowedBy(type, heldBy(as), subtype)
+}
+
+/** The platform answers `me.mine` carries, for the same reader. */
+export function platformGranted(as: Held = []): Record<PlatformAction, boolean> {
+  const held = heldBy(as)
+  return Object.fromEntries(
+    PLATFORM_ACTIONS.map((a) => [a, grantAllows(a, held, null)]),
+  ) as Record<PlatformAction, boolean>
 }
 
 /** One seeded event, as `events.get` returns it. */
-export function projectEvent(id: string, rights: EventRights = {}): ApiEvent {
+export function projectEvent(id: string, as: Held = []): ApiEvent {
   const e = eventById(id)
   return {
     id: e.id,
@@ -140,9 +177,7 @@ export function projectEvent(id: string, rights: EventRights = {}): ApiEvent {
     organizerName: e.organizerUserId ? pivotOf(userById(e.organizerUserId).names) : null,
     createdAt: AT,
     updatedAt: AT,
-    canEdit: rights.canEdit ?? false,
-    canInviteCoOrganizer: rights.canInviteCoOrganizer ?? false,
-    canDelete: rights.canDelete ?? false,
+    can: granted("EVENT", as, e.typeCode),
     ...factsFor(id),
   } as ApiEvent
 }
@@ -155,9 +190,9 @@ export function projectEvent(id: string, rights: EventRights = {}): ApiEvent {
  * one is first" is asserting that ordering, so getting it wrong here would make
  * the test agree with a page that is wrong.
  */
-export function projectEvents(rights: Record<string, EventRights> = {}): ApiEvent[] {
+export function projectEvents(held: Record<string, Held> = {}): ApiEvent[] {
   return E.events
-    .map((e) => projectEvent(e.id, rights[e.id] ?? {}))
+    .map((e) => projectEvent(e.id, held[e.id] ?? []))
     .sort((a, b) => {
       if (!a.startDate) return b.startDate ? 1 : 0
       if (!b.startDate) return -1
@@ -166,7 +201,7 @@ export function projectEvents(rights: Record<string, EventRights> = {}): ApiEven
 }
 
 /** One seeded team, as `teams.get` returns it — the school joined on. */
-export function projectTeam(id: string, rights: { canEdit?: boolean } = {}): ApiTeam {
+export function projectTeam(id: string, as: Held = []): ApiTeam {
   const t = teamById(id)
   const org = t.orgId ? orgById(t.orgId) : null
   return {
@@ -180,29 +215,17 @@ export function projectTeam(id: string, rights: { canEdit?: boolean } = {}): Api
     orgNames: org ? names(org.names) : null,
     orgCityCode: org?.cityCode ?? null,
     orgProvinceCode: org?.provinceCode ?? null,
-    canEdit: rights.canEdit ?? false,
+    can: granted("TEAM", as),
   } as ApiTeam
 }
 
 /** Every seeded team. */
-export function projectTeams(rights: Record<string, { canEdit?: boolean }> = {}): ApiTeam[] {
-  return E.teams.map((t) => projectTeam(t.id, rights[t.id] ?? {}))
+export function projectTeams(held: Record<string, Held> = {}): ApiTeam[] {
+  return E.teams.map((t) => projectTeam(t.id, held[t.id] ?? []))
 }
 
-/**
- * One seeded school or club, as `orgs.get` returns it.
- *
- * `canCreateTeam` is on this payload and is not about this org: CREATE_TEAM is
- * granted to ANY_COACH with no relation to any organisation, so it is a platform
- * answer that happens to be delivered here because this is the page that needs
- * it. Stated like the rest, and the reason is worth carrying — a spec that reads
- * it as "may create a team *here*" would be asserting a rule the model does not
- * have.
- */
-export function projectOrg(
-  id: string,
-  rights: { canEdit?: boolean; canCreateTeam?: boolean } = {},
-) {
+/** One seeded school or club, as `orgs.get` returns it. */
+export function projectOrg(id: string, as: Held = []) {
   const o = orgById(id)
   return {
     id: o.id,
@@ -211,13 +234,12 @@ export function projectOrg(
     cityCode: o.cityCode,
     provinceCode: o.provinceCode,
     names: names(o.names),
-    canEdit: rights.canEdit ?? false,
-    canCreateTeam: rights.canCreateTeam ?? false,
+    can: granted("ORG", as),
   }
 }
 
 /** Who may act for a school, as `orgs.members` returns it. */
-export function projectOrgMembers(id: string, rights: { canManage?: boolean } = {}) {
+export function projectOrgMembers(id: string) {
   return {
     members: R.orgMembers
       .filter((m) => m.orgId === id)
@@ -227,15 +249,7 @@ export function projectOrgMembers(id: string, rights: { canManage?: boolean } = 
         name: pivotOf(userById(m.userId).names),
         orgRoleCode: m.orgRoleCode,
       })),
-    canManage: rights.canManage ?? false,
   }
-}
-
-export interface GameRights {
-  canEnterScore?: boolean
-  canSetStatus?: boolean
-  canAssignReferee?: boolean
-  canBroadcast?: boolean
 }
 
 /**
@@ -243,10 +257,10 @@ export interface GameRights {
  *
  * `isBroadcasting` is a fact about the game rather than about the reader — the
  * app owns it, because Cloudflare's relay cannot be asked — so it derives from
- * `gameBroadcasts` like any other row. `canBroadcast` is the reader's, and is
- * stated.
+ * `gameBroadcasts` like any other row. `can` is the reader's, from who the spec
+ * says they are.
  */
-export function projectGame(id: string, rights: GameRights = {}): ApiGame {
+export function projectGame(id: string, as: Held = []): ApiGame {
   const g = E.games.find((x) => x.id === id)!
   const event = eventById(g.eventId)
   return {
@@ -283,21 +297,18 @@ export function projectGame(id: string, rights: GameRights = {}): ApiGame {
     isBroadcasting: R.gameBroadcasts.some(
       (b) => b.gameId === id && b.lastSeenAt >= new Date(Date.now() - 60_000).toISOString(),
     ),
-    canEnterScore: rights.canEnterScore ?? false,
-    canSetStatus: rights.canSetStatus ?? false,
-    canAssignReferee: rights.canAssignReferee ?? false,
-    canBroadcast: rights.canBroadcast ?? false,
+    can: granted("GAME", as, event.typeCode),
   } as ApiGame
 }
 
 /** Every game in one event, in the order the schedule shows them. */
 export function projectGamesIn(
   eventId: string,
-  rights: Record<string, GameRights> = {},
+  held: Record<string, Held> = {},
 ): ApiGame[] {
   return E.games
     .filter((g) => g.eventId === eventId)
-    .map((g) => projectGame(g.id, rights[g.id] ?? {}))
+    .map((g) => projectGame(g.id, held[g.id] ?? []))
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
 }
 
@@ -317,7 +328,7 @@ export function projectGamesIn(
  */
 export function projectRoster(
   teamId: string,
-  rights: { canManage?: boolean; signedIn?: boolean } = {},
+  rights: { signedIn?: boolean } = {},
 ): ApiRoster {
   const today = new Date().toISOString().slice(0, 10)
   const current = R.playerTeams.filter(
@@ -353,7 +364,6 @@ export function projectRoster(
           }))
       : [],
     available: [],
-    canManage: rights.canManage ?? false,
   } as ApiRoster
 }
 
@@ -362,10 +372,8 @@ export function projectRoster(
  *
  * The current spell only, matching the procedure: a player who left a team in
  * March is not on it now, and `playerTeam` carries the dates that decide it.
- * `canEdit` is stated rather than derived, like every other permission here —
- * whether the form appears is usually the thing a spec is testing.
  */
-export function projectPlayer(id: string, rights: { canEdit?: boolean } = {}) {
+export function projectPlayer(id: string, as: Held = []) {
   const p = playerById(id)
   const today = new Date().toISOString().slice(0, 10)
   const spell = R.playerTeams.find(
@@ -391,12 +399,16 @@ export function projectPlayer(id: string, rights: { canEdit?: boolean } = {}) {
     teamId: spell?.teamId ?? null,
     teamNames: spell ? names(teamById(spell.teamId).names) : null,
     past,
-    canEdit: rights.canEdit ?? false,
+    can: granted("PLAYER", as),
   }
 }
 
-/** One registered team, as `events.entries` returns it. */
-function registered(eventId: string, teamId: string, canWithdraw: boolean): ApiRegistered {
+/**
+ * One registered team, as `events.entries` returns it. The pair action is
+ * stated as a boolean: `granted` cannot answer it, because it depends on an
+ * event the team row does not know — see `PairAction`.
+ */
+function registered(eventId: string, teamId: string, mayEnter: boolean): ApiRegistered {
   const entry = R.eventTeams.find((t) => t.eventId === eventId && t.teamId === teamId)!
   return {
     teamId,
@@ -404,14 +416,14 @@ function registered(eventId: string, teamId: string, canWithdraw: boolean): ApiR
     divisionId: entry.divisionId,
     divisionNames: names(divisionById(entry.divisionId).names),
     registeredAt: entry.registeredAt,
-    canWithdraw,
+    can: { REGISTER_TEAM_FOR_EVENT: mayEnter },
   } as ApiRegistered
 }
 
 /** Who is entered in an event, and which divisions it runs. */
 export function projectEntries(
   eventId: string,
-  rights: { canManageFixtures?: boolean; canAssignCourts?: boolean; canWithdraw?: boolean } = {},
+  rights: { mayEnter?: boolean } = {},
 ): ApiEntries {
   // Division, then team — how somebody reads an entry list, and what the
   // endpoint orders by since 2026-09-04.
@@ -420,7 +432,7 @@ export function projectEntries(
   )
   const divisionIds = [...new Set(entries.map((t) => t.divisionId))].sort()
   return {
-    registered: entries.map((t) => registered(eventId, t.teamId, rights.canWithdraw ?? false)),
+    registered: entries.map((t) => registered(eventId, t.teamId, rights.mayEnter ?? false)),
     registrable: [],
     divisions: divisionIds.map((id) => {
       const d = divisionById(id)
@@ -431,13 +443,11 @@ export function projectEntries(
         genderCode: d.genderCode,
       }
     }),
-    canManageFixtures: rights.canManageFixtures ?? false,
-    canAssignCourts: rights.canAssignCourts ?? false,
   } as ApiEntries
 }
 
 /** The camp's timetable, as `events.sessions` returns it. */
-export function projectSessions(eventId: string, rights: { canDefine?: boolean } = {}) {
+export function projectSessions(eventId: string) {
   const event = eventById(eventId)
   return {
     sessions: R.eventSessions
@@ -452,7 +462,6 @@ export function projectSessions(eventId: string, rights: { canDefine?: boolean }
         endsAt: s.endsAt,
         timezone: event.timezone,
       })),
-    canDefine: rights.canDefine ?? false,
   }
 }
 
@@ -464,11 +473,7 @@ export function projectSessions(eventId: string, rights: { canDefine?: boolean }
  * is missing. `ply_006` misses two of the camp's five sessions, which is the
  * only reason the unticked branch has data at all.
  */
-export function projectAttendance(
-  eventId: string,
-  sessionId: string,
-  rights: { canRecord?: boolean } = {},
-) {
+export function projectAttendance(eventId: string, sessionId: string) {
   const present = new Set(
     R.sessionAttendances.filter((a) => a.sessionId === sessionId).map((a) => a.playerId),
   )
@@ -480,7 +485,6 @@ export function projectAttendance(
         names: names(playerById(e.playerId).names),
         attended: present.has(e.playerId),
       })),
-    canRecord: rights.canRecord ?? false,
   }
 }
 
@@ -517,7 +521,9 @@ export const projectEventVenues = () => ({
  * and `playerTeam.to_date` has held a real value since 2026-09-03, so this
  * branch is exercised rather than assumed.
  */
-export function projectMyPlayers(userId: string, rights: { canEdit?: boolean } = {}) {
+// You are on this list because you are their guardian, or are them — so that
+// is what the reader holds unless a spec says otherwise.
+export function projectMyPlayers(userId: string, as: Held = ["GUARDIAN"]) {
   const today = new Date().toISOString().slice(0, 10)
   const guardianships = R.guardians.filter((g) => g.userId === userId)
   const ids = [
@@ -552,7 +558,7 @@ export function projectMyPlayers(userId: string, rights: { canEdit?: boolean } =
         guardianTypeCode: guardianships.find((g) => g.playerId === id)?.guardianTypeCode ?? null,
         teamId: spell?.teamId ?? null,
         teamNames: spell ? names(teamById(spell.teamId).names) : null,
-        canEdit: rights.canEdit ?? false,
+        can: granted("PLAYER", as),
       }
     }),
   }

@@ -24,6 +24,7 @@
 // constraint src/web/ has to respect. Imported as well as re-exported because
 // the type is used below in this file, and a bare re-export does not bind it.
 import type { EventTypeCode as EventType } from "../domain/vocabularies";
+import type { ApiEvent, ApiTeam } from "../domain/api";
 
 export type Crest = "a" | "b";
 export type { EventType };
@@ -63,8 +64,8 @@ export interface Team {
   genderCode: "M" | "F" | "COED";
   /** Display form of genderCode, from /api/reference in the reader's language. */
   genderLabel: string;
-  /** The model's answer to EDIT_TEAM_PROFILE for this reader on this team. */
-  canEdit: boolean;
+  /** The model's answers for this reader on this team — `can.MANAGE_ROSTER`. */
+  can: ApiTeam["can"];
   /** The full locale map, for a form that edits one language of it. */
   names: Record<string, string>;
 }
@@ -117,16 +118,14 @@ export interface Event {
   description: string | null;
   organizer: string;
   /**
-   * May the reader edit this event?
+   * The model's answers for this reader on this event, by action code.
    *
-   * Carried through from the API's `canEdit`, which is the model's answer to
-   * `EDIT_EVENT` for this viewer. It is what makes "Your events" mean yours
-   * rather than everybody's — the profile page listed every event on the
-   * platform under that heading until this existed.
+   * `can.EDIT_EVENT` is what makes "Your events" mean yours rather than
+   * everybody's; `can.INVITE_CO_ORGANIZER` is narrower, because a co-organiser
+   * may edit but may not invite. Separate keys because they are separate
+   * actions, and the page never works either out from a role.
    */
-  canEdit: boolean;
-  /** Narrower than canEdit: a co-organiser may edit but may not invite. */
-  canInviteCoOrganizer: boolean;
+  can: ApiEvent["can"];
   /**
    * The dates as stored, alongside `date` which is the formatted range.
    *

@@ -1,7 +1,7 @@
 /**
  * An event's games: the schedule, the scores, and score entry for whoever may.
  *
- * Whether the score inputs appear is `game.canEnterScore`, which the server
+ * Whether the score inputs appear is `game.can.ENTER_SCORES`, which the server
  * computes per game from the Product Owner's grants. There is no role check
  * here and there must not be one: a referee is assigned to *this* game and not
  * the next one, so a rule in the client could only be right by accident.
@@ -19,6 +19,7 @@ import { useLocale } from "../lib/locale";
 import { formErrors } from "../lib/form-errors";
 import { m } from "../lib/i18n";
 import type { Route } from "../lib/router";
+import type { Event } from "../data";
 import { formatTimeOn, fromLocalInput, toLocalInput } from "../lib/dates";
 
 type Game = NonNullable<ReturnType<typeof useGames>["data"]>["games"][number];
@@ -67,20 +68,21 @@ const shortZone = (tz: string) => tz.split("/").pop()!.replace(/_/g, " ");
  */
 export function Schedule({
   eventId,
+  can,
   spoiler,
   goto,
 }: {
   eventId: string;
+  /**
+   * The event's answers. MANAGE_FIXTURES and ASSIGN_COURTS are event actions,
+   * the same for every row, so they ride on the event and not on each game.
+   */
+  can: Event["can"];
   spoiler: boolean;
   /** Optional: a schedule rendered without navigation simply offers no video. */
   goto?: (r: Route) => void;
 }) {
   const games = useGames(eventId);
-  // Asked once for the event, not once per game. `MANAGE_FIXTURES` is
-  // EVENT-scoped, so the per-row answer was the same value twenty-eight times.
-  const { data: entries } = useEntries(eventId);
-  const canManage = Boolean(entries?.canManageFixtures);
-  const canAssignCourts = Boolean(entries?.canAssignCourts);
 
   if (games.isPending) return <div className="empty">{m.loading()}</div>;
   if (!games.data?.games.length) {
@@ -101,8 +103,7 @@ export function Schedule({
           game={g}
           spoiler={spoiler}
           viewerZone={games.data.viewerTimezone}
-          canManage={canManage}
-          canAssignCourts={canAssignCourts}
+          can={can}
           eventId={eventId}
           goto={goto}
         />
@@ -115,18 +116,15 @@ function GameRow({
   game,
   spoiler,
   viewerZone,
-  canManage,
-  canAssignCourts,
+  can,
   eventId,
   goto,
 }: {
   game: Game;
   spoiler: boolean;
   viewerZone: string | null;
-  /** The event's answer to MANAGE_FIXTURES, resolved once by the parent. */
-  canManage: boolean;
-  /** And to ASSIGN_COURTS, which is a different action — see src/api/games.ts. */
-  canAssignCourts: boolean;
+  /** The event's answers, resolved once by the parent. */
+  can: Event["can"];
   eventId: string | undefined;
   goto?: (r: Route) => void;
 }) {
@@ -167,7 +165,7 @@ function GameRow({
             </>
           )}
           {" · "}
-          {game.canSetStatus ? (
+          {game.can.CONFIRM_MATCH_STATUS ? (
             <GameStatus game={game} />
           ) : (
             <span
@@ -189,7 +187,7 @@ function GameRow({
               {/* Spoiler mode hides the result, not the fixture. */}
               {spoiler && played ? m.spoiler_hidden() : played ? `${game.homeScore}–${game.awayScore}` : "—"}
             </span>
-            {game.canAssignReferee && <Referees game={game} />}
+            {game.can.ASSIGN_REFEREE && <Referees game={game} />}
             {/*
               Where a broadcaster actually starts.
        
@@ -211,7 +209,7 @@ function GameRow({
                 {m.video_watch()}
               </button>
             )}
-            {game.canBroadcast && !game.isBroadcasting && (
+            {game.can.BROADCAST_GAME && !game.isBroadcasting && (
               <button
                 className="btn"
                 data-testid={`broadcast-fixture-${game.id}`}
@@ -220,7 +218,7 @@ function GameRow({
                 {m.video_broadcast()}
               </button>
             )}
-            {game.canEnterScore && (
+            {game.can.ENTER_SCORES && (
               <button
                 className="btn"
                 data-testid={`enter-score-${game.id}`}
@@ -232,8 +230,8 @@ function GameRow({
             {/* Both `games.update` and `games.remove` were enforced and
                 unreachable, so a fixture entered at the wrong time stayed at
                 the wrong time and a mistake could never be taken back. */}
-            {canManage && <ManageFixture game={game} />}
-            {canAssignCourts && <AssignVenue game={game} eventId={eventId} />}
+            {can.MANAGE_FIXTURES && <ManageFixture game={game} />}
+            {can.ASSIGN_COURTS && <AssignVenue game={game} eventId={eventId} />}
           </>
         )}
       </div>
@@ -403,7 +401,7 @@ function AssignVenue({ game, eventId }: { game: Game; eventId: string | undefine
  * "half of finished". The options come from the reference vocabulary, so a state
  * added to the model appears here without an edit.
  *
- * Gated on `canSetStatus`, which is its own grant — `CONFIRM_MATCH_STATUS`, not
+ * Gated on `can.CONFIRM_MATCH_STATUS`, which is its own grant, not
  * `ENTER_SCORES`. The same people hold both today and that is not this
  * component's business.
  */
@@ -560,7 +558,7 @@ function ScoreForm({ game, onDone }: { game: Game; onDone: () => void }) {
  * teams that actually entered. The API refuses anything else; offering it here
  * would be a form that teaches people to expect errors.
  */
-export function AddFixture({ eventId }: { eventId: string }) {
+export function AddFixture({ eventId, can }: { eventId: string; can: Event["can"] }) {
   const qc = useQueryClient();
   const { data: entries } = useEntries(eventId);
 
@@ -588,7 +586,7 @@ export function AddFixture({ eventId }: { eventId: string }) {
   const genErr = formErrors(generate.error, ["startDate"]);
   const teams = entries?.registered ?? [];
   // The server's answer, per event. Two teams alone is not permission.
-  if (!entries?.canManageFixtures || teams.length < 2) return null;
+  if (!can.MANAGE_FIXTURES || teams.length < 2) return null;
 
   return (
     <section className="admin-card" style={{ marginTop: 16 }} data-testid="add-fixture">

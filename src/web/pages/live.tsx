@@ -108,7 +108,7 @@ export function LivePage({ goto, spoiler, setSpoiler }: LiveProps) {
                     {m.video_watch()}
                   </button>
                 )}
-                {g.canBroadcast && !g.isBroadcasting && (
+                {g.can.BROADCAST_GAME && !g.isBroadcasting && (
                   <button
                     className="btn"
                     onClick={() => goto({ page: "broadcast", id: g.id })}

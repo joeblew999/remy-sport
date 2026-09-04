@@ -103,7 +103,7 @@ test.describe("A coach at another school", () => {
     await expect(page.getByTestId("org-profile")).toBeVisible()
 
     // The profile is public, so they see the name — but not a Save button that
-    // would 403. `canEdit` comes back false from the real API here, which is
+    // would 403. `can.EDIT_ORG_PROFILE` comes back false from the real API here, which is
     // the half the render tier has to seed.
     await expect(page.getByTestId("org-name-readonly")).toBeVisible()
     await expect(page.getByTestId("org-save")).toHaveCount(0)

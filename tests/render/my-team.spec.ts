@@ -3,6 +3,7 @@ import { sessionFor } from "../helpers/actors"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { projectTeam } from "../helpers/projections"
+import { apiMine } from "../helpers/api-fixtures"
 
 /**
  * "My team" is yours, and — the half that matters — is nobody else's.
@@ -43,7 +44,7 @@ const teams = [
 const holding = (id: string, type = "TEAM", relation = "HEAD_COACH") => ({ type, id, relation })
 
 /** The whole response. `can` is the platform grants; no test here reads them. */
-const mine = (holdings: ReturnType<typeof holding>[]) => ({ holdings, can: {} })
+const mine = (holdings: ReturnType<typeof holding>[]) => apiMine(holdings)
 
 test.describe("My team", () => {
   test("shows the team you hold, and not the one you do not", async ({ page }) => {

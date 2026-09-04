@@ -32,7 +32,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, orpc } from "../lib/orpc";
-import { useMine, useOrg, useOrgMembers, useOrgs, useTeams } from "../lib/data";
+import { useCan, useMine, useOrg, useOrgMembers, useOrgs, useTeams } from "../lib/data";
 import { useSession } from "../lib/session";
 import { ORG_ROLE_CODES } from "../../domain/vocabularies";
 import type { Route } from "../lib/router";
@@ -121,6 +121,9 @@ export function OrgsPage({ goto }: { goto: (r: Route) => void }) {
 export function OrgPage({ id, goto }: { id?: string; goto: (r: Route) => void }) {
   const org = useOrg(id);
   const { user } = useSession();
+  // A platform grant — a coach may create a team, full stop; the school is
+  // chosen on the form. It used to ride on the org row as `canCreateTeam`.
+  const { data: canCreateTeam } = useCan("CREATE_TEAM");
 
   if (org.isPending) return <div className="empty">{m.loading_org()}</div>;
   if (!org.data) return <div className="empty">{m.not_found_org()}</div>;
@@ -133,7 +136,7 @@ export function OrgPage({ id, goto }: { id?: string; goto: (r: Route) => void })
         <div className="sub">{[org.data.city, org.data.slug].filter(Boolean).join(" · ")}</div>
       </div>
 
-      <OrgProfile id={org.data.id} names={org.data.names} canEdit={org.data.canEdit} />
+      <OrgProfile id={org.data.id} names={org.data.names} canEdit={org.data.can.EDIT_ORG_PROFILE} />
       {/* Signed-out visitors are not offered a members section at all: the
           query would 403 for a reason that has nothing to do with this org. */}
       {user && <OrgMembers id={org.data.id} />}
@@ -142,7 +145,7 @@ export function OrgPage({ id, goto }: { id?: string; goto: (r: Route) => void })
           created from the app at all. */}
       <OrgTeams
         orgId={org.data.id}
-        canCreate={org.data.canCreateTeam}
+        canCreate={canCreateTeam}
         goto={goto}
       />
 
@@ -158,7 +161,7 @@ export function OrgPage({ id, goto }: { id?: string; goto: (r: Route) => void })
 /**
  * The profile, editable only by someone the server says may edit it.
  *
- * `canEdit` comes off the org itself — see src/api/orgs.ts. It is not derived
+ * `canEdit` is `can.EDIT_ORG_PROFILE` off the org itself — see src/api/orgs.ts. It is not derived
  * here from the viewer's role, which would be the copy of the access matrix
  * this file opens by refusing to keep. Before it existed, every viewer got a
  * Save button and a coach from another school got a 403 for pressing it.

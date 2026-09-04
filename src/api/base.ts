@@ -15,13 +15,20 @@
 
 import { ORPCError, os } from "@orpc/server"
 import type { OpenAPIV3_1 } from "openapi-types"
-import { GRANTS } from "../domain/vocabularies"
+import {
+  PER_ROW_ACTIONS,
+  allowedBy,
+  grantAllows,
+  platformRelations,
+  type ObjectTypeCode,
+  type PerRowAction,
+} from "../domain/grants"
+import { ACTION, GRANTS, RELATION } from "../domain/vocabularies"
 import { database, type Db } from "./db"
 import {
   eventIdsFor,
   eventTypesOf,
   heldAmong,
-  holds,
   objectExists,
   objectTableFor,
 } from "./relations"
@@ -131,7 +138,7 @@ export const authed = pub.use(async ({ context, next }) => {
  * Public, but aware of who is asking — `user` is null for a stranger.
  *
  * For a read that anyone may make but whose *response* depends on the reader:
- * `orgs.get` is public and returns `canEdit`, so the page can offer a Save
+ * `orgs.get` is public and returns `can.EDIT_ORG_PROFILE`, so the page can offer a Save
  * button only to someone it will work for.
  *
  * Not the default. It costs the session lookup `pub` exists to avoid, and most
@@ -187,10 +194,9 @@ const defaultId = (input: { id?: string }) => input.id ?? ""
  * copy of the access matrix, which is the drift this whole file exists to
  * remove. The server already knows, so the server says.
  *
- * `user` is null for a signed-out viewer, who holds exactly the relations
- * granted to everyone. The sentinel below is what expresses that: `PUBLIC`
- * resolves true, a role comparison resolves false, and a table lookup matches
- * no row because no row has an empty user id.
+ * `user` is null for a signed-out viewer, who holds exactly PUBLIC — see
+ * `holdsPlatform` in src/domain/grants.ts. A table lookup would match no row
+ * for them, because no row has an empty user id, so none is made.
  *
  * Says nothing about whether the object exists — that is a 404, and a different
  * question. `requireAction` keeps it.
@@ -207,22 +213,68 @@ type Grant = { relation: string; eventTypes: readonly string[] }
 const grantsFor = (action: keyof typeof GRANTS) =>
   (GRANTS[action] ?? []) as ReadonlyArray<Grant>
 
+const ANONYMOUS: SessionUser = { id: "", role: null }
+
+/** The object type an action acts on, from the model. */
+const typeOf = (action: string) => ACTION.find((a) => a.code === action)?.objectTypeCode ?? null
+
 /**
- * The grants that need no object: a role comparison, no query.
+ * The event subtype of each object, for the grants that narrow by it.
  *
- * `CREATE_EVENT` is the shape — a PLATFORM action, granted to ANY_ORGANIZER and
- * PLATFORM_ADMIN, with nothing to be in a relation *to*. Answered first because
- * when it is true nothing else needs asking, whatever the object.
+ * Resolved once for a whole list. The event is not always the object: a GAME
+ * action carries a game id and the subtype belongs to the event above it, and
+ * `eventIdsFor` reads that hop off the model rather than assuming the two are
+ * the same — which is what once silently denied ENTER_SCORES to everybody.
  */
-async function holdsPlatformGrant(
+async function subtypesFor(
   db: Db,
-  action: keyof typeof GRANTS,
-  viewer: { id: string; role?: string | null },
-): Promise<boolean> {
-  for (const g of grantsFor(action)) {
-    if (!g.eventTypes.length && (await holds(db, g.relation, viewer, null))) return true
-  }
-  return false
+  objectType: string | null,
+  ids: readonly string[],
+  eventContext?: string | null,
+): Promise<Map<string, string | null>> {
+  const eventOf =
+    eventContext !== undefined
+      ? new Map(ids.map((id) => [id, eventContext]))
+      : await eventIdsFor(db, objectType, ids)
+  const eventIds = [...new Set([...eventOf.values()].filter((e): e is string => !!e))]
+  const types = await eventTypesOf(db, eventIds)
+  return new Map(
+    ids.map((id) => {
+      const eventId = eventOf.get(id)
+      return [id, eventId ? (types.get(eventId) ?? null) : null]
+    }),
+  )
+}
+
+/**
+ * Which of these relations the reader holds on each object.
+ *
+ * The platform ones come from the session and cost nothing; each object one is
+ * a single `heldAmong` read for the whole list, whatever its length. Per
+ * relation, never per row — that is the entire reason `/api/games` answers in
+ * single figures rather than 246ms; see `canAll`.
+ */
+async function relationsHeld(
+  db: Db,
+  viewer: SessionUser,
+  relations: ReadonlyArray<(typeof RELATION)[number]>,
+  ids: readonly string[],
+): Promise<Map<string, Set<string>>> {
+  const platform = platformRelations(viewer)
+  const object = relations.filter((r) => r.via === "table" || r.via === "parent")
+  // A stranger has a row in no table: nothing to read.
+  const sets = viewer.id
+    ? await Promise.all(object.map((r) => heldAmong(db, r.code, viewer, ids)))
+    : object.map(() => new Set<string>())
+  return new Map(
+    ids.map((id) => {
+      const held = new Set<string>(platform)
+      object.forEach((r, i) => {
+        if (sets[i]!.has(id)) held.add(r.code)
+      })
+      return [id, held]
+    }),
+  )
 }
 
 /**
@@ -261,53 +313,57 @@ export async function canAll(
   // Fails closed: an action with no grants permits nobody.
   if (!grants.length || objectIds.length === 0) return new Set()
 
-  const viewer = user ?? { id: "", role: null }
-
-  // True for every object or none of them, and cheapest to ask.
-  if (await holdsPlatformGrant(db, action, viewer)) return new Set(objectIds)
-
+  const viewer = user ?? ANONYMOUS
   const ids = [...new Set(objectIds)]
 
-  /**
-   * Some grants apply only to certain event subtypes — a camp has no brackets
-   * to generate. Resolved once for the whole list, and only if one asks.
-   *
-   * The event is not always the object: a GAME action carries a game id and the
-   * subtype belongs to the event above it. `eventIdsFor` reads that hop off the
-   * model rather than assuming the two are the same, which is what once silently
-   * denied ENTER_SCORES to everybody.
-   */
-  let subtypeOf: Map<string, string | null> = new Map()
-  if (grants.some((g) => g.eventTypes.length)) {
-    const eventOf =
-      eventContext !== undefined
-        ? new Map(ids.map((id) => [id, eventContext]))
-        : await eventIdsFor(db, action, ids)
-    const eventIds = [...new Set([...eventOf.values()].filter((e): e is string => !!e))]
-    const types = await eventTypesOf(db, eventIds)
-    subtypeOf = new Map(
-      ids.map((id) => {
-        const eventId = eventOf.get(id)
-        return [id, eventId ? (types.get(eventId) ?? null) : null]
-      }),
-    )
-  }
+  // A platform grant with nothing to narrow it is true for every object, and
+  // cheapest to ask: CREATE_EVENT for an organiser never touches a table.
+  if (grantAllows(action, platformRelations(viewer), null)) return new Set(ids)
 
-  const allowed = new Set<string>()
-  for (const g of grants) {
-    // Narrowed grants only apply to the rows whose subtype matches, so the
-    // relation is asked about those and no others.
-    const scope = g.eventTypes.length
-      ? ids.filter((id) => {
-          const subtype = subtypeOf.get(id)
-          return !!subtype && g.eventTypes.includes(subtype)
-        })
-      : ids
-    const remaining = scope.filter((id) => !allowed.has(id))
-    if (remaining.length === 0) continue
-    for (const id of await heldAmong(db, g.relation, viewer, remaining)) allowed.add(id)
-  }
-  return allowed
+  const subtypeOf = grants.some((g) => g.eventTypes.length)
+    ? await subtypesFor(db, typeOf(action), ids, eventContext)
+    : new Map<string, string | null>()
+  const held = await relationsHeld(
+    db,
+    viewer,
+    RELATION.filter((r) => grants.some((g) => g.relation === r.code)),
+    ids,
+  )
+  return new Set(ids.filter((id) => grantAllows(action, held.get(id)!, subtypeOf.get(id) ?? null)))
+}
+
+/**
+ * Every action a row of this type answers, for a whole list.
+ *
+ * What a screen receives. `canAll` answers one action; a page draws a team from
+ * seven, and asking seven times was seven spellings — `canEdit`, `canManage`,
+ * `canDefine`, `canRecord` — invented per endpoint and composed by hand, so a
+ * component had to be right for every combination of booleans when the model
+ * only ever produces about six kinds of team page. This answers by the model's
+ * own names, all at once, and `allowedBy` is the same lookup a fixture applies.
+ *
+ * Cost is per relation of the type, not per action: a team has five relations
+ * and seven actions, and this reads five sets. `canAll`'s platform short-cut
+ * does not apply — DELETE_TEAM is the admin's while EDIT_TEAM_PROFILE is the
+ * coach's, so no single relation settles a whole row.
+ */
+export async function canFor<T extends ObjectTypeCode>(
+  db: Db,
+  type: T,
+  user: SessionUser | null,
+  objectIds: readonly string[],
+): Promise<Map<string, Record<PerRowAction<T>, boolean>>> {
+  const ids = [...new Set(objectIds)]
+  if (ids.length === 0) return new Map()
+  const viewer = user ?? ANONYMOUS
+  const narrows = PER_ROW_ACTIONS[type].some((a) => grantsFor(a).some((g) => g.eventTypes.length))
+  const [subtypeOf, held] = await Promise.all([
+    narrows ? subtypesFor(db, type, ids) : new Map<string, string | null>(),
+    relationsHeld(db, viewer, RELATION.filter((r) => r.objectTypeCode === type), ids),
+  ])
+  return new Map(
+    ids.map((id) => [id, allowedBy(type, held.get(id)!, subtypeOf.get(id) ?? null)]),
+  )
 }
 
 /**
@@ -324,10 +380,7 @@ export async function can(
   objectId: string | null,
   eventContext?: string | null,
 ): Promise<boolean> {
-  if (!objectId) {
-    if (!grantsFor(action).length) return false
-    return holdsPlatformGrant(db, action, user ?? { id: "", role: null })
-  }
+  if (!objectId) return grantAllows(action, platformRelations(user ?? ANONYMOUS), null)
   return (await canAll(db, action, user, [objectId], eventContext)).has(objectId)
 }
 

@@ -14,11 +14,11 @@
 import { and, eq } from "drizzle-orm"
 import { z } from "zod"
 import * as schema from "../db/schema"
-import { OrgSchema, UpdateOrgInput } from "../domain/api"
+import { OrgSchema, UpdateOrgInput, canSchema } from "../domain/api"
 import { clean } from "../domain/names"
 import { ORG_ROLE_CODES } from "../domain/vocabularies"
 import { ERRORS } from "./errors"
-import { authed, authedRoute, can, openTo, pub, requireAction, viewer , found } from "./base"
+import { authed, authedRoute, canFor, openTo, pub, requireAction, viewer, found } from "./base"
 
 const IdInput = z.object({ id: z.string() })
 
@@ -31,7 +31,7 @@ export const list = pub
   }))
 
 /**
- * `canEdit` is the server answering "may you", so the page does not guess.
+ * `can.EDIT_ORG_PROFILE` is the server answering "may you", so the page does not guess.
  *
  * Without it the profile form was offered to everyone and 403'd on save for
  * anyone who was not an owner or admin — a control that cannot work. The
@@ -44,27 +44,15 @@ export const get = viewer
   .use(openTo("VIEW_ORG"))
   .route({ method: "GET", path: "/orgs/{id}", summary: "Get one organisation" })
   .input(IdInput)
-  .output(OrgSchema.extend({ canEdit: z.boolean(), canCreateTeam: z.boolean() }))
+  .output(OrgSchema.extend({ can: canSchema("ORG") }))
   .handler(async ({ context, input }) => {
     const row = found(await context.db.query.org.findFirst({ where: (o, { eq: is }) => is(o.id, input.id) }))
+    // CREATE_TEAM used to ride on this row as `canCreateTeam`. It is a platform
+    // grant — a coach may create a team, full stop, the school is chosen on the
+    // form — and `me.mine` answers those.
     return {
       ...row,
-      canEdit: await can(context.db, "EDIT_ORG_PROFILE", context.user, input.id),
-      /**
-       * A *platform* grant, answered here because this is the page that needs
-       * it.
-       *
-       * `CREATE_TEAM` is granted to ANY_COACH with no relation to any
-       * organisation — the PO's model says a coach may create a team, full
-       * stop, and the org is chosen on the form rather than earned. So the
-       * object id is null and this is not "may you create a team *here*".
-       *
-       * It sits on the org because the only screen that creates a team is the
-       * one that already knows which school it is for. A viewer-capabilities
-       * endpoint would be the tidier home and would exist to answer one
-       * question.
-       */
-      canCreateTeam: await can(context.db, "CREATE_TEAM", context.user, null),
+      can: (await canFor(context.db, "ORG", context.user, [input.id])).get(input.id)!,
     }
   })
 

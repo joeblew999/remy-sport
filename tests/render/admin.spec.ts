@@ -2,8 +2,8 @@ import { test, expect } from "./fixture"
 import { VISITOR , sessionFor, type Role } from "../helpers/actors"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { type ApiPlayerRow } from "../helpers/api-fixtures"
-import { projectEvent } from "../helpers/projections"
+import { apiMine, type ApiMine, type ApiPlayerRow } from "../helpers/api-fixtures"
+import { projectEvent, type Held } from "../helpers/projections"
 
 /**
  * The admin console, rendered — with the session and the API's answers seeded.
@@ -14,8 +14,8 @@ import { projectEvent } from "../helpers/projections"
  * the model, so they passed; had it drifted they would have kept passing, since
  * the model was not in the loop.
  *
- * The page reads `canCreate` off `events.list` and `canEdit`/`canDelete` off
- * each event now, all three resolved by `can()` on the server. So the input
+ * The page reads `can.CREATE_EVENT` off `me.mine` and `can.EDIT_EVENT` /
+ * `can.DELETE_EVENT` off each event now, all resolved on the server. So the input
  * here is what the API says, and the role is only what it should always have
  * been: the thing that decides whether the *account console* appears.
  *
@@ -45,38 +45,35 @@ const as = (role: Role) => sessionFor(role)
  * specs seed the answer rather than relying on the role string in the session.
  * Three of them failed the moment the source changed, which is the seam working.
  */
-const grants = (can: Record<string, boolean>) =>
-  entry(orpc.me.mine, undefined, { holdings: [], can })
+/**
+ * Who the reader is, platform-wide, and the answers that follow from the model.
+ * `over` is for the one kind of test the model cannot stage: an admin who
+ * holds the console and not one of its sections. No seeded person is in that
+ * state, because every console grant is PLATFORM_ADMIN's; the override says so
+ * out loud rather than planting a flag.
+ */
+const grants = (as: Held, over: Partial<ApiMine["can"]> = {}) => {
+  const mine = apiMine([], as)
+  return entry(orpc.me.mine, undefined, { ...mine, can: { ...mine.can, ...over } })
+}
 
 /** The platform admin, as the model answers for them. */
-const asPlatformAdmin = grants({
-  MANAGE_ALL_USERS: true,
-  MODERATE_LISTINGS: true,
-  APPROVE_REFEREE: true,
-  DELETE_PLAYER: true,
-})
+const asPlatformAdmin = grants(["PLATFORM_ADMIN"])
+const asOrganiser = grants(["ANY_ORGANIZER"])
 
 /** Anybody else. */
-const asNotAdmin = grants({})
+const asNotAdmin = grants([])
 
-/** What `events.list` returns, with the permissions the server decided. */
-const events = (over: { canCreate: boolean; canEdit?: boolean; canDelete?: boolean }) =>
-  entry(orpc.events.list, undefined, {
-    events: [
-      projectEvent("evt_002", {
-        canEdit: over.canEdit ?? false,
-        canDelete: over.canDelete ?? false,
-      }),
-    ],
-    canCreate: over.canCreate,
-  })
+/** What `events.list` returns, for whoever the reader is on the one event. */
+const events = (as: Held = []) =>
+  entry(orpc.events.list, undefined, { events: [projectEvent("evt_002", as)] })
 
 test.describe("The permission grid reflects what the server granted", () => {
   test("a viewer the server says may write sees the form and the badges", async ({ page }) => {
     await seedCache(page, [
       as("ORGANIZER"),
-      asNotAdmin,
-      events({ canCreate: true, canEdit: true, canDelete: true }),
+      asOrganiser,
+      events(["OWNER"]),
     ])
     await visit(page, "admin")
     await expect(page.getByTestId("create-event-form")).toBeVisible()
@@ -87,7 +84,7 @@ test.describe("The permission grid reflects what the server granted", () => {
   })
 
   test("a viewer the server says may only read sees the denial", async ({ page }) => {
-    await seedCache(page, [as("COACH"), asNotAdmin, events({ canCreate: false })])
+    await seedCache(page, [as("COACH"), asNotAdmin, events()])
     await visit(page, "admin")
     await expect(page.getByTestId("create-event-denied")).toBeVisible()
     await expect(page.getByTestId("perm-create")).not.toHaveClass(/badge-success/)
@@ -106,8 +103,9 @@ test.describe("The permission grid reflects what the server granted", () => {
   test("editing without deleting is expressible, and shows no Delete button", async ({ page }) => {
     await seedCache(page, [
       as("ORGANIZER"),
-      asNotAdmin,
-      events({ canCreate: true, canEdit: true, canDelete: false }),
+      asOrganiser,
+      // A co-organiser: EDIT_EVENT without DELETE_EVENT, in the model's words.
+      events(["CO_ORGANIZER"]),
     ])
     await visit(page, "admin")
     await expect(page.getByTestId("perm-update")).toHaveClass(/badge-success/)
@@ -119,14 +117,14 @@ test.describe("The permission grid reflects what the server granted", () => {
     await seedCache(page, [
       as("ADMIN"),
       asPlatformAdmin,
-      events({ canCreate: true, canEdit: true, canDelete: true }),
+      events(["PLATFORM_ADMIN"]),
     ])
     await visit(page, "admin")
     await expect(page.getByTestId("events-table").locator("button.danger")).toHaveCount(1)
   })
 
   test("a non-admin sees no account console at all", async ({ page }) => {
-    await seedCache(page, [as("COACH"), asNotAdmin, events({ canCreate: false })])
+    await seedCache(page, [as("COACH"), asNotAdmin, events()])
     await visit(page, "admin")
     await expect(page.getByTestId("role-badge")).toHaveText("coach")
     await expect(page.getByTestId("admin-console")).toHaveCount(0)
@@ -136,7 +134,7 @@ test.describe("The permission grid reflects what the server granted", () => {
     await seedCache(page, [
       as("ADMIN"),
       asPlatformAdmin,
-      events({ canCreate: true }),
+      events(["PLATFORM_ADMIN"]),
       {
         // `useDevAccounts` — the seeded-accounts list the switcher renders. It
         // 404s to an empty result where neither the outbox nor a fixed code is
@@ -161,7 +159,7 @@ test.describe("The permission grid reflects what the server granted", () => {
   })
 
   test("the events table renders the events it was given", async ({ page }) => {
-    await seedCache(page, [as("ORGANIZER"), events({ canCreate: true })])
+    await seedCache(page, [as("ORGANIZER"), asOrganiser, events(["OWNER"])])
     await visit(page, "admin")
     const table = page.getByTestId("events-table")
     await expect(table).toBeVisible()
@@ -174,7 +172,7 @@ test.describe("The permission grid reflects what the server granted", () => {
    * show it — the Status column knew only "banned" and "active".
    */
   test("shows an admin who is waiting, and offers to approve them", async ({ page }) => {
-    await seedCache(page, [as("ADMIN"), asPlatformAdmin, events({ canCreate: true })])
+    await seedCache(page, [as("ADMIN"), asPlatformAdmin, events(["PLATFORM_ADMIN"])])
     await page.route("**/api/auth/admin/list-users**", (route) =>
       route.fulfill({
         status: 200,
@@ -197,7 +195,7 @@ test.describe("The permission grid reflects what the server granted", () => {
     // APPROVE_REFEREE is "approve a referee", not "set a status". An active
     // coach is neither waiting nor a referee, so there is nothing to approve —
     // and a control that appears there would be offering a 400.
-    await seedCache(page, [as("ADMIN"), asPlatformAdmin, events({ canCreate: true })])
+    await seedCache(page, [as("ADMIN"), asPlatformAdmin, events(["PLATFORM_ADMIN"])])
     await page.route("**/api/auth/admin/list-users**", (route) =>
       route.fulfill({
         status: 200,
@@ -226,7 +224,7 @@ test.describe("The permission grid reflects what the server granted", () => {
    * which is also what makes it translated.
    */
   test("a suspended account does not read as active", async ({ page }) => {
-    await seedCache(page, [as("ADMIN"), asPlatformAdmin, events({ canCreate: true })])
+    await seedCache(page, [as("ADMIN"), asPlatformAdmin, events(["PLATFORM_ADMIN"])])
     await page.route("**/api/auth/admin/list-users**", (route) =>
       route.fulfill({
         status: 200,
@@ -292,7 +290,7 @@ test.describe("Deleting a player", () => {
     await seedCache(page, [
       as("ADMIN"),
       asPlatformAdmin,
-      events({ canCreate: true }),
+      events(["PLATFORM_ADMIN"]),
       players([NIRAN]),
     ])
     await visit(page, "admin")
@@ -307,8 +305,8 @@ test.describe("Deleting a player", () => {
       as("ADMIN"),
       // Holds the console, does not hold this. If the section were gated on
       // `isAdmin` it would appear anyway, which is what this asserts against.
-      grants({ MANAGE_ALL_USERS: true }),
-      events({ canCreate: true }),
+      grants(["PLATFORM_ADMIN"], { DELETE_PLAYER: false }),
+      events(["PLATFORM_ADMIN"]),
       players([NIRAN]),
     ])
     await visit(page, "admin")
@@ -318,7 +316,7 @@ test.describe("Deleting a player", () => {
   })
 
   test("says so when there are none, rather than rendering an empty card", async ({ page }) => {
-    await seedCache(page, [as("ADMIN"), asPlatformAdmin, events({ canCreate: true }), players([])])
+    await seedCache(page, [as("ADMIN"), asPlatformAdmin, events(["PLATFORM_ADMIN"]), players([])])
     await visit(page, "admin")
 
     await expect(page.getByTestId("admin-no-players")).toBeVisible()
@@ -337,10 +335,10 @@ test.describe("Deleting a player", () => {
  * key must be *absent*, not empty, or the row gets a login nobody can use.
  */
 test.describe("Creating an account", () => {
-  const withGrant = grants({ MANAGE_ALL_USERS: true, CREATE_USER_ACCOUNT: true })
+  const withGrant = asPlatformAdmin
 
   test("sends no password at all, so no credential account is made", async ({ page }) => {
-    await seedCache(page, [as("ADMIN"), withGrant, events({ canCreate: true })])
+    await seedCache(page, [as("ADMIN"), withGrant, events(["PLATFORM_ADMIN"])])
     let body: Record<string, unknown> | undefined
     await page.route("**/api/auth/admin/create-user", async (route) => {
       body = JSON.parse(route.request().postData() ?? "{}")
@@ -359,7 +357,11 @@ test.describe("Creating an account", () => {
   })
 
   test("is not offered to an admin without the grant", async ({ page }) => {
-    await seedCache(page, [as("ADMIN"), grants({ MANAGE_ALL_USERS: true }), events({ canCreate: true })])
+    await seedCache(page, [
+      as("ADMIN"),
+      grants(["PLATFORM_ADMIN"], { CREATE_USER_ACCOUNT: false }),
+      events(["PLATFORM_ADMIN"]),
+    ])
     await visit(page, "admin")
 
     await expect(page.getByTestId("admin-console")).toBeVisible()

@@ -2,7 +2,7 @@ import { test, expect } from "./fixture"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { type ApiGame } from "../helpers/api-fixtures"
-import { projectEvent, projectGame, projectGamesIn } from "../helpers/projections"
+import { granted, projectEvent, projectGame, projectGamesIn } from "../helpers/projections"
 
 /**
  * The video pages with no relay configured — which is the majority path.
@@ -21,7 +21,10 @@ import { projectEvent, projectGame, projectGamesIn } from "../helpers/projection
  * real fixture now — and gam_002 genuinely is LIVE, which is what this file is
  * about.
  */
-const liveGame: ApiGame = projectGame("gam_002", { canBroadcast: false })
+const liveGame: ApiGame = projectGame("gam_002")
+
+/** The referee assigned to a league game may broadcast it. */
+const referee = granted("GAME", ["GAME_REFEREE"], "LEAGUE")
 
 /**
  * The native notification path must be invisible in a browser.
@@ -144,8 +147,8 @@ test.describe("Finding a game to watch", () => {
       entry(orpc.games.list, {}, {
         viewerTimezone: null,
         games: [
-          liveGameRow({ id: "gam_002", canBroadcast: true }),
-          liveGameRow({ id: "gam_014", canBroadcast: false }),
+          liveGameRow({ id: "gam_002", can: referee }),
+          liveGameRow({ id: "gam_014" }),
         ],
       }),
     ])
@@ -189,7 +192,7 @@ test.describe("A broadcaster starts from the fixture they are standing at", () =
         games: [
           // A real scheduled fixture in this league, not an invented id: a
           // referee arriving before tip-off is looking at a game that exists.
-          { ...scheduled, isBroadcasting: false, canBroadcast: true },
+          { ...scheduled, isBroadcasting: false, can: referee },
         ],
       }),
     ])
@@ -205,7 +208,7 @@ test.describe("A broadcaster starts from the fixture they are standing at", () =
       entry(orpc.events.get, { id: "evt_002" }, projectEvent("evt_002")),
       entry(orpc.games.list, { eventId: "evt_002" }, {
         viewerTimezone: null,
-        games: [{ ...liveGame, isBroadcasting: true, canBroadcast: false }],
+        games: [{ ...liveGame, isBroadcasting: true }],
       }),
     ])
     await visit(page, "event", { id: "evt_002" })

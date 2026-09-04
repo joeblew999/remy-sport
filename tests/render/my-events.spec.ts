@@ -2,7 +2,7 @@ import { test, expect } from "./fixture"
 import { VISITOR, sessionFor } from "../helpers/actors"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { apiReference } from "../helpers/api-fixtures"
+import { apiMine, apiReference } from "../helpers/api-fixtures"
 import { VOCABULARY } from "../../src/domain/vocabularies"
 import { projectEvent } from "../helpers/projections"
 
@@ -34,14 +34,12 @@ const signedIn = sessionFor("ORGANIZER")
 const mine = (
   events: { id: string; relation: "OWNER" | "CO_ORGANIZER" | "FOLLOWER_EVENT" }[],
 ) => [
-  entry(orpc.events.list, undefined, {
-    events: events.map((e) => projectEvent(e.id)),
-    canCreate: false,
-  }),
-  entry(orpc.me.mine, undefined, {
-    holdings: events.map((e) => ({ type: "EVENT", id: e.id, relation: e.relation })),
-    can: {},
-  }),
+  entry(orpc.events.list, undefined, { events: events.map((e) => projectEvent(e.id)) }),
+  entry(
+    orpc.me.mine,
+    undefined,
+    apiMine(events.map((e) => ({ type: "EVENT", id: e.id, relation: e.relation }))),
+  ),
 ]
 
 const seed = (page: Parameters<typeof seedCache>[0], rows: Parameters<typeof mine>[0]) =>

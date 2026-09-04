@@ -27,7 +27,7 @@ const signedIn = sessionFor("SPECTATOR")
  * team it named "Assumption U18 Boys". The row is Thanakorn Suksai, number 4,
  * and team_001 is the U16 side.
  */
-const child = projectMyPlayers("usr_spectator_001", { canEdit: true }).players[0]!
+const child = projectMyPlayers("usr_spectator_001").players[0]!
 
 const seed = (page: Parameters<typeof seedCache>[0], type: ApiEvent["typeCode"], entered: string[] = []) =>
   seedCache(page, [

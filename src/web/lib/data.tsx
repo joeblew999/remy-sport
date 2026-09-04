@@ -71,7 +71,9 @@ export function useHoldings() {
  * False while the answer is unknown, which is the safe direction: a console that
  * flickers into view and back out is worse than one that appears a moment late.
  */
-export function useCan(action: string) {
+type PlatformAction = keyof NonNullable<ReturnType<typeof useHoldings>["can"]>
+
+export function useCan(action: PlatformAction) {
   const q = useHoldings();
   return { ...q, data: Boolean(q.can?.[action]) };
 }
@@ -174,7 +176,7 @@ export function useTeams() {
 /**
  * The games in an event, in kick-off order.
  *
- * `canEnterScore` arrives per game from the server — see src/api/games.ts. The
+ * `can.ENTER_SCORES` arrives per game from the server — see src/api/games.ts. The
  * page never works it out from the viewer's role, because a referee is assigned
  * to one game and not the next, and a rule in the client could not know that
  * without a copy of the model.
@@ -351,7 +353,6 @@ export function useRoster(teamId: string | undefined) {
       input: { teamId: teamId! },
       enabled: teamId !== undefined,
       select: (r) => ({
-        canManage: r.canManage,
         players: r.players.map((p) => ({
           ...p,
           name: loc.name(p.names),
@@ -403,8 +404,6 @@ export function useEntries(eventId: string | undefined) {
         })),
         registrable: r.registrable.map((x) => ({ ...x, team: loc.name(x.names) })),
         divisions: r.divisions.map((d) => ({ ...d, division: loc.name(d.names) })),
-        canManageFixtures: r.canManageFixtures,
-        canAssignCourts: r.canAssignCourts,
       }),
     }),
   );

@@ -19,7 +19,8 @@ import { clean, pivot } from "../domain/names"
 import { z } from "zod"
 import { CreateEventInput, EventSchema, NamesSchema, UpdateEventInput } from "../domain/api"
 import { ERRORS } from "./errors"
-import { authed, authedRoute, can, canAll, checkedInHandler, found, openTo, requireAction, viewer, viewerTimezone, type Db, type SessionUser } from "./base"
+import type { PerRowAction } from "../domain/grants"
+import { authed, authedRoute, canFor, found, openTo, requireAction, stricterThanModel, viewer, viewerTimezone, type Db } from "./base"
 
 const IdInput = z.object({ id: z.string() })
 
@@ -177,34 +178,13 @@ function load(db: Db) {
  * fix was to answer it in one query — this is that. Four events cost three
  * reads instead of twelve; four hundred cost the same three.
  */
-interface EventPermissions {
-  edit: Set<string>
-  invite: Set<string>
-  remove: Set<string>
-}
-
-const NO_PERMISSIONS: EventPermissions = { edit: new Set(), invite: new Set(), remove: new Set() }
-
-async function permissionsFor(
-  db: Db,
-  user: SessionUser | null,
-  eventIds: string[],
-): Promise<EventPermissions> {
-  if (eventIds.length === 0) return NO_PERMISSIONS
-  const [edit, invite, remove] = await Promise.all([
-    canAll(db, "EDIT_EVENT", user, eventIds),
-    // Not the same grant, and deliberately asked separately — see the note on
-    // the schema field. EDIT_EVENT admits CO_ORGANIZER; these two do not.
-    canAll(db, "INVITE_CO_ORGANIZER", user, eventIds),
-    canAll(db, "DELETE_EVENT", user, eventIds),
-  ])
-  return { edit, invite, remove }
-}
+type EventCan = Record<PerRowAction<"EVENT">, boolean>
 
 function serialize(
   row: typeof schema.event.$inferSelect & { organizer?: { name: string } | null },
   facts: EventFacts = EMPTY,
-  may: EventPermissions = NO_PERMISSIONS,
+  // Prepared for the whole list by `canFor`, never asked per row.
+  can: EventCan,
 ): ApiEvent {
   const { organizer, createdAt, updatedAt, typeCode, formatCode, ...rest } = row
   return {
@@ -214,10 +194,7 @@ function serialize(
     organizerName: organizer?.name ?? null,
     createdAt: createdAt.toISOString(),
     updatedAt: updatedAt.toISOString(),
-    // Read from an answer prepared for the whole list — see permissionsFor.
-    canEdit: may.edit.has(row.id),
-    canInviteCoOrganizer: may.invite.has(row.id),
-    canDelete: may.remove.has(row.id),
+    can,
     ...facts,
   }
 }
@@ -225,28 +202,17 @@ function serialize(
 export const list = viewer
   .use(openTo("BROWSE_EVENTS"))
   .route({ method: "GET", path: "/events", summary: "List all events" })
-  /**
-   * `canCreate` sits on the list rather than on an event, because the thing it
-   * describes has no event yet: `CREATE_EVENT` is a PLATFORM action, granted to
-   * ANY_ORGANIZER and PLATFORM_ADMIN with no object to be in a relation to.
-   *
-   * Same shape as `orgs.get`'s `canCreateTeam`, and here for the same reason —
-   * the admin console decided this from a role table copied into the client,
-   * which is a second answer to a question the model already answers.
-   */
-  .output(z.object({ events: z.array(EventSchema), canCreate: z.boolean() }))
+  // No `canCreate` here: CREATE_EVENT is a platform grant with no event to be
+  // about, and `me.mine` answers those.
+  .output(z.object({ events: z.array(EventSchema) }))
   .handler(async ({ context }) => {
     const rows = await load(context.db)
     const ids = rows.map((r) => r.id)
-    const [facts, may, canCreate] = await Promise.all([
+    const [facts, can] = await Promise.all([
       factsFor(context.db, ids),
-      permissionsFor(context.db, context.user, ids),
-      can(context.db, "CREATE_EVENT", context.user, null),
+      canFor(context.db, "EVENT", context.user, ids),
     ])
-    return {
-      events: rows.map((row) => serialize(row, facts.get(row.id), may)),
-      canCreate,
-    }
+    return { events: rows.map((row) => serialize(row, facts.get(row.id), can.get(row.id)!)) }
   })
 
 export const setDivisions = authed
@@ -341,7 +307,9 @@ export const sessions = viewer
     summary: "A camp's session schedule",
   })
   .input(z.object({ eventId: z.string() }))
-  .output(z.object({ sessions: z.array(SessionSchema), canDefine: z.boolean() }))
+  // Whether the reader may define the schedule is the event's answer —
+  // `can.DEFINE_SESSION_SCHEDULE` on the row the page already holds.
+  .output(z.object({ sessions: z.array(SessionSchema) }))
   .handler(async ({ context, input }) => {
     const [rows, event] = await Promise.all([
       context.db.query.eventSession.findMany({
@@ -363,9 +331,6 @@ export const sessions = viewer
         venueNames: (venue?.names as Record<string, string>) ?? null,
         timezone: event?.timezone ?? null,
       })),
-      // On the list, because DEFINE_SESSION_SCHEDULE acts on the event and the
-      // page needs the answer before there is a session to ask about.
-      canDefine: await can(context.db, "DEFINE_SESSION_SCHEDULE", context.user, input.eventId),
     }
   })
 
@@ -461,12 +426,18 @@ export const attendance = authed
           attended: z.boolean(),
         }),
       ),
-      canRecord: z.boolean(),
     }),
   )
-  .use(checkedInHandler("RECORD_ATTENDANCE"))
+  .use(
+    stricterThanModel(
+      "VIEW_EVENT",
+      "a register names minors, so it sits behind a session while the sessions " +
+        "themselves stay public; whether the reader may mark it is the event " +
+        "row's own can.RECORD_ATTENDANCE",
+    ),
+  )
   .handler(async ({ context, input }) => {
-    const [entered, marked, canRecord] = await Promise.all([
+    const [entered, marked] = await Promise.all([
       context.db
         .select({ playerId: schema.eventPlayer.playerId, names: schema.player.names })
         .from(schema.eventPlayer)
@@ -478,7 +449,6 @@ export const attendance = authed
         .from(schema.sessionAttendance)
         .where(eq(schema.sessionAttendance.sessionId, input.sessionId))
         .all(),
-      can(context.db, "RECORD_ATTENDANCE", context.user, input.eventId),
     ])
 
     const present = new Set(marked.map((m) => m.playerId))
@@ -488,7 +458,6 @@ export const attendance = authed
         names: p.names as Record<string, string>,
         attended: present.has(p.playerId),
       })),
-      canRecord,
     }
   })
 
@@ -571,11 +540,11 @@ export const get = viewer
         with: { organizer: { columns: { name: true } } },
       }),
     )
-    const [facts, may] = await Promise.all([
+    const [facts, can] = await Promise.all([
       factsFor(context.db, [row.id]),
-      permissionsFor(context.db, context.user, [row.id]),
+      canFor(context.db, "EVENT", context.user, [row.id]),
     ])
-    return serialize(row, facts.get(row.id), may)
+    return serialize(row, facts.get(row.id), can.get(row.id)!)
   })
 
 /**
@@ -637,7 +606,7 @@ export const create = authed
     return serialize(
       { ...row, organizer: context.user.name ? { name: context.user.name } : null },
       undefined,
-      await permissionsFor(context.db, context.user, [row.id]),
+      (await canFor(context.db, "EVENT", context.user, [row.id])).get(row.id)!,
     )
   })
 
@@ -685,11 +654,11 @@ export const update = authed
     // update used to answer with `teamCount: 0` for an event with fifteen
     // teams — invisible on screen because the client refetches, and wrong in
     // the response an API consumer would read.
-    const [facts, may] = await Promise.all([
+    const [facts, can] = await Promise.all([
       factsFor(context.db, [row.id]),
-      permissionsFor(context.db, context.user, [row.id]),
+      canFor(context.db, "EVENT", context.user, [row.id]),
     ])
-    return serialize(row, facts.get(row.id), may)
+    return serialize(row, facts.get(row.id), can.get(row.id)!)
   })
 
 export const remove = authed

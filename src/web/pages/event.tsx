@@ -237,7 +237,7 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
           // Only for someone the model says may edit this event. A tab everyone
           // can see and only some can use is a 403 with extra steps, and it
           // teaches the other readers that the app is broken.
-          ...(e.canEdit ? ([["settings", m.tab_settings()]] as [EventTab, string][]) : []),
+          ...(e.can.EDIT_EVENT ? ([["settings", m.tab_settings()]] as [EventTab, string][]) : []),
         ] as [EventTab, string][]).map(([tabId, label]) => (
           <button key={tabId} data-testid={`tab-${tabId}`} className={`tab ${tab === tabId ? "active" : ""}`} onClick={() => setTab(tabId)}>{label}</button>
         ))}
@@ -264,8 +264,8 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
         overview: () => <EventOverview e={e} goto={goto}/>,
         schedule: () => (
           <div className="page-inner">
-            <Schedule eventId={e.id} spoiler={spoiler} goto={goto}/>
-            <AddFixture eventId={e.id}/>
+            <Schedule eventId={e.id} can={e.can} spoiler={spoiler} goto={goto}/>
+            <AddFixture eventId={e.id} can={e.can}/>
           </div>
         ),
         courts: () => <CourtBoard eventId={e.id}/>,
@@ -273,13 +273,15 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
         teams: () => <div className="page-inner"><Entries eventId={e.id}/></div>,
         players: () => <EventPlayers eventId={e.id}/>,
         venues: () => <EventVenues eventId={e.id}/>,
-        divisions: () => <EventDivisions eventId={e.id} canEdit={e.canEdit}/>,
-        sessions: () => <EventSessions eventId={e.id}/>,
+        // MANAGE_DIVISIONS, which is its own action — EDIT_EVENT was standing
+        // in for it, and the two differ on a camp.
+        divisions: () => <EventDivisions eventId={e.id} can={e.can}/>,
+        sessions: () => <EventSessions eventId={e.id} can={e.can}/>,
         rules: () => <EventRules event={e}/>,
         // Guarded twice on purpose: the tab is only offered to somebody who may
         // edit, and hand-typing the hash must not get past that.
         settings: () =>
-          e.canEdit ? (
+          e.can.EDIT_EVENT ? (
             <EventSettings event={e}/>
           ) : (
             <div className="page-inner"><div className="empty">{m.tab_not_built()}</div></div>

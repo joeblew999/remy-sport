@@ -4,7 +4,7 @@ import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { m } from "../../src/web/lib/i18n"
 import { type ApiMyPlayer } from "../helpers/api-fixtures"
-import { projectMyPlayers } from "../helpers/projections"
+import { granted, projectMyPlayers } from "../helpers/projections"
 
 /**
  * A guardian's children, on their own profile.
@@ -29,7 +29,7 @@ const signedIn = sessionFor("SPECTATOR")
  * catchable by a type.
  */
 const GUARDIAN = "usr_spectator_001"
-const mine = projectMyPlayers(GUARDIAN, { canEdit: true }).players
+const mine = projectMyPlayers(GUARDIAN).players
 
 const child = (over: Partial<ApiMyPlayer> = {}) => ({ ...mine[0]!, ...over })
 
@@ -40,7 +40,7 @@ const seed = (page: Parameters<typeof seedCache>[0], players: ApiMyPlayer[]) =>
   seedCache(page, [
     signedIn,
     entry(orpc.players.mine, undefined, { players }),
-    entry(orpc.events.list, undefined, { events: [], canCreate: false }),
+    entry(orpc.events.list, undefined, { events: [] }),
   ])
 
 test.describe("Your players", () => {
@@ -178,7 +178,9 @@ test.describe("Correcting a player's details", () => {
    * whose child was given the wrong squad number could do nothing about it.
    */
   test("is offered only where the model says the reader may edit", async ({ page }) => {
-    await seed(page, [child({ canEdit: false })])
+    // On the list without holding the child: the model's answers for a reader
+    // who is neither guardian nor the player.
+    await seed(page, [child({ can: granted("PLAYER", []) })])
     await visit(page, "dashboard")
     await expect(page.getByTestId(`your-player-${first.playerId}`)).toBeVisible()
     await expect(page.getByTestId(`edit-player-${first.playerId}`)).toHaveCount(0)

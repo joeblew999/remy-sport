@@ -52,6 +52,20 @@ module.exports = {
       },
     },
     {
+      name: "screens-never-decide",
+      comment:
+        "src/domain/grants.ts is the grant table applied: given the relations a " +
+        "person holds, which actions are allowed. A screen receives the answers " +
+        "(`row.can.MANAGE_ROSTER`) and must never hold the table — a component " +
+        "that branched on \"am I the head coach\" would be a second copy of GRANTS, " +
+        "which is the drift the resolver exists to prevent. Types included: there " +
+        "is nothing in that module a screen legitimately needs, and the row types " +
+        "already carry `can` through src/domain/api.",
+      severity: "error",
+      from: { path: "^src/web/" },
+      to: { path: "^src/domain/grants\\.ts$" },
+    },
+    {
       name: "no-circular",
       comment:
         "A cycle means neither module can be understood without the other, and it " +

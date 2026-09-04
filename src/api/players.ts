@@ -30,8 +30,8 @@ import { and, desc, eq, inArray } from "drizzle-orm"
 import { z } from "zod"
 import * as schema from "../db/schema"
 import { GUARDIAN_TYPE_CODES, POSITION_CODES, type GuardianTypeCode } from "../domain/vocabularies"
-import { authed, authedRoute, can, checkedInHandler, requireAction, stricterThanModel, found } from "./base"
-import { CreatePlayerInput, SignUpPlayerInput } from "../domain/api"
+import { authed, authedRoute, canFor, checkedInHandler, requireAction, stricterThanModel, found } from "./base"
+import { CreatePlayerInput, SignUpPlayerInput, canSchema } from "../domain/api"
 import { clean } from "../domain/names"
 import { objectsHeldBy } from "./relations"
 
@@ -61,8 +61,8 @@ export const mine = authed
           /** The team they currently play for, if any. Names, for the reader's locale. */
           teamId: z.string().nullable(),
           teamNames: z.record(z.string(), z.string()).nullable(),
-          /** The model's answer, per player — not assumed from being on this list. */
-          canEdit: z.boolean(),
+          /** The model's answers, per player — not assumed from being on this list. */
+          can: canSchema("PLAYER"),
         }),
       ),
     }),
@@ -86,7 +86,7 @@ export const mine = authed
     ]
     if (ids.length === 0) return { players: [] }
 
-    const [players, guardianships, spells] = await Promise.all([
+    const [players, guardianships, spells, can] = await Promise.all([
       context.db
         .select({
           id: schema.player.id,
@@ -128,6 +128,7 @@ export const mine = authed
          */
         .orderBy(desc(schema.playerTeam.fromDate))
         .all(),
+      canFor(context.db, "PLAYER", context.user, ids),
     ])
 
     const today = new Date().toISOString().slice(0, 10)
@@ -148,18 +149,16 @@ export const mine = authed
     }
 
     return {
-      players: await Promise.all(
-        players.map(async (p) => ({
-          playerId: p.id,
-          names: p.names as Record<string, string>,
-          jerseyNumber: p.jerseyNumber,
-          positionCode: p.positionCode,
-          guardianTypeCode: (guardianOf.get(p.id) ?? null) as GuardianTypeCode | null,
-          teamId: teamOf.get(p.id)?.teamId ?? null,
-          teamNames: (teamOf.get(p.id)?.teamNames as Record<string, string>) ?? null,
-          canEdit: await can(context.db, "EDIT_PLAYER_PROFILE", context.user, p.id),
-        })),
-      ),
+      players: players.map((p) => ({
+        playerId: p.id,
+        names: p.names as Record<string, string>,
+        jerseyNumber: p.jerseyNumber,
+        positionCode: p.positionCode,
+        guardianTypeCode: (guardianOf.get(p.id) ?? null) as GuardianTypeCode | null,
+        teamId: teamOf.get(p.id)?.teamId ?? null,
+        teamNames: (teamOf.get(p.id)?.teamNames as Record<string, string>) ?? null,
+        can: can.get(p.id)!,
+      })),
     }
   })
 
@@ -509,8 +508,8 @@ export const get = authed
           toDate: z.string(),
         }),
       ),
-      /** The model's answer, so the page never works it out from a role. */
-      canEdit: z.boolean(),
+      /** The model's answers, so the page never works them out from a role. */
+      can: canSchema("PLAYER"),
     }),
   )
   .use(
@@ -570,6 +569,6 @@ export const get = authed
         fromDate: s.fromDate,
         toDate: s.toDate,
       })),
-      canEdit: await can(context.db, "EDIT_PLAYER_PROFILE", context.user, row.id),
+      can: (await canFor(context.db, "PLAYER", context.user, [row.id])).get(row.id)!,
     }
   })

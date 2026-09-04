@@ -1,7 +1,7 @@
 import { test, expect } from "./fixture"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { projectAttendance, projectEvent, projectSessions } from "../helpers/projections"
+import { projectAttendance, projectEvent, projectSessions, type Held } from "../helpers/projections"
 
 /**
  * A camp's timetable.
@@ -36,16 +36,16 @@ const FIRST = projectSessions(CAMP).sessions[0]!
 
 const seed = (
   page: Parameters<typeof seedCache>[0],
-  opts: { canDefine: boolean; empty?: boolean },
+  // `as` is who the reader is on the camp: DEFINE_SESSION_SCHEDULE and
+  // RECORD_ATTENDANCE are the event row's answers, not the timetable's.
+  opts: { as?: Held; empty?: boolean },
 ) =>
   seedCache(page, [
-    entry(orpc.events.get, { id: CAMP }, projectEvent(CAMP)),
+    entry(orpc.events.get, { id: CAMP }, projectEvent(CAMP, opts.as)),
     entry(
       orpc.events.sessions,
       { eventId: CAMP },
-      opts.empty
-        ? { sessions: [], canDefine: opts.canDefine }
-        : projectSessions(CAMP, { canDefine: opts.canDefine }),
+      opts.empty ? { sessions: [] } : projectSessions(CAMP),
     ),
   ])
 
@@ -57,7 +57,7 @@ const open = async (page: Parameters<typeof seedCache>[0]) => {
 test.describe("A camp's sessions", () => {
   test("shows the timetable to anybody, with when and what", async ({ page }) => {
     // Public: a parent reads it before deciding whether to enter their child.
-    await seed(page, { canDefine: false })
+    await seed(page, {})
     await open(page)
 
     const row = page.getByTestId(`session-${FIRST.id}`)
@@ -80,7 +80,7 @@ test.describe("A camp's sessions", () => {
 
   test("names every session the camp runs, not just the first", async ({ page }) => {
     // Derived, so growing the camp's timetable does not edit this test.
-    await seed(page, { canDefine: false })
+    await seed(page, {})
     await open(page)
     for (const session of projectSessions(CAMP).sessions) {
       await expect(page.getByTestId(`session-${session.id}`)).toContainText(session.names.en!)
@@ -91,25 +91,25 @@ test.describe("A camp's sessions", () => {
     // The closing afternoon has no venue: it is settled in the week. A column
     // every row fills is one whose empty branch has never rendered.
     const tbc = projectSessions(CAMP).sessions.find((s) => s.venueId === null)!
-    await seed(page, { canDefine: false })
+    await seed(page, {})
     await open(page)
     await expect(page.getByTestId(`session-${tbc.id}`)).not.toContainText("700th Anniversary")
   })
 
   test("offers the form only to somebody the server says may define it", async ({ page }) => {
-    await seed(page, { canDefine: false })
+    await seed(page, {})
     await open(page)
     await expect(page.getByTestId("add-session")).toHaveCount(0)
     await expect(page.getByTestId(`remove-session-${FIRST.id}`)).toHaveCount(0)
 
-    await seed(page, { canDefine: true })
+    await seed(page, { as: ["OWNER"] })
     await open(page)
     await expect(page.getByTestId("add-session")).toBeVisible()
     await expect(page.getByTestId(`remove-session-${FIRST.id}`)).toBeVisible()
   })
 
   test("says so when the timetable is empty rather than showing nothing", async ({ page }) => {
-    await seed(page, { canDefine: true, empty: true })
+    await seed(page, { as: ["OWNER"], empty: true })
     await open(page)
     await expect(page.getByTestId("sessions-none")).toBeVisible()
     // ...and still offers the way to fill it, which is the whole point.
@@ -117,7 +117,7 @@ test.describe("A camp's sessions", () => {
   })
 
   test("sends UTC instants, whatever the local boxes showed", async ({ page }) => {
-    await seed(page, { canDefine: true, empty: true })
+    await seed(page, { as: ["OWNER"], empty: true })
 
     let sent = ""
     await page.route("**/rpc/**", async (route) => {
@@ -150,13 +150,13 @@ test.describe("A camp's sessions", () => {
   test("opens a register showing everyone entered, ticked or not", async ({ page }) => {
     // A register with only the present children on it is a list. Whoever is
     // holding it needs to see who is missing.
-    const attendance = projectAttendance(CAMP, REGISTER.id, { canRecord: true })
+    const attendance = projectAttendance(CAMP, REGISTER.id)
     const present = attendance.players.find((p) => p.attended)!
     const absent = attendance.players.find((p) => !p.attended)!
 
     await seedCache(page, [
-      entry(orpc.events.get, { id: CAMP }, projectEvent(CAMP)),
-      entry(orpc.events.sessions, { eventId: CAMP }, projectSessions(CAMP, { canDefine: true })),
+      entry(orpc.events.get, { id: CAMP }, projectEvent(CAMP, ["OWNER"])),
+      entry(orpc.events.sessions, { eventId: CAMP }, projectSessions(CAMP)),
       entry(orpc.events.attendance, { eventId: CAMP, sessionId: REGISTER.id }, attendance),
     ])
     await open(page)
@@ -168,12 +168,13 @@ test.describe("A camp's sessions", () => {
   })
 
   test("shows the register read-only to somebody who may not record", async ({ page }) => {
-    // canRecord is the server's answer and is wider than canDefine — the model
-    // gives a camp's coaches the register and withholds the timetable.
-    const attendance = projectAttendance(CAMP, REGISTER.id, { canRecord: false })
+    // `can.RECORD_ATTENDANCE` is the event's answer and is wider than defining
+    // — the model gives a camp's coaches the register and withholds the
+    // timetable. A reader who holds neither sees the register read-only.
+    const attendance = projectAttendance(CAMP, REGISTER.id)
     await seedCache(page, [
       entry(orpc.events.get, { id: CAMP }, projectEvent(CAMP)),
-      entry(orpc.events.sessions, { eventId: CAMP }, projectSessions(CAMP, { canDefine: false })),
+      entry(orpc.events.sessions, { eventId: CAMP }, projectSessions(CAMP)),
       entry(orpc.events.attendance, { eventId: CAMP, sessionId: REGISTER.id }, attendance),
     ])
     await open(page)

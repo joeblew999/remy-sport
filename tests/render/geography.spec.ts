@@ -30,7 +30,7 @@ const alsoBangkok = all.filter((e) => e.provinceCode === "BKK")[1]!
 
 const seeded = (page: Parameters<typeof seedCache>[0], events = [bangkok, chiangMai, alsoBangkok]) =>
   seedCache(page, [
-    entry(orpc.events.list, undefined, { events, canCreate: false }),
+    entry(orpc.events.list, undefined, { events }),
     entry(orpc.reference.list, undefined, apiReference(REF)),
   ])
 

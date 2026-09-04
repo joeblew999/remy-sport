@@ -1,5 +1,6 @@
 import { test, expect } from "./fixture"
 import { sessionFor } from "../helpers/actors"
+import { apiMine } from "../helpers/api-fixtures"
 import { projectOrg, projectOrgMembers, projectTeam, projectTeams } from "../helpers/projections"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
@@ -28,13 +29,16 @@ const SCHOOL = "org_001"
  * a school's city would have agreed with the fixture and disagreed with every
  * database.
  *
- * `canEdit` and `canCreateTeam` are the server's answers and stay stated. The
- * second is a *platform* grant — CREATE_TEAM is granted to ANY_COACH with no
- * relation to any organisation, so it means "may you create a team", not "here".
+ * Who the reader is on this school is stated — an ORG_ADMIN, here — and the
+ * answers follow from the model. CREATE_TEAM is a *platform* grant, ANY_COACH
+ * with no relation to any organisation, so it is `me.mine`'s answer and means
+ * "may you create a team", not "here".
  */
-const ORG = projectOrg(SCHOOL, { canEdit: true, canCreateTeam: true })
+const ORG = projectOrg(SCHOOL, ["ORG_ADMIN"])
 
 const signedIn = sessionFor("COACH")
+const asCoach = entry(orpc.me.mine, undefined, apiMine([], ["ANY_COACH"]))
+const asSpectator = entry(orpc.me.mine, undefined, apiMine())
 
 test.describe("The organisation list", () => {
   test("renders the schools it was given", async ({ page }) => {
@@ -64,11 +68,11 @@ test.describe("An organisation page", () => {
   })
 
   test("offers no Save button to someone the server says may not edit", async ({ page }) => {
-    // The whole branch, in one field. The page reads `canEdit` and nothing else
-    // — it does not know or ask what this viewer's role is.
+    // The whole branch, in one field. The page reads `can.EDIT_ORG_PROFILE`
+    // and nothing else — it does not know or ask what this viewer's role is.
     await seedCache(page, [
       signedIn,
-      entry(orpc.orgs.get, { id: SCHOOL }, { ...ORG, canEdit: false }),
+      entry(orpc.orgs.get, { id: SCHOOL }, projectOrg(SCHOOL)),
     ])
     await visit(page, "org", { id: SCHOOL })
 
@@ -81,7 +85,7 @@ test.describe("An organisation page", () => {
     await seedCache(page, [
       signedIn,
       entry(orpc.orgs.get, { id: SCHOOL }, ORG),
-      entry(orpc.orgs.members, { id: SCHOOL }, projectOrgMembers(SCHOOL, { canManage: true })),
+      entry(orpc.orgs.members, { id: SCHOOL }, projectOrgMembers(SCHOOL)),
     ])
     await visit(page, "org", { id: SCHOOL })
 
@@ -168,7 +172,8 @@ test.describe("A school's teams", () => {
   test("offers the form to a coach and not to a spectator", async ({ page }) => {
     await seedCache(page, [
       signedIn,
-      entry(orpc.orgs.get, { id: SCHOOL }, { ...ORG, canCreateTeam: false }),
+      asSpectator,
+      entry(orpc.orgs.get, { id: SCHOOL }, ORG),
       entry(orpc.teams.list, undefined, { teams: [team()] }),
     ])
     await visit(page, "org", { id: SCHOOL })
@@ -183,6 +188,7 @@ test.describe("A school's teams", () => {
     let sent = ""
     await seedCache(page, [
       signedIn,
+      asCoach,
       entry(orpc.orgs.get, { id: SCHOOL }, ORG),
       entry(orpc.teams.list, undefined, { teams: [] }),
     ])

@@ -443,12 +443,10 @@ describe("A team's roster", () => {
   it("is public, and lists the current squad by jersey number", async () => {
     const res = await api("/api/teams/team_001/players")
     expect(res.status).toBe(200)
-    const { players, canManage } = (await res.json()) as {
+    const { players } = (await res.json()) as {
       players: { playerId: string; jerseyNumber: number; positionCode: string }[]
-      canManage: boolean
     }
     expect(players.length).toBeGreaterThan(0)
-    expect(canManage, "a signed-out reader manages nothing").toBe(false)
     // Ordered, so a team sheet reads like a team sheet.
     const numbers = players.map((p) => p.jerseyNumber)
     expect([...numbers].sort((a, b) => a - b)).toEqual(numbers)
@@ -465,12 +463,13 @@ describe("A team's roster", () => {
     )
   })
 
-  it("tells a coach they may manage it", async () => {
-    const coach = await signIn(actorFor("COACH"))
-    const { canManage } = (await (
-      await api("/api/teams/team_001/players", { cookie: coach })
-    ).json()) as { canManage: boolean }
-    expect(canManage).toBe(true)
+  it("tells a coach they may manage it — on the team row, where every answer about a team lives", async () => {
+    const team = async (cookie?: string) =>
+      ((await (await api("/api/teams/team_001", cookie ? { cookie } : {})).json()) as {
+        can: { MANAGE_ROSTER: boolean }
+      }).can.MANAGE_ROSTER
+    expect(await team(), "a signed-out reader manages nothing").toBe(false)
+    expect(await team(await signIn(actorFor("COACH")))).toBe(true)
   })
 })
 
@@ -479,7 +478,7 @@ describe("An event's entries — who is in, and what you could enter", () => {
     const res = await api("/api/events/evt_002/teams")
     expect(res.status).toBe(200)
     const { registered, registrable } = (await res.json()) as {
-      registered: { teamId: string; divisionId: string; canWithdraw: boolean }[]
+      registered: { teamId: string; divisionId: string; can: { REGISTER_TEAM_FOR_EVENT: boolean } }[]
       registrable: unknown[]
     }
     // The four originals are still in, alongside however many the PO's league
@@ -491,7 +490,7 @@ describe("An event's entries — who is in, and what you could enter", () => {
     expect(registered.every((r) => Boolean(r.divisionId))).toBe(true)
     // Signed out: nothing to withdraw, nothing to enter. The page renders the
     // list and no form, rather than a form that would be refused.
-    expect(registered.every((r) => !r.canWithdraw)).toBe(true)
+    expect(registered.every((r) => !r.can.REGISTER_TEAM_FOR_EVENT)).toBe(true)
     expect(registrable).toEqual([])
   })
 
@@ -503,13 +502,16 @@ describe("An event's entries — who is in, and what you could enter", () => {
     const wichai = SEED_ENTITIES.users.find((u) => u.email === actorFor("COACH"))!
     const hisTeams = teamsCoachedBy(wichai.id)
     const evt002 = (await (await api("/api/events/evt_002/teams", { cookie: coach })).json()) as {
-      registered: { teamId: string; canWithdraw: boolean }[]
+      registered: { teamId: string; can: { REGISTER_TEAM_FOR_EVENT: boolean } }[]
       registrable: { teamId: string }[]
     }
     // Everything he coaches is already in, so there is nothing left to enter.
     expect(evt002.registrable, "his teams are all already entered").toEqual([])
     // He may withdraw exactly the teams he coaches — no more, and no fewer.
-    const withdrawable = evt002.registered.filter((r) => r.canWithdraw).map((r) => r.teamId).sort()
+    const withdrawable = evt002.registered
+      .filter((r) => r.can.REGISTER_TEAM_FOR_EVENT)
+      .map((r) => r.teamId)
+      .sort()
     expect(withdrawable).toEqual(hisTeams.filter((t) => teamsRegisteredTo("evt_002").includes(t)))
 
     // evt_004 is a SHOWCASE he has teams left to enter: whatever he coaches
@@ -541,8 +543,8 @@ describe("An event's entries — who is in, and what you could enter", () => {
 
 describe("An event says whether you may edit it", () => {
   /**
-   * `canEdit` is EDIT_EVENT, resolved per event and per viewer — the same shape
-   * games use for `canEnterScore`. It exists because the profile page listed
+   * `can.EDIT_EVENT` is resolved per event and per viewer — the same shape
+   * games use for `can.ENTER_SCORES`. It exists because the profile page listed
    * *every* event on the platform under "Your events": there was no way for a
    * client to ask whose an event was, so it did not.
    *
@@ -555,18 +557,23 @@ describe("An event says whether you may edit it", () => {
   it("says no to a reader who is not signed in", async () => {
     // The whole list, not one event: a single false could be an accident.
     const { events } = (await (await api("/api/events")).json()) as {
-      events: { id: string; canEdit: boolean }[]
+      events: { id: string; can: { EDIT_EVENT: boolean; FOLLOW_EVENT: boolean; VIEW_EVENT: boolean } }[]
     }
     expect(events.length, "the fixtures seed events").toBeGreaterThan(0)
-    expect(events.filter((e) => e.canEdit)).toHaveLength(0)
+    expect(events.filter((e) => e.can.EDIT_EVENT)).toHaveLength(0)
+    // Looking is PUBLIC; following is ANY_SIGNED_IN. The model derives both as
+    // `everyone`, and until 2026-09-04 the resolver could not tell them apart —
+    // a stranger "held" ANY_SIGNED_IN and would have been offered Follow.
+    expect(events.every((e) => e.can.VIEW_EVENT)).toBe(true)
+    expect(events.some((e) => e.can.FOLLOW_EVENT), "a stranger holds only PUBLIC").toBe(false)
   })
 
   it("says yes to the organiser, and only for their own event", async () => {
     const cookie = await signIn(organiser.email)
     const { events } = (await (await api("/api/events", { cookie })).json()) as {
-      events: { id: string; canEdit: boolean }[]
+      events: { id: string; can: { EDIT_EVENT: boolean } }[]
     }
-    const editable = events.filter((e) => e.canEdit).map((e) => e.id)
+    const editable = events.filter((e) => e.can.EDIT_EVENT).map((e) => e.id)
     expect(editable, `${organiser.email} organises ${owned.id}`).toContain(owned.id)
 
     // And not somebody else's. This is the assertion that would catch a
@@ -604,27 +611,31 @@ describe("The event list says what you may create and destroy", () => {
 
   const listFor = async (cookie?: string) =>
     (await (await api("/api/events", cookie ? { cookie } : {})).json()) as {
-      events: { id: string; canDelete: boolean }[]
-      canCreate: boolean
+      events: { id: string; can: { DELETE_EVENT: boolean } }[]
     }
+  // CREATE_EVENT has no event to be about, so it is `me.mine`'s answer, not the
+  // list's — the list used to carry it as `canCreate`.
+  const mayCreate = async (cookie: string) =>
+    ((await (await api("/api/me/mine", { cookie })).json()) as { can: { CREATE_EVENT: boolean } })
+      .can.CREATE_EVENT
 
   it("offers a coach neither — the console showed them neither, for the wrong reason", async () => {
-    const { events, canCreate } = await listFor(await signIn(coach.email))
-    expect(canCreate, "CREATE_EVENT is ANY_ORGANIZER and PLATFORM_ADMIN").toBe(false)
-    expect(events.filter((e) => e.canDelete)).toHaveLength(0)
+    const cookie = await signIn(coach.email)
+    expect(await mayCreate(cookie), "CREATE_EVENT is ANY_ORGANIZER and PLATFORM_ADMIN").toBe(false)
+    expect((await listFor(cookie)).events.filter((e) => e.can.DELETE_EVENT)).toHaveLength(0)
   })
 
   it("offers a signed-out reader neither", async () => {
-    const { events, canCreate } = await listFor()
-    expect(canCreate).toBe(false)
-    expect(events.filter((e) => e.canDelete)).toHaveLength(0)
+    const { events } = await listFor()
+    expect(events.filter((e) => e.can.DELETE_EVENT)).toHaveLength(0)
   })
 
   it("lets an organiser create, and delete only what they own", async () => {
-    const { events, canCreate } = await listFor(await signIn(organiser.email))
-    expect(canCreate).toBe(true)
+    const cookie = await signIn(organiser.email)
+    expect(await mayCreate(cookie)).toBe(true)
 
-    const deletable = events.filter((e) => e.canDelete).map((e) => e.id)
+    const { events } = await listFor(cookie)
+    const deletable = events.filter((e) => e.can.DELETE_EVENT).map((e) => e.id)
     expect(deletable).toContain(owned.id)
 
     // The half that matters. DELETE_EVENT is OWNER, not "any organizer" — the
@@ -700,7 +711,7 @@ describe("The players you are responsible for", () => {
   it("returns every player a guardian is responsible for, and their relationship", async () => {
     const cookie = await signIn(parent.email)
     const { players } = (await (await api("/api/players/mine", { cookie })).json()) as {
-      players: { playerId: string; guardianTypeCode: string | null; canEdit: boolean }[]
+      players: { playerId: string; guardianTypeCode: string | null; can: { EDIT_PLAYER_PROFILE: boolean } }[]
     }
 
     const mine = guardianships.filter((g) => g.userId === parent.id)
@@ -713,7 +724,7 @@ describe("The players you are responsible for", () => {
       expect(found!.guardianTypeCode).toBe(g.guardianTypeCode)
       // The grant the list exists to lead to, asked per player rather than
       // assumed from being on it.
-      expect(found!.canEdit, "a guardian may edit their child's profile").toBe(true)
+      expect(found!.can.EDIT_PLAYER_PROFILE, "a guardian may edit their child's profile").toBe(true)
     }
   })
 

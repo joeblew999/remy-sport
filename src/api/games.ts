@@ -25,7 +25,8 @@ import { EnterScoreInput, GameSchema, SetGameStatusInput, type ApiGame } from ".
 import { STORED_ROLE } from "../domain/vocabularies"
 import type { Bindings } from "../types"
 import { ERRORS } from "./errors"
-import { authed, authedRoute, canAll, found, openTo, requireAction, viewer, viewerTimezone, type Db, type SessionUser } from "./base"
+import type { PerRowAction } from "../domain/grants"
+import { authed, authedRoute, canFor, found, openTo, requireAction, viewer, viewerTimezone, type Db, type SessionUser } from "./base"
 
 const IdInput = z.object({ id: z.string() })
 
@@ -93,28 +94,22 @@ interface GameContext {
   /** Every referee on the platform, read once. Empty when nobody may assign. */
   allReferees: { userId: string; name: string }[]
   /**
-   * The four permissions, resolved for the whole list at once.
+   * Every GAME action, resolved for the whole list at once.
    *
    * These were four `can` calls *per game*, and every grant on them names a
    * `via: "parent"` relation — so each one hopped to the event and joined, and
    * each re-resolved the event subtype. A 28-game schedule cost around 700
-   * reads and 246ms. `canAll` answers per relation instead of per row: about
+   * reads and 246ms. `canFor` answers per relation instead of per row: about
    * six reads, whatever the length.
    */
-  mayEnterScore: Set<string>
-  maySetStatus: Set<string>
-  mayAssignReferee: Set<string>
-  mayBroadcast: Set<string>
+  can: Map<string, Record<PerRowAction<"GAME">, boolean>>
 }
 
 const NO_CONTEXT: GameContext = {
   referees: new Map(),
   broadcasting: new Set(),
   allReferees: [],
-  mayEnterScore: new Set(),
-  maySetStatus: new Set(),
-  mayAssignReferee: new Set(),
-  mayBroadcast: new Set(),
+  can: new Map(),
 }
 
 async function contextFor(
@@ -124,15 +119,10 @@ async function contextFor(
 ): Promise<GameContext> {
   if (gameIds.length === 0) return NO_CONTEXT
 
-  // Every permission for every game, four queries' worth rather than four per
-  // row. Asked before the rest because `allReferees` depends on the answer.
-  const [mayEnterScore, maySetStatus, mayAssignReferee, mayBroadcast] = await Promise.all([
-    canAll(db, "ENTER_SCORES", user, gameIds),
-    canAll(db, "CONFIRM_MATCH_STATUS", user, gameIds),
-    canAll(db, "ASSIGN_REFEREE", user, gameIds),
-    canAll(db, "BROADCAST_GAME", user, gameIds),
-  ])
-  const anyAssign = mayAssignReferee.size > 0
+  // Every GAME action for every game, per relation rather than per row. Asked
+  // before the rest because `allReferees` depends on the answer.
+  const can = await canFor(db, "GAME", user, gameIds)
+  const anyAssign = [...can.values()].some((c) => c.ASSIGN_REFEREE)
 
   const [refs, live, all] = await Promise.all([
     db
@@ -177,23 +167,20 @@ async function contextFor(
     referees,
     broadcasting: new Set(live.map((l) => l.gameId)),
     allReferees: all,
-    mayEnterScore,
-    maySetStatus,
-    mayAssignReferee,
-    mayBroadcast,
+    can,
   }
 }
 
 /**
  * Synchronous now, because every question it used to ask has been answered.
  *
- * It made four `can` calls per row; the context carries all four as sets. A
+ * It made four `can` calls per row; the context carries every answer. A
  * function that reads a prepared answer cannot accidentally reintroduce a query
  * per row, which is what this was.
  */
-function serialize(row: Row, ctx: GameContext = NO_CONTEXT): ApiGame {
+function serialize(row: Row, ctx: GameContext): ApiGame {
   const { homeTeam, awayTeam, venue, event, ...rest } = row
-  const assign = ctx.mayAssignReferee.has(row.id)
+  const can = ctx.can.get(row.id)!
   const onThisGame = ctx.referees.get(row.id) ?? []
   return {
     ...rest,
@@ -201,18 +188,15 @@ function serialize(row: Row, ctx: GameContext = NO_CONTEXT): ApiGame {
     awayTeamNames: awayTeam?.names ?? {},
     venueNames: venue?.names ?? null,
     timezone: event?.timezone ?? null,
-    canEnterScore: ctx.mayEnterScore.has(row.id),
-    canSetStatus: ctx.maySetStatus.has(row.id),
-    canAssignReferee: assign,
+    can,
     // From our table, refreshed by the publisher's heartbeat — see
     // BROADCAST_STALE_SECONDS. A row nobody has touched is not a live game.
     isBroadcasting: ctx.broadcasting.has(row.id),
-    canBroadcast: ctx.mayBroadcast.has(row.id),
     /**
      * Referees not already on this game, and only for someone who may assign
      * one — a global list would be a directory of people.
      */
-    availableReferees: assign
+    availableReferees: can.ASSIGN_REFEREE
       ? ctx.allReferees.filter((c) => !onThisGame.some((r) => r.userId === c.userId))
       : [],
     referees: onThisGame,

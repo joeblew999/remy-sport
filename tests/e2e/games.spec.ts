@@ -5,7 +5,7 @@ import { stateFor, actor, COACH } from "../helpers/auth"
  * Entering a score through the browser, against a real Worker.
  *
  * The round trip the render tier cannot make: whether the score control appears
- * is `canEnterScore`, and that is a relation resolved against `game_referees` and
+ * is `can.ENTER_SCORES`, and that is a relation resolved against `game_referees` and
  * the game's event. Only the database can answer it.
  *
  * Adisorn is the referee on gam_002. Serial, and it restores the score it found,

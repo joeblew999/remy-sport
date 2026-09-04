@@ -25,6 +25,7 @@
 import type { RouterClient } from "@orpc/server"
 import type { Router } from "../../src/api/index"
 import type { ApiEvent } from "../../src/domain/api"
+import { granted, platformGranted, type Held } from "./projections"
 
 /**
  * The response type of one procedure, inferred rather than written out.
@@ -66,9 +67,9 @@ export function apiEvent(over: Partial<ApiEvent> = {}): ApiEvent {
     organizerName: "Niran",
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
-    canEdit: false,
-    canInviteCoOrganizer: false,
-    canDelete: false,
+    // A signed-in reader with no relation to it. Override with
+    // `granted("EVENT", ["OWNER"], "LEAGUE")` to be somebody.
+    can: granted("EVENT", [], "LEAGUE"),
     // Counted from event_teams, event_venues, games and subscriptions. These
     // were hardcoded zeroes in the client until 2026-08-29.
     teamCount: 15,
@@ -112,16 +113,13 @@ export function apiGame(over: Partial<ApiGame> = {}): ApiGame {
     homeScore: null,
     awayScore: null,
     timezone: "Asia/Bangkok",
-    canEnterScore: false,
-    canSetStatus: false,
-    canAssignReferee: false,
+    can: granted("GAME", [], "LEAGUE"),
     referees: [],
     availableReferees: [],
     // Live video. `isBroadcasting` is a fact about the game — the app owns it,
-    // because Cloudflare's relay cannot be asked. `canBroadcast` is the
-    // server's answer for this reader.
+    // because Cloudflare's relay cannot be asked. Whether the reader may point
+    // a camera at it is `can.BROADCAST_GAME`, the server's answer.
     isBroadcasting: false,
-    canBroadcast: false,
     ...over,
   }
 }
@@ -244,8 +242,6 @@ export function apiEntries(over: Partial<ApiEntries> = {}): ApiEntries {
     // Not optional: `useEntries` maps it, so omitting it made the query throw
     // and the permission below silently read false.
     divisions: [],
-    canManageFixtures: false,
-    canAssignCourts: false,
     ...over,
   }
 }
@@ -265,9 +261,20 @@ export function apiRegistered(over: Partial<ApiRegistered> = {}): ApiRegistered 
     divisionId: "div_001",
     divisionNames: { en: "U16 Boys" },
     registeredAt: "2026-03-12",
-    canWithdraw: false,
+    can: { REGISTER_TEAM_FOR_EVENT: false },
     ...over,
   }
+}
+
+/**
+ * What `me.mine` returns: what the reader holds, and the platform answers for
+ * whoever the spec says they are — `apiMine([], ["ANY_ORGANIZER"])` may create
+ * an event, `apiMine()` may not.
+ */
+export type ApiMine = ResponseOf<Client["me"]["mine"]>
+
+export function apiMine(holdings: ApiMine["holdings"] = [], as: Held = []): ApiMine {
+  return { holdings, can: platformGranted(as) }
 }
 
 /** One of the reader's own players, as `players.mine` returns them. */

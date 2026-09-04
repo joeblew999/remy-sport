@@ -25,7 +25,8 @@
  */
 
 import { sql } from "drizzle-orm"
-import { ACTION, FIXTURE_TABLE, GRANTS, OBJECT_TYPE, RELATION, STORED_ROLE } from "../domain/vocabularies"
+import { holdsPlatform } from "../domain/grants"
+import { ACTION, FIXTURE_TABLE, GRANTS, OBJECT_TYPE, RELATION } from "../domain/vocabularies"
 // From ./db, not ./base: base imports this module, and importing back — even
 // as a type — is the cycle check:deps now refuses.
 import type { Db } from "./db"
@@ -168,11 +169,8 @@ export async function heldAmong(
   if (!r || objectIds.length === 0) return new Set()
 
   // No object condition to apply: the relation is true for all of them or none.
-  if (r.via === "everyone") return new Set(objectIds)
-  if (r.via === "role") {
-    return user.role === STORED_ROLE[r.roleCode as keyof typeof STORED_ROLE]
-      ? new Set(objectIds)
-      : new Set()
+  if (r.via === "everyone" || r.via === "role") {
+    return holdsPlatform(r, user) ? new Set(objectIds) : new Set()
   }
 
   /**
@@ -247,16 +245,16 @@ export async function heldAmong(
 /**
  * The events these objects belong to, for the grants that narrow by subtype.
  *
- * `eventIdFor` one row at a time, in a single read. For an EVENT action the
- * object is its own event and no query happens at all.
+ * `eventIdFor` one row at a time, in a single read. For an EVENT the object is
+ * its own event and no query happens at all. Takes the object type rather than
+ * an action because the caller may be answering every action of a type at once.
  */
 export async function eventIdsFor(
   db: Db,
-  action: string,
+  objectType: string | null,
   objectIds: readonly string[],
 ): Promise<Map<string, string | null>> {
-  const a = ACTION.find((x) => x.code === action)
-  const type = OBJECT_TYPE.find((t) => t.code === a?.objectTypeCode)
+  const type = OBJECT_TYPE.find((t) => t.code === objectType)
   const empty = new Map(objectIds.map((id) => [id, null as string | null]))
   if (!type) return empty
   if (type.code === "EVENT") return new Map(objectIds.map((id) => [id, id]))
@@ -437,13 +435,9 @@ export async function holds(
   const r = RELATION.find((x) => x.code === relationCode)
   if (!r) return false
 
-  if (r.via === "everyone") return true
-  if (r.via === "role") {
-    // STORED_ROLE is the code as the database holds it. Comparing the two forms
-    // by hand is what this replaced: it fails closed, so getting it wrong
-    // matches nobody and surfaces as unexplained 403s rather than as an error.
-    return user.role === STORED_ROLE[r.roleCode as keyof typeof STORED_ROLE]
-  }
+  // The session answers a platform relation; see holdsPlatform for the one
+  // distinction the model's derivation cannot make (PUBLIC vs ANY_SIGNED_IN).
+  if (r.via === "everyone" || r.via === "role") return holdsPlatform(r, user)
   if (!objectId) return false
 
   /**

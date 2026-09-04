@@ -41,14 +41,14 @@ import {
  * receive. If a procedure grows a field, this fails and names it — instead of
  * 128 render assertions passing against a payload the API stopped returning.
  *
- * ## Anonymous, because permissions are not projected
+ * ## Anonymous, and `can` is not compared
  *
- * Every request here is unauthenticated, so every `can*` flag comes back false —
- * which is what the projections default to. That is not a gap being papered
- * over: those flags are the *subject* of most render specs ("offers the form to
- * whoever may define the schedule"), so deriving them would hide the thing under
- * test and would need the grant resolver. They stay stated, and this asserts
- * everything else.
+ * Every request here is unauthenticated. `can` is the reader's, resolved by the
+ * grant resolver against D1, and comparing it would assert that resolver —
+ * `authz-equivalence.test.ts`'s job. The projections derive their `can` from
+ * relations a spec *states*, through the same grant table; which relations a
+ * real reader holds is the half that needs a database, so `can` is excluded
+ * here and this asserts everything else.
  *
  * `availableReferees`, `available` (a roster's addable players) and `coaches`
  * are excluded for the same reason — all three are computed *for this reader*.
@@ -68,7 +68,7 @@ import {
  */
 
 /** Fields the server answers for a *reader*, which the projections do not model. */
-const READER_SPECIFIC = ["availableReferees", "available", "coaches"] as const
+const READER_SPECIFIC = ["availableReferees", "available", "coaches", "can"] as const
 
 /**
  * Every list this compares is now ordered by the endpoint, so nothing is
@@ -203,8 +203,8 @@ describe("What only a signed-in reader sees", () => {
    * endpoint refuses an anonymous reader outright — a list of which children
    * turned up where is not something a gym wall prints.
    *
-   * Read here as a spectator, who may see it and may not mark it, so
-   * `canRecord` comes back false and matches the projection's default.
+   * Read here as a spectator, who may see it and may not mark it. Whether they
+   * may mark it is the event row's `can.RECORD_ATTENDANCE`, not the register's.
    */
   /**
    * A guardian's own children. Not public and not projectable from a role — the
@@ -217,8 +217,7 @@ describe("What only a signed-in reader sees", () => {
     const res = await api("/api/players/mine", { cookie })
     expect(res.status, "a guardian may list their own children").toBe(200)
     const body = (await res.json()) as { players: { playerId: string }[] }
-    // A guardian may edit their child's profile, which is why this list exists.
-    const projected = projectMyPlayers(guardian.id, { canEdit: true })
+    const projected = projectMyPlayers(guardian.id)
     expect(body.players.map((p) => p.playerId).sort()).toEqual(
       projected.players.map((p) => p.playerId).sort(),
     )
@@ -268,21 +267,19 @@ describe("What only a signed-in reader sees", () => {
       expect(res.status, `${id} should be readable when signed in`).toBe(200)
 
       /**
-       * The facts, without `canEdit`.
+       * The facts, without `can`.
        *
-       * Every other projection here is read *signed out*, so the API answers
-       * `false` and the projection's stated default happens to agree. This one
-       * cannot be — `players.get` requires a session — so the server resolves
-       * EDIT_PLAYER_PROFILE for a real reader and answers `true` wherever this
-       * spectator is a guardian. Comparing it would assert the grant resolver,
-       * which is `authz-equivalence.test.ts`'s job and would mean duplicating
+       * `players.get` requires a session, so the server resolves every PLAYER
+       * action for a real reader and answers `true` wherever this spectator is
+       * a guardian. Comparing that would assert the grant resolver, which is
+       * `authz-equivalence.test.ts`'s job and would mean duplicating
        * `objectsHeldBy` here, exactly what the note at the top refuses.
        *
        * What is left is what this test is for: the spells, split into current
        * and past by the same comparison in two implementations.
        */
-      const { canEdit: _served, ...served } = (await res.json()) as Record<string, unknown>
-      const { canEdit: _stated, ...stated } = projectPlayer(id)
+      const { can: _served, ...served } = (await res.json()) as Record<string, unknown>
+      const { can: _stated, ...stated } = projectPlayer(id)
       same(served, stated, `players.get(${id})`)
     }
   })

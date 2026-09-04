@@ -109,7 +109,7 @@ export function YourPlayers({ goto }: { goto: (r: Route) => void }) {
             {/* The model's answer for this reader on this player, not assumed
                 from the row being on their own profile — a guardian holds
                 EDIT_PLAYER_PROFILE, and so does a coach who is not here. */}
-            {p.canEdit && (
+            {p.can.EDIT_PLAYER_PROFILE && (
               <button
                 className="row-edit"
                 data-testid={`edit-player-${p.playerId}`}

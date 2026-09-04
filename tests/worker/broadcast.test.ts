@@ -23,7 +23,7 @@ const stop = (gameId: string, cookie: string) =>
 
 const gameById = async (gameId: string, cookie?: string) => {
   const res = await api(`/api/games/${gameId}`, { cookie })
-  return (await res.json()) as { isBroadcasting: boolean; canBroadcast: boolean }
+  return (await res.json()) as { isBroadcasting: boolean; can: { BROADCAST_GAME: boolean } }
 }
 
 describe("Who may broadcast a game", () => {
@@ -100,9 +100,9 @@ describe("Knowing that somebody is broadcasting", () => {
     // nobody is broadcasting, or a Broadcast button for somebody who will be
     // refused, are both worse than no button.
     const ref = await gameById(refereedGame.gameId, await signIn(refereeEmail))
-    expect(ref.canBroadcast).toBe(true)
+    expect(ref.can.BROADCAST_GAME).toBe(true)
 
     const spectator = await gameById(refereedGame.gameId, await signIn(actorFor("SPECTATOR")))
-    expect(spectator.canBroadcast).toBe(false)
+    expect(spectator.can.BROADCAST_GAME).toBe(false)
   })
 })

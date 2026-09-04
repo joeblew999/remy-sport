@@ -562,31 +562,33 @@ describe("Organisations — the actions ORG was declared for", () => {
   })
 
   /**
-   * `canEdit` is what stops the GUI offering a Save button that 403s. It is the
+   * `can.EDIT_ORG_PROFILE` is what stops the GUI offering a Save button that 403s. It is the
    * same question `requireAction` asks — so the two must never disagree, which
    * is what the second half of this asserts.
    */
   it("the org reports whether the reader may edit it, and it matches what a write does", async () => {
-    const anon = (await (await api("/api/orgs/org_001")).json()) as { canEdit: boolean }
-    expect(anon.canEdit, "a stranger holds only PUBLIC").toBe(false)
+    const anon = (await (await api("/api/orgs/org_001")).json()) as {
+      can: { EDIT_ORG_PROFILE: boolean }
+    }
+    expect(anon.can.EDIT_ORG_PROFILE, "a stranger holds only PUBLIC").toBe(false)
 
     // usr_coach_001 is ADMIN of org_001.
     const admin = await signIn(actorFor("COACH"))
     const mine = (await (await api("/api/orgs/org_001", { cookie: admin })).json()) as {
-      canEdit: boolean
+      can: { EDIT_ORG_PROFILE: boolean }
     }
-    expect(mine.canEdit).toBe(true)
+    expect(mine.can.EDIT_ORG_PROFILE).toBe(true)
     expect((await put("/api/orgs/org_001", { names: { en: "Assumption College" } }, admin)).status)
       .toBe(200)
 
     const outsider = await signIn(SEED_ENTITIES.users.find((u) => u.id === "usr_coach_003")!.email)
     const theirs = (await (await api("/api/orgs/org_001", { cookie: outsider })).json()) as {
-      canEdit: boolean
+      can: { EDIT_ORG_PROFILE: boolean }
     }
-    expect(theirs.canEdit).toBe(false)
+    expect(theirs.can.EDIT_ORG_PROFILE).toBe(false)
     expect(
       (await put("/api/orgs/org_001", { names: { en: "Mine Now" } }, outsider)).status,
-      "canEdit false and the write refused — the report and the enforcement agree",
+      "EDIT_ORG_PROFILE false and the write refused — the report and the enforcement agree",
     ).toBe(403)
   })
 
@@ -942,11 +944,11 @@ describe("Accepting an invitation to co-organise", () => {
   const pending = SEED_RELATIONSHIPS.eventCoOrganizers.find((c) => c.statusCode === "PENDING")!
   const invitee = SEED_ENTITIES.users.find((u) => u.id === pending.userId)!
 
-  const canEdit = async (cookie: string, eventId: string) => {
+  const mayEdit = async (cookie: string, eventId: string) => {
     const { events } = (await (await api("/api/events", { cookie })).json()) as {
-      events: { id: string; canEdit: boolean }[]
+      events: { id: string; can: { EDIT_EVENT: boolean } }[]
     }
-    return events.find((e) => e.id === eventId)?.canEdit
+    return events.find((e) => e.id === eventId)?.can.EDIT_EVENT
   }
 
   it("turns an invitation into the right to edit the event", async () => {
@@ -959,12 +961,12 @@ describe("Accepting an invitation to co-organise", () => {
       invitations: { eventId: string }[]
     }
     expect(before.invitations.map((i) => i.eventId)).toContain(pending.eventId)
-    expect(await canEdit(cookie, pending.eventId)).toBe(false)
+    expect(await mayEdit(cookie, pending.eventId)).toBe(false)
 
     const res = await post(`/api/events/${pending.eventId}/co-organizers/accept`, {}, cookie)
     expect(res.status, "accepting an invitation addressed to you").toBe(200)
 
-    expect(await canEdit(cookie, pending.eventId), "ACCEPTED grants CO_ORGANIZER").toBe(true)
+    expect(await mayEdit(cookie, pending.eventId), "ACCEPTED grants CO_ORGANIZER").toBe(true)
     // And it stops being an outstanding invitation, so the list is things to
     // act on rather than a history.
     const after = (await (await api("/api/events/invitations", { cookie })).json()) as {
@@ -984,7 +986,7 @@ describe("Accepting an invitation to co-organise", () => {
     const cookie = await signIn(stranger.email)
     const res = await post(`/api/events/${pending.eventId}/co-organizers/accept`, {}, cookie)
     expect(res.status, "there is no invitation to accept").not.toBe(200)
-    expect(await canEdit(cookie, pending.eventId)).toBe(false)
+    expect(await mayEdit(cookie, pending.eventId)).toBe(false)
   })
 
   it("shows nobody else's invitations", async () => {
@@ -1033,10 +1035,10 @@ describe("Inviting a co-organiser by email", () => {
     expect(invitations.map((i) => i.eventId)).toContain(owned.id)
 
     const { events } = (await (await api("/api/events", { cookie: theirs })).json()) as {
-      events: { id: string; canEdit: boolean }[]
+      events: { id: string; can: { EDIT_EVENT: boolean } }[]
     }
     expect(
-      events.find((e) => e.id === owned.id)?.canEdit,
+      events.find((e) => e.id === owned.id)?.can.EDIT_EVENT,
       "an unaccepted invitation grants nothing",
     ).toBe(false)
   })
@@ -1079,11 +1081,11 @@ describe("Inviting a co-organiser by email", () => {
 
     // They really can edit — otherwise this would pass for the wrong reason.
     const { events } = (await (await api("/api/events", { cookie })).json()) as {
-      events: { id: string; canEdit: boolean; canInviteCoOrganizer: boolean }[]
+      events: { id: string; can: { EDIT_EVENT: boolean; INVITE_CO_ORGANIZER: boolean } }[]
     }
     const row = events.find((e) => e.id === accepted.eventId)!
-    expect(row.canEdit, "a co-organiser may edit").toBe(true)
-    expect(row.canInviteCoOrganizer, "and may not recruit").toBe(false)
+    expect(row.can.EDIT_EVENT, "a co-organiser may edit").toBe(true)
+    expect(row.can.INVITE_CO_ORGANIZER, "and may not recruit").toBe(false)
 
     const res = await post(
       `/api/events/${accepted.eventId}/co-organizers`,

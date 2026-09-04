@@ -3,6 +3,7 @@ import { api, orpc } from "../lib/orpc"
 import { formErrors } from "../lib/form-errors"
 import { useLocale } from "../lib/locale"
 import { m } from "../lib/i18n"
+import type { Event } from "../data"
 
 /**
  * Which divisions this event runs.
@@ -30,7 +31,7 @@ import { m } from "../lib/i18n"
  *
  * Which divisions an event runs.
  */
-export function EventDivisions({ eventId, canEdit }: { eventId: string; canEdit: boolean }) {
+export function EventDivisions({ eventId, can }: { eventId: string; can: Event["can"] }) {
   const { name, label } = useLocale()
   const qc = useQueryClient()
 
@@ -76,7 +77,7 @@ export function EventDivisions({ eventId, canEdit }: { eventId: string; canEdit:
                 defaultChecked={running.has(d.id)}
                 // Ticked and locked: it has teams in it, so it cannot be
                 // dropped without unregistering them.
-                disabled={!canEdit || occupied.has(d.id)}
+                disabled={!can.MANAGE_DIVISIONS || occupied.has(d.id)}
                 data-testid={`division-check-${d.id}`}
               />{" "}
               {name(d.names)}
@@ -89,7 +90,7 @@ export function EventDivisions({ eventId, canEdit }: { eventId: string; canEdit:
           </label>
         ))}
 
-        {canEdit && divisions.length > 0 && (
+        {can.MANAGE_DIVISIONS && divisions.length > 0 && (
           <button type="submit" data-testid="divisions-save" disabled={save.isPending}>
             {save.isPending ? m.event_saving() : m.event_save()}
           </button>

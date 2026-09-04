@@ -61,9 +61,9 @@ const ROLE_CODE = Object.fromEntries(
  * then it is a screen offering a control the API refuses, or hiding one the
  * viewer is entitled to, with no test able to tell.
  *
- * Every flag below is the server's answer now: `canCreate` on the list
- * (`CREATE_EVENT` is a PLATFORM action, so it belongs to the list and not to an
- * event), `canDelete` per event, `canEdit` per event.
+ * Every answer below is the server's: `can.CREATE_EVENT` from `me.mine`
+ * (a PLATFORM action, so it belongs to no event), `can.DELETE_EVENT` and
+ * `can.EDIT_EVENT` per event.
  *
  * @answers MANAGE_ALL_USERS, APPROVE_REFEREE, CREATE_EVENT, DELETE_EVENT, DELETE_TEAM,
  *          DELETE_PLAYER, CREATE_USER_ACCOUNT
@@ -89,8 +89,8 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
    *
    * This was `role === "admin"`, which is a second copy of a rule `GRANTS`
    * already holds — `MANAGE_ALL_USERS` is granted to PLATFORM_ADMIN there. The
-   * two can disagree, and the note on `events.list`'s `canCreate` records that
-   * they already did once: the console "decided this from a role table copied
+   * two can disagree, and they already did once: the console "decided this
+   * from a role table copied
    * into the client, which is a second answer to a question the model already
    * answers".
    *
@@ -129,12 +129,12 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
    * anywhere.
    */
   const rows = events.data?.events ?? [];
-  const canCreate = events.data?.canCreate ?? false;
+  const { data: canCreate } = useCan("CREATE_EVENT");
   const held: Record<string, boolean> = {
     create: canCreate,
     read: true,
-    update: rows.some((e) => e.canEdit),
-    delete: rows.some((e) => e.canDelete),
+    update: rows.some((e) => e.can.EDIT_EVENT),
+    delete: rows.some((e) => e.can.DELETE_EVENT),
   };
 
   /**
@@ -229,7 +229,7 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
                   </td>
                   <td className="muted">{e.description || "—"}</td>
                   <td>
-                    {e.canDelete && (
+                    {e.can.DELETE_EVENT && (
                       <button
                         className="danger"
                         onClick={() => deleteEvent.mutate(e.id)}

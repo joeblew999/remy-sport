@@ -34,9 +34,11 @@
 import { z } from "zod"
 import { eq } from "drizzle-orm"
 import * as schema from "../db/schema"
-import { authed, can, infrastructure } from "./base"
+import { authed, infrastructure } from "./base"
 import { objectsHeldBy } from "./relations"
-import { ACTION, GRANTS, RELATION, STORED_ROLE } from "../domain/vocabularies"
+import { answersFor } from "../domain/api"
+import { PLATFORM_ACTIONS, grantAllows, platformRelations, type PlatformAction } from "../domain/grants"
+import { GRANTS, RELATION, STORED_ROLE } from "../domain/vocabularies"
 
 /**
  * Every relation a person can hold on a specific thing, read off the model.
@@ -58,47 +60,6 @@ const HELD = RELATION.filter((r) => r.via === "table").map((r) => ({
   type: r.objectTypeCode,
 }))
 
-/**
- * The platform-wide actions, derived — not a list somebody typed.
- *
- * These are the grants with no object to act upon: may I manage users, moderate
- * listings, approve a referee, create an event. The admin console decided this
- * itself with `role === "admin"`, which is a second copy of a rule the model
- * owns — `MANAGE_ALL_USERS` is granted to PLATFORM_ADMIN there, and a screen
- * re-deriving it from a role string is how the two come to disagree.
- *
- * `events.list` already carries `canCreate` for exactly this reason, and its
- * note says so: the admin console "decided this from a role table copied into
- * the client, which is a second answer to a question the model already
- * answers".
- *
- * ## The test is on the granting relations, not on the action
- *
- * This read `a.objectTypeCode === "PLATFORM"` until `DELETE_PLAYER` needed an
- * answer. That action names PLAYER — so it failed the test — while its only
- * grant is PLATFORM_ADMIN, a relation nobody holds *on a player*. Whether you
- * may delete one does not depend on which one, so there was nothing to pass an
- * id for and no way to ask.
- *
- * So the filter now asks what the paragraph above always claimed: is every
- * relation that grants this held platform-wide? That is a property of the
- * relations, and `RELATION` states it — `objectTypeCode: "PLATFORM"`.
- *
- * It costs nothing. Every platform relation is `via: "role"` or
- * `via: "everyone"`, and `holds` answers both from the session without touching
- * the database — so the set widening from 25 actions to 47 adds no queries, only
- * entries in a map the client already receives.
- */
-const PLATFORM_RELATIONS = new Set<string>(
-  RELATION.filter((r) => r.objectTypeCode === "PLATFORM").map((r) => r.code),
-)
-const PLATFORM_ACTIONS = ACTION.filter((a) => {
-  const grants = GRANTS[a.code as keyof typeof GRANTS] as readonly { relation: string }[] | undefined
-  // An action with no grants permits nobody, and `can` already says so. Asking
-  // would be a query whose answer the model has already given.
-  return Boolean(grants?.length) && grants!.every((g) => PLATFORM_RELATIONS.has(g.relation))
-}).map((a) => a.code as keyof typeof GRANTS)
-
 const Holding = z.object({
   /** EVENT, TEAM, PLAYER, GAME or ORG — the model's own object type. */
   type: z.string(),
@@ -116,8 +77,13 @@ export const mine = authed
   .output(
     z.object({
       holdings: z.array(Holding),
-      /** Platform actions this person holds — no object, so no id to check. */
-      can: z.record(z.string(), z.boolean()),
+      /**
+       * The actions answerable from the session alone — every grant on them
+       * is platform-wide, so there is no object to name. `PLATFORM_ACTIONS` in
+       * src/domain/grants.ts derives which, and the keys are typed from it, so
+       * `useCan("MANAGE_ALL_USER")` is a compile error rather than a false.
+       */
+      can: answersFor(PLATFORM_ACTIONS),
     }),
   )
   /**
@@ -150,17 +116,17 @@ export const mine = authed
     const found = await Promise.all(
       HELD.map((r) => objectsHeldBy(context.db, r.code, context.user.id)),
     )
-    // The platform grants, in parallel with the relations. `can(..., null)`
-    // resolves these against the model rather than against a role string.
-    const allowed = await Promise.all(
-      PLATFORM_ACTIONS.map((a) => can(context.db, a, context.user, null)),
-    )
+    // The platform grants need no query: the session holds the relations, and
+    // the grant table is a lookup.
+    const platform = platformRelations(context.user)
 
     return {
       holdings: HELD.flatMap((r, i) =>
         found[i]!.map((id) => ({ type: r.type, id, relation: r.code })),
       ),
-      can: Object.fromEntries(PLATFORM_ACTIONS.map((a, i) => [a, allowed[i]!])),
+      can: Object.fromEntries(
+        PLATFORM_ACTIONS.map((a) => [a, grantAllows(a, platform, null)]),
+      ) as Record<PlatformAction, boolean>,
     }
   })
 

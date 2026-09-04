@@ -158,10 +158,9 @@ export function toEvent(e: ApiEvent, loc: Localizer, today: Date = new Date()): 
     fibaCertified: e.isFibaCertified,
     description: e.description,
     organizer: e.organizerName ?? m.unknown_organiser({}, { locale: loc.locale }),
-    // The model's answer, not the client's guess. False for a signed-out
+    // The model's answers, not the client's guesses. All false for a signed-out
     // reader, which is what makes a "yours" list empty rather than wrong.
-    canEdit: e.canEdit,
-    canInviteCoOrganizer: e.canInviteCoOrganizer,
+    can: e.can,
     startDate: e.startDate,
     endDate: e.endDate,
     names: e.names as Record<string, string>,
@@ -230,7 +229,7 @@ export function toTeam(t: ApiTeam, loc: Localizer): Team {
      * matches divisions on it. This is the reader's half of the same fact.
      */
     ageGroupLabel: loc.label("ageGroups", t.ageGroupCode),
-    canEdit: t.canEdit,
+    can: t.can,
     names: t.names as Record<string, string>,
   };
 }

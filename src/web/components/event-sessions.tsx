@@ -5,6 +5,7 @@ import { formErrors } from "../lib/form-errors"
 import { useLocale } from "../lib/locale"
 import { formatClockOn, fromLocalInput } from "../lib/dates"
 import { m } from "../lib/i18n"
+import type { Event } from "../data"
 
 /**
  * A camp's timetable.
@@ -15,7 +16,7 @@ import { m } from "../lib/i18n"
  * endpoint until 2026-08-31, so an organiser could create a camp, watch children
  * register, and had no way to tell anyone when to turn up.
  *
- * `canDefine` is the server's answer on the list, not a role read here — and it
+ * `can.DEFINE_SESSION_SCHEDULE` is the event's answer, not a role read here — and it
  * is on the list rather than per session because the question is about the
  * event, and the page needs it before there is a session to ask about.
  *
@@ -27,7 +28,7 @@ import { m } from "../lib/i18n"
  *
  * A camp's sessions, and who turned up.
  */
-export function EventSessions({ eventId }: { eventId: string }) {
+export function EventSessions({ eventId, can }: { eventId: string; can: Event["can"] }) {
   const { name, locale } = useLocale()
   const qc = useQueryClient()
   const { data, isPending } = useQuery(orpc.events.sessions.queryOptions({ input: { eventId } }))
@@ -49,7 +50,6 @@ export function EventSessions({ eventId }: { eventId: string }) {
 
   const err = formErrors(addSession.error, ["startsAt", "endsAt"])
   const sessions = data?.sessions ?? []
-  const canDefine = data?.canDefine ?? false
 
   /**
    * "Mon 6 Jul, 09:00 – 11:00" **on the venue's clock**.
@@ -105,7 +105,7 @@ export function EventSessions({ eventId }: { eventId: string }) {
               >
                 {m.event_session_register()}
               </button>
-              {canDefine && (
+              {can.DEFINE_SESSION_SCHEDULE && (
                 <button
                   className="btn"
                   data-testid={`remove-session-${s.id}`}
@@ -118,10 +118,10 @@ export function EventSessions({ eventId }: { eventId: string }) {
             </span>
           </div>
         ))}
-        {openRegister && <Register eventId={eventId} sessionId={openRegister} />}
+        {openRegister && <Register eventId={eventId} sessionId={openRegister} can={can} />}
       </div>
 
-      {canDefine && (
+      {can.DEFINE_SESSION_SCHEDULE && (
         <form
           className="admin-card"
           style={{ marginTop: 16 }}
@@ -172,13 +172,21 @@ export function EventSessions({ eventId }: { eventId: string }) {
  * absence, because "marked absent" and "nobody has been round yet" are
  * different facts and one column cannot hold both.
  *
- * `canRecord` is the server's answer. It is wider than `canDefine` above — the
+ * `can.RECORD_ATTENDANCE` is the event's answer. It is wider than defining above — the
  * model gives a camp's coaches the register and withholds the timetable — though
  * today it reaches only the organisers, because HEAD_COACH is a relation to a
  * team and this action acts on an event. `scripts/check-tables.ts` tracks that
  * pair as a known unresolvable grant.
  */
-function Register({ eventId, sessionId }: { eventId: string; sessionId: string }) {
+function Register({
+  eventId,
+  sessionId,
+  can,
+}: {
+  eventId: string
+  sessionId: string
+  can: Event["can"]
+}) {
   const { name } = useLocale()
   const qc = useQueryClient()
   const { data, isPending } = useQuery(
@@ -205,7 +213,7 @@ function Register({ eventId, sessionId }: { eventId: string; sessionId: string }
             <input
               type="checkbox"
               checked={p.attended}
-              disabled={!data?.canRecord || record.isPending}
+              disabled={!can.RECORD_ATTENDANCE || record.isPending}
               data-testid={`attended-${p.playerId}`}
               onChange={(e) =>
                 record.mutate({ playerId: p.playerId, attended: e.target.checked })

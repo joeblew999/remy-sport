@@ -303,7 +303,7 @@ export function GameBroadcast({ gameId }: { gameId: string }) {
       </moq-publish>
 
       <div className="moq-controls">
-        {game && !game.canBroadcast ? (
+        {game && !game.can.BROADCAST_GAME ? (
           <div className="moq-hint" data-testid="moq-not-permitted">
             {m.video_not_permitted()}
           </div>

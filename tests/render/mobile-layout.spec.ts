@@ -94,7 +94,7 @@ test.describe("no screen overflows on a phone", () => {
   for (const width of WIDTHS) {
     test(`every route fits at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 844 })
-      await seedCache(page, [entry(orpc.events.list, undefined, { events: [event], canCreate: false })])
+      await seedCache(page, [entry(orpc.events.list, undefined, { events: [event] })])
 
       const failures: string[] = []
       for (const route of ROUTES) {
@@ -121,7 +121,7 @@ test.describe("no screen overflows on a phone", () => {
     // wrap or shrink. It is a horizontally scrollable strip on purpose, and the
     // check above passes it deliberately rather than by accident.
     await page.setViewportSize({ width: 390, height: 844 })
-    await seedCache(page, [entry(orpc.events.list, undefined, { events: [event], canCreate: false })])
+    await seedCache(page, [entry(orpc.events.list, undefined, { events: [event] })])
     await visit(page, "discover")
 
     const scrolls = await page.evaluate(() => {
@@ -141,7 +141,7 @@ test.describe("no screen overflows on a phone", () => {
     // content area under a topbar that stayed put. `overflow-x: clip` is the
     // floor that makes that impossible; this pins it.
     await page.setViewportSize({ width: 390, height: 844 })
-    await seedCache(page, [entry(orpc.events.list, undefined, { events: [event], canCreate: false })])
+    await seedCache(page, [entry(orpc.events.list, undefined, { events: [event] })])
     await visit(page, "discover")
     const overflowX = await page.evaluate(
       () => getComputedStyle(document.querySelector(".page")!).overflowX,

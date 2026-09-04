@@ -71,7 +71,7 @@ export function Entries({ eventId }: { eventId: string }) {
                     <span className="badge badge-outline">{r.division}</span>
                   </td>
                   <td>
-                    {r.canWithdraw && (
+                    {r.can.REGISTER_TEAM_FOR_EVENT && (
                       <button
                         className="danger"
                         data-testid={`withdraw-${r.teamId}`}

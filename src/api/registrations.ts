@@ -21,7 +21,8 @@ import { COACH_ROLE_CODES, type CoachRoleCode } from "../domain/vocabularies"
 import { z } from "zod"
 import * as schema from "../db/schema"
 import { ERRORS } from "./errors"
-import { authed, authedRoute, can, openTo, requireAction, viewer, type Db } from "./base"
+import { answersFor } from "../domain/api"
+import { authed, authedRoute, can, canAll, openTo, requireAction, viewer, type Db } from "./base"
 import { notify } from "./push"
 import { pick, type Names } from "../domain/names"
 import type { ReleasedLocale } from "../domain/vocabularies"
@@ -383,7 +384,6 @@ export const roster = viewer
           coachRoleCode: z.enum(COACH_ROLE_CODES),
         }),
       ),
-      canManage: z.boolean(),
       available: z.array(
         z.object({
           playerId: z.string(),
@@ -442,7 +442,6 @@ export const roster = viewer
             // table already guarantees.
             .all() as { userId: string; name: string; coachRoleCode: CoachRoleCode }[]
         : [],
-      canManage: await can(context.db, "MANAGE_ROSTER", context.user, input.teamId),
       /**
        * Who could be added — every player not currently on this squad.
        *
@@ -489,7 +488,12 @@ export const eventTeams = viewer
            * which is the question behind every waiting list.
            */
           registeredAt: z.string().nullable(),
-          canWithdraw: z.boolean(),
+          /**
+           * The pair action, on the row that knows both halves — this team,
+           * this event. A team row cannot answer it; see `PairAction`.
+           * Withdrawing is the same grant as entering.
+           */
+          can: answersFor(["REGISTER_TEAM_FOR_EVENT"]),
         }),
       ),
       registrable: z.array(
@@ -500,17 +504,7 @@ export const eventTeams = viewer
           genderCode: z.string(),
         }),
       ),
-      /** Whether this viewer may add fixtures to the event — MANAGE_FIXTURES. */
-      canManageFixtures: z.boolean(),
-      /**
-       * Whether this viewer may put a fixture on a court — ASSIGN_COURTS.
-       *
-       * Asked separately from `canManageFixtures` even though the model grants
-       * both to the same three relations today. They are two actions, and the
-       * screen showing one control for both is exactly how the two would stop
-       * being distinguishable the day the Product Owner changes one of them.
-       */
-      canAssignCourts: z.boolean(),
+      // MANAGE_FIXTURES and ASSIGN_COURTS are the event's answers, on its row.
       divisions: z.array(
         z.object({
           id: z.string(),
@@ -538,43 +532,42 @@ export const eventTeams = viewer
       orderBy: (et, { asc }) => [asc(et.divisionId), asc(et.teamId)],
     })
 
-    const registered = []
-    for (const r of rows) {
-      if (!r.team || !r.division) continue
-      registered.push({
-        teamId: r.team.id,
-        names: r.team.names,
-        divisionId: r.division.id,
-        divisionNames: r.division.names,
-        registeredAt: r.registeredAt ?? null,
-        canWithdraw: await can(
-          context.db,
-          "REGISTER_TEAM_FOR_EVENT",
-          context.user,
-          r.team.id,
-          input.eventId,
-        ),
-      })
-    }
-
     // Everything already in, so the same team is not offered twice.
     const entered = new Set(rows.map((r) => r.teamId))
     const all = await context.db.query.team.findMany({
       columns: { id: true, names: true, ageGroupCode: true, genderCode: true },
     })
 
-    const registrable = []
-    for (const t of all) {
-      if (entered.has(t.id)) continue
-      if (await can(context.db, "REGISTER_TEAM_FOR_EVENT", context.user, t.id, input.eventId)) {
-        registrable.push({
-          teamId: t.id,
-          names: t.names,
-          ageGroupCode: t.ageGroupCode,
-          genderCode: t.genderCode,
-        })
-      }
-    }
+    // The pair action, answered once for every team on the platform rather
+    // than once per row — this was a `can()` per entered team and another per
+    // team not entered, for one event.
+    const mayEnter = await canAll(
+      context.db,
+      "REGISTER_TEAM_FOR_EVENT",
+      context.user,
+      all.map((t) => t.id),
+      input.eventId,
+    )
+
+    const registered = rows
+      .filter((r) => r.team && r.division)
+      .map((r) => ({
+        teamId: r.team!.id,
+        names: r.team!.names,
+        divisionId: r.division!.id,
+        divisionNames: r.division!.names,
+        registeredAt: r.registeredAt ?? null,
+        can: { REGISTER_TEAM_FOR_EVENT: mayEnter.has(r.teamId) },
+      }))
+
+    const registrable = all
+      .filter((t) => !entered.has(t.id) && mayEnter.has(t.id))
+      .map((t) => ({
+        teamId: t.id,
+        names: t.names,
+        ageGroupCode: t.ageGroupCode,
+        genderCode: t.genderCode,
+      }))
 
     /**
      * The divisions **this event runs**, so the page can offer only those.
@@ -597,11 +590,5 @@ export const eventTeams = viewer
       .map((ed) => ed.division)
       .filter((d): d is NonNullable<typeof d> => Boolean(d))
 
-    return {
-      registered,
-      registrable,
-      divisions,
-      canManageFixtures: await can(context.db, "MANAGE_FIXTURES", context.user, input.eventId),
-      canAssignCourts: await can(context.db, "ASSIGN_COURTS", context.user, input.eventId),
-    }
+    return { registered, registrable, divisions }
   })

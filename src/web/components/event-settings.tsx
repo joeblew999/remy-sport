@@ -7,7 +7,7 @@
  * when the gym fell through — the only remedy was an HTTP client, which is not
  * a remedy.
  *
- * The tab appears only where `canEdit` is true, which is the model's answer for
+ * The tab appears only where `can.EDIT_EVENT` is true, which is the model's answer for
  * this reader on this event. That is the same rule the org profile follows and
  * for the same reason: offering a Save button to everyone and answering 403
  * when it is pressed teaches people that the app is broken, when in fact it is
@@ -143,8 +143,8 @@ export function EventSettings({ event }: { event: Event }) {
           OWNER, CO_ORGANIZER and PLATFORM_ADMIN; INVITE_CO_ORGANIZER only to
           OWNER and PLATFORM_ADMIN — deciding who else runs your tournament is
           not something you delegate by having been delegated to. Reusing
-          `canEdit` here would have offered a form that answers 403. */}
-      {event.canInviteCoOrganizer && <InviteCoOrganizer eventId={event.id} />}
+          `can.EDIT_EVENT` here would have offered a form that answers 403. */}
+      {event.can.INVITE_CO_ORGANIZER && <InviteCoOrganizer eventId={event.id} />}
     </div>
   )
 }

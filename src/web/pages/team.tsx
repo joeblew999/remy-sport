@@ -206,12 +206,12 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
 
         {/* `teams.update` was enforced by EDIT_TEAM_PROFILE and unreachable, so
             a team named wrong when it was created stayed named wrong. */}
-        {t.canEdit && <TeamSettings team={t}/>}
+        {t.can.EDIT_TEAM_PROFILE && <TeamSettings team={t}/>}
 
         {/* Only for someone the server says may manage this squad — a head or
             assistant coach, or the team's manager. MANAGE_ROSTER, asked per
             team, not worked out from the viewer's role. */}
-        {roster?.canManage && id && <ManageRoster teamId={id} roster={roster}/>}
+        {t.can.MANAGE_ROSTER && id && roster && <ManageRoster teamId={id} roster={roster}/>}
 
         <div className="section-h" id="team-schedule" style={{ marginTop: 48 }}><h2>{m.schedule()}</h2></div>
         <div className="dash-card">
@@ -464,7 +464,7 @@ function NewPlayer({ teamId, onCreated }: { teamId: string; onCreated: () => voi
  * named wrong — and the age group and category, which decide which events it
  * can enter, could never be corrected either.
  *
- * Shown only where `canEdit` is true, which is the model's answer for this
+ * Shown only where `can.EDIT_TEAM_PROFILE` is true, which is the model's answer for this
  * reader on this team. `orgId` is deliberately not offered: moving a team
  * between schools is a transfer, needs membership of both, and the API omits
  * it from `UpdateTeamInput` for exactly that reason. A form that offered it

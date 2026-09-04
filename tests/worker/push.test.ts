@@ -417,15 +417,15 @@ describe("Web Push delivery", () => {
   it("does not deliver on the request path, and delivers from the job", async () => {
     const cookie = await signIn(actorFor("ORGANIZER"))
 
-    // A game in an event this organiser actually runs. `canSetStatus` is the
+    // A game in an event this organiser actually runs. `can.CONFIRM_MATCH_STATUS` is the
     // server's own answer, so picking on it cannot drift from the model — the
     // first attempt took games[0] and got a 403 the moment the fixtures grew
     // past one event.
     const games = await api("/api/games", { cookie })
     const { games: all } = (await games.json()) as {
-      games: { id: string; homeTeamId: string; canSetStatus: boolean }[]
+      games: { id: string; homeTeamId: string; can: { CONFIRM_MATCH_STATUS: boolean } }[]
     }
-    const game = all.find((g) => g.canSetStatus)!
+    const game = all.find((g) => g.can.CONFIRM_MATCH_STATUS)!
     expect(game, "no game this organiser may set the status of").toBeTruthy()
 
     const fan = await makeUser("push-e2e-fan")
@@ -508,9 +508,9 @@ describe("Web Push delivery", () => {
     const cookie = await signIn(actorFor("ORGANIZER"))
     const games = await api("/api/games", { cookie })
     const { games: all } = (await games.json()) as {
-      games: { id: string; homeTeamId: string; canSetStatus: boolean }[]
+      games: { id: string; homeTeamId: string; can: { CONFIRM_MATCH_STATUS: boolean } }[]
     }
-    const theirs = all.filter((g) => g.canSetStatus)
+    const theirs = all.filter((g) => g.can.CONFIRM_MATCH_STATUS)
     const game = theirs[1] ?? theirs[0]!
 
     const fan = await makeUser("push-e2e-quiet")

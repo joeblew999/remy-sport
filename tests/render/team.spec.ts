@@ -3,7 +3,7 @@ import { sessionFor } from "../helpers/actors"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { type ApiRoster } from "../helpers/api-fixtures"
-import { projectGamesIn, projectRoster, projectTeam } from "../helpers/projections"
+import { projectGamesIn, projectRoster, projectTeam, type Held } from "../helpers/projections"
 
 /**
  * Rendering, with the cache handed its data instead of the network.
@@ -37,7 +37,7 @@ import { projectGamesIn, projectRoster, projectTeam } from "../helpers/projectio
  * is proven equal to the real procedure by
  * tests/worker/projection-equivalence.test.ts.
  */
-const team = (id: string, rights: { canEdit?: boolean } = {}) => projectTeam(id, rights)
+const team = (id: string, as: Held = []) => projectTeam(id, as)
 
 /** The seeded team this file is mostly about: Triam Udom's U18 girls. */
 const TEAM = "team_002"
@@ -195,9 +195,10 @@ test.describe("Squad management", () => {
    */
   const roster = (over: Partial<ApiRoster>) => ({ ...projectRoster(TEAM), ...over })
 
-  const show = async (page: Parameters<typeof seedCache>[0], data: ApiRoster) => {
+  // `as` is who the reader is on the team; MANAGE_ROSTER is the team row's answer.
+  const show = async (page: Parameters<typeof seedCache>[0], data: ApiRoster, as: Held = []) => {
     await seedCache(page, [
-      entry(orpc.teams.get, { id: TEAM }, team(TEAM)),
+      entry(orpc.teams.get, { id: TEAM }, team(TEAM, as)),
       entry(orpc.teams.roster, { teamId: TEAM }, data),
     ])
     await visit(page, "team", { id: "team_002" })
@@ -215,7 +216,6 @@ test.describe("Squad management", () => {
     const onSquad = projectRoster(TEAM).players[0]!
     const elsewhere = projectRoster("team_003").players[0]!
     await show(page, roster({
-      canManage: true,
       available: [
         {
           playerId: elsewhere.playerId,
@@ -223,14 +223,14 @@ test.describe("Squad management", () => {
           jerseyNumber: elsewhere.jerseyNumber,
         },
       ],
-    }))
+    }), ["HEAD_COACH"])
     await expect(page.getByTestId("manage-roster")).toBeVisible()
     await expect(page.getByTestId(`remove-player-${onSquad.playerId}`)).toBeVisible()
     await expect(page.getByTestId("add-player-select")).toContainText(elsewhere.names.en!)
   })
 
   test("says so when there is nobody left to add", async ({ page }) => {
-    await show(page, roster({ canManage: true, available: [] }))
+    await show(page, roster({ available: [] }), ["HEAD_COACH"])
     await expect(page.getByTestId("no-available-players")).toBeVisible()
     await expect(page.getByTestId("add-player-form")).toHaveCount(0)
   })
@@ -244,7 +244,7 @@ test.describe("Squad management", () => {
    * by curl — CREATE_PLAYER is granted to ANY_COACH, and no screen called it.
    */
   test("offers a new player even when there is nobody left to add", async ({ page }) => {
-    await show(page, roster({ canManage: true, available: [] }))
+    await show(page, roster({ available: [] }), ["HEAD_COACH"])
     await expect(page.getByTestId("new-player-open")).toBeVisible()
     await page.getByTestId("new-player-open").click()
     await expect(page.getByTestId("new-player-form")).toBeVisible()
@@ -255,7 +255,7 @@ test.describe("Squad management", () => {
   })
 
   test("creates the player and puts them on the squad", async ({ page }) => {
-    await show(page, roster({ canManage: true, available: [] }))
+    await show(page, roster({ available: [] }), ["HEAD_COACH"])
     // The SPA speaks the `/rpc/` transport, not the OpenAPI paths — routing
     // `**/api/players` matched nothing and the calls array stayed empty.
     const calls: string[] = []
@@ -293,7 +293,7 @@ test.describe("Squad management", () => {
   })
 
   test("is not offered to somebody who may not manage the squad", async ({ page }) => {
-    await show(page, roster({ canManage: false }))
+    await show(page, roster({}))
     await expect(page.getByTestId("new-player-open")).toHaveCount(0)
   })
 })
@@ -304,12 +304,12 @@ test.describe("A team's details", () => {
    * named wrong at creation stayed named wrong — and its age group and
    * category, which decide which events it can enter, could never be corrected.
    *
-   * Gated on `canEdit`: the server's answer for this reader on this team, not a
+   * Gated on `can.EDIT_TEAM_PROFILE`: the server's answer for this reader on this team, not a
    * role check here. A rule in the client could only be right by accident.
    */
   test("offers no form to someone who may not edit", async ({ page }) => {
     await seedCache(page, [
-      entry(orpc.teams.get, { id: TEAM }, team(TEAM, { canEdit: false })),
+      entry(orpc.teams.get, { id: TEAM }, team(TEAM)),
       entry(orpc.teams.roster, { teamId: TEAM }, projectRoster(TEAM)),
     ])
     await visit(page, "team", { id: "team_002" })
@@ -320,7 +320,7 @@ test.describe("A team's details", () => {
 
   test("prefills from what is stored, for a coach", async ({ page }) => {
     await seedCache(page, [
-      entry(orpc.teams.get, { id: TEAM }, team(TEAM, { canEdit: true })),
+      entry(orpc.teams.get, { id: TEAM }, team(TEAM, ["HEAD_COACH"])),
       entry(orpc.teams.roster, { teamId: TEAM }, projectRoster(TEAM)),
     ])
     await visit(page, "team", { id: "team_002" })
@@ -338,7 +338,7 @@ test.describe("A team's details", () => {
     await seedCache(page, [
       // The seeded team is already bilingual, which is the whole premise: the
       // Thai name has to survive a save made from the English page.
-      entry(orpc.teams.get, { id: TEAM }, team(TEAM, { canEdit: true })),
+      entry(orpc.teams.get, { id: TEAM }, team(TEAM, ["HEAD_COACH"])),
       entry(orpc.teams.roster, { teamId: TEAM }, projectRoster(TEAM)),
     ])
     await page.route("**/rpc/**", async (route) => {
@@ -347,7 +347,7 @@ test.describe("A team's details", () => {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ json: team(TEAM, { canEdit: true }) }),
+        body: JSON.stringify({ json: team(TEAM, ["HEAD_COACH"]) }),
       })
     })
 
