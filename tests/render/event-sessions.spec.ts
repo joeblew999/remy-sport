@@ -1,7 +1,6 @@
 import { test, expect } from "./fixture"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { apiEvent } from "../helpers/api-fixtures"
 import { projectAttendance, projectEvent, projectSessions } from "../helpers/projections"
 
 /**
@@ -185,11 +184,8 @@ test.describe("A camp's sessions", () => {
   })
 
   test("is not offered on a league, which has fixtures instead", async ({ page }) => {
-    // evt_002 is the seeded league. apiEvent rather than a projection because
-    // what this asserts is the *absence* of a tab, and a league's real payload
-    // would drag in 28 games' worth of facts to prove nothing extra.
     await seedCache(page, [
-      entry(orpc.events.get, { id: "evt_002" }, apiEvent({ id: "evt_002", typeCode: "LEAGUE" })),
+      entry(orpc.events.get, { id: "evt_002" }, projectEvent("evt_002")),
     ])
     await visit(page, "event", { id: "evt_002" })
     await expect(page.getByTestId("tab-sessions")).toHaveCount(0)

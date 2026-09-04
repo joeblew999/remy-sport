@@ -22,9 +22,10 @@ import { projectEvent } from "../helpers/projections"
  * `badge-success` is the contract, not decoration — it is what says an action
  * is granted.
  *
- * Every fixture goes through `apiEvent()`, and none of them casts. The previous
- * versions ended `{ events: [] }`, which suppressed exactly the error
- * that would have caught `canCreate` being added to the response.
+ * Every fixture goes through `projectEvent()`, so the row is the seed's own and
+ * none of them casts. The versions before that ended `{ events: [] }`, which
+ * suppressed exactly the error that would have caught `canCreate` being added
+ * to the response.
  */
 
 /**

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { actorFor, api, signIn } from "./helpers"
+import { SEED_ENTITIES } from "../../src/domain/model/entities"
 import {
   SEEDED,
   projectAttendance,
@@ -9,6 +10,7 @@ import {
   projectEvents,
   projectVenues,
   projectGame,
+  projectMyPlayers,
   projectOrg,
   projectGamesIn,
   projectRoster,
@@ -209,6 +211,27 @@ describe("What only a signed-in reader sees", () => {
    * Read here as a spectator, who may see it and may not mark it, so
    * `canRecord` comes back false and matches the projection's default.
    */
+  /**
+   * A guardian's own children. Not public and not projectable from a role — the
+   * endpoint asks the relation resolver — but every relation it asks for comes
+   * straight off a fixture table, so there is nothing derived to duplicate.
+   */
+  it("the players a guardian holds are what the projection says", async () => {
+    const guardian = SEED_ENTITIES.users.find((u) => u.id === "usr_spectator_001")!
+    const cookie = await signIn(guardian.email)
+    const res = await api("/api/players/mine", { cookie })
+    expect(res.status, "a guardian may list their own children").toBe(200)
+    const body = (await res.json()) as { players: { playerId: string }[] }
+    // A guardian may edit their child's profile, which is why this list exists.
+    const projected = projectMyPlayers(guardian.id, { canEdit: true })
+    expect(body.players.map((p) => p.playerId).sort()).toEqual(
+      projected.players.map((p) => p.playerId).sort(),
+    )
+    for (const player of body.players) {
+      same(player, projected.players.find((p) => p.playerId === player.playerId), `players.mine[${player.playerId}]`)
+    }
+  })
+
   it("a session's register is what the projection says", async () => {
     const cookie = await signIn(actorFor("SPECTATOR"))
     for (const { id, eventId } of SEEDED.sessions) {

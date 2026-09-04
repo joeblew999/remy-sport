@@ -449,7 +449,7 @@ function CreateEvent({ onError }: { onError: (m: string | null) => void }) {
           setChosen(null);
         }}
       >
-        <input name="name" placeholder="Event name" required autoComplete="off" />
+        <input name="name" placeholder={m.event_name_placeholder()} required autoComplete="off" />
         {/* The schema's own message, under the field it belongs to — `names` is
             a locale map, so an issue on the English name arrives at names.en. */}
         {createErr.field("names[en]") && (
@@ -489,7 +489,7 @@ function CreateEvent({ onError }: { onError: (m: string | null) => void }) {
             {describe("eventTypes", type)}
           </p>
         )}
-        <input name="description" placeholder="Description (optional)" autoComplete="off" />
+        <input name="description" placeholder={m.event_description_placeholder()} autoComplete="off" />
         {createErr.field("description") && (
           <p className="admin-error small" data-testid="create-event-description-issue">
             {createErr.field("description")}

@@ -1,9 +1,8 @@
 import { test, expect } from "./fixture"
 import { sessionFor } from "../helpers/actors"
-import { projectOrg, projectOrgMembers, projectTeams } from "../helpers/projections"
+import { projectOrg, projectOrgMembers, projectTeam, projectTeams } from "../helpers/projections"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { apiTeam } from "../helpers/api-fixtures"
 import type { ApiTeam } from "../../src/domain/api"
 
 /**
@@ -127,25 +126,15 @@ test.describe("A school's teams", () => {
    * already in the cache, it is small, and a second endpoint returning a subset
    * would be a second thing to keep correct.
    */
-  // `apiTeam` from the shared fixtures, not a local literal. The version here
-  // took `Record<string, unknown>` overrides, which widened `ageGroupCode` and
-  // `genderCode` from their vocabularies to bare `string` — so the cast at each
-  // call site was covering a factory that had already thrown the types away.
-  const team = (over: Partial<ApiTeam> = {}) =>
-    apiTeam({
-      id: "team_001",
-      name: "Assumption U18 Boys",
-      names: { en: "Assumption U18 Boys" },
-      orgId: "org_001",
-      ageGroupCode: "U18",
-      genderCode: "M",
-      orgName: "Assumption College",
-      orgNames: { en: "Assumption College" },
-      // BANGKOK is the city; BKK is the province. Both were "BKK" here.
-      orgCityCode: "BANGKOK",
-      orgProvinceCode: "BKK",
-      ...over,
-    })
+  /**
+   * Off the seed, so the school, city and division are the row's own.
+   *
+   * The literal this replaces called team_001 "Assumption U18 Boys". team_001 is
+   * the **U16** Boys — team_004 is the U18 side. It also carried a note about
+   * having just fixed BANGKOK/BKK by hand, which is the tell: a fixture that has
+   * to be corrected is one that can be wrong.
+   */
+  const team = (over: Partial<ApiTeam> = {}) => ({ ...projectTeam("team_001"), ...over })
 
   test("lists only this school's teams", async ({ page }) => {
     await seedCache(page, [

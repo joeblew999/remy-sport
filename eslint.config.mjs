@@ -74,6 +74,26 @@ export default [
           message:
             "A user-visible string inside a JSX expression. Wrap it in a paraglide message — this is how the discover tab row stayed English in every language.",
         },
+        {
+          /**
+           * The four attributes a person actually reads.
+           *
+           * `jsx-no-literals` runs with `ignoreProps: true` and that is right:
+           * className, data-testid and a font stack in a style object are not
+           * language, and flagging them would make the rule noise. But these
+           * four are read aloud by a screen reader or shown in the field, and
+           * the blanket exemption covered them — `placeholder="Event name"` and
+           * `placeholder="Description (optional)"` sat in the create-event form
+           * in English while the rest of it was Thai, and every check passed.
+           *
+           * Two letters minimum, so `alt=""` — which is how you mark an image
+           * decorative — is still allowed.
+           */
+          selector:
+            "JSXAttribute[name.name=/^(placeholder|title|alt|aria-label)$/] > Literal[value=/[A-Za-z]{2}/]",
+          message:
+            "A user-visible attribute in English. Wrap it in a paraglide message — a placeholder is read by whoever fills the field in.",
+        },
       ],
       "react/jsx-no-literals": [
         "error",

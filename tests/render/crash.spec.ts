@@ -62,6 +62,15 @@ const brokenPage = () =>
 const brokenProvider = () =>
   entry(orpc.reference.list, undefined, malformed({ cities: [], eventTypes: [] }))
 
+/**
+ * The one spec that must not read the seed, and the reason is the subject.
+ *
+ * Everything else in this tier draws its payloads from
+ * `tests/helpers/projections.ts` so a test cannot assert a fact no row holds.
+ * This file asserts what happens when a payload is *wrong* — a reference list
+ * with no locales, a page whose data throws on render — so a well-formed one
+ * would test nothing. `malformed()` is the point, not an oversight.
+ */
 test.describe("When a page throws", () => {
   test("the reader gets a message and a way back, not a white screen", async ({ page }) => {
     await seedCache(page, [brokenPage()])

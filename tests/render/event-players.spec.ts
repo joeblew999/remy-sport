@@ -2,9 +2,9 @@ import { test, expect } from "./fixture"
 import { sessionFor } from "../helpers/actors"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { apiMyPlayer } from "../helpers/api-fixtures"
 import type { ApiEvent } from "../../src/domain/api"
 import { projectEvent } from "../helpers/projections"
+import { projectMyPlayers } from "../helpers/projections"
 
 /**
  * Entering your child in a camp — the last of the three grants a guardian holds
@@ -20,16 +20,14 @@ const EVENT_ID = "evt_003"
 
 const signedIn = sessionFor("SPECTATOR")
 
-const child = apiMyPlayer({
-  playerId: "ply_001",
-  names: { en: "Somchai Prasert" },
-  jerseyNumber: 7,
-  positionCode: "PG",
-  guardianTypeCode: "PARENT",
-  teamId: "team_001",
-  teamNames: { en: "Assumption U18 Boys" },
-  canEdit: true,
-})
+/**
+ * A real child of the seeded guardian.
+ *
+ * The literal this replaces called `ply_001` "Somchai Prasert", number 7, on a
+ * team it named "Assumption U18 Boys". The row is Thanakorn Suksai, number 4,
+ * and team_001 is the U16 side.
+ */
+const child = projectMyPlayers("usr_spectator_001", { canEdit: true }).players[0]!
 
 const seed = (page: Parameters<typeof seedCache>[0], type: ApiEvent["typeCode"], entered: string[] = []) =>
   seedCache(page, [
@@ -64,9 +62,9 @@ test.describe("Entering a player in an event", () => {
     await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-players").click()
 
-    await expect(page.getByTestId("entry-ply_001")).toContainText("Somchai Prasert")
-    await expect(page.getByTestId("enter-ply_001")).toBeVisible()
-    await expect(page.getByTestId("withdraw-ply_001")).toHaveCount(0)
+    await expect(page.getByTestId(`entry-${child.playerId}`)).toContainText(child.names.en!)
+    await expect(page.getByTestId(`enter-${child.playerId}`)).toBeVisible()
+    await expect(page.getByTestId(`withdraw-${child.playerId}`)).toHaveCount(0)
   })
 
   test("shows Withdraw instead once they are in", async ({ page }) => {
@@ -74,9 +72,9 @@ test.describe("Entering a player in an event", () => {
     await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-players").click()
 
-    await expect(page.getByTestId("entry-ply_001")).toContainText("Entered")
-    await expect(page.getByTestId("withdraw-ply_001")).toBeVisible()
-    await expect(page.getByTestId("enter-ply_001")).toHaveCount(0)
+    await expect(page.getByTestId(`entry-${child.playerId}`)).toContainText("Entered")
+    await expect(page.getByTestId(`withdraw-${child.playerId}`)).toBeVisible()
+    await expect(page.getByTestId(`enter-${child.playerId}`)).toHaveCount(0)
   })
 
   test("sends the entry to the server for that player and event", async ({ page }) => {
@@ -94,7 +92,7 @@ test.describe("Entering a player in an event", () => {
 
     await visit(page, "event", { id: EVENT_ID })
     await page.getByTestId("tab-players").click()
-    await page.getByTestId("enter-ply_001").click()
+    await page.getByTestId(`enter-${child.playerId}`).click()
 
     await expect.poll(() => sent, { message: "entering must reach the server" }).not.toBe("")
     expect(sent).toContain("ply_001")

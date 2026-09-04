@@ -3,7 +3,8 @@ import { sessionFor } from "../helpers/actors"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { m } from "../../src/web/lib/i18n"
-import { apiMyPlayer, type ApiMyPlayer } from "../helpers/api-fixtures"
+import { type ApiMyPlayer } from "../helpers/api-fixtures"
+import { projectMyPlayers } from "../helpers/projections"
 
 /**
  * A guardian's children, on their own profile.
@@ -19,18 +20,21 @@ const signedIn = sessionFor("SPECTATOR")
 // Through `apiMyPlayer`, so `guardianTypeCode` and `positionCode` stay their
 // vocabularies. The `Record<string, unknown>` overrides here widened both to
 // `string`, which is what the cast at each seed site was covering.
-const child = (over: Partial<ApiMyPlayer> = {}) =>
-  apiMyPlayer({
-    playerId: "ply_001",
-    names: { en: "Somchai Prasert", th: "สมชาย ประเสริฐ" },
-    jerseyNumber: 7,
-    positionCode: "PG",
-    guardianTypeCode: "PARENT",
-    teamId: "team_001",
-    teamNames: { en: "Assumption U18 Boys" },
-    canEdit: true,
-    ...over,
-  })
+/**
+ * A real child of a real guardian.
+ *
+ * The literal this replaces called `ply_001` "Somchai Prasert" with jersey 7 on
+ * a team it named "Assumption U18 Boys". The row is Thanakorn Suksai, number 4,
+ * and team_001 is the U16 side — three wrong facts in one fixture, none of them
+ * catchable by a type.
+ */
+const GUARDIAN = "usr_spectator_001"
+const mine = projectMyPlayers(GUARDIAN, { canEdit: true }).players
+
+const child = (over: Partial<ApiMyPlayer> = {}) => ({ ...mine[0]!, ...over })
+
+/** The first child, for the assertions that are about one specific row. */
+const first = mine[0]!
 
 const seed = (page: Parameters<typeof seedCache>[0], players: ApiMyPlayer[]) =>
   seedCache(page, [
@@ -44,21 +48,21 @@ test.describe("Your players", () => {
     await seed(page, [child()])
     await visit(page, "dashboard")
 
-    const row = page.getByTestId("your-player-ply_001")
-    await expect(row).toContainText("Somchai Prasert")
-    await expect(row).toContainText("#7")
+    const row = page.getByTestId(`your-player-${first.playerId}`)
+    await expect(row).toContainText(first.names.en!)
+    await expect(row).toContainText(`#${first.jerseyNumber}`)
     // The model distinguishes parent from grandparent from legal guardian, and
     // flattening them to "guardian" would discard what the table says.
     await expect(row).toContainText("Parent")
-    await expect(row).toContainText("Assumption U18 Boys")
+    await expect(row).toContainText(first.teamNames!.en!)
   })
 
   test("goes to the team, which is what a guardian came for", async ({ page }) => {
     await seed(page, [child()])
     await visit(page, "dashboard")
-    await page.getByTestId("goto-team-ply_001").click()
+    await page.getByTestId(`goto-team-${first.playerId}`).click()
 
-    await expect(page).toHaveURL(/#\/team\/team_001/)
+    await expect(page).toHaveURL(new RegExp(`#/team/${first.teamId}`))
   })
 
   test("says so rather than linking nowhere when a child has no team", async ({ page }) => {
@@ -67,10 +71,10 @@ test.describe("Your players", () => {
     await seed(page, [child({ teamId: null, teamNames: null })])
     await visit(page, "dashboard")
 
-    await expect(page.getByTestId("your-player-ply_001")).toContainText(m.player_no_team())
+    await expect(page.getByTestId(`your-player-${first.playerId}`)).toContainText(m.player_no_team())
     // The navigating control is disabled, not the row — a row that looks
     // clickable and goes nowhere is the dead-button problem again.
-    await expect(page.getByTestId("goto-team-ply_001")).toBeDisabled()
+    await expect(page.getByTestId(`goto-team-${first.playerId}`)).toBeDisabled()
   })
 
   test("omits the relationship when the player is you", async ({ page }) => {
@@ -79,8 +83,8 @@ test.describe("Your players", () => {
     await seed(page, [child({ guardianTypeCode: null })])
     await visit(page, "dashboard")
 
-    const row = page.getByTestId("your-player-ply_001")
-    await expect(row).toContainText("Assumption U18 Boys")
+    const row = page.getByTestId(`your-player-${first.playerId}`)
+    await expect(row).toContainText(first.teamNames!.en!)
     await expect(row).not.toContainText("Parent")
   })
 
@@ -176,17 +180,17 @@ test.describe("Correcting a player's details", () => {
   test("is offered only where the model says the reader may edit", async ({ page }) => {
     await seed(page, [child({ canEdit: false })])
     await visit(page, "dashboard")
-    await expect(page.getByTestId("your-player-ply_001")).toBeVisible()
-    await expect(page.getByTestId("edit-player-ply_001")).toHaveCount(0)
+    await expect(page.getByTestId(`your-player-${first.playerId}`)).toBeVisible()
+    await expect(page.getByTestId(`edit-player-${first.playerId}`)).toHaveCount(0)
   })
 
   test("opens a form prefilled with what is stored", async ({ page }) => {
     await seed(page, [child()])
     await visit(page, "dashboard")
-    await page.getByTestId("edit-player-ply_001").click()
+    await page.getByTestId(`edit-player-${first.playerId}`).click()
 
-    await expect(page.getByTestId("player-number-ply_001")).toHaveValue("7")
-    await expect(page.getByTestId("player-position-ply_001")).toHaveValue("PG")
+    await expect(page.getByTestId(`player-number-${first.playerId}`)).toHaveValue(String(first.jerseyNumber))
+    await expect(page.getByTestId(`player-position-${first.playerId}`)).toHaveValue(first.positionCode)
   })
 
   test("is reachable by keyboard, which the first version was not", async ({ page }) => {
@@ -198,9 +202,9 @@ test.describe("Correcting a player's details", () => {
     await seed(page, [child()])
     await visit(page, "dashboard")
 
-    await page.getByTestId("edit-player-ply_001").focus()
+    await page.getByTestId(`edit-player-${first.playerId}`).focus()
     await page.keyboard.press("Enter")
-    await expect(page.getByTestId("player-form-ply_001")).toBeVisible()
+    await expect(page.getByTestId(`player-form-${first.playerId}`)).toBeVisible()
   })
 
   test("sends the change for that player", async ({ page }) => {
@@ -219,10 +223,10 @@ test.describe("Correcting a player's details", () => {
     })
 
     await visit(page, "dashboard")
-    await page.getByTestId("edit-player-ply_001").click()
-    await page.getByTestId("player-number-ply_001").fill("12")
-    await page.getByTestId("player-position-ply_001").selectOption("SG")
-    await page.getByTestId("player-save-ply_001").click()
+    await page.getByTestId(`edit-player-${first.playerId}`).click()
+    await page.getByTestId(`player-number-${first.playerId}`).fill("12")
+    await page.getByTestId(`player-position-${first.playerId}`).selectOption("SG")
+    await page.getByTestId(`player-save-${first.playerId}`).click()
 
     await expect.poll(() => sent, { message: "the edit must reach the server" }).not.toBe("")
     expect(sent).toContain("ply_001")
@@ -235,10 +239,10 @@ test.describe("Correcting a player's details", () => {
     await seed(page, [child(), child({ playerId: "ply_002", names: { en: "Nid Chai" } })])
     await visit(page, "dashboard")
 
-    await page.getByTestId("edit-player-ply_001").click()
-    await expect(page.getByTestId("player-form-ply_001")).toBeVisible()
+    await page.getByTestId(`edit-player-${first.playerId}`).click()
+    await expect(page.getByTestId(`player-form-${first.playerId}`)).toBeVisible()
     await page.getByTestId("edit-player-ply_002").click()
     await expect(page.getByTestId("player-form-ply_002")).toBeVisible()
-    await expect(page.getByTestId("player-form-ply_001")).toHaveCount(0)
+    await expect(page.getByTestId(`player-form-${first.playerId}`)).toHaveCount(0)
   })
 })

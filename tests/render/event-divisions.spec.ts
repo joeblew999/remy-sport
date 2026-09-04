@@ -1,7 +1,8 @@
 import { test, expect } from "./fixture"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { apiEntries, apiEvent } from "../helpers/api-fixtures"
+import { apiEntries } from "../helpers/api-fixtures"
+import { projectEvent } from "../helpers/projections"
 
 /**
  * Which divisions an event runs.
@@ -26,13 +27,7 @@ const seed = (
   opts: { canEdit: boolean; running: string[]; occupied?: string[] },
 ) =>
   seedCache(page, [
-    entry(orpc.events.get, { id: "evt_002" }, apiEvent({
-      id: "evt_002",
-      name: "League",
-      names: { en: "League" },
-      typeCode: "LEAGUE",
-      canEdit: opts.canEdit,
-    })),
+    entry(orpc.events.get, { id: "evt_002" }, projectEvent("evt_002", { canEdit: opts.canEdit })),
     entry(orpc.divisions.list, undefined, DIVISIONS as never),
     entry(orpc.events.entries, { eventId: "evt_002" }, apiEntries({
       divisions: DIVISIONS.items.filter((d) => opts.running.includes(d.id)) as never,
@@ -102,13 +97,9 @@ test.describe("An event's divisions", () => {
     // MANAGE_DIVISIONS is TOURNAMENT, LEAGUE and SHOWCASE. A camp has
     // DEFINE_SESSION_SCHEDULE, which is a different shape entirely.
     await seedCache(page, [
-      entry(orpc.events.get, { id: "evt_003" }, apiEvent({
-        id: "evt_003",
-        name: "Camp",
-        names: { en: "Camp" },
-        typeCode: "CAMP",
-        canEdit: true,
-      })),
+      // The seeded camp, which genuinely has typeCode CAMP — the literal this
+      // replaces asserted the rule against an event it had labelled one.
+      entry(orpc.events.get, { id: "evt_003" }, projectEvent("evt_003", { canEdit: true })),
     ])
     await visit(page, "event", { id: "evt_003" })
     await expect(page.getByTestId("tab-divisions")).toHaveCount(0)

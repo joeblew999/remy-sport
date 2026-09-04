@@ -1,8 +1,7 @@
 import { test, expect } from "./fixture"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { apiEvent } from "../helpers/api-fixtures"
-import { projectEvent, projectEventVenues, projectVenues } from "../helpers/projections"
+import { projectEvent, projectEventVenues, projectEvents, projectVenues } from "../helpers/projections"
 
 /**
  * Editing an event, and who is offered the chance.
@@ -334,22 +333,34 @@ test.describe("The Rules tab", () => {
     await expect(page.getByTestId("event-fiba")).toHaveText("No")
   })
 
-  test("renders the organiser's own description, and says when there is none", async ({ page }) => {
-    await seedCache(page, [
-      entry(
-        orpc.events.get,
-        { id: EVENT_ID },
-        apiEvent({ id: EVENT_ID, description: "Round-robin group stage, then knockouts." }),
-      ),
-    ])
-    await visit(page, "event", { id: EVENT_ID })
-    await page.getByTestId("tab-rules").click()
-    await expect(page.getByTestId("event-description")).toContainText("Round-robin group stage")
+  /**
+   * Both halves from real rows, which is the whole reason the column was filled:
+   * two of the four seeded events carry a description and two deliberately do
+   * not, so the empty state is covered by an event that genuinely has none
+   * rather than by a null somebody typed.
+   *
+   * `event.description` was named in AGENTS.md on 2026-08-30 as a column no row
+   * populated, whose section had only ever shown its empty state. This is the
+   * other branch, finally against data.
+   *
+   * Two tests rather than one, and that is not tidiness. They are about
+   * different events now, and `/#/event/a` to `/#/event/b` is a same-document
+   * navigation — React does not remount, so a second `seedCache` in one test
+   * never reaches the page and the assertion runs against the first event.
+   */
+  const described = projectEvents().find((e) => e.description)!
+  const bare = projectEvents().find((e) => !e.description)!
 
-    await seedCache(page, [
-      entry(orpc.events.get, { id: EVENT_ID }, apiEvent({ id: EVENT_ID, description: null })),
-    ])
-    await visit(page, "event", { id: EVENT_ID })
+  test("renders the organiser's own description", async ({ page }) => {
+    await seedCache(page, [entry(orpc.events.get, { id: described.id }, described)])
+    await visit(page, "event", { id: described.id })
+    await page.getByTestId("tab-rules").click()
+    await expect(page.getByTestId("event-description")).toContainText(described.description!)
+  })
+
+  test("says so when the organiser has written none", async ({ page }) => {
+    await seedCache(page, [entry(orpc.events.get, { id: bare.id }, bare)])
+    await visit(page, "event", { id: bare.id })
     await page.getByTestId("tab-rules").click()
     await expect(page.getByTestId("event-no-details")).toBeVisible()
   })

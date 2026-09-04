@@ -480,6 +480,58 @@ export const projectEventVenues = () => ({
   })),
 })
 
+/**
+ * The players one person is guardian to, or is, as `players.mine` returns them.
+ *
+ * Projectable where `me.mine` is not: the endpoint asks the resolver for GUARDIAN
+ * and SELF, and both come straight off a fixture table — `guardians` and
+ * `player.userId`. There is no derived relation to duplicate.
+ *
+ * The current spell only. A player who left a team in March is not on it now,
+ * and `playerTeam.to_date` has held a real value since 2026-09-03, so this
+ * branch is exercised rather than assumed.
+ */
+export function projectMyPlayers(userId: string, rights: { canEdit?: boolean } = {}) {
+  const today = new Date().toISOString().slice(0, 10)
+  const guardianships = R.guardians.filter((g) => g.userId === userId)
+  const ids = [
+    ...new Set([
+      ...guardianships.map((g) => g.playerId),
+      ...E.players.filter((p) => p.userId === userId).map((p) => p.id),
+    ]),
+  ]
+  return {
+    players: ids.map((id) => {
+      const p = playerById(id)
+      /**
+       * The most recent current spell.
+       *
+       * `ply_001` is on two teams at once — Assumption's U16 and U18 sides, a
+       * child playing up an age group, which is real. So "which team is my
+       * child on" has more than one answer, and the endpoint picks whichever
+       * row SQLite hands back first with no ORDER BY. It happens to agree with
+       * "latest `fromDate`", which is the defensible reading, but it agrees by
+       * luck. Worth an ORDER BY on the query; until then this is the answer
+       * that will still be right when the plan changes.
+       */
+      const spell = R.playerTeams
+        .filter((pt) => pt.playerId === id && (!pt.toDate || pt.toDate >= today))
+        .sort((a, b) => b.fromDate.localeCompare(a.fromDate))[0]
+      return {
+        playerId: p.id,
+        names: names(p.names),
+        jerseyNumber: p.jerseyNumber,
+        positionCode: p.positionCode,
+        // Null where the player *is* you, which is not a guardianship.
+        guardianTypeCode: guardianships.find((g) => g.playerId === id)?.guardianTypeCode ?? null,
+        teamId: spell?.teamId ?? null,
+        teamNames: spell ? names(teamById(spell.teamId).names) : null,
+        canEdit: rights.canEdit ?? false,
+      }
+    }),
+  }
+}
+
 /** Every id the projections above can be asked about, for the equivalence test. */
 export const SEEDED = {
   events: E.events.map((e) => e.id),

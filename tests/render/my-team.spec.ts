@@ -2,7 +2,6 @@ import { test, expect } from "./fixture"
 import { sessionFor } from "../helpers/actors"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { apiTeam } from "../helpers/api-fixtures"
 import { projectTeam } from "../helpers/projections"
 
 /**
@@ -36,15 +35,8 @@ const TRIAM = "team_002"
  * wrong team is on screen and nothing else.
  */
 const teams = [
-  apiTeam({
-    id: ASSUMPTION,
-    name: "Assumption U16 Boys",
-    names: { en: "Assumption U16 Boys" },
-    orgId: "org_001",
-    orgName: "Assumption College",
-    orgNames: { en: "Assumption College" },
-  }),
-  ({ ...projectTeam(TRIAM) }),
+  projectTeam(ASSUMPTION),
+  projectTeam(TRIAM),
 ]
 
 /** What `me.mine` returns: ids and how they are held, never rows. */

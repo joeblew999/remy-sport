@@ -24,7 +24,7 @@
 
 import type { RouterClient } from "@orpc/server"
 import type { Router } from "../../src/api/index"
-import type { ApiEvent, ApiTeam } from "../../src/domain/api"
+import type { ApiEvent } from "../../src/domain/api"
 
 /**
  * The response type of one procedure, inferred rather than written out.
@@ -82,23 +82,6 @@ export function apiEvent(over: Partial<ApiEvent> = {}): ApiEvent {
   }
 }
 
-/** One team, complete. Same reasoning as `apiEvent`. */
-export function apiTeam(over: Partial<ApiTeam> = {}): ApiTeam {
-  return {
-    id: "team_002",
-    name: "Triam Udom U18 Girls",
-    names: { en: "Triam Udom U18 Girls" },
-    orgId: "org_002",
-    ageGroupCode: "U18",
-    genderCode: "F",
-    orgName: "Triam Udom Suksa School",
-    orgNames: { en: "Triam Udom Suksa School" },
-    orgCityCode: "BANGKOK",
-    orgProvinceCode: "BKK",
-    canEdit: false,
-    ...over,
-  }
-}
 
 /**
  * One game, complete.
@@ -166,18 +149,6 @@ export type ApiRoster = ResponseOf<Client["teams"]["roster"]>
  */
 export type ApiPlayerRow = ResponseOf<Client["players"]["list"]>["items"][number]
 
-export function apiRoster(over: Partial<ApiRoster> = {}): ApiRoster {
-  return {
-    players: [],
-    coaches: [],
-    // Who may change it — the server's answer, never derived in the page.
-    canManage: false,
-    // Players not on this team who could be added. Empty is the ordinary case
-    // for a reader who may not manage the roster anyway.
-    available: [],
-    ...over,
-  }
-}
 
 /** Same shape, without the `readonly` a generated `as const` carries. */
 type DeepMutable<T> = T extends readonly (infer U)[]
@@ -302,18 +273,3 @@ export function apiRegistered(over: Partial<ApiRegistered> = {}): ApiRegistered 
 /** One of the reader's own players, as `players.mine` returns them. */
 export type ApiMyPlayer = ResponseOf<Client["players"]["mine"]>["players"][number]
 
-export function apiMyPlayer(over: Partial<ApiMyPlayer> = {}): ApiMyPlayer {
-  return {
-    playerId: "ply_002",
-    names: { en: "Kanya T." },
-    jerseyNumber: 7,
-    positionCode: "SG",
-    // Null where the player *is* the reader — being yourself is not a
-    // guardianship, and the row renders no relationship for it.
-    guardianTypeCode: "PARENT",
-    teamId: "team_002",
-    teamNames: { en: "Triam Udom U18 Girls" },
-    canEdit: false,
-    ...over,
-  }
-}
