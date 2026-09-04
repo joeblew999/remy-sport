@@ -84,7 +84,10 @@ test("a team row names the age group rather than its code", async ({ page }) => 
   await seedCache(page, [teams()])
   await visit(page, "teams")
 
-  const row = page.getByTestId("team-row-team_001")
-  await expect(row).toContainText("Under 16")
-  await expect(row).not.toContainText("U16")
+  // The meta line, not the whole row: team_001 is *named* "Assumption College
+  // U16 Boys", so the code legitimately appears there and a negative assertion
+  // against the row would be asserting the seed rather than the bug.
+  const meta = page.getByTestId("team-row-team_001").locator(".device-meta")
+  await expect(meta).toContainText("Under 16")
+  await expect(meta).not.toContainText("U16")
 })
