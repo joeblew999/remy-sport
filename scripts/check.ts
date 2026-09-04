@@ -141,11 +141,11 @@ const BUDGETS: Record<string, Budget> = {
  * the ten real ones. It is not a step — it is how check times the steps it has —
  * so it lives with the runner that calls it.
  */
-/** What this tier took when its budget was set, in seconds, or null. */
-export function measuredFor(tier: string, shared: boolean): number | null {
+/** The seconds this tier may take in the regime it is running in, or null. */
+export function ceilingFor(tier: string, shared: boolean): number | null {
   const budget = BUDGETS[tier]
   if (!budget) return null
-  return shared && budget.shared ? budget.shared.measured : budget.measured
+  return shared && budget.shared ? budget.shared.ceiling : budget.ceiling
 }
 
 export function budgetFor(tier: string, elapsedMs: number, shared: boolean): boolean {
@@ -617,22 +617,6 @@ for (const step of [...PHASES.flat(), E2E]) {
   }
 }
 
-/**
- * How far over its measured time a failing tier has to be before the failure is
- * more likely to be the machine than the code.
- *
- * Measured on 2026-09-04, on a laptop running a browser, a desktop app and two
- * agents: `render` reported **149 failures in 1.5 minutes** and 240 passes in 25
- * seconds a minute later; `worker` failed `authz-equivalence` at 21s and passed
- * it at 14s; `moq-support` timed out spawning a probe that runs in 40ms. None
- * of those was a defect and each cost a re-run to find out.
- *
- * Three is deliberate and not tight. Ordinary variation on this tier is ~1.4s
- * against 27s. A run that took three times its own measurement was not running
- * the same experiment.
- */
-const CONTENTION = 3
-
 export function run(step: Step): Promise<{ name: string; ok: boolean }> {
   return new Promise((resolve) => {
     const started = Date.now()
@@ -661,14 +645,28 @@ export function run(step: Step): Promise<{ name: string; ok: boolean }> {
        * So the run still fails and the reader is told which experiment they
        * just ran. One sentence, and it names the command that settles it.
        */
+      /**
+       * Say which kind of failure this was, using the number already calibrated.
+       *
+       * The ceiling is what this file has decided the tier may take, with its
+       * reasoning written beside it. A run that failed *and* blew the ceiling
+       * was not the same experiment as one that passed inside it — the tests
+       * did not get slower, they got starved.
+       *
+       * The first version of this compared against 3x the *measured* time, and
+       * it did not fire on the run that motivated it: render failed 70 tests at
+       * 84s where the shared measurement is 35.3s, which is 2.4x. Picking a
+       * multiplier was inventing a threshold when one already existed and had a
+       * paragraph explaining it.
+       */
       if (!ok && step.budget) {
-        const measured = measuredFor(step.budget, step.env?.BUDGET_SHARED === "1")
-        if (measured && took > measured * CONTENTION * 1000) {
+        const ceiling = ceilingFor(step.budget, step.env?.BUDGET_SHARED === "1")
+        if (ceiling && took > ceiling * 1000) {
           console.error(
-            `\n  ${step.name} failed after ${(took / 1000).toFixed(0)}s, against ${measured}s measured.\n` +
-              `  That is ${Math.round(took / 1000 / measured)}x, which is the machine rather than the code —\n` +
-              `  this tier starves when something else is using the CPU.\n` +
-              `  Settle it: mise run 2-check -- --only ${step.name}\n`,
+            `\n  ${step.name} failed after ${(took / 1000).toFixed(0)}s, past its ${ceiling}s ceiling.\n` +
+              `  A tier that overruns and fails is usually starved rather than broken —\n` +
+              `  measured 2026-09-04: render failed 70 tests at 84s and passed all 254 at 26s.\n` +
+              `  Settle it before you debug it:  mise run 2-check -- --only ${step.name}\n`,
           )
         }
       }
