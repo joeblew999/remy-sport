@@ -108,10 +108,25 @@ function PendingApprovalNotice() {
  * @answers INSTALL_APP
  *
  * `<pwa-install>`, in a browser only — never inside Tauri, where the reader
- * already has the native app. It asks at the moment the browser says
- * installing is possible, which a button in the chrome could not: that would
- * be always visible, correct only sometimes, and unable to tell whether the
- * app is already installed.
+ * already has the native app.
+ *
+ * ## It asks when asked, not on arrival
+ *
+ * It used to prompt by itself, and on localhost that looked fine: the install
+ * criteria are never met there, so the element stays inert and every local test
+ * passed. On staging — a real origin, a real manifest, a real service worker —
+ * it threw its dialog over the app on load at z-index 2147483001, and the first
+ * e2e run against a deployment could not click Sign out. Playwright named the
+ * element: "<pwa-install> intercepts pointer events".
+ *
+ * A reader would have hit the same thing, one dialog before they had seen
+ * anything to want installed.
+ *
+ * `manual-apple` and `manual-chrome` turn the automatic prompt off. The way in
+ * is a menu item beside Devices and Admin, which appears only while the element
+ * reports that installing is actually available — so it is not the "always
+ * visible, correct only sometimes" button this comment used to warn against.
+ * The element knows; it just was not being asked.
  */
 function App() {
   const tweaks = { ...DEFAULTS, ...(window.TWEAK_DEFAULTS ?? {}) } as Required<TweakDefaults>;
@@ -268,8 +283,18 @@ function App() {
           </div>
         </div>
       </div>
-      {/* Browser only — see the isNativeApp() gate on the import below. */}
-      {!isNativeApp() && <pwa-install manifest-url="/manifest.webmanifest" use-local-storage/>}
+      {/* Browser only — see the isNativeApp() gate on the import below.
+          `manual-*` because it must not prompt on arrival; components/account.tsx
+          calls showDialog() when a reader asks. */}
+      {!isNativeApp() && (
+        <pwa-install
+          id="pwa-install"
+          manifest-url="/manifest.webmanifest"
+          use-local-storage
+          manual-apple="true"
+          manual-chrome="true"
+        />
+      )}
     </>
   );
 }
