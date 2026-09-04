@@ -181,7 +181,7 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
                 >
                   <div className="row-title">{e.title}</div>
                   <div className="row-meta">
-                    {e.statusLabel} · {e.div}
+                    {e.statusLabel} · {e.division}
                   </div>
                 </button>
               ))}

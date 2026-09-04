@@ -119,21 +119,22 @@ describe("what an event contains comes from the tables that hold it", () => {
   const full = toEvent(event(), loc, on("2026-06-10"))
 
   test("the counts are the server's, not zeroes", () => {
-    expect([full.teams, full.courts, full.games, full.gamesPlayed]).toEqual([15, 1, 28, 17])
-    expect(full.followers).toBe(2)
+    // The row passes through whole, under the API's own names.
+    expect([full.teamCount, full.venueCount, full.gameCount, full.playedCount]).toEqual([15, 1, 28, 17])
+    expect(full.followerCount).toBe(2)
   })
 
   test("the venue is named when there is one", () => {
-    expect(full.loc).toBe("Assumption College Indoor Court")
+    expect(full.venue).toBe("Assumption College Indoor Court")
   })
 
   test("one division reads as its name, several as a count", () => {
     // "U14 Boys · U16 Boys · U16 Girls · U18 Boys" in a tagline is a wall
     // rather than a fact, so past one it collapses to a number.
-    expect(toEvent(event({ divisionNames: [{ en: "U18 Boys" }] }), loc, on("2026-06-10")).div).toBe(
+    expect(toEvent(event({ divisionNames: [{ en: "U18 Boys" }] }), loc, on("2026-06-10")).division).toBe(
       "U18 Boys",
     )
-    expect(full.div).toBe("3 divisions")
+    expect(full.division).toBe("3 divisions")
   })
 
   test("and an event with nothing in it still says so honestly", () => {
@@ -153,9 +154,9 @@ describe("what an event contains comes from the tables that hold it", () => {
       loc,
       on("2026-06-10"),
     )
-    expect(empty.div).toBe("—")
-    expect(empty.loc).toBe("Venue TBC")
-    expect([empty.teams, empty.courts, empty.games, empty.gamesPlayed]).toEqual([0, 0, 0, 0])
+    expect(empty.division).toBe("—")
+    expect(empty.venue).toBe("Venue TBC")
+    expect([empty.teamCount, empty.venueCount, empty.gameCount, empty.playedCount]).toEqual([0, 0, 0, 0])
   })
 
   test("a missing organiser says so rather than showing an id", () => {

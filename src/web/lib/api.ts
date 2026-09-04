@@ -102,22 +102,20 @@ function statusLabel(
 }
 
 /**
- * Map an API event onto the shape the pages already render.
+ * An API event, plus what the reader's language adds.
  *
- * Five fields have no backing table yet and are deliberately left as
- * Nothing here is a placeholder any more. `div`, `loc` and the four counts were
- * all hardcoded — a dash, "Venue TBC", and zeroes — on events that had
- * divisions, a venue and a dozen games. The tables existed the whole time
- * (`event_teams`, `event_venues`, `divisions`, `games`, `subscriptions`); the
- * API simply never returned them, so the GUI could not say what the database
- * plainly did.
+ * The row is spread through whole, so a field the API grows reaches every page
+ * under the API's own name the day it exists. This used to copy fourteen fields
+ * by hand under new names — `teamCount` as `teams`, `isFibaCertified` as
+ * `fibaCertified`, `typeCode` as `type` — so a new field was invisible to every
+ * page until somebody copied it, and a page could not use the API's name for
+ * anything. Only what is derived is written out below.
  */
 export function toEvent(e: ApiEvent, loc: Localizer, today: Date = new Date()): Event {
   const status = deriveStatus(e.startDate, e.endDate, today);
   const start = e.startDate ? parseDay(e.startDate) : null;
   return {
-    id: e.id,
-    type: e.typeCode,
+    ...e,
     // Already in the reader's language: pages render `title`, they do not
     // choose between a pair of fields.
     title: loc.name(e.names, e.name),
@@ -129,41 +127,23 @@ export function toEvent(e: ApiEvent, loc: Localizer, today: Date = new Date()): 
      * None reads as a dash, which is honest: an event with no entries yet has
      * no divisions yet.
      */
-    div:
+    division:
       e.divisionNames.length === 0
         ? "—"
         : e.divisionNames.length === 1
           ? loc.name(e.divisionNames[0]!)
           : m.divisions_n({ count: e.divisionNames.length }, { locale: loc.locale }),
-    // The primary venue, from `eventVenue`. "Venue TBC" now means nobody has
-    // set one rather than "this app cannot read the table".
-    loc: e.venueNames ? loc.name(e.venueNames) : m.venue_tbc({}, { locale: loc.locale }),
+    // The primary venue, from `eventVenue`. "Venue TBC" means nobody has set
+    // one rather than "this app cannot read the table".
+    venue: e.venueNames ? loc.name(e.venueNames) : m.venue_tbc({}, { locale: loc.locale }),
     city: loc.label("cities", e.cityCode) || "—",
-    cityCode: e.cityCode,
     province: loc.label("provinces", e.provinceCode) || "—",
-    provinceCode: e.provinceCode,
     day: start ? start.getDate() : 0,
-    mo: start ? formatMonthShort(loc.locale, start) : "TBC",
+    month: start ? formatMonthShort(loc.locale, start) : "TBC",
     date: formatRange(loc.locale, e.startDate, e.endDate),
     status,
     statusLabel: statusLabel(loc.locale, status, e.startDate, today),
-    // All four were hardcoded zeroes on events that had teams, venues and
-    // games. The model held every one of them; nothing returned them.
-    teams: e.teamCount,
-    courts: e.venueCount,
-    games: e.gameCount,
-    gamesPlayed: e.playedCount,
-    followers: e.followerCount,
-    formatCode: e.formatCode,
-    fibaCertified: e.isFibaCertified,
-    description: e.description,
     organizer: e.organizerName ?? m.unknown_organiser({}, { locale: loc.locale }),
-    // The model's answers, not the client's guesses. All false for a signed-out
-    // reader, which is what makes a "yours" list empty rather than wrong.
-    can: e.can,
-    startDate: e.startDate,
-    endDate: e.endDate,
-    names: e.names as Record<string, string>,
   };
 }
 
@@ -196,10 +176,10 @@ function crestFor(id: string): Crest {
   return sum % 2 === 0 ? "a" : "b";
 }
 
+/** An API team, plus what the reader's language adds — the same shape as `toEvent`. */
 export function toTeam(t: ApiTeam, loc: Localizer): Team {
-  const orgName = loc.name(t.orgNames, t.orgName ?? "");
   return {
-    id: t.id,
+    ...t,
     name: loc.name(t.names, t.name),
     // Initials come off the English pivot on purpose: a crest reading "ทบอ"
     // beside a Latin-script league table is worse than a stable "ACB".
@@ -207,13 +187,7 @@ export function toTeam(t: ApiTeam, loc: Localizer): Team {
     crest: crestFor(t.id),
     city: loc.label("cities", t.orgCityCode) || "—",
     province: loc.label("provinces", t.orgProvinceCode) || "—",
-    // `record` needs played games. No games table exists yet (ADR 008), and a
-    // fabricated "4–0" on a real team reads as fact — so leave it absent.
-    record: undefined,
-    orgName: orgName || "—",
-    orgId: t.orgId,
-    ageGroupCode: t.ageGroupCode,
-    genderCode: t.genderCode,
+    orgName: loc.name(t.orgNames, t.orgName ?? "") || "—",
     // From /api/reference, not a map written out here. The hardcoded one said
     // "Mixed" where the PO says "Co-ed" — the exact drift ADR 015 was about.
     genderLabel: loc.label("genders", t.genderCode),
@@ -229,7 +203,5 @@ export function toTeam(t: ApiTeam, loc: Localizer): Team {
      * matches divisions on it. This is the reader's half of the same fact.
      */
     ageGroupLabel: loc.label("ageGroups", t.ageGroupCode),
-    can: t.can,
-    names: t.names as Record<string, string>,
   };
 }

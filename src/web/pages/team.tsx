@@ -142,7 +142,7 @@ export function TeamPage({ id, goto }: { id?: string; goto: (r: Route) => void }
         <div style={{ display: "flex", gap: 32, alignItems: "baseline" }}>
           <div style={{ textAlign: "right" }}>
             <div style={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.14em", textTransform: "uppercase" }}>{m.record()}</div>
-            <div style={{ fontFamily: "Space Grotesk, sans-serif", fontWeight: 600, fontSize: 32, letterSpacing: "-0.02em", color: "var(--ink-3)" }}>{t.record ?? "—"}</div>
+            <div style={{ fontFamily: "Space Grotesk, sans-serif", fontWeight: 600, fontSize: 32, letterSpacing: "-0.02em", color: "var(--ink-3)" }}>—</div>
           </div>
         </div>
       </div>

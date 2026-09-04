@@ -146,7 +146,7 @@ export function useEvents({ status, type, city, limit, enabled = true }: EventFi
       select: ({ events }) => {
         let r = events.map((e) => toEvent(e, loc));
         if (status) r = r.filter((e) => e.status === status);
-        if (type) r = r.filter((e) => e.type === type);
+        if (type) r = r.filter((e) => e.typeCode === type);
         if (city) r = r.filter((e) => e.city === city);
         if (limit) r = r.slice(0, limit);
         return r;

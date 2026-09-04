@@ -43,100 +43,58 @@ export type { EventType };
  */
 export type EventStatus = "live" | "upcoming" | "closed";
 
-export interface Team {
-  id: string;
-  /** Already in the reader's language — resolved in lib/api.ts. */
+/**
+ * A team as a page draws it: the API row, whole, plus what the reader's
+ * language adds. See `toTeam` in lib/api.ts.
+ *
+ * `ApiTeam & {…}` rather than a second list of fields. The interface this
+ * replaces copied the API's fields by hand under its own names, so a field the
+ * API grew was invisible to every page until somebody copied it here, and a
+ * page could not use the API's own name for anything. Only what is derived is
+ * named; everything else is the row, under the row's name.
+ */
+export type Team = ApiTeam & {
+  /** Already in the reader's language, over the API's English pivot. */
   name: string;
   short: string;
   crest: Crest;
+  /** The org's city and province, in the reader's language. */
   city: string;
-  /** The org's province, in the reader's language. See `Event.province`. */
   province: string;
-  /** Absent until a games table exists — see lib/api.ts. */
-  record?: string;
-  /** The org the team belongs to (canonical `teams.org_id`). */
+  /** The org's name in the reader's language, or "—". */
   orgName: string;
-  /** The id, so a school's page can show its own teams. */
-  orgId: string;
-  ageGroupCode: string;
-  /** The same fact in the reader's language — see `toTeam`. */
+  /** The same facts in the reader's language — see `toTeam`. */
   ageGroupLabel: string;
-  genderCode: "M" | "F" | "COED";
-  /** Display form of genderCode, from /api/reference in the reader's language. */
   genderLabel: string;
-  /** The model's answers for this reader on this team — `can.MANAGE_ROSTER`. */
-  can: ApiTeam["can"];
-  /** The full locale map, for a form that edits one language of it. */
-  names: Record<string, string>;
-}
+};
 
-export interface Event {
-  id: string;
-  type: EventType;
-  /** Already in the reader's language — resolved in lib/api.ts. */
+/**
+ * An event as a page draws it: the API row, whole, plus what the reader's
+ * language adds. See `toEvent` in lib/api.ts, and the note on `Team`.
+ *
+ * The raw codes and dates stay on the row under the API's names — `cityCode`
+ * and `provinceCode` are what a filter compares, `startDate` and `endDate` are
+ * what a form edits, `can` is the model's answer per action — and the labels
+ * beside them are for reading: localised, abbreviated, "10–15 Jun".
+ */
+export type Event = ApiEvent & {
+  /** Already in the reader's language, over the API's English pivot. */
   title: string;
-  div: string;
-  loc: string;
+  /** The divisions entered: one reads as its name, several as a count, none as "—". */
+  division: string;
+  /** The primary venue, or "Venue TBC". */
+  venue: string;
+  /** Which city and which of Thailand's 77 provinces, in the reader's language. */
   city: string;
-  /** The raw code, which is what a filter compares — see `provinceCode`. */
-  cityCode: string | null;
-  /**
-   * Which of Thailand's 77 provinces, in the reader's language.
-   *
-   * The column has always been on the event, the model has always shipped the
-   * provinces, and `/api/events` has always returned the code — and until
-   * 2026-08-31 no screen in this app read it. Five cities were the whole of the
-   * app's geography, so a tournament in Udon Thani was filterable only as
-   * "not one of the five".
-   */
   province: string;
-  /** The raw code, which is what a filter compares — labels are translated. */
-  provinceCode: string | null;
+  /** The calendar tile: day of month, and the short month or "TBC". */
   day: number;
-  mo: string;
+  month: string;
+  /** The formatted range. */
   date: string;
+  /** Derived from the date window, never stored — see `deriveStatus`. */
   status: EventStatus;
   statusLabel: string;
-  /** Distinct teams entered. Real, from `eventTeam`. */
-  teams: number;
-  /** Venues this event is played across. Real, from `eventVenue`. */
-  courts: number;
-  games: number;
-  gamesPlayed: number;
-  /** People following it, from `subscription`. */
-  followers: number;
-  /**
-   * The competition's own terms, which no screen rendered until 2026-08-29.
-   *
-   * `formatCode` and `isFibaCertified` are columns on `event` and were shown
-   * nowhere at all; `description` is what the organiser wrote about their own
-   * tournament and went the same way. Between them they are what the Rules tab
-   * was always meant to be, and it said "not built yet" instead.
-   */
-  formatCode: string;
-  fibaCertified: boolean;
-  description: string | null;
+  /** The organiser's name, or "Unknown organiser" in the reader's language. */
   organizer: string;
-  /**
-   * The model's answers for this reader on this event, by action code.
-   *
-   * `can.EDIT_EVENT` is what makes "Your events" mean yours rather than
-   * everybody's; `can.INVITE_CO_ORGANIZER` is narrower, because a co-organiser
-   * may edit but may not invite. Separate keys because they are separate
-   * actions, and the page never works either out from a role.
-   */
-  can: ApiEvent["can"];
-  /**
-   * The dates as stored, alongside `date` which is the formatted range.
-   *
-   * Both, because they answer different questions. `date` is for reading —
-   * localised, abbreviated, "10–15 Jun". These are for editing, and a form
-   * cannot round-trip a display string back into a day. Null where the
-   * organiser has not said yet, which is a real state: an event can exist
-   * before its dates are fixed.
-   */
-  startDate: string | null;
-  endDate: string | null;
-  /** The full locale map, for a form that edits one language of it. */
-  names: Record<string, string>;
-}
+};

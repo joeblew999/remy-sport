@@ -53,7 +53,7 @@ export function DiscoverPage({ goto, spoiler, query, setParam }: DiscoverProps) 
   // filter on a language switch; that was the remount, fixed above.)
   if (filterCity) events = events.filter(e => e.cityCode === filterCity);
   if (filterProvince) events = events.filter(e => e.provinceCode === filterProvince);
-  if (filterType) events = events.filter(e => e.type === filterType);
+  if (filterType) events = events.filter(e => e.typeCode === filterType);
 
   const counts: Record<Tab, number> = {
     all: allEvents.length,
@@ -160,15 +160,15 @@ export function DiscoverPage({ goto, spoiler, query, setParam }: DiscoverProps) 
           <button key={e.id} className="event-row" onClick={() => goto({ page: "event", id: e.id })}>
             <div className="date">
               <span className="day">{e.day ? String(e.day).padStart(2, "0") : "--"}</span>
-              <span className="mo">{e.mo}</span>
+              <span className="mo">{e.month}</span>
             </div>
             <div className="title">
               <div className="name">{e.title}</div>
               <div className="meta">{e.organizer.toUpperCase()}</div>
             </div>
-            <div><span className={`type ${e.type.toLowerCase()}`}>{typeLabel(e.type)}</span></div>
+            <div><span className={`type ${e.typeCode.toLowerCase()}`}>{typeLabel(e.typeCode)}</span></div>
             <div className="loc">
-              <div>{e.loc}</div>
+              <div>{e.venue}</div>
               {/* City and province, because "Mueang" alone does not locate an
                   event — every province in Thailand has one. */}
               <span className="city">
@@ -178,7 +178,7 @@ export function DiscoverPage({ goto, spoiler, query, setParam }: DiscoverProps) 
                 )}
               </span>
             </div>
-            <div className="div">{e.div}</div>
+            <div className="div">{e.division}</div>
             <div><span className={`status ${e.status}`}>{e.statusLabel}</span></div>
             <div className="arrow"><Icon name="arrow"/></div>
           </button>

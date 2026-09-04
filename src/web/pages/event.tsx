@@ -93,14 +93,14 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
       <div className="event-hero">
         <div className="meta-bar">
           <button onClick={() => goto({ page: "discover" })} className="crumbs" style={{ background: "transparent", border: "none", padding: 0, fontFamily: "IBM Plex Mono, monospace", fontSize: 11, color: "var(--ink-3)", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer" }}>← {m.nav_discover()}</button>
-          <span className={`type ${e.type.toLowerCase()}`} style={{
+          <span className={`type ${e.typeCode.toLowerCase()}`} style={{
             display: "inline-flex", padding: "3px 8px",
             fontFamily: "IBM Plex Mono, monospace", fontSize: 10, letterSpacing: "0.1em",
             border: "1px solid var(--ink)", textTransform: "uppercase",
-            background: e.type === "TOURNAMENT" ? "var(--ink)" : "transparent",
-            color: e.type === "TOURNAMENT" ? "var(--paper)" : "var(--ink)",
-            borderColor: e.type === "SHOWCASE" ? "var(--accent)" : "var(--ink)",
-          }}>{name(reference?.eventTypes.find((t) => t.code === e.type)?.names, e.type)}</span>
+            background: e.typeCode === "TOURNAMENT" ? "var(--ink)" : "transparent",
+            color: e.typeCode === "TOURNAMENT" ? "var(--paper)" : "var(--ink)",
+            borderColor: e.typeCode === "SHOWCASE" ? "var(--accent)" : "var(--ink)",
+          }}>{name(reference?.eventTypes.find((t) => t.code === e.typeCode)?.names, e.typeCode)}</span>
           <span className={`status ${e.status}`} style={{
             fontFamily: "IBM Plex Mono, monospace", fontSize: 11,
             letterSpacing: "0.06em", textTransform: "uppercase",
@@ -118,17 +118,17 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
               simply renders whole. */}
           <>{e.title.split(" — ")[0]}{e.title.includes(" — ") && <em>— {e.title.split(" — ")[1]}</em>}</>
         </h1>
-        <div className="tagline">{e.date} · {e.loc} · {e.city} · {e.div}</div>
+        <div className="tagline">{e.date} · {e.venue} · {e.city} · {e.division}</div>
         <div className="tagline">{m.organised_by({ name: e.organizer })}</div>
 
         <div className="event-stats">
           <div className="stat-cell">
             <div className="label">{m.teams()}</div>
-            <div className="value">{e.teams || "—"}</div>
+            <div className="value">{e.teamCount || "—"}</div>
           </div>
           <div className="stat-cell">
             <div className="label">{m.venue_count()}</div>
-            <div className="value">{e.courts || "—"}</div>
+            <div className="value">{e.venueCount || "—"}</div>
           </div>
           {/* Every cell here is now counted from the tables that hold it.
               Teams, venues and following were hardcoded — a zero, a zero, and
@@ -141,7 +141,7 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
               structure to derive it from. */}
           <div className="stat-cell">
             <div className="label">{m.followers()}</div>
-            <div className="value">{e.followers || "—"}</div>
+            <div className="value">{e.followerCount || "—"}</div>
           </div>
           <div className="stat-cell">
             <div className="label">{m.games()}</div>
@@ -188,7 +188,7 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
                   title: e.title,
                   startDate: e.startDate,
                   endDate: e.endDate,
-                  location: [e.loc, e.city].filter((x) => x && x !== "—").join(", "),
+                  location: [e.venue, e.city].filter((x) => x && x !== "—").join(", "),
                   url: `${location.origin}/#/event/${e.id}`,
                 })
               }
@@ -213,7 +213,7 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
           // leagues. That is the PO's grant — `REGISTER_PLAYER_FOR_EVENT` reads
           // `eventTypes: ["CAMP", "SHOWCASE"]` — and offering the tab anywhere
           // else would be a form that answers 403.
-          ...((e.type === "CAMP" || e.type === "SHOWCASE"
+          ...((e.typeCode === "CAMP" || e.typeCode === "SHOWCASE"
             ? [["players", m.tab_players()]]
             : []) as [EventTab, string][]),
           // Which game is on which court, right now. `VIEW_COURT_STATUS_BOARD`
@@ -228,11 +228,11 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
           // a different shape. Same narrowing the model puts on
           // MANAGE_DIVISIONS, so the tab is not offered where the action is
           // not granted.
-          ...((e.type === "CAMP" ? [] : [["divisions", m.event_divisions()]]) as [EventTab, string][]),
+          ...((e.typeCode === "CAMP" ? [] : [["divisions", m.event_divisions()]]) as [EventTab, string][]),
           // A camp trains rather than competes, so it has sessions where the
           // others have fixtures. Same narrowing the model puts on
           // DEFINE_SESSION_SCHEDULE, which is CAMP only.
-          ...((e.type === "CAMP" ? [["sessions", m.event_sessions()]] : []) as [EventTab, string][]),
+          ...((e.typeCode === "CAMP" ? [["sessions", m.event_sessions()]] : []) as [EventTab, string][]),
           ["rules", m.tab_rules()],
           // Only for someone the model says may edit this event. A tab everyone
           // can see and only some can use is a 403 with extra steps, and it
@@ -556,7 +556,7 @@ function EventRules({ event }: { event: Event }) {
           {/* A certified event is a fact worth stating and an uncertified one
               is not an absence — most school tournaments are not certified and
               saying nothing would read as "we did not check". */}
-          <span data-testid="event-fiba">{event.fibaCertified ? m.yes() : m.no()}</span>
+          <span data-testid="event-fiba">{event.isFibaCertified ? m.yes() : m.no()}</span>
         </div>
       </div>
 

@@ -57,18 +57,18 @@ export function MyEventsPage({ goto }: { goto: (r: Route) => void }) {
     >
       <div className="date">
         <span className="day">{e.day ? String(e.day).padStart(2, "0") : "--"}</span>
-        <span className="mo">{e.mo}</span>
+        <span className="mo">{e.month}</span>
       </div>
       <div className="title">
         <div className="name">{e.title}</div>
         <div className="meta">{e.organizer.toUpperCase()}</div>
       </div>
-      <div><span className={`type ${e.type.toLowerCase()}`}>{typeLabel(e.type)}</span></div>
+      <div><span className={`type ${e.typeCode.toLowerCase()}`}>{typeLabel(e.typeCode)}</span></div>
       <div className="loc">
-        <div>{e.loc}</div>
+        <div>{e.venue}</div>
         <span className="city">{e.city}</span>
       </div>
-      <div className="div">{e.div}</div>
+      <div className="div">{e.division}</div>
       <div><span className={`status ${e.status}`}>{e.statusLabel}</span></div>
       <div className="arrow"><Icon name="arrow" /></div>
     </button>
