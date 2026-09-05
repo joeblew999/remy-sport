@@ -11,7 +11,7 @@ words.
 
 | package | imported by | what it is here for | the case |
 |---|---|---|---|
-| `@khmyznikov/pwa-install` + `lit` | `src/web/main.tsx` (one element) | the install dialog, and iOS's "add to home screen" instructions | its dialog is the element's English, not the product's messages — the copy rules cannot see inside a web component, so a Thai reader gets an English dialog. `messages/en.json` already carries `install_ios_steps`; the product has half of this component and imports the other half. |
+| `@khmyznikov/pwa-install` + `lit` | `src/web/main.tsx` (one element) | the install dialog, and iOS's "add to home screen" instructions | it bundles ten languages and chooses one from `navigator.language` — there is no way to tell it which language the reader chose in the app, and Thai is not one of the ten. So a Thai reader gets English, and so does anyone who switched the app to Thai on an English-locale phone. The product already wrote these instructions itself, in all three languages (`install_ios_steps`), and does not show them; the element's dialog shows instead. |
 | `@hono/swagger-ui` | `src/index.ts` (`/doc`) | a reference UI over `/openapi.json` | `@orpc/openapi`, already here, ships `OpenAPIReferencePlugin` — the same document, rendered by the package that generates it. |
 | `openapi-types` | `src/api/base.ts` (one type) | `OpenAPIV3_1.OperationObject`, to type the `spec` customiser on `authedRoute` | measure whether oRPC's own route types carry the operation type; if they do, the package is a second spelling of the same thing. |
 | `@inlang/cli` | `lint` (`inlang validate`) | "the project is valid" | `tests/repo/messages.test.ts` checks every locale carries every message, and the paraglide compile in `vite build` fails on a broken file. Measure what `validate` adds; delete it if the answer is nothing. |
@@ -40,14 +40,18 @@ how a reader will notice.
 
 ## Phase A — the product says it in its own words
 
-- [ ] The install prompt is a component of this app. On Chromium it holds the
-      `beforeinstallprompt` event and calls `prompt()` when a reader asks; on
-      iOS it shows `install_ios_steps`, which the messages already carry; it
-      offers itself only where installing is possible and not already done —
-      the three things `<pwa-install>` "knows that a button cannot", read off
-      the same browser signals. The menu item in `account.tsx` keeps its
-      testid. `@khmyznikov/pwa-install` and `lit` go. A reader will notice one
-      thing: the dialog is in their language.
+- [ ] The install prompt is a component of this app, in the language the
+      reader chose. On Chromium it holds the `beforeinstallprompt` event and
+      calls `prompt()` when a reader asks; on iOS it shows `install_ios_steps`,
+      which the messages already carry in every locale; it offers itself only
+      where installing is possible and not already done — the three things
+      `<pwa-install>` "knows that a button cannot", read off the same browser
+      signals. The menu item in `account.tsx` keeps its testid.
+      `@khmyznikov/pwa-install` and `lit` go. A reader will notice one thing:
+      the dialog follows the app's language switch, and it has Thai.
+      (The alternative — contributing a Thai translation upstream — fixes the
+      first half and not the second: the element would still follow the
+      browser, not the app.)
 - [ ] The API reference is `OpenAPIReferencePlugin` from `@orpc/openapi`,
       served where `/doc` is now. `@hono/swagger-ui` goes. Same document, same
       URL.
