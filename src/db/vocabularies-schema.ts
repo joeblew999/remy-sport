@@ -17,10 +17,11 @@
 //
 // Tables for the controlled vocabularies.
 
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core"
+import { sqliteTable, text, integer, type SQLiteTable } from "drizzle-orm/sqlite-core"
 import { createSelectSchema } from "drizzle-zod"
 import { z } from "zod"
 import type { Names } from "../domain/names"
+import type { VOCABULARY } from "../domain/vocabularies"
 
 export const objectType = sqliteTable("object_type", {
   code: text("code").primaryKey(),
@@ -234,9 +235,16 @@ export const userStatus = sqliteTable("user_status", {
  * Every vocabulary, keyed as the API exposes it.
  *
  * This is what lets /api/reference serve all of them without listing any: the
- * contract derives its response schema by mapping over this, and the handler
- * derives its queries the same way. Adding a fixture upstream adds a key here
- * and therefore a field on the endpoint, with nothing else to edit.
+ * response schema and the handler's queries both derive from this map. Adding a
+ * fixture upstream adds a key here and therefore a field on the endpoint, with
+ * nothing else to edit.
+ *
+ * `satisfies` ties the key set to `VOCABULARY` in src/domain/vocabularies.ts —
+ * the model-side map of the same vocabularies — in both directions: a key in
+ * one and not the other is a compile error. The response schema used to be a
+ * third copy of this list, typed out by hand, and it was one short:
+ * `inviteStatuses` was read from D1 on every call and dropped by the contract,
+ * with every gate green.
  */
 export const VOCABULARY_TABLES = {
   inviteStatuses: inviteStatus,
@@ -262,63 +270,23 @@ export const VOCABULARY_TABLES = {
   relations: relation,
   skillTiers: skillTier,
   userStatuses: userStatus,
-} as const
+} as const satisfies Record<keyof typeof VOCABULARY, SQLiteTable>
+
+const rowsOf = <T extends SQLiteTable>(table: T) => z.array(createSelectSchema(table))
 
 /**
- * Each vocabulary's response schema, derived from its table.
+ * Each vocabulary's response schema, derived from its table — one per key of
+ * VOCABULARY_TABLES, by construction.
  *
- * Emitted rather than built with Object.fromEntries at runtime, because that
- * erases the key literals and the API would lose its field types — the one
- * thing this whole arrangement exists to keep.
+ * Built at runtime and typed by a mapped type over the same map, because
+ * `Object.fromEntries` alone erases the key literals and the API would lose its
+ * field types — the one thing this whole arrangement exists to keep. The cast
+ * is honest: the value has exactly the keys the type names, since both come
+ * from VOCABULARY_TABLES. (Typing the entries out by hand kept the literals
+ * too, and that is the version that silently lost a vocabulary.)
  */
-export const VOCABULARY_SCHEMAS = {
-  objectTypes: z.array(createSelectSchema(objectType)),
-  actions: z.array(createSelectSchema(action)),
-  ageGroups: z.array(createSelectSchema(ageGroup)),
-  provinces: z.array(createSelectSchema(province)),
-  cities: z.array(createSelectSchema(city)),
-  coachRoles: z.array(createSelectSchema(coachRole)),
-  eventFormats: z.array(createSelectSchema(eventFormat)),
-  eventTypes: z.array(createSelectSchema(eventType)),
-  gameStatuses: z.array(createSelectSchema(gameStatus)),
-  genders: z.array(createSelectSchema(gender)),
-  guardianTypes: z.array(createSelectSchema(guardianType)),
-  locales: z.array(createSelectSchema(locale)),
-  notificationCategories: z.array(createSelectSchema(notificationCategory)),
-  notificationChannels: z.array(createSelectSchema(notificationChannel)),
-  notificationTypes: z.array(createSelectSchema(notificationType)),
-  orgRoles: z.array(createSelectSchema(orgRole)),
-  orgTypes: z.array(createSelectSchema(orgType)),
-  positions: z.array(createSelectSchema(position)),
-  roles: z.array(createSelectSchema(role)),
-  relations: z.array(createSelectSchema(relation)),
-  skillTiers: z.array(createSelectSchema(skillTier)),
-  userStatuses: z.array(createSelectSchema(userStatus)),
-} as const
-
-/** The column each vocabulary is ordered by when the API returns it. */
-export const VOCABULARY_ORDER = {
-  inviteStatuses: inviteStatus.sort,
-  objectTypes: objectType.sort,
-  actions: action.sort,
-  ageGroups: ageGroup.sort,
-  provinces: province.sort,
-  cities: city.sort,
-  coachRoles: coachRole.sort,
-  eventFormats: eventFormat.sort,
-  eventTypes: eventType.sort,
-  gameStatuses: gameStatus.sort,
-  genders: gender.sort,
-  guardianTypes: guardianType.sort,
-  locales: locale.sort,
-  notificationCategories: notificationCategory.sort,
-  notificationChannels: notificationChannel.sort,
-  notificationTypes: notificationType.sort,
-  orgRoles: orgRole.sort,
-  orgTypes: orgType.sort,
-  positions: position.sort,
-  roles: role.sort,
-  relations: relation.sort,
-  skillTiers: skillTier.sort,
-  userStatuses: userStatus.sort,
-} as const
+export const VOCABULARY_SCHEMAS = Object.fromEntries(
+  Object.entries(VOCABULARY_TABLES).map(([key, table]) => [key, rowsOf(table)]),
+) as unknown as {
+  [K in keyof typeof VOCABULARY_TABLES]: ReturnType<typeof rowsOf<(typeof VOCABULARY_TABLES)[K]>>
+}

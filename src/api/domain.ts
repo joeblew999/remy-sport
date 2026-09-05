@@ -7,9 +7,9 @@
  * in step by hand. They are one helper now, which is what the contract's
  * removal was for.
  *
- * The schema is derived from the table, so a column added upstream by
- * `mise run domain:sync` appears in the response, in the OpenAPI document
- * and in the client's types with nothing edited here.
+ * The schema is derived from the table, here, so a column added upstream by
+ * `mise run model` appears in the response, in the OpenAPI document and in the
+ * client's types with nothing edited anywhere.
  *
  * What is NOT shared, and stays written out one line at a time: WHICH tables
  * are served, and to whom. `pub` versus `authed` is visible per line for the
@@ -18,16 +18,19 @@
  * accident.
  *
  * Writes are absent on purpose. These rows are the PO's fixtures, loaded by
- * /api/seed. When a feature needs to create one it gets a real endpoint with
- * the two access-control questions ADR 009 requires — exactly the kind of thing
- * a factory should not invent on anyone's behalf.
+ * /api/seed. When a feature needs to create one it gets a real endpoint that
+ * says which action it requires and on which object — exactly the kind of thing
+ * a factory should not invent on anyone's behalf. Memberships are written by
+ * `grant`/`revoke` in relations.ts, which is not a factory: it writes the row
+ * the model describes, and the handler still declares its policy.
  */
 
+import { createSelectSchema } from "drizzle-zod"
 import { z } from "zod"
-import { FIXTURE_SCHEMAS, FIXTURE_TABLES } from "../db/fixtures-schema"
+import { FIXTURE_TABLES } from "../db/fixtures-schema"
 import { authed, infrastructure, openTo, pub, stricterThanModel } from "./base"
 
-type Key = keyof typeof FIXTURE_SCHEMAS & keyof typeof FIXTURE_TABLES
+type Key = keyof typeof FIXTURE_TABLES
 
 /**
  * A whole table, read-only: route, derived schema, query and policy in one
@@ -52,7 +55,7 @@ const listOf = <K extends Key>(
   list: (builder as typeof pub)
     .use(policy as never)
     .route({ method: "GET", path, summary: `List ${key}` })
-    .output(z.object({ items: z.array(FIXTURE_SCHEMAS[key]) }))
+    .output(z.object({ items: z.array(createSelectSchema(FIXTURE_TABLES[key])) }))
     .handler(async ({ context }) => ({
       items: (await context.db.select().from(FIXTURE_TABLES[key]).all()) as never,
     })),

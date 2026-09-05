@@ -8,6 +8,7 @@ import {
   LOCALES,
   ORG_TYPE_CODES,
 } from "../../src/domain/vocabularies"
+import { VOCABULARY_TABLES } from "../../src/db/vocabularies-schema"
 import { actorFor, api, post, signIn } from "./helpers"
 import { SEED_ENTITIES, SEED_RELATIONSHIPS } from "../../src/domain/model/entities"
 import {
@@ -194,6 +195,15 @@ describe("Controlled vocabularies", () => {
     expect(codes(ref.genders!)).toEqual([...GENDER_CODES])
     expect(codes(ref.orgTypes!)).toEqual([...ORG_TYPE_CODES])
     expect(codes(ref.eventFormats!)).toEqual([...EVENT_FORMAT_CODES])
+  })
+
+  it("serves every vocabulary the schema declares — none read and then dropped", async () => {
+    // The response schema was a second copy of the table map, one key short:
+    // `inviteStatuses` was queried on every call and stripped by the contract,
+    // with every gate green. The schema derives from the map now, and this is
+    // the proof at the wire — counted from the map, not written as 23.
+    const ref = await reference()
+    expect(Object.keys(ref).sort()).toEqual(Object.keys(VOCABULARY_TABLES).sort())
   })
 
   it("returns age groups in age order, not alphabetical order", async () => {

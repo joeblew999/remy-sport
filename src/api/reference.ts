@@ -14,7 +14,7 @@
 import { asc } from "drizzle-orm"
 import type { z } from "zod"
 import { ReferenceSchema } from "../domain/api"
-import { VOCABULARY_ORDER, VOCABULARY_TABLES } from "../db/vocabularies-schema"
+import { VOCABULARY_TABLES } from "../db/vocabularies-schema"
 import { infrastructure, pub } from "./base"
 
 export const list = pub
@@ -26,17 +26,13 @@ export const list = pub
   })
   .output(ReferenceSchema)
   .handler(async ({ context: { db } }) => {
-  // Ordered by `sort` where the fixture has one, so the PO controls dropdown
-  // order by ordering the model — sorting by code gives OPEN, SENIOR, U10, U12…
-  // Provinces and cities have no curated order and go by name.
+  // Ordered by `sort`, which every vocabulary table carries, so the PO controls
+  // dropdown order by ordering the model — sorting by code gives OPEN, SENIOR,
+  // U10, U12…
   const entries = await Promise.all(
     Object.entries(VOCABULARY_TABLES).map(async ([key, table]) => [
       key,
-      await db
-        .select()
-        .from(table)
-        .orderBy(asc(VOCABULARY_ORDER[key as keyof typeof VOCABULARY_ORDER]))
-        .all(),
+      await db.select().from(table).orderBy(asc(table.sort)).all(),
     ]),
   )
   // The cast is the one seam: `Object.entries` erases the key literals that

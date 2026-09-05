@@ -19,7 +19,6 @@
 
 import { sqliteTable, text, integer, uniqueIndex } from "drizzle-orm/sqlite-core"
 import { relations, sql } from "drizzle-orm"
-import { createSelectSchema } from "drizzle-zod"
 import type { Names } from "../domain/names"
 import { GAME_STATUS_CODES, INVITE_STATUS_CODES, ORG_ROLE_CODES } from "../domain/vocabularies"
 import { user } from "./auth-schema"
@@ -454,15 +453,6 @@ export const userNotificationPreference = sqliteTable("userNotificationPreferenc
   isEnabled: integer("is_enabled", { mode: "boolean" }).notNull(),
 }, (t) => [uniqueIndex("userNotificationPreference_key").on(t.userId, t.notificationTypeCode, t.channelCode)])
 
-/**
- * Every domain table, and its derived row schema.
- *
- * This is what lets a resource cost one line to expose instead of a route
- * block, a handler, a serialiser and a client type. src/domain/contract.ts
- * names which of these the API serves and at what access level — that part is
- * deliberately hand-written, because who may read a table is a decision, not a
- * mechanical consequence of the table existing.
- */
 /** Standings read the registration to learn a team's division. */
 export const playerGameStatRelations = relations(playerGameStat, ({ one }) => ({
   game: one(game, { fields: [playerGameStat.gameId], references: [game.id] }),
@@ -490,6 +480,18 @@ export const eventTeamRelations = relations(eventTeam, ({ one }) => ({
   division: one(division, { fields: [eventTeam.divisionId], references: [division.id] }),
 }))
 
+/**
+ * Every domain table, in the order the seed inserts them.
+ *
+ * This is what lets a resource cost one line to expose — src/api/domain.ts
+ * derives a route's response schema from the table named here — and what the
+ * seed and the relation resolver walk. Which of these the API serves, and to
+ * whom, is deliberately hand-written over there: who may read a table is a
+ * decision, not a mechanical consequence of the table existing.
+ *
+ * There is no second list of row schemas to keep in step with this one. There
+ * was, and it was six tables short.
+ */
 export const FIXTURE_TABLES = {
   orgMembers: orgMember,
   divisions: division,
@@ -515,22 +517,4 @@ export const FIXTURE_TABLES = {
   sessionAttendances: sessionAttendance,
   gameBroadcasts: gameBroadcast,
   playerGameStats: playerGameStat,
-} as const
-
-export const FIXTURE_SCHEMAS = {
-  orgMembers: createSelectSchema(orgMember),
-  divisions: createSelectSchema(division),
-  orgs: createSelectSchema(org),
-  players: createSelectSchema(player),
-  venues: createSelectSchema(venue),
-  eventCoOrganizers: createSelectSchema(eventCoOrganizer),
-  eventPlayers: createSelectSchema(eventPlayer),
-  eventTeams: createSelectSchema(eventTeam),
-  eventVenues: createSelectSchema(eventVenue),
-  guardians: createSelectSchema(guardian),
-  playerTeams: createSelectSchema(playerTeam),
-  subscriptions: createSelectSchema(subscription),
-  teamCoaches: createSelectSchema(teamCoach),
-  userNotificationChannels: createSelectSchema(userNotificationChannel),
-  userNotificationPreferences: createSelectSchema(userNotificationPreference),
 } as const
