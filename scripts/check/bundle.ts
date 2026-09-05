@@ -74,11 +74,19 @@ if (leaked.length) {
 }
 
 if (size > CEILING) {
+  // The manifest is the other thing that can grow. It did: the watcher left a
+  // day of superseded chunks in dist/web and the manifest globbed all 497 of
+  // them, and this message blamed an import. Say how many files it lists, so
+  // the reader can tell a leaked module from a polluted directory.
+  const entries = (source.match(/"?revision"?:/g) ?? []).length
   problems.push(
     `the service worker bundle is ${size.toLocaleString()} bytes, over the ${CEILING.toLocaleString()} ceiling.\n` +
       "    It was 20,283 when that was set. Find what it started importing before\n" +
       "    raising this — the bundle is downloaded by every visitor and runs with\n" +
-      "    no page open.",
+      `    no page open. Its precache manifest lists ${entries} files; one build\n` +
+      "    is about 25. More means dist/web holds superseded chunks — the watcher\n" +
+      "    prunes them (src/web/vite.config.ts, pruneSuperseded); a stale one\n" +
+      "    still running does not.",
   )
 }
 

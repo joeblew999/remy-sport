@@ -1,9 +1,10 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import { VitePWA } from "vite-plugin-pwa";
+import { existsSync, readdirSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 // Hash routing only — required for Tauri webview compatibility.
 // See remy-sport-biz/decisions/decision-003-frontend-targets.md.
@@ -26,9 +27,49 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * it cannot disagree with them.
  */
 
+/**
+ * After each watch rebuild, delete the hashed assets it superseded.
+ *
+ * The watcher never empties dist/web — see `emptyOutDir` below for why — so
+ * every rebuild left its predecessors' chunks behind: 945 files after a day,
+ * 114 copies of index.js. The service worker's precache manifest is globbed
+ * from that directory, so it reached 497 entries and the worker bundle crossed
+ * its ceiling, with check-bundle blaming a leaked import that did not exist.
+ * Every dev visitor's browser was told to precache all 497.
+ *
+ * Deleting AFTER the new bundle is written keeps what `emptyOutDir: false`
+ * defends: at no moment is the directory without a complete bundle. What goes
+ * is only a content-hashed file this build did not write — nothing current
+ * references it, by construction of the hash. Unhashed files (sw.js,
+ * workbox-window) are written by other steps and left alone.
+ *
+ * `writeBundle` rather than `closeBundle`, so it runs before the PWA plugin
+ * builds the worker and the manifest it globs is already clean.
+ */
+function pruneSuperseded(): Plugin {
+  let outDir = "";
+  const hashed = /-[A-Za-z0-9_-]{8,}\.[a-z0-9]+$/;
+  return {
+    name: "remy:prune-superseded",
+    apply: (_, env) => env.command === "build" && process.argv.includes("--watch"),
+    configResolved(config) {
+      outDir = config.build.outDir;
+    },
+    writeBundle(_, bundle) {
+      const assets = join(outDir, "assets");
+      if (!existsSync(assets)) return;
+      const written = new Set(Object.keys(bundle));
+      for (const f of readdirSync(assets)) {
+        if (hashed.test(f) && !written.has(`assets/${f}`)) rmSync(join(assets, f), { force: true });
+      }
+    },
+  };
+}
+
 export default defineConfig({
   root: __dirname,
   plugins: [
+    pruneSuperseded(),
     react(),
     // UI copy is compiled, not looked up at runtime: a missing key is a build
     // error and unused messages are tree-shaken out. The locale list in
