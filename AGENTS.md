@@ -548,6 +548,25 @@ they might follow an event. Latent only because no public read emitted that
 answer; the moment every row carried `can`, it would have been a Follow button
 that 401s.
 
+**Home is derived from `me.mine`; never add a section for a role.** A section
+appears where a relation is held (teams you coach, children you are guardian
+to, games you referee, events you organise, schools you administer) or where
+the model grants the action and the relation is not yet held (create a team,
+create an event, the console); each row is labelled with the model's own name
+for the relation via `label("relations", code)`. Profile is the account. The
+sidebar is YOU (Home, Profile — signed in only) then BROWSE. Walked on
+2026-09-04 as all six seeded roles, the page this replaced showed every one of
+them another role's empty state — a coach told "No children yet", a parent of
+four asked what brought her here — because it was the union of hand-written
+sections. A role-shaped section is that bug coming back.
+
+**Look at the app before saying what it does.** `mise run ops shots` photographs
+every screen as every seeded person and writes each screen's text beside its
+picture (`-g "home-coach · en · desktop"` for one); the Playwright MCP drives it
+live, and `setup` installs the MCP's own browser. The GUI diagnosis above was
+impossible for a session because the shots task had been dropped and the MCP
+had no browser — both looked like "the GUI is fine" from the code.
+
 **`can()` per row is the entire cost of a list.** Proven by stubbing it: a
 28-game schedule goes 0.23s to **0.01s** — five queries per call, four calls per
 game, re-resolving the same three GAME relations each time. **Do not fix it by
