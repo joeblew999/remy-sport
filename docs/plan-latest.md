@@ -66,11 +66,13 @@ test reports the same findings on the same tree.
 
 ## Phase B — TypeScript 7
 
-- [ ] `bun add -d typescript@7`. `tsc` is the native compiler. Fix what it
-      rejects in tsconfig.json — 7 dropped `baseUrl`, `outFile` and the old
-      resolution modes; this config uses none, but the run says.
-- [ ] Nothing else should need to change: no package left imports the API.
-      If one does, it goes on the table above with its reason.
+- [x] `bun add -d typescript@7`. Zero errors on the first run, and nothing in
+      tsconfig.json needed changing — 7 drops `baseUrl`, `outFile` and the old
+      resolution modes, and phase 1 had already reduced three configs to one
+      that uses none of them.
+- [x] Nothing else needed changing: with the two parsers gone, no package left
+      imports the API. `tsc` is the native compiler now — the typecheck is
+      1.0 s where 6 took about 4.
 
 ## Phase C — the Workers Vitest integration, by its new name
 
