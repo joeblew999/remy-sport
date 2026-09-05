@@ -11,7 +11,7 @@ words.
 
 | package | imported by | what it is here for | the case |
 |---|---|---|---|
-| `@khmyznikov/pwa-install` + `lit` | `src/web/main.tsx` (one element) | the install dialog, and iOS's "add to home screen" instructions | it bundles ten languages and chooses one from `navigator.language` — there is no way to tell it which language the reader chose in the app, and Thai is not one of the ten. So a Thai reader gets English, and so does anyone who switched the app to Thai on an English-locale phone. The product already wrote these instructions itself, in all three languages (`install_ios_steps`), and does not show them; the element's dialog shows instead. |
+| `@khmyznikov/pwa-install` + `lit` | `src/web/main.tsx` (one element) | the install dialog, and iOS's "add to home screen" instructions | **stays — the Product Owner's call, 2026-09-05: its GUI is exactly what readers need.** It bundles ten languages chosen from `navigator.language`, and Thai is not one of them, so a Thai reader gets English today. The fix is the one its author invites: a Thai translation contributed upstream. `lit` is its framework and stays with it. |
 | `@hono/swagger-ui` | `src/index.ts` (`/doc`) | a reference UI over `/openapi.json` | `@orpc/openapi`, already here, ships `OpenAPIReferencePlugin` — the same document, rendered by the package that generates it. |
 | `openapi-types` | `src/api/base.ts` (one type) | `OpenAPIV3_1.OperationObject`, to type the `spec` customiser on `authedRoute` | measure whether oRPC's own route types carry the operation type; if they do, the package is a second spelling of the same thing. |
 | `@inlang/cli` | `lint` (`inlang validate`) | "the project is valid" | `tests/repo/messages.test.ts` checks every locale carries every message, and the paraglide compile in `vite build` fails on a broken file. Measure what `validate` adds; delete it if the answer is nothing. |
@@ -25,11 +25,11 @@ words.
 
 ## The target
 
-- 45 → 39 packages, and each of the six that goes takes a second copy of
-  something with it: a second dialog, a second reference UI, a second operation
-  type, a second message check, a second runtime's types.
-- The install dialog is the product's, in the product's languages, under the
-  same copy rules as every other screen.
+- 45 → 41 packages, and each of the four that goes takes a second copy of
+  something with it: a second reference UI, a second operation type, a second
+  message check, a second runtime's types.
+- The install dialog speaks Thai — by the element learning it, not by the
+  product replacing the element.
 - `lint` is knip. Scripts run under node or bun.
 
 ## Rules
@@ -40,18 +40,13 @@ how a reader will notice.
 
 ## Phase A — the product says it in its own words
 
-- [ ] The install prompt is a component of this app, in the language the
-      reader chose. On Chromium it holds the `beforeinstallprompt` event and
-      calls `prompt()` when a reader asks; on iOS it shows `install_ios_steps`,
-      which the messages already carry in every locale; it offers itself only
-      where installing is possible and not already done — the three things
-      `<pwa-install>` "knows that a button cannot", read off the same browser
-      signals. The menu item in `account.tsx` keeps its testid.
-      `@khmyznikov/pwa-install` and `lit` go. A reader will notice one thing:
-      the dialog follows the app's language switch, and it has Thai.
-      (The alternative — contributing a Thai translation upstream — fixes the
-      first half and not the second: the element would still follow the
-      browser, not the app.)
+- [ ] A Thai translation for `<pwa-install>`, contributed upstream. Its
+      README says the process is easy and asks for the pull request; the
+      strings are the ones `install_ios_steps` already says in Thai. Until it
+      is merged and released, Thai readers see the dialog in English, and the
+      Product Owner has accepted that over replacing an element whose GUI is
+      right. One limit stays either way and is worth knowing: the element
+      follows the phone's language, not the app's switch.
 - [ ] The API reference is `OpenAPIReferencePlugin` from `@orpc/openapi`,
       served where `/doc` is now. `@hono/swagger-ui` goes. Same document, same
       URL.
@@ -82,9 +77,10 @@ how a reader will notice.
       three packages, a Rust toolchain, ruby and cocoapods in `mise.toml`, and
       no gate. Whichever way it goes, the answer is written here.
 
-**Done when** `package.json` is 39 lines of dependencies, every one of which
+**Done when** `package.json` is 41 lines of dependencies, every one of which
 either has an importer in `src`, `scripts` or `tests` or a reason beside that
-importer, and a Thai reader who taps "Install app" reads Thai.
+importer — and, once the upstream translation ships, a Thai reader who taps
+"Install app" reads Thai.
 
 ## Log
 
