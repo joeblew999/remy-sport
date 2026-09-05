@@ -14,7 +14,7 @@ import { SEED_ENTITIES } from "../../src/domain/model/entities"
  * A setup project runs to completion before its dependents start, and unlike
  * `globalSetup` it runs *after* the webServer is up, so it can reach the API.
  *
- * The endpoint executes src/db/seed.sql — the same statements the worker tests
+ * The endpoint executes the statements src/db/seed.ts derives — the same statements the worker tests
  * apply — and every one is `INSERT OR IGNORE`, so this is safe against both a
  * fresh local D1 and an already-seeded remote.
  */
@@ -40,6 +40,6 @@ setup("seed actors and reference data", async ({ request }) => {
   const { events } = (await list.json()) as { events: unknown[] }
   expect(
     events.length,
-    "seed.sql defines the PO's events; the read path should return them",
+    "the seed defines the PO's events; the read path should return them",
   ).toBeGreaterThanOrEqual(SEED_ENTITIES.events.length)
 })

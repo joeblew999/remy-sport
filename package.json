@@ -8,7 +8,7 @@
     "preview": "vite preview --config src/web/vite.config.ts",
     "typecheck": "tsc",
     "lint": "knip --include files,unlisted --no-config-hints && depcruise src --config .dependency-cruiser.cjs && eslint src/web && inlang validate --project ./project.inlang",
-    "check:model": "bun scripts/ops/domain.ts --check && bun scripts/lib/seed.ts --check && bun scripts/ops/coverage-gui.ts",
+    "check:model": "bun scripts/ops/domain.ts --check && bun scripts/ops/coverage-gui.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:render": "playwright test --config playwright.render.config.ts",

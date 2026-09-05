@@ -105,23 +105,36 @@ the dev script and the file watcher are gone. (2026-09-05: it is, there is not, 
 
 ## Phase 3 — one seed, one table map, fonts committed
 
-- [ ] One seed function in `src/db` — drizzle inserts from the model, in
-      dependency order as code, so a wrong order is a foreign-key error with a
-      name. Used by the `/api/seed` endpoint, the worker tier's setup and
-      development. The generated seed.sql, `seed.ts` (471 lines), `tests/repo/seed-order.test.ts`
-      and the check that the SQL matches the model all go.
-- [ ] `FIXTURE_TABLE` gets `satisfies Record<model table name, SQLiteTable>` —
-      the same construction that fixed the vocabulary maps on 2026-09-05 —
-      and `tests/repo/tables.test.ts` goes.
-- [ ] `tests/repo/fixture-ids.test.ts`: a test naming a row that does not exist already fails
-      in the worker tier at runtime. Measure whether a render-tier seed can
-      name a row nothing checks; delete the check unless it can.
-- [ ] `fonts.css` and the woff2 files committed; `fonts.ts` (192 lines) goes.
-- [ ] `tests/repo/seed-coverage.test.ts` measures the product (a column no row fills). It
-      stays, as a repo test.
+- [x] One seed, in `src/db/seed.ts`: the statements are derived from the model
+      and the drizzle tables at import, and `POST /api/seed`, every worker
+      test file and `bun run db seed-remote` all take them from there. The
+      generated SQL file, the 471-line generator that wrote it, the check that
+      it matched the model, the check that its rows were in order, the
+      `.sql` module rule and the Vite plugin that read it are gone. Order is
+      code, and the worker tier proves it: one transaction with foreign keys
+      deferred to its end, on a database migrated moments before.
+      Not drizzle inserts: a deployment is seeded through `wrangler d1
+      execute --file`, which takes SQL and not a function, and one shape
+      serving three callers is the point.
+- [x] `FIXTURE_TABLE` is literal and checked at compile time from both ends:
+      `satisfies` in src/domain/vocabularies.ts requires every table the
+      model names, and `satisfies` in src/db/schema.ts requires every value
+      to be a table the schema declares. The repo test that asked those two
+      questions asks only its third now — every grant resolves, no write is
+      public — and is `tests/repo/grants.test.ts`.
+- [x] `tests/repo/fixture-ids.test.ts` stays. Measured: a render spec seeds
+      the query cache itself and never touches a database, so an invented id
+      there fails nothing else — which is the case it was written for.
+- [x] The fonts were already committed. `fonts.ts` ran before every command
+      and fetched Google's stylesheet each time; it is `bun run ops fonts`
+      now, for when a family or a locale changes, and nothing else reaches
+      the network for a font.
+- [x] `tests/repo/seed-coverage.test.ts` reads the statements from
+      `src/db/seed.ts` instead of a file, and stays.
 
-**Done when** "seed" is one function and `scripts/lib` holds only what talks to
-Cloudflare and writes `.dev.vars`.
+**Done when** "seed" is one module and `scripts/lib` holds only what talks to
+Cloudflare and writes `.dev.vars`. (2026-09-05: `scripts/lib` is cloudflare.ts,
+dev-vars.ts and prepare.ts.)
 
 ## Phase 4 — deploy is wrangler
 
@@ -163,6 +176,9 @@ Cloudflare and writes `.dev.vars`.
 
 - 2026-09-05 — written, after the dependency update (`f3cb2eb`) and the
   watcher fix (`3af69a0`). Baseline numbers above.
+- 2026-09-05 — Phase 3 landed, one commit. The seed is a module; the
+  generated SQL, its generator, two checks and a module rule are gone; the
+  table map is checked by the compiler; fonts are an ops command.
 - 2026-09-05 — Phase 2 landed, one commit. `bun run dev` is `vite`: the
   Worker in workerd with its bindings and .dev.vars, the SPA with HMR, seeded
   on start; `bun run build` writes dist/client and dist/remy_sport in ~3 s;

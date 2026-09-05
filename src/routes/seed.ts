@@ -12,8 +12,10 @@ import { permits } from "../environment"
  * generates its own ids while the fixtures carry their own. Three hundred lines
  * to produce rows that a generated SQL file already describes.
  *
- * It executes that file now. One definition of what "seeded" means, two callers:
- * the worker tests apply it per test file, and this applies it to a real D1.
+ * It executes the statements src/db/seed.ts derives from the model. One
+ * definition of what "seeded" means, three callers: the worker tests apply it
+ * per test file, this applies it to a real D1, and `bun run db seed-remote`
+ * writes it out for wrangler.
  *
  * Going through Better Auth's API bought nothing here. Its value is enforcing
  * *invariants* on user input, and the fixtures are not user input — they are
@@ -37,7 +39,7 @@ import { permits } from "../environment"
  * A token was the first fix and the wrong one: `wrangler secret` values cannot
  * be read back, so the pipeline would have had to keep its own copy of a secret
  * the platform already had. Seeding is an operator action and the operator has
- * wrangler — `bun run db seed-remote` applies src/db/seed.sql to D1 directly, so
+ * wrangler — `bun run db seed-remote` applies the same statements to D1 directly, so
  * production needs no HTTP surface for it whatsoever. The route that stays is
  * for local development and the tests, which is all it was ever for.
  */

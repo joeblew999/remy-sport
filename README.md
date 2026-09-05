@@ -10,7 +10,7 @@ Everything is a `package.json` script. `mise` only pins the tools
 (`mise install` once) and sets the environment.
 
 ```
-bun run setup                     once after cloning: install, fonts, types, local database, browsers
+bun run setup                     once after cloning: install, types, local database, browsers
 bun run dev                       Vite: the Worker in workerd and the SPA with HMR on localhost:8787, seeded
 bun run check                     the gate: typecheck, lint, model consistency, every test, the render tier
 bun run test:e2e                  a real browser against a real Worker (-- --env staging|production for a deployment)

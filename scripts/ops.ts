@@ -99,6 +99,11 @@ const OPS: Record<string, Op> = {
     cmd: ([what = "gui", ...rest]) => ["bun", `scripts/ops/coverage-${what}.ts`, ...rest],
     help: "coverage <gui|data|model>        how much of each surface is exercised",
   },
+  fonts: {
+    group: "setup",
+    cmd: (rest) => ["bun", "scripts/ops/fonts.ts", ...rest],
+    help: "fonts                            vendor the web fonts into src/web/fonts and write fonts.css — after changing a family or a locale",
+  },
   keys: {
     group: "setup",
     cmd: (rest) => ["bun", "scripts/ops/keys.ts", ...rest],

@@ -49,19 +49,16 @@
  * about — a new column, a new table, a new foreign key. Those arrive silently
  * today and are the entire reason this exists.
  *
- * The seed is read as SQL rather than as fixtures on purpose: these are the
- * bytes the database receives, so nothing here can be true of a model that the
- * generator then fails to write.
+ * The seed is read as its statements rather than as fixtures on purpose: these
+ * are the bytes the database receives, so nothing here can be true of a model
+ * that src/db/seed.ts then fails to write.
  */
 
-import { readFileSync } from "fs"
-import { resolve } from "path"
 import { getTableColumns, getTableName } from "drizzle-orm"
 import { rule } from "./helpers"
 import type { SQLiteTable } from "drizzle-orm/sqlite-core"
 import * as schema from "../../src/db/schema"
-
-const ROOT = resolve(import.meta.dirname, "../..")
+import { SEED_STATEMENTS } from "../../src/db/seed"
 
 /**
  * Reference data. "How many age groups have a team" is not a question about
@@ -189,7 +186,7 @@ const QUOTE = String.fromCharCode(39)
 interface Seen { rows: Record<string, string>[] }
 const seen: Record<string, Seen> = {}
 
-for (const line of readFileSync(resolve(ROOT, "src/db/seed.sql"), "utf8").split("\n")) {
+for (const line of SEED_STATEMENTS) {
   const m = line.match(
     /^INSERT (?:OR IGNORE )?INTO `?(\w+)`? \(([^)]*)\) VALUES \((.*?)\)(?: ON CONFLICT|;|$)/,
   )

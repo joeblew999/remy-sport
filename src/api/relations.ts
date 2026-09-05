@@ -43,7 +43,7 @@ type RelationRow = (typeof RELATION)[number]
  * alignment check and the generator, and two of those three silently matched
  * nothing when a caller had the case the other way round.
  */
-const tableFor = (fixtureTable: string): string => FIXTURE_TABLE[fixtureTable] ?? fixtureTable
+const tableFor = (fixtureTable: string): string => (FIXTURE_TABLE as Record<string, string>)[fixtureTable] ?? fixtureTable
 
 /**
  * No column aliasing, deliberately.

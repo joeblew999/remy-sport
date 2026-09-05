@@ -37,7 +37,7 @@ import {
  * ## The oracle is the real procedure against a real database
  *
  * Not a fixture, not a snapshot. `api()` runs the Worker in-process against a D1
- * seeded from `seed.sql`, so what this compares against is what a browser would
+ * seeded from `src/db/seed.ts`, so what this compares against is what a browser would
  * receive. If a procedure grows a field, this fails and names it — instead of
  * 128 render assertions passing against a payload the API stopped returning.
  *

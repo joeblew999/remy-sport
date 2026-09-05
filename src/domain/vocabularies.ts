@@ -35,9 +35,20 @@ import {
  * snake_case one. Derived once, here, where the fixture names are known.
  *
  * Covers every name a relation's `source_table` or an object type's `table_name`
- * can hold, including the tables Better Auth owns.
+ * can hold, including the tables Better Auth owns, and a few more the seed
+ * and the resolver use by name — so `satisfies` requires every table the model
+ * names without forbidding the rest. A table the model names and this map does
+ * not is a compile error. src/db/schema.ts checks the other end: that every
+ * SQL name here is a table the schema declares.
  */
-export const FIXTURE_TABLE: Record<string, string> = {
+
+/** Every table name the model uses: a relation's source or through table, an object type's table. */
+export type ModelTable = NonNullable<
+  | (typeof RELATION)[number]["sourceTable"]
+  | (typeof RELATION)[number]["throughTable"]
+  | (typeof OBJECT_TYPE)[number]["tableName"]
+>
+export const FIXTURE_TABLE = {
   "divisions": "division",
   "event_co_organizers": "eventCoOrganizer",
   "event_players": "eventPlayer",
@@ -58,7 +69,7 @@ export const FIXTURE_TABLE: Record<string, string> = {
   "user_notification_preferences": "userNotificationPreference",
   "users": "user",
   "venues": "venue",
-}
+} as const satisfies Record<ModelTable, string> & Record<string, string>
 
 /**
  * The platform role as the database stores it, per the PO's role code.

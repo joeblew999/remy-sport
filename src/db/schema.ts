@@ -15,3 +15,25 @@ export * from "./app-schema"
 // The Product Owner's domain model: players, divisions, venues and every join
 // table between them. GENERATED — see scripts/domain-generate.ts.
 export * from "./fixtures-schema"
+
+import type { SQLiteTable } from "drizzle-orm/sqlite-core"
+import * as auth from "./auth-schema"
+import * as app from "./app-schema"
+import * as fixtures from "./fixtures-schema"
+import { FIXTURE_TABLE } from "../domain/vocabularies"
+
+/** The SQL name of every table a module exports. */
+type TableNames<M> = { [K in keyof M]: M[K] extends SQLiteTable ? M[K]["_"]["name"] : never }[keyof M]
+type SqlTable = TableNames<typeof auth> | TableNames<typeof app> | TableNames<typeof fixtures>
+
+/**
+ * Every SQL name the table map holds is a table this schema declares.
+ *
+ * A compile error, not a check. `ORG` once named `organizations` after the
+ * organization plugin was removed and its table dropped, so every write to an
+ * organisation answered 500 and only a test caught it; a repo test then
+ * guarded it for a while. The map is literal and the model is literal, so the
+ * type system can hold both ends: the model's side in src/domain/vocabularies.ts,
+ * the schema's side here.
+ */
+FIXTURE_TABLE satisfies Record<keyof typeof FIXTURE_TABLE, SqlTable>

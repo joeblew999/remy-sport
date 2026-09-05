@@ -63,7 +63,7 @@ export async function signIn(email: string): Promise<string> {
 /**
  * No `seed()` here any more.
  *
- * Each test file's database arrives already seeded, from src/db/seed.sql via
+ * Each test file's database arrives already seeded, from src/db/seed.ts via
  * apply-migrations.ts. That used to be a `beforeAll` POSTing /api/seed — a
  * Better Auth `createUser` round trip per user, per file.
  */

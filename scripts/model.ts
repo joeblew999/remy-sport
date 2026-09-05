@@ -55,13 +55,8 @@ const CHAIN: Step[] = [
     cmd: ["bun", "scripts/db.ts", "migrate-local"],
   },
   {
-    name: "seed",
-    why: "seed.sql is generated from the model, so it changes with it — and after the schema its rows target exists",
-    cmd: ["bun", "scripts/lib/seed.ts"],
-  },
-  {
     name: "verify",
-    why: "the four checks that each prove one link: the copies match upstream, every table the model names exists, the seed matches the model, and it can be applied to an empty database",
+    why: "the gate: the copies match upstream, every table the model names exists (a compile error otherwise), and the worker tier applies the seed to an empty database",
     cmd: ["bun", "run", "check"],
   },
 ]

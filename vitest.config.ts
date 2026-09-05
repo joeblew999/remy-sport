@@ -1,6 +1,5 @@
 import { defineConfig } from "vitest/config"
 import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-pool-workers"
-import { sqlAsText } from "./scripts/lib/sql-as-text.ts"
 
 /**
  * Every test that is not a browser, under one runner.
@@ -30,8 +29,8 @@ const migrations = await readD1Migrations("./src/db/migrations")
 export default defineConfig({
   test: {
     projects: [
-      { plugins: [sqlAsText], test: { name: "unit", include: ["tests/unit/**/*.test.ts"], environment: "node" } },
-      { plugins: [sqlAsText], test: { name: "repo", include: ["tests/repo/**/*.test.ts"], environment: "node" } },
+      { test: { name: "unit", include: ["tests/unit/**/*.test.ts"], environment: "node" } },
+      { test: { name: "repo", include: ["tests/repo/**/*.test.ts"], environment: "node" } },
       {
         plugins: [
           cloudflareTest({

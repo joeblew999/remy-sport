@@ -5,7 +5,6 @@ import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import { VitePWA } from "vite-plugin-pwa";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
-import { sqlAsText } from "../../scripts/lib/sql-as-text.ts";
 
 // Hash routing only — required for Tauri webview compatibility.
 // See remy-sport-biz/decisions/decision-003-frontend-targets.md.
@@ -70,7 +69,6 @@ function seedOnStart(): Plugin {
 export default defineConfig(({ mode }) => ({
   root: __dirname,
   plugins: [
-    sqlAsText,
     ...(mode === "render"
       ? []
       : [

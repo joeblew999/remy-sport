@@ -9,7 +9,7 @@
  *
  * Two levels, and the split is the one that stops a deploy touching local state:
  *
- *   prepare()  what any command needs to BUILD — deps, fonts, worker types.
+ *   prepare()  what any command needs to BUILD — deps, worker types.
  *              deploy needs this and nothing more.
  *   local()    prepare plus what only a local run needs — .dev.vars, local
  *              migrations, browsers, fixtures. `bun run setup` is this, once.
@@ -98,11 +98,6 @@ const INSTALL: Step = {
 
 const BUILD: Step[] = [
   INSTALL,
-  {
-    name: "fonts",
-    why: "writes src/web/fonts.css, which styles.css imports on its first line — so it precedes the bundle that reads it",
-    go: () => sh(["bun", "scripts/lib/fonts.ts"]),
-  },
   { name: "types", why: "worker-configuration.d.ts is generated from the bindings, and the typecheck reads it", go: () => sh(["bun", "x", "wrangler", "types"]) },
 ]
 
@@ -127,7 +122,6 @@ const LOCAL: Step[] = [
    * and bumping either file is the only edit.
    */
   { name: "mcp-browser", why: "the Playwright MCP's own webkit, so an agent can drive the app live; a no-op once installed", go: () => sh(mcpBrowserInstall()) },
-  { name: "seed", why: "seed.sql regenerated from the model, after the schema it targets exists", go: () => sh(["bun", "scripts/lib/seed.ts"]) },
   /**
    * The local server bundles versions.json and serves it at /api/versions, so
    * without this it reports whichever environment was DEPLOYED last — and the
@@ -158,9 +152,8 @@ function runSteps(steps: Step[]): void {
    *
    * This ran in complete silence unless it failed, and it is the most opaque
    * thing in the repo: it happens before EVERY command, and it installs
-   * dependencies, writes fonts.css, builds the SPA bundle, generates the Worker
-   * types, writes .dev.vars, migrates the local database, installs a browser,
-   * regenerates seed.sql and stamps versions.json. None of that was visible, so
+   * dependencies, generates the Worker types, writes .dev.vars, migrates the
+   * local database, installs a browser and stamps versions.json. None of that was visible, so
    * `bun run dev` looked like it started a server and nothing else.
    *
    * The cost of the silence was not curiosity. When the versions step broke, the

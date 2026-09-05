@@ -19,7 +19,9 @@
 
 import { install } from "./lib/prepare"
 
+import { mkdirSync, writeFileSync } from "node:fs"
 import { Refused, resolveTarget, resolvedConfig, wrangler, type Target } from "./lib/cloudflare"
+import { SEED_STATEMENTS } from "../src/db/seed"
 
 type Op = "migrate-remote" | "migrate-local" | "reset-local" | "seed-remote" | "tables-remote" | "tables-local" | "generate" | "studio" | "--help"
 
@@ -147,7 +149,11 @@ try {
        * its result, so a pipeline killed the deploy with EPIPE. The exit code is
        * the signal that matters.
        */
-      run(["d1", "execute", name, "--remote", "--file=src/db/seed.sql"], t)
+      // The statements src/db/seed.ts derives from the model, written out
+      // because `d1 execute` takes a file. .wrangler/ is gitignored.
+      mkdirSync(".wrangler", { recursive: true })
+      writeFileSync(".wrangler/seed.sql", SEED_STATEMENTS.map((s) => `${s};`).join("\n") + "\n")
+      run(["d1", "execute", name, "--remote", "--file=.wrangler/seed.sql"], t)
       break
     case "tables-remote":
       run(
