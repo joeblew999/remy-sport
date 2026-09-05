@@ -44,7 +44,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.54.4",
-    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "@cloudflare/vitest-plugin": "^1.1.4",
     "@inlang/cli": "^3.3.4",
     "@inlang/paraglide-js": "2.25.0",
     "@playwright/test": "^1.63.0",

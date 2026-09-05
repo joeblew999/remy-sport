@@ -147,7 +147,7 @@ export type JobOutcome =
 /**
  * Perform one slice of one fan-out.
  *
- * A plain function taking what it needs, so it runs under vitest-pool-workers
+ * A plain function taking what it needs, so it runs under the Workers Vitest plugin
  * with no queue runtime: the tests drive this directly and the `queue` handler
  * in src/index.ts is a thin shell around it.
  *

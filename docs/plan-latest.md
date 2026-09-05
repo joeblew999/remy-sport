@@ -8,7 +8,7 @@ landed. `bun outdated` lists two packages; `mise` pins six tools, all behind.
 | | now | latest | what holds it |
 |---|---|---|---|
 | `typescript` | 6.0.3 | 7.0.2 | 7's npm package ships the native compiler and no JavaScript compiler API. Two tools here use that API: `@typescript-eslint/parser` (peer `<6.1.0`) and dependency-cruiser's TypeScript extractor. knip does not — it parses with oxc. Nothing else in package.json touches it. |
-| `vitest` | 4.1.11 | 5.0.0 | `@cloudflare/vitest-pool-workers` pins `^4.1.0`. Its successor `@cloudflare/vitest-plugin` 1.1.4 (same API, renamed for v1 on 2026-08-19) pins the same. Cloudflare's to lift. |
+| `vitest` | 4.1.11 | 5.0.0 | `@cloudflare/vitest-plugin` pins `^4.1.0`, and the pin is honest: on 5 the worker project throws out of workerd on every file. Cloudflare's to lift. |
 | bun | 1.3.11 | 1.4.0 | nothing |
 | node | 24.14.1 | 26.8.1 | nothing — and `@types/node` is already 26, typing a Node newer than the one that runs wrangler and Vite here |
 | jq | 1.8.1 | 1.8.2 | nothing |
@@ -76,11 +76,15 @@ test reports the same findings on the same tree.
 
 ## Phase C — the Workers Vitest integration, by its new name
 
-- [ ] `@cloudflare/vitest-pool-workers` → `@cloudflare/vitest-plugin`: the
+- [x] `@cloudflare/vitest-pool-workers` → `@cloudflare/vitest-plugin`: the
       dependency, the import in vitest.config.ts, the `types` entry in
-      tsconfig.json. Same API, same options.
-- [ ] Vitest 5 the day the plugin's peer range allows it. Until then the
-      table above is the answer, and `bun outdated` will keep saying so.
+      tsconfig.json. Same API, same options, 782 tests unchanged.
+- [ ] Vitest 5 the day the plugin's peer range allows it. **Measured rather
+      than assumed, 2026-09-05:** installed anyway, and the range is honest.
+      The unit and repo projects pass on 5 (275 tests); the worker project
+      throws `SyntaxError: Unexpected identifier 'file'` out of workerd on
+      every file. Rolled back. Not worth splitting the runner in two to take
+      half of it — one runner is the point of phase 1.
 
 ## Phase D — the tools
 

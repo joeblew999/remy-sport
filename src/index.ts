@@ -207,7 +207,7 @@ export { app }
  * do.
  *
  * A thin shell: the decision — what acks, what retries, why — is in
- * `handleNotification`, so it can be driven directly under vitest-pool-workers
+ * `handleNotification`, so it can be driven directly under the Workers Vitest plugin
  * with no queue runtime.
  *
  * `ack`/`retry` per message rather than letting a throw fail the batch:
