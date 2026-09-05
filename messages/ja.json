@@ -63,7 +63,6 @@
   "create_event": "大会を作成",
   "create_event_denied": "あなたの役割（{role}）には大会を作成する権限がありません。",
   "creating": "作成しています…",
-  "dashboard": "ダッシュボード",
   "date": "日付",
   "dates_tbc": "日程未定",
   "delete": "削除",

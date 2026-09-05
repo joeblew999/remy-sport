@@ -1,5 +1,5 @@
 import { test } from "@playwright/test"
-import { mkdirSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { LOCALES } from "../../src/domain/vocabularies"
 import { stateFor, actor, ACTORS, ADMIN, COACH } from "../helpers/auth"
 
@@ -104,11 +104,26 @@ const VIEWPORTS = [
   { name: "mobile", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
 ] as const
 
-// One clean directory per run, so a screen that was deleted does not leave a
-// stale picture behind to be read as current.
+// A screen that was deleted must not leave a stale picture behind to be read
+// as current — but a slice (`-g`) must not throw away the rest of the last
+// full walk either, which is the set a person was reading when they asked for
+// one more angle. So: remove only what SCREENS no longer describes, and let
+// every run overwrite its own pictures. (Wiping the directory on a full run
+// only was the first answer, and a worker cannot see the CLI's grep to tell.)
 test.beforeAll(() => {
-  rmSync(OUT, { recursive: true, force: true })
   mkdirSync(OUT, { recursive: true })
+  const expected = new Set<string>()
+  for (const s of SCREENS)
+    for (const l of LOCALES)
+      for (const vp of VIEWPORTS)
+        for (const ext of ["png", "txt"]) expected.add(`${vp.name}/${s.name}.${l}.${ext}`)
+  for (const vp of VIEWPORTS) {
+    const dir = `${OUT}/${vp.name}`
+    if (!existsSync(dir)) continue
+    for (const f of readdirSync(dir)) {
+      if (!expected.has(`${vp.name}/${f}`)) rmSync(`${dir}/${f}`, { force: true })
+    }
+  }
 })
 
 for (const screen of SCREENS) {

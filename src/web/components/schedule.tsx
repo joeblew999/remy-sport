@@ -155,7 +155,9 @@ function GameRow({
               {m.your_time({ time: timeOf(game.startsAt, locale, viewerZone) })}
             </span>
           )}
-          {" · "}
+          {/* One separator per segment. A bare " · " sat here too, so every
+              row read "venue · · referee" — visible in a screenshot, invisible
+              to a test that finds the referee by testid. */}
           {game.referees.length > 0 && (
             <>
               {" · "}

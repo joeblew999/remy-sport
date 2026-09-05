@@ -180,7 +180,8 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
 
       <div className="page-header">
         <div className="crumbs">{m.admin_crumb()}</div>
-        <h1>{m.dashboard()}</h1>
+        {/* "Dashboard" until Home existed; this is the console. */}
+        <h1>{m.home_admin()}</h1>
         <div className="sub">
           {user.name || user.email} ·{" "}
           <span className="badge" data-testid="role-badge">
