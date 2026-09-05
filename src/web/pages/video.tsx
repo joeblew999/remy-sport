@@ -15,7 +15,7 @@
  * make that decision by accident, in a demo page, where the Product Owner would
  * never find it. The game id comes from the URL and is trusted. When the model
  * grows a BROADCAST_GAME action, this becomes `requireAction` and the check
- * `mise run check:authz` already applies will make sure it does.
+ * `bun run check:authz` already applies will make sure it does.
  */
 
 import { GameBroadcast, GameVideo } from "../components/moq-video"

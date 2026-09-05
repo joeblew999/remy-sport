@@ -419,7 +419,7 @@ function write(
  * Filled on a dev server and never on a deployment, so this holds no request
  * data anywhere it could not be read anyway.
  *
- * This is what `/api/dev/events` serves and what `mise run analytics` renders
+ * This is what `/api/dev/events` serves and what `bun run ops analytics` renders
  * when a dev server is up. Same reports either way, because both are generated
  * from `EVENTS` — so what you read locally is shaped exactly like what you will
  * read from the deployment.
@@ -440,7 +440,7 @@ const ring: RecordedEvent[] = []
  * you conclude a feature works when you have simply lost the record of it —
  * it cost a confused ten minutes the day this was written.
  *
- * wrangler dev recycles the isolate on any source change, and `mise run dev`
+ * wrangler dev recycles the isolate on any source change, and `bun run dev`
  * has vite writing into dist/web continuously, so this happens a lot.
  *
  * Set on first use rather than at module load, because **a Worker's clock reads

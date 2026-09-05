@@ -183,7 +183,7 @@ if (check) {
 
 if (check && stale.length) {
   console.error(
-    `domain:sync: ${stale.length} file(s) differ from remy-sport-biz — run 'mise run domain:sync':\n` +
+    `domain:sync: ${stale.length} file(s) differ from remy-sport-biz — run 'bun run ops domain':\n` +
       stale.map((f) => `  ${f}`).join("\n") +
       (summary.length ? `\n\nWhat would change:\n${summary.join("\n")}` : ""),
   )

@@ -83,7 +83,7 @@ export interface AuthDeps {
  *
  * Kept apart from `createAuth` so the Better Auth CLI can read them without a
  * Hono Context. `src/db/auth-schema.ts` is generated from these by
- * `mise run auth:schema:generate` — it is not hand-maintained.
+ * `bun scripts/deploy/auth-schema.ts --write` — it is not hand-maintained.
  *
  * Anything that adds or changes tables/columns (plugins, extra user fields,
  * emailAndPassword) belongs here. Per-request concerns — secret, baseURL,

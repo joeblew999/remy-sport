@@ -37,7 +37,7 @@ test.describe("Layer 1 — event:read is public", () => {
    * uses to decide whether to save an admin state at all, so the two halves
    * cannot disagree about whether that file exists.
    */
-  test.skip(!ADMIN_SIGN_IN, "no admin sign-in here — `mise run ops -- demo on --env X` enables it")
+  test.skip(!ADMIN_SIGN_IN, "no admin sign-in here — `bun run ops demo on --env X` enables it")
 
   test("the role switcher actually switches role, not just renders buttons", async ({ page }) => {
     // This is why it broke silently: the old test asserted the six buttons were

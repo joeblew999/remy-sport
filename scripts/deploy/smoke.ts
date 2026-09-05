@@ -1,7 +1,7 @@
 /**
  * Verify a deployed Worker, without a sign-in backdoor.
  *
- * This is what `mise run 3-deploy` ends with. It used to end with `test:deployed`
+ * This is what `bun run deploy` ends with. It used to end with `test:deployed`
  * — the whole Playwright suite pointed at production — which never actually ran:
  * it needs `TEST_OTP` as both a local env var and a Worker secret, and no task
  * provisions either, so the pipeline always exited red even when the deploy had
@@ -20,7 +20,7 @@
  * expose everyone else's codes.
  *
  * The suite already runs against a real Worker earlier in the same pipeline
- * (`mise run test`, wrangler dev + local D1). Running it twice mostly re-proves
+ * (`bun run test:e2e`, wrangler dev + local D1). Running it twice mostly re-proves
  * the same things. What it cannot prove there — and all this needs to — is that
  * *this deployment* boots, reaches its own D1, and matches the schema that was
  * just migrated onto it.
@@ -145,7 +145,7 @@ const WHY_DEV_DIFFERS =
  */
 const vapidRemedy = () =>
   SURFACE === "tunnel" || SURFACE === "local"
-    ? `${HOST} runs from .dev.vars — run \`mise run dev:vars\` and restart wrangler dev`
+    ? `${HOST} runs from .dev.vars — run \`bun run dev:vars\` and restart wrangler dev`
     : `\`mise run push:secret:set\` has not run for ${SURFACE}`
 
 const { SEED_ENTITIES } = await import("../../src/domain/model/entities")
@@ -406,7 +406,7 @@ await check("a wrong sign-in code is refused", async () => {
 await check("the seed route does NOT exist", async () => {
   // It used to, and unauthenticated: 330 D1 statements to anyone who found it,
   // plus vocabulary upserts that re-asserted the PO's labels over edited ones.
-  // Seeding is an operator action now — `mise run seed:remote` applies the SQL
+  // Seeding is an operator action now — `bun run db seed-remote` applies the SQL
   // through wrangler — so on a deployment this must be as absent as the outbox.
   const res = await fetch(`${BASE}/api/seed`, { method: "POST" })
   return res.status === 404 ? null : `expected 404, got ${res.status}`

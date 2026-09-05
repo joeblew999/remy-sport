@@ -13,8 +13,8 @@
  * describes tables the database does not have; skip the seed and the fixtures
  * reference vocabulary that no longer exists.
  *
- *   mise run model              run the chain
- *   mise run model -- --help    print it without doing any of it
+ *   bun run model              run the chain
+ *   bun run model -- --help    print it without doing any of it
  *
  * This is the LOCAL half. It ends with a migration applied to .wrangler/state
  * and a deployment still on the old shape — `deploy` carries it out, and it
@@ -62,12 +62,12 @@ const CHAIN: Step[] = [
   {
     name: "verify",
     why: "the four checks that each prove one link: the copies match upstream, every table the model names exists, the seed matches the model, and it can be applied to an empty database",
-    cmd: ["bun", "scripts/check.ts"],
+    cmd: ["bun", "run", "check"],
   },
 ]
 
 if (process.argv.includes("--help")) {
-  console.log("\nmise run model — when the Product Owner changes the model\n\nWhat it runs:\n")
+  console.log("\nbun run model — when the Product Owner changes the model\n\nWhat it runs:\n")
   const pad = Math.max(...CHAIN.map((s) => s.name.length))
   CHAIN.forEach((s, i) => console.log(`  ${i + 1}. ${s.name.padEnd(pad)}  ${s.why}`))
   console.log("")
@@ -97,6 +97,6 @@ console.log(
     "  to .wrangler/state and nowhere else, and `deploy` is what carries it out —\n" +
     "  it provisions before it publishes, so the schema lands before the code that\n" +
     "  needs it.\n\n" +
-    "    mise run 3-deploy -- --env staging\n" +
-    "    mise run 3-deploy -- --env production\n",
+    "    bun run deploy -- --env staging\n" +
+    "    bun run deploy -- --env production\n",
 )

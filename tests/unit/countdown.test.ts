@@ -13,7 +13,7 @@
  * `process.env.TZ` rather than the machine's zone: a test that only fails in
  * Melbourne is a test that passes here and breaks in production.
  */
-import { describe, it, expect, afterAll } from "bun:test"
+import { describe, it, expect, afterAll } from "vitest"
 import { toEvent } from "../../src/web/lib/api"
 import { apiEvent } from "../helpers/api-fixtures"
 import type { Localizer } from "../../src/web/lib/localizer"

@@ -108,7 +108,7 @@ app.get("/api/versions", async (c) => {
     const versions = await import("../versions.json")
     return c.json(versions.default ?? versions)
   } catch {
-    return c.json({ error: "versions.json not found — run: mise run versions" }, 404)
+    return c.json({ error: "versions.json not found — run: bun run ops versions" }, 404)
   }
 })
 
@@ -188,7 +188,7 @@ app.all("*", (c) => c.env.ASSETS.fetch(c.req.raw))
 /**
  * The Hono app by name, as well as inside the default export.
  *
- * `mise run check:authz` enumerates `app.routes` to prove every non-procedure
+ * `bun run check:authz` enumerates `app.routes` to prove every non-procedure
  * route is accounted for. Wrapping the app in `{ fetch, scheduled }` hid that
  * list behind a closure and the check died with "undefined is not an object" —
  * a security check silently losing its subject, which is the worst way for one

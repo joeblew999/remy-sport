@@ -8,7 +8,7 @@
  * removal was for.
  *
  * The schema is derived from the table, here, so a column added upstream by
- * `mise run model` appears in the response, in the OpenAPI document and in the
+ * `bun run model` appears in the response, in the OpenAPI document and in the
  * client's types with nothing edited anywhere.
  *
  * What is NOT shared, and stays written out one line at a time: WHICH tables
@@ -40,7 +40,7 @@ type Key = keyof typeof FIXTURE_TABLES
  * endpoints, and an endpoint factory that can produce an undeclared one is how
  * "every generated table is an endpoint" turns into published personal data —
  * which is exactly what the header above warns about, and what nothing checked
- * until `mise run check:authz` existed.
+ * until `bun run check:authz` existed.
  */
 const listOf = <K extends Key>(
   builder: typeof pub | typeof authed,

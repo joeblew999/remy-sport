@@ -21,7 +21,7 @@ import { install } from "./lib/prepare"
 
 import { Refused, resolveTarget, resolvedConfig, wrangler, type Target } from "./lib/cloudflare"
 
-type Op = "migrate-remote" | "migrate-local" | "reset-local" | "seed-remote" | "tables-remote" | "tables-local"
+type Op = "migrate-remote" | "migrate-local" | "reset-local" | "seed-remote" | "tables-remote" | "tables-local" | "generate" | "studio" | "--help"
 
 /** Remote writes. These refuse without an explicit target. */
 const REMOTE_WRITES: Op[] = ["migrate-remote", "seed-remote"]
@@ -96,14 +96,14 @@ if (!op) {
   console.log(
     `\ndb: local database — ${count} tables, ` +
       (pending ? `${pending} migration(s) NOT applied` : "every migration applied") +
-      `\n\n  mise run db -- --help   what else this does\n`,
+      `\n\n  bun run db --help   what else this does\n`,
   )
   process.exit(pending ? 1 : 0)
 }
 
 if (op === "--help") {
   console.log(`
-mise run db -- <operation>
+bun run db <operation>
 
   migrate-local                 apply migrations to .wrangler/state
   migrate-remote --env X        apply them to a deployment
@@ -133,7 +133,7 @@ try {
       // have reset something it did not.
       Bun.spawnSync(["rm", "-rf", ".wrangler/state/v3/d1"])
       run(["d1", "migrations", "apply", name, "--local"], t)
-      console.log(`db: local D1 for "${name}" rebuilt — run 'mise run 1-dev' for test data`)
+      console.log(`db: local D1 for "${name}" rebuilt — run 'bun run dev' for test data`)
       break
     case "seed-remote":
       console.log(`db: seeding "${name}" [${t.environment}, remote]`)

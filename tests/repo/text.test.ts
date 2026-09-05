@@ -28,8 +28,9 @@
 
 import { readdirSync, readFileSync } from "fs"
 import { join, resolve } from "path"
+import { rule } from "./helpers"
 
-const ROOT = resolve(import.meta.dir, "../..")
+const ROOT = resolve(import.meta.dirname, "../..")
 
 /** The trees a person authors. Generated and vendored output is not our text. */
 const AUTHORED = ["src", "tests", "scripts", "messages"]
@@ -62,11 +63,9 @@ for (const file of files) {
   )
 }
 
-if (problems.length) {
-  console.error(`\ncheck-text: ${problems.length} source file(s) git will treat as binary\n`)
-  for (const p of problems) console.error(p)
-  console.error("")
-  process.exit(1)
-}
-
-console.log(`check-text: ${files.length} authored file(s), all of them text`)
+rule(
+  "source files are text, so their diffs can be read",
+  problems,
+  `check-text: ${problems.length} source file(s) git will treat as binary\n\n` + problems.join("\n") + "\n",
+  `check-text: ${files.length} authored file(s), all of them text`,
+)

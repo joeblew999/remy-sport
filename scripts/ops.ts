@@ -12,9 +12,9 @@
  * task list grew a name per verb until nothing could be found. The files stay
  * where they are and keep their own reasons.
  *
- *   mise run ops                    what can be done
- *   mise run ops demo status
- *   mise run ops analytics 24
+ *   bun run ops                    what can be done
+ *   bun run ops demo status
+ *   bun run ops analytics 24
  */
 
 import { install } from "./lib/prepare"
@@ -99,13 +99,6 @@ const OPS: Record<string, Op> = {
     cmd: ([what = "gui", ...rest]) => ["bun", `scripts/ops/coverage-${what}.ts`, ...rest],
     help: "coverage <gui|data|model>        how much of each surface is exercised",
   },
-  shots: {
-    group: "report",
-    // tests/e2e/screens.shots.ts, against the running dev server. Playwright's
-    // own filter passes through: `shots -g "my-team"`, `shots -g "· en · desktop"`.
-    cmd: (rest) => ["bun", "x", "playwright", "test", "--config", "playwright.shots.config.ts", ...rest],
-    help: "shots [-g filter]                every screen as every seeded person, into screenshots/",
-  },
   keys: {
     group: "setup",
     cmd: (rest) => ["bun", "scripts/ops/keys.ts", ...rest],
@@ -168,7 +161,7 @@ const [name, ...rest] = process.argv.slice(2)
 if (!name || name === "--help" || !OPS[name]) {
   const unknown = name && !OPS[name] ? `\nops: no such operation "${name}"\n` : ""
   console.log(`${unknown}
-mise run ops <operation>
+bun run ops <operation>
 
   Not the daily loop — that is dev, check, deploy. These are the things you
   reach for when the day is not ordinary, and each heading says when that is.`)

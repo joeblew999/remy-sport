@@ -82,7 +82,7 @@ function bunInstall(): number {
  * diagnosis I had not confirmed.
  */
 /**
- * Is `mise run 1-dev`'s bundler running?
+ * Is `bun run dev`'s bundler running?
  *
  * Exported because two different things need the answer for opposite reasons.
  * `webBuild` below asks so it can DEFER — the watcher's output is at least as
@@ -218,7 +218,7 @@ function runSteps(steps: Step[]): void {
    * dependencies, writes fonts.css, builds the SPA bundle, generates the Worker
    * types, writes .dev.vars, migrates the local database, installs a browser,
    * regenerates seed.sql and stamps versions.json. None of that was visible, so
-   * `mise run 1-dev` looked like it started a server and nothing else.
+   * `bun run dev` looked like it started a server and nothing else.
    *
    * The cost of the silence was not curiosity. When the versions step broke, the
    * only output was one line about a missing environment variable, from a script

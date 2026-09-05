@@ -14,6 +14,7 @@ import { getTableColumns, getTableName } from "drizzle-orm"
 import type { SQLiteTable } from "drizzle-orm/sqlite-core"
 import * as schema from "../../src/db/schema"
 import { ACTION, FIXTURE_TABLE, GRANTS, OBJECT_TYPE, RELATION } from "../../src/domain/vocabularies"
+import { rule } from "./helpers"
 
 const TABLES = new Set<string>()
 for (const value of Object.values(schema)) {
@@ -136,11 +137,10 @@ for (const [action, grants] of Object.entries(GRANTS)) {
   }
 }
 
-if (problems.length) {
-  console.error(`check-tables: ${problems.length} problem(s):\n` + problems.map((p) => `  ${p}`).join("\n"))
-  process.exit(1)
-}
-console.log(
+rule(
+  "every table the model names exists, and every grant resolves",
+  problems,
+  `check-tables: ${problems.length} problem(s):\n` + problems.map((p) => `  ${p}`).join("\n"),
   `check-tables: every table the model names exists (${TABLES.size} tables), ` +
     `and every grant resolves (${KNOWN_UNRESOLVABLE.size} known exceptions)`,
 )

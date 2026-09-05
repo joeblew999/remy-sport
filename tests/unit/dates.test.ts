@@ -12,7 +12,7 @@
  * try/catch, so it is one line of code away from getting this backwards. It
  * already was, briefly, while this file was being written.
  */
-import { describe, test, expect } from "bun:test"
+import { describe, test, expect } from "vitest"
 import { formatDayRange, formatMonthShort, formatTimeOn, tag, CALENDAR } from "../../src/web/lib/dates"
 
 const AUG_1 = new Date(2026, 7, 1)
@@ -21,8 +21,8 @@ const AT = new Date("2026-08-27T03:00:00Z")
 describe("a broken locale degrades rather than blanking the page", () => {
   test("a malformed tag still returns a string", () => {
     // What an undefined `Localizer.locale` produced: "undefined-u-ca-gregory".
-    expect(formatDayRange("undefined", AUG_1, null)).toBeString()
-    expect(formatMonthShort("!!not a tag!!", AUG_1)).toBeString()
+    expect(typeof formatDayRange("undefined", AUG_1, null)).toBe("string")
+    expect(typeof formatMonthShort("!!not a tag!!", AUG_1)).toBe("string")
   })
 
   test("a well-formed but unsupported locale never throws in the first place", () => {

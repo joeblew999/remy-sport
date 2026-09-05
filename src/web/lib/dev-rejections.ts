@@ -28,7 +28,7 @@
  *
  * ## Gated on the hostname, not on `import.meta.env.DEV`
  *
- * `DEV` is never true in this repo. `mise run dev` runs `vite build --watch` —
+ * `DEV` is never true in this repo. `bun run dev` runs `vite build --watch` —
  * a production build, watched — and the render tier serves `dist/web` through
  * `vite preview`. There is no vite dev server anywhere, deliberately: what you
  * develop against is the bundle you ship. The first version of this was gated

@@ -15,7 +15,7 @@
 // this comment used to imply. Paraglide emits `if (locale === "th") return
 // th_x(...)` and falls through to English, so a Thai reader silently gets the
 // English string — verified by deleting a key and watching the build pass.
-// `mise run check:messages` is what catches that.
+// `bun run check:messages` is what catches that.
 //
 // Call them directly — `m.discover_heading()` — rather than through a `t("...")`
 // indirection. The compiler cannot check a string key, and that indirection is

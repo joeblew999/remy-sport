@@ -5,7 +5,7 @@
  * is written here is what that deployment will report about itself for as long
  * as it is live. That makes it a stamp, not a record: it describes the artifact
  * being built, and the only honest answer to "what is live where" is to ask each
- * environment, which `mise run ops versions` does.
+ * environment, which `bun run ops versions` does.
  *
  * ## Why it names its environment
  *
@@ -63,7 +63,7 @@ function requireEnv(name: string): string {
  * "provisions nothing on the account", so it is not a deploy target and has no
  * [[routes]] to take an origin from.
  *
- * It still needs a stamp. The committed versions.json is what `mise run 1-dev`
+ * It still needs a stamp. The committed versions.json is what `bun run dev`
  * bundles and serves, so with a deploy's stamp left in it the local server
  * reports whichever environment was published last — which is how the file came
  * to sit in git saying "staging" while describing a laptop.
@@ -78,7 +78,7 @@ const DEPLOYED_URL = IS_DEV
   : originOf(resolveTarget(argv))
 const GITHUB_REPO = requireEnv("GITHUB_REPO_URL")
 /**
- * Derived, not required — `mise run 1-dev` could not start without this.
+ * Derived, not required — `bun run dev` could not start without this.
  *
  * mise's [env] deliberately stopped setting CF_WORKER_NAME: "CF_DEPLOY_URL,
  * CF_WORKER_NAME, DEV_URL and CLOUDFLARE_ACCOUNT_ID all used to sit here as

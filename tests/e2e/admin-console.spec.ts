@@ -25,7 +25,7 @@ test.describe.serial("Admin console", () => {
    * surface deciding who may impersonate whom — could only ever be exercised
    * against a local Worker.
    */
-  test.skip(!ADMIN_SIGN_IN, "no admin sign-in here — `mise run ops -- demo on --env X` enables it")
+  test.skip(!ADMIN_SIGN_IN, "no admin sign-in here — `bun run ops demo on --env X` enables it")
 
   test("an admin sees the account list; the plugin's own permission check allows it", async ({ page }) => {
     // Before ADR 013 this endpoint answered "You are not allowed to list users"

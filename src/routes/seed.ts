@@ -37,7 +37,7 @@ import { permits } from "../environment"
  * A token was the first fix and the wrong one: `wrangler secret` values cannot
  * be read back, so the pipeline would have had to keep its own copy of a secret
  * the platform already had. Seeding is an operator action and the operator has
- * wrangler — `mise run seed:remote` applies src/db/seed.sql to D1 directly, so
+ * wrangler — `bun run db seed-remote` applies src/db/seed.sql to D1 directly, so
  * production needs no HTTP surface for it whatsoever. The route that stays is
  * for local development and the tests, which is all it was ever for.
  */
@@ -51,7 +51,7 @@ seed.post("/api/seed", async (c) => {
   const results = await c.env.DB.batch(
     SEED_STATEMENTS.map((sql) => c.env.DB.prepare(sql)),
   )
-  const written = results.reduce((n, r) => n + (r.meta?.changes ?? 0), 0)
+  const written = results.reduce((n: number, r: D1Result) => n + (r.meta?.changes ?? 0), 0)
   return c.json({ statements: SEED_STATEMENTS.length, written })
 })
 

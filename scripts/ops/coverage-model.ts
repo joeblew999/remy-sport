@@ -8,7 +8,7 @@
  *
  * Nothing here fails the build, and that is deliberate — most of these are
  * unbuilt on purpose and the roadmap says so. What was missing was a way to
- * *see* it. `mise run model:coverage`.
+ * *see* it. `bun run model:coverage`.
  *
  * Three honest buckets:
  *

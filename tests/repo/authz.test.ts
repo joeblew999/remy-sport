@@ -24,6 +24,7 @@
 import { GRANTS } from "../../src/domain/vocabularies"
 import { policyOf, type Policy } from "../../src/api/base"
 import { router } from "../../src/api/index"
+import { rule } from "./helpers"
 
 type Node = Record<string, unknown>
 
@@ -94,15 +95,14 @@ for (const { path, policy } of found) {
 
 const enforced = found.filter((f) => f.policy?.kind === "action").length
 
-if (problems.length) {
-  console.error(`check-authz: ${problems.length} of ${found.length} procedures are a problem\n`)
-  for (const p of problems) console.error(`  ${p}`)
-  console.error(
-    "\nAuthorisation is the model's answer and every procedure must say which. " +
-      "A procedure that declares nothing is not public — it is unreviewed.",
-  )
-  process.exit(1)
-}
+rule(
+  "every procedure declares how it is authorised",
+  problems,
+  `check-authz: ${problems.length} of ${found.length} procedures are a problem\n\n` +
+    problems.map((p) => `  ${p}`).join("\n") +
+    "\n\nAuthorisation is the model's answer and every procedure must say which. " +
+    "A procedure that declares nothing is not public — it is unreviewed.",
+)
 
 /**
  * The routes that are not oRPC procedures at all.
@@ -155,20 +155,19 @@ const live = new Set(
 const undeclared = [...live].filter((r) => !(r in HONO_ROUTES))
 const stale = Object.keys(HONO_ROUTES).filter((r) => !live.has(r))
 
-if (undeclared.length) {
-  console.error("check-authz: routes mounted outside the oRPC router with no note:\n")
-  for (const r of undeclared) console.error(`  ${r}`)
-  console.error(
-    "\nAdd it to HONO_ROUTES in this file with a sentence on how it is guarded. " +
-      "`POST /api/seed` sat here unauthenticated for months because nothing listed it.",
-  )
-  process.exit(1)
-}
-
-console.log(
+rule(
+  "every route mounted outside the router is listed, with how it is guarded",
+  undeclared,
+  "check-authz: routes mounted outside the oRPC router with no note:\n\n" +
+    undeclared.map((r) => `  ${r}`).join("\n") +
+    "\n\nAdd it to HONO_ROUTES in this file with a sentence on how it is guarded. " +
+    "`POST /api/seed` sat here unauthenticated for months because nothing listed it.",
   `check-authz: ${found.length} procedures, ${enforced} enforced by the model, ` +
-    `${escapes.length} declared otherwise; ${live.size} non-procedure routes accounted for`,
+    `${escapes.length} declared otherwise; ${live.size} non-procedure routes accounted for` +
+    (stale.length ? `\n  (no longer mounted: ${stale.join(", ")})` : "") +
+    // Printed rather than hidden: these are the ones a person should re-read.
+    escapes
+      .sort()
+      .map((line) => `\n${line}`)
+      .join(""),
 )
-if (stale.length) console.log(`  (no longer mounted: ${stale.join(", ")})`)
-// Printed rather than hidden: these are the ones a person should re-read.
-for (const line of escapes.sort()) console.log(line)

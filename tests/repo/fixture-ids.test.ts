@@ -38,8 +38,9 @@
 import { readFileSync, readdirSync } from "fs"
 import { join, resolve } from "path"
 import { SEED_ENTITIES, SEED_RELATIONSHIPS } from "../../src/domain/model/entities"
+import { rule } from "./helpers"
 
-const ROOT = resolve(import.meta.dir, "../..")
+const ROOT = resolve(import.meta.dirname, "../..")
 
 /**
  * Every string any fixture row holds.
@@ -91,21 +92,19 @@ for (const file of files) {
       problems.push(
         `  ${file}:${i + 1}  ${id} — no fixture row holds this id\n` +
           `      Seed it in remy-sport-biz's domain/model/entities.ts and run\n` +
-          `      'mise run ops domain', or add // check-ignore with the reason it\n` +
+          `      'bun run ops domain', or add // check-ignore with the reason it\n` +
           `      must not exist.`,
       )
     }
   })
 }
 
-if (problems.length) {
-  console.error(`\ncheck-fixture-ids: ${problems.length} id(s) that no fixture defines\n`)
-  for (const p of problems) console.error(p)
-  console.error(
-    "\n  An invented id is a hole in the seed that got papered over instead of\n" +
-      "  reported. The camp's Sessions tab shipped empty for three days behind one.\n",
-  )
-  process.exit(1)
-}
-
-console.log(`check-fixture-ids: ${checked} fixture id(s) named in tests, all of them real`)
+rule(
+  "a test only names a row that exists",
+  problems,
+  `check-fixture-ids: ${problems.length} id(s) that no fixture defines\n\n` +
+    problems.join("\n") +
+    "\n\n  An invented id is a hole in the seed that got papered over instead of\n" +
+    "  reported. The camp's Sessions tab shipped empty for three days behind one.\n",
+  `check-fixture-ids: ${checked} fixture id(s) named in tests, all of them real`,
+)

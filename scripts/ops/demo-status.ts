@@ -168,7 +168,7 @@ if (!listed || listed.status === 404) {
   console.log(`      The account picker is not served here, which is separate and expected`)
   console.log(`      wherever seededSignIn is false — production publishes no list of who`)
   console.log(`      can be signed in as.`)
-  console.log(`\n      Run 'mise run demo:off' before the platform has real users.`)
+  console.log(`\n      Run 'bun run ops demo off' before the platform has real users.`)
   process.exit(0)
 }
 
@@ -194,9 +194,9 @@ const admin = accounts.find((a) => a.role === "admin")
 console.log(
   admin
     ? `\n      ⚠  THE ADMIN IS BEING OFFERED. That account can impersonate a real\n` +
-        `         user. Run 'mise run demo:off' now and check src/auth.ts.`
+        `         user. Run 'bun run ops demo off' now and check src/auth.ts.`
     : `\n      The admin is not offered, and could not use the code if it were.\n` +
-      `      Run 'mise run demo:off' before the platform has real users.`,
+      `      Run 'bun run ops demo off' before the platform has real users.`,
 )
 
 if (admin) process.exit(1)

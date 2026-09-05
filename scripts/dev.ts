@@ -1,11 +1,11 @@
 /**
  * The dev server: one port, always current, seeded, reachable from a phone.
  *
- *   mise run 1-dev            start it
- *   mise run 1-dev -- stop    stop it and everything it started
- *   mise run 1-dev -- restart both, in order
- *   mise run 1-dev -- ensure  start only if it is not already up
- *   mise run 1-dev -- watch   re-run the fast gate on every save
+ *   bun run dev            start it
+ *   bun run dev stop    stop it and everything it started
+ *   bun run dev restart both, in order
+ *   bun run dev ensure  start only if it is not already up
+ *   bun run test:watch     re-run the tests on every save, beside it
  *
  * It was fifty-three lines of shell in mise.toml plus twelve more for stopping,
  * and `scripts/dev.ts` was something else entirely — the .dev.vars generator —
@@ -125,7 +125,7 @@ async function reachable(): Promise<boolean> {
  * named steps below; what is left reads top to bottom as what happens.
  */
 /**
- * The sequence, as data, so `mise run 1-dev -- --help` prints exactly what runs.
+ * The sequence, as data, so `bun run dev -- --help` prints exactly what runs.
  * Each line says why it is where it is; nearly all of them are "the next step
  * needs what this one produced".
  */
@@ -231,11 +231,11 @@ function announce(ip: string | null, tunnel: boolean): void {
   console.log(
     tunnel
       ? `  https://${HOSTNAME}   fixed URL, works anywhere`
-      : "  (no tunnel — 'mise run ops tunnel' once for a fixed public URL)",
+      : "  (no tunnel — 'bun run ops tunnel' once for a fixed public URL)",
   )
   console.log(`  #/login                          twelve seeded people, one click`)
   console.log(`  rebuilds on save — reload to see changes`)
-  console.log(`\n  when you are done:  mise run 2-check\n`)
+  console.log(`\n  when you are done:  bun run check\n`)
 }
 
 /**
@@ -267,13 +267,14 @@ const [action = "start"] = process.argv.slice(2)
 
 if (process.argv.includes("--help")) {
   console.log(`
-mise run 1-dev [-- stop | restart | ensure | watch]
+bun run dev [stop | restart | ensure]
 
   (no argument)  start the server and stay attached — Ctrl-C stops everything
   stop           stop it and every process it started
   restart        both, in order
   ensure         start it only if it is not already up
-  watch          re-run the fast gate on every save
+
+  bun run test:watch  re-runs the tests on every save, beside this
 
 What starting it does, in order:
 `)
@@ -289,15 +290,11 @@ if (action === "stop") {
   // Wait for the port to actually free before rebinding it.
   for (let i = 0; i < 20 && (await reachable()); i++) await Bun.sleep(250)
   await start()
-} else if (action === "watch") {
-  // The fast gate on every save. The point is the seconds, not the watching: a
-  // check you have to ask for gets run at the end of a change.
-  Bun.spawnSync(["bun", "scripts/lib/watch.ts"], { stdout: "inherit", stderr: "inherit" })
 } else if (action === "ensure") {
   await ensure()
 } else if (action === "start") {
   await start()
 } else {
-  console.error(`dev: unknown action "${action}" — start | stop | restart | ensure | watch`)
+  console.error(`dev: unknown action "${action}" — start | stop | restart | ensure`)
   process.exit(1)
 }

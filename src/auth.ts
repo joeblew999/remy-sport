@@ -188,7 +188,7 @@ export function createAuth(c: AuthHost) {
 
   return betterAuth({
     // Schema-shaping options live in auth.config.ts so the Better Auth CLI can
-    // read them without a request Context — see `mise run auth:schema:generate`.
+    // read them without a request Context — see `bun scripts/deploy/auth-schema.ts --write`.
     //
     // Built through the factory rather than spread as a constant, because
     // sendInvitationEmail needs `env` — the EMAIL binding and the base URL —
@@ -297,7 +297,7 @@ export function createAuth(c: AuthHost) {
       //
       // Where it comes from is `signInCode` in the policy table: derived on dev
       // and staging, and on production only from a human-set TEST_OTP that
-      // `mise run demo:off` removes. **Not gated on `seededSignIn`** — that row
+      // `bun run ops demo off` removes. **Not gated on `seededSignIn`** — that row
       // decides whether the account picker appears, which production says no to
       // while still needing the fixed code for the deployed suite. Gating this
       // on it made `demo:on` silently do nothing on production for one commit.

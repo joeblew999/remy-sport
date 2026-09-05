@@ -11,7 +11,7 @@
  * aspirational.
  */
 
-import { expect, test, describe } from "bun:test"
+import { expect, test, describe } from "vitest"
 import { nextOf, shortCode, toEvent, type ApiEvent } from "../../src/web/lib/api"
 import type { Localizer } from "../../src/web/lib/localizer"
 import { apiEvent } from "../helpers/api-fixtures"
@@ -179,8 +179,14 @@ describe("what an event contains comes from the tables that hold it", () => {
  * if this ever regresses to hand-rolled formatting, they are what fails.
  */
 describe("date ranges are written the way each language writes them", () => {
+  // ICU puts thin spaces (U+2009, U+202F) around the dash in some builds and
+  // plain spaces in others — Node and Bun disagree, and so may two browsers.
+  // The words are the product's decision; the width of the space is ICU's.
   const range = (locale: string, startDate: string | null, endDate: string | null) =>
-    toEvent(event({ startDate, endDate }), { ...loc, locale } as Localizer, on("2026-01-01")).date
+    toEvent(event({ startDate, endDate }), { ...loc, locale } as Localizer, on("2026-01-01")).date.replace(
+      /[\u2009\u202f]/g,
+      " ",
+    )
 
   test("undated", () => expect(range("en", null, null)).toBe("Dates TBC"))
 

@@ -49,6 +49,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs"
 import { join } from "node:path"
 import { ACTION, GRANTS } from "../../src/domain/vocabularies"
+import { rule } from "./helpers"
 
 /**
  * Actions with no screen, and the model change each one waits on.
@@ -157,7 +158,7 @@ const granted = ACTION.filter((a) => a.code in GRANTS).map((a) => a.code)
 const problems: string[] = []
 
 for (const [code, files] of answers) {
-  if (!granted.includes(code)) {
+  if (!(granted as readonly string[]).includes(code)) {
     problems.push(
       `${files[0]} declares @answers ${code}, which the model does not grant — ` +
         `a screen claiming an action that was renamed or removed upstream`,
@@ -194,21 +195,17 @@ for (const [list, name] of [
   [NOT_BUILT, "NOT_BUILT"],
 ] as const) {
   for (const code of Object.keys(list)) {
-    if (!granted.includes(code)) {
+    if (!(granted as readonly string[]).includes(code)) {
       problems.push(`${code} is in ${name} and the model no longer grants it — delete the entry`)
     }
   }
 }
 
-if (problems.length) {
-  console.error(
-    `check-actions: ${problems.length} problem(s) across ${granted.length} granted actions:\n` +
-      problems.map((p) => `  ${p}`).join("\n"),
-  )
-  process.exit(1)
-}
-
-console.log(
+rule(
+  "every action the model grants has a screen, or a written reason",
+  problems,
+  `check-actions: ${problems.length} problem(s) across ${granted.length} granted actions:\n` +
+    problems.map((p) => `  ${p}`).join("\n"),
   `check-actions: ${granted.length} actions granted, ${answers.size} answered by a screen, ` +
     `${Object.keys(NOT_BUILT).length} buildable and unbuilt, ` +
     `${Object.keys(BLOCKED).length} at the model boundary`,

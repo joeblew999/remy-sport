@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test"
+import { describe, expect, it } from "vitest"
 import { m, locales, baseLocale } from "../../src/web/lib/i18n"
 import { LOCALES, ALL_LOCALES } from "../../src/domain/vocabularies"
 

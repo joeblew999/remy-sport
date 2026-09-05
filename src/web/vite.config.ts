@@ -147,7 +147,7 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,woff2,png,svg,ico}"],
       },
       // The dev server serves a real service worker too, so push can be tested
-      // against `mise run dev` instead of only against a deploy. Without this,
+      // against `bun run dev` instead of only against a deploy. Without this,
       // `navigator.serviceWorker.register` 404s in dev and every push feature
       // is untestable until it is live — which is how you ship a broken one.
       devOptions: { enabled: true, type: "module" },
@@ -159,7 +159,7 @@ export default defineConfig({
    *
    * Vite defaults `preview.proxy` to `server.proxy`, so the render tier — which
    * describes itself as "no Worker, no database, no sign-in" — quietly became an
-   * integration tier whenever `mise run dev` happened to be running: `/api` and
+   * integration tier whenever `bun run dev` happened to be running: `/api` and
    * `/rpc` reached the real Worker, the profile page got a 401 from an endpoint
    * that should not have been reachable, and the page stopped responding.
    *
@@ -174,7 +174,7 @@ export default defineConfig({
     /**
      * Emptied by a one-shot build, never by the watcher.
      *
-     * `mise run dev` runs this config with `--watch`, and every rebuild used to
+     * `bun run dev` runs this config with `--watch`, and every rebuild used to
      * delete dist/web before writing it. Anything reading the directory during
      * that window sees a shell with no bundle — which is not hypothetical: a
      * whole e2e suite failed on eight specs, and `test:worker:assets` failed
@@ -208,7 +208,7 @@ export default defineConfig({
     // sign-in 404s and every page renders empty. That looked like "the SPA is
     // broken" when the SPA was fine and simply had no backend.
     //
-    // Requires `mise run dev` in another terminal. web:dev deliberately does
+    // Requires `bun run dev` in another terminal. web:dev deliberately does
     // not start the Worker itself: two dev servers under one task is a worse
     // trade than one extra terminal, and the ports differ so both can run.
     proxy: {

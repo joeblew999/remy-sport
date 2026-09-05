@@ -20,8 +20,9 @@
 
 import { readdirSync, readFileSync, existsSync } from "fs"
 import { join, resolve, dirname } from "path"
+import { rule } from "./helpers"
 
-const ROOT = resolve(import.meta.dir, "../..")
+const ROOT = resolve(import.meta.dirname, "../..")
 
 function docFiles(): string[] {
   const out = ["AGENTS.md", "CLAUDE.md", "GEMINI.md", "README.md"]
@@ -153,7 +154,7 @@ const basenames = new Set<string>()
   walk(".")
 }
 
-let missing = 0
+const problems: string[] = []
 let checked = 0
 
 for (const doc of docFiles()) {
@@ -168,8 +169,7 @@ for (const doc of docFiles()) {
       if (!hasCompanion) continue
       checked++
       if (existsSync(join(COMPANION, companion))) continue
-      missing++
-      console.error(`${doc}:${line}  missing in remy-sport-biz: ${companion}`)
+      problems.push(`${doc}:${line}  missing in remy-sport-biz: ${companion}`)
       continue
     }
 
@@ -179,8 +179,7 @@ for (const doc of docFiles()) {
     // A bare filename is prose shorthand and is judged on the basename alone.
     if (!p.includes("/")) {
       if (basenames.has(p)) continue
-      missing++
-      console.error(`${doc}:${line}  missing: ${p} (no file anywhere has that name)`)
+      problems.push(`${doc}:${line}  missing: ${p} (no file anywhere has that name)`)
       continue
     }
 
@@ -190,21 +189,19 @@ for (const doc of docFiles()) {
     ]
     if (candidates.some(existsSync)) continue
 
-    missing++
-    console.error(`${doc}:${line}  missing: ${p}`)
+    problems.push(`${doc}:${line}  missing: ${p}`)
   }
 }
 
-if (missing > 0) {
-  console.error(
-    `\ndocs-check: ${missing} documented path(s) do not exist (${checked} checked).\n\n` +
-      `Either the file moved and the doc needs updating, or the doc describes something\n` +
-      `that was never built. The second case is the dangerous one — AGENTS.md is read at\n` +
-      `the start of every session, so a wrong note there becomes wrong work.\n\n` +
-      `A line that names a path on purpose (to say it is absent, or as an example) can\n` +
-      `carry <!-- docs-check-ignore -->.`,
-  )
-  process.exit(1)
-}
-
-console.log(`docs-check: ${checked} documented paths all resolve`)
+rule(
+  "every path the documentation names exists",
+  problems,
+  `docs-check: ${problems.length} documented path(s) do not exist (${checked} checked).\n\n` +
+    problems.map((p) => `  ${p}`).join("\n") +
+    `\n\nEither the file moved and the doc needs updating, or the doc describes something\n` +
+    `that was never built. The second case is the dangerous one — the docs are read at\n` +
+    `the start of every session, so a wrong note there becomes wrong work.\n\n` +
+    `A line that names a path on purpose (to say it is absent, or as an example) can\n` +
+    `carry <!-- docs-check-ignore -->.`,
+  `docs-check: ${checked} documented paths all resolve`,
+)

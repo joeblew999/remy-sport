@@ -32,8 +32,9 @@
 import { readdirSync, readFileSync, statSync } from "fs"
 import { join, relative, resolve } from "path"
 import { NOTIFICATION_TYPE_CODES } from "../../src/domain/vocabularies"
+import { rule } from "./helpers"
 
-const ROOT = resolve(import.meta.dir, "../..")
+const ROOT = resolve(import.meta.dirname, "../..")
 const SERVER = resolve(ROOT, "src")
 const SETTINGS = resolve(ROOT, "src/web/components/notification-settings.tsx")
 
@@ -79,29 +80,29 @@ for (const file of serverSources(SERVER)) {
 
 const settings = readFileSync(SETTINGS, "utf8")
 const block = settings.match(/const OFFERED = \[(.*?)\] as const/s)
-if (!block) {
-  console.error("check-notifications: could not find `const OFFERED = [...]` in notification-settings.tsx")
-  process.exit(1)
-}
-const offered = new Set([...block[1]!.matchAll(/"([A-Z_]+)"/g)].map((m) => m[1]!))
+const offered = new Set(block ? [...block[1]!.matchAll(/"([A-Z_]+)"/g)].map((m) => m[1]!) : [])
 
 const unmutable = [...senders.keys()].filter((code) => !offered.has(code)).sort()
 const dead = [...offered].filter((code) => !senders.has(code)).sort()
 
-if (unmutable.length || dead.length) {
-  console.error("check-notifications: the settings page and the senders disagree\n")
-  for (const code of unmutable) {
-    console.error(`  ${code} is sent from ${senders.get(code)!.join(", ")} and has no switch.`)
-    console.error("    A reader cannot turn it off. Add it to OFFERED in notification-settings.tsx.")
-  }
-  for (const code of dead) {
-    console.error(`  ${code} has a switch and nothing sends it.`)
-    console.error("    A control that does nothing teaches a reader the controls do not work.")
-  }
-  process.exit(1)
-}
+const problems = [
+  ...(block ? [] : ["could not find `const OFFERED = [...]` in notification-settings.tsx"]),
+  ...unmutable.map(
+    (code) =>
+      `${code} is sent from ${senders.get(code)!.join(", ")} and has no switch.\n` +
+      "    A reader cannot turn it off. Add it to OFFERED in notification-settings.tsx.",
+  ),
+  ...dead.map(
+    (code) =>
+      `${code} has a switch and nothing sends it.\n` +
+      "    A control that does nothing teaches a reader the controls do not work.",
+  ),
+]
 
-console.log(
+rule(
+  "everything the platform sends can be turned off",
+  problems,
+  "check-notifications: the settings page and the senders disagree\n\n" + problems.map((p) => `  ${p}`).join("\n"),
   `check-notifications: ${offered.size} of ${known.size} notification types are sent, ` +
     "and every one of them can be turned off",
 )

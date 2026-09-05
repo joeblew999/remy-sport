@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test"
+import { describe, it, expect } from "vitest"
 import { changedScores, scoreBody, type LiveGame } from "../../src/web/lib/native-notify"
 
 /**

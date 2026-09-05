@@ -28,6 +28,7 @@
  */
 import { readFileSync, readdirSync, statSync } from "node:fs"
 import { join } from "node:path"
+import { rule } from "./helpers"
 
 /**
  * Pages with no link, on purpose.
@@ -54,10 +55,6 @@ const pages = [
   ...(router.match(/export const PAGES = \[(.*?)\] as const/s)?.[1] ?? "").matchAll(/"([\w-]+)"/g),
 ].map((m) => m[1]!)
 
-if (pages.length === 0) {
-  console.error("check-reachable: could not read PAGES from src/web/lib/router.tsx")
-  process.exit(1)
-}
 
 const sidebar = readFileSync("src/web/components/sidebar.tsx", "utf8")
 
@@ -88,15 +85,13 @@ for (const page of Object.keys(NO_LINK_NEEDED)) {
   }
 }
 
-if (problems.length) {
-  console.error(
-    `check-reachable: ${problems.length} problem(s) across ${pages.length} routes:\n` +
-      problems.map((p) => `  ${p}`).join("\n"),
-  )
-  process.exit(1)
-}
+if (pages.length === 0) problems.unshift("could not read PAGES from src/web/lib/router.tsx")
 
-console.log(
+rule(
+  "every page is reachable without typing its address",
+  problems,
+  `check-reachable: ${problems.length} problem(s) across ${pages.length} routes:\n` +
+    problems.map((p) => `  ${p}`).join("\n"),
   `check-reachable: ${pages.length} routes, every one reachable by clicking ` +
     `(${Object.keys(NO_LINK_NEEDED).length} deliberately not linked)`,
 )

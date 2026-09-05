@@ -23,8 +23,9 @@
 
 import { readFileSync, readdirSync } from "fs"
 import { join, resolve } from "path"
+import { rule } from "./helpers"
 
-const ROOT = resolve(import.meta.dir, "../..")
+const ROOT = resolve(import.meta.dirname, "../..")
 const MIGRATIONS = join(ROOT, "src/db/migrations")
 
 /** child -> parents, from every migration: a table can gain a foreign key later. */
@@ -76,19 +77,15 @@ for (const [child, line] of first) {
   }
 }
 
-if (inversions.length) {
-  console.error(
-    `check-seed-order: ${inversions.length} row(s) inserted before what they reference\n\n` +
-      inversions.sort().join("\n") +
-      `\n\n  A fresh database refuses these with FOREIGN KEY constraint failed. An\n` +
-      `  existing one accepts them, because the parent is already there — which is\n` +
-      `  why this can pass everywhere and fail on the next environment created.\n` +
-      `  Fix the emit order in scripts/lib/seed.ts, then re-run 'mise run model'.`,
-  )
-  process.exit(1)
-}
-
-console.log(
+rule(
+  "the seed inserts no row before the row it points at",
+  inversions,
+  `check-seed-order: ${inversions.length} row(s) inserted before what they reference\n\n` +
+    inversions.sort().join("\n") +
+    `\n\n  A fresh database refuses these with FOREIGN KEY constraint failed. An\n` +
+    `  existing one accepts them, because the parent is already there — which is\n` +
+    `  why this can pass everywhere and fail on the next environment created.\n` +
+    `  Fix the emit order in scripts/lib/seed.ts, then re-run 'bun run model'.`,
   `check-seed-order: ${first.size} tables seeded, none before what it references ` +
     `(${[...edges.values()].reduce((n, s) => n + s.size, 0)} foreign keys checked)`,
 )

@@ -403,7 +403,7 @@ const GROUPS: SecretGroup[] = [
      * `signInCode` is the row: dev and staging derive the code, because every
      * seeded address there is `.test` and reaches nobody. Production is
      * `"secret"` precisely so a person decides *when* seeded sign-in is on, and
-     * `mise run demo:off` can take it away without a redeploy.
+     * `bun run ops demo off` can take it away without a redeploy.
      */
     appliesTo: (env) => POLICY[env].signInCode === "derived",
   },

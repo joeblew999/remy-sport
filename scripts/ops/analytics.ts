@@ -33,7 +33,6 @@ import { accountId, token } from "../lib/cloudflare"
 
 import {
   EVENTS,
-  LAYOUT_CUTOVER,
   blobColumn,
   doubleColumn,
   fixedColumn,
@@ -48,7 +47,7 @@ const ACCOUNT = accountId()
 const TOKEN = token()
 const DATASET = "remy_sport_events"
 /**
- * Which environment to report on. `mise run analytics --env staging`.
+ * Which environment to report on. `bun run ops analytics --env staging`.
  *
  * Defaults to production because that is the one somebody is usually asking
  * about, and because an unfiltered report now mixes three deployments into one
@@ -60,7 +59,7 @@ const ENVIRONMENT =
   (process.argv.includes("--all-environments") ? "" : "production")
 const DEV = process.env.DEV_URL ?? "http://127.0.0.1:8787"
 
-/** How far back, in hours. `mise run analytics 168` for a week. */
+/** How far back, in hours. `bun run ops analytics 168` for a week. */
 const HOURS = Number(process.argv.slice(2).find((a) => /^\d+$/.test(a)) ?? 24)
 /** `--remote` reads the deployment even when a dev server is up. */
 const FORCE_REMOTE = process.argv.includes("--remote")
@@ -73,7 +72,7 @@ const NOTES: Partial<Record<EventName, string>> = {
   "api.threw": "Our bugs. Every line here is code that is wrong — this should be empty.",
   "api.served":
     "What is slow. p50_ms is honest as it stands; multiply n by p50_rate for a true count, " +
-    "since a deployment records one success in ten. `mise run time <path>` measures one route on demand.",
+    "since a deployment records one success in ten. `bun run ops time <path>` measures one route on demand.",
   "push.sent": "Apple, FCM and Mozilla each enforce the RFCs differently. A host at 0% is the failure.",
   "broadcast.started": "Cameras switched on.",
   "broadcast.ended": "...and off, with how long they lasted. A short median is the gym uplink.",
@@ -119,8 +118,12 @@ function queryFor(event: EventName, spec: EventSpec, since: string): string {
   )
   const select = [...dims, "sum(_sample_interval) AS n", ...stats].join(", ")
   const group = spec.dimensions.length > 0 ? `GROUP BY ${spec.dimensions.join(", ")}` : ""
+  // The environment filter this file's `--env` promised and never applied:
+  // ENVIRONMENT was computed and read by nothing, so every report mixed three
+  // deployments into one table. Empty means --all-environments.
+  const env = ENVIRONMENT ? ` AND ${fixedColumn("environment")} = '${ENVIRONMENT}'` : ""
   return `SELECT ${select} FROM ${DATASET}
-          WHERE timestamp > ${since} AND ${fixedColumn("event")} = '${event}'
+          WHERE timestamp > ${since} AND ${fixedColumn("event")} = '${event}'${env}
           ${group} ORDER BY n DESC LIMIT 25`
 }
 
@@ -208,7 +211,7 @@ const local = FORCE_REMOTE ? null : await fromDev()
 if (!local && (!ACCOUNT || !TOKEN)) {
   console.error(
     `No dev server at ${DEV}, and no credentials for the deployment.\n` +
-      "Start one with `mise run 1-dev`, or set CLOUDFLARE_ACCOUNT_ID and a\n" +
+      "Start one with `bun run dev`, or set CLOUDFLARE_ACCOUNT_ID and a\n" +
       "CLOUDFLARE_API_TOKEN with Account Analytics: Read.",
   )
   process.exit(1)

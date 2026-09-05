@@ -30,8 +30,9 @@
 
 import { existsSync, readFileSync, statSync } from "fs"
 import { resolve } from "path"
+import { rule } from "./helpers"
 
-const SW = resolve(import.meta.dir, "../../dist/web/sw.js")
+const SW = resolve(import.meta.dirname, "../../dist/web/sw.js")
 
 /**
  * Modules that have no business running in a service worker.
@@ -51,17 +52,16 @@ const FORBIDDEN = ["drizzle", "hono", "@orpc", "better-auth", "react"]
  */
 const CEILING = 45_000
 
+const problems: string[] = []
 if (!existsSync(SW)) {
-  console.error(
-    `check-bundle: ${SW} not found — run 'mise run web:build' first.\n` +
-      "  This task depends on it, so reaching here means the build did not produce a worker.",
+  problems.push(
+    `${SW} not found — run 'bun run build' first.\n` +
+      "    Reaching here means the build did not produce a worker.",
   )
-  process.exit(1)
 }
 
-const source = readFileSync(SW, "utf8")
-const size = statSync(SW).size
-const problems: string[] = []
+const source = existsSync(SW) ? readFileSync(SW, "utf8") : ""
+const size = existsSync(SW) ? statSync(SW).size : 0
 
 const leaked = FORBIDDEN.filter((name) => source.includes(name))
 if (leaked.length) {
@@ -90,12 +90,9 @@ if (size > CEILING) {
   )
 }
 
-if (problems.length) {
-  console.error("check-bundle: the service worker is carrying code it should not\n")
-  for (const p of problems) console.error(`  ${p}\n`)
-  process.exit(1)
-}
-
-console.log(
+rule(
+  "the service worker carries no server code and stays under its size ceiling",
+  problems,
+  "check-bundle: the service worker is carrying code it should not\n\n" + problems.map((p) => `  ${p}\n`).join("\n"),
   `check-bundle: the service worker is ${size.toLocaleString()} bytes and carries none of ${FORBIDDEN.join(", ")}`,
 )

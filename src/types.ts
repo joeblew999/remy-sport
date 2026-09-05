@@ -14,7 +14,7 @@ export type Bindings = {
   ENVIRONMENT?: string
   /**
    * The dev tunnel's hostname, local only — written into `.dev.vars` by
-   * `mise run dev` and absent everywhere else.
+   * `bun run dev` and absent everywhere else.
    *
    * `wrangler dev --host` rewrites the Host the Worker sees, so a request the
    * browser made to the tunnel arrives claiming to be the LAN address. The

@@ -39,11 +39,11 @@ permission, so this needs a token created in the dashboard:
 Then store it once, so later runs need no prefix:
 
   mise exec -- fnox set --global -p keychain CLOUDFLARE_API_TOKEN
-  mise run cf:audit
+  bun run ops audit
 
 Or pass it for a single run, which takes precedence over the stored one:
 
-  CLOUDFLARE_API_TOKEN=... mise run cf:audit
+  CLOUDFLARE_API_TOKEN=... bun run ops audit
 
 Either way the token is read from the environment of this process and never
 written to disk.`,

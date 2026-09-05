@@ -11,7 +11,7 @@
  * AGENTS.md. If one starts failing, one of the two is now wrong.
  */
 
-import { expect, test, describe } from "bun:test"
+import { expect, test, describe } from "vitest"
 import { clean, pick, pivot, FALLBACK, type Names } from "../../src/domain/names"
 
 describe("pick — resolve a name in the reader's language", () => {

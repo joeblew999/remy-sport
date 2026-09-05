@@ -36,7 +36,8 @@
  * warns about all three. Resolved config is the only trustworthy source.
  */
 
-import { declaredEnvs, resolvedConfig } from "../lib/cloudflare"
+import { declaredEnvs, resolvedConfig } from "../../scripts/lib/cloudflare"
+import { rule } from "./helpers"
 
 /** Which environment a resolved config belongs to, for messages. */
 type Named = { label: string; env: string | undefined }
@@ -89,14 +90,14 @@ const exclusive = (c: (typeof resolved)[number]["config"]) => ({
   // By host, not by pattern — see hostOf. Two environments serving
   // `example.net` and `example.net/*` are still fighting over one hostname.
   "route host": hostsOf(c),
-  "D1 database": c.d1_databases.map((d) => d.database_name).filter(Boolean) as string[],
-  "R2 bucket": c.r2_buckets.map((b) => b.bucket_name).filter(Boolean) as string[],
+  "D1 database": c.d1_databases.map((d: { database_name?: string }) => d.database_name).filter(Boolean) as string[],
+  "R2 bucket": c.r2_buckets.map((b: { bucket_name?: string }) => b.bucket_name).filter(Boolean) as string[],
   "analytics dataset": c.analytics_engine_datasets
-    .map((a) => a.dataset)
+    .map((a: { dataset?: string }) => a.dataset)
     .filter(Boolean) as string[],
   queue: [
-    ...(c.queues.producers ?? []).map((q) => q.queue),
-    ...(c.queues.consumers ?? []).map((q) => q.queue),
+    ...(c.queues.producers ?? []).map((q: { queue: string }) => q.queue),
+    ...(c.queues.consumers ?? []).map((q: { queue: string }) => q.queue),
   ],
 })
 
@@ -159,15 +160,11 @@ for (const { label, config } of resolved) {
   }
 }
 
-if (problems.length) {
-  console.error(
-    `check-envs: ${problems.length} problem(s) across ${resolved.length} environment(s):\n` +
-      problems.map((p) => `  ✗ ${p}`).join("\n\n"),
-  )
-  process.exit(1)
-}
-
-console.log(
+rule(
+  "no two environments share anything that carries data or traffic",
+  problems,
+  `check-envs: ${problems.length} problem(s) across ${resolved.length} environment(s):\n` +
+    problems.map((p) => `  ✗ ${p}`).join("\n\n"),
   `check-envs: ${resolved.length} environment(s) resolve disjointly — ` +
     resolved
       .map(({ label, config }) => `${label} → ${hostsOf(config).join(",") || "no route"}`)

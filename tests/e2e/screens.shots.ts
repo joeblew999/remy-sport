@@ -5,7 +5,7 @@ import { stateFor, actor, ACTORS, ADMIN, COACH } from "../helpers/auth"
 
 /**
  * Screenshots of every screen, in every released language, into `screenshots/`
- * — `mise run ops shots`, with Playwright's own `-g` to take one slice of it.
+ * — `bun run shots`, with Playwright's own `-g` to take one slice of it.
  *
  * Not a test — nothing here asserts anything, and it must never fail a build.
  * It exists because a green suite says a page *works*, not that it *looks*
@@ -21,9 +21,9 @@ import { stateFor, actor, ACTORS, ADMIN, COACH } from "../helpers/auth"
  * a session because this file had lost its task and nothing else could look.
  *
  * Deliberately not a `.spec.ts`. Playwright's default `testMatch` only collects
- * `*.spec.ts` / `*.test.ts`, so the gate does not see this file at all and
- * needs no `testIgnore` entry to keep ignoring it. playwright.shots.config.ts
- * points at it explicitly.
+ * `*.spec.ts` / `*.test.ts`, so the e2e project does not see this file at all
+ * and needs no `testIgnore` entry to keep ignoring it. The `shots` project in
+ * playwright.config.ts names it explicitly.
  *
  * It reuses the E2E tier's whole apparatus — the seeded database, the signed-in
  * states from auth.setup.ts, the wrangler dev server — because "what does a

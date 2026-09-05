@@ -19,6 +19,7 @@
  * deliberately not a global policy.
  */
 
+import { spawnSync } from "node:child_process"
 import { readFileSync, writeFileSync } from "fs"
 import { experimental_readRawConfig, unstable_readConfig } from "wrangler"
 import { ENVIRONMENTS, type Environment } from "../../src/environment"
@@ -275,7 +276,7 @@ export function resolveTarget(argv: string[], rule: TargetRule = "explicit"): Ta
     fail(
       "dev is local and provisions nothing on the account.\n" +
         "  Its D1 lives in .wrangler/state, its secrets in .dev.vars, and its fixed\n" +
-        "  sign-in code comes from the policy table. Run `mise run dev:vars`.",
+        "  sign-in code comes from the policy table. Run `bun run dev:vars`.",
     )
   }
   const environment = named as Environment
@@ -365,13 +366,11 @@ export function token(): string | null {
  * uninstalling anything.
  */
 export function fnoxGet(name: string, bin = "fnox"): string | null {
-  try {
-    const got = Bun.spawnSync([bin, "get", name], { stdout: "pipe", stderr: "ignore" })
-    if (got.exitCode !== 0) return null
-    return got.stdout.toString().trim() || null
-  } catch {
-    return null
-  }
+  // node's spawnSync, not Bun's: it reports a missing executable as `error`
+  // rather than throwing, and it runs under Vitest, where this is tested.
+  const got = spawnSync(bin, ["get", name], { stdio: ["ignore", "pipe", "ignore"] })
+  if (got.error || got.status !== 0) return null
+  return got.stdout.toString().trim() || null
 }
 
 // ── The account ──────────────────────────────────────────────────────────────

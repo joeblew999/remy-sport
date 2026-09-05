@@ -17,7 +17,7 @@
  *
  * ## Three questions, because one of them was never asked
  *
- * `mise run ops coverage data` asks which *vocabulary codes* a fixture uses, and
+ * `bun run ops coverage data` asks which *vocabulary codes* a fixture uses, and
  * answers 80/80. That is a real question and not this one — a code can be used
  * by one row while the column it sits in is null everywhere else.
  *
@@ -57,16 +57,17 @@
 import { readFileSync } from "fs"
 import { resolve } from "path"
 import { getTableColumns, getTableName } from "drizzle-orm"
+import { rule } from "./helpers"
 import type { SQLiteTable } from "drizzle-orm/sqlite-core"
 import * as schema from "../../src/db/schema"
 
-const ROOT = resolve(import.meta.dir, "../..")
+const ROOT = resolve(import.meta.dirname, "../..")
 
 /**
  * Reference data. "How many age groups have a team" is not a question about
  * depth — these rows are the Product Owner's vocabulary, complete by
  * construction, and every one of them is already checked by
- * `mise run ops coverage data`.
+ * `bun run ops coverage data`.
  */
 const VOCABULARY = new Set([
   "action", "age_group", "city", "coach_role", "event_format", "event_type",
@@ -281,7 +282,7 @@ for (const [name, { columns }] of tables) {
     problems.push(
       `  ${name}.${column} has no fixture field — the generator never names it.\n` +
         `      This is a change to the Product Owner's model, not a row here: add the field\n` +
-        `      in remy-sport-biz's domain/model/entities.ts, then 'mise run ops domain'.`,
+        `      in remy-sport-biz's domain/model/entities.ts, then 'bun run ops domain'.`,
     )
   }
 }
@@ -345,17 +346,13 @@ for (const { key, have, of } of edges.sort((a, b) => a.key.localeCompare(b.key))
 
 const everyCount = Object.values(EXPECTED).filter((e) => "every" in e).length
 
-if (problems.length) {
-  console.error(`\ncheck-seed-coverage: ${problems.length} thing(s) empty with nothing saying why\n`)
-  for (const p of problems) console.error(p)
-  console.error(
-    `\n  Every gap is allowed. An undeclared one is not — that is how event.description\n` +
-      `  stayed empty for four days after being written up as a defect.\n`,
-  )
-  process.exit(1)
-}
-
-console.log(
+rule(
+  "nothing in the database is empty by accident",
+  problems,
+  `check-seed-coverage: ${problems.length} thing(s) empty with nothing saying why\n\n` +
+    problems.join("\n") +
+    `\n\n  Every gap is allowed. An undeclared one is not — that is how event.description\n` +
+    `  stayed empty for four days after being written up as a defect.\n`,
   `check-seed-coverage: ${filled}/${total} columns filled, ` +
     `${edges.length} dependencies declared (${everyCount} must be complete), ` +
     `${declared.length} documented gap(s)`,

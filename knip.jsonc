@@ -11,16 +11,15 @@
   // .jsonc, not .json: knip validates keys strictly and rejects "//" comment
   // keys, and a config whose reasoning lives elsewhere is one nobody maintains.
   //
-  // `mise run check` runs this with --include files,unlisted. That scope is
-  // deliberate — see the task in mise.toml for why unused *exports* are
-  // reported but not enforced.
+  // `bun run lint` runs this with --include files,unlisted. That scope is
+  // deliberate: unused *exports* are reported but not enforced.
 
   // Three entry points, because this repo has three: the Worker, the SPA, and
-  // the scripts mise runs. Specs count — a helper used only by tests is live.
-  // vite.config.ts is an entry too: it is passed to `vite --config`, so nothing
-  // imports it and it is not dead.
+  // the scripts package.json runs. Specs count — a helper used only by tests
+  // is live. vite.config.ts is an entry too: it is passed to `vite --config`,
+  // so nothing imports it and it is not dead.
   //
-  // `*.shots.ts` for the same reason as the configs: playwright.shots.config.ts
+  // `*.shots.ts` for the same reason as the configs: playwright.config.ts
   // selects it with a regex rather than importing it, so nothing in the graph
   // points at it and knip reads that as dead.
   //
@@ -36,13 +35,8 @@
     "scripts/*.ts",
     "scripts/lib/*.ts",
     "scripts/deploy/*.ts",
-    
-    // scripts/check/*.ts are the gate's steps. They are entry points like any
-    // other script here — check.ts spawns them by path rather than importing
-    // them, so nothing in the graph reaches them and knip calls all eleven dead.
-    "scripts/check/*.ts",
-    // scripts/ops/*.ts likewise: ops.ts dispatches to them by path, so nothing
-    // in the module graph reaches them either.
+    // scripts/ops/*.ts: ops.ts dispatches to them by path, so nothing in the
+    // module graph reaches them.
     "scripts/ops/*.ts",
     "tests/**/*.spec.ts",
     "tests/**/*.test.ts",
@@ -65,8 +59,8 @@
     "src/domain/vocabularies.ts"
   ],
 
-  // Invoked as binaries by mise tasks, never imported. `auth` is the Better
-  // Auth CLI — see AGENTS.md on why it versions in lockstep with core.
+  // Invoked as binaries by package.json scripts, never imported. `auth` is the
+  // Better Auth CLI, which versions in lockstep with better-auth itself.
   // `cloudflare:test` is a virtual module the workers pool injects at runtime,
   // not a package — knip sees the `cloudflare` specifier and calls it unlisted.
   "ignoreDependencies": ["auth", "vite", "wrangler", "@tauri-apps/cli", "cloudflare"],

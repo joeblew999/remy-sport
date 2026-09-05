@@ -26,24 +26,20 @@ import { resolve } from "node:path"
 // `{ fetch, scheduled }` when it grew a cron trigger, and `.routes` is not on
 // it — a check that reads a route table has to fail loudly or not at all.
 import { app } from "../../src/index"
+import { rule } from "./helpers"
 
-const ROOT = resolve(import.meta.dir, "../..")
+const ROOT = resolve(import.meta.dirname, "../..")
 const DIST = resolve(ROOT, "dist/web")
 
 const wrangler = readFileSync(resolve(ROOT, "wrangler.toml"), "utf8")
-// If assets ever run *after* the Worker again, a collision cannot happen and
-// this check is describing a hazard that no longer exists.
-if (/^\s*run_worker_first\s*=\s*true/m.test(wrangler)) {
-  console.log("check-assets: run_worker_first is on — the Worker wins every route, nothing to check")
-  process.exit(0)
-}
-
-if (!existsSync(DIST)) {
-  // `mise run 2-check` does not build the SPA. Say so rather than passing on an
-  // absence, which would read as "no collisions".
-  console.log("check-assets: dist/web is not built — run 'mise run web:build' to check for real")
-  process.exit(0)
-}
+// Nothing to check when assets run *after* the Worker (a collision cannot
+// happen), or when the SPA is not built (`bun run check` does not build it —
+// say so rather than passing on an absence, which would read as "no collisions").
+const skipped = /^\s*run_worker_first\s*=\s*true/m.test(wrangler)
+  ? "run_worker_first is on — the Worker wins every route, nothing to check"
+  : !existsSync(DIST)
+    ? "dist/web is not built — run 'bun run build' to check for real"
+    : null
 
 /** Every first path segment the Worker answers on, from the router itself. */
 const routes = (app as unknown as { routes: { path: string }[] }).routes
@@ -55,20 +51,18 @@ for (const r of routes) {
   if (first && first !== "*" && !first.startsWith(":")) owned.add(first)
 }
 
-const built = readdirSync(DIST)
+const built = skipped ? [] : readdirSync(DIST)
 const clashes = built.filter((name) => owned.has(name))
 
-if (clashes.length) {
-  console.error(
-    `check-assets: ${clashes.length} built asset(s) would shadow a Worker route:\n` +
-      clashes.map((c) => `  dist/web/${c} wins over the Worker's /${c}`).join("\n") +
-      `\n\nAssets are served first (wrangler.toml). Rename the file, or move it under\n` +
-      `assets/, or set run_worker_first and accept the cost stated there.`,
-  )
-  process.exit(1)
-}
-
-console.log(
-  `check-assets: ${built.length} built path(s), none shadow the ${owned.size} the Worker owns ` +
-    `(${[...owned].sort().join(", ")})`,
+rule(
+  "no built asset shadows a route the Worker owns",
+  clashes,
+  `check-assets: ${clashes.length} built asset(s) would shadow a Worker route:\n` +
+    clashes.map((c) => `  dist/web/${c} wins over the Worker's /${c}`).join("\n") +
+    `\n\nAssets are served first (wrangler.toml). Rename the file, or move it under\n` +
+    `assets/, or set run_worker_first and accept the cost stated there.`,
+  skipped
+    ? `check-assets: ${skipped}`
+    : `check-assets: ${built.length} built path(s), none shadow the ${owned.size} the Worker owns ` +
+        `(${[...owned].sort().join(", ")})`,
 )

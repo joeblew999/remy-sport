@@ -32,8 +32,9 @@ import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { ALL_LOCALES, LOCALES } from "../../src/domain/vocabularies"
 import { ERRORS } from "../../src/api/errors"
+import { rule } from "./helpers"
 
-const ROOT = resolve(import.meta.dir, "../..")
+const ROOT = resolve(import.meta.dirname, "../..")
 
 const load = (locale: string): Record<string, string> | null => {
   try {
@@ -46,12 +47,8 @@ const load = (locale: string): Record<string, string> | null => {
 const keysOf = (m: Record<string, string>) => Object.keys(m).filter((k) => !k.startsWith("$"))
 
 const base = load("en")
-if (!base) {
-  console.error("check-messages: messages/en.json is missing or unreadable")
-  process.exit(1)
-}
-const expected = keysOf(base)
-const problems: string[] = []
+const problems: string[] = base ? [] : ["en: messages/en.json is missing or unreadable"]
+const expected = keysOf(base ?? {})
 
 for (const locale of LOCALES) {
   const messages = load(locale)
@@ -126,11 +123,11 @@ for (const code of THROWN_CODES) {
   }
 }
 
-if (problems.length) {
-  console.error(
-    `check-messages: ${problems.length} problem(s):\n` + problems.map((p) => `  ${p}`).join("\n") +
-      `\n\nA missing translation does not fail the paraglide build — it silently\n` +
-      `renders English. That is why this check exists.`,
-  )
-  process.exit(1)
-}
+rule(
+  "every released locale carries every message",
+  problems,
+  `check-messages: ${problems.length} problem(s):\n` +
+    problems.map((p) => `  ${p}`).join("\n") +
+    `\n\nA missing translation does not fail the paraglide build — it silently\n` +
+    `renders English. That is why this check exists.`,
+)

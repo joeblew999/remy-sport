@@ -11,7 +11,7 @@
  * This recorded only failures until an hour went into guessing why one endpoint
  * took 0.23s. Failures cannot answer "what is slow", because a slow endpoint is
  * one that *works* — every request that mattered to that question wrote no row
- * at all, so `mise run analytics` reported the p50 of *failures* and the only
+ * at all, so `bun run ops analytics` reported the p50 of *failures* and the only
  * way left to measure was hand-written `curl` loops.
  *
  * Successes are sampled because Analytics Engine bills by data point and this
@@ -91,7 +91,7 @@ export function routeShape(pathname: string): string {
  * How many requests one recorded success stands for.
  *
  * **One, on a dev server.** Sampling there would defeat the purpose: the whole
- * point of the local ring is that you make a request, run `mise run analytics`,
+ * point of the local ring is that you make a request, run `bun run ops analytics`,
  * and see it. At one-in-ten you make ten requests and see nothing, decide the
  * telemetry is broken, and go back to `curl`.
  *

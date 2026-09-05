@@ -1,4 +1,4 @@
-import { describe, expect, it, test } from "bun:test"
+import { describe, expect, it, test } from "vitest"
 import { ORPCError } from "@orpc/client"
 import { formErrors } from "../../src/web/lib/form-errors"
 import { m } from "../../src/web/lib/i18n"
@@ -123,7 +123,7 @@ describe("defined errors", () => {
  *
  * `TEAM_PLAYS_ITSELF` reads `err_team_plays_itself`. Adding an error used to
  * touch four files and write the same English twice — once as the code's
- * `message`, once in `en.json`. `mise run check:messages` is what stops a code
+ * `message`, once in `en.json`. `bun run check:messages` is what stops a code
  * shipping without a sentence now that no table declares them.
  */
 describe("codes map to messages by convention", () => {

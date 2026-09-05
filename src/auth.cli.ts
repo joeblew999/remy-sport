@@ -11,10 +11,13 @@ import * as schema from "./db/schema"
  * only reads `auth.options` — plugins and field definitions — and never opens a
  * connection, so an adapter with no live database is sufficient here.
  *
- * Consumed by `mise run auth:schema:generate`, which regenerates
+ * Consumed by `bun scripts/deploy/auth-schema.ts --write`, which regenerates
  * `src/db/schema.ts`. Do not import this from application code.
  */
 export const auth = betterAuth({
   ...authOptions,
-  database: drizzleAdapter(null as never, { provider: "sqlite", schema }),
+  // An empty object, not `null`: the adapter reads `db._?.schema` at
+  // construction since @better-auth/drizzle-adapter 1.7.2, and `null._` throws
+  // before the optional chain can help. Nothing is ever queried through it.
+  database: drizzleAdapter({} as never, { provider: "sqlite", schema }),
 })

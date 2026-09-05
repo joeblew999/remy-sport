@@ -46,7 +46,7 @@ import { PushFailure, currentDeviceId, disablePush, enableNative, enablePush, pu
  * page quietly became a partial list of what the platform sends you.
  *
  * A comment asking to be remembered is not a mechanism.
- * `mise run check:notifications` compares this list against every `typeCode:`
+ * `bun run check:notifications` compares this list against every `typeCode:`
  * the Worker actually sends, in both directions, and fails on either kind of
  * drift.
  */

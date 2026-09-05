@@ -444,7 +444,7 @@ watchForClientErrors();
  *
  * ## Not `import.meta.env.DEV`, which is never true here
  *
- * That was the first attempt and it was dead code. `mise run dev` runs
+ * That was the first attempt and it was dead code. `bun run dev` runs
  * `vite build --watch` — a *production* build, watched — and the render tier
  * serves `dist/web` through `vite preview`. This repo never runs a vite dev
  * server, deliberately: what you develop against is the bundle you ship. So

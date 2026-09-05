@@ -13,8 +13,8 @@
  * typecheck it, delete it") and is cited all over this repo as the reason
  * several wrong beliefs died quickly. This is that, for time.
  *
- *   mise run time /api/games?eventId=evt_002
- *   mise run time /api/health 50
+ *   bun run ops time /api/games?eventId=evt_002
+ *   bun run ops time /api/health 50
  *
  * ## Why the first request is dropped
  *
@@ -38,19 +38,19 @@ const args = process.argv.slice(2)
  * A path against the dev server, or a whole URL against anything.
  *
  * The URL form is not a convenience. mise sets `DEV_URL` in its own `[env]`,
- * which beats an exported one — so `DEV_URL=https://... mise run time /api/health`
+ * which beats an exported one — so `DEV_URL=https://... bun run ops time /api/health`
  * silently measured localhost and reported the tunnel at 2.2ms. It is under
  * 100ms, and the README had been claiming 1.4s. Three numbers, no two agreeing,
  * from a tool whose entire job is to settle that kind of question.
  *
- *   mise run time /api/health
- *   mise run time https://dev-remy.ubuntusoftware.net/api/health
+ *   bun run ops time /api/health
+ *   bun run ops time https://dev-remy.ubuntusoftware.net/api/health
  */
 const target = args.find((a) => a.startsWith("/") || a.startsWith("http"))
 const runs = Number(args.find((a) => /^\d+$/.test(a)) ?? 10)
 
 if (!target) {
-  console.error("usage: mise run time <path|url> [runs]   e.g. mise run time /api/health 20")
+  console.error("usage: bun run ops time <path|url> [runs]   e.g. bun run ops time /api/health 20")
   process.exit(2)
 }
 
@@ -64,7 +64,7 @@ const path = target
  * — authorisation is what makes them slow. Rather than reimplement sign-in
  * here, take the header from the environment:
  *
- *   COOKIE="$(cat .session)" mise run time /api/events
+ *   COOKIE="$(cat .session)" bun run ops time /api/events
  *
  * Without it an authenticated route answers 401 in a millisecond and the report
  * says a slow endpoint is fast, which is why a non-2xx is called out below
@@ -92,7 +92,7 @@ for (let i = 0; i <= runs; i++) {
     bytes = (await res.arrayBuffer()).byteLength
   } catch (err) {
     console.error(`\n  ${url}\n  unreachable: ${(err as Error).message}`)
-    console.error(`  is the dev server up? \`mise run 1-dev\``)
+    console.error(`  is the dev server up? \`bun run dev\``)
     process.exit(1)
   }
   const took = performance.now() - started
@@ -127,5 +127,5 @@ console.log(
 console.log(`  status ${codes}`)
 if (!ok) {
   console.log(`  ⚠ not every response was 2xx — a refusal is fast and proves nothing.`)
-  console.log(`    for a route behind a session: COOKIE="..." mise run time ${path}`)
+  console.log(`    for a route behind a session: COOKIE="..." bun run ops time ${path}`)
 }

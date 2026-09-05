@@ -1,7 +1,7 @@
 /**
  * The rules this repo keeps, asserted against the tree.
  *
- * This is the third leg of `mise run 2-check`, and the one that exists because of
+ * This is the third leg of `bun run check`, and the one that exists because of
  * how this repo is built. A rule written as prose rots: a human reading a stale
  * one thinks "that's not right, I remember"; an agent has no memory to
  * contradict it and builds on it instead. That is not hypothetical — the
@@ -21,8 +21,9 @@
 
 import { readFileSync, readdirSync, existsSync } from "fs"
 import { join, resolve } from "path"
+import { describe, it } from "vitest"
 
-const ROOT = resolve(import.meta.dir, "../..")
+const ROOT = resolve(import.meta.dirname, "../..")
 const read = (p: string) => (existsSync(join(ROOT, p)) ? readFileSync(join(ROOT, p), "utf-8") : "")
 
 /** Every .ts/.tsx under src/, minus the generated trees. */
@@ -135,7 +136,9 @@ const RULES: Rule[] = [
         readdirSync(join(ROOT, dir), { withFileTypes: true }).flatMap((e) =>
           e.isDirectory() ? walk(`${dir}/${e.name}`) : e.name.endsWith(".ts") ? [`${dir}/${e.name}`] : [],
         )
-      for (const path of walk("tests")) {
+      // Specs only. tests/repo holds rules about the tree — this one included,
+      // and its own prose names `getByTestId("literal")` as an example.
+      for (const path of walk("tests").filter((p) => !p.startsWith("tests/repo/"))) {
         read(path)
           .split("\n")
           .forEach((line, i) => {
@@ -220,27 +223,25 @@ const RULES: Rule[] = [
      * The docs are read at the start of every session, so a command named there
      * that no longer exists becomes wrong work rather than a confused reader.
      *
-     * check:docs validates PATHS in the docs and could not see this: when
-     * ninety-one tasks became six, twenty-odd `mise run` references rotted in
-     * place and every gate stayed green. Same failure it already guards for
-     * files, one column over.
+     * The docs test validates PATHS in the docs and could not see this: when
+     * ninety-one mise tasks became six, twenty-odd `mise run` references rotted
+     * in place and every gate stayed green. Same failure it already guards for
+     * files, one column over. The commands are package.json scripts now, and
+     * the rule follows them.
      */
-    claim: '"Every `mise run` in the docs names a task that exists."',
+    claim: '"Every `bun run` in the docs names a script in package.json."',
     check: () => {
-      const tasks = new Set(
-        [...read("mise.toml").matchAll(/^\[tasks\.(?:"([^"]+)"|([\w:.-]+))\]$/gm)].map(
-          (m) => m[1] ?? m[2],
-        ),
+      const scripts = new Set(
+        Object.keys((JSON.parse(read("package.json")) as { scripts?: Record<string, string> }).scripts ?? {}),
       )
       const bad: string[] = []
       for (const doc of ["AGENTS.md", "README.md", "CLAUDE.md", "GEMINI.md"]) {
         const body = read(doc)
         body.split("\n").forEach((line, i) => {
-          // Same escape check:docs uses for a path named on purpose — this file
-          // explains argument passing with `mise run a b`, which is prose.
+          // Same escape the docs test uses for a path named on purpose.
           if (line.includes("<!-- docs-check-ignore -->")) return
-          for (const [, name] of line.matchAll(/mise run ([a-z][\w:.-]*)/g)) {
-            if (!tasks.has(name)) bad.push(`${doc}:${i + 1}  no such task: ${name}`)
+          for (const [, name] of line.matchAll(/bun run ([a-z][\w:.-]*)/g)) {
+            if (!scripts.has(name)) bad.push(`${doc}:${i + 1}  no such script: ${name}`)
           }
         })
       }
@@ -370,11 +371,10 @@ const RULES: Rule[] = [
     },
   },
   {
-    claim: '"The dev tasks pass an explicit `--host` and must keep doing so."',
+    claim: '"Every `wrangler dev` this repo starts passes an explicit `--host`."',
     check: () => {
-      const mise = read("mise.toml")
       // A new entry point appearing without the flag is the regression this
-      // catches — a task that silently simulates the production hostname
+      // catches — a command that silently simulates the production hostname
       // locally.
       //
       // Any explicit host, not `localhost` specifically. `dev` passes the LAN
@@ -382,13 +382,17 @@ const RULES: Rule[] = [
       // point is that wrangler must not fall back to simulating the [[routes]]
       // custom domain. Sign-in works over both, because trustedOrigins derives
       // from the request URL (src/auth.ts) — verified over each in turn.
-      const required = ["dev", "dev:ensure", "dev:remote"]
-      const missing = required.filter((task) => {
-        const body = mise.split(new RegExp(`^\\[tasks\\.(?:"${task}"|${task})\\]`, "m"))[1]?.split("\n[tasks.")[0]
-        return body !== undefined && /wrangler dev/.test(body) && !/--host \S/.test(body)
-      })
-      const pw = read("playwright.config.ts")
-      if (/wrangler dev/.test(pw) && !/--host localhost/.test(pw)) missing.push("playwright.config.ts webServer")
+      // A line that starts wrangler: either spelling of the argument list, and
+      // not a comment or a bare pattern string (dev.ts lists "wrangler dev" as
+      // a pgrep pattern to find its own children).
+      const starts = /(?:"wrangler",\s*"dev"|wrangler dev\s+--)/
+      const missing: string[] = []
+      for (const file of ["scripts/dev.ts", "playwright.config.ts"]) {
+        for (const line of read(file).split("\n")) {
+          if (/^\s*(\/\/|\*)/.test(line) || !starts.test(line)) continue
+          if (!/--host/.test(line)) missing.push(`${file}: ${line.trim()}`)
+        }
+      }
       return missing
     },
   },
@@ -413,23 +417,18 @@ const RULES: Rule[] = [
   },
 ]
 
-let failed = 0
-for (const rule of RULES) {
-  const hits = rule.check()
-  if (hits.length === 0) continue
-  failed++
-  console.error(`\nBROKEN: ${rule.claim}`)
-  for (const h of hits) console.error(`  ${h}`)
-}
-
-if (failed > 0) {
-  console.error(
-    `\ncheck-conventions: ${failed} of ${RULES.length} rules broken.\n\n` +
-      `A failure means either the code regressed, or the rule is no longer the rule —\n` +
-      `in which case change the rule here, in the same commit as the code.\n` +
-      `Do not delete the check to make it pass.`,
-  )
-  process.exit(1)
-}
-
-console.log(`check-conventions: ${RULES.length} rules hold`)
+describe("the rules this repo keeps", () => {
+  for (const rule of RULES) {
+    it(rule.claim, () => {
+      const hits = rule.check()
+      if (hits.length === 0) return
+      throw new Error(
+        `BROKEN: ${rule.claim}\n` +
+          hits.map((h) => `  ${h}`).join("\n") +
+          `\n\nA failure means either the code regressed, or the rule is no longer the rule —\n` +
+          `in which case change the rule here, in the same commit as the code.\n` +
+          `Do not delete the check to make it pass.`,
+      )
+    })
+  }
+})

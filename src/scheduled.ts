@@ -26,7 +26,7 @@
  * exactly 24 hours". A missed run therefore sends late instead of not at all,
  * and the claim table stops the catch-up becoming a duplicate.
  *
- * **It reports what it did.** `mise run analytics` shows every run: how many
+ * **It reports what it did.** `bun run ops analytics` shows every run: how many
  * events matched, how many reminders were claimed, how many devices took them.
  * A scheduled job you cannot see is exactly the thing that makes a system hard
  * to reason about, and the reason to resist one — so this one is observable
@@ -154,7 +154,7 @@ export async function sendDueReminders(env: Bindings, now = Date.now()): Promise
  *
  * Wrapped, because an unhandled throw in a cron handler is invisible: there is
  * no request to 500 and nobody watching. Reported instead, so a broken run
- * shows up in `mise run analytics` beside everything else rather than nowhere.
+ * shows up in `bun run ops analytics` beside everything else rather than nowhere.
  */
 export async function scheduled(_event: ScheduledController, env: Bindings): Promise<void> {
   try {

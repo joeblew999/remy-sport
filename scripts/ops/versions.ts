@@ -14,7 +14,7 @@
  * it), and this asks every environment in turn. The answer cannot go stale
  * because there is nowhere for it to go stale.
  *
- *   mise run ops versions
+ *   bun run ops versions
  *
  * `dev` is included when it is reachable and skipped when it is not — it is a
  * laptop, and a laptop being off is not a failure to report.

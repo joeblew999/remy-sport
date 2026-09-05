@@ -7,7 +7,7 @@
  * fixed code had been gated on `permits(env, "seededSignIn")`, which production
  * has as false — so `demo:on` put the secret, printed a cheerful success line,
  * and every seeded account still got a random code. Nothing failed. It would
- * have surfaced at the next `mise run 3-deploy`, when the whole Playwright suite
+ * have surfaced at the next `bun run deploy`, when the whole Playwright suite
  * could not sign in.
  *
  * So this ends by **asking the deployment**. "The secret was written" and
@@ -156,7 +156,7 @@ try {
         "  The write itself succeeded. This is a timeout, not a verdict: the deployment never\n" +
         "  reported the new state inside the bound, and propagation after a `secret put` is\n" +
         "  usually seconds but is not guaranteed to be.\n\n" +
-        "  Run `mise run demo:status` before concluding anything. If it still disagrees,\n" +
+        "  Run `bun run ops demo status` before concluding anything. If it still disagrees,\n" +
         "  check `signInCode` for this environment in src/environment.ts and generateOTP in\n" +
         "  src/auth.ts.",
     )

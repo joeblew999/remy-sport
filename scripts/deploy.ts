@@ -30,7 +30,7 @@ const PIPELINE: Phase[] = [
   {
     name: "check",
     why: "the gate — nothing reaches the account until it is green",
-    go: () => step("check", ["bun", "scripts/check.ts"]),
+    go: () => step("check", ["bun", "run", "check"]),
   },
   {
     name: "auth-schema",
@@ -40,7 +40,7 @@ const PIPELINE: Phase[] = [
   {
     name: "test",
     why: "end to end, against a local server, before a remote one exists",
-    go: () => step("test", ["bun", "scripts/check.ts", "--e2e"]),
+    go: () => step("test", ["bun", "scripts/e2e.ts"]),
   },
   {
     name: "stamp",
@@ -113,7 +113,7 @@ function step(label: string, argv: string[], env: Record<string, string> = {}): 
 async function waitForOrigin(origin: string): Promise<void> {
   const local = (await Bun.file("versions.json").json()) as { current?: { _generated?: string } }
   const want = local.current?._generated
-  if (!want) throw new Refused("no _generated stamp in versions.json — run `mise run versions` first")
+  if (!want) throw new Refused("no _generated stamp in versions.json — run `bun run ops versions` first")
 
   for (let i = 0; i < 60; i++) {
     const got = await fetch(`${origin}/api/versions`, { signal: AbortSignal.timeout(10_000) })
@@ -154,7 +154,7 @@ async function waitForOrigin(origin: string): Promise<void> {
  */
 if (process.argv.includes("--help")) {
   console.log(`
-mise run 3-deploy -- --env staging | production
+bun run deploy -- --env staging | production
 
   A remote write names its environment or refuses; there is deliberately no
   default. Everything before the publish is the gate, everything after verifies
@@ -206,7 +206,7 @@ try {
   console.log(
     `\ndeploy: ${target.environment} is live at ${origin}\n\n` +
       (target.environment === "staging"
-        ? "  Then production, when it looks right:\n    mise run 3-deploy -- --env production\n"
+        ? "  Then production, when it looks right:\n    bun run deploy -- --env production\n"
         : ""),
   )
 } catch (err) {

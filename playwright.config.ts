@@ -96,6 +96,15 @@ export default defineConfig({
      * seeded account further away rather than removing it.
      */
     { name: "authz", testMatch: /authz\.spec\.ts/, dependencies: ["e2e"] },
+    /**
+     * Screenshots, not tests — `bun run shots`, which names this project and
+     * nothing else. Everything about its environment is this tier's: the same
+     * Worker, the same seeded database, the same signed-in states, which is
+     * why it lives here rather than in a config of its own (it had one, whose
+     * whole content was "the same as e2e"). `bun run test:e2e` names the e2e
+     * and authz projects, so a test run never takes pictures.
+     */
+    { name: "shots", testMatch: /screens\.shots\.ts/, dependencies: ["auth"] },
   ],
   ...(isLocal && {
     webServer: {

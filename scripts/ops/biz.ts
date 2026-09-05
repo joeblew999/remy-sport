@@ -46,7 +46,7 @@ const cloned = existsSync(join(DIR, ".git"))
  * With the checkout already beside this repo, everything downstream — the model
  * copy, the schema derived from it, the seed — works from what is on disk. So a
  * missing PAT means "cannot pull anything newer", which is a note, not a
- * failure. It used to be a failure, and that made `mise run model` unrunnable on
+ * failure. It used to be a failure, and that made `bun run model` unrunnable on
  * a machine whose checkout was perfectly fine.
  */
 if (!token && cloned) {
@@ -112,8 +112,8 @@ esac
     // `-c credential.helper=` empties the helper chain, so a stale entry in the
     // OS keychain cannot answer instead of the askpass above.
     if (git(["-c", "credential.helper=", "-C", DIR, "fetch", "--quiet", "origin"]).exitCode !== 0) authFailed()
-    const behind = git(["-C", DIR, "rev-list", "--count", "HEAD..origin/main"], true).stdout.toString().trim()
-    const head = () => git(["-C", DIR, "rev-parse", "--short", "HEAD"], true).stdout.toString().trim()
+    const behind = git(["-C", DIR, "rev-list", "--count", "HEAD..origin/main"], true).stdout?.toString().trim() ?? ""
+    const head = () => git(["-C", DIR, "rev-parse", "--short", "HEAD"], true).stdout?.toString().trim() ?? ""
     if (behind === "0") {
       console.log(`biz: already up to date at ${head()}`)
     } else {
