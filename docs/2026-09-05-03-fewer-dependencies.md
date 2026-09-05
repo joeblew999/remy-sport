@@ -2,7 +2,7 @@
 
 ## Where we are
 
-Measured 2026-09-05, with everything at latest ([plan-latest.md](plan-latest.md)):
+Measured 2026-09-05, with everything at latest ([2026-09-05-02-latest.md](2026-09-05-02-latest.md)):
 45 packages in `package.json` (19 runtime, 26 dev), 974 MB of `node_modules`.
 Every one was read against the files that import it. Most earn their place —
 the ORM, the validator, the router, the two test runners, the Workers plugins.

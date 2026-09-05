@@ -7,7 +7,7 @@
 # this worth having at all: `bun run check` and `bun run test:e2e` run against
 # the whole update at once, which is how it would land anyway.
 #
-# Two exceptions are pinned deliberately and belong in docs/plan-latest.md
+# Two exceptions are pinned deliberately and belong in docs/2026-09-05-02-latest.md
 # rather than here: vitest is held at 4 by @cloudflare/vitest-plugin's peer
 # range (measured — 5 throws out of workerd), and the `sharp` override exists
 # so miniflare and the icon generator share one native binary. A pull request

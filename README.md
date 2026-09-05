@@ -80,5 +80,5 @@ scripts/
   lib/  deploy/  ops/                             what they call
 ```
 
-`AGENTS.md` is short on purpose. `docs/plan-modern-tooling.md` is the plan that
+`AGENTS.md` is short on purpose. `docs/2026-09-05-01-modern-tooling.md` is the plan that
 is making `scripts/` smaller.
