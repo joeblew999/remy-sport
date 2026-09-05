@@ -1,0 +1,150 @@
+# Plan — modern tools do what `scripts/` does by hand
+
+## Why
+
+On 2026-09-05 a dependency update took one command and half a day. None of the
+half day was the dependencies. It was a tsconfig still on ES2020, a type
+package a tsconfig named that nothing in package.json listed, a watcher that
+had left 114 copies of index.js in dist/, and a check that blamed a leaked
+import for it. The Product Owner's words: "most of the checks are only needed
+due to poor design choices." Measured that day, they are right:
+
+| | lines |
+|---|---|
+| product code, `src/` | ~24,500 |
+| `tests/` | ~17,700 |
+| `scripts/` | 10,007 — 42% of it comments explaining why it exists |
+| config files at the root | 18 |
+
+Twelve of the fifteen checks guard drift between two hand-kept copies of one
+fact — the tables map and the schema, the seed and its foreign keys, prose and
+the tree, fifteen "convention" rules. The fix for a copy is not a guard; it is
+one copy. Three checks are product invariants and stay (see *Kept*).
+
+## The target
+
+- `bun run dev` — Vite, with the Cloudflare Vite plugin running the Worker in
+  workerd. No dist/ during development.
+- `bun run check` — `tsc -b`, then Vitest, then Playwright. One runner each,
+  and the repo's own checks are test files under that runner.
+- `bun run build`, `bun run deploy -- --env staging` — `vite build`, then
+  wrangler: deploy, migrations, smoke.
+- `mise.toml` keeps `[tools]` and `[env]`. No tasks.
+- `scripts/` under 2,000 lines. Nothing runs before every command.
+
+## Rules
+
+- **The gate is green on every commit.** A phase may take several commits;
+  each one is green on its own.
+- **Delete, or derive.** A box that adds a file deletes a bigger one.
+- **The product does not change.** No endpoint, screen, message or assertion
+  moves except to a different runner, verbatim. `mise run ops shots` before
+  and after a phase must show the same screens.
+- **Progress is recorded here and nowhere else.** Tick the box in the commit
+  that does it. What cannot be done is written under the box with the reason,
+  and the loop moves on.
+- **One tool per job, and the tool's own conventions.** Where Vite, Vitest,
+  Playwright or wrangler already has a way, use it; do not wrap it.
+
+## Phase 1 — one runner, one tsconfig, `package.json` scripts
+
+- [ ] `package.json` scripts: `dev`, `check`, `test`, `build`, `deploy`, `db`,
+      `ops` — each a one-liner over the tool itself. The six mise tasks go;
+      `[tools]` and `[env]` stay.
+- [ ] One `tsconfig.json` with project references (worker, SPA, tests) and
+      `tsc -b`. One target, one lib. The per-config targets that hid the
+      ES2020 bug go with them.
+- [ ] Vitest projects: unit (node), worker (the Workers pool), repo (the
+      checks). The unit tier moves from `bun:test` to Vitest, assertions
+      verbatim; `vitest --watch` replaces `watch.ts`.
+- [ ] Each surviving check under `scripts/check/` becomes a test file under
+      tests/repo/, assertions verbatim. `check.ts` (855 lines) is deleted. A
+      check that a later phase deletes is not moved.
+- [ ] One Playwright config with projects render, e2e and shots, replacing
+      three files.
+- [ ] `prepare.ts`: what must survive (dev-vars, the local migration, browsers,
+      the MCP's browser, `wrangler types`) becomes `bun run setup`, run once
+      after clone or a dependency change — not before every command.
+- [ ] `eslint.config.mjs` exists for the i18n rule alone. Keep if Vitest
+      cannot host that rule cheaply; otherwise a repo test and eslint goes.
+
+**Done when** `bun run check` is the gate, `mise.toml` has no `[tasks]`, and
+`scripts/check.ts` does not exist.
+
+## Phase 2 — the Cloudflare Vite plugin
+
+- [ ] The plugin in `vite.config.ts`; `vite dev` runs the Worker in workerd
+      beside the SPA, and `vite build` emits both. wrangler deploys the output.
+- [ ] `dev.ts` deleted. The tunnel becomes an `ops` command; wait-for-health
+      goes with the process it waited for; seeding is phase 3's function.
+- [ ] Everything that existed because dist/ was written during development
+      goes: the prune plugin, the `emptyOutDir` reasoning, `assets.ts`, and the
+      leak list in `bundle.ts`. The service-worker size ceiling stays as a repo
+      test.
+- [ ] `envs.ts` asks whether two environments share data or traffic. Answer it
+      from the config once, as a repo test, if the plugin's config layout does
+      not make it obvious.
+
+**Done when** development is `vite`, there is no dist/ until `vite build`, and
+`dev.ts`, `watch.ts` and `assets.ts` are gone.
+
+## Phase 3 — one seed, one table map, fonts committed
+
+- [ ] One seed function in `src/db` — drizzle inserts from the model, in
+      dependency order as code, so a wrong order is a foreign-key error with a
+      name. Used by the `/api/seed` endpoint, the worker tier's setup and
+      development. The generated seed.sql, `seed.ts` (471 lines), `seed-order.ts`
+      and the check that the SQL matches the model all go.
+- [ ] `FIXTURE_TABLE` gets `satisfies Record<model table name, SQLiteTable>` —
+      the same construction that fixed the vocabulary maps on 2026-09-05 —
+      and `tables.ts` goes.
+- [ ] `fixture-ids.ts`: a test naming a row that does not exist already fails
+      in the worker tier at runtime. Measure whether a render-tier seed can
+      name a row nothing checks; delete the check unless it can.
+- [ ] `fonts.css` and the woff2 files committed; `fonts.ts` (192 lines) goes.
+- [ ] `seed-coverage.ts` measures the product (a column no row fills). It
+      stays, as a repo test.
+
+**Done when** "seed" is one function and `scripts/lib` holds only what talks to
+Cloudflare and writes `.dev.vars`.
+
+## Phase 4 — deploy is wrangler
+
+- [ ] `deploy` = `wrangler deploy --env X`, `wrangler d1 migrations apply`, then
+      `smoke.ts` as a test pointed at the URL.
+- [ ] `provision.ts` (750 lines) and the bespoke Cloudflare API client in
+      `cloudflare.ts` (548) become a one-time per-environment setup using
+      wrangler's own commands. What wrangler cannot do stays, with the reason on
+      the line.
+- [ ] `versions.json` stamping goes. The dev build rewrites a tracked file on
+      every run; `build-stamp.tsx` already compares content hashes and needs
+      none of it.
+- [ ] `auth-schema.ts`: establish whether Better Auth's schema generation is a
+      build step or a one-time one, and place it accordingly.
+
+**Done when** `deploy.ts` is under 100 lines or gone.
+
+## Kept, and why
+
+- `authz.ts` — every procedure declares how it is authorised. A product
+  invariant; becomes a repo test.
+- `actions.ts` — every action the model grants has a screen or a written
+  reason. Same.
+- `notifications.ts` — everything the platform sends can be turned off. Same.
+- `docs.ts`, `text.ts` — tiny; repo tests.
+- `messages.ts` — if `inlang validate` already proves it, delete; measure.
+- `conventions.ts` — each of its fifteen rules is re-read as the phase that
+  deletes the thing it guards lands. A rule about a deleted thing goes with it.
+- knip and dependency-cruiser — standard tools with three rules between them
+  that say which layer may import which. Kept as they are.
+
+## Blocked by the ecosystem, not by this repo
+
+- TypeScript 7: typescript-eslint (`<6.1.0`), knip and dependency-cruiser use
+  the JavaScript compiler API that 7 no longer ships. On 6.0.3; re-check monthly.
+- Vitest 5: the Workers pool pins `^4.1.0`.
+
+## Log
+
+- 2026-09-05 — written, after the dependency update (`f3cb2eb`) and the
+  watcher fix (`3af69a0`). Baseline numbers above.
