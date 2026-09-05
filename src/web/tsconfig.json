@@ -6,9 +6,13 @@
     // ignores it, and that is what the pre-commit gate runs.
     "incremental": true,
     "tsBuildInfoFile": "../../.tsbuildinfo/spa.tsbuildinfo",
-    "target": "ES2020",
+    // The browsers this runs in. Vite emits for its own baseline (Safari 16,
+    // Chrome 107 and up); this only has to be no older than that, and ES2020
+    // was — its `Error` had no `cause`, so `PushFailure`'s `override cause`
+    // became an error the day TypeScript 6 checked the lib properly.
+    "target": "ES2022",
     "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "skipLibCheck": true,

@@ -28,17 +28,15 @@
     // `@types/bun` is what makes `import { test } from "bun:test"` resolve —
     // the unit tier runs on bun's own runner, and without it fifteen files
     // failed to find their own test framework.
+    // No `@cloudflare/workers-types`: the runtime types come from
+    // worker-configuration.d.ts, which `wrangler types` generates for the
+    // exact compatibility date in wrangler.toml. The package was only ever
+    // here as a stowaway of an older wrangler's dependency tree.
     "types": [
       "@types/node",
       "@types/bun",
-      "@cloudflare/workers-types",
       "@cloudflare/vitest-pool-workers/types"
     ],
-    // ES2022 for `.at()`. The SPA config this extends targets ES2020 because a
-    // browser bundle has a floor to respect; tests run in bun, workerd and a
-    // current WebKit, none of which do.
-    "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "noEmit": true
   },
   "include": ["tests/**/*.ts", "tests/**/*.tsx", "worker-configuration.d.ts"]
