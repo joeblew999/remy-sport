@@ -74,12 +74,11 @@ try {
   } else if (action === "off") {
     // No `--force`: wrangler has no such flag and rejects the whole command with
     // "Unknown argument: force", so `demo:off` could not turn demo off at all —
-    // the one command AGENTS.md says to run before the platform has real users.
+    // the one command that must run before the platform has real users.
     // It prompts instead, and answers itself with "yes" when nothing is a TTY,
     // which is every way this runs.
-    // Both, unconditionally. "Make sure demo is off" is the command AGENTS.md
-    // says to run before the platform has real users, so it must not depend on
-    // knowing which of the two switches somebody turned on.
+    // Both, unconditionally. "Make sure demo is off" must not depend on knowing
+    // which of the two switches somebody turned on.
     for (const name of ["TEST_OTP", "TEST_ADMIN_OTP"]) {
       const gone = wrangler(["secret", "delete", name], target)
       // Already absent is the desired state, not a failure. The old task deleted

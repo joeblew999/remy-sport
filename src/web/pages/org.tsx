@@ -51,9 +51,9 @@ export function OrgsPage({ goto }: { goto: (r: Route) => void }) {
    * Yours first, then the rest.
    *
    * The list showed every school on the platform with no way to find your own —
-   * one of the two holes the action-and-entity sweep in docs/plan-ownership.md
-   * turned up. `me.mine` has answered ORG holdings since it was written and
-   * nothing read them.
+   * a hole found by asking, for each kind of thing a person can hold, where
+   * they see *theirs*. `me.mine` has answered ORG holdings since it was written
+   * and nothing read them.
    *
    * A section rather than a separate screen, and not a filter: this page's job
    * is browsing, which the model says is genuinely most of what happens here for

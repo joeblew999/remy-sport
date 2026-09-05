@@ -1,20 +1,20 @@
 /**
- * Assert the rules AGENTS.md states, against the tree.
+ * The rules this repo keeps, asserted against the tree.
  *
  * This is the third leg of `mise run 2-check`, and the one that exists because of
- * how this repo is built. Every session an agent reads AGENTS.md and believes
- * it. A human reading a stale rule thinks "that's not right, I remember"; an
- * agent has no memory to contradict it and builds on it instead. That is not
- * hypothetical — AGENTS.md described a `translation` table that was never
- * built, and a task brief written from it later asked for code to preserve it.
+ * how this repo is built. A rule written as prose rots: a human reading a stale
+ * one thinks "that's not right, I remember"; an agent has no memory to
+ * contradict it and builds on it instead. That is not hypothetical — the
+ * project's notes once described a `translation` table that was never built,
+ * and a task brief written from them later asked for code to preserve it.
  *
- * So the load-bearing claims are enforced rather than merely written. If a rule
- * here fails, one of two things is true and both need a human: the code
- * regressed, or the rule is no longer the rule and AGENTS.md must change with
- * it. Neither should be resolved by deleting the check.
+ * So the load-bearing rules live here, as checks, rather than in prose. If one
+ * fails, one of two things is true and both need a human: the code regressed,
+ * or the rule is no longer the rule and this file must change with it. Neither
+ * should be resolved by deleting the check.
  *
- * What belongs here: a rule AGENTS.md states, that a regression would silently
- * violate, and that is cheap to detect. What does not: anything a test already
+ * What belongs here: a rule that a regression would silently violate, and that
+ * is cheap to detect. What does not: anything a test already
  * covers (`tests/auth.spec.ts` proves password sign-in is gone far better than
  * a grep could), and anything a type-checker catches.
  */
@@ -45,7 +45,7 @@ const migrations = readdirSync(join(ROOT, "src/db/migrations"))
   .map((f) => ({ path: `src/db/migrations/${f}`, body: read(`src/db/migrations/${f}`) }))
 
 interface Rule {
-  /** The AGENTS.md claim this enforces. Quoted, so a reader can find it. */
+  /** The rule, in one sentence. Quoted, so a failure reads as the rule it broke. */
   claim: string
   /** Returns [] when the rule holds, or the offending locations. */
   check: () => string[]
@@ -217,7 +217,7 @@ const RULES: Rule[] = [
 
   {
     /**
-     * AGENTS.md is read at the start of every session, so a command named there
+     * The docs are read at the start of every session, so a command named there
      * that no longer exists becomes wrong work rather than a confused reader.
      *
      * check:docs validates PATHS in the docs and could not see this: when
@@ -373,9 +373,9 @@ const RULES: Rule[] = [
     claim: '"The dev tasks pass an explicit `--host` and must keep doing so."',
     check: () => {
       const mise = read("mise.toml")
-      // Named in AGENTS.md. A new entry point appearing without the flag is the
-      // regression this catches — a task that silently simulates the production
-      // hostname locally.
+      // A new entry point appearing without the flag is the regression this
+      // catches — a task that silently simulates the production hostname
+      // locally.
       //
       // Any explicit host, not `localhost` specifically. `dev` passes the LAN
       // address so a phone can reach it, which serves the same invariant: the
@@ -425,11 +425,11 @@ for (const rule of RULES) {
 if (failed > 0) {
   console.error(
     `\ncheck-conventions: ${failed} of ${RULES.length} rules broken.\n\n` +
-      `Each rule mirrors a claim in AGENTS.md. A failure means either the code regressed,\n` +
-      `or the rule is no longer the rule — in which case change AGENTS.md and this file\n` +
-      `together, in the same commit. Do not delete the check to make it pass.`,
+      `A failure means either the code regressed, or the rule is no longer the rule —\n` +
+      `in which case change the rule here, in the same commit as the code.\n` +
+      `Do not delete the check to make it pass.`,
   )
   process.exit(1)
 }
 
-console.log(`check-conventions: ${RULES.length} rules from AGENTS.md hold`)
+console.log(`check-conventions: ${RULES.length} rules hold`)

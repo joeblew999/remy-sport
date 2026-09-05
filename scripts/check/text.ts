@@ -13,8 +13,8 @@
  * That is not a tidiness complaint. On 2026-09-04 nine bytes of one agent's
  * in-flight edit were swept into another agent's commit by a broad `git add`,
  * and the reason nobody saw it in the diff is that there was no diff to see.
- * AGENTS.md already tells you to read `git status` before a broad add — this is
- * the half of that rule a machine can keep.
+ * Read `git status` before a broad add; this is the half of that rule a machine
+ * can keep.
  *
  * `\0` in a template literal is the same byte at runtime and leaves the file
  * readable, so the fix costs nothing and there is no case for an exemption.

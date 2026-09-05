@@ -5,7 +5,10 @@
  * the runner is configured — optimising the runner bought 2.8m -> 1.6m and
  * then stopped dead. This makes the only number that matters visible.
  *
- * The tier rule is in AGENTS.md; this reports where the tests actually are.
+ * The rule: a test goes in the cheapest tier that can prove it — pure logic in
+ * unit, anything that needs D1 in worker, a screen with no backend in render,
+ * and e2e only for what needs a browser and a real Worker together. This
+ * reports where the tests actually are.
  */
 import { readdirSync, readFileSync } from "fs"
 import { join, resolve } from "path"
@@ -47,4 +50,4 @@ if (browserless.length) {
   console.log("\nstill browserless in the e2e tier — convert these first:\n")
   for (const [f, n] of browserless) row(f.replace("tests/e2e/", ""), n)
 }
-console.log("\nthe rule for choosing a tier is in AGENTS.md\n")
+console.log("\nthe rule: the cheapest tier that can prove it\n")

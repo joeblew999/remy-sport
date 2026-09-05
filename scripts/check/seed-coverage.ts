@@ -1,8 +1,8 @@
 /**
  * Nothing in the database is empty by accident.
  *
- * AGENTS.md has named this mechanism and said nothing enforces it since
- * 2026-08-30: "The mechanism would be a gate over the schema — 48 tables, 282
+ * The project's notes named this mechanism on 2026-08-30 and said nothing
+ * enforced it: "The mechanism would be a gate over the schema — 48 tables, 282
  * columns are enumerable — and a rule that must be remembered is the same class
  * of thing that already failed." It was 51 tables and 293 columns four days
  * later, which is the argument in one sentence.

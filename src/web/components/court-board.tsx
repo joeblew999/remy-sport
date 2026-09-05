@@ -5,9 +5,9 @@ import { m } from "../lib/i18n";
  * Which game is on which court, right now.
  *
  * `VIEW_COURT_STATUS_BOARD` and `VIEW_COURT_ASSIGNMENTS` are two of the actions
- * the model grants and nothing offered — see docs/plan-missing-product.md. Both
- * are PUBLIC, which is the point: this is the screen somebody standing in a
- * sports hall looks at, and they are not signed in.
+ * the model granted that no screen offered until this one. Both are PUBLIC,
+ * which is the point: this is the screen somebody standing in a sports hall
+ * looks at, and they are not signed in.
  *
  * It needed no new data. `games.list` already returns each game's venue and
  * status; the board is that list turned on its side. `ASSIGN_COURTS` has been

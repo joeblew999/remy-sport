@@ -46,8 +46,8 @@ const DEFAULTS: Record<string, () => string> = {
   // failed runs in 5 until authz.spec.ts stopped signing in at all.
   //
   // What it actually buys is not needing to read the outbox for every sign-in.
-  // Specs that only need to *be* someone must load `stateFor(...)` — see the
-  // trap in AGENTS.md.
+  // Specs that only need to *be* someone must load `stateFor(...)` from
+  // tests/helpers/auth.ts rather than sign in.
   //
   // Local only. Setting it on a deployed Worker makes the admin account's
   // sign-in code a constant on a public site; that is why cf:smoke, not

@@ -124,4 +124,4 @@ mise run 3-deploy -- --help    9 steps, each with the reason it sits there
 bun scripts/lib/prepare.ts --help
 ```
 
-`AGENTS.md` holds the things that have already cost a bug.
+

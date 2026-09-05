@@ -41,7 +41,7 @@ const check = process.argv.includes("--check")
 if (!existsSync(BIZ)) {
   console.error(
     `domain:sync: ${BIZ} not found.\n` +
-      `  The model lives in remy-sport-biz, which AGENTS.md expects cloned at\n` +
+      `  The model lives in remy-sport-biz, expected cloned beside this repo at\n` +
       `  ../remy-sport-biz/. Clone it, or skip this — the copies are committed,\n` +
       `  so building does not need it.`,
   )

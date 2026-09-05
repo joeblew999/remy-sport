@@ -6,8 +6,8 @@
  * "The GUI covers 48 of the 76 actions" was true, useful, and produced by a
  * person reading code and judging — twice, weeks apart, by re-deriving the whole
  * thing from scratch. Nobody else could check it, and the number went stale the
- * moment the Product Owner added a grant. `docs/plan-missing-product.md` names
- * this file as its own successor for exactly that reason.
+ * moment the Product Owner added a grant. This file is what replaced the
+ * judgement, for exactly that reason.
  *
  * `ops coverage gui` already measures whether the SPA *calls* each procedure and
  * *names* each output field. That is a different question and it cannot answer
@@ -54,9 +54,9 @@ import { ACTION, GRANTS } from "../../src/domain/vocabularies"
  * Actions with no screen, and the model change each one waits on.
  *
  * Written by hand on purpose: every entry is a decision that the product does
- * not do something, and a decision belongs in a place a reviewer sees. The
- * reasons are the ones recorded in docs/plan-missing-product.md, which measured
- * each against the schema rather than assuming.
+ * not do something, and a decision belongs in a place a reviewer sees. Each
+ * reason was measured against the schema rather than assumed: the table or
+ * column a screen would need was looked for, and is not there.
  */
 const BLOCKED: Record<string, string> = {
   /**

@@ -113,7 +113,7 @@ export function useMine(type: "EVENT" | "TEAM" | "PLAYER" | "GAME" | "ORG") {
  * kind: four on the platform today, hundreds ever, and both screens that call
  * this already hold the whole list. `players.mine` is deliberately NOT folded in
  * the same way — players grow every season, and fetching all of them to show a
- * parent one child is the fan-out this design avoids. See docs/plan-ownership.md.
+ * parent one child is the fan-out this design avoids.
  *
  * The grouping is still the server's answer: the relation comes from the
  * holding, not from comparing an organiser id here. That distinction is what the

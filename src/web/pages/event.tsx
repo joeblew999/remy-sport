@@ -53,15 +53,16 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
   /**
    * An event or nothing. No fallback to whichever sorts first.
    *
-   * `#/event` with no id used to render `allEvents[0]` — the same bug as
-   * "My team", found by the plan's own grep rather than reported. Nothing links
-   * here without an id: not the sidebar, not any `goto`, nothing in the repo. So
-   * the fallback existed only to give a meaning to a URL nobody produces, and it
+   * `#/event` with no id used to render `allEvents[0]` — the same bug the old
+   * "My team" page had, found by grep rather than reported. Nothing links here
+   * without an id: not the sidebar, not any `goto`, nothing in the repo. So the
+   * fallback existed only to give a meaning to a URL nobody produces, and it
    * gave it the wrong one.
    *
-   * Deleted rather than fixed, per rule 1 of docs/plan-ownership.md: a surface
-   * claiming something it cannot deliver is worse than a missing one. A bare
-   * `#/event` now falls through to "that event does not exist", which is true.
+   * Deleted rather than fixed: a surface claiming something it cannot deliver
+   * is worse than a missing one, and deleting is reversible in git while a
+   * half-feature is not. A bare `#/event` now falls through to "that event does
+   * not exist", which is true.
    * It also removes a whole `events.list` request from every event page — the
    * entire platform's events, fetched to render one of them.
    */
