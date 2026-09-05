@@ -70,17 +70,21 @@ const PIPELINE: Phase[] = [
     why: "the only irreversible step, and everything it depends on is already in place",
     go: (target) => {
       console.log(`\n── publish`)
-      // The generated config, not wrangler.toml, and no `--env`: the build
-      // above wrote dist/<worker>/wrangler.json already resolved for the
-      // environment CLOUDFLARE_ENV named, with `main` and `assets.directory`
-      // pointing at what it built. (The plugin also writes a redirect for
-      // `wrangler deploy` to find it — under the Vite root, which is not where
-      // this runs from, so it is named here instead.)
+      // The generated config, not wrangler.toml, and NO environment — not the
+      // flag, not the variable. The build above wrote dist/<worker>/wrangler.json
+      // already resolved for the environment CLOUDFLARE_ENV named, with `main`
+      // and `assets.directory` pointing at what it built. Naming the
+      // environment again here is not idempotent: a config with no `env`
+      // section plus `--env staging` makes wrangler fall back to its legacy
+      // behaviour and publish a Worker called `remy-sport-staging-staging` —
+      // which it did, once, taking the custom domain with it. (The plugin also
+      // writes a redirect for `wrangler deploy` to find the file — under the
+      // Vite root, which is not where this runs from, so it is named here.)
       const generated = readdirSync("dist")
         .map((d) => `dist/${d}/wrangler.json`)
         .find((p) => existsSync(p))
       if (!generated) throw new Refused("no dist/*/wrangler.json — the build step did not run")
-      Object.assign(process.env, envFor(target))
+      delete process.env.CLOUDFLARE_ENV
       const published = wrangler(["deploy", "--config", generated], undefined, { inherit: true })
       if (published.code !== 0) throw new Refused("publish failed")
     },
