@@ -30,6 +30,8 @@ bun run shots                     every screen as every seeded person, into scre
 bun run build                     dist/client (the SPA) and dist/remy_sport (the Worker, with the wrangler.json deploy uses)
 bun run preview                   that build, running in workerd
 bun run ops tunnel -- --run       a fixed HTTPS name for the dev server, so a phone can open it
+bun run ops provision -- --env X  D1, R2, queues, migrations, secrets — once per environment, and after adding a secret
+bun run ops versions              what each environment is actually running
 bun run db                        the database — no arguments for status
 bun run ops                       operate a deployment — no arguments to list what it can do
 ```

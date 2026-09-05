@@ -104,6 +104,16 @@ const OPS: Record<string, Op> = {
     cmd: (rest) => ["bun", "scripts/ops/fonts.ts", ...rest],
     help: "fonts                            vendor the web fonts into src/web/fonts and write fonts.css — after changing a family or a locale",
   },
+  provision: {
+    group: "setup",
+    cmd: (rest) => ["bun", "scripts/ops/provision.ts", ...rest],
+    help: "provision --env X [--apply]      D1, R2, queues, migrations and secrets for an environment — once, and after adding a secret",
+  },
+  "auth-schema": {
+    group: "setup",
+    cmd: (rest) => ["bun", "scripts/ops/auth-schema.ts", ...rest],
+    help: "auth-schema                      regenerate src/db/auth-schema.ts from auth.config, after a Better Auth upgrade",
+  },
   keys: {
     group: "setup",
     cmd: (rest) => ["bun", "scripts/ops/keys.ts", ...rest],

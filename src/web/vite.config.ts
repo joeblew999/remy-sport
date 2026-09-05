@@ -5,6 +5,8 @@ import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import { VitePWA } from "vite-plugin-pwa";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import { execSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 
 // Hash routing only — required for Tauri webview compatibility.
 // See remy-sport-biz/decisions/decision-003-frontend-targets.md.
@@ -66,7 +68,34 @@ function seedOnStart(): Plugin {
   };
 }
 
-export default defineConfig(({ mode }) => ({
+/**
+ * What this build is: baked into the Worker as `__BUILD__` (src/build.d.ts) and
+ * served at /api/versions. The commit from git, the build id from the deploy
+ * (`BUILD_ID`, which it then waits for the origin to report) or the clock, the
+ * environment from CLOUDFLARE_ENV — dev when serving, production otherwise,
+ * since the top-level config has no name.
+ */
+const git = (args: string): string => {
+  try {
+    return execSync(`git ${args}`, { encoding: "utf8" }).trim();
+  } catch {
+    return "";
+  }
+};
+function stamp(command: "build" | "serve") {
+  const commit = git("rev-parse --short HEAD");
+  const repo = process.env.GITHUB_REPO_URL;
+  return {
+    commit,
+    branch: git("branch --show-current"),
+    builtAt: process.env.BUILD_ID ?? new Date().toISOString(),
+    environment: process.env.CLOUDFLARE_ENV ?? (command === "serve" ? "dev" : "production"),
+    app: (JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8")) as { version: string }).version,
+    github: repo && commit ? `${repo}/commit/${git("rev-parse HEAD")}` : null,
+  };
+}
+
+export default defineConfig(({ mode, command }) => ({
   root: __dirname,
   plugins: [
     ...(mode === "render"
@@ -169,6 +198,7 @@ export default defineConfig(({ mode }) => ({
    * derives from the request URL (src/auth.ts).
    */
   server: { port: 8787, strictPort: true, host: true },
+  define: { __BUILD__: JSON.stringify(stamp(command)) },
   build: {
     // The plugin writes dist/client and dist/remy_sport beneath this.
     outDir: resolve(ROOT, "dist"),

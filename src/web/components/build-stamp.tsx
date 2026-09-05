@@ -1,12 +1,11 @@
 /**
  * What this page is, and whether the server has moved on without it.
  *
- * Two versions, from two independent places. The CLIENT's is baked in at build
- * time by vite.config.ts (`__BUILD_COMMIT__`, read from git). The SERVER's comes
- * from /api/versions, which each deployment serves from the stamp bundled into
- * it by scripts/deploy/versions.ts. When they disagree, this page is running
- * code the deployment has replaced — the reader has a stale bundle and a reload
- * fixes it.
+ * Two answers, from two independent places. The CLIENT's is the content-hashed
+ * script this page loaded. The SERVER's comes from /api/versions, which each
+ * deployment serves from the stamp vite.config.ts baked into its Worker. When
+ * the served shell names a different bundle, this page is running code the
+ * deployment has replaced — the reader has a stale bundle and a reload fixes it.
  *
  * ## Why this exists when the service worker already reloads
  *

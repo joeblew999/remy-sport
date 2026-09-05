@@ -26,12 +26,25 @@ import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-pool-worker
  */
 const migrations = await readD1Migrations("./src/db/migrations")
 
+/** The build stamp vite.config.ts bakes in (src/build.d.ts); the tests are no build. */
+const define = {
+  __BUILD__: JSON.stringify({
+    commit: "test",
+    branch: "test",
+    builtAt: "1970-01-01T00:00:00.000Z",
+    environment: "dev",
+    app: "0.0.0",
+    github: null,
+  }),
+}
+
 export default defineConfig({
   test: {
     projects: [
-      { test: { name: "unit", include: ["tests/unit/**/*.test.ts"], environment: "node" } },
-      { test: { name: "repo", include: ["tests/repo/**/*.test.ts"], environment: "node" } },
+      { define, test: { name: "unit", include: ["tests/unit/**/*.test.ts"], environment: "node" } },
+      { define, test: { name: "repo", include: ["tests/repo/**/*.test.ts"], environment: "node" } },
       {
+        define,
         plugins: [
           cloudflareTest({
             // Each test file gets its own D1 stack, so specs cannot race each

@@ -89,7 +89,6 @@ TUNNEL_ZONE     = "ubuntusoftware.net"
 # The workers.dev subdomain, which wrangler.toml does not carry. Everything
 # that IS in wrangler.toml — the worker name, each environment's hostname — is
 # read from there through scripts/lib/cloudflare.ts rather than duplicated here.
-CF_SUBDOMAIN    = "gedw99"
 GITHUB_REPO_URL = "https://github.com/joeblew999/remy-sport"
 
 # The Product Owner's repo, cloned as a sibling by biz:sync. The path is not a

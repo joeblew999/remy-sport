@@ -138,19 +138,33 @@ dev-vars.ts and prepare.ts.)
 
 ## Phase 4 — deploy is wrangler
 
-- [ ] `deploy` = `wrangler deploy --env X`, `wrangler d1 migrations apply`, then
-      `smoke.ts` as a test pointed at the URL.
-- [ ] `provision.ts` (750 lines) and the bespoke Cloudflare API client in
-      `cloudflare.ts` (548) become a one-time per-environment setup using
-      wrangler's own commands. What wrangler cannot do stays, with the reason on
-      the line.
-- [ ] `versions.json` stamping goes. The dev build rewrites a tracked file on
-      every run; `build-stamp.tsx` already compares content hashes and needs
-      none of it.
-- [ ] `auth-schema.ts`: establish whether Better Auth's schema generation is a
-      build step or a one-time one, and place it accordingly.
+- [x] `deploy` is check, e2e, build, migrate, publish, wait, seed, smoke.
+      The build carries a build id (`BUILD_ID`, baked in by Vite), and the
+      wait asks the origin for that id rather than comparing a stamped file.
+      Migrations are the one provisioning step that stays per deploy —
+      migration 0007: the schema before the code that needs it.
+- [x] `provision.ts` is `bun run ops provision --env X [--apply]`: D1, R2,
+      queues, migrations and secrets, once per environment and again after a
+      secret group is added. It was already wrangler's own commands with a
+      plan/apply and a refusal rule around them; what changed is that a
+      deploy no longer runs it. `cloudflare.ts` stays as it is: the
+      credential, account and target boundary fifteen scripts and two tests
+      share, and its REST half does what wrangler cannot — Analytics Engine
+      queries, the tunnel, the audit log. The reasons are on its lines.
+- [x] The stamp file is gone. vite.config.ts bakes the commit, branch, build
+      id, environment and version into the Worker as `__BUILD__`
+      (`src/build.d.ts`), `/api/versions` serves it, and nothing rewrites a
+      tracked file on every dev start and every deploy any more. Its 206-line
+      stamper and the setup step that ran it are deleted.
+- [x] `auth-schema.ts`: generation is a one-time step (`bun run ops
+      auth-schema`, after a Better Auth upgrade), and whether the committed
+      copy matches is a question about the tree — `tests/repo/auth-schema.test.ts`,
+      on every `bun run check`, instead of a deploy step.
 
-**Done when** `deploy.ts` is under 100 lines or gone.
+**Done when** `deploy.ts` is under 100 lines or gone. (2026-09-05: 182 lines,
+of which the pipeline is eight entries and the rest is the three constraints
+and the publish that once named its environment twice. Not gone: the order is
+the content, and a shell line cannot carry the reasons.)
 
 ## Kept, and why
 
@@ -176,6 +190,10 @@ dev-vars.ts and prepare.ts.)
 
 - 2026-09-05 — written, after the dependency update (`f3cb2eb`) and the
   watcher fix (`3af69a0`). Baseline numbers above.
+- 2026-09-05 — Phase 4 landed, one commit. The plan is done. `scripts/` is
+  10,007 → 5,670 lines; the orchestrator, the dev script, the seed generator,
+  the version stamper, the fonts step and the watcher are gone; the checks are
+  test files; `deploy.ts` is eight steps. What runs before a command: nothing.
 - 2026-09-05 — Phase 3 landed, one commit. The seed is a module; the
   generated SQL, its generator, two checks and a module rule are gone; the
   table map is checked by the compiler; fonts are an ops command.

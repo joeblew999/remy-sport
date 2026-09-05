@@ -1,25 +1,48 @@
 /**
  * The deploy pipeline, in one place, in order.
  *
- * It was ten `mise run` lines inside a TOML string. That worked, and hid two
- * things. Ordering was expressed by line position in a shell block nothing could
- * check — and the ordering matters: migrations must land before the code that
- * needs them (migration 0007 taught that), and secrets before the version that
- * carries them. And `cf:wait` polled `{{env.CF_DEPLOY_URL}}`, which is
- * production's hostname, so a staging deploy would have waited on the wrong
- * origin until it timed out.
+ *   bun run deploy -- --env staging | production
  *
- * Here the origin comes from the resolved config for the environment being
- * deployed, so staging waits on staging. Same reader `check-envs` uses, which is
- * what proves the two hostnames are disjoint in the first place.
+ * Eight steps. Everything before the publish is the gate; everything after it
+ * verifies it. Three constraints bind the order, and each has already cost a
+ * deploy:
  *
- * Every step is still its own script. This owns the order, not the work.
+ *   gate before account      nothing touches Cloudflare until check and the
+ *                            e2e tier pass.
+ *   migrate before publish   migration 0007 taught this: better-auth matches
+ *                            sign-in on account.issuer, so a Worker published
+ *                            ahead of its migration queries a column that does
+ *                            not exist and every sign-in fails until it lands.
+ *   nothing else per deploy  the database, the bucket, the queues and the
+ *                            secrets are `bun run ops provision`: once per
+ *                            environment, and again after a secret group is
+ *                            added. A `secret put` after a publish is a further
+ *                            version, and for seconds the edge answers from the
+ *                            one before — so it is never done here.
+ *
+ * The origin comes from the resolved config for the environment being deployed,
+ * so staging waits on staging — the same reader tests/repo/envs.test.ts uses,
+ * which is what proves the two hostnames are disjoint in the first place.
  */
 
 import { existsSync, readdirSync } from "node:fs"
-import { run as provision } from "./deploy/provision"
 import { prepare } from "./lib/prepare"
 import { Refused, originOf, resolveTarget, wrangler, type Target } from "./lib/cloudflare"
+
+/**
+ * This build's identity, minted here and baked into the Worker by
+ * vite.config.ts (`define`), so `wait` can ask the origin whether it is serving
+ * THIS build yet. `wrangler deploy` returns before the edge does, and
+ * /api/health cannot tell — the old Worker answers it happily. Not the commit:
+ * two deploys of one commit are two builds.
+ */
+const BUILD_ID = new Date().toISOString()
+
+/**
+ * How the Vite plugin and wrangler are told which environment: the variable,
+ * not the flag. Production is the top-level configuration and has no name.
+ */
+const envFor = (target: Target): Record<string, string> => (target.flag ? { CLOUDFLARE_ENV: target.flag } : {})
 
 interface Phase {
   name: string
@@ -34,68 +57,30 @@ const PIPELINE: Phase[] = [
     go: () => step("check", ["bun", "run", "check"]),
   },
   {
-    name: "auth-schema",
-    why: "the generated schema must match auth.config before anything ships it",
-    go: () => step("auth-schema", ["bun", "scripts/deploy/auth-schema.ts"]),
-  },
-  {
     name: "test",
     why: "end to end, against a local server, before a remote one exists",
     go: () => step("test", ["bun", "scripts/e2e.ts"]),
   },
   {
-    name: "stamp",
-    why: "versions.json is what the origin is later compared against, so it is written before the build that bundles it — and it is stamped for THIS environment, since the artifact carries it",
-    go: (target) => step("stamp", ["bun", "scripts/deploy/versions.ts", "--env", target.environment]),
-  },
-  {
     name: "build",
-    why: "vite builds the Worker and the assets for this environment (CLOUDFLARE_ENV selects it) and writes the wrangler.json the publish uses",
+    why: "vite builds the Worker and the assets for this environment, with this build's id baked in, and writes the wrangler.json the publish uses",
     go: (target) =>
-      step("build", ["bun", "x", "vite", "build", "--config", "src/web/vite.config.ts"], envFor(target)),
+      step("build", ["bun", "x", "vite", "build", "--config", "src/web/vite.config.ts"], { ...envFor(target), BUILD_ID }),
   },
   {
-    name: "provision",
-    why: "D1, its migrations, R2, queues and every secret — idempotent, and BEFORE the publish so the code never runs ahead of its schema",
-    go: async (target) => {
-      console.log(`\n── provision`)
-      // Imported, not spawned: provision.ts exports run() behind an
-      // import.meta.main guard precisely so a caller can use it as a function,
-      // and a thrown Refused carries more than an exit code.
-      await provision(["--env", target.environment], "apply")
-    },
+    name: "migrate",
+    why: "the schema before the code that needs it; wrangler applies only what is missing",
+    go: (target) => step("migrate", ["bun", "scripts/db.ts", "migrate-remote", "--env", target.environment]),
   },
   {
     name: "publish",
     why: "the only irreversible step, and everything it depends on is already in place",
-    go: (target) => {
-      console.log(`\n── publish`)
-      // The generated config, not wrangler.toml, and NO environment — not the
-      // flag, not the variable. The build above wrote dist/<worker>/wrangler.json
-      // already resolved for the environment CLOUDFLARE_ENV named, with `main`
-      // and `assets.directory` pointing at what it built. Naming the
-      // environment again here is not idempotent: a config with no `env`
-      // section plus `--env staging` makes wrangler fall back to its legacy
-      // behaviour and publish a Worker called `remy-sport-staging-staging` —
-      // which it did, once, taking the custom domain with it. (The plugin also
-      // writes a redirect for `wrangler deploy` to find the file — under the
-      // Vite root, which is not where this runs from, so it is named here.)
-      const generated = readdirSync("dist")
-        .map((d) => `dist/${d}/wrangler.json`)
-        .find((p) => existsSync(p))
-      if (!generated) throw new Refused("no dist/*/wrangler.json — the build step did not run")
-      delete process.env.CLOUDFLARE_ENV
-      const published = wrangler(["deploy", "--config", generated], undefined, { inherit: true })
-      if (published.code !== 0) throw new Refused("publish failed")
-    },
+    go: () => publish(),
   },
   {
     name: "wait",
-    why: "wrangler returns before the edge serves the new version, and /api/health cannot tell — the OLD worker answers it happily",
-    go: async (_t, origin) => {
-      console.log(`\n── wait for ${origin}`)
-      await waitForOrigin(origin)
-    },
+    why: "until the origin reports this build — the old Worker answers /api/health happily",
+    go: (_target, origin) => waitFor(origin),
   },
   {
     name: "seed",
@@ -105,15 +90,9 @@ const PIPELINE: Phase[] = [
   {
     name: "smoke",
     why: "last, because it is the only step that asks the deployment what it is actually serving",
-    go: (_t, origin) => step("smoke", ["bun", "scripts/deploy/smoke.ts"], { CF_DEPLOY_URL: origin }),
+    go: (_target, origin) => step("smoke", ["bun", "scripts/deploy/smoke.ts"], { CF_DEPLOY_URL: origin }),
   },
 ]
-
-/**
- * How the Vite plugin and wrangler are told which environment: the variable,
- * not the flag. Production is the top-level configuration and has no name.
- */
-const envFor = (target: Target): Record<string, string> => (target.flag ? { CLOUDFLARE_ENV: target.flag } : {})
 
 function step(label: string, argv: string[], env: Record<string, string> = {}): void {
   console.log(`\n── ${label}`)
@@ -126,82 +105,65 @@ function step(label: string, argv: string[], env: Record<string, string> = {}): 
 }
 
 /**
- * Wait for the origin to serve the build just published.
- *
- * Two distinct problems, both of which broke a deploy. A freshly bound custom
- * domain is not immediately usable — DNS and certificate issuance take minutes,
- * and the first deploy died with getaddrinfo ENOTFOUND. And `wrangler deploy`
- * returns before the version has propagated, which polling /api/health cannot
- * detect, because the OLD worker answers that happily.
- *
- * So this compares the build stamp the origin reports against the one in the
- * local versions.json. `_generated` rather than the commit: the commit only
- * changes when you commit, so deploying uncommitted work would match stale code.
+ * The generated config, not wrangler.toml, and NO environment — not the flag,
+ * not the variable. The build wrote dist/<worker>/wrangler.json already
+ * resolved for the environment CLOUDFLARE_ENV named, with `main` and
+ * `assets.directory` pointing at what it built. Naming the environment again
+ * is not idempotent: a config with no `env` section plus a named environment
+ * makes wrangler fall back to its legacy behaviour and publish a Worker called
+ * `remy-sport-staging-staging` — which it did, once, taking the custom domain
+ * with it.
  */
-async function waitForOrigin(origin: string): Promise<void> {
-  const local = (await Bun.file("versions.json").json()) as { current?: { _generated?: string } }
-  const want = local.current?._generated
-  if (!want) throw new Refused("no _generated stamp in versions.json — run `bun run ops versions` first")
+function publish(): void {
+  console.log(`\n── publish`)
+  const generated = readdirSync("dist")
+    .map((d) => `dist/${d}/wrangler.json`)
+    .find((p) => existsSync(p))
+  if (!generated) throw new Refused("no dist/*/wrangler.json — the build step did not run")
+  delete process.env.CLOUDFLARE_ENV
+  const published = wrangler(["deploy", "--config", generated], undefined, { inherit: true })
+  if (published.code !== 0) throw new Refused("publish failed")
+}
 
+async function waitFor(origin: string): Promise<void> {
+  console.log(`\n── wait for ${origin}`)
   for (let i = 0; i < 60; i++) {
     const got = await fetch(`${origin}/api/versions`, { signal: AbortSignal.timeout(10_000) })
       .then((r) => (r.ok ? (r.json() as Promise<{ current?: { _generated?: string } }>) : null))
       .then((d) => d?.current?._generated ?? "")
       .catch(() => "")
-    if (got === want) {
-      console.log(`   ${origin} is serving ${want}`)
+    if (got === BUILD_ID) {
+      console.log(`   ${origin} is serving ${BUILD_ID}`)
       return
     }
-    if (got) console.log(`   origin still serving ${got}, want ${want}`)
+    if (got) console.log(`   origin still serving ${got}, want ${BUILD_ID}`)
     await Bun.sleep(5_000)
   }
-  throw new Refused(`${origin} never reported ${want} within 5 minutes`)
+  throw new Refused(`${origin} never reported ${BUILD_ID} within 5 minutes`)
 }
 
-/**
- * The pipeline, in order, with each step saying why it is where it is.
- *
- * Order is the whole content of this file, so it is a list rather than a run of
- * statements — a sequence you can read, and whose reasons sit beside the steps
- * they constrain rather than in a comment above the block.
- *
- * Three constraints bind it, and each has already cost a deploy:
- *
- *   gate before account   nothing touches Cloudflare until check and test pass.
- *   migrate before publish  migration 0007 taught this: better-auth matches
- *                         sign-in on account.issuer, so a Worker published ahead
- *                         of its migration queries a column that does not exist
- *                         and every sign-in fails until it lands.
- *   secrets before publish  a `secret put` after the deploy publishes a further
- *                         version, and for seconds the edge answers from the one
- *                         before — which failed a push smoke check on a deploy
- *                         whose keys were in fact correct.
- *
- * Everything after the publish verifies it. A deploy that cannot be checked
- * afterwards is not one worth performing.
- */
 if (process.argv.includes("--help")) {
   console.log(`
 bun run deploy -- --env staging | production
 
   A remote write names its environment or refuses; there is deliberately no
   default. Everything before the publish is the gate, everything after verifies
-  it.
+  it. Resources and secrets are not here: bun run ops provision --env X --apply
 
 What it runs:
 `)
-  PIPELINE.forEach((p, i) => console.log(`  ${String(i + 1).padStart(2)}. ${p.name.padEnd(12)} ${p.why}`))
+  PIPELINE.forEach((p, i) => console.log(`  ${String(i + 1).padStart(2)}. ${p.name.padEnd(8)} ${p.why}`))
   console.log("")
   process.exit(0)
 }
 
 try {
   // Inside the boundary, so a missing --env prints the refusal rather than a
-  // stack trace. It was at module top level, where nothing could catch it.
+  // stack trace.
   prepare()
   const target = resolveTarget(process.argv.slice(2), "explicit")
   const origin = originOf(target)
-  console.log(`deploy: ${target.environment} → ${origin}`)
+  console.log(`deploy: ${target.environment} → ${origin}  (build ${BUILD_ID})`)
 
   for (const phase of PIPELINE) await phase.go(target, origin)
 

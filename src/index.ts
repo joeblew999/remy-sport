@@ -101,16 +101,22 @@ app.use(csrf())
 // Browser routes (CSRF protected)
 app.route("/", authRoutes)
 
-// Version metadata, read by the SPA. Lived in routes/home.ts until ADR 020
-// deleted the server-rendered harness around it.
-app.get("/api/versions", async (c) => {
-  try {
-    const versions = await import("../versions.json")
-    return c.json(versions.default ?? versions)
-  } catch {
-    return c.json({ error: "versions.json not found — run: bun run ops versions" }, 404)
-  }
-})
+// What this Worker is: the build stamp vite.config.ts baked in (src/build.d.ts),
+// read by the SPA's build stamp, by `bun run ops versions`, and by the deploy
+// while it waits for the edge to serve the build it just published. `url` is
+// where this deployment thinks it lives — the same variable every emailed link
+// is built from.
+app.get("/api/versions", (c) =>
+  c.json({
+    current: {
+      _generated: __BUILD__.builtAt,
+      app: __BUILD__.app,
+      environment: __BUILD__.environment,
+      url: c.env.BETTER_AUTH_URL,
+      git: { commit: __BUILD__.commit, branch: __BUILD__.branch, github: __BUILD__.github },
+    },
+  }),
+)
 
 // OpenAPI spec at /openapi.json, generated from the same router that serves
 // the requests — the document cannot describe an endpoint that does not exist.

@@ -10,8 +10,8 @@
  * failing, which is the worst way for a record to be wrong.
  *
  * So nothing is stored. Each deployment bundles its own stamp and serves it at
- * /api/versions (scripts/deploy/versions.ts writes it, `src/index.ts` serves
- * it), and this asks every environment in turn. The answer cannot go stale
+ * /api/versions (vite.config.ts bakes it in at build time, `src/index.ts`
+ * serves it), and this asks every environment in turn. The answer cannot go stale
  * because there is nowhere for it to go stale.
  *
  *   bun run ops versions
@@ -119,7 +119,7 @@ console.log()
 if (mismatch) {
   console.error(
     "An environment is serving a stamp built for a different one. That is the\n" +
-      "bug scripts/deploy/versions.ts documents: redeploy it so it stamps itself.\n",
+      "bug the build stamp exists to catch: redeploy it so it stamps itself.\n",
   )
   process.exit(1)
 }

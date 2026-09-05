@@ -1,5 +1,12 @@
 /**
- * One provisioning path, for one named environment.
+ * One provisioning path, for one named environment — `bun run ops provision`.
+ *
+ * Once per environment, and again after a secret group is added. Not part of a
+ * deploy: everything here is idempotent, but a `secret put` after a publish
+ * is a further version, so secrets are set before the Worker that needs them
+ * is published, by a person, on purpose. The first run of a new environment
+ * is two runs — the Worker has to exist before it can hold secrets — and the
+ * printout says so.
  *
  * ## What this replaces
  *
@@ -29,7 +36,7 @@
  */
 
 import { DEMO_SIGN_IN_CODE, POLICY, type Environment } from "../../src/environment"
-import { DEFAULT_SUBJECT, PRIVATE_KEY, PUBLIC_KEY, generateVapid } from "../ops/keys"
+import { DEFAULT_SUBJECT, PRIVATE_KEY, PUBLIC_KEY, generateVapid } from "./keys"
 import {
   DEPLOYABLE,
   Refused,
@@ -680,11 +687,11 @@ export async function run(argv: string[], mode: "plan" | "apply"): Promise<void>
   const config = resolvedConfig(target.flag)
 
   console.log(
-    `\n${mode === "plan" ? "cf:env:plan" : "cf:env:bootstrap"} — ${target.environment}` +
+    `\nops provision${mode === "plan" ? "" : " --apply"} — ${target.environment}` +
       ` (worker "${config.name}")\n`,
   )
   if (mode === "plan") {
-    console.log("  Nothing below is performed. This run changes nothing.\n")
+    console.log("  Nothing below is performed. This run changes nothing; --apply does.\n")
   }
 
   const steps = [
@@ -742,7 +749,7 @@ if (import.meta.main) {
     await run(process.argv.slice(2), mode)
   } catch (err) {
     if (err instanceof Refused) {
-      console.error(`\ncf-provision: ${(err as Error).message}\n`)
+      console.error(`\nops provision: ${(err as Error).message}\n`)
       process.exit(1)
     }
     throw err

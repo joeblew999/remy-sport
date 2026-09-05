@@ -122,14 +122,6 @@ const LOCAL: Step[] = [
    * and bumping either file is the only edit.
    */
   { name: "mcp-browser", why: "the Playwright MCP's own webkit, so an agent can drive the app live; a no-op once installed", go: () => sh(mcpBrowserInstall()) },
-  /**
-   * The local server bundles versions.json and serves it at /api/versions, so
-   * without this it reports whichever environment was DEPLOYED last — and the
-   * sidebar's build stamp then tells you an update is available forever,
-   * because the page is built from the working tree and the answer is not.
-   * Idempotent: it rewrites nothing when the commit has not moved.
-   */
-  { name: "versions", why: "dev serves /api/versions from this file, so it stamps the working tree rather than the last deploy", go: () => sh(["bun", "scripts/deploy/versions.ts", "--env", "dev"]) },
 ]
 
 /**
@@ -153,7 +145,7 @@ function runSteps(steps: Step[]): void {
    * This ran in complete silence unless it failed, and it is the most opaque
    * thing in the repo: it happens before EVERY command, and it installs
    * dependencies, generates the Worker types, writes .dev.vars, migrates the
-   * local database, installs a browser and stamps versions.json. None of that was visible, so
+   * local database and installs a browser. None of that was visible, so
    * `bun run dev` looked like it started a server and nothing else.
    *
    * The cost of the silence was not curiosity. When the versions step broke, the
