@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "identifier": "net.ubuntusoftware.remysport",
   "build": {
-    "frontendDist": "../dist/web",
+    "frontendDist": "../dist/client",
     "devUrl": "http://localhost:8787",
-    "beforeDevCommand": "mise run web:build",
-    "beforeBuildCommand": "mise run web:build"
+    "beforeDevCommand": "bun run build",
+    "beforeBuildCommand": "bun run build"
   },
   "app": {
     "windows": [

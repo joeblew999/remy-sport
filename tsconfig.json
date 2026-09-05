@@ -36,6 +36,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
+    // Vite's native config loader wants the extension on an import, and with
+    // `noEmit` there is nothing an extension could mislead.
+    "allowImportingTsExtensions": true,
     // src/paraglide is generated JavaScript carrying JSDoc types; the Worker and
     // the SPA both import it.
     "allowJs": true,

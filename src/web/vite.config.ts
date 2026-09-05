@@ -1,111 +1,120 @@
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+import { cloudflare } from "@cloudflare/vite-plugin";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import { VitePWA } from "vite-plugin-pwa";
-import { existsSync, readdirSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, join, resolve } from "node:path";
+import { dirname, resolve } from "node:path";
+import { sqlAsText } from "../../scripts/lib/sql-as-text.ts";
 
 // Hash routing only — required for Tauri webview compatibility.
 // See remy-sport-biz/decisions/decision-003-frontend-targets.md.
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const ROOT = resolve(__dirname, "../..");
 
 /**
- * No build-time version constant here, and the reason is worth keeping.
+ * One Vite, for the Worker and the SPA.
  *
- * A `define` baked `git rev-parse --short HEAD` into the bundle so the page
- * could compare itself against the server. It was wrong the moment it shipped:
- * `git commit` moves HEAD without touching any file in the bundle's `sources`
- * list (scripts/lib/prepare.ts), so the freshness check correctly judged the
- * bundle current, vite never re-ran, and the deployed artifact carried the
- * previous commit permanently. Staging served a client stamped 01d7e89 against
- * a server stamped 707ea9a and asked every reader to reload, which changed
- * nothing, because the bundle really was that old.
+ * `vite dev` runs the Worker in workerd beside the SPA, with D1 and the other
+ * bindings from wrangler.toml and the secrets from .dev.vars, and the SPA gets
+ * HMR. `vite build` writes both: dist/client for the assets and
+ * dist/remy-sport for the Worker with the wrangler.json that `wrangler deploy`
+ * then uses. There is no dist/ during development at all.
  *
- * components/build-stamp.tsx compares the served shell's content-hashed script
- * against the one the page loaded instead. A hash is derived from the bytes, so
- * it cannot disagree with them.
+ * That replaces a 300-line dev script that ran `vite build --watch` into
+ * dist/web beside a `wrangler dev` serving it — a directory one process wrote
+ * while another read it, which was the race behind a day of stale bundles,
+ * 945 superseded chunks, and two checks that existed only to police it.
+ *
+ * `--mode render` leaves the Cloudflare plugin out: the render tier is a
+ * browser against a static file server, on purpose, and starts no Worker.
+ *
+ * No build-time version constant here, and the reason is worth keeping: a
+ * `define` once baked `git rev-parse HEAD` into the bundle, and `git commit`
+ * moves HEAD without touching any file the bundle is built from, so the
+ * artifact carried the previous commit forever. components/build-stamp.tsx
+ * compares the served shell's content-hashed script against the one the page
+ * loaded instead; a hash cannot disagree with its bytes.
  */
 
 /**
- * After each watch rebuild, delete the hashed assets it superseded.
+ * Seed the local database when the dev server starts.
  *
- * The watcher never empties dist/web — see `emptyOutDir` below for why — so
- * every rebuild left its predecessors' chunks behind: 945 files after a day,
- * 114 copies of index.js. The service worker's precache manifest is globbed
- * from that directory, so it reached 497 entries and the worker bundle crossed
- * its ceiling, with check-bundle blaming a leaked import that did not exist.
- * Every dev visitor's browser was told to precache all 497.
- *
- * Deleting AFTER the new bundle is written keeps what `emptyOutDir: false`
- * defends: at no moment is the directory without a complete bundle. What goes
- * is only a content-hashed file this build did not write — nothing current
- * references it, by construction of the hash. Unhashed files (sw.js,
- * workbox-window) are written by other steps and left alone.
- *
- * `writeBundle` rather than `closeBundle`, so it runs before the PWA plugin
- * builds the worker and the manifest it globs is already clean.
+ * The seed is an endpoint (`POST /api/seed`, dev only), so the server has to
+ * be up before it can run; the old dev script polled /api/health and then
+ * posted. Here the server tells us when it is listening. Retried, because the
+ * Worker may still be starting on the first attempt.
  */
-function pruneSuperseded(): Plugin {
-  let outDir = "";
-  const hashed = /-[A-Za-z0-9_-]{8,}\.[a-z0-9]+$/;
+function seedOnStart(): Plugin {
   return {
-    name: "remy:prune-superseded",
-    apply: (_, env) => env.command === "build" && process.argv.includes("--watch"),
-    configResolved(config) {
-      outDir = config.build.outDir;
-    },
-    writeBundle(_, bundle) {
-      const assets = join(outDir, "assets");
-      if (!existsSync(assets)) return;
-      const written = new Set(Object.keys(bundle));
-      for (const f of readdirSync(assets)) {
-        if (hashed.test(f) && !written.has(`assets/${f}`)) rmSync(join(assets, f), { force: true });
-      }
+    name: "remy:seed-on-start",
+    apply: "serve",
+    configureServer(server) {
+      server.httpServer?.once("listening", () => {
+        const address = server.httpServer?.address();
+        const port = typeof address === "object" && address ? address.port : 8787;
+        const seed = async (attempt = 1): Promise<void> => {
+          const ok = await fetch(`http://localhost:${port}/api/seed`, { method: "POST" })
+            .then((r) => r.ok)
+            .catch(() => false);
+          if (ok) server.config.logger.info("  seeded the local database — #/login lists the seeded people");
+          else if (attempt < 5) setTimeout(() => void seed(attempt + 1), 1000);
+          else server.config.logger.warn("  could not seed the local database (POST /api/seed failed five times)");
+        };
+        void seed();
+      });
     },
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   root: __dirname,
   plugins: [
-    pruneSuperseded(),
+    sqlAsText,
+    ...(mode === "render"
+      ? []
+      : [
+          cloudflare({
+            configPath: resolve(ROOT, "wrangler.toml"),
+            // The same local D1 that `wrangler d1 migrations apply --local`
+            // writes, so the database the tests migrate is the one dev serves.
+            persistState: { path: resolve(ROOT, ".wrangler/state") },
+          }),
+          seedOnStart(),
+        ]),
     react(),
-    // UI copy is compiled, not looked up at runtime: a missing key is a build
-    // error and unused messages are tree-shaken out. The locale list in
-    // project.inlang/settings.json is derived from the model's ALL_LOCALES,
-    // so the languages the interface can be written in are the languages the
-    // data is available in — one list, not two.
     paraglideVitePlugin({
-      project: resolve(__dirname, "../../project.inlang"),
-      // Up a level: the Worker sends email using the same messages, so they
-      // are the product's copy rather than the SPA's. src/web must not be a
-      // dependency of src/.
-      outdir: resolve(__dirname, "../paraglide"),
-      // We own the locale (lib/locale.tsx: localStorage, then the browser's
-      // preference). Paraglide reads it through overwriteGetLocale rather than
-      // keeping a cookie of its own, so there is one source of truth for which
-      // language the reader is in.
-      strategy: ["globalVariable", "baseLocale"],
+      project: resolve(ROOT, "project.inlang"),
+      outdir: resolve(ROOT, "src/paraglide"),
+      /**
+       * Every message in one bundle, chosen by the locale runtime.
+       *
+       * The default (`locale-modules`) splits each language into its own chunk
+       * and switches with a dynamic import. That is right for a site where
+       * most readers stay in one language. It is wrong here: a locale switch
+       * happened mid-render, the new chunk had not arrived, and the page
+       * flashed English before Thai. `message-modules` keeps every language
+       * in the main bundle so switching is synchronous — three languages of
+       * UI strings cost less than one font.
+       */
+      outputStructure: "message-modules",
+      cookieName: "remy_locale",
+      strategy: ["localStorage", "cookie", "preferredLanguage", "baseLocale"],
     }),
     /**
-     * The manifest and service worker, without which iOS will not install this
-     * as an app and Web Push cannot work at all.
+     * The service worker is not registered here, and that is deliberate.
      *
-     * Installing it before this existed put a screenshot of the page on the
-     * home screen, because index.html referenced no manifest and no icons.
-     *
-     * `injectRegister: null` is the load-bearing option. The plugin's default
-     * writes a registration snippet into index.html — and Tauri loads that same
-     * index.html on desktop and iOS, where a service worker is at best dead
-     * weight and at worst caches the app shell against a native build. One
-     * bundle serves all three targets (decision-003), so this cannot be a build
+     * A browser should have one — offline shell, push, install to the home
+     * screen. But desktop and iOS run this same bundle inside a Tauri webview
+     * (decision-003: one bundle, three targets), where a service worker is at
+     * best dead weight and at worst caches the app shell against a native
+     * build. One bundle serves all three targets, so this cannot be a build
      * flag; registration happens in main.tsx, guarded on the same
      * `__TAURI_INTERNALS__` check the logger already uses.
      *
-     * The icons are the files `mise run brand:icons` cuts from brand.svg. They
-     * are listed rather than globbed so a missing one is a failed build instead
-     * of a manifest that quietly offers fewer sizes than it claims.
+     * The icons are the files `bun run ops icons` cuts from brand.svg. They are
+     * listed rather than globbed so a missing one is a failed build instead of
+     * a manifest that quietly offers fewer sizes than it claims.
      */
     VitePWA({
       injectRegister: null,
@@ -155,72 +164,16 @@ export default defineConfig({
   ],
   base: "./",
   /**
-   * `vite preview` proxies nothing. This is not a tidy-up.
-   *
-   * Vite defaults `preview.proxy` to `server.proxy`, so the render tier — which
-   * describes itself as "no Worker, no database, no sign-in" — quietly became an
-   * integration tier whenever `bun run dev` happened to be running: `/api` and
-   * `/rpc` reached the real Worker, the profile page got a 401 from an endpoint
-   * that should not have been reachable, and the page stopped responding.
-   *
-   * It cost two rounds of chasing, because the symptom was four mobile-layout
-   * timeouts that named the layout and never the network, and the workaround was
-   * to stop the tunnel for every test run. An empty proxy makes the tier what it
-   * says it is, and makes the result the same whether or not a Worker is up.
+   * One port, the one everything else in this repo already knows: the tunnel's
+   * ingress, `.dev.vars`' BETTER_AUTH_URL, the e2e tier's baseURL, Tauri's
+   * devUrl. `host: true` binds every interface so a phone on the same wifi can
+   * reach it — and sign-in works from either address, because trustedOrigins
+   * derives from the request URL (src/auth.ts).
    */
-  preview: { proxy: {} },
+  server: { port: 8787, strictPort: true, host: true },
   build: {
-    outDir: resolve(__dirname, "../../dist/web"),
-    /**
-     * Emptied by a one-shot build, never by the watcher.
-     *
-     * `bun run dev` runs this config with `--watch`, and every rebuild used to
-     * delete dist/web before writing it. Anything reading the directory during
-     * that window sees a shell with no bundle — which is not hypothetical: a
-     * whole e2e suite failed on eight specs, and `test:worker:assets` failed
-     * inside `check`, both with the Worker serving a document referencing a
-     * script that was not there. Both read as product regressions.
-     *
-     * `web:build` deferring to the watcher fixed the two builders racing each
-     * other; it cannot fix a reader arriving mid-rebuild, because the window
-     * belongs to the watcher alone. Not emptying removes the window entirely.
-     *
-     * Safe because assets are content-hashed: a superseded bundle keeps its own
-     * name, nothing references it, and dist/web is gitignored build output. A
-     * deploy still gets a clean directory, which is where shipping a stale file
-     * would actually matter.
-     */
-    emptyOutDir: !process.argv.includes("--watch"),
+    // The plugin writes dist/client and dist/remy_sport beneath this.
+    outDir: resolve(ROOT, "dist"),
     sourcemap: true,
   },
-  server: {
-    port: 5175,
-    strictPort: true,
-    // Bind every interface, not just loopback. The whole point of this server
-    // is a fast loop, and a layout bug you can only reproduce on a phone is not
-    // one you can iterate on from localhost — `mise run tunnel:quick` and a
-    // handset both need to reach it. Same reason `dev` passes --ip 0.0.0.0.
-    host: true,
-    // Send the API to the Worker.
-    //
-    // Without this, `mise run web:dev` serves the SPA but every /api/* call
-    // lands on Vite, which has no such route — so the session never resolves,
-    // sign-in 404s and every page renders empty. That looked like "the SPA is
-    // broken" when the SPA was fine and simply had no backend.
-    //
-    // Requires `bun run dev` in another terminal. web:dev deliberately does
-    // not start the Worker itself: two dev servers under one task is a worse
-    // trade than one extra terminal, and the ports differ so both can run.
-    proxy: {
-      "/api": {
-        target: "http://localhost:8787",
-        changeOrigin: false,
-      },
-      // The SPA's own client speaks oRPC here; /api stays the REST surface.
-      "/rpc": {
-        target: "http://localhost:8787",
-        changeOrigin: false,
-      },
-    },
-  },
-});
+}));

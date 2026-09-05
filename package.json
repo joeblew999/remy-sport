@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "setup": "bun scripts/lib/prepare.ts local",
-    "dev": "bun scripts/dev.ts",
+    "dev": "vite --config src/web/vite.config.ts",
+    "preview": "vite preview --config src/web/vite.config.ts",
     "typecheck": "tsc",
     "lint": "knip --include files,unlisted --no-config-hints && depcruise src --config .dependency-cruiser.cjs && eslint src/web && inlang validate --project ./project.inlang",
     "check:model": "bun scripts/ops/domain.ts --check && bun scripts/lib/seed.ts --check && bun scripts/ops/coverage-gui.ts",
@@ -12,7 +13,7 @@
     "test:watch": "vitest",
     "test:render": "playwright test --config playwright.render.config.ts",
     "test:e2e": "bun scripts/e2e.ts",
-    "check": "bun run typecheck && bun run lint && bun run check:model && bun run test && bun run test:render",
+    "check": "bun run typecheck && bun run lint && bun run build && bun run check:model && bun run test && bun run test:render",
     "build": "vite build --config src/web/vite.config.ts",
     "shots": "playwright test --project shots --reporter list --retries 0",
     "deploy": "bun scripts/deploy.ts",
@@ -43,6 +44,7 @@
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.54.4",
     "@cloudflare/vitest-pool-workers": "^0.22.0",
     "@inlang/cli": "^3.3.4",
     "@inlang/paraglide-js": "2.25.0",

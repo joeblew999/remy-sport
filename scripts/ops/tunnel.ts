@@ -132,4 +132,15 @@ if ((await set.exited) !== 0) {
   process.exit(1)
 }
 
-console.log(`\n  https://${hostname}\n  A fixed URL. 'bun run dev' brings it up with the server.\n`)
+console.log(`\n  https://${hostname}\n  A fixed URL. 'bun run ops tunnel --run' brings it up beside 'bun run dev'.\n`)
+
+/**
+ * `--run`: stay attached and run the tunnel, so a phone can reach the dev
+ * server on its fixed HTTPS name. The dev script used to start this beside
+ * wrangler; the dev server is plain Vite now and starts nothing else.
+ */
+if (process.argv.includes("--run")) {
+  console.log(`tunnel: running https://${hostname} -> ${service} (Ctrl-C stops it)`)
+  const run = Bun.spawn(["cloudflared", "tunnel", "run", "--token", runToken], { stdout: "inherit", stderr: "inherit" })
+  process.exit(await run.exited)
+}

@@ -77,6 +77,12 @@ const DEFAULTS: Record<string, () => string> = {
    * actually open — which is what these links are for.
    */
   BETTER_AUTH_URL: () => `https://${process.env.TUNNEL_HOSTNAME ?? "localhost:8787"}`,
+  /**
+   * The tunnel's hostname, so the Worker trusts that origin for sign-in
+   * (src/auth.ts adds it to trustedOrigins at boot). From mise's [env]; the dev
+   * script used to append it, and nothing else now starts the Worker.
+   */
+  TUNNEL_HOSTNAME: () => process.env.TUNNEL_HOSTNAME ?? "",
 }
 
 const existing = existsSync(DEV_VARS) ? readFileSync(DEV_VARS, "utf8") : ""

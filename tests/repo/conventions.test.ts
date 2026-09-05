@@ -371,32 +371,6 @@ const RULES: Rule[] = [
     },
   },
   {
-    claim: '"Every `wrangler dev` this repo starts passes an explicit `--host`."',
-    check: () => {
-      // A new entry point appearing without the flag is the regression this
-      // catches — a command that silently simulates the production hostname
-      // locally.
-      //
-      // Any explicit host, not `localhost` specifically. `dev` passes the LAN
-      // address so a phone can reach it, which serves the same invariant: the
-      // point is that wrangler must not fall back to simulating the [[routes]]
-      // custom domain. Sign-in works over both, because trustedOrigins derives
-      // from the request URL (src/auth.ts) — verified over each in turn.
-      // A line that starts wrangler: either spelling of the argument list, and
-      // not a comment or a bare pattern string (dev.ts lists "wrangler dev" as
-      // a pgrep pattern to find its own children).
-      const starts = /(?:"wrangler",\s*"dev"|wrangler dev\s+--)/
-      const missing: string[] = []
-      for (const file of ["scripts/dev.ts", "playwright.config.ts"]) {
-        for (const line of read(file).split("\n")) {
-          if (/^\s*(\/\/|\*)/.test(line) || !starts.test(line)) continue
-          if (!/--host/.test(line)) missing.push(`${file}: ${line.trim()}`)
-        }
-      }
-      return missing
-    },
-  },
-  {
     claim: '"Never pass the platform `ac`/`roles` to a Better Auth plugin." — broke twice (ADR 009, ADR 013)',
     check: () => {
       const cfg = read("src/auth.config.ts")

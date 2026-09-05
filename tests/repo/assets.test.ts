@@ -29,7 +29,7 @@ import { app } from "../../src/index"
 import { rule } from "./helpers"
 
 const ROOT = resolve(import.meta.dirname, "../..")
-const DIST = resolve(ROOT, "dist/web")
+const DIST = resolve(ROOT, "dist/client")
 
 const wrangler = readFileSync(resolve(ROOT, "wrangler.toml"), "utf8")
 // Nothing to check when assets run *after* the Worker (a collision cannot
@@ -38,7 +38,7 @@ const wrangler = readFileSync(resolve(ROOT, "wrangler.toml"), "utf8")
 const skipped = /^\s*run_worker_first\s*=\s*true/m.test(wrangler)
   ? "run_worker_first is on — the Worker wins every route, nothing to check"
   : !existsSync(DIST)
-    ? "dist/web is not built — run 'bun run build' to check for real"
+    ? "dist/client is not built — run 'bun run build' to check for real"
     : null
 
 /** Every first path segment the Worker answers on, from the router itself. */
@@ -58,7 +58,7 @@ rule(
   "no built asset shadows a route the Worker owns",
   clashes,
   `check-assets: ${clashes.length} built asset(s) would shadow a Worker route:\n` +
-    clashes.map((c) => `  dist/web/${c} wins over the Worker's /${c}`).join("\n") +
+    clashes.map((c) => `  dist/client/${c} wins over the Worker's /${c}`).join("\n") +
     `\n\nAssets are served first (wrangler.toml). Rename the file, or move it under\n` +
     `assets/, or set run_worker_first and accept the cost stated there.`,
   skipped

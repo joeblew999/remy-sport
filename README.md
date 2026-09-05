@@ -10,8 +10,8 @@ Everything is a `package.json` script. `mise` only pins the tools
 (`mise install` once) and sets the environment.
 
 ```
-bun run setup                     once after cloning: install, fonts, bundle, types, local database, browsers
-bun run dev                       the app on localhost:8787, seeded — leave it running (stop | restart | ensure)
+bun run setup                     once after cloning: install, fonts, types, local database, browsers
+bun run dev                       Vite: the Worker in workerd and the SPA with HMR on localhost:8787, seeded
 bun run check                     the gate: typecheck, lint, model consistency, every test, the render tier
 bun run test:e2e                  a real browser against a real Worker (-- --env staging|production for a deployment)
 bun run deploy -- --env staging   ships it; runs check and test:e2e first. Then production.
@@ -27,7 +27,9 @@ bun run test                      vitest: unit, repo (the rules this repo keeps)
 bun run test:watch                the same, on every save
 bun run test:render               the no-backend browser tier
 bun run shots                     every screen as every seeded person, into screenshots/
-bun run build                     the SPA bundle
+bun run build                     dist/client (the SPA) and dist/remy_sport (the Worker, with the wrangler.json deploy uses)
+bun run preview                   that build, running in workerd
+bun run ops tunnel -- --run       a fixed HTTPS name for the dev server, so a phone can open it
 bun run db                        the database — no arguments for status
 bun run ops                       operate a deployment — no arguments to list what it can do
 ```
@@ -72,8 +74,8 @@ tests/
   render/   a browser, no backend            playwright
   e2e/      a browser and a real Worker      playwright
 scripts/
-  dev.ts  deploy.ts  e2e.ts  model.ts  db.ts  ops.ts     the commands
-  lib/  deploy/  ops/                                     what they call
+  deploy.ts  e2e.ts  model.ts  db.ts  ops.ts     the commands that are more than one line
+  lib/  deploy/  ops/                             what they call
 ```
 
 `AGENTS.md` is short on purpose. `docs/plan-modern-tooling.md` is the plan that

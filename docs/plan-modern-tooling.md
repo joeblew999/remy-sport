@@ -68,9 +68,9 @@ one copy. Three checks are product invariants and stay (see *Kept*).
       the e2e config, since its environment was that tier's. The render tier
       keeps its own config on purpose: `webServer` is config-wide in
       Playwright, and the whole point of that tier is to start no Worker.
-- [ ] `prepare.ts`: `bun run setup` exists and runs it once; dev and deploy
-      still call it at their start. Phase 2 removes the bundle half of it and
-      the rest becomes setup-only.
+- [x] `prepare.ts`: `bun run setup` runs it once. Phase 2 removed its
+      bundle step and the watcher guard; `deploy` still runs its build half
+      (install, fonts, types) at its start, which phase 3 and 4 shrink.
 - [ ] `eslint.config.mjs` exists for the i18n rule alone. Keep if Vitest
       cannot host that rule cheaply; otherwise a repo test and eslint goes.
 
@@ -79,20 +79,29 @@ the orchestrator does not exist. (2026-09-05: it is, it has none, it does not.)
 
 ## Phase 2 — the Cloudflare Vite plugin
 
-- [ ] The plugin in `vite.config.ts`; `vite dev` runs the Worker in workerd
-      beside the SPA, and `vite build` emits both. wrangler deploys the output.
-- [ ] `dev.ts` deleted. The tunnel becomes an `ops` command; wait-for-health
-      goes with the process it waited for; seeding is phase 3's function.
-- [ ] Everything that existed because dist/ was written during development
-      goes: the prune plugin, the `emptyOutDir` reasoning, `tests/repo/assets.test.ts`, and the
-      leak list in `tests/repo/bundle.test.ts`. The service-worker size ceiling stays as a repo
-      test.
+- [x] The plugin in `vite.config.ts`; `vite dev` runs the Worker in workerd
+      beside the SPA with HMR, and `vite build` writes dist/client and
+      dist/remy_sport with the wrangler.json the publish names. `--mode
+      render` leaves the plugin out, which is how the render tier stays a
+      static file server.
+- [x] The dev script deleted (303 lines). The tunnel is `bun run ops tunnel -- --run`;
+      wait-for-health went with the process it waited for; the seed is a
+      ten-line Vite plugin that posts to `/api/seed` when the server is
+      listening, until phase 3 makes it a function.
+- [x] Everything that existed because dist/ was written during development
+      is gone: the prune plugin, the `emptyOutDir` reasoning, the watcher
+      guard in `prepare.ts`, the stop-and-restore of the dev server in
+      `scripts/deploy.ts`, the refusal in `e2e.ts`, the `--host` convention. Kept,
+      because they were never about that: `tests/repo/assets.test.ts` (a
+      built file shadowing a Worker route is a deploy-time hazard) and the
+      leak list in `tests/repo/bundle.test.ts` (the SW still shares a type
+      with src/api). Both read dist/client now.
 - [ ] `tests/repo/envs.test.ts` asks whether two environments share data or traffic. Answer it
       from the config once, as a repo test, if the plugin's config layout does
       not make it obvious.
 
 **Done when** development is `vite`, there is no dist/ until `vite build`, and
-`dev.ts`, the file watcher and `tests/repo/assets.test.ts` are gone.
+the dev script and the file watcher are gone. (2026-09-05: it is, there is not, they are.)
 
 ## Phase 3 — one seed, one table map, fonts committed
 
@@ -154,6 +163,13 @@ Cloudflare and writes `.dev.vars`.
 
 - 2026-09-05 — written, after the dependency update (`f3cb2eb`) and the
   watcher fix (`3af69a0`). Baseline numbers above.
+- 2026-09-05 — Phase 2 landed, one commit. `bun run dev` is `vite`: the
+  Worker in workerd with its bindings and .dev.vars, the SPA with HMR, seeded
+  on start; `bun run build` writes dist/client and dist/remy_sport in ~3 s;
+  `vite preview` runs the build in workerd. The dev script (303 lines), the
+  prune plugin, the watcher guard, the deploy's stop-and-restore and the e2e
+  refusal are gone with the race they policed. Gate ~60 s (it builds now);
+  e2e 34 passed in 22 s against the Vite server.
 - 2026-09-05 — Phase 1 landed, one commit. `scripts/` 10,007 → 6,786 lines;
   root config files 18 → 16; 95 files, +895 −1,822. The gate is
   `bun run check`, ~55 s end to end: `tsc` 4 s, lint 5 s, Vitest 754 tests in

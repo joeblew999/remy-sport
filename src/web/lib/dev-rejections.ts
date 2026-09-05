@@ -28,15 +28,11 @@
  *
  * ## Gated on the hostname, not on `import.meta.env.DEV`
  *
- * `DEV` is never true in this repo. `bun run dev` runs `vite build --watch` —
- * a production build, watched — and the render tier serves `dist/web` through
- * `vite preview`. There is no vite dev server anywhere, deliberately: what you
- * develop against is the bundle you ship. The first version of this was gated
- * on `DEV` and was therefore dead code that could never have run.
- *
  * localhost only, which fails safe: anything else counts as not-development, so
  * a deployment cannot show a reader a red box. main.tsx imports this
- * dynamically, so it is a separate chunk production never fetches.
+ * dynamically, so it is a separate chunk production never fetches. (`DEV` was
+ * false in every workflow for a long time — development ran a production
+ * build, watched — so the first version, gated on it, was dead code.)
  */
 
 const MAX = 4

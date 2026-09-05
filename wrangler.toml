@@ -54,11 +54,15 @@ custom_domain = true
 #
 # Safe because no built path can shadow a Worker route: the whole asset surface
 # is /index.html and /assets/*, while the Worker owns /, /api/*, /rpc/*,
-# /openapi.json, /doc and /.well-known/*. **A new top-level file in dist/web
-# that collides with one of those would silently win the route** — that is the
-# thing to re-check if the build output ever grows one.
+# /openapi.json, /doc and /.well-known/*. **A new top-level file in the client
+# build that collides with one of those would silently win the route** —
+# tests/repo/assets.test.ts checks.
+#
+# `directory` is for the worker test pool, which reads this file as it is. The
+# Vite plugin ignores it: `vite build` writes its own wrangler.json pointing at
+# the client build it just made, and that is what `wrangler deploy` uses.
 [assets]
-directory = "./dist/web"
+directory = "./dist/client"
 binding   = "ASSETS"
 # Serve files at their literal path. The default ("auto-trailing-slash") 307s
 # /index.html to /, and / is the Worker's — it serves the SPA shell. Together

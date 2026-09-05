@@ -32,7 +32,7 @@ import { existsSync, readFileSync, statSync } from "fs"
 import { resolve } from "path"
 import { rule } from "./helpers"
 
-const SW = resolve(import.meta.dirname, "../../dist/web/sw.js")
+const SW = resolve(import.meta.dirname, "../../dist/client/sw.js")
 
 /**
  * Modules that have no business running in a service worker.
@@ -84,9 +84,7 @@ if (size > CEILING) {
       "    It was 20,283 when that was set. Find what it started importing before\n" +
       "    raising this — the bundle is downloaded by every visitor and runs with\n" +
       `    no page open. Its precache manifest lists ${entries} files; one build\n` +
-      "    is about 25. More means dist/web holds superseded chunks — the watcher\n" +
-      "    prunes them (src/web/vite.config.ts, pruneSuperseded); a stale one\n" +
-      "    still running does not.",
+      "    is about 25. More means dist/client holds files from more than one build.",
   )
 }
 

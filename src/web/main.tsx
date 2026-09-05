@@ -442,19 +442,16 @@ watchForClientErrors();
  * the `pushState()` defect were a section that rendered as nothing with a
  * rejection nobody noticed.
  *
- * ## Not `import.meta.env.DEV`, which is never true here
- *
- * That was the first attempt and it was dead code. `bun run dev` runs
- * `vite build --watch` — a *production* build, watched — and the render tier
- * serves `dist/web` through `vite preview`. This repo never runs a vite dev
- * server, deliberately: what you develop against is the bundle you ship. So
- * `DEV` is false in every workflow here and the panel could never have appeared.
+ * ## The hostname, not `import.meta.env.DEV`
  *
  * The hostname is the honest signal and it fails safe: anything that is not
  * plainly this machine counts as not-development, so a deployment cannot show a
  * reader a red box. That excludes the tunnel too — it is a real hostname on the
  * public internet, and telling it from production needs configuration this
- * bundle does not have.
+ * bundle does not have. (`DEV` was false in every workflow here for a long
+ * time — development ran a production build, watched — and a panel gated on
+ * it was dead code. It is true under `vite dev` now, and the hostname still
+ * answers the question better.)
  *
  * Imported dynamically, so it is a separate chunk that production never fetches.
  */

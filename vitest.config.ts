@@ -1,23 +1,6 @@
-import { defineConfig, type Plugin } from "vitest/config"
+import { defineConfig } from "vitest/config"
 import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-pool-workers"
-
-/**
- * `.sql` imports as text, for the node projects.
- *
- * src/db/seed.ts does `import seedSql from "./seed.sql"`; wrangler's module
- * rules make that the file's contents and workerd sees the same. Vite has no
- * such rule and tries to parse the SQL as JavaScript, so the repo tests that
- * import the Worker (authz, assets) need it said here. `pre`, so it runs before
- * import analysis.
- */
-const sqlAsText: Plugin = {
-  name: "sql-as-text",
-  enforce: "pre",
-  transform(code, id) {
-    if (id.endsWith(".sql")) return { code: `export default ${JSON.stringify(code)}`, map: null }
-    return null
-  },
-}
+import { sqlAsText } from "./scripts/lib/sql-as-text.ts"
 
 /**
  * Every test that is not a browser, under one runner.

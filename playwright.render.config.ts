@@ -144,9 +144,11 @@ export default defineConfig({
      *
      * `--outDir` is relative to the config's `root`, which is src/web.
      */
+    // `--mode render` leaves the Cloudflare plugin out of both: a static
+    // build, and a static file server — no Worker, which is what this tier is.
     command:
-      "bun x vite build --config src/web/vite.config.ts --outDir ../../dist/render --emptyOutDir --logLevel warn" +
-      " && bun x vite preview --config src/web/vite.config.ts --outDir ../../dist/render --port 4173 --strictPort",
+      "bun x vite build --config src/web/vite.config.ts --mode render --outDir ../../dist/render --emptyOutDir --logLevel warn" +
+      " && bun x vite preview --config src/web/vite.config.ts --mode render --outDir ../../dist/render --port 4173 --strictPort",
     url: "http://localhost:4173",
     reuseExistingServer: true,
     timeout: 30_000,

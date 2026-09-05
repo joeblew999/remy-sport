@@ -108,13 +108,13 @@ export default defineConfig({
   ],
   ...(isLocal && {
     webServer: {
-      // --host localhost matches the mise dev tasks: without it wrangler
-      // simulates the [[routes]] custom domain and every request reaches the
-      // Worker as http://remy.ubuntusoftware.net rather than localhost.
-      command: "bunx wrangler dev --host localhost",
+      // The same server `bun run dev` is: Vite, with the Worker in workerd. A
+      // running one is reused; it serves from source, so there is no bundle a
+      // test could read half-written.
+      command: "bun x vite --config src/web/vite.config.ts",
       url: "http://localhost:8787/api/health",
       reuseExistingServer: !process.env.CI,
-      timeout: 15000,
+      timeout: 30_000,
     },
   }),
 })

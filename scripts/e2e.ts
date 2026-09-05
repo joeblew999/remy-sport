@@ -13,7 +13,6 @@
 
 import { spawnSync } from "node:child_process"
 import { originOf, resolveTarget } from "./lib/cloudflare"
-import { webWatcherRunning } from "./lib/prepare"
 import { DEMO_SIGN_IN_CODE } from "../src/environment"
 import { SEED_ENTITIES } from "../src/domain/model/entities"
 
@@ -199,23 +198,6 @@ function target(argv: string[]): { origin: string; environment: string } | null 
 
 const argv = process.argv.slice(2)
 const TARGET = target(argv)
-
-/**
- * This tier reuses whatever is on :8787 (`reuseExistingServer`), which is the
- * dev server when one is up — still serving the directory its watcher rewrites
- * on every save. A rebuild mid-run shows up as a timeout in an unrelated spec.
- * Only when pointed at localhost: against a deployment the watcher feeds a
- * server the run never touches.
- */
-if (!TARGET && webWatcherRunning()) {
-  console.error(
-    "\ne2e: the dev bundler is running, and this tier reuses the server it feeds.\n" +
-      "  `vite build --watch` rewrites dist/web on every save, and the Worker on :8787\n" +
-      "  serves it.\n\n" +
-      "    bun run dev stop     then run this again\n",
-  )
-  process.exit(1)
-}
 
 console.log(`e2e: against ${TARGET ? `${TARGET.environment} — ${TARGET.origin}` : "dev — http://localhost:8787"}`)
 

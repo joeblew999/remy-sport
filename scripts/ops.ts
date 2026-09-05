@@ -65,7 +65,7 @@ const OPS: Record<string, Op> = {
   tunnel: {
     group: "setup",
     cmd: (rest) => ["bun", "scripts/ops/tunnel.ts", ...rest],
-    help: "tunnel                           create the dev tunnel and its hostname",
+    help: "tunnel [--run]                   create the dev tunnel and its hostname; --run keeps it up beside bun run dev",
   },
   versions: {
     group: "report",

@@ -9,10 +9,10 @@
  *
  * Two levels, and the split is the one that stops a deploy touching local state:
  *
- *   prepare()  what any command needs to BUILD — deps, fonts, the SPA bundle,
- *              worker types. check and deploy need this and nothing more.
+ *   prepare()  what any command needs to BUILD — deps, fonts, worker types.
+ *              deploy needs this and nothing more.
  *   local()    prepare plus what only a local run needs — .dev.vars, local
- *              migrations, browsers, fixtures. dev needs this.
+ *              migrations, browsers, fixtures. `bun run setup` is this, once.
  *
  * Everything here is idempotent and quiet when there is nothing to do, because
  * it runs at the head of every command.
@@ -64,69 +64,6 @@ function bunInstall(): number {
 }
 
 /**
- * The SPA bundle, deferring to the dev server's watcher when it holds the
- * directory.
- *
- * `dev` runs `vite build --watch` against this same config and output. Start a
- * second builder and whichever empties dist/web second leaves the other's output
- * gone — a window wide enough that an e2e suite once failed with "element not
- * found" on eight specs, because the shell was served with no bundle at all.
- * The watcher is authoritative when it exists: it is already rebuilding on every
- * save, so its output is at least as fresh as ours.
- *
- * This is the behaviour the mise task had, and it is restored deliberately. I
- * replaced it twice today — first waiting for the bundle to settle, then
- * refusing outright — on a theory that the render tier's flakiness came from
- * reading dist/web mid-write. It does not: that suite fails one run in three
- * with no watcher running at all. Both replacements were machinery built on a
- * diagnosis I had not confirmed.
- */
-/**
- * Is `bun run dev`'s bundler running?
- *
- * Exported because two different things need the answer for opposite reasons.
- * `webBuild` below asks so it can DEFER — the watcher's output is at least as
- * fresh as ours, and a second builder emptying dist/web is the race that once
- * failed eight e2e specs. `check.ts` asks so it can REFUSE: the render and e2e
- * tiers read that same directory, and a rebuild landing mid-run is unattributable
- * from the inside.
- */
-export function webWatcherRunning(): boolean {
-  const found = Bun.spawnSync(
-    ["pgrep", "-f", "vite build --config src/web/vite.config.ts --watch"],
-    { stdout: "pipe", stderr: "ignore" },
-  )
-  return found.stdout.toString().trim() !== ""
-}
-
-function webBuild(): number {
-  if (webWatcherRunning() && existsSync("dist/web/index.html")) return 0
-
-  /**
-   * Skip when the bundle is already newer than everything it is built from.
-   *
-   * The mise task this replaced declared `sources` and `outputs`, so the runner
-   * skipped it when nothing had changed. Moving it here lost that, and every
-   * command rebuilt unconditionally — a deploy did it three times, once for
-   * itself and again inside check and the e2e tier.
-   *
-   * That is not merely wasted seconds. `vite build` EMPTIES dist/web before it
-   * writes, so each redundant rebuild opens a window in which the directory is
-   * empty, and anything reading it then sees nothing. A production deploy failed
-   * at the gate on exactly that: assets.test.ts got 404 for `/` because the
-   * Worker's [assets] binding found an empty directory.
-   *
-   * `sources` lists what the build READS, not what lives in its own folder —
-   * src/paraglide and src/domain are in it because the SPA imports both, and
-   * leaving them out once shipped a bundle without a newly added message.
-   */
-  const sources = ["src/web", "src/paraglide", "src/domain", "messages", "package.json", "bun.lock"]
-  if (fresh("dist/web/index.html", sources)) return 0
-
-  return sh(["bun", "x", "vite", "build", "--config", "src/web/vite.config.ts", "--logLevel", "warn"], false)
-}
-
-/**
  * The order, as a list, with each step saying why it is where it is.
  *
  * Every command runs one of these two before its own work, so this is the first
@@ -166,9 +103,15 @@ const BUILD: Step[] = [
     why: "writes src/web/fonts.css, which styles.css imports on its first line — so it precedes the bundle that reads it",
     go: () => sh(["bun", "scripts/lib/fonts.ts"]),
   },
-  { name: "bundle", why: "dist/web is gitignored and the [assets] binding points at it, so a fresh clone has none", go: webBuild },
   { name: "types", why: "worker-configuration.d.ts is generated from the bindings, and the typecheck reads it", go: () => sh(["bun", "x", "wrangler", "types"]) },
 ]
+
+/**
+ * No bundle step. `bun run check` builds before it tests and `deploy` builds
+ * for its environment; development builds nothing — Vite serves the Worker
+ * and the SPA from source. The step that lived here deferred to a watcher, and
+ * the watcher was the race behind a day of stale bundles.
+ */
 
 const LOCAL: Step[] = [
   { name: "dev-vars", why: ".dev.vars before anything runs the Worker, including the tests", go: () => sh(["bun", "scripts/lib/dev-vars.ts"]) },
@@ -258,7 +201,7 @@ export function prepare(): void {
   runSteps(BUILD)
 }
 
-/** prepare, plus what only a local run needs. dev and the e2e tier need this. */
+/** prepare, plus what only a local run needs — `bun run setup`. */
 export function local(): void {
   runSteps([...BUILD, ...LOCAL])
 }
