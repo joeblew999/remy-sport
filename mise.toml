@@ -1,14 +1,14 @@
 [tools]
-bun  = "1.3.11"
-jq   = "1.8.1"
-node = "24.14.1"
+bun  = "1.4.0"
+jq   = "1.8.2"
+node = "26.8.1"
 # Reads the PAT for biz:sync out of the OS keychain. Only that one task needs
 # it, so it is not a `setup` dependency — but pinning it here keeps the tool in
 # the project rather than assuming a machine-wide install.
-fnox = "1.34.0"
+fnox = "1.35.0"
 # Standalone binary, so it belongs here rather than in package.json.
 # (The Tauri CLI is an npm package — pinned in package.json alongside wrangler.)
-"aqua:cloudflare/cloudflared" = "2026.8.2"
+"aqua:cloudflare/cloudflared" = "2026.8.3"
 
 # iOS toolchain. `tauri ios init` shells out to `pod`, and previously that came
 # from a global `brew install cocoapods`. Managed here instead so nothing this
@@ -23,7 +23,7 @@ fnox = "1.34.0"
 #
 # Cost, stated plainly: `mise install` now builds Ruby, which is minutes on a
 # clean machine, for a toolchain only iOS work touches.
-ruby = "3.4.9"
+ruby = "4.0.6"
 
 [env]
 # What belongs here and what does not.
@@ -76,7 +76,7 @@ COCOAPODS_VERSION = "1.17.0"
 # pinned version above, so put it on PATH explicitly.
 # mise appends _.path entries AFTER /usr/bin, so they cannot shadow a system
 # binary — the iOS tasks prepend RUBY_BIN themselves for exactly that reason.
-RUBY_BIN = "{{env.HOME}}/.local/share/mise/installs/ruby/3.4.9/bin"
+RUBY_BIN = "{{env.HOME}}/.local/share/mise/installs/ruby/4.0.6/bin"
 _.path   = ["{{config_root}}/.gem/bin"]
 
 # The dev tunnel. `tunnel:named` referenced TUNNEL_NAME and TUNNEL_HOSTNAME and

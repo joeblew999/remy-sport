@@ -121,9 +121,24 @@ const OPS: Record<string, Op> = {
   },
   deps: {
     group: "maintenance",
-    cmd: ([what = "outdated"]) =>
-      what === "update" ? ["bun", "update"] : ["bun", "outdated"],
-    help: "deps <outdated|update>           npm packages against their releases",
+    /**
+     * Both halves of "what version is this repo on", in one command.
+     *
+     * The packages and the tools that run them go out of date together and
+     * were asked about separately, so `bun outdated` reported two entries
+     * while mise sat six behind and nothing said so. `--latest` because the
+     * caret ranges already resolve to their newest match on every install:
+     * without it `update` reports "no changes" and means "no changes within
+     * the ranges", which reads as up to date.
+     */
+    cmd: ([what = "outdated"]) => [
+      "sh",
+      "-c",
+      what === "update"
+        ? "bun update --latest && mise upgrade --bump && echo '\\n  Now: bun run check\\n'"
+        : "bun outdated; echo; mise outdated || true",
+    ],
+    help: "deps <outdated|update>           npm packages and mise tools against their releases",
   },
   icons: {
     group: "setup",

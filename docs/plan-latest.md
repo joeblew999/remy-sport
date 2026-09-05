@@ -88,31 +88,42 @@ test reports the same findings on the same tree.
 
 ## Phase D — the tools
 
-- [ ] mise.toml: bun 1.4.0, node 26.8.1, jq 1.8.2, fnox 1.35.0, cloudflared
-      2026.8.3. `mise install`, then the gate — node is what runs wrangler,
-      Vite and Playwright, so this is the one that could bite.
-- [ ] ruby 4.0.6, with `RUBY_BIN` in `[env]` following it (it carries the
-      version in its path). Verified by `mise install` building it and
-      `pod --version` answering; if cocoapods 1.17 refuses Ruby 4, ruby stays
-      on 3.4.10 with that written here.
+- [x] mise.toml: bun 1.4.0, node 26.8.1, jq 1.8.2, fnox 1.35.0, cloudflared
+      2026.8.3. The gate is green on node 26 and so is the e2e tier. One
+      first-run failure, characterised rather than shrugged at: an
+      admin-console spec timed out on the first e2e run after `mise install`
+      swapped the node binary under the running dev server, and did not recur
+      — the spec passed alone twice and the full tier passed twice after.
+- [x] ruby 4.0.6, with `RUBY_BIN` in `[env]` following it. Cocoapods 1.17
+      installs and runs against it (`pod --version` answers 1.17.0), so the
+      major bump costs nothing here.
 
 ## Phase E — staying there
 
-- [ ] `bun run ops deps update` is `bun update --latest` followed by
-      `mise upgrade --bump`, so there is one command and it is the one this
-      plan ran.
-- [ ] `.github/dependabot.yml`: npm weekly, grouped into one pull request,
-      plus GitHub Actions. And `.github/workflows/check.yml`, so that pull
-      request runs `bun run check` and `bun run test:e2e` — the gate needs
-      nothing from Cloudflare: workerd, a local D1 and the dev outbox are all
-      local. Without the workflow a dependency bot is noise; with it, an
-      update is a green tick or a red one, and either takes a minute to read.
+- [x] `bun run ops deps` reports both halves and `bun run ops deps update`
+      moves both: `bun update --latest && mise upgrade --bump`. `--latest`
+      matters — the caret ranges already resolve to their newest match on
+      every install, so plain `bun update` says "no changes" when it means
+      "no changes within the ranges".
+- [x] `.github/workflows/check.yml` runs `bun run check` and
+      `bun run test:e2e` on every push and pull request, with the toolchain
+      installed from mise.toml so CI runs the versions the repo pins. It needs
+      no Cloudflare credential by construction. `.github/dependabot.yml`:
+      npm weekly as one grouped pull request, actions monthly. Neither has run
+      yet — there is no remote CI history to point at, and the first push will
+      be the proof.
 
 **Done when** `bun outdated` prints nothing but the Vitest line, `mise
 outdated` prints nothing, and the last dependency PR merged green without a
-human running anything.
+human running anything. (2026-09-05: the first two hold — `bun run ops deps`
+lists vitest and nothing else, and every tool this repo pins is current. The
+third waits on the first pull request.)
 
 ## Log
 
 - 2026-09-05 — written. The dependency update that morning took one command
   and half a day; the half day is now [plan-modern-tooling.md](plan-modern-tooling.md).
+- 2026-09-05 — all five phases, same day. TypeScript 7 and every tool at
+  latest; four packages and two root configs gone; `tsc` 4s to 1s and the gate
+  63s to 49s. The one thing not at latest is vitest, and the reason is
+  measured rather than read off a peer range.
