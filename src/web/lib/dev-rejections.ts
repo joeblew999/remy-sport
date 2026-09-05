@@ -105,8 +105,7 @@ function describe(reason: unknown): string {
       // and is right to. This panel is developer tooling — localhost only,
       // never in a reader's browser — and a translated stack-trace viewer would
       // be absurd. Every string in this file is untranslated on purpose.
-      // eslint-disable-next-line no-restricted-syntax
-      return "[unserialisable rejection]"
+      return "[unserialisable rejection]" // check-ignore: developer tooling, localhost only
     }
   }
   return `rejected with a ${typeof reason}: ${String(reason).slice(0, 200)}`

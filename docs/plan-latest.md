@@ -38,7 +38,7 @@ test reports the same findings on the same tree.
 
 ## Phase A — the two parsers go
 
-- [ ] A repo test for the copy rules, on `oxc-parser`: a JSXText literal that
+- [x] A repo test for the copy rules, on `oxc-parser`: a JSXText literal that
       is not a glyph or the brand; a string literal inside a JSX expression
       matching `^[A-Z][a-z]` that is not an attribute; a `placeholder`, `title`,
       `alt` or `aria-label` with two letters in it; a string literal in a
@@ -47,16 +47,22 @@ test reports the same findings on the same tree.
       file's comments — they are the rule's history. Proven: the test lists
       zero problems on the tree ESLint passes, and a fixture of six known-bad
       snippets fails it six times.
-- [ ] A repo test for the import rules, on the same parser: the Worker never
+- [x] A repo test for the import rules, on the same parser: the Worker never
       imports `src/web`; `src/web` reaches only `src/web`, `src/domain` and
       `src/paraglide` at runtime (type-only imports excepted); a screen never
       imports `src/domain/grants.ts`; `src/domain` never reaches `src/api`,
       `src/routes`, `src/web` or `src/mail`; no cycle, except the drizzle
       schema files, whose thunked references are the documented pattern. The
       reasons move verbatim from `.dependency-cruiser.cjs`. Proven the same way.
-- [ ] `eslint`, `eslint-plugin-react`, `@typescript-eslint/parser`,
+- [x] `eslint`, `eslint-plugin-react`, `@typescript-eslint/parser`,
       `dependency-cruiser`, `eslint.config.mjs` and `.dependency-cruiser.cjs`
-      deleted; `lint` is knip and inlang.
+      deleted; `lint` is knip and inlang. Equivalence proven before deleting
+      either tool: the copy rules flag the same 8 of 17 fixture snippets ESLint
+      flags and the same lines on the tree; the import rules and
+      dependency-cruiser each fire on all five one-rule-per-file fixtures and
+      neither fires on a type-only import from the SPA. Both fixtures are
+      committed as the tests' own cases, so a rule that stops walking the right
+      node fails rather than falls silent.
 
 ## Phase B — TypeScript 7
 
