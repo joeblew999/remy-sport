@@ -3,8 +3,9 @@
 Status, 2026-09-07: CLI redesign stopped by the user. The current authorized
 work is running the full staging browser suite through the shared CLI, repairing
 its blockers, and recording results. No GitHub CI is wanted. Staging runner
-and test cleanup repairs are implemented. A full remote pass has succeeded
-with retries disabled; see the rollout record for final repeat-run results.
+and test cleanup repairs are implemented. Two consecutive full remote passes succeeded
+with retries disabled: 42 passed and four development-only skips per run.
+Admin tests and checked cleanup passed. See the rollout record for evidence.
 The broader CLI redesign is not implemented. Earlier attempted rewrites were removed. The earlier
 mise migration decision is withdrawn: it was presented before the workflow was
 understood. No replacement tool has been selected or installed.

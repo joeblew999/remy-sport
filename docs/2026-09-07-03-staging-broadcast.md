@@ -144,7 +144,7 @@ RPC save response and form completion before asserting the refreshed value.
 The first added response wait incorrectly matched REST, causing a timeout; it
 was corrected to match the browser's RPC request. Staging runs now use one
 worker because the suite shares mutable seeded fixtures. Assertions remain;
-retries remain disabled. Further complete remote runs are pending below.
+retries remain disabled. The complete successful remote runs are recorded below.
 
 ### First complete pass
 
@@ -154,4 +154,19 @@ two Vite entry tests and two development-service-worker tests. Every admin test
 ran, including impersonation, stop impersonation, role/ban controls, non-admin
 refusals and the repaired role switcher. Session teardown passed. The runner
 verified the temporary admin override disabled and the deployed application
-inputs still matching. The second consecutive pass is running.
+inputs still matching. The second consecutive pass also completed successfully, as recorded below.
+
+### Final result: two consecutive complete passes
+
+The same command ran again without changes to the tests: **42 passed, 4
+explicit development-only skips, 0 failed**, in 2.3 minutes, exit 0. Both runs
+used retries 0 and one worker, and both completed the admin and authorization
+projects. Both checked session teardown and verified temporary admin access
+disabled afterward. The final application-input comparison still matched the
+live `e1fa4dc` deployment. Test/runner fixes are pushed in `f9d738f`.
+
+The staging browser verification requested here is complete. The local gate
+passed 847 unit/repository/Worker tests, 289 rendering tests, and its browser
+suite before publication; remote smoke passed with its four existing policy
+skips. No production deployment or GitHub CI run was used for this work.
+The broader CLI and fixture-isolation limitations above remain explicitly open.
