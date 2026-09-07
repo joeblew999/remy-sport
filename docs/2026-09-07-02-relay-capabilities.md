@@ -1,6 +1,7 @@
 # Relay capability investigation — GAP-02
 
-Status: Cloudflare permission identified; local provisioning automation tested.
+Status: Production already has the Cloudflare relay secrets configured; see the
+deployment reconciliation below. Cloudflare permission identified; local provisioning automation tested.
 Real relay verification awaits the API token permission update below; the user
 confirmed MoQ is absent from the dashboard Account dropdown. No remote relay
 provisioning, credential rotation or deployment performed. Credentials were not
@@ -220,3 +221,23 @@ Media → Realtime → MoQ Relay. That is a documented manual provisioning route
 not a fix for API automation permissions; availability in this user's dashboard
 has not been verified. Broadcasting remains unverified. Do not conflate the
 existence of the API permission with proof that the dashboard exposes it.
+
+## Deployment reconciliation — 2026-09-07
+
+The user pointed out that Claude had already set up a deployed environment.
+A fresh read-only `wrangler secret list --format json` against both configured
+Workers confirms production (`remy-sport`) has `MOQ_RELAY_URL`,
+`MOQ_RELAY_TOKEN`, and `MOQ_RELAY_TOKEN_SUBSCRIBE`. Staging
+(`remy-sport-staging`) has no `MOQ_` secrets. Only names were inspected;
+no secret values were retrieved and no remote configuration was changed.
+
+Commit `bc6b366` also records an earlier real Chrome/Cloudflare session:
+publishing, catalog exchange, and audio track subscription succeeded. That is
+historical protocol evidence, not a fresh two-browser advancing-video check.
+
+The missing local tokens and relay-management API permission documented above
+do not establish that production broadcasting was never configured or cannot
+work. The earlier resume summary wrongly generalized local setup status to the
+deployed service. Resume by checking the existing production broadcast/watch
+flow before proposing another relay or token-policy change. Current production
+media delivery and credential expiry remain unchecked.
