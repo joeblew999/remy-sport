@@ -18,8 +18,11 @@ The command succeeded. The installed package's help confirms extension mode
 connects to running Chrome/Edge. No extension token or automatic consent bypass
 was configured. The existing repo browser setup was left intact.
 
-Next: reload the MCP server/tool connection in the app and verify that
-`playwright-chrome` tools are available, then connect to the user's chosen tab.
+The user is in **Codex CLI in a terminal**, not the desktop app. Do not give
+desktop Settings instructions. Installed CLI: 0.153.4. Next: exit with `/quit`,
+then run `codex resume --last` from this repo to reload configuration and resume
+the conversation. Verify `playwright-chrome` tools with `/mcp`, then connect to
+the user's chosen tab. `/mcp` lists tools; it is not a documented reload command.
 Browser attachment has **not** been verified. The earlier Computer Use permission
 error came from a different tool and does not diagnose the Playwright extension.
 Official host setup: <https://learn.chatgpt.com/docs/extend/mcp?surface=cli>.
