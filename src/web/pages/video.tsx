@@ -8,14 +8,8 @@
  * reported, working or not, because a fallback count with no denominator cannot
  * be acted on.
  *
- * **No authorisation, deliberately, and this is not an oversight.** Who may
- * broadcast a game is a product question the model does not answer: `game`
- * carries teams, venue, time, status and scores, and `gameReferee` says who
- * officiates — nothing says who may point a camera. Inventing a rule here would
- * make that decision by accident, in a demo page, where the Product Owner would
- * never find it. The game id comes from the URL and is trusted. When the model
- * grows a BROADCAST_GAME action, this becomes `requireAction` and the check
- * `bun run check:authz` already applies will make sure it does.
+ * Broadcast access is answered per game by the server and checked again on
+ * every broadcast mutation. Unknown answers must not offer camera capture.
  */
 
 import { GameBroadcast, GameVideo } from "../components/moq-video"
@@ -110,11 +104,7 @@ function Empty({ goto }: { goto: (r: Route) => void }) {
   )
 }
 
-/**
- * @answers VIEW_LIVE_STREAM
- *
- * Watching it, which is public.
- */
+/** Point a camera at an authorized fixture. */
 export function BroadcastPage({ id, goto }: { id?: string; goto: (r: Route) => void }) {
   const { gameId, resolving } = useGameId(id)
   if (resolving) return <div className="empty">{m.loading()}</div>
@@ -126,6 +116,7 @@ export function BroadcastPage({ id, goto }: { id?: string; goto: (r: Route) => v
   )
 }
 
+/** @answers VIEW_LIVE_STREAM */
 export function WatchPage({ id, goto }: { id?: string; goto: (r: Route) => void }) {
   const { gameId, resolving } = useGameId(id)
   if (resolving) return <div className="empty">{m.loading()}</div>

@@ -30,6 +30,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api, orpc } from "../lib/orpc"
 import { useGame } from "../lib/data"
 import { m } from "../lib/i18n"
+import { Can } from "./can"
 import {
   ENCODER,
   RECONNECT,
@@ -44,8 +45,8 @@ import "@moq/watch/element"
 import "@moq/publish/element"
 
 /** The relay, from the server. Watchers get a subscribe-only token. */
-function useRelay(role: "watch" | "publish") {
-  const { data } = useQuery(orpc.moq.config.queryOptions({ input: { role } }))
+function useRelay(role: "watch" | "publish", gameId?: string) {
+  const { data } = useQuery(orpc.moq.config.queryOptions({ input: { role, ...(role === "publish" ? { gameId } : {}) } }))
   return data?.url && data.token ? { url: data.url, token: data.token } : undefined
 }
 
@@ -162,11 +163,7 @@ function useMoqElement(
   }, [el, role, gameId, encoder])
 }
 
-/** Watch one game's broadcast. *
- * @answers BROADCAST_GAME
- *
- * Starting and stopping the stream, which only a game's people may do.
- */
+/** Watch one game's broadcast. */
 export function GameVideo({ gameId }: { gameId: string }) {
   const config = useRelay("watch")
   const [el, setEl] = useState<HTMLElement | null>(null)
@@ -203,14 +200,21 @@ export function GameVideo({ gameId }: { gameId: string }) {
   )
 }
 
-/** Broadcast this game from the device's camera. */
+/** @answers BROADCAST_GAME */
 export function GameBroadcast({ gameId }: { gameId: string }) {
-  const config = useRelay("publish")
+  const config = useRelay("publish", gameId)
+  const { data: game } = useGame(gameId, { refetchInterval: 10_000 })
+  if (!config) return <NoRelay />
+  return <Can of={game} action="BROADCAST_GAME" fallback={
+    <div className="moq-hint" data-testid="moq-not-permitted">{game ? m.video_not_permitted() : m.loading()}</div>
+  }><Publisher gameId={gameId} config={config} /></Can>
+}
+
+function Publisher({ gameId, config }: { gameId: string; config: NonNullable<ReturnType<typeof useRelay>> }) {
   const [el, setEl] = useState<HTMLElement | null>(null)
   const [source, setSource] = useState<"camera" | "screen" | null>(null)
   useMoqElement(el, "publish", gameId, true)
   const qc = useQueryClient()
-  const { data: game } = useGame(gameId)
 
   const withdraw = useMutation({ mutationFn: () => api.games.stopBroadcast({ id: gameId }) })
 
@@ -266,6 +270,12 @@ export function GameBroadcast({ gameId }: { gameId: string }) {
     // heartbeat that never beats.
   }, [source, gameId])
 
+  // Unmounting after permission loss or navigation must release capture too.
+  useEffect(() => () => {
+    const node = el as (HTMLElement & { source?: unknown }) | null
+    if (node) node.source = undefined
+  }, [el])
+
   const start = (which: "camera" | "screen") => {
     const node = el as (HTMLElement & { source?: unknown }) | null
     if (!node) return
@@ -303,11 +313,7 @@ export function GameBroadcast({ gameId }: { gameId: string }) {
       </moq-publish>
 
       <div className="moq-controls">
-        {game && !game.can.BROADCAST_GAME ? (
-          <div className="moq-hint" data-testid="moq-not-permitted">
-            {m.video_not_permitted()}
-          </div>
-        ) : source === null ? (
+        {source === null ? (
           <>
             <button
               className="btn primary"

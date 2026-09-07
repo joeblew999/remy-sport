@@ -1,3 +1,5 @@
+import { Can } from "./can"
+import { NameTranslations, namesFrom } from "./name-translations"
 /**
  * The children you are guardian to, on your own profile.
  *
@@ -65,7 +67,7 @@ export function YourPlayers({ goto }: { goto: (r: Route) => void }) {
       <div className="dash-card" data-testid="your-players">
         {players.map((p) =>
           editing === p.playerId ? (
-            <EditPlayer key={p.playerId} player={p} onDone={() => setEditing(null)} />
+            <Can key={p.playerId} of={p} action="EDIT_PLAYER_PROFILE"><EditPlayer player={p} onDone={() => setEditing(null)} /></Can>
           ) : (
           /**
            * A row, then two controls beside each other — not one inside the
@@ -109,7 +111,7 @@ export function YourPlayers({ goto }: { goto: (r: Route) => void }) {
             {/* The model's answer for this reader on this player, not assumed
                 from the row being on their own profile — a guardian holds
                 EDIT_PLAYER_PROFILE, and so does a coach who is not here. */}
-            {p.can.EDIT_PLAYER_PROFILE && (
+            <Can of={p} action="EDIT_PLAYER_PROFILE">
               <button
                 className="row-edit"
                 data-testid={`edit-player-${p.playerId}`}
@@ -117,7 +119,7 @@ export function YourPlayers({ goto }: { goto: (r: Route) => void }) {
               >
                 {m.player_edit()}
               </button>
-            )}
+            </Can>
           </div>
           ),
         )}
@@ -171,7 +173,7 @@ function AddPlayer({ onDone }: { onDone: () => void }) {
         e.preventDefault()
         const f = new FormData(e.currentTarget)
         save.mutate({
-          names: { en: String(f.get("name")) },
+          names: namesFrom(f, {}),
           dob: String(f.get("dob")),
           jerseyNumber: Number(f.get("jerseyNumber")),
           positionCode: String(f.get("positionCode")),
@@ -181,6 +183,7 @@ function AddPlayer({ onDone }: { onDone: () => void }) {
     >
       <label htmlFor="add-name">{m.player_name()}</label>
       <input id="add-name" name="name" required data-testid="add-player-name" />
+      <NameTranslations names={{}} id="add-player-name" />
 
       <label htmlFor="add-dob">{m.player_dob()}</label>
       {/* A real date input: the API wants YYYY-MM-DD and a free-text box is how
@@ -256,7 +259,7 @@ function EditPlayer({
   const qc = useQueryClient()
 
   const save = useMutation({
-    mutationFn: (v: { jerseyNumber: number; positionCode: string }) =>
+    mutationFn: (v: { names: Record<string, string>; jerseyNumber: number; positionCode: string }) =>
       api.players.update({ id: player.playerId, ...v, positionCode: v.positionCode as never }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: orpc.players.key() })
@@ -264,7 +267,7 @@ function EditPlayer({
     },
   })
 
-  const err = formErrors(save.error, ["jerseyNumber", "positionCode"])
+  const err = formErrors(save.error, ["jerseyNumber"])
 
   return (
     <form
@@ -274,12 +277,15 @@ function EditPlayer({
         e.preventDefault()
         const f = new FormData(e.currentTarget)
         save.mutate({
+          names: namesFrom(f, player.names),
           jerseyNumber: Number(f.get("jerseyNumber")),
           positionCode: String(f.get("positionCode")),
         })
       }}
     >
       <div className="row-title">{name(player.names)}</div>
+      <label>{m.event_name_label()}<input name="name" defaultValue={player.names.en ?? ""} required /></label>
+      <NameTranslations names={player.names} id={`player-name-${player.playerId}`} />
 
       <label className="sr-only" htmlFor={`n-${player.playerId}`}>{m.player_number()}</label>
       <input

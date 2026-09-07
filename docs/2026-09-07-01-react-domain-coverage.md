@@ -1,6 +1,6 @@
 # Plan — React GUI coverage of the whole domain model
 
-Requested 2026-09-07. Status: planned; no application changes in this task.
+Requested 2026-09-07. Status: implementation in progress; existing-model scope approved.
 
 ## Outcome
 
@@ -9,9 +9,9 @@ it. Every entity, relationship and product-relevant field has a deliberate
 place in that journey. Coverage includes reading, changing data, seeing the
 saved result, permission refusals, empty states and recovery from errors.
 
-“All” includes the five actions currently blocked by missing model structures.
-They remain unfinished until implemented, or explicitly removed from the
-product scope by the Product Owner. A documented exception is accounted for,
+The Product Owner approved completing existing-model coverage while keeping
+the five actions with undefined domain rules visibly blocked. They are outside
+this implementation scope and remain unfinished. A documented exception is accounted for,
 not delivered. Internal IDs, credentials, transport acknowledgements and
 operational records do not need user-facing CRUD screens.
 
@@ -175,3 +175,45 @@ the table. Model decisions for the final five actions can be developed while
 the existing-model slices progress. The first reviewable implementation should
 contain the inventory and games pilot, with measured gaps and tests, before
 rolling the pattern across the application.
+
+
+## Implementation record — 2026-09-07
+
+The user approved existing-model coverage and keeping all five blockers visible.
+The generated [inventory](react-domain-coverage.md) records action declarations,
+shared gates, exact schema fields, foreign keys and the four unresolvable grant
+pairs. It is checked for drift; it is not field-level behavioral proof.
+
+Implemented in the working tree:
+
+- Shared typed `Can`/`PlatformCan` gates, piloted on games and used by team,
+  player editing, live broadcasting, event invitations and creation journeys.
+  Repository checks reject direct permission reads on migrated surfaces.
+- Player box-score read/write endpoints and scorekeeper forms, preserving zero
+  versus missing counts, permitting corrections and clearing recorded lines.
+- Event names/translations, details, geography, timezone and nullable dates;
+  organisation geography/translations; team/player translations; profile account
+  identity and reachable player creation; event creation from Discover.
+- Fixture and first-session entry use the event timezone. Event progress and
+  invitation dates are visible. Refused mutations in the audited controls show
+  errors. Player creation retries roster attachment without duplicating players.
+- Fixture writes/deletes and session deletes verify the parent before touching
+  children; deletion removes dependent rows atomically. Video publishing config
+  requires the game's broadcast grant; viewing never falls back to a publish token.
+
+Validation: `bun run check` passed (800 unit/repository/worker tests and
+283 browser render tests). `bun run test:e2e` passed all 41 tests, including
+new event creation/edit/clear/reload and box-score save/reload journeys.
+The additional event-local-midnight regression passed in its focused worker
+run; final typecheck passed. English phone and desktop profile/schedule
+screenshots were reviewed. Profile spacing was corrected, and screenshot
+capture now uses the actual viewport rather than adding blank pixels below
+the fixed-height scrolling app shell. Screenshots do not prove offscreen rows.
+
+Remaining work must not be represented as complete: exhaustive per-field
+classification and action-to-behavior evidence, remaining surface permission
+matrices, broader reload/persistence journeys and visual review across all locales.
+The existing four cross-object grant mismatches need canonical model decisions.
+The relay still uses a shared publisher token: API permission controls token
+issuance, but the relay cannot restrict that token to the authorized game.
+Per-game short-lived relay credentials remain a concrete infrastructure gap.

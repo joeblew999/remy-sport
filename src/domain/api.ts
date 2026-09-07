@@ -27,6 +27,7 @@ import {
   GUARDIAN_TYPE_CODES,
   LOCALES,
   POSITION_CODES,
+  PROVINCE,
 } from "./vocabularies"
 
 /**
@@ -143,18 +144,25 @@ export const CreateEventInput = z.object({
    * request's own zone is used, because someone in Bangkok scheduling a
    * Bangkok tournament should not have to fill this in.
    */
-  timezone: z.string().optional(),
+  timezone: z.string().refine((zone) => {
+    try { new Intl.DateTimeFormat("en", { timeZone: zone }); return true }
+    catch { return false }
+  }, "Invalid time zone").optional(),
   typeCode: EventTypeSchema,
   formatCode: EventFormatSchema.optional(),
   description: z.string().optional(),
   startDate: DaySchema.optional(),
   endDate: DaySchema.optional(),
   cityCode: z.enum(CITY_CODES).optional(),
-  provinceCode: z.string().optional(),
+  provinceCode: z.enum(PROVINCE.map((p) => p.code)).optional(),
   isFibaCertified: z.boolean().optional(),
 })
 
-export const UpdateEventInput = CreateEventInput.partial()
+export const UpdateEventInput = CreateEventInput.partial().extend({
+  // Null clears a date; omitted means leave it alone.
+  startDate: DaySchema.nullable().optional(),
+  endDate: DaySchema.nullable().optional(),
+})
 
 // ── Teams ─────────────────────────────────────────────────────────────────
 
@@ -170,9 +178,9 @@ export type ApiOrg = z.infer<typeof OrgSchema>
 
 /** Only the profile is editable — the codes are the PO's vocabulary. */
 export const UpdateOrgInput = z.object({
-  names: z.record(z.string(), z.string()).optional(),
-  cityCode: z.string().optional(),
-  provinceCode: z.string().optional(),
+  names: NamesInput.optional(),
+  cityCode: z.enum(CITY_CODES).optional(),
+  provinceCode: z.enum(PROVINCE.map((p) => p.code)).optional(),
 })
 
 export const TeamSchema = createSelectSchema(schema.team)

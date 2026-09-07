@@ -149,7 +149,10 @@ for (const screen of SCREENS) {
       await page.waitForLoadState("networkidle")
       await page.screenshot({
         path: `${OUT}/${vp.name}/${screen.name}.${locale}.png`,
-        fullPage: true,
+        // The app scrolls inside its fixed-height shell. WebKit's fullPage
+        // capture adds thousands of blank pixels below that clipped shell;
+        // capture the actual viewport. The text companion includes all rows.
+        fullPage: false,
       })
       // The same screen as text, for a reader without eyes: what the sidebar
       // offers this person, then everything the page says.

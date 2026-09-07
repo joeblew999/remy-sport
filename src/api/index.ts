@@ -88,6 +88,8 @@ export const router = {
     assignVenue: games.assignVenue,
     delete: games.remove,
     enterScore: games.enterScore,
+    stats: stats.forGame,
+    setPlayerStats: stats.setLine,
     setStatus: games.setStatus,
     startBroadcast: games.startBroadcast,
     stopBroadcast: games.stopBroadcast,

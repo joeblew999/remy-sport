@@ -480,5 +480,16 @@
   "home_no_next_game": "次の試合はまだありません。",
   "home_no_upcoming_games": "予定されている試合はありません。",
   "profile_sub": "あなたのアカウント: ここでの立場と、あなたが責任を持つ人たち。",
-  "home_admin": "管理コンソール"
+  "home_admin": "管理コンソール",
+  "game_box_score": "選手のボックススコア",
+  "game_box_score_hint": "記録していない項目は空欄にしてください。0は記録されたゼロを意味します。",
+  "game_box_score_empty": "この試合の日付では、両チームに登録選手がいません。",
+  "game_box_score_saved": "ボックススコアを保存しました。",
+  "profile_account": "アカウント",
+  "profile_responsibilities": "自分のチーム・イベント・招待",
+  "event_timezone": "タイムゾーン",
+  "event_type": "イベントの種類",
+  "event_city": "都市",
+  "event_progress": "全{total}試合中{played}試合終了",
+  "player_created_join_failed": "選手を作成しましたが、チームに追加できませんでした。再試行すると同じ選手を追加します。"
 }

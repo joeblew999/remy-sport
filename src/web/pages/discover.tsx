@@ -1,3 +1,5 @@
+import { CreateEvent } from "../components/create-event";
+import { PlatformCan } from "../components/can";
 import { Icon } from "../components/icon";
 import { useEvents, useLiveGames } from "../lib/data";
 import type { Route } from "../lib/router";
@@ -105,6 +107,13 @@ export function DiscoverPage({ goto, spoiler, query, setParam }: DiscoverProps) 
         <h1>{m.discover_heading()}</h1>
         <div className={`sub ${locale === "th" ? "thai" : ""}`}>{m.discover_sub()}</div>
       </div>
+
+      <PlatformCan action="CREATE_EVENT">
+        <details className="page-inner" data-testid="discover-create-event">
+          <summary className="btn">{m.create_event()}</summary>
+          <CreateEvent onCreated={(id) => goto({ page: "event", id })} />
+        </details>
+      </PlatformCan>
 
       <LiveBanner goto={goto} spoiler={spoiler}/>
 

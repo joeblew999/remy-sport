@@ -395,7 +395,13 @@ export const removeSession = authed
   .output(z.object({ id: z.string() }))
   .use(requireAction("DEFINE_SESSION_SCHEDULE", (i: { eventId: string }) => i.eventId))
   .handler(async ({ context, input }) => {
-    await context.db.delete(schema.eventSession).where(eq(schema.eventSession.id, input.id))
+    found(await context.db.query.eventSession.findFirst({
+      where: and(eq(schema.eventSession.id, input.id), eq(schema.eventSession.eventId, input.eventId)),
+    }))
+    await context.db.batch([
+      context.db.delete(schema.sessionAttendance).where(eq(schema.sessionAttendance.sessionId, input.id)),
+      context.db.delete(schema.eventSession).where(and(eq(schema.eventSession.id, input.id), eq(schema.eventSession.eventId, input.eventId))),
+    ])
     return { id: input.id }
   })
 
@@ -629,8 +635,8 @@ export const update = authed
     // still be checked against the startDate already stored.
     assertDateOrder(
       errors.BAD_DATE_RANGE,
-      columns.startDate ?? existing.startDate,
-      columns.endDate ?? existing.endDate,
+      columns.startDate === undefined ? existing.startDate : columns.startDate,
+      columns.endDate === undefined ? existing.endDate : columns.endDate,
     )
 
     await context.db

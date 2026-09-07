@@ -2,7 +2,7 @@ import { test, expect } from "./fixture"
 import { sessionFor } from "../helpers/actors"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
-import { type ApiRoster } from "../helpers/api-fixtures"
+import { apiMine, type ApiRoster } from "../helpers/api-fixtures"
 import { projectGamesIn, projectRoster, projectTeam, type Held } from "../helpers/projections"
 
 /**
@@ -198,6 +198,8 @@ test.describe("Squad management", () => {
   // `as` is who the reader is on the team; MANAGE_ROSTER is the team row's answer.
   const show = async (page: Parameters<typeof seedCache>[0], data: ApiRoster, as: Held = []) => {
     await seedCache(page, [
+      ...(as?.length ? [sessionFor("COACH")] : []),
+      entry(orpc.me.mine, undefined, apiMine([], as?.length ? ["ANY_COACH"] : [])),
       entry(orpc.teams.get, { id: TEAM }, team(TEAM, as)),
       entry(orpc.teams.roster, { teamId: TEAM }, data),
     ])

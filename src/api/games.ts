@@ -16,7 +16,6 @@
  * looking up a score should not need an account.
  */
 
-import { ORPCError } from "@orpc/server"
 import { and, eq, gte, inArray } from "drizzle-orm"
 import { z } from "zod"
 import { track } from "../analytics"
@@ -654,6 +653,10 @@ export const update = authed
   .use(requireAction("MANAGE_FIXTURES", (i: { eventId: string }) => i.eventId))
   .handler(async ({ context, input, errors }) => {
     const { id, eventId, ...columns } = input
+    // Authorizing the event in the URL does not authorize an unrelated game.
+    const current = found(await context.db.query.game.findFirst({
+      where: and(eq(schema.game.id, id), eq(schema.game.eventId, eventId)),
+    }))
     if (columns.homeTeamId && columns.awayTeamId && columns.homeTeamId === columns.awayTeamId) {
       throw errors.TEAM_PLAYS_ITSELF()
     }
@@ -666,13 +669,6 @@ export const update = authed
      * stored row supplies whichever side was not sent.
      */
     if (columns.homeTeamId || columns.awayTeamId) {
-      const current = found(
-        await context.db
-          .select({ homeTeamId: schema.game.homeTeamId, awayTeamId: schema.game.awayTeamId })
-          .from(schema.game)
-          .where(eq(schema.game.id, id))
-          .get(),
-      )
       const home = columns.homeTeamId ?? current.homeTeamId
       const away = columns.awayTeamId ?? current.awayTeamId
       if (home === away) throw errors.TEAM_PLAYS_ITSELF()
@@ -688,7 +684,8 @@ export const update = authed
      * empty object nobody had sent before.
      */
     if (Object.keys(columns).length) {
-      await context.db.update(schema.game).set(columns).where(eq(schema.game.id, id))
+      await context.db.update(schema.game).set(columns)
+        .where(and(eq(schema.game.id, id), eq(schema.game.eventId, eventId)))
     }
     return reload(context.db, context.user, id)
   })
@@ -776,10 +773,17 @@ export const remove = authed
   .output(z.object({ removed: z.string() }))
   .use(requireAction("MANAGE_FIXTURES", (i: { eventId: string }) => i.eventId))
   .handler(async ({ context, input }) => {
-    // Referees first: the row points at the game and would orphan.
-    await context.db.delete(schema.gameReferee).where(eq(schema.gameReferee.gameId, input.id))
-    const res = await context.db.delete(schema.game).where(eq(schema.game.id, input.id))
-    if (res.meta.changes === 0) throw new ORPCError("NOT_FOUND", { message: "Not found" })
+    // Check before touching dependants: a forged parent id must change nothing.
+    found(await context.db.query.game.findFirst({
+      where: and(eq(schema.game.id, input.id), eq(schema.game.eventId, input.eventId)),
+    }))
+    // D1 batches are atomic. Scores and broadcasts also reference the fixture.
+    await context.db.batch([
+      context.db.delete(schema.gameReferee).where(eq(schema.gameReferee.gameId, input.id)),
+      context.db.delete(schema.playerGameStat).where(eq(schema.playerGameStat.gameId, input.id)),
+      context.db.delete(schema.gameBroadcast).where(eq(schema.gameBroadcast.gameId, input.id)),
+      context.db.delete(schema.game).where(and(eq(schema.game.id, input.id), eq(schema.game.eventId, input.eventId))),
+    ])
     return { removed: input.id }
   })
 

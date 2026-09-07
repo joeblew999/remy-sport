@@ -1,3 +1,4 @@
+import { Can } from "../components/can";
 import { Icon } from "../components/icon";
 import { useLiveGames } from "../lib/data";
 import type { Route } from "../lib/router";
@@ -95,7 +96,7 @@ export function LivePage({ goto, spoiler, setSpoiler }: LiveProps) {
               <span className="outcome" style={{ color: "var(--live)", fontWeight: 500 }}>
                 {g.statusLabel}
               </span>
-              <span className="live-actions">
+              <div className="live-actions">
                 {/* Only where a camera is actually pointed at it. A Watch link
                     on a game nobody is broadcasting is a link to a black
                     rectangle, which is how this feature earns a reputation. */}
@@ -108,7 +109,8 @@ export function LivePage({ goto, spoiler, setSpoiler }: LiveProps) {
                     {m.video_watch()}
                   </button>
                 )}
-                {g.can.BROADCAST_GAME && !g.isBroadcasting && (
+                {!g.isBroadcasting && (
+                  <Can of={g} action="BROADCAST_GAME">
                   <button
                     className="btn"
                     onClick={() => goto({ page: "broadcast", id: g.id })}
@@ -116,8 +118,9 @@ export function LivePage({ goto, spoiler, setSpoiler }: LiveProps) {
                   >
                     {m.video_broadcast()}
                   </button>
+                  </Can>
                 )}
-              </span>
+              </div>
             </div>
           ))}
         </div>

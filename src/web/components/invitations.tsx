@@ -1,3 +1,4 @@
+import { formErrors } from "../lib/form-errors"
 /**
  * "Someone asked you to help run this event."
  *
@@ -25,7 +26,7 @@ import { m } from "../lib/i18n"
  * Answering an invitation addressed to you.
  */
 export function Invitations({ onAccepted }: { onAccepted?: () => void }) {
-  const { name } = useLocale()
+  const { name, locale } = useLocale()
   const qc = useQueryClient()
   const { data } = useQuery(orpc.events.invitations.queryOptions())
 
@@ -48,6 +49,8 @@ export function Invitations({ onAccepted }: { onAccepted?: () => void }) {
     }),
   )
 
+  const err = formErrors(accept.error)
+
   const invitations = data?.invitations ?? []
   if (invitations.length === 0) return null
 
@@ -61,7 +64,7 @@ export function Invitations({ onAccepted }: { onAccepted?: () => void }) {
           <div key={invite.eventId} className="invite-row" data-testid={`invite-${invite.eventId}`}>
             <div>
               <div className="row-title">{name(invite.names, invite.name)}</div>
-              <div className="row-meta">{m.invitation_co_organize()}</div>
+              <div className="row-meta">{m.invitation_co_organize()} · <time dateTime={invite.addedAt}>{new Date(invite.addedAt).toLocaleDateString(locale)}</time></div>
             </div>
             <button
               className="btn primary"
@@ -73,6 +76,7 @@ export function Invitations({ onAccepted }: { onAccepted?: () => void }) {
             </button>
           </div>
         ))}
+        {err.form && <p role="alert" className="admin-error small">{err.form}</p>}
       </div>
     </>
   )

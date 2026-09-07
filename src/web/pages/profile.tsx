@@ -1,8 +1,12 @@
+import { NewPlayer } from "../components/new-player";
+import { PlatformCan } from "../components/can";
 import { useSession } from "../lib/session";
 import { WhoAreYou } from "../components/who-are-you";
 import { YourPlayers } from "../components/your-players";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
+import { useLocale } from "../lib/locale";
+import { STORED_ROLE } from "../../domain/vocabularies";
 
 /**
  * Your account: who you are here, and the people you are responsible for.
@@ -17,6 +21,8 @@ import { m } from "../lib/i18n";
  */
 export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
   const { user, loading } = useSession();
+  const { label } = useLocale();
+  const roleCode = Object.entries(STORED_ROLE).find(([, stored]) => stored === user?.role)?.[0];
 
   return (
     <>
@@ -47,6 +53,14 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
 
       {user && (
         <div className="page-inner" data-testid="profile">
+          <section className="admin-card" data-testid="profile-identity">
+            <h2>{m.profile_account()}</h2>
+            <p>{user.email}</p>
+            <p>{roleCode ? label("roles", roleCode) : user.role}</p>
+            {user.statusCode && <p>{label("userStatuses", user.statusCode)}</p>}
+            <button className="btn" onClick={() => goto({ page: "home" })}>{m.profile_responsibilities()}</button>
+            <PlatformCan action="CREATE_PLAYER"><NewPlayer onCreated={(id) => goto({ page: "player", id })} /></PlatformCan>
+          </section>
           <WhoAreYou />
           <YourPlayers goto={goto} />
         </div>

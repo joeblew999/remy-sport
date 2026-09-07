@@ -6,35 +6,33 @@
  * in server access logs. A literal in `index.html` would additionally put it in
  * git, hand it to every visitor forever, and make rotating it a redeploy.
  *
- * Public, like the VAPID key next door, and for a weaker reason than that one:
- * a push key is genuinely not a secret, whereas this token *is* a capability —
- * anyone holding it can publish to the relay. That is acceptable only because
- * this is a test harness with no authorisation on broadcasting at all (see
- * src/web/pages/video.tsx on why inventing one would be worse). Before this is
- * anything but a harness, the relay needs short-lived per-viewer tokens, which
- * is Cloudflare's own guidance.
+ * Publishing tokens are capabilities. Issue one only to an authorized game's
+ * broadcaster; watchers must never receive it as a subscribe-token fallback.
+ * The configured token is still shared by publishers: per-game enforcement at
+ * the relay requires scoped short-lived tokens, not just this issuance check.
  */
 
 import { z } from "zod"
-import { infrastructure, pub } from "./base"
+import { ORPCError } from "@orpc/server"
+import { can, checkedInHandler, viewer } from "./base"
 
-export const config = pub
-  .use(
-    infrastructure(
-      "the MoQ relay address for the video harness — a capability token, and the " +
-        "harness has no authorisation on broadcasting for it to be scoped to yet",
-    ),
-  )
+export const config = viewer
+  .use(checkedInHandler("BROADCAST_GAME", "VIEW_LIVE_STREAM"))
   .route({ method: "GET", path: "/moq/config", summary: "The MoQ relay, or null if video is off" })
-  .input(z.object({ role: z.enum(["watch", "publish"]).default("watch") }))
+  .input(z.object({ role: z.enum(["watch", "publish"]).default("watch"), gameId: z.string().optional() }))
   .output(z.object({ url: z.string().nullable(), token: z.string().nullable() }))
-  .handler(({ context, input }) => {
+  .handler(async ({ context, input }) => {
+    if (input.role === "publish") {
+      if (!context.user) throw new ORPCError("UNAUTHORIZED")
+      if (!input.gameId || !await can(context.db, "BROADCAST_GAME", context.user, input.gameId)) {
+        throw new ORPCError("FORBIDDEN")
+      }
+    }
     // Watchers get the subscribe-only token, and they are most people. A token
-    // scraped from the watch page then cannot start a broadcast, which is the
-    // only least-privilege that is available while nothing decides who may.
+    // scraped from the watch page then cannot start a broadcast.
     const token =
       input.role === "publish"
         ? context.env.MOQ_RELAY_TOKEN
-        : (context.env.MOQ_RELAY_TOKEN_SUBSCRIBE ?? context.env.MOQ_RELAY_TOKEN)
+        : context.env.MOQ_RELAY_TOKEN_SUBSCRIBE
     return { url: context.env.MOQ_RELAY_URL ?? null, token: token ?? null }
   })

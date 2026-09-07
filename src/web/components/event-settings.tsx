@@ -1,3 +1,6 @@
+import { useLocale } from "../lib/locale"
+import { NameTranslations, namesFrom } from "./name-translations"
+import { Can } from "./can";
 /**
  * Editing an event you organise.
  *
@@ -13,13 +16,7 @@
  * when it is pressed teaches people that the app is broken, when in fact it is
  * working exactly as designed.
  *
- * ## Only `names.en`
- *
- * The column is a locale map and the API takes the whole thing, but a form with
- * one box per language would quietly assert that English and Thai are the
- * languages this product has — `ALL_LOCALES` decides that, and it has three.
- * Translating an event name is a localisation surface, not a details form. The
- * other locales are preserved on write rather than dropped.
+ * Name fields follow the configured locales and preserve unknown translations.
  *
  * ## Dates can be emptied
  *
@@ -43,24 +40,17 @@ import type { Event } from "../data"
  */
 export function EventSettings({ event }: { event: Event }) {
   const qc = useQueryClient()
+  const { terms, name } = useLocale()
   const [saved, setSaved] = useState(false)
+  const [startDate, setStartDate] = useState(event.startDate ?? "")
+  const [endDate, setEndDate] = useState(event.endDate ?? "")
 
   // No `useState` for the error: the mutation already holds it, and a copy in
   // state has to be cleared by hand on every success — a second place for "is
   // there an error right now" to be wrong.
   const save = useMutation({
-    mutationFn: (v: { name: string; startDate: string; endDate: string }) =>
-      api.events.update({
-        id: event.id,
-        // The rest of the locale map survives. Sending only `{ en }` would
-        // silently delete the Thai and Japanese names on the first save.
-        names: { ...event.names, en: v.name },
-        // Empty string means "not fixed", which the API takes as null. An
-        // `undefined` here would mean "leave it alone", and there would be no
-        // way to clear a date once set.
-        startDate: v.startDate || undefined,
-        endDate: v.endDate || undefined,
-      }),
+    mutationFn: (v: Omit<Parameters<typeof api.events.update>[0], "id">) =>
+      api.events.update({ id: event.id, ...v }),
     onSuccess: () => {
       setSaved(true)
       void qc.invalidateQueries({ queryKey: orpc.events.key() })
@@ -88,9 +78,16 @@ export function EventSettings({ event }: { event: Event }) {
             e.preventDefault()
             const f = new FormData(e.currentTarget)
             save.mutate({
-              name: String(f.get("name")),
-              startDate: String(f.get("startDate") ?? ""),
-              endDate: String(f.get("endDate") ?? ""),
+              names: namesFrom(f, event.names),
+              startDate: String(f.get("startDate") ?? "") || null,
+              endDate: String(f.get("endDate") ?? "") || null,
+              description: String(f.get("description") ?? ""),
+              timezone: String(f.get("timezone") ?? ""),
+              formatCode: String(f.get("formatCode")) as Event["formatCode"],
+              typeCode: String(f.get("typeCode")) as Event["typeCode"],
+              cityCode: (String(f.get("cityCode")) || undefined) as Parameters<typeof api.events.update>[0]["cityCode"],
+              provinceCode: (String(f.get("provinceCode")) || undefined) as Parameters<typeof api.events.update>[0]["provinceCode"],
+              isFibaCertified: f.has("isFibaCertified"),
             })
           }}
         >
@@ -109,13 +106,34 @@ export function EventSettings({ event }: { event: Event }) {
             </p>
           )}
 
+          <NameTranslations names={event.names} id="event-name" />
+          <label htmlFor="event-description">{m.description()}</label>
+          <textarea id="event-description" name="description" defaultValue={event.description ?? ""} />
+          <label htmlFor="event-timezone">{m.event_timezone()}</label>
+          <input id="event-timezone" name="timezone" required defaultValue={event.timezone ?? "UTC"} />
+          {([
+            ["typeCode", "eventTypes", m.event_type(), event.typeCode],
+            ["formatCode", "eventFormats", m.event_format(), event.formatCode],
+            ["cityCode", "cities", m.event_city(), event.cityCode],
+            ["provinceCode", "provinces", m.province(), event.provinceCode],
+          ] as const).map(([field, vocabulary, title, value]) => (
+            <label key={field} htmlFor={`event-${field}`}>{title}
+              <select id={`event-${field}`} name={field} defaultValue={value ?? ""}>
+                {!value && <option value="">—</option>}
+                {terms(vocabulary).map((term) => <option key={term.code} value={term.code}>{name(term.names, term.code)}</option>)}
+              </select>
+            </label>
+          ))}
+          <label><input type="checkbox" name="isFibaCertified" defaultChecked={event.isFibaCertified} /> {m.event_fiba()}</label>
+
           <label htmlFor="event-start">{m.event_start_label()}</label>
           <input
             id="event-start"
             name="startDate"
             type="date"
             data-testid="event-start-input"
-            defaultValue={event.startDate ?? ""}
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
           />
           {err.field("startDate") && (
             <p className="admin-error small">{err.field("startDate")}</p>
@@ -127,7 +145,8 @@ export function EventSettings({ event }: { event: Event }) {
             name="endDate"
             type="date"
             data-testid="event-end-input"
-            defaultValue={event.endDate ?? ""}
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
           />
           {err.field("endDate") && <p className="admin-error small">{err.field("endDate")}</p>}
 
@@ -144,7 +163,7 @@ export function EventSettings({ event }: { event: Event }) {
           OWNER and PLATFORM_ADMIN — deciding who else runs your tournament is
           not something you delegate by having been delegated to. Reusing
           `can.EDIT_EVENT` here would have offered a form that answers 403. */}
-      {event.can.INVITE_CO_ORGANIZER && <InviteCoOrganizer eventId={event.id} />}
+      <Can of={event} action="INVITE_CO_ORGANIZER"><InviteCoOrganizer eventId={event.id} /></Can>
     </div>
   )
 }

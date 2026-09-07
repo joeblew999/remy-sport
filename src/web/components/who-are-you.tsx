@@ -1,3 +1,4 @@
+import { formErrors } from "../lib/form-errors"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "../lib/orpc"
 import { useSession } from "../lib/session"
@@ -42,6 +43,8 @@ export function WhoAreYou() {
     },
   })
 
+  const err = formErrors(choose.error)
+
   // Only a spectator sees this. Everybody else already answered, or was given a
   // role by an organiser, and offering it again would read as an invitation to
   // change something they cannot.
@@ -77,6 +80,7 @@ export function WhoAreYou() {
             {code === "REFEREE" && <div className="row-meta">{m.role_pending_note()}</div>}
           </button>
         ))}
+        {err.form && <p role="alert" className="admin-error small">{err.form}</p>}
       </div>
     </>
   )

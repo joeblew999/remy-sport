@@ -1,3 +1,4 @@
+import { NameTranslations, namesFrom } from "../components/name-translations";
 /**
  * Organisations — the GUI for `/api/orgs`.
  *
@@ -136,7 +137,7 @@ export function OrgPage({ id, goto }: { id?: string; goto: (r: Route) => void })
         <div className="sub">{[org.data.city, org.data.slug].filter(Boolean).join(" · ")}</div>
       </div>
 
-      <OrgProfile id={org.data.id} names={org.data.names} canEdit={org.data.can.EDIT_ORG_PROFILE} />
+      <OrgProfile id={org.data.id} names={org.data.names} cityCode={org.data.cityCode} provinceCode={org.data.provinceCode} canEdit={org.data.can.EDIT_ORG_PROFILE} />
       {/* Signed-out visitors are not offered a members section at all: the
           query would 403 for a reason that has nothing to do with this org. */}
       {user && <OrgMembers id={org.data.id} />}
@@ -166,22 +167,40 @@ export function OrgPage({ id, goto }: { id?: string; goto: (r: Route) => void })
  * this file opens by refusing to keep. Before it existed, every viewer got a
  * Save button and a coach from another school got a 403 for pressing it.
  *
- * Only `names.en` is offered. The column is a locale map and the API takes the
- * whole thing, but a two-field form here would quietly imply that English and
- * Thai are the languages this product has — `ALL_LOCALES` decides that, and it
- * has three. Editing the rest is a localisation surface, not a profile form.
+ * Names follow the configured locales; geography uses the model vocabularies.
  */
 function OrgProfile({
   id,
   names,
+  cityCode,
+  provinceCode,
   canEdit,
 }: {
   id: string;
   names: Record<string, string>;
+  cityCode: string;
+  provinceCode: string;
   canEdit: boolean;
 }) {
   const qc = useQueryClient();
+  const { terms, name } = useLocale();
   const [saved, setSaved] = useState(false);
+
+
+  // No `useState` for the error: the mutation already holds it, and a copy in
+  // state has to be cleared by hand on every success — which is a second place
+  // for "is there an error right now" to be wrong.
+  const save = useMutation({
+    mutationFn: (f: FormData) => api.orgs.update({ id, names: namesFrom(f, names),
+      cityCode: String(f.get("cityCode")) as Parameters<typeof api.orgs.update>[0]["cityCode"], provinceCode: String(f.get("provinceCode")) as Parameters<typeof api.orgs.update>[0]["provinceCode"] }),
+    onSuccess: () => {
+      setSaved(true);
+      qc.invalidateQueries({ queryKey: orpc.orgs.key() });
+      setTimeout(() => setSaved(false), 2000);
+    },
+  });
+
+  const saveErr = formErrors(save.error, ["names[en]"]);
 
   if (!canEdit) {
     return (
@@ -192,19 +211,6 @@ function OrgProfile({
     );
   }
 
-  // No `useState` for the error: the mutation already holds it, and a copy in
-  // state has to be cleared by hand on every success — which is a second place
-  // for "is there an error right now" to be wrong.
-  const save = useMutation({
-    mutationFn: (en: string) => api.orgs.update({ id, names: { ...names, en } }),
-    onSuccess: () => {
-      setSaved(true);
-      qc.invalidateQueries({ queryKey: orpc.orgs.key() });
-      setTimeout(() => setSaved(false), 2000);
-    },
-  });
-
-  const saveErr = formErrors(save.error, ["names[en]"]);
 
   return (
     <section className="admin-card" data-testid="org-profile">
@@ -218,7 +224,7 @@ function OrgProfile({
         onSubmit={(e) => {
           e.preventDefault();
           const f = new FormData(e.currentTarget);
-          save.mutate(String(f.get("name")));
+          save.mutate(f);
         }}
       >
         <input
@@ -237,6 +243,17 @@ function OrgProfile({
             {saveErr.field("names[en]")}
           </p>
         )}
+        <NameTranslations names={names} id="org-name" />
+        {([
+          ["cityCode", "cities", m.event_city(), cityCode],
+          ["provinceCode", "provinces", m.province(), provinceCode],
+        ] as const).map(([field, vocabulary, title, value]) => (
+          <label key={field}>{title}
+            <select name={field} defaultValue={value}>
+              {terms(vocabulary).map((term) => <option key={term.code} value={term.code}>{name(term.names, term.code)}</option>)}
+            </select>
+          </label>
+        ))}
         <button type="submit" data-testid="org-save" disabled={save.isPending}>
           {save.isPending ? m.org_saving() : m.org_save()}
         </button>

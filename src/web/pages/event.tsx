@@ -266,7 +266,7 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
         schedule: () => (
           <div className="page-inner">
             <Schedule eventId={e.id} can={e.can} spoiler={spoiler} goto={goto}/>
-            <AddFixture eventId={e.id} can={e.can}/>
+            <AddFixture eventId={e.id} can={e.can} timezone={e.timezone}/>
           </div>
         ),
         courts: () => <CourtBoard eventId={e.id}/>,
@@ -277,7 +277,7 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
         // MANAGE_DIVISIONS, which is its own action — EDIT_EVENT was standing
         // in for it, and the two differ on a camp.
         divisions: () => <EventDivisions eventId={e.id} can={e.can}/>,
-        sessions: () => <EventSessions eventId={e.id} can={e.can}/>,
+        sessions: () => <EventSessions eventId={e.id} can={e.can} timezone={e.timezone}/>,
         rules: () => <EventRules event={e}/>,
         // Guarded twice on purpose: the tab is only offered to somebody who may
         // edit, and hand-typing the hash must not get past that.
@@ -330,6 +330,7 @@ function EventOverview({ e, goto }: OverviewProps) {
 
   return (
     <div className="page-inner">
+      {e.gameCount > 0 && <p className="muted" data-testid="event-progress">{m.event_progress({ played: e.playedCount, total: e.gameCount })}</p>}
       <div className="dash-grid">
         <div>
           <div className="section-h">

@@ -1,3 +1,6 @@
+import { NewPlayer } from "../components/new-player";
+import { NameTranslations, namesFrom } from "../components/name-translations";
+import { Can, PlatformCan } from "../components/can";
 import { useState } from "react";
 import { FollowButton } from "../components/follow";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -137,12 +140,12 @@ export function TeamPage({ id, goto }: { id: string; goto: (r: Route) => void })
 
         {/* `teams.update` was enforced by EDIT_TEAM_PROFILE and unreachable, so
             a team named wrong when it was created stayed named wrong. */}
-        {t.can.EDIT_TEAM_PROFILE && <TeamSettings team={t}/>}
+        <Can of={t} action="EDIT_TEAM_PROFILE"><TeamSettings team={t}/></Can>
 
         {/* Only for someone the server says may manage this squad — a head or
             assistant coach, or the team's manager. MANAGE_ROSTER, asked per
             team, not worked out from the viewer's role. */}
-        {t.can.MANAGE_ROSTER && id && roster && <ManageRoster teamId={id} roster={roster}/>}
+        {id && roster && <Can of={t} action="MANAGE_ROSTER"><ManageRoster teamId={id} roster={roster}/></Can>}
 
         <div className="section-h" id="team-schedule" style={{ marginTop: 48 }}><h2>{m.schedule()}</h2></div>
         <div className="dash-card">
@@ -271,119 +274,8 @@ function ManageRoster({ teamId, roster }: { teamId: string; roster: Roster }) {
         <p className="muted" data-testid="no-available-players">{m.everyone_on_squad()}</p>
       )}
 
-      <NewPlayer teamId={teamId} onCreated={invalidate} />
+      <PlatformCan action="CREATE_PLAYER"><NewPlayer teamId={teamId} onCreated={invalidate} /></PlatformCan>
     </section>
-  );
-}
-
-/**
- * A player who is not on the platform yet.
- *
- * `CREATE_PLAYER` is granted to ANY_COACH, ANY_PLAYER and PLATFORM_ADMIN, and
- * `players.create` was built, enforced and reachable only by curl — both
- * coverage tools flagged it independently, one as an uncalled procedure and one
- * as a stranded write.
- *
- * What that meant on screen: the squad form offers `available`, the players
- * already on the platform who are not on this team. A coach with a new signing
- * saw "everyone is on the squad" and stopped. Nothing anywhere in the app could
- * add a player who was not already in it, unless you were their guardian —
- * which a coach is not.
- *
- * ## Create, then add
- *
- * Two calls rather than one endpoint that does both, because the model has two
- * actions: `CREATE_PLAYER` puts somebody on the platform and `MANAGE_ROSTER`
- * puts them on this team. A coach means both, so the form does both — but a
- * failure to join the squad still leaves the player created, which is the
- * honest outcome and recoverable from the select above.
- */
-function NewPlayer({ teamId, onCreated }: { teamId: string; onCreated: () => void }) {
-  const { terms, label } = useLocale();
-  const [open, setOpen] = useState(false);
-
-  const create = useMutation({
-    mutationFn: async (v: {
-      names: Record<string, string>;
-      dob: string;
-      jerseyNumber: number;
-      positionCode: string;
-    }) => {
-      const player = await api.players.create(v as never);
-      await api.teams.addPlayer({ teamId, playerId: player.playerId });
-      return player;
-    },
-    onSuccess: () => {
-      onCreated();
-      setOpen(false);
-    },
-  });
-
-  const err = formErrors(create.error, ["names", "dob", "jerseyNumber", "positionCode"]);
-
-  if (!open) {
-    return (
-      <button className="btn" data-testid="new-player-open" onClick={() => setOpen(true)}>
-        {m.player_new()}
-      </button>
-    );
-  }
-
-  return (
-    <form
-      className="admin-form"
-      data-testid="new-player-form"
-      onSubmit={(e) => {
-        e.preventDefault();
-        const f = new FormData(e.currentTarget);
-        create.mutate({
-          names: { en: String(f.get("name")) },
-          dob: String(f.get("dob")),
-          jerseyNumber: Number(f.get("jerseyNumber")),
-          positionCode: String(f.get("positionCode")),
-        });
-      }}
-    >
-      <label htmlFor="new-player-name">{m.player_name()}</label>
-      <input id="new-player-name" name="name" required data-testid="new-player-name" />
-
-      <label htmlFor="new-player-dob">{m.player_dob()}</label>
-      {/* A real date control, for the same reason the guardian form uses one:
-          the API wants YYYY-MM-DD, and a text box is how "18/04/2012" reaches
-          it and comes back a 400 nobody can read. */}
-      <input id="new-player-dob" name="dob" type="date" required data-testid="new-player-dob" />
-
-      <label htmlFor="new-player-number">{m.player_number()}</label>
-      <input
-        id="new-player-number"
-        name="jerseyNumber"
-        type="number"
-        min={0}
-        max={99}
-        required
-        defaultValue={0}
-        data-testid="new-player-number"
-      />
-
-      <label htmlFor="new-player-position">{m.player_position()}</label>
-      <select id="new-player-position" name="positionCode" data-testid="new-player-position">
-        {terms("positions").map((t) => (
-          <option key={t.code} value={t.code}>{label("positions", t.code)}</option>
-        ))}
-      </select>
-
-      <button type="submit" data-testid="new-player-save" disabled={create.isPending}>
-        {create.isPending ? m.event_saving() : m.player_add()}
-      </button>
-      <button type="button" className="btn" onClick={() => setOpen(false)}>
-        {m.fixture_cancel()}
-      </button>
-      {(err.form || err.field("names")) && (
-        <p className="admin-error small" data-testid="new-player-error">
-          {err.form ?? err.field("names")}
-        </p>
-      )}
-    </form>
   );
 }
 
@@ -411,12 +303,12 @@ function TeamSettings({ team }: { team: Team }) {
   const [saved, setSaved] = useState(false);
 
   const save = useMutation({
-    mutationFn: (v: { name: string; ageGroupCode: string; genderCode: string }) =>
+    mutationFn: (v: { names: Record<string, string>; ageGroupCode: string; genderCode: string }) =>
       api.teams.update({
         id: team.id,
         // The rest of the locale map survives — sending `{ en }` alone would
         // delete the Thai and Japanese names on the first save.
-        names: { ...team.names, en: v.name },
+        names: v.names,
         ageGroupCode: v.ageGroupCode as never,
         genderCode: v.genderCode as never,
       }),
@@ -441,7 +333,7 @@ function TeamSettings({ team }: { team: Team }) {
           e.preventDefault();
           const f = new FormData(e.currentTarget);
           save.mutate({
-            name: String(f.get("name")),
+            names: namesFrom(f, team.names),
             ageGroupCode: String(f.get("ageGroupCode")),
             genderCode: String(f.get("genderCode")),
           });
@@ -461,6 +353,8 @@ function TeamSettings({ team }: { team: Team }) {
             {err.field("names[en]")}
           </p>
         )}
+
+        <NameTranslations names={team.names} id="team-name" />
 
         <label htmlFor="team-age">{m.team_age_label()}</label>
         <select id="team-age" name="ageGroupCode" data-testid="team-age-input" defaultValue={team.ageGroupCode}>

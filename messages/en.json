@@ -480,5 +480,16 @@
   "home_no_next_game": "No upcoming fixture.",
   "home_no_upcoming_games": "No upcoming games.",
   "profile_sub": "Your account: who you are here, and the people you are responsible for.",
-  "home_admin": "Admin console"
+  "home_admin": "Admin console",
+  "game_box_score": "Player box score",
+  "game_box_score_hint": "Leave a count blank if it was not recorded. Zero means a recorded zero.",
+  "game_box_score_empty": "No players were on either squad on this game’s date.",
+  "game_box_score_saved": "Box score saved.",
+  "profile_account": "Your account",
+  "profile_responsibilities": "Your teams, events and invitations",
+  "event_timezone": "Time zone",
+  "event_type": "Event type",
+  "event_city": "City",
+  "event_progress": "{played} of {total} games finished",
+  "player_created_join_failed": "The player was created, but could not be added to this squad. Retry to add the same player."
 }

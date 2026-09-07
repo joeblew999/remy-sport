@@ -28,7 +28,7 @@ import type { Event } from "../data"
  *
  * A camp's sessions, and who turned up.
  */
-export function EventSessions({ eventId, can }: { eventId: string; can: Event["can"] }) {
+export function EventSessions({ eventId, can, timezone }: { eventId: string; can: Event["can"]; timezone: Event["timezone"] }) {
   const { name, locale } = useLocale()
   const qc = useQueryClient()
   const { data, isPending } = useQuery(orpc.events.sessions.queryOptions({ input: { eventId } }))
@@ -48,7 +48,7 @@ export function EventSessions({ eventId, can }: { eventId: string; can: Event["c
   // One register open at a time.
   const [openRegister, setOpenRegister] = useState<string | null>(null)
 
-  const err = formErrors(addSession.error, ["startsAt", "endsAt"])
+  const err = formErrors(addSession.error ?? removeSession.error)
   const sessions = data?.sessions ?? []
 
   /**
@@ -72,7 +72,7 @@ export function EventSessions({ eventId, can }: { eventId: string; can: Event["c
   }
 
   /** The venue's clock, from the first session — they share an event. */
-  const zone = data?.sessions[0]?.timezone ?? null
+  const zone = timezone ?? data?.sessions[0]?.timezone ?? null
 
   return (
     <div className="page-inner">
@@ -199,6 +199,7 @@ function Register({
     onSuccess: () => qc.invalidateQueries({ queryKey: orpc.events.key() }),
   })
 
+  const attendanceError = formErrors(record.error)
   const players = data?.players ?? []
 
   return (
@@ -223,6 +224,7 @@ function Register({
           </span>
         </label>
       ))}
+      {attendanceError.form && <p role="alert" className="admin-error small">{attendanceError.form}</p>}
     </div>
   )
 }

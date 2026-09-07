@@ -1,3 +1,4 @@
+import { formErrors } from "../lib/form-errors"
 /**
  * Entering your child in a camp.
  *
@@ -62,6 +63,8 @@ export function EventPlayers({ eventId }: { eventId: string }) {
     onSuccess: invalidate,
   })
 
+  const err = formErrors(enter.error ?? withdraw.error)
+
   const players = mine?.players ?? []
   const busy = enter.isPending || withdraw.isPending
 
@@ -107,6 +110,7 @@ export function EventPlayers({ eventId }: { eventId: string }) {
             </div>
           )
         })}
+        {err.form && <p role="alert" className="admin-error small">{err.form}</p>}
       </div>
     </div>
   )

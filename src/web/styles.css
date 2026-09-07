@@ -1710,3 +1710,10 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   color: var(--accent-deep);
   font-weight: 600;
 }
+
+/* A box score expands below its fixture, including on a narrow phone. */
+.schedule-game { flex-wrap: wrap; }
+.game-box-score { flex: 1 0 100%; min-width: 0; }
+.game-box-score .admin-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.game-box-score h3, .game-box-score [role] { grid-column: 1 / -1; }
+.game-box-score input { width: 100%; box-sizing: border-box; }

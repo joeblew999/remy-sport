@@ -12,7 +12,7 @@
  */
 
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { api, orpc } from "../lib/orpc";
 import { useEntries, useEventVenues, useGames } from "../lib/data";
 import { useLocale } from "../lib/locale";
@@ -21,6 +21,14 @@ import { m } from "../lib/i18n";
 import type { Route } from "../lib/router";
 import type { Event } from "../data";
 import { formatTimeOn, fromLocalInput, toLocalInput } from "../lib/dates";
+import { Can } from "./can";
+import { GameStats } from "./game-stats";
+
+/** Fixture/result changes also alter event progress, standings and team records. */
+function refreshGameViews(qc: QueryClient) {
+  return Promise.all([orpc.games.key(), orpc.events.key(), orpc.standings.key(), orpc.teams.key()]
+    .map((queryKey) => qc.invalidateQueries({ queryKey })));
+}
 
 type Game = NonNullable<ReturnType<typeof useGames>["data"]>["games"][number];
 
@@ -133,7 +141,7 @@ function GameRow({
   const played = game.homeScore !== null && game.awayScore !== null;
 
   return (
-    <div className="device-row" data-testid={`game-${game.id}`}>
+    <div className="device-row schedule-game" data-testid={`game-${game.id}`}>
       <div>
         <div className="device-label">
           {game.homeTeam} <span className="muted">{m.versus()}</span> {game.awayTeam}
@@ -167,29 +175,29 @@ function GameRow({
             </>
           )}
           {" · "}
-          {game.can.CONFIRM_MATCH_STATUS ? (
-            <GameStatus game={game} />
-          ) : (
+          <Can of={game} action="CONFIRM_MATCH_STATUS" fallback={
             <span
               data-testid={`game-status-${game.id}`}
               style={game.statusCode === "LIVE" ? { color: "var(--live)" } : undefined}
             >
               {game.statusLabel}
             </span>
-          )}
+          }><GameStatus game={game} /></Can>
         </div>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         {editing ? (
+          <Can of={game} action="ENTER_SCORES">
           <ScoreForm game={game} onDone={() => setEditing(false)} />
+          </Can>
         ) : (
           <>
             <span className="score-cell" data-testid={`score-${game.id}`}>
               {/* Spoiler mode hides the result, not the fixture. */}
               {spoiler && played ? m.spoiler_hidden() : played ? `${game.homeScore}–${game.awayScore}` : "—"}
             </span>
-            {game.can.ASSIGN_REFEREE && <Referees game={game} />}
+            <Can of={game} action="ASSIGN_REFEREE"><Referees game={game} /></Can>
             {/*
               Where a broadcaster actually starts.
        
@@ -202,7 +210,7 @@ function GameRow({
               somebody reading a schedule does not have to know a second page
               exists.
             */}
-            {game.isBroadcasting && (
+            {goto && game.isBroadcasting && (
               <button
                 className="btn primary"
                 data-testid={`watch-fixture-${game.id}`}
@@ -211,7 +219,8 @@ function GameRow({
                 {m.video_watch()}
               </button>
             )}
-            {game.can.BROADCAST_GAME && !game.isBroadcasting && (
+            {goto && !game.isBroadcasting && (
+              <Can of={game} action="BROADCAST_GAME">
               <button
                 className="btn"
                 data-testid={`broadcast-fixture-${game.id}`}
@@ -219,8 +228,9 @@ function GameRow({
               >
                 {m.video_broadcast()}
               </button>
+              </Can>
             )}
-            {game.can.ENTER_SCORES && (
+            <Can of={game} action="ENTER_SCORES">
               <button
                 className="btn"
                 data-testid={`enter-score-${game.id}`}
@@ -228,15 +238,16 @@ function GameRow({
               >
                 {played ? m.correct_score() : m.enter_score()}
               </button>
-            )}
+            </Can>
             {/* Both `games.update` and `games.remove` were enforced and
                 unreachable, so a fixture entered at the wrong time stayed at
                 the wrong time and a mistake could never be taken back. */}
-            {can.MANAGE_FIXTURES && <ManageFixture game={game} />}
-            {can.ASSIGN_COURTS && <AssignVenue game={game} eventId={eventId} />}
+            <Can of={{ can }} action="MANAGE_FIXTURES"><ManageFixture game={game} /></Can>
+            <Can of={{ can }} action="ASSIGN_COURTS"><AssignVenue game={game} eventId={eventId} /></Can>
           </>
         )}
       </div>
+      <Can of={game} action="ENTER_SCORES"><GameStats gameId={game.id} /></Can>
     </div>
   );
 }
@@ -267,7 +278,7 @@ function GameRow({
 function ManageFixture({ game }: { game: Game }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const invalidate = () => qc.invalidateQueries({ queryKey: orpc.games.key() });
+  const invalidate = () => refreshGameViews(qc);
 
   const move = useMutation({
     mutationFn: (startsAt: string) =>
@@ -284,6 +295,7 @@ function ManageFixture({ game }: { game: Game }) {
   });
 
   const err = formErrors(move.error, ["startsAt"]);
+  const dropErr = formErrors(drop.error);
 
   if (!open) {
     return (
@@ -305,6 +317,7 @@ function ManageFixture({ game }: { game: Game }) {
         >
           {drop.isPending ? m.fixture_removing() : m.fixture_remove()}
         </button>
+        {dropErr.form && <p role="alert" className="admin-error small">{dropErr.form}</p>}
       </>
     );
   }
@@ -365,8 +378,9 @@ function AssignVenue({ game, eventId }: { game: Game; eventId: string | undefine
   const assign = useMutation({
     mutationFn: (venueId: string | null) =>
       api.games.assignVenue({ id: game.id, eventId: game.eventId, venueId }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: orpc.games.key() }),
+    onSuccess: () => refreshGameViews(qc),
   });
+  const err = formErrors(assign.error);
 
   // Nothing to choose between: an event with no courts recorded needs a venue
   // added on the Venues tab first, and a select with one empty option is a
@@ -391,6 +405,7 @@ function AssignVenue({ game, eventId }: { game: Game; eventId: string | undefine
           </option>
         ))}
       </select>
+      {err.form && <p role="alert" className="admin-error small">{err.form}</p>}
     </>
   );
 }
@@ -414,11 +429,15 @@ function GameStatus({ game }: { game: Game }) {
   const set = useMutation({
     mutationFn: (statusCode: string) =>
       api.games.setStatus({ id: game.id, statusCode: statusCode as never }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: orpc.games.key() }),
+    onSuccess: () => refreshGameViews(qc),
   });
+  const err = formErrors(set.error);
 
   return (
+    <>
+    <label className="sr-only" htmlFor={`status-${game.id}`}>{game.homeTeam} {m.versus()} {game.awayTeam}</label>
     <select
+      id={`status-${game.id}`}
       className="status-select"
       data-testid={`game-status-${game.id}`}
       value={game.statusCode}
@@ -432,6 +451,8 @@ function GameStatus({ game }: { game: Game }) {
         </option>
       ))}
     </select>
+    {err.form && <p role="alert" className="admin-error small">{err.form}</p>}
+    </>
   );
 }
 
@@ -445,7 +466,7 @@ function GameStatus({ game }: { game: Game }) {
  */
 function Referees({ game }: { game: Game }) {
   const qc = useQueryClient();
-  const invalidate = () => qc.invalidateQueries({ queryKey: orpc.games.key() });
+  const invalidate = () => refreshGameViews(qc);
 
   const assign = useMutation({
     mutationFn: (userId: string) => api.games.assignReferee({ id: game.id, userId }),
@@ -457,6 +478,8 @@ function Referees({ game }: { game: Game }) {
   });
 
   const free = game.availableReferees;
+  const err = formErrors(assign.error ?? unassign.error);
+  const pending = assign.isPending || unassign.isPending;
 
   return (
     <span className="referee-picker" data-testid={`assign-referee-${game.id}`}>
@@ -466,6 +489,7 @@ function Referees({ game }: { game: Game }) {
           className="badge badge-outline"
           title={m.remove_from_squad()}
           data-testid={`unassign-${game.id}-${r.userId}`}
+          disabled={pending}
           onClick={() => unassign.mutate(r.userId)}
         >
           {r.name} ×
@@ -473,6 +497,8 @@ function Referees({ game }: { game: Game }) {
       ))}
       {free.length > 0 && (
         <select
+          aria-label={m.assign_referee()}
+          disabled={pending}
           value=""
           data-testid={`referee-select-${game.id}`}
           onChange={(e) => e.target.value && assign.mutate(e.target.value)}
@@ -485,6 +511,7 @@ function Referees({ game }: { game: Game }) {
           ))}
         </select>
       )}
+      {err.form && <span role="alert" className="admin-error small">{err.form}</span>}
     </span>
   );
 }
@@ -496,7 +523,7 @@ function ScoreForm({ game, onDone }: { game: Game; onDone: () => void }) {
     mutationFn: (v: { homeScore: number; awayScore: number }) =>
       api.games.enterScore({ id: game.id, ...v }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: orpc.games.key() });
+      void refreshGameViews(qc);
       onDone();
     },
   });
@@ -560,14 +587,14 @@ function ScoreForm({ game, onDone }: { game: Game; onDone: () => void }) {
  * teams that actually entered. The API refuses anything else; offering it here
  * would be a form that teaches people to expect errors.
  */
-export function AddFixture({ eventId, can }: { eventId: string; can: Event["can"] }) {
+export function AddFixture({ eventId, can, timezone }: { eventId: string; can: Event["can"]; timezone: Event["timezone"] }) {
   const qc = useQueryClient();
   const { data: entries } = useEntries(eventId);
 
   const add = useMutation({
     mutationFn: (v: { homeTeamId: string; awayTeamId: string; startsAt: string }) =>
       api.games.create({ eventId, ...v }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: orpc.games.key() }),
+    onSuccess: () => refreshGameViews(qc),
   });
 
   /**
@@ -581,21 +608,22 @@ export function AddFixture({ eventId, can }: { eventId: string; can: Event["can"
   const generate = useMutation({
     mutationFn: (v: { startDate: string }) =>
       api.games.generateFixtures({ eventId, startDate: v.startDate }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: orpc.games.key() }),
+    onSuccess: () => refreshGameViews(qc),
   });
 
   const addErr = formErrors(add.error, ["startsAt"]);
-  const genErr = formErrors(generate.error, ["startDate"]);
+  const genErr = formErrors(generate.error);
   const teams = entries?.registered ?? [];
-  // The server's answer, per event. Two teams alone is not permission.
-  if (!can.MANAGE_FIXTURES || teams.length < 2) return null;
+  if (teams.length < 2) return null;
 
   return (
-    <section className="admin-card" style={{ marginTop: 16 }} data-testid="add-fixture">
-      <h2>{m.add_fixture()}</h2>
+    <>
 
       {/* Before the one-at-a-time form, because it is the thing an organiser
           wants first and the form is what you reach for afterwards. */}
+      <Can of={{ can }} action="GENERATE_FIXTURES">
+      <section className="admin-card" style={{ marginTop: 16 }}>
+      <h2>{m.generate_fixtures()}</h2>
       <form
         className="admin-form"
         data-testid="generate-fixtures"
@@ -619,7 +647,12 @@ export function AddFixture({ eventId, can }: { eventId: string; can: Event["can"
           <p className="admin-error small" data-testid="generate-error">{genErr.form}</p>
         )}
       </form>
+      </section>
+      </Can>
 
+      <Can of={{ can }} action="MANAGE_FIXTURES">
+      <section className="admin-card" style={{ marginTop: 16 }} data-testid="add-fixture">
+      <h2>{m.add_fixture()}</h2>
       <form
         className="admin-form"
         onSubmit={(e) => {
@@ -628,8 +661,7 @@ export function AddFixture({ eventId, can }: { eventId: string; can: Event["can"
           add.mutate({
             homeTeamId: String(f.get("home")),
             awayTeamId: String(f.get("away")),
-            // `datetime-local` has no zone; the fixtures store UTC.
-            startsAt: new Date(String(f.get("startsAt"))).toISOString(),
+            startsAt: fromLocalInput(String(f.get("startsAt")), timezone),
           });
         }}
       >
@@ -643,7 +675,8 @@ export function AddFixture({ eventId, can }: { eventId: string; can: Event["can"
             <option key={t.teamId} value={t.teamId}>{t.team}</option>
           ))}
         </select>
-        <input name="startsAt" type="datetime-local" required data-testid="fixture-starts" />
+        <label htmlFor="fixture-starts">{m.fixture_when()} {timezone}</label>
+        <input id="fixture-starts" name="startsAt" type="datetime-local" required data-testid="fixture-starts" />
         {addErr.field("startsAt") && (
           <p className="admin-error small" data-testid="fixture-starts-issue">
             {addErr.field("startsAt")}
@@ -663,6 +696,8 @@ export function AddFixture({ eventId, can }: { eventId: string; can: Event["can"
           </p>
         )}
       </form>
-    </section>
+      </section>
+      </Can>
+    </>
   );
 }
