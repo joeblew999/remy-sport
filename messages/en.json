@@ -491,5 +491,6 @@
   "event_type": "Event type",
   "event_city": "City",
   "event_progress": "{played} of {total} games finished",
-  "player_created_join_failed": "The player was created, but could not be added to this squad. Retry to add the same player."
+  "player_created_join_failed": "The player was created, but could not be added to this squad. Retry to add the same player.",
+  "err_broadcast_occupied": "Another broadcaster is already covering this game. Wait for them to stop, then try again."
 }

@@ -1,0 +1,49 @@
+diff --git a/connection/connect.js b/connection/connect.js
+index 9dda0e80a01fb4b83efe5f21c8db8ab8eae5200f..7bf3df055fa35402f6f6ee2f7e2837cf9da23132 100644
+--- a/connection/connect.js
++++ b/connection/connect.js
+@@ -83,11 +83,11 @@ async function connectInner(url, props, abort) {
+     void abort.then(() => session.close());
+     // Save if WebSocket won the last race, so we won't give QUIC a head start next time.
+     if (session instanceof Session) {
+-        console.warn(url.toString(), "connected via WebSocket");
++        console.warn(url.origin, "connected via WebSocket");
+         websocketWon.add(url.toString());
+     }
+     else {
+-        console.debug(url.toString(), "connected via WebTransport");
++        console.debug(url.origin, "connected via WebTransport");
+     }
+     // The remaining setup is identical whether the transport was raced or supplied.
+     return await connectTransport(url, session, discovery);
+@@ -96,7 +96,7 @@ async function connectTransport(url, session, discovery) {
+     // qmux Session exposes the negotiated protocol directly (as "" when there is none);
+     // native WebTransport doesn't have a standard .protocol property yet.
+     const protocol = session.protocol || undefined;
+-    console.debug(url.toString(), "negotiated ALPN:", protocol ?? "(none)");
++    console.debug(url.origin, "negotiated ALPN:", protocol ?? "(none)");
+     // Choose setup encoding based on negotiated WebTransport protocol (if any).
+     let setupVersion;
+     const modernVersion = protocol === Ietf.ALPN.DRAFT_20
+@@ -271,7 +271,7 @@ async function connectWebTransport(url, cancel, options) {
+         // Dev-only path: http:// can't be a real WebTransport origin, so we fetch the
+         // self-signed cert's hash over plain HTTP and pin it. Production uses https://
+         // and never reaches here. Keep this at debug so it doesn't read as a problem.
+-        console.debug(fingerprintUrl.toString(), "performing an insecure fingerprint fetch; use https:// in production");
++        console.debug(fingerprintUrl.origin, "performing an insecure fingerprint fetch; use https:// in production");
+         // Fetch the fingerprint from the server.
+         // TODO cancel the request if the effect is cancelled.
+         const fingerprint = await Promise.race([fetch(fingerprintUrl), cancel]);
+diff --git a/connection/reload.js b/connection/reload.js
+index 6de6e3c49961342916e9d8290371d4a55ea6bec7..00ef823588919db7991f1a2e8c2b4a77bc3d39c8 100644
+--- a/connection/reload.js
++++ b/connection/reload.js
+@@ -137,7 +137,7 @@ export class Reload {
+                 // Treat teardown as cancellation, not a connection failure.
+                 if (signal.aborted)
+                     return;
+-                console.warn("connection error:", err);
++                console.warn("connection error:", err instanceof Error ? err.name : "Error");
+                 this.#retry(effect, connected, err);
+             }
+         });

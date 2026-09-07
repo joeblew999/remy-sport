@@ -491,5 +491,6 @@
   "event_type": "イベントの種類",
   "event_city": "都市",
   "event_progress": "全{total}試合中{played}試合終了",
-  "player_created_join_failed": "選手を作成しましたが、チームに追加できませんでした。再試行すると同じ選手を追加します。"
+  "player_created_join_failed": "選手を作成しましたが、チームに追加できませんでした。再試行すると同じ選手を追加します。",
+  "err_broadcast_occupied": "この試合は別の配信者が配信中です。配信が終了してから、もう一度お試しください。"
 }

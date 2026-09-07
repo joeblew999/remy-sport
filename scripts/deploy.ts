@@ -25,9 +25,9 @@
  * which is what proves the two hostnames are disjoint in the first place.
  */
 
-import { existsSync, readdirSync } from "node:fs"
 import { prepare } from "./lib/prepare"
-import { Refused, originOf, resolveTarget, wrangler, type Target } from "./lib/cloudflare"
+import { Refused, accountId, originOf, resolveTarget, workerName, wrangler, type Target } from "./lib/cloudflare"
+import { buildConfig } from "./deploy/build-config"
 
 /**
  * This build's identity, minted here and baked into the Worker by
@@ -75,7 +75,7 @@ const PIPELINE: Phase[] = [
   {
     name: "publish",
     why: "the only irreversible step, and everything it depends on is already in place",
-    go: () => publish(),
+    go: (target) => publish(target),
   },
   {
     name: "wait",
@@ -114,12 +114,9 @@ function step(label: string, argv: string[], env: Record<string, string> = {}): 
  * `remy-sport-staging-staging` — which it did, once, taking the custom domain
  * with it.
  */
-function publish(): void {
+function publish(target: Target): void {
   console.log(`\n── publish`)
-  const generated = readdirSync("dist")
-    .map((d) => `dist/${d}/wrangler.json`)
-    .find((p) => existsSync(p))
-  if (!generated) throw new Refused("no dist/*/wrangler.json — the build step did not run")
+  const generated = buildConfig("dist", workerName(target), accountId())
   delete process.env.CLOUDFLARE_ENV
   const published = wrangler(["deploy", "--config", generated], undefined, { inherit: true })
   if (published.code !== 0) throw new Refused("publish failed")

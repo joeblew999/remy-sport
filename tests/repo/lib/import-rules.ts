@@ -50,8 +50,8 @@ const RULES: Rule[] = [
   {
     name: "spa-reaches-only-the-shared-roots",
     why:
-      "The SPA's runtime reach is src/web, src/domain and src/paraglide, and " +
-      "nothing else. It may still import TYPES from anywhere — `import type " +
+      "The SPA's runtime reach is src/web, src/domain, src/paraglide and the " +
+      "dependency-free src/moq-relay.ts protocol helper. It may still import TYPES from anywhere — `import type " +
       "{ Router }` is how the client is typed, and types erase. What it must not " +
       "do is import an implementation: that would pull drizzle, Better Auth and " +
       "the D1 bindings into the browser bundle. " +
@@ -65,7 +65,12 @@ const RULES: Rule[] = [
       e.from.startsWith("src/web/") &&
       !e.typeOnly &&
       e.to.startsWith("src/") &&
-      !/^src\/(web|domain|paraglide)\//.test(e.to),
+      !/^src\/(web|domain|paraglide)\//.test(e.to) && e.to !== "src/moq-relay.ts",
+  },
+  {
+    name: "relay-protocol-helper-is-independent",
+    why: "src/moq-relay.ts is shared by browser, Worker and setup scripts. It must not acquire runtime dependencies on application code.",
+    broken: (e) => e.from === "src/moq-relay.ts" && !e.typeOnly,
   },
   {
     name: "screens-never-decide",

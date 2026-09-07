@@ -58,6 +58,28 @@ describe("Who may broadcast a game", () => {
 })
 
 describe("Knowing that somebody is broadcasting", () => {
+  it("allows only one of two authorized broadcasters to claim a game", async () => {
+    const referee = await signIn(refereeEmail)
+    const admin = await signIn(actorFor("ADMIN"))
+    await stop(refereedGame.gameId, referee)
+    await stop(refereedGame.gameId, admin)
+    const actors = [referee, admin]
+    const results = await Promise.all(actors.map(cookie => broadcast(refereedGame.gameId, cookie)))
+    try {
+      expect(results.map(result => result.status).sort()).toEqual([200, 409])
+      const owner = actors[results.findIndex(result => result.status === 200)]!
+      const other = actors[results.findIndex(result => result.status === 409)]!
+      expect((await stop(refereedGame.gameId, other)).status).toBe(409)
+      expect((await gameById(refereedGame.gameId)).isBroadcasting).toBe(true)
+      expect((await broadcast(refereedGame.gameId, owner)).status).toBe(200)
+      expect((await stop(refereedGame.gameId, owner)).status).toBe(200)
+      expect((await broadcast(refereedGame.gameId, other)).status).toBe(200)
+      expect((await stop(refereedGame.gameId, other)).status).toBe(200)
+    } finally {
+      await stop(refereedGame.gameId, referee)
+      await stop(refereedGame.gameId, admin)
+    }
+  })
   it("is false until somebody says otherwise, and true once they do", async () => {
     const cookie = await signIn(refereeEmail)
     // Explicitly, rather than assuming a clean slate: these tests share one

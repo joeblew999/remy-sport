@@ -30,6 +30,7 @@
         "@cloudflare/vitest-plugin": "^1.1.4",
         "@inlang/cli": "^3.3.4",
         "@inlang/paraglide-js": "2.25.0",
+        "@moq/net": "0.3.4",
         "@playwright/test": "^1.63.0",
         "@tauri-apps/cli": "^2.11.4",
         "@tauri-apps/plugin-log": "^2.9.1",
@@ -54,6 +55,9 @@
         "wrangler": "4.129.0",
       },
     },
+  },
+  "patchedDependencies": {
+    "@moq/net@0.3.4": "patches/@moq%2Fnet@0.3.4.patch",
   },
   "overrides": {
     "sharp": "0.35.2",

@@ -16,7 +16,7 @@
  * looking up a score should not need an account.
  */
 
-import { and, eq, gte, inArray } from "drizzle-orm"
+import { and, eq, gte, inArray, lt, or } from "drizzle-orm"
 import { z } from "zod"
 import { track } from "../analytics"
 import * as schema from "../db/schema"
@@ -811,7 +811,8 @@ export const startBroadcast = authed
   .input(IdInput)
   .output(z.object({ broadcasting: z.literal(true) }))
   .use(requireAction("BROADCAST_GAME"))
-  .handler(async ({ context, input }) => {
+  .errors({ BROADCAST_OCCUPIED: ERRORS.BROADCAST_OCCUPIED })
+  .handler(async ({ context, input, errors }) => {
     const now = new Date().toISOString()
     // Read first, so the *transition* is distinguishable from the heartbeat.
     // This procedure is called every twenty seconds for as long as a camera is
@@ -819,12 +820,12 @@ export const startBroadcast = authed
     // for an hour is a hundred and eighty times more interesting than one that
     // ran for a minute, which is backwards.
     const [existing] = await context.db
-      .select({ startedAt: schema.gameBroadcast.startedAt })
+      .select({ startedAt: schema.gameBroadcast.startedAt, userId: schema.gameBroadcast.userId })
       .from(schema.gameBroadcast)
       .where(eq(schema.gameBroadcast.gameId, input.id))
       .limit(1)
 
-    await context.db
+    const claimed = await context.db
       .insert(schema.gameBroadcast)
       .values({ gameId: input.id, userId: context.user.id, startedAt: now, lastSeenAt: now })
       .onConflictDoUpdate({
@@ -832,7 +833,9 @@ export const startBroadcast = authed
         // `startedAt` is deliberately not touched on a refresh: it is when this
         // broadcast began, which is what a viewer joining late wants to know.
         set: { userId: context.user.id, lastSeenAt: now },
-      })
+        setWhere: or(eq(schema.gameBroadcast.userId, context.user.id), lt(schema.gameBroadcast.lastSeenAt, freshSince())),
+      }).returning({ gameId: schema.gameBroadcast.gameId })
+    if (!claimed.length) throw errors.BROADCAST_OCCUPIED()
 
     if (!existing) track(context.env, "broadcast.started", { gameId: input.id })
     return { broadcasting: true as const }
@@ -843,14 +846,16 @@ export const stopBroadcast = authed
   .input(IdInput)
   .output(z.object({ broadcasting: z.literal(false) }))
   .use(requireAction("BROADCAST_GAME"))
-  .handler(async ({ context, input }) => {
+  .errors({ BROADCAST_OCCUPIED: ERRORS.BROADCAST_OCCUPIED })
+  .handler(async ({ context, input, errors }) => {
     const [existing] = await context.db
-      .select({ startedAt: schema.gameBroadcast.startedAt })
+      .select({ startedAt: schema.gameBroadcast.startedAt, userId: schema.gameBroadcast.userId })
       .from(schema.gameBroadcast)
       .where(eq(schema.gameBroadcast.gameId, input.id))
       .limit(1)
 
-    await context.db.delete(schema.gameBroadcast).where(eq(schema.gameBroadcast.gameId, input.id))
+    if (existing && existing.userId !== context.user.id) throw errors.BROADCAST_OCCUPIED()
+    await context.db.delete(schema.gameBroadcast).where(and(eq(schema.gameBroadcast.gameId, input.id), eq(schema.gameBroadcast.userId, context.user.id)))
 
     // How long it ran is the number that says whether this works in a gym. A
     // broadcast that ends after forty seconds, every time, is a story about

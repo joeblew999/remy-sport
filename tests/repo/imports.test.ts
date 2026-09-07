@@ -1,7 +1,7 @@
 import { rmSync, writeFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
 import { sources } from "./lib/ast"
-import { importViolations } from "./lib/import-rules"
+import { IMPORT_RULES, importViolations } from "./lib/import-rules"
 import { rule } from "./helpers"
 
 /**
@@ -63,6 +63,10 @@ const BREAKS: Array<[rule: string, files: Record<string, string>]> = [
 /** A type import erases, so it cannot pull an implementation into a bundle. */
 const ALLOWED: Array<[name: string, files: Record<string, string>]> = [
   [
+    "the shared relay protocol helper from the SPA",
+    { "src/web/.fx-relay.ts": `import { isCloudflareMoq } from "../moq-relay"\nexport const check = isCloudflareMoq` },
+  ],
+  [
     "a type-only import from the SPA into the API — how the client is typed",
     { "src/web/.fx-typeonly.ts": `import type { Router } from "../api/index"\nexport type R = Router` },
   ],
@@ -75,6 +79,12 @@ const ALLOWED: Array<[name: string, files: Record<string, string>]> = [
 ]
 
 describe("the rules themselves, on a graph whose answer is known", () => {
+  it("keeps the shared relay helper free of server runtime dependencies", () => {
+    const guard = IMPORT_RULES.find(rule => rule.name === "relay-protocol-helper-is-independent")!
+    const edge = { from: "src/moq-relay.ts", to: "src/api/db.ts", line: 1, typeOnly: false }
+    expect(guard.broken(edge)).toBe(true)
+    expect(guard.broken({ ...edge, typeOnly: true })).toBe(false)
+  })
   const withFiles = <T,>(files: Record<string, string>, body: () => T): T => {
     for (const [path, source] of Object.entries(files)) writeFileSync(path, source)
     try {

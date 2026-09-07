@@ -8,32 +8,23 @@
  * Video that works on a laptop in an office tells us nothing we need.
  */
 
-/**
- * Where the relay is, and the token that scopes us to it.
- *
- * Fetched from `/api/moq/config`, not read from the bundle. The token travels
- * in the relay URL's **path**, which Cloudflare warns puts it in server access
- * logs; a literal in index.html would also put it in git, ship it to every
- * visitor forever, and make rotation a redeploy. As a Worker secret it is none
- * of those.
- *
- * Null when unset, and every surface renders a notice instead of failing —
- * which is the state until a relay is provisioned.
- */
+import { isCloudflareMoq } from "../../moq-relay"
+
+/** Fetched from the API after permission checks. Never log credential URLs. */
 export interface MoqConfig {
   url: string
   token: string
 }
 
-/**
- * The URL to connect to: Cloudflare puts the token in the **path**.
- *
- * moq-relay's own scheme is `?jwt=`, and `@moq/net` hands the URL to
- * WebTransport untouched, so the path form works even though it is not what the
- * upstream project documents.
- */
+/** Match the configured provider's authentication protocol. */
 export function relayUrl(c: MoqConfig): string {
-  return `${c.url.replace(/\/$/, "")}/${c.token}`
+  const url = new URL(c.url)
+  if (isCloudflareMoq(url)) {
+    url.pathname = `/${encodeURIComponent(c.token)}`
+    return url.toString()
+  }
+  url.searchParams.set("jwt", c.token)
+  return url.toString()
 }
 
 /**

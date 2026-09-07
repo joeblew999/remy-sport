@@ -28,6 +28,7 @@ import { z } from "zod"
 const NOT_FOUND = { status: 404 } as const
 
 export const ERRORS = {
+  BROADCAST_OCCUPIED: { status: 409 },
   // ── Fixtures ──────────────────────────────────────────────────────────────
   TEAM_PLAYS_ITSELF: { status: 400 },
   TEAM_NOT_ENTERED: {

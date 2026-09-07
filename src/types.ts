@@ -95,33 +95,12 @@ export type Bindings = {
    * a new key cannot sign for endpoints the old one created — they fail 403
    * until each reader re-subscribes.
    */
-  /**
-   * The MoQ relay for the live-video harness.
-   *
-   * A Worker secret rather than a literal in `index.html`, for the reason
-   * Cloudflare states themselves: the token travels in the URL *path*, so it
-   * lands in server access logs. Baking it into the bundle would also put it in
-   * git, ship it to every visitor forever, and make rotating it a redeploy.
-   *
-   * Optional together. Absent, `/api/moq/config` answers null and every video
-   * surface renders a notice instead of failing — which is the default state.
-   */
+  /** HTTPS origin of Cloudflare MoQ or a scoped adapter; no token in this URL. */
   MOQ_RELAY_URL?: string
-  /**
-   * Publish + subscribe. Handed only to the broadcast surface.
-   *
-   * Anyone who loads that page can read it and publish — which is what the
-   * harness needs and is only tolerable because nothing decides who may
-   * broadcast (src/web/pages/video.tsx says why).
-   */
+  /** Private HS256 JWK shared only by Worker issuer and relay verifier. */
+  MOQ_RELAY_SIGNING_KEY?: string
+  /** Cloudflare publish and subscribe-only capabilities; checked separately. */
   MOQ_RELAY_TOKEN?: string
-  /**
-   * Subscribe only, for watchers — who are most people.
-   *
-   * The whole point of the split: a token scraped from the watch page cannot
-   * start a broadcast. Falls back to the publish token if unset, so a
-   * deployment with one token still works rather than silently going dark.
-   */
   MOQ_RELAY_TOKEN_SUBSCRIBE?: string
   VAPID_SUBJECT?: string
   VAPID_PUBLIC_KEY?: string

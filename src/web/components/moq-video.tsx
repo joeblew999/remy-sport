@@ -42,13 +42,33 @@ import {
   reportSession,
 } from "../lib/moq"
 
+// Why these two packages stay: live video is set up and working on production,
+// the relay and its tokens are src/api/moq.ts, and these elements are the only
+// client for it. A real feature, not an experiment.
+import { formErrors } from "../lib/form-errors"
 import "@moq/watch/element"
 import "@moq/publish/element"
 
 /** The relay, from the server. Watchers get a subscribe-only token. */
-function useRelay(role: "watch" | "publish", gameId?: string) {
-  const { data } = useQuery(orpc.moq.config.queryOptions({ input: { role, ...(role === "publish" ? { gameId } : {}) } }))
-  return data?.url && data.token ? { url: data.url, token: data.token } : undefined
+function useRelay(role: "watch" | "publish", gameId: string) {
+  const query = useQuery({
+    ...orpc.moq.config.queryOptions({ input: { role, gameId } }),
+    refetchInterval: 40_000,
+    refetchIntervalInBackground: true,
+    staleTime: 0,
+    retry: false,
+  })
+  // A denied renewal must unmount the connection and release the camera, not
+  // keep using TanStack's retained last-success capability.
+  const data = query.isError ? undefined : query.data
+  return { config: data?.url && data.token ? { url: data.url, token: data.token } : undefined, error: query.error, retry: query.refetch }
+}
+
+function RelayError({ error, retry }: { error: unknown; retry: () => unknown }) {
+  return <div className="moq-hint" role="alert" data-testid="moq-renewal-denied">
+    {formErrors(error).form ?? m.video_not_permitted()}
+    <button type="button" onClick={() => { void retry() }}>{m.push_retry()}</button>
+  </div>
 }
 
 /**
@@ -166,7 +186,7 @@ function useMoqElement(
 
 /** Watch one game's broadcast. */
 export function GameVideo({ gameId }: { gameId: string }) {
-  const config = useRelay("watch")
+  const { config, error, retry } = useRelay("watch", gameId)
   const [el, setEl] = useState<HTMLElement | null>(null)
   const [attempt, setAttempt] = useState(0)
   useMoqElement(el, "watch", gameId, false)
@@ -206,6 +226,7 @@ export function GameVideo({ gameId }: { gameId: string }) {
    */
   const { data: game } = useGame(gameId, { refetchInterval: 10_000 })
 
+  if (error) return <RelayError error={error} retry={retry} />
   if (!config) return <NoRelay />
 
   return (
@@ -230,16 +251,18 @@ export function GameVideo({ gameId }: { gameId: string }) {
 
 /** @answers BROADCAST_GAME */
 export function GameBroadcast({ gameId }: { gameId: string }) {
-  const config = useRelay("publish", gameId)
+  const { config, error, retry } = useRelay("publish", gameId)
   const { data: game } = useGame(gameId, { refetchInterval: 10_000 })
+  if (error) return <RelayError error={error} retry={retry} />
   if (!config) return <NoRelay />
   return <Can of={game} action="BROADCAST_GAME" fallback={
     <div className="moq-hint" data-testid="moq-not-permitted">{game ? m.video_not_permitted() : m.loading()}</div>
   }><Publisher gameId={gameId} config={config} /></Can>
 }
 
-function Publisher({ gameId, config }: { gameId: string; config: NonNullable<ReturnType<typeof useRelay>> }) {
+function Publisher({ gameId, config }: { gameId: string; config: NonNullable<ReturnType<typeof useRelay>["config"]> }) {
   const [el, setEl] = useState<HTMLElement | null>(null)
+  const [broadcastError, setBroadcastError] = useState<unknown>(null)
   const [source, setSource] = useState<"camera" | "screen" | null>(null)
   useMoqElement(el, "publish", gameId, true)
   const qc = useQueryClient()
@@ -257,7 +280,14 @@ function Publisher({ gameId, config }: { gameId: string; config: NonNullable<Ret
    */
   useEffect(() => {
     if (source === null) return
-    const beat = () => void api.games.startBroadcast({ id: gameId }).catch(() => undefined)
+    let active = true
+    const beat = () => void api.games.startBroadcast({ id: gameId }).catch((error: unknown) => {
+      if (!active) return
+      const node = el as (HTMLElement & { source?: unknown }) | null
+      if (node) node.source = undefined
+      setSource(null)
+      setBroadcastError(error)
+    })
     beat()
     const timer = setInterval(beat, 20_000)
     // `pagehide`, not `unload`: it is the one that fires on iOS when an app is
@@ -288,6 +318,7 @@ function Publisher({ gameId, config }: { gameId: string; config: NonNullable<Ret
     }
     window.addEventListener("pagehide", bye)
     return () => {
+      active = false
       clearInterval(timer)
       window.removeEventListener("pagehide", bye)
     }
@@ -296,7 +327,7 @@ function Publisher({ gameId, config }: { gameId: string; config: NonNullable<Ret
     // mutation object keeps this honest: a mutation is a new object each render,
     // and depending on it would clear and restart the interval continuously — a
     // heartbeat that never beats.
-  }, [source, gameId])
+  }, [source, gameId, el])
 
   // Unmounting after permission loss or navigation must release capture too.
   useEffect(() => () => {
@@ -310,6 +341,7 @@ function Publisher({ gameId, config }: { gameId: string; config: NonNullable<Ret
     // Setting `source` is what calls getUserMedia, so the permission prompt is
     // a direct result of this click — which browsers require and which is the
     // honest moment to ask.
+    setBroadcastError(null)
     node.source = which
     setSource(which)
   }
@@ -340,6 +372,7 @@ function Publisher({ gameId, config }: { gameId: string; config: NonNullable<Ret
         <video data-testid="moq-preview" muted autoPlay playsInline />
       </moq-publish>
 
+      {broadcastError != null && <div role="alert" data-testid="moq-broadcast-error">{formErrors(broadcastError).form}</div>}
       <div className="moq-controls">
         {source === null ? (
           <>
