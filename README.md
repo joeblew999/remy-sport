@@ -7,6 +7,34 @@ Product Owner's model in `remy-sport-biz`.
 
 Current progress and remaining work: [project status](docs/README.md).
 
+## Which localhost should I open?
+
+Run `bun run dev` and open **http://localhost:8787**. If it is already running,
+open that URL; a second `bun run dev` refuses the occupied port rather than
+silently choosing another one.
+
+**Developers and agents on the same machine share localhost. There is currently
+no separate agent server or isolated agent database in this checkout.**
+
+| Use | Command | Local URL | What is shared? |
+| --- | --- | --- | --- |
+| Interactive development | `bun run dev` | http://localhost:8787 | Live source with HMR; persistent local bindings in `.wrangler/state`. |
+| End-to-end tests | `bun run test:e2e` | http://localhost:8787 | Reuses the running dev server, or starts one. Seeds and exercises the same database and accounts. |
+| Screen capture suite | `bun run shots` | http://localhost:8787 | Uses the same server, seed and authenticated test setup as end-to-end tests. |
+| Rendering tests | `bun run test:render` (also in `bun run check`) | http://localhost:4173 while the suite runs | Separate static build in `dist/render`, with test fixtures and no Worker. This is not a second usable app backend. |
+
+Opening another tab does not isolate data. Changing only `--port` still uses
+`.wrangler/state`; it does not create an independent environment. The dev HTTPS
+tunnel also points to the same server. Source edits hot-reload everyone's dev
+preview in this checkout.
+
+For now, local end-to-end tests and screen capture are **not isolated from an
+interactive walkthrough**: their account and data changes can affect it, even
+though test sessions are cleaned up. There is no alternative localhost URL that
+provides that isolation through the current CLI. The next automation fix is
+[isolated local test runtimes](docs/README.md#remaining-work), with automatic
+startup and cleanup so developers do not have to coordinate ports and databases.
+
 ## The commands
 
 Everything is a `package.json` script. `mise` only pins the tools
