@@ -20,7 +20,7 @@ async function request<T>(api: Api, path: string, body?: unknown): Promise<T> {
     const codes = data?.errors?.map(e => e.code).filter(Number.isFinite).join(', ')
     throw new Error(`Cloudflare MoQ HTTP ${response.status}${codes ? ` (code ${codes})` : ''}. ` +
       (response.status === 401 || response.status === 403
-        ? 'Edit the CLOUDFLARE_API_TOKEN in https://dash.cloudflare.com/profile/api-tokens: Account → MoQ → Edit (MoQ Write), for the account in wrangler.toml. Preserve existing permissions.'
+        ? 'The configured API token needs MoQ Write for the account in wrangler.toml. If MoQ is absent from the dashboard editor, use bun run live --grant-moq; see docs/2026-09-07-02-relay-capabilities.md.'
         : 'Relay setup failed; existing credentials were not deleted.'))
   }
   return data.result

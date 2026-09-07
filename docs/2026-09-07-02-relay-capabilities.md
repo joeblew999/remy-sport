@@ -1,7 +1,8 @@
 # Relay capability investigation — GAP-02
 
 Status: Cloudflare permission identified; local provisioning automation tested.
-Real relay verification awaits the token permission change below. No remote relay
+Real relay verification awaits the API token permission update below; the user
+confirmed MoQ is absent from the dashboard Account dropdown. No remote relay
 provisioning, credential rotation or deployment performed. Credentials were not
 recorded in this document. Actual configured deployment identity remains to be
 verified without exposing secrets.
@@ -162,3 +163,45 @@ user tokens by permission-group ID through the API. This is a possible fallback,
 not a completed setup; it requires a separate token-management credential and
 must preserve the existing dev policy. No such credential has been requested or
 created. Source: [create tokens via API](https://developers.cloudflare.com/fundamentals/api/how-to/create-via-api/).
+
+
+## Confirmed missing dropdown and API fallback — 2026-09-07
+
+The user can edit `dev` and add Account permissions, but MoQ is absent from the
+service dropdown. Stop prescribing that dropdown. Use the verified permission
+ID through the [token update API](https://developers.cloudflare.com/api/resources/user/subresources/tokens/methods/update/),
+which requires API Tokens Write. Cloudflare's documented bootstrap route is
+Create Token → Create additional tokens (template), not the Custom Token builder.
+Create a separate token named `remy-token-bootstrap`, then store its secret using
+the hidden terminal prompt:
+
+```sh
+fnox set --global -p keychain CLOUDFLARE_TOKEN_ADMIN_TOKEN
+```
+
+The prepared command is:
+
+```sh
+bun run live --grant-moq
+bun run live --provision
+```
+
+`--grant-moq` identifies the existing configured API token, reads its current
+policy, adds MoQ Write only to its existing exact-account allow policy, preserves
+other policies/status/expiry/IP restrictions, and verifies the returned policy.
+It refuses wildcard or multi-account policy expansion and detects changes between
+its initial read and pre-write read. The Cloudflare PUT API has no conditional
+write used here; avoid simultaneous edits during this short operation. No API
+token secret is replaced, and the bootstrap credential is never stored in app
+configuration or used for relay connections. After successful update, revoke
+`remy-token-bootstrap` in the dashboard; relay automation continues using `dev`.
+
+This fallback is prepared, not remotely applied. Next: user stores the bootstrap
+credential; run the permission update, provision, and verify actual broadcasting.
+The token-policy preservation and refusal tests are in
+`tests/unit/moq-permission.test.ts`. The relay's 403 diagnostic now points to this
+fallback instead of the unavailable dashboard permission selector.
+
+Validation for the fallback: typecheck, lint, seven unit cases across permission
+editing/provisioning, and the docs path check passed. No remote token policy was
+changed during these checks.

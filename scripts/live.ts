@@ -2,12 +2,21 @@
 import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { parseEnv } from 'node:util'
 import { fnoxGet } from './lib/cloudflare'
+import { grantMoqPermission } from './lib/moq-permission'
 import { checkMoq, provisionMoq } from './lib/moq'
 import { CLOUDFLARE_MOQ_ORIGIN } from '../src/moq-relay'
 
 const args = process.argv.slice(2)
-if (args.some(arg => !['--check', '--provision'].includes(arg)) || args.length > 1) {
-  throw new Error('Usage: bun run live [--check | --provision]')
+if (args.some(arg => !['--check', '--provision', '--grant-moq'].includes(arg)) || args.length > 1) {
+  throw new Error('Usage: bun run live [--check | --provision | --grant-moq]')
+}
+if (args.includes('--grant-moq')) {
+  try { await grantMoqPermission() }
+  catch (error) {
+    console.error(error instanceof Error ? error.message : 'Cloudflare permission update failed')
+    process.exit(1)
+  }
+  process.exit(0)
 }
 if (args.includes('--check')) {
   try {

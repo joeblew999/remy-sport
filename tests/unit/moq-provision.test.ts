@@ -13,7 +13,7 @@ describe('Cloudflare relay provisioning', () => {
   it('refused listing never creates a relay or writes local configuration and explains the permission', async () => {
     const api = vi.fn(async () => refused())
     const save = vi.fn()
-    await expect(provisionMoq({}, save, api, 'account')).rejects.toThrow('Account → MoQ → Edit')
+    await expect(provisionMoq({}, save, api, 'account')).rejects.toThrow('needs MoQ Write')
     expect(api).toHaveBeenCalledTimes(1)
     expect(save).not.toHaveBeenCalled()
     await expect(checkMoq(api)).rejects.not.toThrow('sensitive-response')
