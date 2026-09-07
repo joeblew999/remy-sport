@@ -1,5 +1,6 @@
 import { expect, test, type APIRequestContext, type BrowserContext, type Page } from "@playwright/test"
 import { existsSync, readFileSync } from "node:fs"
+import { saveSession, endSession } from "./session-cleanup"
 import { SEED_ENTITIES } from "../../src/domain/model/entities"
 import { E2E_EMAIL_DOMAIN, isReservedTestEmail } from "../../src/environment"
 
@@ -95,55 +96,22 @@ export function freshActor(): string {
  * production that signs real people out of their real devices, which is a far
  * worse thing than a slow test.
  */
-const createdSessions: Array<{ ctx: APIRequestContext; token: string; email: string }> = []
+const createdSessions: string[] = []
 
-/**
- * Record the session a context just obtained.
- *
- * Read back from `get-session` rather than assumed, because the token is what
- * `revoke-session` takes and only the server knows it. Failure to read it is not
- * worth failing a test over — it costs a leaked session, which is what the
- * situation already was.
- */
 async function remember(ctx: APIRequestContext, email: string): Promise<string | null> {
-  try {
-    const res = await ctx.get("/api/auth/get-session", { headers: { Origin: BASE } })
-    if (!res.ok()) return null
-    const body = (await res.json()) as { session?: { token?: string } } | null
-    const token = body?.session?.token
-    if (token) createdSessions.push({ ctx, token, email })
-    return token ?? null
-  } catch {
-    // A context that cannot answer cannot be cleaned up either. Leaking one
-    // session is strictly better than failing the test that created it.
-    return null
-  }
+  createdSessions.push(await saveSession(ctx))
+  const response = await ctx.get("/api/auth/get-session", { headers: { Origin: BASE } })
+  expect(response.ok(), `read session for ${email}`).toBeTruthy()
+  const body = await response.json() as { session?: { token?: string } } | null
+  return body?.session?.token ?? null
 }
 
-/**
- * Give back every session this test took out.
- *
- * Each token is revoked through the context that created it, because
- * `revoke-session` only accepts one of the caller's own — and both contexts in a
- * spec belong to the same person anyway.
- *
- * Registered here rather than in each spec: the leak was systemic, so the remedy
- * has to be too. A spec that signs in gets the cleanup by importing the helper
- * it already imports, and cannot forget it.
- */
 export async function releaseSessions(): Promise<void> {
-  const taken = createdSessions.splice(0)
-  for (const { ctx, token } of taken) {
-    try {
-      await ctx.post("/api/auth/revoke-session", {
-        data: { token },
-        headers: { Origin: BASE },
-      })
-    } catch {
-      // Best effort. The context may already be disposed, or the session may
-      // have been revoked by the test itself — which is the happy case.
-    }
+  const errors: unknown[] = []
+  for (const path of createdSessions.splice(0)) {
+    try { await endSession(path, BASE) } catch (error) { errors.push(error) }
   }
+  if (errors.length) throw new AggregateError(errors, "Per-test session cleanup failed")
 }
 
 // Registered only where a runner exists. `test.afterEach` throws when called
@@ -297,7 +265,7 @@ export const EVERY_SEEDED_ACTOR = SEED_ENTITIES.users
  * state (AGENTS.md), so the sessions land beside the browsers rather than in a
  * new top-level directory.
  */
-export const AUTH_STATE_DIR = ".playwright/auth"
+export const AUTH_STATE_DIR = process.env.E2E_STATE_DIR ?? ".playwright/auth"
 export const stateFor = (email: string) =>
   `${AUTH_STATE_DIR}/${email.replace(/[@.]/g, "_")}.json`
 
@@ -380,7 +348,7 @@ export async function signIn(
   // The token of the session just created, so a caller can name it later — see
   // devices.spec.ts. `keep` still skips the ledger, but the token is honest
   // either way.
-  if (opts.keep) return null
+  if (opts.keep) { await saveSession(request); return null }
   return await remember(request, email)
 }
 

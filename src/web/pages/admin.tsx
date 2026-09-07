@@ -419,14 +419,14 @@ function RoleSwitcher({ current }: { current: string }) {
   const [status, setStatus] = useState("");
   const requestCode = useRequestCode();
   const verifyCode = useVerifyCode();
-  // `useDevAccounts` 404s to an empty list off localhost, so this renders
-  // nothing there rather than branching on the environment.
+  const devAccounts = useDevAccounts();
+  // The server supplies permitted actors and, on staging, their seeded code.
   // One per role, deliberately. /api/dev/accounts lists every seeded person now,
   // because the differences *within* a role are what you check a permission
   // against — but this control switches ROLE, and three buttons all reading
   // "Coach" would be three ways to do the same thing. Choosing a particular
   // person is the login page's job.
-  const actors = (useDevAccounts().data?.accounts ?? [])
+  const actors = (devAccounts.data?.accounts ?? [])
     .filter((a, i, all) => all.findIndex((o) => o.role === a.role) === i)
     .map((a) => ({ ...a, label: a.role.charAt(0).toUpperCase() + a.role.slice(1) }));
 
@@ -445,7 +445,7 @@ function RoleSwitcher({ current }: { current: string }) {
       setStatus("Requesting a code…");
       await requestCode.mutateAsync(email);
 
-      const otp = await codeFromOutbox(email);
+      const otp = devAccounts.data?.code ?? (await codeFromOutbox(email));
       if (!otp) return setStatus("Local-only — no dev outbox on this deployment.");
 
       setStatus("Signing in…");

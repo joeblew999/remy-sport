@@ -1,5 +1,6 @@
+import { saveSession } from "../helpers/session-cleanup"
 import { test, expect } from "@playwright/test"
-import { ACTOR_NAMES, ADMIN, COACH, EVERY_SEEDED_ACTOR, actor } from "../helpers/auth"
+import { ACTOR_NAMES, ADMIN, COACH, EVERY_SEEDED_ACTOR, IS_LOCAL, actor } from "../helpers/auth"
 
 // ADR 012 + ADR 008 step 4. The SPA had no authentication at all: it never
 // learned who was viewing, which is why the accept-invitation page had to hand
@@ -124,14 +125,17 @@ test.describe.serial("SPA sign-in", () => {
     expect(stillSignedIn).toBeNull()
   })
 
-  test("the SPA login offers every seeded person, with what each one holds", async ({ page }) => {
+  test("the SPA login offers policy-permitted seeded people, with what each one holds", async ({ page }) => {
     // Every account, not one per role. Two coaches run different schools and two
     // referees are on different games, and those differences are the only reason
     // to sign in as a particular person rather than a role.
     await page.goto("/#/login")
     await expect(page.getByTestId("spa-dev-accounts")).toBeVisible()
     for (const email of EVERY_SEEDED_ACTOR) {
-      await expect(page.getByTestId(`spa-dev-${email}`)).toBeVisible()
+      const button = page.getByTestId(`spa-dev-${email}`)
+      // Temporary test access does not publish the admin in the login picker.
+      if (!IS_LOCAL && email === ADMIN) await expect(button).toHaveCount(0)
+      else await expect(button).toBeVisible()
     }
 
     // The relations, as the access matrix names them — derived server-side from
@@ -154,3 +158,6 @@ test.describe.serial("SPA sign-in", () => {
   })
 
 })
+
+// Capture sessions created by UI sign-in or impersonation, including failed assertions.
+test.afterEach(async ({ page }) => { await saveSession(page.request) })

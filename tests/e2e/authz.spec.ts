@@ -1,3 +1,4 @@
+import { saveSession } from "../helpers/session-cleanup"
 import { test, expect } from "@playwright/test"
 import { ACTORS, ADMIN_SIGN_IN, stateFor } from "../helpers/auth"
 
@@ -50,3 +51,6 @@ test.describe("Layer 1 — event:read is public", () => {
     await expect(page.getByTestId("role-badge")).toHaveText("coach", { timeout: 15000 })
   })
 })
+
+// Capture sessions created by UI sign-in or impersonation, including failed assertions.
+test.afterEach(async ({ page }) => { await saveSession(page.request) })

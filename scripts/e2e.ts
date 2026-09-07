@@ -11,8 +11,12 @@
  * as a sentence than as thirty red specs.
  */
 
-import { spawnSync } from "node:child_process"
-import { originOf, resolveTarget } from "./lib/cloudflare.ts"
+import { spawn, spawnSync } from "node:child_process"
+import { Refused, originOf, resolveTarget } from "./lib/cloudflare.ts"
+import { endRunSessions } from "../tests/helpers/session-cleanup.ts"
+import { affectsDeployment } from "./lib/deployed-source.ts"
+import { randomUUID } from "node:crypto"
+import { withStagingAccess } from "./lib/staging-test-access.ts"
 import { DEMO_SIGN_IN_CODE } from "../src/environment.ts"
 import { SEED_ENTITIES } from "../src/domain/model/entities.ts"
 
@@ -38,7 +42,6 @@ import { SEED_ENTITIES } from "../src/domain/model/entities.ts"
  */
 async function sameCode(origin: string, environment: string): Promise<void> {
   const local = spawnSync("git", ["rev-parse", "--short", "HEAD"]).stdout.toString().trim()
-  const dirty = spawnSync("git", ["status", "--porcelain"]).stdout.toString().trim()
 
   const deployed = await fetch(`${origin}/api/versions`, { signal: AbortSignal.timeout(20_000) })
     .then((r) => (r.ok ? (r.json() as Promise<{ current?: { git?: { commit?: string } } }>) : null))
@@ -54,16 +57,14 @@ async function sameCode(origin: string, environment: string): Promise<void> {
     process.exit(1)
   }
 
-  if (deployed === local) {
-    // Uncommitted work is the same split in miniature: the specs about to run
-    // include changes no deployment can be serving. Worth saying, not worth
-    // refusing over — editing a spec is the ordinary way to work on one.
-    if (dirty) {
-      console.log(
-        `e2e: ${environment} is on ${deployed}, matching HEAD — but the tree has\n` +
-          "  uncommitted changes, so any of those not yet deployed are untested here.",
-      )
-    }
+  // Compare deployed inputs with the WORKING tree, including untracked files.
+  // Test and runner fixes do not require republishing an unchanged application.
+  if (!/^[a-f0-9]{7,40}$/.test(deployed)) throw new Refused("Invalid deployed commit identity")
+  const difference = spawnSync("git", ["diff", "--name-only", deployed, "--"])
+  const untracked = spawnSync("git", ["ls-files", "--others", "--exclude-standard"])
+  const changed = (difference.stdout.toString() + "\n" + untracked.stdout.toString()).split("\n").filter(Boolean)
+  if (difference.status === 0 && untracked.status === 0 && !changed.some(affectsDeployment)) {
+    console.log(`e2e: application inputs match deployed ${deployed}; testing with this checkout's suite`)
     return
   }
 
@@ -110,8 +111,7 @@ async function sameCode(origin: string, environment: string): Promise<void> {
  * is normally "no" and the admin specs skip with a reason naming the command
  * that would change it.
  */
-async function preflight(origin: string, environment: string): Promise<boolean> {
-  await sameCode(origin, environment)
+async function preflight(origin: string, environment: string, adminConfirmed = false): Promise<boolean> {
   // A seeded actor the policy allows on every environment — never the admin,
   // which staging and production refuse on purpose.
   const who = SEED_ENTITIES.users.find(
@@ -132,11 +132,13 @@ async function preflight(origin: string, environment: string): Promise<boolean> 
   const release = async (r: Response) => {
     const token = ((await r.json().catch(() => null)) as { token?: string } | null)?.token
     if (!token) return
-    await fetch(`${origin}/api/auth/sign-out`, {
+    const released = await fetch(`${origin}/api/auth/sign-out`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Origin: origin, Authorization: `Bearer ${token}` },
+      headers: { "Content-Type": "application/json", Origin: origin, Cookie: (r.headers.getSetCookie?.() ?? []).map(cookie => cookie.split(";")[0]).join("; ") },
       body: "{}",
-    }).catch(() => {})
+      signal: AbortSignal.timeout(20_000),
+    })
+    if (!released.ok) throw new Refused("Preflight session cleanup failed")
   }
 
   const signIn = async (email: string) => {
@@ -162,6 +164,11 @@ async function preflight(origin: string, environment: string): Promise<boolean> 
     process.exit(1)
   }
   await release(res)
+
+  // Staging access was already measured by withStagingAccess. Do not issue
+  // and consume another OTP for the same shared account immediately. Auth setup
+  // still has to obtain a real admin session before any browser tests can run.
+  if (adminConfirmed) return true
 
   const admin = SEED_ENTITIES.users.find((u) => u.roleCode === "ADMIN")
   if (!admin) return false
@@ -197,29 +204,51 @@ function target(argv: string[]): { origin: string; environment: string } | null 
 }
 
 const argv = process.argv.slice(2)
+if (argv.includes("--help") || argv.includes("-h")) {
+  console.log("bun run test:e2e [-- --env staging] [Playwright options]\nStaging runs include automatic admin access and checked restoration. --retries 0 disables retries.")
+  process.exit(0)
+}
 const TARGET = target(argv)
+const env: NodeJS.ProcessEnv = { ...process.env, E2E_STATE_DIR: `.playwright/runs/${randomUUID()}` }
+delete env.BASE_URL
+delete env.TEST_OTP
+delete env.TEST_ADMIN_SIGNIN
+const rest = argv.filter((a, i) => !(a === "--env" || a.startsWith("--env=") || (i > 0 && argv[i - 1] === "--env")))
 
-console.log(`e2e: against ${TARGET ? `${TARGET.environment} — ${TARGET.origin}` : "dev — http://localhost:8787"}`)
-
-const env: NodeJS.ProcessEnv = { ...process.env }
-if (TARGET) {
-  // `TEST_OTP` comes from the model, not from the operator's shell: the same
-  // `DEMO_SIGN_IN_CODE` that `dev-vars.ts` writes locally and `provision.ts`
-  // puts on the deployment as a secret. Requiring it in the environment made
-  // "run the suite against staging" fail on setup over a variable the repo
-  // already knew.
-  env.BASE_URL = TARGET.origin
-  env.TEST_OTP = DEMO_SIGN_IN_CODE
-  if (await preflight(TARGET.origin, TARGET.environment)) env.TEST_ADMIN_SIGNIN = "1"
+async function run(adminConfirmed = false): Promise<void> {
+  if (TARGET) {
+    env.BASE_URL = TARGET.origin
+    env.TEST_OTP = DEMO_SIGN_IN_CODE
+    const admin = await preflight(TARGET.origin, TARGET.environment, adminConfirmed)
+    env.TEST_ADMIN_SIGNIN = admin ? "1" : "0"
+    if (TARGET.environment === "staging" && !admin) throw new Refused("Staging admin preflight failed; refusing to skip admin tests")
+  }
+  const child = spawn("bun", ["x", "playwright", "test", "--project", "e2e", "--project", "authz", ...rest], { stdio: "inherit", env })
+  let interrupted = false
+  const cancel = () => { interrupted = true; child.kill("SIGINT") }
+  process.on("SIGINT", cancel)
+  process.on("SIGTERM", cancel)
+  try {
+    const code = await new Promise<number>((resolve, reject) => {
+      child.on("error", reject)
+      child.on("exit", code => resolve(code ?? 1))
+    })
+    if (code !== 0 || interrupted) throw new Refused(`Browser tests ${interrupted ? "interrupted" : "failed"} (exit ${code})`)
+  } finally {
+    process.off("SIGINT", cancel)
+    process.off("SIGTERM", cancel)
+    if (TARGET) await endRunSessions(TARGET.origin, `${env.E2E_STATE_DIR}/sessions`)
+  }
 }
 
-// Everything that is not ours goes to Playwright unchanged: -g, --headed, a file.
-const rest = argv.filter((a, i) => !(a === "--env" || a.startsWith("--env=") || (i > 0 && argv[i - 1] === "--env")))
-// The projects that are the tier: e2e, and authz after it. Their setup
-// projects (seed, auth) run because they are depended on; the screenshot walk
-// does not, because nothing here names it.
-const run = spawnSync("bun", ["x", "playwright", "test", "--project", "e2e", "--project", "authz", ...rest], {
-  stdio: "inherit",
-  env,
-})
-process.exit(run.status ?? 1)
+try {
+  console.log(`e2e: against ${TARGET ? `${TARGET.environment} — ${TARGET.origin}` : "dev — http://localhost:8787"}`)
+  if (TARGET) await sameCode(TARGET.origin, TARGET.environment)
+  if (TARGET?.environment === "staging") {
+    await withStagingAccess(resolveTarget(argv, "explicit"), () => run(true))
+    await sameCode(TARGET.origin, TARGET.environment)
+  } else await run()
+} catch (error) {
+  console.error(error)
+  process.exitCode = 1
+}

@@ -14,8 +14,8 @@ Everything is a `package.json` script. `mise` only pins the tools
 bun run setup                     once after cloning: install, types, local database, browsers
 bun run dev                       Vite: the Worker in workerd and the SPA with HMR on localhost:8787, seeded
 bun run check                     the gate: typecheck, lint, model consistency, every test, the render tier
-bun run test:e2e                  a real browser against a real Worker (-- --env staging|production for a deployment)
-bun run deploy -- --env staging   ships it; runs check and test:e2e first. Then production.
+bun run test:e2e                  browser suite; -- --env staging includes temporary admin access and cleanup
+bun run deploy -- --env staging   local gate, publish, smoke, full staging browser suite and cleanup.
 bun run model                     when the Product Owner changes the model: pull it in, migrate, seed, verify
 ```
 
@@ -83,3 +83,8 @@ scripts/
 
 `AGENTS.md` is short on purpose. `docs/2026-09-05-01-modern-tooling.md` is the plan that
 is making `scripts/` smaller.
+
+Staging browser runs verify admin sign-in before testing, restore the previous
+admin test-access setting afterwards, and fail if verification or cleanup fails.
+The public account picker still hides the admin. Test sessions are recorded per
+run and signed out individually. GitHub CI is not used; run the commands locally.

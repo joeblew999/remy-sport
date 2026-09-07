@@ -1,3 +1,4 @@
+import { saveSession } from "../helpers/session-cleanup"
 import { test, expect } from "@playwright/test"
 import { signInThroughLoginForm, stateFor, ADMIN, COACH, ORGANIZER, PLAYER, ADMIN_SIGN_IN } from "../helpers/auth"
 
@@ -64,6 +65,8 @@ test.describe.serial("Admin console", () => {
       return body?.session?.impersonatedBy ?? null
     })
     expect(impersonatedBy).toBeTruthy()
+    await page.getByTestId("stop-impersonating").click()
+    await expect(page.getByTestId("role-badge")).toHaveText("admin")
   })
 
   test("stopping impersonation returns to the admin, not a signed-out state", async ({ page }) => {
@@ -81,23 +84,31 @@ test.describe.serial("Admin console", () => {
   test("an admin can change someone's role, and it sticks", async ({ page }) => {
     await signInThroughLoginForm(page, ADMIN)
     await page.goto("/#/admin")
-    await page.getByTestId(`role-select-${PLAYER}`).selectOption("referee")
-    await expect(page.getByTestId(`role-select-${PLAYER}`)).toHaveValue("referee", { timeout: 15000 })
-
-    // Put it back, so the six seeded actors keep the roles every other spec
-    // expects. Leaking a role change would break authz.spec.ts intermittently.
-    await page.getByTestId(`role-select-${PLAYER}`).selectOption("player")
-    await expect(page.getByTestId(`role-select-${PLAYER}`)).toHaveValue("player", { timeout: 15000 })
+    const control = page.getByTestId(`role-select-${PLAYER}`)
+    const original = await control.inputValue()
+    try {
+      await control.selectOption("referee")
+      await expect(control).toHaveValue("referee", { timeout: 15000 })
+    } finally {
+      await control.selectOption(original)
+      await expect(control).toHaveValue(original, { timeout: 15000 })
+    }
   })
 
   test("banning is reflected in the list, and reversible", async ({ page }) => {
     await signInThroughLoginForm(page, ADMIN)
     await page.goto("/#/admin")
-    await page.getByTestId(`ban-${PLAYER}`).click()
-    await expect(page.getByTestId(`banned-${PLAYER}`)).toBeVisible({ timeout: 15000 })
-
-    await page.getByTestId(`ban-${PLAYER}`).click()
-    await expect(page.getByTestId(`banned-${PLAYER}`)).toHaveCount(0, { timeout: 15000 })
+    const banned = page.getByTestId(`banned-${PLAYER}`)
+    await expect(banned).toHaveCount(0)
+    try {
+      await page.getByTestId(`ban-${PLAYER}`).click()
+      await expect(banned).toBeVisible({ timeout: 15000 })
+    } finally {
+      await page.reload()
+      await expect(page.getByTestId(`ban-${PLAYER}`)).toBeVisible()
+      if (await banned.count()) await page.getByTestId(`ban-${PLAYER}`).click()
+      await expect(banned).toHaveCount(0, { timeout: 15000 })
+    }
   })
 })
 
@@ -136,3 +147,6 @@ test.describe("Admin endpoints refuse non-admins", () => {
     expect(res.status()).toBe(403)
   })
 })
+
+// Capture sessions created by UI sign-in or impersonation, including failed assertions.
+test.afterEach(async ({ page }) => { await saveSession(page.request) })

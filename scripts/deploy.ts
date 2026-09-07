@@ -91,8 +91,15 @@ const PIPELINE: Phase[] = [
   },
   {
     name: "smoke",
-    why: "last, because it is the only step that asks the deployment what it is actually serving",
+    why: "verify the deployed services before browser journeys",
     go: (_target, origin) => step("smoke", ["bun", "scripts/deploy/smoke.ts"], { CF_DEPLOY_URL: origin }),
+  },
+  {
+    name: "browser",
+    why: "on staging, run all applicable browser tests including admin access and checked cleanup",
+    go: (target) => {
+      if (target.environment === "staging") step("browser", ["bun", "run", "test:e2e", "--", "--env", "staging", "--retries", "0"])
+    },
   },
 ]
 
@@ -155,6 +162,7 @@ What it runs:
   process.exit(0)
 }
 
+let published = false
 try {
   // Inside the boundary, so a missing --env prints the refusal rather than a
   // stack trace.
@@ -163,7 +171,10 @@ try {
   const origin = originOf(target)
   console.log(`deploy: ${target.environment} → ${origin}  (build ${BUILD_ID})`)
 
-  for (const phase of PIPELINE) await phase.go(target, origin)
+  for (const phase of PIPELINE) {
+    await phase.go(target, origin)
+    if (phase.name === "publish") published = true
+  }
 
   console.log(
     `\ndeploy: ${target.environment} is live at ${origin}\n\n` +
@@ -173,7 +184,7 @@ try {
   )
 } catch (err) {
   if (err instanceof Refused) {
-    console.error(`\ndeploy: ${err.message}\n`)
+    console.error(`\ndeploy: ${published ? "published, but verification did not complete: " : ""}${err.message}\n`)
     process.exit(1)
   }
   throw err
