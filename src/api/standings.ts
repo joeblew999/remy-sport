@@ -95,7 +95,7 @@ export const list = pub
       const away = lines.get(g.awayTeamId)
       // A team that played but is not registered is a data problem, not a row
       // to invent: skip it rather than fabricate a line with no division.
-      if (!home || !away) continue
+      if (!home || !away || home.divisionId !== away.divisionId) continue
 
       home.played++
       away.played++
@@ -114,7 +114,23 @@ export const list = pub
       }
     }
 
-    const sorted = [...lines.values()].sort(rank)
+    const groups = Map.groupBy([...lines.values()], line => line.divisionId);
+    const sorted = [...groups].sort(([a], [b]) => (a ?? "").localeCompare(b ?? "")).flatMap(([, group]) => group.sort(rank));
+    // Competition ranking: true ties share a rank (1, 1, 3), independently
+    // within each division. Filtering the response must not invent ranks.
+    const ranksOf = (values: Line[]) => {
+      const result = new Map<string, number>();
+      for (const group of Map.groupBy(values, line => line.divisionId).values()) {
+        group.sort(rank);
+        let position = 1;
+        group.forEach((line, i) => {
+          if (i && rank(group[i - 1]!, line) !== 0) position = i + 1;
+          result.set(line.teamId, position);
+        });
+      }
+      return result;
+    };
+    const current = ranksOf(sorted);
 
     /**
      * Where each team stood before the most recent round — `VIEW_RANK_MOVEMENT`.
@@ -130,13 +146,18 @@ export const list = pub
      * makes every game one round and the movement null, which is honest: nothing
      * has happened twice yet.
      */
-    const finished = games
-      .filter((g) => g.homeScore !== null && g.awayScore !== null)
-      .map((g) => g.startsAt)
-      .filter((d): d is string => Boolean(d))
-      .sort()
-    const lastDay = finished.length ? finished[finished.length - 1]!.slice(0, 10) : undefined
-    const earlier = lastDay ? games.filter((g) => (g.startsAt ?? "").slice(0, 10) < lastDay) : []
+    const lastDays = new Map<string | null, string>();
+    for (const g of games) {
+      const home = lines.get(g.homeTeamId), away = lines.get(g.awayTeamId);
+      if (!home || !away || home.divisionId !== away.divisionId || g.homeScore === null || g.awayScore === null || !g.startsAt) continue;
+      const day = g.startsAt.slice(0, 10);
+      if (day > (lastDays.get(home.divisionId) ?? "")) lastDays.set(home.divisionId, day);
+    }
+    const earlier = games.filter(g => {
+      const home = lines.get(g.homeTeamId), away = lines.get(g.awayTeamId);
+      return home && away && home.divisionId === away.divisionId && g.homeScore !== null && g.awayScore !== null && g.startsAt && g.startsAt.slice(0, 10) < (lastDays.get(home.divisionId) ?? "");
+    });
+    const earlierDivisions = new Set(earlier.map(g => lines.get(g.homeTeamId)!.divisionId));
 
     /** The previous table, or none when there is nothing earlier to rank. */
     const previous = new Map<string, number>()
@@ -149,7 +170,7 @@ export const list = pub
         if (g.homeScore === null || g.awayScore === null) continue
         const home = before.get(g.homeTeamId)
         const away = before.get(g.awayTeamId)
-        if (!home || !away) continue
+        if (!home || !away || home.divisionId !== away.divisionId) continue
         home.played++
         away.played++
         home.pointsFor += g.homeScore
@@ -164,15 +185,15 @@ export const list = pub
           home.lost++
         }
       }
-      ;[...before.values()].sort(rank).forEach((l, i) => previous.set(l.teamId, i + 1))
+      for (const [id, position] of ranksOf([...before.values()].filter(l => earlierDivisions.has(l.divisionId)))) previous.set(id, position)
     }
 
     return {
-      standings: sorted.map((line, i) => ({
+      standings: sorted.map((line) => ({
         ...line,
         // Positive is upward: rank 4 becoming rank 2 is +2.
-        movement: previous.has(line.teamId) ? previous.get(line.teamId)! - (i + 1) : null,
-        rank: i + 1,
+        movement: previous.has(line.teamId) ? previous.get(line.teamId)! - current.get(line.teamId)! : null,
+        rank: current.get(line.teamId)!,
         pointsDiff: line.pointsFor - line.pointsAgainst,
         leaguePoints: line.won * STANDINGS_POINTS.win + line.lost * STANDINGS_POINTS.loss,
       })),

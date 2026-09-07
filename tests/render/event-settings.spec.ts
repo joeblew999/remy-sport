@@ -32,14 +32,14 @@ test.describe("An event's settings tab", () => {
     await seedCache(page, seed([]))
     await visit(page, "event", { id: EVENT_ID })
 
-    await expect(page.getByTestId("tab-overview")).toBeVisible()
-    await expect(page.getByTestId("tab-settings")).toHaveCount(0)
+    await expect(page.getByTestId("tab-games")).toBeVisible()
+    await expect(page.getByTestId("tab-manage")).toHaveCount(0)
   })
 
   test("is offered to an organiser, prefilled with what is stored", async ({ page }) => {
     await seedCache(page, seed(["OWNER"]))
     await visit(page, "event", { id: EVENT_ID })
-    await page.getByTestId("tab-settings").click()
+    await page.getByTestId("tab-manage").click()
 
     await expect(page.getByTestId("event-settings")).toBeVisible()
     // Prefilled, not blank. A form that starts empty invites someone to save a
@@ -67,7 +67,7 @@ test.describe("An event's settings tab", () => {
     })
 
     await visit(page, "event", { id: EVENT_ID })
-    await page.getByTestId("tab-settings").click()
+    await page.getByTestId("tab-manage").click()
     await page.getByTestId("event-name-input").fill("Bangkok Schools League 2026")
     await page.getByTestId("event-save").click()
 
@@ -93,7 +93,7 @@ test.describe("An event's settings tab", () => {
     })
 
     await visit(page, "event", { id: EVENT_ID })
-    await page.getByTestId("tab-settings").click()
+    await page.getByTestId("tab-manage").click()
     await page.getByTestId("event-end-input").fill("2026-01-01")
     await page.getByTestId("event-save").click()
 
@@ -106,7 +106,7 @@ test.describe("An event's settings tab", () => {
   test("offers the invite form to an owner", async ({ page }) => {
     await seedCache(page, seed(["OWNER"]))
     await visit(page, "event", { id: EVENT_ID })
-    await page.getByTestId("tab-settings").click()
+    await page.getByTestId("tab-manage").click()
 
     await expect(page.getByTestId("invite-co-organizer")).toBeVisible()
     await expect(page.getByTestId("invite-email-input")).toBeVisible()
@@ -124,7 +124,7 @@ test.describe("An event's settings tab", () => {
      */
     await seedCache(page, seed(["CO_ORGANIZER"]))
     await visit(page, "event", { id: EVENT_ID })
-    await page.getByTestId("tab-settings").click()
+    await page.getByTestId("tab-manage").click()
 
     await expect(page.getByTestId("event-settings")).toBeVisible()
     await expect(page.getByTestId("invite-co-organizer")).toHaveCount(0)
@@ -146,7 +146,7 @@ test.describe("An event's settings tab", () => {
     })
 
     await visit(page, "event", { id: EVENT_ID })
-    await page.getByTestId("tab-settings").click()
+    await page.getByTestId("tab-manage").click()
     await page.getByTestId("invite-email-input").fill("niran.k@bat.test")
     await page.getByTestId("invite-send").click()
 
@@ -260,7 +260,7 @@ test.describe("The Venues tab", () => {
   test("lists this event's venues with their address, and nobody else's", async ({ page }) => {
     await seedVenues(page)
     await visit(page, "event", { id: EVENT_ID })
-    await page.getByTestId("tab-venues").click()
+    await page.getByTestId("tab-places").click()
 
     const court = nameOf(primary.venueId)
     await expect(page.getByTestId(`venue-${court.id}`)).toContainText(court.names.en!)
@@ -274,7 +274,7 @@ test.describe("The Venues tab", () => {
     // directions to, so a stable order is not cosmetic.
     await seedVenues(page)
     await visit(page, "event", { id: EVENT_ID })
-    await page.getByTestId("tab-venues").click()
+    await page.getByTestId("tab-places").click()
 
     const secondary = links.items.find((l) => l.eventId === EVENT_ID && !l.isPrimary)
     await expect(page.getByTestId(`venue-primary-${primary.venueId}`)).toBeVisible()
@@ -292,7 +292,7 @@ test.describe("The Venues tab", () => {
       entry(orpc.eventVenues.list, undefined, { items: [] }),
     ])
     await visit(page, "event", { id: EVENT_ID })
-    await page.getByTestId("tab-venues").click()
+    await page.getByTestId("tab-places").click()
 
     await expect(page.getByTestId("event-venues-empty")).toBeVisible()
   })
@@ -313,7 +313,7 @@ test.describe("The Rules tab", () => {
       ),
     ])
     await visit(page, "event", { id: EVENT_ID })
-    await page.getByTestId("tab-rules").click()
+    await page.getByTestId("tab-about").click()
 
     // From the reference vocabulary, so "3x3" and "5-on-5" are rows in the
     // model rather than strings in a component.
@@ -328,7 +328,7 @@ test.describe("The Rules tab", () => {
       entry(orpc.events.get, { id: EVENT_ID }, ({ ...projectEvent(EVENT_ID), isFibaCertified: false })),
     ])
     await visit(page, "event", { id: EVENT_ID })
-    await page.getByTestId("tab-rules").click()
+    await page.getByTestId("tab-about").click()
 
     await expect(page.getByTestId("event-fiba")).toHaveText("No")
   })
@@ -354,14 +354,14 @@ test.describe("The Rules tab", () => {
   test("renders the organiser's own description", async ({ page }) => {
     await seedCache(page, [entry(orpc.events.get, { id: described.id }, described)])
     await visit(page, "event", { id: described.id })
-    await page.getByTestId("tab-rules").click()
+    await page.getByTestId("tab-about").click()
     await expect(page.getByTestId("event-description")).toContainText(described.description!)
   })
 
   test("says so when the organiser has written none", async ({ page }) => {
     await seedCache(page, [entry(orpc.events.get, { id: bare.id }, bare)])
     await visit(page, "event", { id: bare.id })
-    await page.getByTestId("tab-rules").click()
+    await page.getByTestId("tab-about").click()
     await expect(page.getByTestId("event-no-details")).toBeVisible()
   })
 })

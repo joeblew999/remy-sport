@@ -66,6 +66,7 @@ const SURFACES = {
    * once and fixed their own line.
    */
   org: (id?: string) => (id ? `/#/org/${id}` : "/#/org"),
+  game: (id?: string) => (id ? `/#/game/${id}` : "/#/game"),
   event: (id?: string) => (id ? `/#/event/${id}` : "/#/event"),
   team: (id?: string) => (id ? `/#/team/${id}` : "/#/team"),
   player: (id?: string) => (id ? `/#/player/${id}` : "/#/player"),
@@ -119,6 +120,11 @@ export function urlFor(surface: Surface, opts: OpenOptions = {}): string {
  */
 export async function visit(page: Page, surface: Surface, opts: OpenOptions = {}): Promise<string> {
   const url = urlFor(surface, opts)
+  const previous = page.url()
   await page.goto(url)
+  // visit starts a surface with the current init-script fixtures. Hash-only
+  // navigation does not create a document, so a second seed in the same test
+  // otherwise keeps the first reader's permissions. User journeys use clicks.
+  if (previous.startsWith("http") && previous.split("#")[0] === page.url().split("#")[0] && previous !== page.url()) await page.reload()
   return url
 }

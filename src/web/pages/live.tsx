@@ -1,3 +1,4 @@
+import { GameSummary } from "../components/game-summary";
 import { Can } from "../components/can";
 import { Icon } from "../components/icon";
 import { useLiveGames } from "../lib/data";
@@ -79,10 +80,7 @@ export function LivePage({ goto, spoiler, setSpoiler }: LiveProps) {
         <div className="dash-card live-list" data-testid="live-list">
           {games.map((g) => (
             <div key={g.id} className="fixture-row live" data-testid={`live-${g.id}`}>
-              <span className="opponent">
-                <b>{g.homeTeam}</b> {m.versus()} <b>{g.awayTeam}</b>
-              </span>
-              <span className="kind">{g.venue ?? ""}</span>
+              <GameSummary game={g} showEvent/>
               <span className="result">
                 {/* Spoiler mode hides the score and nothing else: a viewer who
                     wants to watch without knowing the result still needs to

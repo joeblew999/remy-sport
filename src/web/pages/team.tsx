@@ -1,16 +1,16 @@
+import { GameSummary } from "../components/game-summary";
 import { NewPlayer } from "../components/new-player";
 import { NameTranslations, namesFrom } from "../components/name-translations";
 import { Can, PlatformCan } from "../components/can";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FollowButton } from "../components/follow";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, orpc } from "../lib/orpc";
 import { useRoster, useTeam, useTeamGames } from "../lib/data";
-import type { Route } from "../lib/router";
+import { routeHref, type Route } from "../lib/router";
 import { m } from "../lib/i18n";
 import { useLocale } from "../lib/locale";
 import { useSession } from "../lib/session";
-import { formatDayShort } from "../lib/dates";
 import { formErrors } from "../lib/form-errors";
 import type { Team } from "../data";
 
@@ -25,15 +25,21 @@ import type { Team } from "../data";
  * `me.mine`; `#/team` with no id renders the directory. This page used to
  * guess at "your team" from a list when it had no id, and guessed wrong.
  */
-export function TeamPage({ id, goto }: { id: string; goto: (r: Route) => void }) {
+export function TeamPage({ id, goto, query, spoiler = false }: { id: string; goto: (r: Route) => void; query?: Record<string, string>; spoiler?: boolean }) {
   const { data: t, isPending: teamLoading } = useTeam(id);
   const { data: roster } = useRoster(id);
-  const { locale, label } = useLocale();
+  const { label } = useLocale();
   const { user } = useSession();
   const { data: teamGames, isPending: gamesLoading } = useTeamGames(id);
   const games = teamGames?.games ?? [];
   const wins = games.filter((g) => g.won === true).length;
   const losses = games.filter((g) => g.won === false).length;
+
+  useEffect(() => {
+    const section = query?.section === "roster" ? "roster" : query?.section === "schedule" ? "team-schedule" : undefined;
+    if (!section || teamLoading) return;
+    document.getElementById(section)?.scrollIntoView({ block: "start" });
+  }, [id, query?.section, teamLoading, roster, teamGames]);
 
   if (teamLoading) {
     return <div className="empty">{m.loading_team()}</div>;
@@ -54,22 +60,13 @@ export function TeamPage({ id, goto }: { id: string; goto: (r: Route) => void })
         <div>
           <h1 data-testid="team-name">{t.name}</h1>
           <div className="meta thai" style={{ fontFamily: "Noto Sans Thai, sans-serif", fontSize: 16, color: "var(--ink-2)", marginTop: 4 }}>
-            {[t.orgName, t.city].filter(x => x && x !== "—").join(" · ")}
+            <a href={routeHref({ page: "org", id: t.orgId })}>{t.orgName}</a>{t.city && ` · ${t.city}`}
           </div>
           <div className="meta">{t.ageGroupLabel} {t.genderLabel} · {t.short}</div>
           <div className="event-actions" style={{ marginTop: 16 }}>
             {t.id && <FollowButton objectTypeCode="TEAM" objectId={t.id} />}
-            {/* These three were `<button className="btn">` with no onClick —
-                dead controls beside a working Follow, which is worse than no
-                control at all: pressing one and getting nothing reads as the
-                app being broken.
-
-                Roster and Schedule are real sections further down this page, so
-                they scroll to them. Stats is gone: there is no per-player
-                statistics table anywhere in the model, which is the same reason
-                this page shows no averages. */}
-            <a className="btn" href="#roster">{m.roster()}</a>
-            <a className="btn" href="#team-schedule">{m.schedule()}</a>
+            <a className="btn" href={routeHref({ page: "team", id, query: { section: "roster" } })}>{m.roster()}</a>
+            <a className="btn" href={routeHref({ page: "team", id, query: { section: "schedule" } })}>{m.schedule()}</a>
           </div>
         </div>
         {/* The record is the schedule below, counted: wins and losses among
@@ -81,12 +78,12 @@ export function TeamPage({ id, goto }: { id: string; goto: (r: Route) => void })
             standings question, and it is answered on the event page. */}
         <div style={{ display: "flex", gap: 32, alignItems: "baseline" }}>
           <div style={{ textAlign: "right" }}>
-            <div style={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.14em", textTransform: "uppercase" }}>{m.record()}</div>
+            <div style={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.14em", textTransform: "uppercase" }}>{m.record_all_events()}</div>
             <div
               data-testid="team-record"
               style={{ fontFamily: "Space Grotesk, sans-serif", fontWeight: 600, fontSize: 32, letterSpacing: "-0.02em", color: wins + losses ? "var(--ink)" : "var(--ink-3)" }}
             >
-              {wins + losses ? `${wins}–${losses}` : "—"}
+              {!spoiler && wins + losses ? `${wins}–${losses}` : "—"}
             </div>
           </div>
         </div>
@@ -164,13 +161,11 @@ export function TeamPage({ id, goto }: { id: string; goto: (r: Route) => void })
           {!gamesLoading && games.length === 0 && <div className="empty">{m.no_games_yet()}</div>}
           {games.map((g) => (
             <div key={g.id} className={`fixture-row${g.live ? " live" : ""}`}>
-              <span className="date">{formatDayShort(locale, new Date(g.startsAt))}</span>
-              <span className="opponent">{m.versus()} <b>{g.opponent}</b></span>
-              <span className="kind">{g.venue ?? ""}</span>
+              <GameSummary game={g} showEvent/>
               <span className="result">
                 {/* Both or neither. A played game has two scores; anything else
                     is a fixture, and "61–" is not a result. */}
-                {g.us !== null && g.them !== null
+                {!spoiler && g.us !== null && g.them !== null
                   ? `${g.us}–${g.them}`
                   : <span className="muted">—</span>}
               </span>
@@ -183,7 +178,7 @@ export function TeamPage({ id, goto }: { id: string; goto: (r: Route) => void })
               >
                 {/* The status the server stored, except where the result says
                     more than "finished" does. */}
-                {g.live
+                {spoiler ? g.statusLabel : g.live
                   ? m.status_live()
                   : g.won === true
                     ? m.col_won()

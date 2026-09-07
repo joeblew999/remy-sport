@@ -63,7 +63,7 @@ test.describe("An event's schedule", () => {
   test("shows each fixture, its score and its status", async ({ page }) => {
     await seed(page, [finished, upcoming])
     await visit(page, "event", { id: "evt_002" })
-    await page.getByRole("button", { name: "Schedule" }).click()
+    await page.getByTestId("tab-games").click()
 
     await expect(page.getByTestId(`game-${finished.id}`)).toContainText(finished.homeTeamNames.en!)
     await expect(page.getByTestId(`score-${finished.id}`)).toHaveText(`${finished.homeScore}–${finished.awayScore}`)
@@ -77,7 +77,7 @@ test.describe("An event's schedule", () => {
   test("offers score entry only where the server says it may", async ({ page }) => {
     await seed(page, [{ ...finished, can: referee }, upcoming])
     await visit(page, "event", { id: "evt_002" })
-    await page.getByRole("button", { name: "Schedule" }).click()
+    await page.getByTestId("tab-games").click()
 
     await expect(page.getByTestId(`enter-score-${finished.id}`)).toBeVisible()
     await expect(page.getByTestId(`enter-score-${upcoming.id}`)).toHaveCount(0)
@@ -86,7 +86,7 @@ test.describe("An event's schedule", () => {
   test("the score form opens with the current score in it", async ({ page }) => {
     await seed(page, [{ ...finished, can: referee }])
     await visit(page, "event", { id: "evt_002" })
-    await page.getByRole("button", { name: "Schedule" }).click()
+    await page.getByTestId("tab-games").click()
     await page.getByTestId(`enter-score-${finished.id}`).click()
 
     await expect(page.getByTestId(`home-score-${finished.id}`)).toHaveValue(String(finished.homeScore))
@@ -99,7 +99,7 @@ test.describe("An event's schedule", () => {
       upcoming,
     ])
     await visit(page, "event", { id: "evt_002" })
-    await page.getByRole("button", { name: "Schedule" }).click()
+    await page.getByTestId("tab-games").click()
 
     // A separate grant from scoring, so a separate control.
     await expect(page.getByTestId(`game-status-${finished.id}`)).toHaveRole("combobox")
@@ -109,7 +109,7 @@ test.describe("An event's schedule", () => {
   test("says so when an event has no fixtures, rather than showing an empty table", async ({ page }) => {
     await seed(page, [])
     await visit(page, "event", { id: "evt_002" })
-    await page.getByRole("button", { name: "Schedule" }).click()
+    await page.getByTestId("tab-games").click()
 
     await expect(page.getByTestId("schedule-empty")).toBeVisible()
     await expect(page.getByTestId("schedule")).toHaveCount(0)
@@ -147,7 +147,7 @@ test.describe("Standings", () => {
       line({ teamId: "team_003", teamNames: projectTeam("team_003").names, rank: 2, won: 0, lost: 1, pointsFor: 54, pointsAgainst: 68, pointsDiff: -14, leaguePoints: 0 }),
     ])
     await visit(page, "event", { id: "evt_002" })
-    await page.getByRole("button", { name: "Standings" }).click()
+    await page.getByRole("link", { name: "Standings", exact: true }).click()
 
     await expect(page.getByTestId("standing-team_001")).toContainText(projectTeam("team_001").name)
     // Two points for a win — the PO's STANDINGS_POINTS, not a number here.
@@ -160,14 +160,14 @@ test.describe("Standings", () => {
       line({ teamId: "team_004", teamNames: { en: "Assumption U18" }, played: 0, won: 0, lost: 0, pointsFor: 0, pointsAgainst: 0, pointsDiff: 0, leaguePoints: 0 }),
     ])
     await visit(page, "event", { id: "evt_002" })
-    await page.getByRole("button", { name: "Standings" }).click()
+    await page.getByRole("link", { name: "Standings", exact: true }).click()
     await expect(page.getByTestId("standing-team_004")).toBeVisible()
   })
 
   test("an event with no registrations says so", async ({ page }) => {
     await seedStandings(page, [])
     await visit(page, "event", { id: "evt_002" })
-    await page.getByRole("button", { name: "Standings" }).click()
+    await page.getByRole("link", { name: "Standings", exact: true }).click()
     await expect(page.getByTestId("standings-empty")).toBeVisible()
     await expect(page.getByTestId("standings")).toHaveCount(0)
   })
@@ -286,7 +286,7 @@ test.describe("Running a schedule", () => {
       }),
     ])
     await visit(page, "event", { id: "evt_002" })
-    await page.getByTestId("tab-schedule").click()
+    await page.getByTestId("tab-games").click()
   }
 
   // One seed per test: seedCache installs an init script, and re-seeding inside
@@ -345,7 +345,7 @@ const managed = { ...upcoming, timezone: "Asia/Bangkok" }
   test("offers nothing to a reader who may not manage fixtures", async ({ page }) => {
     await seed(page, [upcoming])
     await visit(page, "event", { id: "evt_002" })
-    await page.getByRole("button", { name: "Schedule" }).click()
+    await page.getByTestId("tab-games").click()
 
     await expect(page.getByTestId(`game-${upcoming.id}`)).toBeVisible()
     await expect(page.getByTestId(`edit-fixture-${upcoming.id}`)).toHaveCount(0)
@@ -358,7 +358,7 @@ const managed = { ...upcoming, timezone: "Asia/Bangkok" }
     // move the game seven hours. Nothing errors; people just turn up wrong.
     await seed(page, [managed], ["OWNER"])
     await visit(page, "event", { id: "evt_002" })
-    await page.getByRole("button", { name: "Schedule" }).click()
+    await page.getByTestId("tab-games").click()
     await page.getByTestId(`edit-fixture-${upcoming.id}`).click()
 
     await expect(page.getByTestId(`fixture-when-${upcoming.id}`)).toHaveValue("2026-09-15T17:00")
@@ -379,7 +379,7 @@ const managed = { ...upcoming, timezone: "Asia/Bangkok" }
     })
 
     await visit(page, "event", { id: "evt_002" })
-    await page.getByRole("button", { name: "Schedule" }).click()
+    await page.getByTestId("tab-games").click()
     await page.getByTestId(`edit-fixture-${upcoming.id}`).click()
     await page.getByTestId(`fixture-when-${upcoming.id}`).fill("2026-09-15T19:30")
     await page.getByTestId(`save-fixture-${upcoming.id}`).click()
@@ -398,7 +398,7 @@ const managed = { ...upcoming, timezone: "Asia/Bangkok" }
       void d.dismiss()
     })
     await visit(page, "event", { id: "evt_002" })
-    await page.getByRole("button", { name: "Schedule" }).click()
+    await page.getByTestId("tab-games").click()
     await page.getByTestId(`remove-fixture-${upcoming.id}`).click()
 
     // Dismissed, so the fixture is still there. A delete that fires on the
@@ -420,7 +420,7 @@ test.describe("Generating a whole schedule", () => {
     // permission.
     await seed(page, [])
     await visit(page, "event", { id: "evt_002" })
-    await page.getByRole("button", { name: "Schedule" }).click()
+    await page.getByTestId("tab-games").click()
     await expect(page.getByTestId("generate-fixtures")).toHaveCount(0)
   })
 
@@ -439,7 +439,7 @@ test.describe("Generating a whole schedule", () => {
       entry(orpc.games.list, { eventId: "evt_002" }, { games: [], viewerTimezone: null }),
     ])
     await visit(page, "event", { id: "evt_002" })
-    await page.getByRole("button", { name: "Schedule" }).click()
+    await page.getByTestId("tab-games").click()
 
     await expect(page.getByTestId("generate-start")).toHaveAttribute("type", "date")
     await expect(page.getByTestId("generate-submit")).toBeVisible()
@@ -466,7 +466,7 @@ test.describe("Generating a whole schedule", () => {
     })
 
     await visit(page, "event", { id: "evt_002" })
-    await page.getByRole("button", { name: "Schedule" }).click()
+    await page.getByTestId("tab-games").click()
     await page.getByTestId("generate-start").fill("2026-10-03")
     await page.getByTestId("generate-submit").click()
 

@@ -35,8 +35,13 @@ export async function endSession(path: string, baseURL: string): Promise<void> {
 export async function endRunSessions(baseURL: string, records = directory): Promise<void> {
   if (!existsSync(records)) return
   const errors: unknown[] = []
-  for (const name of readdirSync(records)) {
-    try { await endSession(`${records}/${name}`, baseURL) } catch (error) { errors.push(error) }
+  const names = readdirSync(records);
+  // Bound concurrency: a full GUI run creates many independent sessions.
+  // Clean every record even if one fails, retaining only failed records.
+  for (let index = 0; index < names.length; index += 4) {
+    await Promise.all(names.slice(index, index + 4).map(async name => {
+      try { await endSession(`${records}/${name}`, baseURL) } catch (error) { errors.push(error) }
+    }));
   }
   if (errors.length) throw new AggregateError(errors, 'Test session cleanup failed; session records retained for recovery')
 }

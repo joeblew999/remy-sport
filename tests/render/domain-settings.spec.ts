@@ -38,7 +38,7 @@ test("event settings sends translations, details and explicit cleared dates", as
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ json: event }) })
   })
   await visit(page, "event", { id: event.id })
-  await page.getByTestId("tab-settings").click()
+  await page.getByTestId("tab-manage").click()
   await page.locator("#event-name-ja").fill("学校リーグ")
   await page.getByLabel("Description", { exact: true }).fill("Bring indoor shoes")
   await page.getByTestId("event-start-input").fill("")

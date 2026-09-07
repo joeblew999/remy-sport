@@ -19,7 +19,7 @@ for (const held of [null, [], ...relations.map((r) => [r]), ["GAME_REFEREE", "GA
         entry(orpc.games.list, { eventId: game.eventId }, { games: [game], viewerTimezone: null }),
       ])
       await visit(page, "event", { id: game.eventId })
-      await page.getByRole("button", { name: "Schedule", exact: true }).click()
+      await page.getByTestId("tab-games").click()
       const row = page.getByTestId(`game-${game.id}`)
       await expect(row).toBeVisible()
       for (const action of actions) {
@@ -44,7 +44,7 @@ test("fixture generation uses its own action and fixture entry uses the event cl
     entry(orpc.games.list, { eventId: event.id }, { games: [], viewerTimezone: null }),
   ])
   await visit(page, "event", { id: event.id })
-  await page.getByRole("button", { name: "Schedule", exact: true }).click()
+  await page.getByTestId("tab-games").click()
   await expect(page.getByTestId("add-fixture")).toBeVisible()
   await expect(page.getByTestId("generate-fixtures")).toHaveCount(0)
   let sent: { startsAt?: string } = {}
@@ -69,7 +69,7 @@ test("player box score submits zero and blanks distinctly and reports a refusal"
       points: null, rebounds: null, assists: null, fouls: null }] }),
   ])
   await visit(page, "event", { id: game.eventId })
-  await page.getByRole("button", { name: "Schedule", exact: true }).click()
+  await page.getByTestId("tab-games").click()
   await page.getByTestId(`box-score-${game.id}`).click()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   const form = page.getByTestId(`stat-line-${player.id}`)
@@ -91,7 +91,7 @@ test("an open score form disappears when a fresh server answer revokes permissio
     entry(orpc.games.list, { eventId: game.eventId }, { games: [game], viewerTimezone: null }),
   ])
   await visit(page, "event", { id: game.eventId })
-  await page.getByRole("button", { name: "Schedule", exact: true }).click()
+  await page.getByTestId("tab-games").click()
   await page.getByTestId(`enter-score-${game.id}`).click()
   await page.route("**/rpc/games/setStatus", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ json: game }) }))
   await page.route("**/rpc/games/list**", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ json: {

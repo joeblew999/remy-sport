@@ -1,3 +1,4 @@
+import { GameSummary } from "../components/game-summary";
 import { useState } from "react";
 import { Can } from "../components/can";
 import { EditPlayer } from "../components/your-players";
@@ -214,17 +215,7 @@ export function PlayerPage({ id, goto }: { id?: string; goto: (r: Route) => void
         <div className="dash-card" data-testid="player-games">
           {games.data.games.slice(0, 10).map((g) => (
             <div key={g.id} className="device-row" data-testid={`player-game-${g.id}`}>
-              <div>
-                {/* Their squad's point of view, which `useTeamGames` already
-                    resolves — "vs Montfort", not a pair of team ids the reader
-                    has to work out which side of. */}
-                <div className="device-label">
-                  {[m.versus(), g.opponent].join(" ")}
-                </div>
-                <div className="device-meta">
-                  {[g.venue, g.statusLabel].filter(Boolean).join(" · ")}
-                </div>
-              </div>
+              <GameSummary game={g} showEvent/>
             </div>
           ))}
         </div>

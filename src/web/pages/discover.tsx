@@ -246,7 +246,7 @@ function LiveBanner({ goto, spoiler }: { goto: (r: Route) => void; spoiler: bool
       </div>
       <button
         className="open-btn"
-        onClick={() => goto(game.isBroadcasting ? { page: "watch", id: game.id } : { page: "live" })}
+        onClick={() => goto({ page: "game", id: game.id })}
       >
         {game.isBroadcasting ? m.video_watch() : m.open_game()}
       </button>

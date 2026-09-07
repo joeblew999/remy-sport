@@ -1,7 +1,7 @@
 # Connected GUI plan
 
-Status: planned, 2026-09-07. The user redirected the approved event-page work
-into this broader plan before implementation. Existing event/header/CSS edits
+Status: implemented and verified locally, 2026-09-07.
+The user approved this plan with “GO”. Existing event/header/CSS edits
 belong to the earlier layout pass and are preserved. This document owns the
 navigation and information-architecture work; the [domain register](2026-09-07-01-react-domain-coverage.md)
 still owns GAP-05–08 coverage and permission acceptance.
@@ -13,7 +13,7 @@ and a player, then return to the same event view without starting again.
 A coach, organiser or referee uses those same objects with the actions the
 server permits. The GUI should expose relationships, not just individual tables.
 
-## Evidence and current breaks
+## Starting evidence (before implementation)
 
 This is a focused source and signed-out local-browser review, not a full role,
 phone or production audit. Earlier in this session, Overview, Schedule and
@@ -184,3 +184,53 @@ DOM activation from this audit is not sufficient interaction acceptance.
 This plan does not deploy, change the domain model, or claim exhaustive GUI
 coverage. Record any actual model decision in the domain register. Keep progress
 here and in the docs index; do not create a second competing backlog.
+
+
+## Implementation record — 2026-09-07
+
+- Replaced Overview/Schedule with Games and grouped public event navigation as
+  Games, Standings, Teams, Places and About. Camps start on Sessions; Players
+  and all existing management/scoring capabilities remain gated by server answers.
+- Event tab/division and team section selection are real URL state. Old event
+  tab names and old notification `#/games/ID` links remain compatible. Browser
+  Back restores the list scroll position; sign-in preserves its destination.
+- Added a game page using the existing single-game endpoint. Shared game
+  summaries connect event, live, court, team and player fixtures. Game details
+  link to both teams; entries/standings link to teams, and teams to organisations.
+  Watch/Broadcast stay explicit actions and return to the selected game.
+- API ranks and movement are independent per division, including shared ranks
+  for ties. A division without previous results reports no movement. Finished
+  games alone contribute to team records. Spoiler mode hides game scores,
+  team records/results and standings on the updated surfaces.
+- Places shows every live game at a venue, including assignment conflicts,
+  rather than overwriting rows. Venue/court links identify their sections.
+  The underlying model still assigns a venue, not a distinct numbered court;
+  this work does not invent that missing identity.
+- The smaller header puts competition content earlier. Phone standings show
+  the core Rank/Team/W/L/PTS columns; desktop includes points for/against and
+  difference. Shared fixture layouts give names space and avoid narrow date
+  columns swallowing the entire game description.
+- Updated the shared test surface helper so a second seeded reader actually
+  receives a new document after hash-only navigation. This fixes a false
+  permission failure in camp-session rendering; actual navigation journeys
+  use clicks and keyboard input, including a tested Back/scroll restoration.
+- The first full browser run passed the new GUI journeys but timed out on one
+  device-refetch assertion and session teardown while checks were running.
+  Five remaining session records from that run were recovered and verified
+  through `bun run test:e2e -- --cleanup-run <run UUID>`. Cleanup now processes
+  independent records in bounded batches, retains failures, gets a 120-second
+  teardown budget, and runs from the CLI finally block locally as well as
+  remotely. The CLI prints the run ID and documents recovery. A unit regression
+  proves successful records are removed and failed records retained.
+- Reviewed regenerated domain coverage through `bun run ops coverage domain
+  --write`; it records the new game surface without claiming unreviewed model
+  items are complete. Added the missing domain option to the CLI help.
+
+Final verification: `bun run check` passed 849 unit/repository/Worker checks
+and 295 rendering checks. The subsequent `bun run test:e2e -- --reporter=line`
+passed all 49 checks with zero retries, including authentication teardown and
+verified session cleanup. The earlier device-refetch timeout did not recur in
+the sequential run; no device behavior was changed to make that test pass. Shared Chrome normal clicks and division selection were verified;
+phone standings were visually checked at 390 × 844. The broader domain audit,
+per-game relay isolation and existing build warnings remain in their existing
+registers. No deployment was requested or performed.

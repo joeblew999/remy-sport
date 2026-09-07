@@ -17,7 +17,7 @@ import { endRunSessions } from "../tests/helpers/session-cleanup.ts"
 import { affectsDeployment } from "./lib/deployed-source.ts"
 import { randomUUID } from "node:crypto"
 import { withStagingAccess } from "./lib/staging-test-access.ts"
-import { DEMO_SIGN_IN_CODE } from "../src/environment.ts"
+import { DEV_ORIGIN, DEMO_SIGN_IN_CODE } from "../src/environment.ts"
 import { SEED_ENTITIES } from "../src/domain/model/entities.ts"
 
 /**
@@ -205,10 +205,18 @@ function target(argv: string[]): { origin: string; environment: string } | null 
 
 const argv = process.argv.slice(2)
 if (argv.includes("--help") || argv.includes("-h")) {
-  console.log("bun run test:e2e [-- --env staging] [Playwright options]\nStaging runs include automatic admin access and checked restoration. --retries 0 disables retries.")
+  console.log("bun run test:e2e [-- --env staging] [Playwright options]\nRecovery: --cleanup-run <run UUID> [--env staging] ends only recorded sessions from that run.\nStaging runs include automatic admin access and checked restoration. --retries 0 disables retries.")
   process.exit(0)
 }
 const TARGET = target(argv)
+const cleanupAt = argv.indexOf("--cleanup-run")
+if (cleanupAt !== -1) {
+  const runId = argv[cleanupAt + 1] ?? ""
+  if (!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(runId)) throw new Refused("--cleanup-run requires a run UUID")
+  await endRunSessions(TARGET?.origin ?? DEV_ORIGIN, `.playwright/runs/${runId}/sessions`)
+  console.log(`Verified session cleanup for run ${runId}`)
+  process.exit(0)
+}
 const env: NodeJS.ProcessEnv = { ...process.env, E2E_STATE_DIR: `.playwright/runs/${randomUUID()}` }
 delete env.BASE_URL
 delete env.TEST_OTP
@@ -237,11 +245,12 @@ async function run(adminConfirmed = false): Promise<void> {
   } finally {
     process.off("SIGINT", cancel)
     process.off("SIGTERM", cancel)
-    if (TARGET) await endRunSessions(TARGET.origin, `${env.E2E_STATE_DIR}/sessions`)
+    await endRunSessions(TARGET?.origin ?? DEV_ORIGIN, `${env.E2E_STATE_DIR}/sessions`)
   }
 }
 
 try {
+  console.log(`e2e: session records ${env.E2E_STATE_DIR}`)
   console.log(`e2e: against ${TARGET ? `${TARGET.environment} — ${TARGET.origin}` : "dev — http://localhost:8787"}`)
   if (TARGET) await sameCode(TARGET.origin, TARGET.environment)
   if (TARGET?.environment === "staging") {

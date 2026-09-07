@@ -91,3 +91,8 @@ admin test-access setting afterwards, and fail if verification or cleanup fails.
 Staging tests run serially against the shared fixtures.
 The public account picker still hides the admin. Test sessions are recorded per
 run and signed out individually. GitHub CI is not used; run the commands locally.
+
+Session cleanup runs at the end of local and deployed browser runs, including
+failures. The CLI prints its run directory. If a run is forcibly interrupted,
+`bun run test:e2e -- --cleanup-run <run UUID>` recovers only that run's recorded
+sessions; add `--env staging` for a staging run. Failed records remain for retry.

@@ -500,7 +500,7 @@ describe("Web Push delivery", () => {
     // opening anything.
     expect(payload.title).toContain("61")
     expect(payload.title).toContain("58")
-    expect(payload.url).toBe(`#/games/${game.id}`)
+    expect(payload.url).toBe(`#/game/${game.id}`)
     expect(payload.tag).toBe(`score:${game.id}`)
   })
 

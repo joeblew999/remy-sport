@@ -50,10 +50,9 @@ export function YourGames({ goto }: { goto: (r: Route) => void }) {
                 key={g.id}
                 className="row-button"
                 data-testid={`your-game-${g.id}`}
-                // A live game opens the court; an upcoming one opens the event
-                // it belongs to, which is where its court and time are.
+                // Every assignment opens its game, including before tip-off.
                 onClick={() =>
-                  goto(live ? { page: "watch", id: g.id } : { page: "event", id: g.eventId })
+                  goto({ page: "game", id: g.id })
                 }
               >
                 <div className="row-title">

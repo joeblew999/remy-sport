@@ -4,9 +4,10 @@
 
 [Connected GUI plan](2026-09-07-05-gui-connections.md) owns the next GUI work:
 stable contextual navigation, game details, division-correct competition views,
-linked teams/players/places and a compact shared shell. Planning is complete;
-implementation is pending. It supersedes the event-only Overview proposal and
-provides concrete journeys for domain GAP-05–08, without closing those gaps.
+linked teams/players/places and a compact shared shell. Implemented and verified
+locally: 849 unit/repository/Worker checks, 295 rendering checks and all 49
+end-to-end checks passed, including session cleanup. It provides concrete
+journeys for domain GAP-05–08 without claiming exhaustive domain coverage.
 
 Reconciled 2026-09-07 against `ed0a672`, current source and committed evidence.
 This is the current status index. Dated checkpoints describe what was true when
@@ -35,8 +36,16 @@ existing `bun run dev` command after connection refused; Vite became ready and
 its local seed succeeded. Navigating through Playwright now shows **Remy Sport**
 at that URL, with Discover, Live now, Teams, Organisations and Sign in visible;
 the browser reports zero console errors (one development warning).
-Next: collaborate with the user in this connected local app, following their
-chosen page or issue. Do not repeat installation or registration.
+The user selected `/#/event/evt_002` and reported a bad layout. The first layout
+pass reduces the title/header spacing, aligns tab content with the header,
+uses four stat columns, aligns standings headers with their data, and separates
+live team names and scores. Fixed the accompanying progress bug: live scores
+were counted as finished games (22 instead of 18). TypeScript and both existing
+event-overview phone rendering tests pass; desktop Chrome was visually checked.
+Existing bundle-size/deprecated-build-option warnings remain recorded debt.
+The subsequent connected-GUI implementation and final local verification are
+recorded in the active GUI plan above. Next: review that live flow with the user.
+Do not repeat installation or registration.
 For future configuration reloads, `/quit` then `codex resume --last` resumes the
 conversation. `/mcp` lists tools; it is not a documented reload command.
 The earlier Computer Use permission error came from a different tool and does
@@ -47,6 +56,7 @@ Official host setup: <https://learn.chatgpt.com/docs/extend/mcp?surface=cli>.
 
 | Work | Evidence and limits |
 | --- | --- |
+| Connected GUI | Games replaces Overview/Schedule; independent division rankings; linked games, teams, players and places; URL/Back context. Final local gate and 49 browser checks passed. [Implementation and limits](2026-09-07-05-gui-connections.md#implementation-record--2026-09-07). |
 | Staging browser verification | Two consecutive full runs: **42 passed, four development-only skips, zero retries** per run. Admin impersonation, returning to admin, role switching and cleanup passed. [Rollout record](2026-09-07-03-staging-broadcast.md#final-result-two-consecutive-complete-passes). |
 | Staging deployment | Last verified application: `e1fa4dc`, build `2026-09-07T06:57:08.555Z`. Later commits repair tests/runner and document results. Local gate: 847 unit/repository/Worker tests, 289 rendering tests and local browsers passed before publication. |
 | Shared staging test command | The CLI enables and measures temporary admin access, runs tests serially, restores prior access and verifies cleanup. The public admin login button remains hidden. [Behavior and remaining limitations](2026-09-07-04-staging-verification.md). |

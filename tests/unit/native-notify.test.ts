@@ -89,7 +89,7 @@ describe("scoreBody — the same payload the server sends", () => {
     // update replaces the first. A native card that stacked would be a
     // different experience for the same event.
     expect(body.tag).toBe("score:gam_001")
-    expect(body.url).toBe("#/games/gam_001")
+    expect(body.url).toBe("#/game/gam_001")
     expect(body.title).toContain("10")
     expect(body.title).toContain("8")
     expect(body.body).toContain("Bangkok Schools League")

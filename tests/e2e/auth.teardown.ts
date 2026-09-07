@@ -3,5 +3,6 @@ import { BASE } from "../helpers/auth"
 import { endRunSessions } from "../helpers/session-cleanup"
 
 teardown("end and verify only this run's sessions", async () => {
+  teardown.setTimeout(120_000)
   await endRunSessions(BASE)
 })

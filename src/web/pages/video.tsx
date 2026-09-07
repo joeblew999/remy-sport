@@ -72,8 +72,8 @@ function Shell({
   return (
     <>
       <div className="page-header">
-        <button className="crumbs" onClick={() => goto({ page: "live" })} data-testid="video-back">
-          ← {m.nav_live()}
+        <button className="crumbs" onClick={() => goto({ page: "game", id: gameId })} data-testid="video-back">
+          ← {m.games()}
         </button>
         <h1>{heading}</h1>
         <GameHeading gameId={gameId} goto={goto} />

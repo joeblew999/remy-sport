@@ -220,7 +220,7 @@ async function runGameJob(db: Db, env: Bindings, job: GameJob): Promise<JobOutco
         const home = pick(game.homeTeam?.names, locale)
         const away = pick(game.awayTeam?.names, locale)
         const event = pick(game.event?.names, locale)
-        const url = `#/games/${job.gameId}`
+        const url = `#/game/${job.gameId}`
         const tag = `${job.typeCode === "SCORE_UPDATE" ? "score" : "status"}:${job.gameId}`
         if (job.typeCode === "MATCH_START") {
           return {
@@ -254,7 +254,7 @@ async function runGameJob(db: Db, env: Bindings, job: GameJob): Promise<JobOutco
         const event = pick(game.event?.names, locale)
         // Absolute: an email is read outside the app, so a hash route on its
         // own goes nowhere.
-        const url = `${originOf(env)}/#/games/${job.gameId}`
+        const url = `${originOf(env)}/#/game/${job.gameId}`
         const subject =
           job.typeCode === "MATCH_START"
             ? m.email_game_start_subject({ home, away }, { locale })

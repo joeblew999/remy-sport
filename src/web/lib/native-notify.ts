@@ -79,7 +79,7 @@ export function scoreBody(game: LiveGame): PushBody {
     // "Live at {event}" with no event reads as "Live at " — so the venue-less
     // case gets the shorter line rather than a dangling preposition.
     body: game.eventName ? m.push_score_body({ event: game.eventName }) : m.status_live(),
-    url: `#/games/${game.id}`,
+    url: `#/game/${game.id}`,
     tag: `score:${game.id}`,
   }
 }

@@ -9,489 +9,106 @@ import { downloadICS } from "../lib/calendar";
 import { FollowButton } from "../components/follow";
 import { Schedule, AddFixture } from "../components/schedule";
 import { Entries } from "../components/entries";
-import { useEvent, useGames, useStandings } from "../lib/data";
+import { useEntries, useEvent, useGames, useStandings } from "../lib/data";
 import type { Event } from "../data";
-import type { Route } from "../lib/router";
+import { routeHref, type Route } from "../lib/router";
 import { useLocale } from "../lib/locale";
 import { m } from "../lib/i18n";
 import { CourtBoard } from "../components/court-board";
 
-/**
- * No "bracket" tab.
- *
- * It rendered a sixteen-team knockout — seeds, byes, a final — from a constant
- * in lib/data.tsx, behind a SAMPLE DATA banner. Nothing behind it could ever
- * have been real: a `game` row is two teams, a time and a status, and the
- * Product Owner's model has no round, no seed and no parent match. There is no
- * query that could fill that screen.
- *
- * So it was not an unfinished feature, it was a picture of one. Making it real
- * is a modelling decision for the PO in remy-sport-biz, and when those tables
- * exist the tab comes back reading from them.
- */
-type EventTab = "overview" | "schedule" | "courts" | "standings" | "teams" | "players" | "venues" | "divisions" | "sessions" | "rules" | "settings";
+type EventTab = "games" | "standings" | "teams" | "players" | "places" | "sessions" | "about" | "manage";
 
-interface EventProps {
-  id: string | undefined;
-  goto: (r: Route) => void;
-  /** Hides results, not fixtures — see components/schedule.tsx. */
-  spoiler: boolean;
-}
-
-/**
- * @answers VIEW_EVENT, VIEW_FIXTURE_SCHEDULE, VIEW_GAME_RESULTS, VIEW_STANDINGS, VIEW_RANK_MOVEMENT, VIEW_SEASON_RECORDS
- *
- * The event, and its tabs. Standings answer three of these: the table itself,
- * the movement arrows beside each position, and the won/lost/points that a
- * season record is.
- */
-export function EventPage({ id, goto, spoiler }: EventProps) {
-  const { reference, name } = useLocale();
-  const { data: event, isPending: eventLoading } = useEvent(id);
-  const [tab, setTab] = useState<EventTab>("overview");
-
-  /**
-   * An event or nothing. No fallback to whichever sorts first.
-   *
-   * `#/event` with no id used to render `allEvents[0]` — the same bug the old
-   * "My team" page had, found by grep rather than reported. Nothing links here
-   * without an id: not the sidebar, not any `goto`, nothing in the repo. So the
-   * fallback existed only to give a meaning to a URL nobody produces, and it
-   * gave it the wrong one.
-   *
-   * Deleted rather than fixed: a surface claiming something it cannot deliver
-   * is worse than a missing one, and deleting is reversible in git while a
-   * half-feature is not. A bare `#/event` now falls through to "that event does
-   * not exist", which is true.
-   * It also removes a whole `events.list` request from every event page — the
-   * entire platform's events, fetched to render one of them.
-   */
-  const e = id ? event : undefined;
-
-  // The games count, from the games. Cached, and the schedule tab subscribes to
-  // the same key — so opening it costs nothing extra.
-  const { data: games } = useGames(e?.id);
+/** @answers VIEW_EVENT, VIEW_FIXTURE_SCHEDULE, VIEW_GAME_RESULTS, VIEW_STANDINGS, VIEW_RANK_MOVEMENT, VIEW_SEASON_RECORDS */
+export function EventPage({ id, goto, spoiler, query = {}, setParam }: {
+  id?: string; goto: (r: Route) => void; spoiler: boolean;
+  query?: Record<string, string>; setParam: (key: string, value: string | null) => void;
+}) {
+  const { data: e, isPending } = useEvent(id);
+  const entries = useEntries(id);
+  const { data: games } = useGames(id);
+  if (id && isPending) return <div className="empty">{m.loading_event()}</div>;
+  if (!id || !e) return <div className="empty"><p>{m.not_found_event()}</p><a href={routeHref({ page: "discover" })}>{m.back_to_discover()}</a></div>;
+  const camp = e.typeCode === "CAMP";
+  const canManage = e.can.EDIT_EVENT || e.can.MANAGE_DIVISIONS;
+  const tabs: [EventTab, string][] = [
+    ...(camp ? [["sessions", m.event_sessions()]] : [["games", m.games()], ["standings", m.nav_standings()], ["teams", m.tab_teams()]]) as [EventTab, string][],
+    ...((camp || e.typeCode === "SHOWCASE") ? [["players", m.tab_players()]] : []) as [EventTab, string][],
+    ["places", m.event_places()], ["about", m.event_about()],
+    ...(canManage ? [["manage", m.event_manage()]] : []) as [EventTab, string][],
+  ];
+  const aliases: Record<string, EventTab> = { overview: "games", schedule: "games", courts: "places", venues: "places", rules: "about", divisions: "manage", settings: "manage" };
+  const requested = aliases[query.tab ?? ""] ?? query.tab;
+  const tab = tabs.find(([key]) => key === requested)?.[0] ?? tabs[0]![0];
+  const division = entries.data?.divisions.find(d => d.id === query.division)?.id;
+  const divisionInvalid = !!query.division && !!entries.data && !division;
   const total = games?.games.length ?? 0;
-  const played = games?.games.filter((g) => g.homeScore !== null).length ?? 0;
-
-  // Both accessors are async now, so the page has render states it did not
-  // have when the data was a module-level constant. Hooks above run
-  // unconditionally; only the output below is short-circuited.
-  if (id && eventLoading) {
-    return <div className="empty">{m.loading_event()}</div>;
-  }
-  if (!e) {
-    return (
-      <div className="empty">
-        <p>{m.not_found_event()}</p>
-        <button onClick={() => goto({ page: "discover" })}>{m.back_to_discover()}</button>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <div className="event-hero">
-        <div className="meta-bar">
-          <button onClick={() => goto({ page: "discover" })} className="crumbs" style={{ background: "transparent", border: "none", padding: 0, fontFamily: "IBM Plex Mono, monospace", fontSize: 11, color: "var(--ink-3)", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer" }}>← {m.nav_discover()}</button>
-          <span className={`type ${e.typeCode.toLowerCase()}`} style={{
-            display: "inline-flex", padding: "3px 8px",
-            fontFamily: "IBM Plex Mono, monospace", fontSize: 10, letterSpacing: "0.1em",
-            border: "1px solid var(--ink)", textTransform: "uppercase",
-            background: e.typeCode === "TOURNAMENT" ? "var(--ink)" : "transparent",
-            color: e.typeCode === "TOURNAMENT" ? "var(--paper)" : "var(--ink)",
-            borderColor: e.typeCode === "SHOWCASE" ? "var(--accent)" : "var(--ink)",
-          }}>{name(reference?.eventTypes.find((t) => t.code === e.typeCode)?.names, e.typeCode)}</span>
-          <span className={`status ${e.status}`} style={{
-            fontFamily: "IBM Plex Mono, monospace", fontSize: 11,
-            letterSpacing: "0.06em", textTransform: "uppercase",
-            display: "inline-flex", alignItems: "center", gap: 6,
-            color: e.status === "live" ? "var(--live)" : "var(--ink-3)",
-            fontWeight: 500,
-          }}>
-            {e.status === "live" && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--live)", display: "inline-block" }}/>}
-            {e.statusLabel}
-          </span>
-        </div>
-        <h1>
-          {/* `title` is already in the reader's language. The em-dash split is
-              a typographic flourish on the English form; a title without one
-              simply renders whole. */}
-          {/* The space is the split's own: "2026 — Bangkok Round" was rendering
-              as "2026— Bangkok Round" because JSX keeps no whitespace between
-              an expression and the element after it. */}
-          <>{e.title.split(" — ")[0]}{e.title.includes(" — ") && <>{" "}<em>— {e.title.split(" — ")[1]}</em></>}</>
-        </h1>
-        <div className="tagline">{e.date} · {e.venue} · {e.city} · {e.division}</div>
-        <div className="tagline">{m.organised_by({ name: e.organizer })}</div>
-
-        <div className="event-stats">
-          <div className="stat-cell">
-            <div className="label">{m.teams()}</div>
-            <div className="value">{e.teamCount || "—"}</div>
-          </div>
-          <div className="stat-cell">
-            <div className="label">{m.venue_count()}</div>
-            <div className="value">{e.venueCount || "—"}</div>
-          </div>
-          {/* Every cell here is now counted from the tables that hold it.
-              Teams, venues and following were hardcoded — a zero, a zero, and
-              "284 / parents, coaches, scouts" counting followers of nothing —
-              on events that had all three. `subscriptions` had existed the
-              whole time; nothing read it.
-
-              The FORMAT cell stays gone: "Single-elim / + 3rd-place game" was
-              true of no event in the database, and the model has no knockout
-              structure to derive it from. */}
-          <div className="stat-cell">
-            <div className="label">{m.followers()}</div>
-            <div className="value">{e.followerCount || "—"}</div>
-          </div>
-          <div className="stat-cell">
-            <div className="label">{m.games()}</div>
-            <div className="value">
-              {played > 0 ? <><em>{played}</em> / {total}</> : (total || "—")}
-            </div>
-            {played > 0 && played < total && (
-              <div className="sub">{m.games_remaining({ count: total - played })}</div>
-            )}
-          </div>
-        </div>
-
-        {/* Three of these four did nothing. A dead control beside a working
-            Follow button is worse than no control: pressing it and getting
-            nothing teaches people that the app is broken, and they stop
-            trusting the ones that do work. */}
-        <div className="event-actions">
-          {/* Registration already exists, in full, on the Teams tab. This was a
-              second button for it that did not go there. It now does — and only
-              when the reader actually has a team that fits, which the server
-              answers in `registrable`. */}
-          {/* Anything not finished can still take an entry. This used to be
-              gated on `status === "open"`, which nothing could ever be. */}
-          {e.status !== "closed" && (
-            <button
-              className="btn accent"
-              data-testid="hero-register"
-              onClick={() => setTab("teams")}
-            >
-              {m.register_team()}
-            </button>
-          )}
-          <FollowButton objectTypeCode="EVENT" objectId={e.id} />
-          {/* Only where there is a date to put in a diary. An event can exist
-              before its dates are fixed, and a file with today's date in it
-              would put a wrong entry in somebody's calendar. */}
-          {e.startDate && (
-            <button
-              className="btn"
-              data-testid="add-to-calendar"
-              onClick={() =>
-                downloadICS({
-                  id: e.id,
-                  title: e.title,
-                  startDate: e.startDate,
-                  endDate: e.endDate,
-                  location: [e.venue, e.city].filter((x) => x && x !== "—").join(", "),
-                  url: `${location.origin}/#/event/${e.id}`,
-                })
-              }
-            >
-              {m.add_to_calendar()}
-            </button>
-          )}
-          <ShareButton title={e.title} />
-        </div>
-      </div>
-
-      <div className="detail-tabs">
-        {/* Labels are messages: these were English literals, so the tab strip
-            stayed in English on a Thai page while everything under it
-            translated. */}
-        {([
-          ["overview", m.tab_overview()],
-          ["schedule", m.schedule()],
-          ["standings", m.nav_standings()],
-          ["teams", m.tab_teams()],
-          // Individuals enter camps and showcases; teams enter tournaments and
-          // leagues. That is the PO's grant — `REGISTER_PLAYER_FOR_EVENT` reads
-          // `eventTypes: ["CAMP", "SHOWCASE"]` — and offering the tab anywhere
-          // else would be a form that answers 403.
-          ...((e.typeCode === "CAMP" || e.typeCode === "SHOWCASE"
-            ? [["players", m.tab_players()]]
-            : []) as [EventTab, string][]),
-          // Which game is on which court, right now. `VIEW_COURT_STATUS_BOARD`
-          // and `VIEW_COURT_ASSIGNMENTS` are PUBLIC in the model, and this is
-          // the screen somebody standing in the hall reads — so no session and
-          // no narrowing by event type. A camp assigns courts as much as a
-          // tournament does.
-          ["courts", m.tab_courts()],
-          ["venues", m.tab_venues()],
-          // Tournaments, leagues and showcases are organised by division; a
-          // camp is organised by session, which is DEFINE_SESSION_SCHEDULE and
-          // a different shape. Same narrowing the model puts on
-          // MANAGE_DIVISIONS, so the tab is not offered where the action is
-          // not granted.
-          ...((e.typeCode === "CAMP" ? [] : [["divisions", m.event_divisions()]]) as [EventTab, string][]),
-          // A camp trains rather than competes, so it has sessions where the
-          // others have fixtures. Same narrowing the model puts on
-          // DEFINE_SESSION_SCHEDULE, which is CAMP only.
-          ...((e.typeCode === "CAMP" ? [["sessions", m.event_sessions()]] : []) as [EventTab, string][]),
-          ["rules", m.tab_rules()],
-          // Only for someone the model says may edit this event. A tab everyone
-          // can see and only some can use is a 403 with extra steps, and it
-          // teaches the other readers that the app is broken.
-          ...(e.can.EDIT_EVENT ? ([["settings", m.tab_settings()]] as [EventTab, string][]) : []),
-        ] as [EventTab, string][]).map(([tabId, label]) => (
-          <button key={tabId} data-testid={`tab-${tabId}`} className={`tab ${tab === tabId ? "active" : ""}`} onClick={() => setTab(tabId)}>{label}</button>
-        ))}
-      </div>
-
-      {/**
-        * One entry per tab, and the fallback is what the map does not hold.
-        *
-        * This was thirteen `tab === "x" &&` lines followed by an array of the
-        * eight that were built — the same list written twice, and the second
-        * copy was missing `courts`, `divisions` and `sessions`. So opening the
-        * court board rendered the board *and* "not built yet" underneath it,
-        * and the same for divisions and sessions. Three tabs that worked told
-        * the reader they did not.
-        *
-        * Nothing caught it: court-board.spec.ts clicks the tab and asserts the
-        * board is visible, which it was. Asserting what is absent is the harder
-        * half and there was no reason to think of it.
-        *
-        * A `Record<EventTab, …>` cannot drift, because a tab added to the type
-        * without a screen is a compile error rather than a silent fallthrough.
-        */}
-      {(({
-        overview: () => <EventOverview e={e} goto={goto}/>,
-        schedule: () => (
-          <div className="page-inner">
-            <Schedule eventId={e.id} can={e.can} spoiler={spoiler} goto={goto}/>
-            <AddFixture eventId={e.id} can={e.can} timezone={e.timezone}/>
-          </div>
-        ),
-        courts: () => <CourtBoard eventId={e.id}/>,
-        standings: () => <StandingsTable eventId={e.id}/>,
-        teams: () => <div className="page-inner"><Entries eventId={e.id}/></div>,
-        players: () => <EventPlayers eventId={e.id}/>,
-        venues: () => <EventVenues eventId={e.id}/>,
-        // MANAGE_DIVISIONS, which is its own action — EDIT_EVENT was standing
-        // in for it, and the two differ on a camp.
-        divisions: () => <EventDivisions eventId={e.id} can={e.can}/>,
-        sessions: () => <EventSessions eventId={e.id} can={e.can} timezone={e.timezone}/>,
-        rules: () => <EventRules event={e}/>,
-        // Guarded twice on purpose: the tab is only offered to somebody who may
-        // edit, and hand-typing the hash must not get past that.
-        settings: () =>
-          e.can.EDIT_EVENT ? (
-            <EventSettings event={e}/>
-          ) : (
-            <div className="page-inner"><div className="empty">{m.tab_not_built()}</div></div>
-          ),
-      } satisfies Record<EventTab, () => React.ReactNode>)[tab] ??
-        (() => <div className="page-inner"><div className="empty">{m.tab_not_built()}</div></div>))()}
-    </>
-  );
-}
-
-interface OverviewProps { e: Event; goto: (r: Route) => void }
-
-/**
- * The event at a glance, from the event's own games.
- *
- * Three of the four sections here were invented. A live game with a quarter, a
- * clock and a court. A next game with a countdown. And "Top performers today" —
- * four players with names, schools and stat lines (`24 PTS · 8 AST · 3 STL`)
- * that were typed into this file, on a platform with no player statistics of
- * any kind. Only the standings were real.
- *
- * The performers section is gone rather than labelled: there is no `points`,
- * `assists` or `steals` anywhere in the Product Owner's model, so nothing could
- * have filled it. A section that cannot be made real is not an unfinished
- * feature, it is a picture of one, and it made the whole page untrustworthy —
- * a reader with no way to tell which numbers were real has to assume none are.
- *
- * The rest reads `games.list` for this event, which is the same source the
- * Schedule tab uses. Live, next and recent are three questions about one list.
- */
-function EventOverview({ e, goto }: OverviewProps) {
-  const { data: standings } = useStandings(e.id);
-  const { data: gameData, isPending } = useGames(e.id);
-  const games = gameData?.games ?? [];
-
-  // In play now. `HALF_TIME` counts: the game has not finished and somebody
-  // watching wants to see it resume.
-  const live = games.filter((g) => g.statusCode === "LIVE" || g.statusCode === "HALF_TIME");
-  // The soonest game that has not started. `games.list` returns them in
-  // chronological order, so the first match is the next one.
-  const next = games.find((g) => g.statusCode === "SCHEDULED");
-  // Finished, most recently first — the reverse of the schedule's order,
-  // because a result list is read backwards from now.
-  const finished = games.filter((g) => g.statusCode === "FINISHED").reverse().slice(0, 6);
-
-  return (
-    <div className="page-inner">
-      {e.gameCount > 0 && <p className="muted" data-testid="event-progress">{m.event_progress({ played: e.playedCount, total: e.gameCount })}</p>}
-      <div className="dash-grid">
-        <div>
-          <div className="section-h">
-            <h2>{m.live_and_next()}</h2>
-            <a className="more" onClick={() => goto({ page: "live" })} style={{ cursor: "pointer" }}>
-              {m.view_schedule()}
-            </a>
-          </div>
-
-          <div className="dash-card" data-testid="event-live">
-            {isPending && <div className="empty">{m.loading()}</div>}
-            {!isPending && live.length === 0 && !next && (
-              <div className="empty" data-testid="event-no-games">{m.event_no_games()}</div>
-            )}
-
-            {live.map((g) => (
-              <button
-                key={g.id}
-                className="row-button"
-                data-testid={`event-live-${g.id}`}
-                onClick={() => goto(g.isBroadcasting ? { page: "watch", id: g.id } : { page: "live" })}
-              >
-                <div className="row-title">
-                  {g.homeTeam} {m.versus()} {g.awayTeam}
-                  {g.homeScore !== null && g.awayScore !== null
-                    ? `  ${g.homeScore}–${g.awayScore}`
-                    : ""}
-                </div>
-                <div className="row-meta" style={{ color: "var(--live)" }}>
-                  {g.statusLabel}
-                  {g.venue ? ` · ${g.venue}` : ""}
-                  {/* Only where a camera is actually pointed at it. */}
-                  {g.isBroadcasting ? ` · ${m.video_watch()}` : ""}
-                </div>
-              </button>
-            ))}
-
-            {next && (
-              <button
-                key={next.id}
-                className="row-button"
-                data-testid={`event-next-${next.id}`}
-                onClick={() => goto({ page: "live" })}
-              >
-                <div className="row-title">
-                  {next.homeTeam} {m.versus()} {next.awayTeam}
-                </div>
-                <div className="row-meta">
-                  {m.event_next_up()}
-                  {next.venue ? ` · ${next.venue}` : ""}
-                </div>
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div>
-          <div className="section-h"><h2>{m.standings()}</h2></div>
-          <div className="dash-card">
-            <div className="standing-row head">
-              <span></span><span>{m.team()}</span><span>{m.col_won()}</span><span>{m.col_lost()}</span><span></span><span>{m.col_points()}</span>
-            </div>
-            {(standings ?? []).slice(0, 6).map(s => (
-              <div key={s.teamId} className="standing-row">
-                <span className="rank">
-                  #{s.rank}
-                  {/* `VIEW_RANK_MOVEMENT`. Null means there is no previous table
-                      to compare against, which is not the same as unchanged —
-                      so nothing is drawn rather than a flat dash implying a
-                      comparison that has not happened. */}
-                  {s.movement !== null && s.movement !== 0 && (
-                    <span
-                      className="meta"
-                      data-testid={`movement-${s.teamId}`}
-                      title={String(s.movement)}
-                    >
-                      {" "}
-                      {s.movement > 0 ? "▲" : "▼"}
-                      {Math.abs(s.movement)}
-                    </span>
-                  )}
-                </span>
-                <span className="team">{s.team}</span>
-                <span className="num">{s.won}</span>
-                <span className="num">{s.lost}</span>
-                <span className="num">{s.pointsDiff > 0 ? "+" : ""}{s.pointsDiff}</span>
-                <span className="pts">{s.leaguePoints}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="section-h"><h2>{m.recent_results()}</h2></div>
-          <div className="dash-card" data-testid="event-results">
-            {!isPending && finished.length === 0 && (
-              <div className="empty" data-testid="event-no-results">{m.event_no_results()}</div>
-            )}
-            {finished.map((g) => (
-              <div key={g.id} className="result-row" data-testid={`event-result-${g.id}`}>
-                <div>
-                  <div className="row-title">{g.homeTeam}</div>
-                  <div className="row-title" style={{ color: "var(--ink-3)" }}>{g.awayTeam}</div>
-                </div>
-                <div className="result-score">
-                  <div className={(g.homeScore ?? 0) >= (g.awayScore ?? 0) ? "won" : ""}>{g.homeScore ?? "—"}</div>
-                  <div className={(g.awayScore ?? 0) > (g.homeScore ?? 0) ? "won" : ""}>{g.awayScore ?? "—"}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+  const played = games?.games.filter(g => g.statusCode === "FINISHED").length ?? 0;
+  const changeTab = (tab: EventTab) => setParam("tab", tab);
+  return <div className="event-page">
+    <div className="event-hero">
+      <div className="meta-bar"><a className="crumbs" href={routeHref({ page: "discover" })}>← {m.nav_discover()}</a><span className="badge badge-outline">{e.statusLabel}</span></div>
+      <h1>{e.title}</h1>
+      <div className="tagline">{e.date} · {e.venue} · {e.city}</div>
+      <div className="event-actions">
+        {e.status !== "closed" && <button className="btn accent" data-testid="hero-register" onClick={() => changeTab(camp || e.typeCode === "SHOWCASE" ? "players" : "teams")}>{camp || e.typeCode === "SHOWCASE" ? m.tab_players() : m.register_team()}</button>}
+        <FollowButton objectTypeCode="EVENT" objectId={e.id}/>
+        {e.startDate && <button className="btn" data-testid="add-to-calendar" onClick={() => downloadICS({ id: e.id, title: e.title, startDate: e.startDate, endDate: e.endDate, location: [e.venue, e.city].join(", "), url: `${location.origin}/#/event/${e.id}` })}>{m.add_to_calendar()}</button>}
+        <ShareButton title={e.title}/>
       </div>
     </div>
-  );
+    <nav className="detail-tabs" aria-label={m.nav_event()}>
+      {tabs.map(([key, title]) => <a key={key} className={`tab ${tab === key ? "active" : ""}`} data-testid={`tab-${key}`} aria-current={tab === key ? "page" : undefined} href={routeHref({ page: "event", id: e.id, query: { ...query, tab: key } })}>{title}</a>)}
+    </nav>
+    {!camp && ["games", "standings", "teams"].includes(tab) && <div className="event-filters">
+      <label>{m.division()} <select data-testid="event-division" value={division ?? ""} onChange={event => setParam("division", event.target.value || null)}>
+        <option value="">{m.all_divisions()}</option>
+        {entries.data?.divisions.map(d => <option key={d.id} value={d.id}>{d.division}</option>)}
+      </select></label>
+      {divisionInvalid && <span role="status">{m.invalid_division()}</span>}
+    </div>}
+    {tab === "games" && <div className="page-inner">
+      {total > 0 && <p className="muted" data-testid="event-progress">{m.event_progress({ played, total })}</p>}
+      <Schedule eventId={e.id} can={e.can} spoiler={spoiler} goto={goto} divisionId={division}/>
+      <AddFixture eventId={e.id} can={e.can} timezone={e.timezone}/>
+    </div>}
+    {tab === "standings" && <StandingsTable eventId={e.id} divisionId={division} spoiler={spoiler}/>}
+    {tab === "teams" && <div className="page-inner"><Entries eventId={e.id} divisionId={division}/></div>}
+    {tab === "players" && <EventPlayers eventId={e.id}/>}
+    {tab === "sessions" && <EventSessions eventId={e.id} can={e.can} timezone={e.timezone}/>}
+    {tab === "places" && <div className="event-places"><CourtBoard eventId={e.id} spoiler={spoiler} courtId={query.court}/><EventVenues eventId={e.id} venueId={query.venue}/></div>}
+    {tab === "about" && <>
+      <div className="page-inner"><p>{m.organised_by({ name: e.organizer })}</p><p>{e.division} · {m.teams()}: {e.teamCount} · {m.venue_count()}: {e.venueCount} · {m.followers()}: {e.followerCount}</p></div>
+      <EventRules event={e}/>
+    </>}
+    {tab === "manage" && <>
+      {!camp && e.can.MANAGE_DIVISIONS && <EventDivisions eventId={e.id} can={e.can}/>}
+      {e.can.EDIT_EVENT && <EventSettings event={e}/>}
+    </>}
+  </div>;
 }
 
-/**
- * The league table, from `/api/standings`.
- *
- * Was eight hardcoded schools with invented records — Bangkok Christian 5–0,
- * Saint Gabriel's 4–1 — rendered on the event page and `#/standings` since the
- * SPA was built. Every number is derived from the games now.
- */
-export function StandingsTable({ eventId }: { eventId: string | undefined }) {
+/** Rank values are computed inside divisions by the API, never renumbered by a UI filter. */
+export function StandingsTable({ eventId, divisionId, spoiler = false }: { eventId?: string; divisionId?: string; spoiler?: boolean }) {
   const { data, isPending } = useStandings(eventId);
-
-  if (isPending) return <div className="page-inner"><div className="empty">{m.loading()}</div></div>;
-  if (!data?.length) {
-    return (
-      <div className="page-inner">
-        <div className="empty" data-testid="standings-empty">{m.standings_empty()}</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="page-inner">
-      <div className="dash-card" data-testid="standings">
-        <div className="standing-row full head">
-          <span></span><span>{m.team()}</span><span>{m.col_won()}</span><span>{m.col_lost()}</span>
-          <span>{m.col_points_for()}</span><span>{m.col_points_against()}</span><span>±</span><span>{m.col_points()}</span>
-        </div>
-        {data.map((s) => (
-          <div key={s.teamId} className="standing-row full" data-testid={`standing-${s.teamId}`}>
-            <span className="rank">#{s.rank}</span>
-            <span className="team">{s.team}</span>
-            <span className="num">{s.won}</span>
-            <span className="num">{s.lost}</span>
-            <span className="num">{s.pointsFor}</span>
-            <span className="num">{s.pointsAgainst}</span>
-            <span className="num" style={{ color: s.pointsDiff > 0 ? "var(--good)" : "var(--ink-3)" }}>
-              {s.pointsDiff > 0 ? "+" : ""}{s.pointsDiff}
-            </span>
-            <span className="pts">{s.leaguePoints}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  if (isPending) return <div className="empty">{m.loading()}</div>;
+  const rows = (data ?? []).filter(s => !divisionId || s.divisionId === divisionId);
+  if (!rows.length) return <div className="page-inner"><div className="empty" data-testid="standings-empty">{m.standings_empty()}</div></div>;
+  if (spoiler) return <div className="page-inner">{m.spoiler_hidden()}</div>;
+  const groups = Map.groupBy(rows, row => row.divisionId);
+  return <div className="page-inner" data-testid="standings">
+    {[...groups].map(([key, group]) => <section key={key ?? "unassigned"} className="game-group">
+      <h2>{group[0]?.division ?? m.division_unassigned()}</h2>
+      <div className="table-scroll"><table className="competition-table">
+        <thead><tr><th>{m.rank_label()}</th><th>{m.team()}</th><th>{m.col_won()}</th><th>{m.col_lost()}</th><th>{m.col_points_for()}</th><th>{m.col_points_against()}</th><th>±</th><th>{m.col_points()}</th></tr></thead>
+        <tbody>{group.map(s => <tr key={s.teamId} data-testid={`standing-${s.teamId}`}>
+          <td>#{s.rank}{s.movement !== null && s.movement !== 0 && <span data-testid={`movement-${s.teamId}`} title={m.rank_movement_note()}>{s.movement > 0 ? " ▲" : " ▼"}{Math.abs(s.movement)}</span>}</td>
+          <td><a href={routeHref({ page: "team", id: s.teamId })}>{s.team}</a></td>
+          <td>{s.won}</td><td>{s.lost}</td><td>{s.pointsFor}</td><td>{s.pointsAgainst}</td><td>{s.pointsDiff > 0 ? "+" : ""}{s.pointsDiff}</td><td>{s.leaguePoints}</td>
+        </tr>)}</tbody>
+      </table></div>
+    </section>)}
+    <p className="muted small">{m.rank_movement_note()}</p>
+  </div>;
 }
 
 /**

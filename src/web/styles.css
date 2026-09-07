@@ -456,30 +456,39 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 }
 
 /* ---------- Event detail page ---------- */
+.event-page { --event-gutter: 32px; }
+.event-page > .page-inner { max-width: none; padding-inline: var(--event-gutter); }
+.event-page .section-h { margin-top: 20px; padding-inline: 0; }
+.event-page .dash-grid > div > .section-h:first-child { margin-top: 0; }
+.event-page [data-testid="event-progress"] { margin-bottom: 20px; font-size: 13px; }
+.event-match { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; align-items: baseline; }
+.event-match .row-title { overflow-wrap: anywhere; }
+.event-score { font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.event-game .row-meta { margin-top: 8px; }
 .event-hero {
-  padding: 32px 32px 24px 32px;
+  padding: 24px var(--event-gutter) 20px;
   border-bottom: 1px solid var(--rule);
 }
 .event-hero .meta-bar {
   display: flex; align-items: center; gap: 12px;
-  margin-bottom: 16px; flex-wrap: wrap;
+  margin-bottom: 12px; flex-wrap: wrap;
 }
 .event-hero h1 {
-  font-family:'Space Grotesk', sans-serif; font-weight: 600; font-size: 56px; line-height: 1;
+  font-family:'Space Grotesk', sans-serif; font-weight: 600; font-size: clamp(28px, 2.6vw, 40px); line-height: 1.15;
   letter-spacing: -0.03em;
   margin-bottom: 8px;
 }
 .event-hero h1 em { color: var(--accent); font-style: normal;}
-.event-hero .tagline { color: var(--ink-3); font-size: 16px;}
+.event-hero .tagline { color: var(--ink-3); font-size: 14px; line-height: 1.6; }
 .event-hero .tagline.thai { font-family: 'Noto Sans Thai', sans-serif; margin-top: 4px; }
 
 .event-stats {
-  display: grid; grid-template-columns: repeat(5, 1fr);
-  margin-top: 32px;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 20px;
   border-top: 1px solid var(--rule);
 }
 .stat-cell {
-  padding: 16px 24px 16px 0;
+  padding: 12px 20px 8px 0;
   border-right: 1px solid var(--rule);
 }
 .stat-cell:last-child { border-right: none;}
@@ -490,8 +499,8 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .stat-cell .sub { font-size: 12px; color: var(--ink-3); margin-top: 4px;}
 
 .event-actions {
-  display: flex; gap: 8px;
-  margin-top: 24px;
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-top: 16px;
 }
 .btn {
   display: inline-flex; align-items: center; gap: 8px;
@@ -512,11 +521,12 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 /* tabs on event detail */
 .detail-tabs {
   display: flex; gap: 0;
-  padding: 0 32px;
+  padding: 0 var(--event-gutter, 32px);
+  overflow-x: auto;
   border-bottom: 1px solid var(--rule);
   background: var(--paper);
 }
-.detail-tabs .tab { padding: 16px 18px;}
+.detail-tabs .tab { padding: 14px 16px; white-space: nowrap; flex-shrink: 0; }
 
 /* ---------- Bracket ---------- */
 .bracket-page { padding: 32px 32px 80px 32px;}
@@ -892,19 +902,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
    Named areas, so nothing depends on the order the spans come in. Three
    selectors deep on purpose: the phone rules below place `.fixture-row`'s
    children by column and would otherwise win on source order. */
-.live-list .fixture-row {
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas:
-    "who status"
-    "venue score"
-    "actions actions";
-  gap: 4px 16px;
-}
-.live-list .fixture-row .opponent { grid-area: who; font-size: 15px; }
-.live-list .fixture-row .kind { grid-area: venue; }
-.live-list .fixture-row .outcome { grid-area: status; }
-.live-list .fixture-row .result { grid-area: score; font-size: 20px; }
-.live-list .fixture-row .live-actions { grid-area: actions; flex-direction: row; gap: 8px; margin-top: 6px; }
+.live-list .fixture-row .live-actions { display: flex; gap: 8px; margin-top: 6px; }
 .live-list .fixture-row .live-actions:empty { display: none; }
 
 /* One finished game under "Recent results" on the event overview. The markup
@@ -1011,8 +1009,11 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
    character per line. */
 .standing-row.full { grid-template-columns: 40px 1fr 50px 50px 70px 70px 70px 60px; }
 .standing-row.head {
+  /* Keep headings on the same tracks as the rows, overriding .dash-card .head. */
+  display: grid;
   font-family:'IBM Plex Mono',monospace; font-size: 10px; color: var(--ink-3); letter-spacing: 0.12em; text-transform: uppercase;
 }
+.standing-row.head > :nth-child(n+3) { text-align: right; }
 .standing-row.you { background: var(--accent-soft);}
 .standing-row .rank { font-family:'IBM Plex Mono',monospace; font-weight: 500; color: var(--ink-3);}
 .standing-row.you .rank { color: var(--accent-deep);}
@@ -1184,9 +1185,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   .dash-grid { grid-template-columns: minmax(0, 1fr); gap: 24px; }
   .live-side-grid { grid-template-columns: 1fr; }
   .roster-grid { grid-template-columns: repeat(2, 1fr); }
-  .event-stats { grid-template-columns: repeat(3, 1fr); }
-  .event-stats .stat-cell:nth-child(4),
-  .event-stats .stat-cell:nth-child(5) { border-top: 1px solid var(--rule); padding-top: 14px; margin-top: 6px; }
+  .event-page { --event-gutter: 24px; }
   .topbar .install-btn { display: none; }
   /* Keep the avatar and the sign-out control; the name is the expendable part. */
   .account-meta { display: none; }
@@ -1367,9 +1366,10 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   .live-header { flex-direction: column; align-items: flex-start; gap: 8px; }
 
   /* Event hero */
+  .event-page { --event-gutter: 14px; }
   .event-hero { padding: 18px 14px; }
   .event-hero h1 { font-size: clamp(24px, 6vw, 36px); }
-  .event-stats { grid-template-columns: repeat(2, 1fr); padding: 12px 14px; }
+  .event-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0; }
   .event-stats .stat-cell:nth-child(n+3) { border-top: 1px solid var(--rule); padding-top: 12px; margin-top: 6px; }
   .stat-cell { border-right: none !important; padding: 8px 0 !important; }
   .event-actions { flex-wrap: wrap; }
@@ -1774,3 +1774,57 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .game-box-score .admin-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .game-box-score h3, .game-box-score [role] { grid-column: 1 / -1; }
 .game-box-score input { width: 100%; box-sizing: border-box; }
+
+/* Connected competition views: shared game identity and compact local navigation. */
+.event-hero { padding-block: 20px; }
+.event-hero h1 { font-size: clamp(24px, 3vw, 34px); margin-block: 10px 6px; }
+.event-hero .event-actions { margin-top: 12px; gap: 8px; }
+.detail-tabs a.tab { text-decoration: none; color: inherit; }
+.event-filters { padding: 16px var(--event-gutter); border-bottom: 1px solid var(--rule); display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.event-filters label { display: flex; align-items: center; gap: 12px; }
+.event-filters select { min-height: 44px; max-width: 100%; }
+.game-group { margin: 0 0 24px; }
+.game-group h2 { margin: 0 0 12px; font-size: 18px; }
+.game-summary { min-width: 0; }
+.game-summary > a { display: block; width: fit-content; }
+.game-summary .device-label { font-weight: 600; text-decoration: none; color: var(--ink); }
+.game-summary .device-meta { margin-top: 4px; }
+.game-summary a:hover, .competition-table a:hover { text-decoration: underline; }
+.game-team-links { display: flex; flex-wrap: wrap; gap: 8px; font-weight: 600; }
+.game-page h1 { font-size: clamp(24px, 3vw, 32px); margin-block: 20px; }
+.game-page .crumbs { line-height: 1.7; }
+.schedule-game > div { min-width: 0; }
+.schedule-game > div:last-child { flex-wrap: wrap; }
+.table-scroll { overflow-x: auto; }
+.competition-table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+.competition-table th, .competition-table td { padding: 12px; border-bottom: 1px solid var(--rule); text-align: right; white-space: nowrap; }
+.competition-table th:nth-child(2), .competition-table td:nth-child(2) { text-align: left; white-space: normal; min-width: 150px; }
+.competition-table a { color: var(--ink); text-decoration: none; }
+.court-game { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--rule); }
+.event-places .game-group { padding: 16px; }
+.event-places .game-group h3 { margin-bottom: 12px; }
+.event-page a:focus-visible, .game-page a:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+@media (max-width: 600px) {
+  .event-hero { padding-block: 14px; }
+  .event-filters label { width: 100%; }
+  .event-filters select { flex: 1; min-width: 0; }
+  .schedule-game { gap: 12px; }
+  .schedule-game > div:last-child { justify-content: flex-start; }
+  .live-list .fixture-row { display: flex; flex-wrap: wrap; }
+  .live-list .game-summary { flex-basis: 100%; }
+}
+.fixture-row:has(> .game-summary) { display: grid; grid-template-areas: none; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; }
+.fixture-row > .game-summary { grid-column: 1; grid-row: 1; }
+.fixture-row:has(> .game-summary) > .result { grid-area: auto; grid-column: 2; grid-row: 1; }
+.fixture-row:has(> .game-summary) > .outcome { grid-area: auto; grid-column: 3; grid-row: 1; }
+.fixture-row > .live-actions { grid-column: 1 / -1; }
+.game-summary .device-meta { font-size: 12px; line-height: 1.6; }
+@media (max-width: 600px) {
+  .fixture-row:has(> .game-summary) > .game-summary { grid-column: 1 / -1; }
+  .fixture-row:has(> .game-summary) > .result { grid-column: 2; grid-row: 2; }
+  .fixture-row:has(> .game-summary) > .outcome { grid-column: 3; grid-row: 2; }
+  .competition-table th:nth-child(5), .competition-table td:nth-child(5),
+  .competition-table th:nth-child(6), .competition-table td:nth-child(6),
+  .competition-table th:nth-child(7), .competition-table td:nth-child(7) { display: none; }
+  .competition-table th, .competition-table td { padding: 10px 6px; }
+}

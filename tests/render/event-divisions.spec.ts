@@ -42,7 +42,7 @@ const seed = (
 
 const open = async (page: Parameters<typeof seedCache>[0]) => {
   await visit(page, "event", { id: "evt_002" })
-  await page.getByTestId("tab-divisions").click()
+  await page.getByTestId("tab-manage").click()
 }
 
 test.describe("An event's divisions", () => {
@@ -69,9 +69,9 @@ test.describe("An event's divisions", () => {
   test("is read-only for somebody who may not edit the event", async ({ page }) => {
     // The server's answer, not a role check here.
     await seed(page, { running: ["div_001"] })
-    await open(page)
-
-    await expect(page.getByTestId("division-check-div_001")).toBeDisabled()
+    await visit(page, "event", { id: "evt_002" })
+    await expect(page.getByTestId("tab-manage")).toHaveCount(0)
+    await expect(page.getByTestId("event-division")).toContainText("U16 Boys")
     await expect(page.getByTestId("divisions-save")).toHaveCount(0)
   })
 
@@ -102,6 +102,8 @@ test.describe("An event's divisions", () => {
       entry(orpc.events.get, { id: "evt_003" }, projectEvent("evt_003", ["OWNER"])),
     ])
     await visit(page, "event", { id: "evt_003" })
-    await expect(page.getByTestId("tab-divisions")).toHaveCount(0)
+    await page.getByTestId("tab-manage").click()
+    await expect(page.getByTestId("event-divisions")).toHaveCount(0)
+    await expect(page.getByTestId("tab-standings")).toHaveCount(0)
   })
 })

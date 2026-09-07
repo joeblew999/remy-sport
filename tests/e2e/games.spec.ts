@@ -21,7 +21,7 @@ test.describe.serial("Scoring a game", () => {
 
     test("the score control appears, and the score round-trips", async ({ page }) => {
       await page.goto("/#/event/evt_002")
-      await page.getByRole("button", { name: "Schedule" }).click()
+      await page.getByTestId("tab-games").click()
       await expect(page.getByTestId("game-gam_002")).toBeVisible()
 
       await page.getByTestId("enter-score-gam_002").click()
@@ -32,7 +32,7 @@ test.describe.serial("Scoring a game", () => {
       // Invalidation, not a reload.
       await expect(page.getByTestId("score-gam_002")).toHaveText("77–70")
       await page.reload()
-      await page.getByRole("button", { name: "Schedule" }).click()
+      await page.getByTestId("tab-games").click()
       await expect(page.getByTestId("score-gam_002")).toHaveText("77–70")
 
       // Put it back the way the seed had it.
@@ -49,7 +49,7 @@ test.describe.serial("Scoring a game", () => {
 
     test("sees the fixture but is offered no way to score it", async ({ page }) => {
       await page.goto("/#/event/evt_002")
-      await page.getByRole("button", { name: "Schedule" }).click()
+      await page.getByTestId("tab-games").click()
 
       // The schedule is public — reading a score never required an account.
       await expect(page.getByTestId("game-gam_002")).toBeVisible()
@@ -65,7 +65,7 @@ test.describe.serial("Scoring a game", () => {
 
     test("can read the schedule and score nothing", async ({ page }) => {
       await page.goto("/#/event/evt_002")
-      await page.getByRole("button", { name: "Schedule" }).click()
+      await page.getByTestId("tab-games").click()
       await expect(page.getByTestId("schedule")).toBeVisible()
       await expect(page.getByTestId("enter-score-gam_002")).toHaveCount(0)
       await expect(page.getByTestId("enter-score-gam_003")).toHaveCount(0)
@@ -88,7 +88,7 @@ test.describe("Refusals are translated", () => {
     // evt_002's entered teams include team_001 twice over in the pickers, so a
     // team can be selected against itself.
     await page.goto("/#/event/evt_002")
-    await page.getByTestId("tab-schedule").click()
+    await page.getByTestId("tab-games").click()
     await expect(page.getByTestId("add-fixture")).toBeVisible()
 
     const submit = async () => {
@@ -103,7 +103,7 @@ test.describe("Refusals are translated", () => {
 
     // Same refusal, same code, different language.
     await page.locator(".lang-switch button", { hasText: "TH" }).click()
-    await page.getByTestId("tab-schedule").click()
+    await page.getByTestId("tab-games").click()
     await submit()
     await expect(page.getByTestId("add-fixture-error")).toHaveText("ทีมไม่สามารถแข่งกับตัวเองได้")
   })

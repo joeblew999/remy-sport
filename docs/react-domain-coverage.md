@@ -146,10 +146,10 @@ Named tests describe specific cases, not exhaustive permission coverage or the l
 | VIEW_COURT_STATUS_BOARD | EVENT | [src/web/components/court-board.tsx](../src/web/components/court-board.tsx) | — | Non-router or unimplemented; audit required |
 | VIEW_EVENT | EVENT | [src/web/pages/event.tsx](../src/web/pages/event.tsx) | — | eventTeams.list, eventVenues.list, events.attendance, events.entries, events.get, events.sessions |
 | VIEW_FIXTURE_SCHEDULE | EVENT | [src/web/pages/event.tsx](../src/web/pages/event.tsx) | — | games.list |
-| VIEW_GAME_RESULTS | GAME | [src/web/pages/event.tsx](../src/web/pages/event.tsx) | — | games.get |
+| VIEW_GAME_RESULTS | GAME | [src/web/pages/event.tsx](../src/web/pages/event.tsx), [src/web/pages/game.tsx](../src/web/pages/game.tsx) | — | games.get |
 | VIEW_LIVE_SCORES | EVENT | [src/web/pages/live.tsx](../src/web/pages/live.tsx) | — | Non-router or unimplemented; audit required |
 | VIEW_LIVE_STREAM | EVENT | [src/web/pages/video.tsx](../src/web/pages/video.tsx) | — | moq.config |
-| VIEW_MATCH_STATUS | GAME | [src/web/components/court-board.tsx](../src/web/components/court-board.tsx) | — | Non-router or unimplemented; audit required |
+| VIEW_MATCH_STATUS | GAME | [src/web/components/court-board.tsx](../src/web/components/court-board.tsx), [src/web/pages/game.tsx](../src/web/pages/game.tsx) | — | Non-router or unimplemented; audit required |
 | VIEW_ORG | ORG | [src/web/pages/org.tsx](../src/web/pages/org.tsx) | — | orgs.get, orgs.list |
 | VIEW_PLAYER | PLAYER | [src/web/components/your-players.tsx](../src/web/components/your-players.tsx), [src/web/pages/player.tsx](../src/web/pages/player.tsx) | — | eventPlayers.list, playerTeams.list, players.get, players.list |
 | VIEW_PLAYER_STATS | PLAYER | [src/web/pages/player.tsx](../src/web/pages/player.tsx) | — | players.stats |

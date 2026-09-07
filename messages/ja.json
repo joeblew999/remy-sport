@@ -128,7 +128,7 @@
   "err_unknown_user": "そのメールアドレスのアカウントはありません。",
   "err_venue_not_at_event": "この会場はこの大会のコートではありません。先に大会へ追加してください。",
   "event": "大会",
-  "event_about": "この大会について",
+  "event_about": "概要",
   "event_created": "大会を作成しました。",
   "event_dates_hint": "日程が未定の場合は空欄のままにしてください。",
   "event_description_placeholder": "説明（任意）",
@@ -493,5 +493,18 @@
   "event_city": "都市",
   "event_progress": "全{total}試合中{played}試合終了",
   "player_created_join_failed": "選手を作成しましたが、チームに追加できませんでした。再試行すると同じ選手を追加します。",
-  "err_broadcast_occupied": "この試合は別の配信者が配信中です。配信が終了してから、もう一度お試しください。"
+  "err_broadcast_occupied": "この試合は別の配信者が配信中です。配信が終了してから、もう一度お試しください。",
+  "nav_event": "イベント",
+  "game_unavailable": "この試合は表示できません。",
+  "event_places": "会場",
+  "event_manage": "管理",
+  "all_divisions": "すべての部門",
+  "invalid_division": "その部門はありません。すべての部門を表示しています。",
+  "division_unassigned": "部門未割当",
+  "rank_label": "順位",
+  "rank_movement_note": "順位変動は、この部門の最新試合日（UTC）より前の順位との比較です。",
+  "other_games": "その他の試合",
+  "record_all_events": "成績 · 全イベント",
+  "venue_multiple_live": "この会場で複数の試合が進行中です。割り当てをご確認ください。",
+  "games_unassigned": "会場未定の試合"
 }

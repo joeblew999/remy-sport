@@ -14,7 +14,7 @@ test.describe("existing-model editing journeys", () => {
     await expect(page).toHaveURL(/#\/event\//)
     const id = new URL(page.url()).hash.split("/").at(-1)!
     try {
-      await page.getByTestId("tab-settings").click()
+      await page.getByTestId("tab-manage").click()
       await page.locator("#event-name-ja").fill("保存された大会")
       await page.getByLabel("Description", { exact: true }).fill("Bring indoor shoes")
       await page.getByTestId("event-start-input").fill("2026-09-10")
@@ -22,7 +22,7 @@ test.describe("existing-model editing journeys", () => {
       await page.getByTestId("event-save").click()
       await expect(page.getByTestId("event-saved")).toBeVisible()
       await page.reload()
-      await page.getByTestId("tab-settings").click()
+      await page.getByTestId("tab-manage").click()
       await expect(page.locator("#event-name-ja")).toHaveValue("保存された大会")
       await expect(page.getByLabel("Description", { exact: true })).toHaveValue("Bring indoor shoes")
       await expect(page.getByTestId("event-start-input")).toHaveValue("2026-09-10")
@@ -31,7 +31,7 @@ test.describe("existing-model editing journeys", () => {
       await page.getByTestId("event-save").click()
       await expect(page.getByTestId("event-saved")).toBeVisible()
       await page.reload()
-      await page.getByTestId("tab-settings").click()
+      await page.getByTestId("tab-manage").click()
       await expect(page.getByTestId("event-start-input")).toHaveValue("")
       await expect(page.getByTestId("event-end-input")).toHaveValue("")
     } finally {
@@ -51,7 +51,7 @@ test.describe("player box scores", () => {
     const path = `/api/games/gam_002/stats/${original.playerId}`
     try {
       await page.goto("/#/event/evt_002")
-      await page.getByTestId("tab-schedule").click()
+      await page.getByTestId("tab-games").click()
       await page.getByTestId("box-score-gam_002").click()
       const line = page.getByTestId(`stat-line-${original.playerId}`)
       await line.locator('[name="points"]').fill("0")
@@ -59,7 +59,7 @@ test.describe("player box scores", () => {
       await line.getByRole("button", { name: "Save", exact: true }).click()
       await expect(line.getByRole("status")).toBeVisible()
       await page.reload()
-      await page.getByTestId("tab-schedule").click()
+      await page.getByTestId("tab-games").click()
       await page.getByTestId("box-score-gam_002").click()
       await expect(line.locator('[name="points"]')).toHaveValue("0")
       await expect(line.locator('[name="assists"]')).toHaveValue("")

@@ -393,7 +393,7 @@ describe("Standings are derived from the games, never stored", () => {
     const res = await api("/api/standings?eventId=evt_002")
     expect(res.status).toBe(200)
     const { standings } = (await res.json()) as {
-      standings: { teamId: string; played: number; rank: number }[]
+      standings: { teamId: string; played: number; rank: number; divisionId: string | null }[]
     }
 
     // Every registered team has a line — a table built from games alone would
@@ -406,8 +406,36 @@ describe("Standings are derived from the games, never stored", () => {
     // letting this quietly assert nothing.
     const idle = aTeamWithNoGamesIn("evt_002")
     expect(standings.find((s) => s.teamId === idle)!.played).toBe(0)
-    // Ranks are dense and start at 1, however many teams there are.
-    expect(standings.map((s) => s.rank)).toEqual(standings.map((_, i) => i + 1))
+    const divisions = Map.groupBy(standings, row => row.divisionId)
+    expect(divisions.size).toBeGreaterThan(1)
+    for (const group of divisions.values()) {
+      expect(group[0]!.rank).toBe(1)
+      for (const row of group) expect(row.rank).toBeLessThanOrEqual(group.length)
+    }
+  })
+
+  it("ties unplayed teams at rank one without changing another division's movement", async () => {
+    const original = await env.DB.prepare("SELECT id, status_code FROM game WHERE event_id = ?").bind("evt_002").all() as { results: { id: string; status_code: string }[] }
+    const before = (await (await api("/api/standings?eventId=evt_002")).json()) as { standings: { teamId: string; divisionId: string; rank: number; movement: number | null }[] }
+    const targetDivision = before.standings[0]!.divisionId
+    const teamIds = new Set(before.standings.filter(s => s.divisionId === targetDivision).map(s => s.teamId))
+    const fixtures = gamesIn("evt_002").filter(g => teamIds.has(g.homeTeamId) && teamIds.has(g.awayTeamId))
+    try {
+      await env.DB.batch(fixtures.map(g => env.DB.prepare("UPDATE game SET status_code = 'SCHEDULED' WHERE id = ?").bind(g.id)))
+      const after = (await (await api("/api/standings?eventId=evt_002")).json()) as { standings: { teamId: string; divisionId: string; rank: number; movement: number | null; played: number }[] }
+      for (const row of after.standings.filter(s => s.divisionId === targetDivision)) {
+        expect(row.rank).toBe(1)
+        expect(row.played).toBe(0)
+        expect(row.movement).toBeNull()
+      }
+      for (const row of after.standings.filter(s => s.divisionId !== targetDivision)) {
+        const previous = before.standings.find(s => s.teamId === row.teamId)!
+        expect(row.rank).toBe(previous.rank)
+        expect(row.movement).toBe(previous.movement)
+      }
+    } finally {
+      await env.DB.batch(original.results.map(g => env.DB.prepare("UPDATE game SET status_code = ? WHERE id = ?").bind(g.status_code, g.id)))
+    }
   })
 
   it("counts a finished game for both teams, and only a finished one", async () => {

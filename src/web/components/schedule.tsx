@@ -22,6 +22,7 @@ import type { Route } from "../lib/router";
 import type { Event } from "../data";
 import { formatTimeOn, fromLocalInput, toLocalInput } from "../lib/dates";
 import { Can } from "./can";
+import { GameSummary } from "./game-summary";
 import { GameStats } from "./game-stats";
 
 /** Fixture/result changes also alter event progress, standings and team records. */
@@ -66,9 +67,6 @@ function timeOf(startsAt: string, locale: string, timeZone: string | null): stri
   }
 }
 
-/** "Asia/Bangkok" reads as "Bangkok" in a line already dense with detail. */
-const shortZone = (tz: string) => tz.split("/").pop()!.replace(/_/g, " ");
-
 /**
  * @answers MANAGE_FIXTURES, GENERATE_FIXTURES, ASSIGN_COURTS, ASSIGN_REFEREE, ENTER_SCORES, CONFIRM_MATCH_STATUS
  *
@@ -79,7 +77,9 @@ export function Schedule({
   can,
   spoiler,
   goto,
+  divisionId,
 }: {
+  divisionId?: string;
   eventId: string;
   /**
    * The event's answers. MANAGE_FIXTURES and ASSIGN_COURTS are event actions,
@@ -91,9 +91,22 @@ export function Schedule({
   goto?: (r: Route) => void;
 }) {
   const games = useGames(eventId);
+  const entries = useEntries(eventId);
+  const visible = (games.data?.games ?? []).filter(g => {
+    if (!divisionId) return true;
+    const home = entries.data?.registered.find(t => t.teamId === g.homeTeamId);
+    const away = entries.data?.registered.find(t => t.teamId === g.awayTeamId);
+    return home?.divisionId === divisionId && away?.divisionId === divisionId;
+  });
+  const groups = [
+    { label: m.nav_live(), games: visible.filter(g => g.statusCode === "LIVE" || g.statusCode === "HALF_TIME") },
+    { label: m.status_upcoming(), games: visible.filter(g => g.statusCode === "SCHEDULED") },
+    { label: m.recent_results(), games: visible.filter(g => g.statusCode === "FINISHED").toReversed() },
+    { label: m.other_games(), games: visible.filter(g => !["LIVE", "HALF_TIME", "SCHEDULED", "FINISHED"].includes(g.statusCode)) },
+  ];
 
   if (games.isPending) return <div className="empty">{m.loading()}</div>;
-  if (!games.data?.games.length) {
+  if (!visible.length) {
     // Not an empty table: an event with no fixtures yet has none, and a header
     // over nothing reads as a loading state that never finishes.
     return (
@@ -104,30 +117,34 @@ export function Schedule({
   }
 
   return (
-    <div className="dash-card" data-testid="schedule">
-      {games.data.games.map((g) => (
+    <div data-testid="schedule">
+      {groups.filter(group => group.games.length).map(group => <section key={group.label} className="game-group">
+      <h2>{group.label}</h2><div className="dash-card">
+      {group.games.map((g) => (
         <GameRow
           key={g.id}
           game={g}
           spoiler={spoiler}
-          viewerZone={games.data.viewerTimezone}
+          viewerZone={games.data?.viewerTimezone ?? null}
           can={can}
           eventId={eventId}
           goto={goto}
         />
-      ))}
+      ))}</div></section>)}
     </div>
   );
 }
 
-function GameRow({
+export function GameRow({
   game,
   spoiler,
   viewerZone,
   can,
   eventId,
   goto,
+  details = false,
 }: {
+  details?: boolean;
   game: Game;
   spoiler: boolean;
   viewerZone: string | null;
@@ -143,20 +160,16 @@ function GameRow({
   return (
     <div className="device-row schedule-game" data-testid={`game-${game.id}`}>
       <div>
-        <div className="device-label">
-          {game.homeTeam} <span className="muted">{m.versus()}</span> {game.awayTeam}
-        </div>
+        <GameSummary game={game} details={details} showStatus={false} />
         <div className="device-meta">
-          {/* The venue's clock is the primary one: it is the time printed on a
-              schedule and the time somebody turns up. The viewer's own is shown
-              beside it only when it differs, so a local reader — which is most
-              of them — sees one time rather than the same time twice. */}
-          {[
-            game.timezone
-              ? `${timeOf(game.startsAt, locale, game.timezone)} ${shortZone(game.timezone)}`
-              : timeOf(game.startsAt, locale, viewerZone),
-            game.venue ?? m.venue_tbc(),
-          ].join(" · ")}
+          <Can of={game} action="CONFIRM_MATCH_STATUS" fallback={
+            <span
+              data-testid={`game-status-${game.id}`}
+              style={game.statusCode === "LIVE" ? { color: "var(--live)" } : undefined}
+            >
+              {game.statusLabel}
+            </span>
+          }><GameStatus game={game} /></Can>
           {game.timezone && viewerZone && viewerZone !== game.timezone && (
             <span data-testid={`local-time-${game.id}`}>
               {" · "}
@@ -174,15 +187,7 @@ function GameRow({
               </span>
             </>
           )}
-          {" · "}
-          <Can of={game} action="CONFIRM_MATCH_STATUS" fallback={
-            <span
-              data-testid={`game-status-${game.id}`}
-              style={game.statusCode === "LIVE" ? { color: "var(--live)" } : undefined}
-            >
-              {game.statusLabel}
-            </span>
-          }><GameStatus game={game} /></Can>
+
         </div>
       </div>
 

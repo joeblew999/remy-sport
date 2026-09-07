@@ -18,17 +18,22 @@
  * fix then is a filter on the endpoint, not a bigger fetch here.
  */
 
+import { useEffect } from "react"
+import { routeHref } from "../lib/router"
 import { useLocale } from "../lib/locale"
 import { useEventVenues } from "../lib/data"
 import { m } from "../lib/i18n"
 
-export function EventVenues({ eventId }: { eventId: string }) {
+export function EventVenues({ eventId, venueId }: { eventId: string; venueId?: string }) {
   const { name, label } = useLocale()
   // The join lives in `useEventVenues` — the fixture venue picker needs the
   // same "which courts does this event play at" answer, and two copies of it
   // is how one of them ends up offering a venue the event does not use.
   const { rows, isPending } = useEventVenues(eventId)
 
+  useEffect(() => {
+    if (venueId && !isPending) document.getElementById(`venue-${venueId}`)?.scrollIntoView({ block: "start" });
+  }, [venueId, isPending]);
   return (
     <div className="page-inner">
       <div className="dash-card" data-testid="event-venues">
@@ -37,10 +42,10 @@ export function EventVenues({ eventId }: { eventId: string }) {
           <div className="empty" data-testid="event-venues-empty">{m.event_venues_none()}</div>
         )}
         {rows.map(({ link, venue }) => (
-          <div key={venue.id} className="venue-row" data-testid={`venue-${venue.id}`}>
+          <div id={`venue-${venue.id}`} key={venue.id} className="venue-row" data-testid={`venue-${venue.id}`}>
             <div>
               <div className="row-title">
-                {name(venue.names as Record<string, string>, venue.id)}
+                <a href={routeHref({ page: "event", id: eventId, query: { tab: "places", court: venue.id } })}>{name(venue.names as Record<string, string>, venue.id)}</a>
                 {link.isPrimary && (
                   <span className="venue-primary" data-testid={`venue-primary-${venue.id}`}>
                     {m.venue_primary()}

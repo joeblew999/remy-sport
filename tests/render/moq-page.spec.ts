@@ -203,7 +203,7 @@ test.describe("A broadcaster starts from the fixture they are standing at", () =
       }),
     ])
     await visit(page, "event", { id: "evt_002" })
-    await page.getByRole("button", { name: "Schedule" }).click()
+    await page.getByTestId("tab-games").click()
     await expect(page.getByTestId(`broadcast-fixture-${scheduled.id}`)).toBeVisible()
   })
 
@@ -218,7 +218,7 @@ test.describe("A broadcaster starts from the fixture they are standing at", () =
       }),
     ])
     await visit(page, "event", { id: "evt_002" })
-    await page.getByRole("button", { name: "Schedule" }).click()
+    await page.getByTestId("tab-games").click()
     // Nobody should have to know a second page exists to find the picture.
     await expect(page.getByTestId(`watch-fixture-${liveGame.id}`)).toBeVisible()
   })

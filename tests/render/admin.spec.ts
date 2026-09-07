@@ -255,7 +255,7 @@ test.describe("The permission grid reflects what the server granted", () => {
     // so the redirect happens on first paint rather than after a round trip.
     await seedCache(page, [VISITOR])
     await visit(page, "admin")
-    await page.waitForURL("**/#/login")
+    await page.waitForURL("**/#/login?**")
   })
 })
 

@@ -194,6 +194,7 @@ export function useGames(eventId: string | undefined) {
     orpc.games.list.queryOptions({
       input: { eventId },
       enabled: eventId !== undefined,
+      refetchInterval: 10_000,
       select: ({ games, viewerTimezone }) => ({
         viewerTimezone,
         games: games.map((g) => ({
@@ -362,8 +363,8 @@ export function useTeamGames(teamId: string | undefined) {
             // Null until both scores exist — an unplayed game has no outcome,
             // and treating a missing score as zero would render every fixture
             // as a loss.
-            won: us === null || them === null ? null : us > them,
-            live: g.statusCode === "LIVE",
+            won: g.statusCode !== "FINISHED" || us === null || them === null || us === them ? null : us > them,
+            live: g.statusCode === "LIVE" || g.statusCode === "HALF_TIME",
             statusLabel: loc.label("gameStatuses", g.statusCode),
           };
         }),

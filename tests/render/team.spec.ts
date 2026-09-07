@@ -76,6 +76,18 @@ test.describe("Team page renders what the API returned", () => {
     await expect(page.locator(".team-hero")).not.toContainText("Triam Udom")
   })
 
+  test("a live lead is not a win and spoiler mode hides the team record", async ({ page }) => {
+    const live = { ...away, statusCode: "LIVE" as const }
+    await seedCache(page, [
+      entry(orpc.teams.get, { id: TEAM }, team(TEAM)),
+      entry(orpc.games.list, { teamId: TEAM }, { viewerTimezone: null, games: [live] }),
+    ])
+    await visit(page, "team", { id: TEAM })
+    await expect(page.getByTestId("team-record")).toHaveText("—")
+    await page.getByRole("button", { name: "Spoiler mode" }).click()
+    await expect(page.locator(".fixture-row .result")).toHaveText("—")
+  })
+
   test("record is a dash until a game has been played, never an invented win-loss", async ({ page }) => {
     // "4–0" was once hardcoded here. The record is counted from the games
     // list now, and with none there is nothing to count.
@@ -85,7 +97,7 @@ test.describe("Team page renders what the API returned", () => {
     ])
 
     await visit(page, "team", { id: "team_002" })
-    await expect(page.locator(".team-hero")).toContainText("RECORD")
+    await expect(page.locator(".team-hero")).toContainText("Record")
     await expect(page.getByTestId("team-record")).toHaveText("—")
   })
 })
@@ -382,10 +394,10 @@ test.describe("The team hero's buttons", () => {
     ])
     await visit(page, "team", { id: "team_002" })
 
-    await expect(page.getByRole("link", { name: "Roster" })).toHaveAttribute("href", "#roster")
+    await expect(page.getByRole("link", { name: "Roster" })).toHaveAttribute("href", "#/team/team_002?section=roster")
     await expect(page.getByRole("link", { name: "Schedule" })).toHaveAttribute(
       "href",
-      "#team-schedule",
+      "#/team/team_002?section=schedule",
     )
     await expect(page.getByRole("button", { name: "Stats" })).toHaveCount(0)
   })

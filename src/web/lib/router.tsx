@@ -26,6 +26,7 @@ export const PAGES = [
   "home",
   "discover",
   "event",
+  "game",
   "live",
   "team",
   "teams",
@@ -66,14 +67,15 @@ export interface Route {
   query?: Record<string, string>;
 }
 
-function parseHash(): Route {
-  const raw = (window.location.hash || "").replace(/^#\/?/, "");
+export function parseRoute(hash: string): Route {
+  const raw = (hash || "").replace(/^#\/?/, "");
   const [path, search] = raw.split("?");
   const query: Record<string, string> = {};
   if (search) {
     for (const [key, value] of new URLSearchParams(search)) query[key] = value;
   }
   const parts = (path ?? "").split("/").filter(Boolean);
+  if (parts[0] === "games") parts[0] = "game";
   // An unrecognised page is "not-found", never itself. This is the line that
   // turned `#roster` into a blank pane: it used to take `parts[0]` on trust.
   // The root is Home — what is yours when signed in, Discover for a visitor.
@@ -82,7 +84,7 @@ function parseHash(): Route {
   return Object.keys(query).length ? { ...base, query } : base;
 }
 
-function serialize(route: Route): string {
+export function routeHref(route: Route): string {
   // Empty values are dropped rather than written as `province=`: an unset
   // filter should leave no trace in a link somebody is about to send.
   const entries = Object.entries(route.query ?? {}).filter(([, v]) => v !== "");
@@ -117,6 +119,7 @@ function serialize(route: Route): string {
  */
 const DETAIL_IDS: Partial<Record<Page, string>> = {
   event: "evt_001",
+  game: "gam_002",
   org: "org_001",
   team: "team_001",
   player: "ply_001",
@@ -144,23 +147,54 @@ export interface RouterAPI {
   setParam: (key: string, value: string | null) => void;
 }
 
+const scrollPositions = new Map<string, number>();
+
 export function useRouter(): RouterAPI {
-  const [route, setRoute] = useState<Route>(parseHash);
+  const [route, setRoute] = useState<Route>(() => parseRoute(window.location.hash));
   useEffect(() => {
-    const onHashChange = () => setRoute(parseHash());
+    const onHashChange = () => setRoute(parseRoute(window.location.hash));
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
+  // Store the actual scroll container, not window.scrollY. Retain positions
+  // across locale remounts and restore after asynchronous content arrives.
+  useEffect(() => {
+    const page = document.querySelector<HTMLElement>(".page");
+    if (!page) return;
+    const key = routeHref(route);
+    const target = scrollPositions.get(key) ?? 0;
+    let restoring = true;
+    const restore = () => {
+      if (!restoring) return;
+      page.scrollTop = target;
+      if (Math.abs(page.scrollTop - target) < 2) restoring = false;
+    };
+    const save = () => { if (!restoring) scrollPositions.set(key, page.scrollTop); };
+    const cancel = () => { restoring = false; };
+    const observer = new ResizeObserver(restore);
+    for (const child of page.children) observer.observe(child);
+    const frame = requestAnimationFrame(restore);
+    page.addEventListener("scroll", save);
+    page.addEventListener("wheel", cancel);
+    page.addEventListener("touchstart", cancel);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      page.removeEventListener("scroll", save);
+      page.removeEventListener("wheel", cancel);
+      page.removeEventListener("touchstart", cancel);
+    };
+  }, [route]);
+
   const write = (next: Route) => {
     setRoute(next);
-    const h = serialize(next);
+    const h = routeHref(next);
     if (window.location.hash !== h) window.location.hash = h;
   };
 
   const goto = (r: Route) => {
-    write(r);
-    document.querySelector(".page")?.scrollTo({ top: 0 });
+    write(r.page === "login" && route.page !== "login" ? { ...r, query: { ...r.query, next: routeHref(route) } } : r);
   };
 
   const setParam = (key: string, value: string | null) => {

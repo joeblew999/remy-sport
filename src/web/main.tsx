@@ -5,7 +5,7 @@ import { Sidebar } from "./components/sidebar";
 import { Topbar } from "./components/topbar";
 import { isNativeApp, pushState } from "./lib/push";
 import { useNativeScoreNotifications } from "./lib/data";
-import { useRouter, type Page } from "./lib/router";
+import { parseRoute, useRouter, type Page } from "./lib/router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LocaleProvider, useLocale, type Locale } from "./lib/locale";
 import { useSession } from "./lib/session";
@@ -15,6 +15,7 @@ import { watchForClientErrors } from "./lib/report";
 
 import { DiscoverPage } from "./pages/discover";
 import { HomePage } from "./pages/home";
+import { GamePage } from "./pages/game";
 import { EventPage } from "./pages/event";
 import { LivePage } from "./pages/live";
 import { TeamPage } from "./pages/team";
@@ -184,7 +185,7 @@ function App() {
   // A detail page keeps its list highlighted in the nav, and the root is
   // Discover's for a visitor, who has no Home.
   const sidebarPage = route.page === "home" && !user ? "discover"
-    : route.page === "event" ? "discover"
+    : (route.page === "event" || route.page === "game" || route.page === "watch" || route.page === "broadcast") ? "discover"
     : route.page === "org" ? "orgs"
     : route.page === "team" ? "teams"
     : route.page === "player" ? "teams"
@@ -226,12 +227,13 @@ function App() {
       sessionLoading ? <div className="empty">{loadingLabel()}</div>
       : user ? <HomePage goto={goto}/>
       : <DiscoverPage goto={goto} spoiler={spoiler} query={route.query} setParam={setParam}/>,
-    event: () => <EventPage id={route.id} goto={goto} spoiler={spoiler}/>,
+    event: () => <EventPage id={route.id} goto={goto} spoiler={spoiler} query={route.query} setParam={setParam}/>,
+    game: () => <GamePage id={route.id} goto={goto} spoiler={spoiler}/>,
     live: () => <LivePage goto={goto} spoiler={spoiler} setSpoiler={handleSpoilerSet}/>,
     // No id: the directory, which already puts yours on top.
-    team: () => route.id ? <TeamPage id={route.id} goto={goto}/> : <TeamsPage goto={goto}/>,
+    team: () => route.id ? <TeamPage id={route.id} goto={goto} query={route.query} spoiler={spoiler}/> : <TeamsPage goto={goto}/>,
     profile: () => <ProfilePage goto={goto}/>,
-    login: () => <LoginPage goto={goto}/>,
+    login: () => <LoginPage goto={goto} next={route.query?.next?.startsWith("#/") ? parseRoute(route.query.next) : undefined}/>,
     devices: () => <DevicesPage goto={goto}/>,
     admin: () => <AdminPage goto={goto}/>,
     orgs: () => <OrgsPage goto={goto}/>,

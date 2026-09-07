@@ -12,14 +12,14 @@ import { projectGamesIn } from "../helpers/projections"
  * track is a date, and a live row has no date — so both names were auto-placed
  * into the narrowest column there is. Nothing overflowed, so the no-overflow
  * check passed; the page was simply unreadable. This asks the question that
- * check cannot: do the names get most of the row, with the status beside them.
+ * check cannot: do the names get most of the row, with readable scores and status below.
  */
 
 /** The league's games that are being played right now, off the seed. */
 const live = projectGamesIn("evt_002").filter((g) => g.statusCode === "LIVE")
 
 test.describe("The live list on a phone", () => {
-  test("gives the team names the row, with the status beside them", async ({ page }) => {
+  test("gives the team names the row, with readable scores and status below", async ({ page }) => {
     expect(live.length, "the seed has live games to show").toBeGreaterThan(0)
     await page.setViewportSize({ width: 390, height: 844 })
     await seedCache(page, [entry(orpc.games.list, {}, { viewerTimezone: null, games: live })])
@@ -31,13 +31,13 @@ test.describe("The live list on a phone", () => {
     const boxes = await rows.evaluateAll((els) =>
       els.map((row) => {
         const box = (sel: string) => row.querySelector(sel)!.getBoundingClientRect()
-        return { row: row.getBoundingClientRect(), names: box(".opponent"), status: box(".outcome"), score: box(".result") }
+        return { row: row.getBoundingClientRect(), names: box(".game-summary"), status: box(".outcome"), score: box(".result") }
       }),
     )
     for (const b of boxes) {
       const rowWidth = b.row.width
       expect(b.names.width, "the names have most of the row").toBeGreaterThan(rowWidth * 0.5)
-      expect(b.status.left, "the status sits beside the names, not under them").toBeGreaterThan(b.names.right - 1)
+      expect(b.status.top, "status does not overlap the game details").toBeGreaterThanOrEqual(b.names.bottom - 1)
       expect(b.score.left, "the score sits on the right").toBeGreaterThan(rowWidth * 0.5)
     }
   })

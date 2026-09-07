@@ -128,7 +128,7 @@
   "err_unknown_user": "No account has that email address.",
   "err_venue_not_at_event": "That venue is not one of this event's courts. Add it to the event first.",
   "event": "Event",
-  "event_about": "About this event",
+  "event_about": "About",
   "event_created": "Event created.",
   "event_dates_hint": "Leave a date empty if it is not fixed yet.",
   "event_description_placeholder": "Description (optional)",
@@ -493,5 +493,18 @@
   "event_city": "City",
   "event_progress": "{played} of {total} games finished",
   "player_created_join_failed": "The player was created, but could not be added to this squad. Retry to add the same player.",
-  "err_broadcast_occupied": "Another broadcaster is already covering this game. Wait for them to stop, then try again."
+  "err_broadcast_occupied": "Another broadcaster is already covering this game. Wait for them to stop, then try again.",
+  "nav_event": "Event",
+  "game_unavailable": "This game is unavailable.",
+  "event_places": "Places",
+  "event_manage": "Manage",
+  "all_divisions": "All divisions",
+  "invalid_division": "That division is unavailable. Showing all divisions.",
+  "division_unassigned": "Division unassigned",
+  "rank_label": "Rank",
+  "rank_movement_note": "Movement compares this division with its table before its latest match date (UTC).",
+  "other_games": "Other fixtures",
+  "record_all_events": "Record · all events",
+  "venue_multiple_live": "Multiple games are live at this venue. Check the assignment.",
+  "games_unassigned": "Games awaiting a venue"
 }

@@ -98,7 +98,7 @@ const OPS: Record<string, Op> = {
   coverage: {
     group: "report",
     cmd: ([what = "gui", ...rest]) => ["bun", `scripts/ops/coverage-${what}.ts`, ...rest],
-    help: "coverage <gui|data|model>        how much of each surface is exercised",
+    help: "coverage <gui|data|model|domain>        how much of each surface is exercised",
   },
   fonts: {
     group: "setup",

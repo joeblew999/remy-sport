@@ -16,6 +16,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, orpc } from "../lib/orpc";
 import { useEntries } from "../lib/data";
 import { formErrors } from "../lib/form-errors";
+import { routeHref } from "../lib/router";
 import { m } from "../lib/i18n";
 
 /**
@@ -23,7 +24,7 @@ import { m } from "../lib/i18n";
  *
  * Teams into events, and out again.
  */
-export function Entries({ eventId }: { eventId: string }) {
+export function Entries({ eventId, divisionId }: { eventId: string; divisionId?: string }) {
   const qc = useQueryClient();
   const { data, isPending } = useEntries(eventId);
 
@@ -54,10 +55,10 @@ export function Entries({ eventId }: { eventId: string }) {
               </tr>
             </thead>
             <tbody>
-              {data.registered.map((r) => (
+              {data.registered.filter(r => !divisionId || r.divisionId === divisionId).map((r) => (
                 <tr key={r.teamId} data-testid={`entry-${r.teamId}`}>
                   <td>
-                    {r.team}
+                    <a href={routeHref({ page: "team", id: r.teamId })}>{r.team}</a>
                     {/* When they entered, which nothing showed. An organiser
                         looking at a full event could not tell who was first —
                         the question behind every waiting list. */}
@@ -68,7 +69,7 @@ export function Entries({ eventId }: { eventId: string }) {
                     )}
                   </td>
                   <td>
-                    <span className="badge badge-outline">{r.division}</span>
+                    <a className="badge badge-outline" href={routeHref({ page: "event", id: eventId, query: { tab: "standings", division: r.divisionId ?? "" } })}>{r.division}</a>
                   </td>
                   <td>
                     {r.can.REGISTER_TEAM_FOR_EVENT && (

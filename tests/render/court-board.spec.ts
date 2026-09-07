@@ -45,7 +45,7 @@ test.describe("The court board", () => {
       }),
     ])
     await visit(page, "event", { id: EVENT })
-    await page.getByTestId("tab-courts").click()
+    await page.getByTestId("tab-places").click()
 
     await expect(page.getByTestId(`court-${COURT_A}-live`)).toContainText("42")
     await expect(page.getByTestId(`court-${COURT_A}-live`)).toContainText("38")
@@ -58,7 +58,7 @@ test.describe("The court board", () => {
       game({ id: "g1", venueId: COURT_B, venueNames: { en: "Court B" }, statusCode: "FINISHED" }),
     ])
     await visit(page, "event", { id: EVENT })
-    await page.getByTestId("tab-courts").click()
+    await page.getByTestId("tab-places").click()
 
     // An empty cell reads as a page that failed to load. "Free" is information.
     await expect(page.getByTestId(`court-${COURT_B}-free`)).toBeVisible()
@@ -70,7 +70,7 @@ test.describe("The court board", () => {
       game({ id: "g1", venueId: COURT_A, venueNames: { en: "Court A" }, statusCode: "SCHEDULED" }),
     ])
     await visit(page, "event", { id: EVENT })
-    await page.getByTestId("tab-courts").click()
+    await page.getByTestId("tab-places").click()
 
     await expect(page.getByTestId(`court-${COURT_A}-next`)).toBeVisible()
   })
@@ -81,7 +81,7 @@ test.describe("The court board", () => {
     // happening on court 2", and a game with no court is not happening anywhere.
     await seed(page, [game({ id: "g1", venueId: null, venueNames: null })])
     await visit(page, "event", { id: EVENT })
-    await page.getByTestId("tab-courts").click()
+    await page.getByTestId("tab-places").click()
 
     await expect(page.getByTestId("court-board-none")).toBeVisible()
   })
@@ -100,7 +100,7 @@ test.describe("The court board", () => {
  * the half nobody thinks of until it has already shipped.
  */
 test.describe("A built tab says nothing about being unbuilt", () => {
-  for (const tab of ["courts", "venues", "divisions"] as const) {
+  for (const tab of ["places", "about", "games"] as const) {
     test(`${tab} renders its own screen and no "not built" message`, async ({ page }) => {
       await asVisitor(page)
       await seed(page, [game({ id: "g1", venueId: COURT_A, venueNames: { en: "Court A" } })])
