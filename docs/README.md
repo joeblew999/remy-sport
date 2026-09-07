@@ -22,9 +22,13 @@ The user is in **Codex CLI in a terminal**, not the desktop app. Do not give
 desktop Settings instructions. Installed CLI: 0.153.4. After the terminal reload,
 the `playwright-chrome` tools became available and `browser_tabs` with
 `action: "list"` succeeded, returning tab 0 (current) at `about:blank`.
-The extension connection is now verified; interaction with the Remy application
-through this connection remains to be done. Next: use the connected browser for
-the user's shared walkthrough. Do not repeat installation or registration.
+The user chose `http://localhost:8787` for the shared walkthrough. Started the
+existing `bun run dev` command after connection refused; Vite became ready and
+its local seed succeeded. Navigating through Playwright now shows **Remy Sport**
+at that URL, with Discover, Live now, Teams, Organisations and Sign in visible;
+the browser reports zero console errors (one development warning).
+Next: collaborate with the user in this connected local app, following their
+chosen page or issue. Do not repeat installation or registration.
 For future configuration reloads, `/quit` then `codex resume --last` resumes the
 conversation. `/mcp` lists tools; it is not a documented reload command.
 The earlier Computer Use permission error came from a different tool and does
