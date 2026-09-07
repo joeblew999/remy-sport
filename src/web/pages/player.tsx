@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { Can } from "../components/can";
+import { EditPlayer } from "../components/your-players";
 import { FollowButton } from "../components/follow";
 import { usePlayer, usePlayerStats, useTeamGames } from "../lib/data";
 import { useSession } from "../lib/session";
@@ -6,7 +9,7 @@ import { useLocale } from "../lib/locale";
 import type { Route } from "../lib/router";
 
 /**
- * @answers VIEW_PLAYER, VIEW_PLAYER_STATS, FOLLOW_PLAYER, UNFOLLOW_PLAYER,
+ * @answers VIEW_PLAYER, VIEW_PLAYER_STATS, EDIT_PLAYER_PROFILE, FOLLOW_PLAYER, UNFOLLOW_PLAYER,
  * RECEIVE_PLAYER_NOTIFICATIONS
  *
  * A player, as anybody signed in can look at them.
@@ -53,6 +56,7 @@ export function PlayerPage({ id, goto }: { id?: string; goto: (r: Route) => void
   const player = usePlayer(id);
   const games = useTeamGames(player.data?.teamId ?? undefined);
   const stats = usePlayerStats(id);
+  const [editing, setEditing] = useState(false);
 
   /**
    * Signed out is not "no such player".
@@ -96,6 +100,11 @@ export function PlayerPage({ id, goto }: { id?: string; goto: (r: Route) => void
         {/* The control that existed and was never rendered anywhere. */}
         <FollowButton objectTypeCode="PLAYER" objectId={p.playerId} />
       </div>
+
+      <Can of={p} action="EDIT_PLAYER_PROFILE">
+        {editing ? <EditPlayer key={p.playerId} player={p} onDone={() => setEditing(false)} /> :
+          <button className="btn" data-testid={`edit-player-${p.playerId}`} onClick={() => setEditing(true)}>{m.player_edit()}</button>}
+      </Can>
 
       <div className="section-h">
         <h2>{m.player_team()}</h2>

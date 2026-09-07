@@ -210,6 +210,7 @@ export const relation = sqliteTable("relation", {
   filterValue: text("filter_value"),
   throughTable: text("through_table"),
   throughColumn: text("through_column"),
+  activeFromColumn: text("active_from_column"),
   activeToColumn: text("active_to_column"),
   roleCode: text("role_code").references(() => role.code),
   sort: integer("sort").notNull(),

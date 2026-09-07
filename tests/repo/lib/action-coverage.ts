@@ -3,36 +3,12 @@ import { join } from "node:path"
 
 // Shared by the repository check and the generated domain coverage report.
 export const BLOCKED: Record<string, string> = {
-  /**
-   * The three bracket actions are parked on a *format*, not on a decision.
-   *
-   * Asked and answered on 2026-09-04, from the Product Owner's own research
-   * rather than from an opinion. Of 66 events catalogued in
-   * remy-sport-biz/research/events-raw, twelve are 5x5 — the pilot's only
-   * format. **One** states a knockout, and not a plain one: "5x5, knockout with
-   * second-chance round — minimum 2 guaranteed games per team". One states
-   * round-robin. The other ten state no format at all.
-   *
-   * What repeats across the catalogue is not the shape of the draw but a floor
-   * on it: "minimum 2 guaranteed games", "3 games guaranteed per team", "round
-   * robin, 3 games per team". Parents paying for a day want their child to play
-   * more than once, which is exactly why the one knockout bolts a second chance
-   * onto it — and why a single-elimination bracket would not model it anyway.
-   *
-   * Knockouts are everywhere in 3x3 ("single elimination, 16 teams per
-   * category"), and 3x3 is outside PILOT_SCOPE. So these wait on a format the
-   * platform does not run yet. That is why they are parked and not deleted, and
-   * it is a different reason from the one the AI actions had.
-   */
-  VIEW_BRACKET: "no bracket table — a knockout draw is structure the schema does not have",
-  GENERATE_BRACKETS: "no bracket table",
-  AI_BRACKET_SUGGESTIONS: "no bracket table — parked with the other three",
-  VIEW_RANKINGS_HISTORY:
-    "PLATFORM-scoped: rankings across events over time. Standings are per event and division, " +
-    "so there is no cross-event ranking to have a history of",
-  MODERATE_LISTINGS:
-    "no listing entity, no event status vocabulary, and no moderation state on any table — " +
-    "building it means inventing both the noun and the verb",
+  // Decision 006 supplies the rules. Schema/API/UI implementation is still missing.
+  VIEW_BRACKET: "Decision 006 accepted; persisted draw/view implementation pending",
+  GENERATE_BRACKETS: "Decision 006 accepted; pool/championship generation implementation pending",
+  AI_BRACKET_SUGGESTIONS: "Decision 006 accepted; validated suggestion and review pipeline pending",
+  VIEW_RANKINGS_HISTORY: "Decision 006 accepted; cross-event team Elo and revisioned history pending",
+  MODERATE_LISTINGS: "Decision 006 accepted; event publication, revisions and visibility implementation pending",
 }
 
 /**

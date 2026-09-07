@@ -1,0 +1,1 @@
+ALTER TABLE `relation` ADD `active_from_column` text;

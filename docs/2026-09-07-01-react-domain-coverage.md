@@ -286,3 +286,38 @@ Next implementation: GAP-01 evidence contract and GAP-04 canonical coach relatio
 attendance grants, with model sync and regression tests in the same work slice.
 Relay investigation can proceed independently. Do not re-request the Product Owner
 decisions already delegated and recorded in Decision 006.
+
+
+## Implementation checkpoint — 2026-09-07
+
+Canonical coach access is committed in biz as `65a05f2`. The application copy,
+additive migration 0017, four-direction resolver, player edit UI and regression
+checks implement the accepted GAP-04 rules. Current head/assistant coaches can
+edit names, jersey and position through any qualifying squad; future and expired
+memberships do not qualify. Start/end days are inclusive in UTC. Team-manager
+status grants no player edit permission. Camp attendance requires organizer,
+accepted co-organizer or platform admin access. Removed all four grant exceptions.
+The local migration was applied without resetting the database.
+
+GAP-01 now has an explicit evidence ledger and drift checks: 1,360 qualified
+items, 46 classified, 1,314 unreviewed. Procedure/output paths retain nested
+object, array and record boundaries. Regenerating the inventory cannot enroll
+new items or classify them as covered. Named evidence proves individual cases,
+not exhaustive action coverage. Better Auth/client-only enrollment and the
+remaining item audit still need work; GAP-01 is not closed.
+
+Validation in the shared working tree: `bun run check` passed (809 core tests,
+287 render tests, plus its type/build checks). Auth setup ran without the seed
+project, then `bun run test:e2e -- --no-deps --reporter=line` passed all 39 tests.
+This intentionally avoids the seed setup's session pruning while the user tries
+the dev system. A seeded outsider account had been promoted to admin locally;
+the organization refusal test now signs in a private account instead of changing
+that person's role back. The real coach edit test restores the jersey it read.
+Biz `check-model.ts --check` and `check-docs.ts` passed (74 actions, 27 relations).
+
+Next: finish GAP-01 enrollment/review and GAP-05–08 journeys; implement listing
+moderation before public draws/rankings. The five designed actions remain
+implementation pending. GAP-02 has preliminary findings in
+[the relay investigation](2026-09-07-02-relay-capabilities.md); protocol tests and
+GAP-03 are not complete. No deployment has been performed. Unrelated shared-tree
+changes are intentionally outside this checkpoint's commits.

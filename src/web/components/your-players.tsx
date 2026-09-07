@@ -159,6 +159,7 @@ function AddPlayer({ onDone }: { onDone: () => void }) {
     }) => api.players.signUpAsGuardian(v as never),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: orpc.players.key() })
+      void qc.invalidateQueries({ queryKey: orpc.teams.key() })
       onDone()
     },
   })
@@ -239,16 +240,13 @@ function AddPlayer({ onDone }: { onDone: () => void }) {
  * since the fixtures were written, with no procedure and no form. A parent
  * whose child was given the wrong number could do nothing about it.
  *
- * The name is not offered here. It is a locale map and the row is a line on a
- * card — editing it properly is the same three-language question the team and
- * event forms answer with a single English box, and doing that in a list row
- * would be cramped. A squad number and a position are what actually change.
+ * Names use the configured locales; unknown translations survive a save.
  *
  * `dob` is absent because the model has no action for it: it decides age-group
  * eligibility, and a birth date corrected from a profile form makes the
  * eligibility rules advisory.
  */
-function EditPlayer({
+export function EditPlayer({
   player,
   onDone,
 }: {
@@ -263,6 +261,7 @@ function EditPlayer({
       api.players.update({ id: player.playerId, ...v, positionCode: v.positionCode as never }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: orpc.players.key() })
+      void qc.invalidateQueries({ queryKey: orpc.teams.key() })
       onDone()
     },
   })

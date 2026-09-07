@@ -28,26 +28,6 @@ const problems: string[] = []
  * PLATFORM relations are exempt: a role comparison and `PUBLIC` need no object,
  * so they apply to an action of any type.
  */
-/**
- * Grants that are known to be unresolvable, and are waiting on the Product
- * Owner rather than on a fix here.
- *
- * Both want "a coach of the team this player is on", which the model cannot say:
- * it is PLAYER -> player_teams -> team_coaches, an object-side hop two joins
- * deep, and the derivation shapes reach one. Answering it needs either a new
- * relation kind or a view.
- *
- * Listed pair by pair on purpose. A blanket exemption for either action would
- * hide the next mismatch in it, which is the failure this whole check exists to
- * stop.
- */
-const KNOWN_UNRESOLVABLE = new Set([
-  "EDIT_PLAYER_PROFILE/HEAD_COACH",
-  "EDIT_PLAYER_PROFILE/ASSISTANT_COACH",
-  "RECORD_ATTENDANCE/HEAD_COACH",
-  "RECORD_ATTENDANCE/ASSISTANT_COACH",
-])
-
 for (const [action, grants] of Object.entries(GRANTS)) {
   const a = ACTION.find((x) => x.code === action)
   if (!a || a.objectTypeCode === "PLATFORM") continue
@@ -59,7 +39,6 @@ for (const [action, grants] of Object.entries(GRANTS)) {
       continue
     }
     if (r.objectTypeCode === "PLATFORM") continue
-    if (KNOWN_UNRESOLVABLE.has(`${action}/${g.relation}`)) continue
     if (r.objectTypeCode !== a.objectTypeCode) {
       problems.push(
         `action ${action} acts on ${a.objectTypeCode} but is granted to ${g.relation}, ` +
@@ -102,5 +81,5 @@ rule(
   "every grant resolves, and nothing that writes is granted to PUBLIC",
   problems,
   `check-grants: ${problems.length} problem(s):\n` + problems.map((p) => `  ${p}`).join("\n"),
-  `check-grants: every grant resolves (${KNOWN_UNRESOLVABLE.size} known exceptions), no write is public`,
+  `check-grants: every grant resolves, no write is public`,
 )

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test"
-import { stateFor, actor, COACH, REFEREE } from "../helpers/auth"
+import { stateFor, freshActor, signInThroughLoginForm, COACH, REFEREE } from "../helpers/auth"
 
 /**
  * Managing an organisation, through the browser, against a real Worker.
@@ -15,8 +15,8 @@ import { stateFor, actor, COACH, REFEREE } from "../helpers/auth"
  */
 
 // usr_coach_001 is ADMIN of org_001 in the fixtures, which is what grants
-// INVITE_ORG_MEMBER. A coach at another school holds no relation to it.
-const OUTSIDER = actor("COACH", 2)
+// INVITE_ORG_MEMBER. Refusal uses a private account: seeded users may have
+// been promoted by someone trying the running system.
 
 test.describe.serial("Organisations", () => {
   test.use({ storageState: stateFor(COACH) })
@@ -95,10 +95,10 @@ test.describe.serial("Organisations", () => {
   })
 })
 
-test.describe("A coach at another school", () => {
-  test.use({ storageState: stateFor(OUTSIDER) })
+test.describe("A reader outside the organisation", () => {
 
   test("sees the profile read-only, and is told the roster is not theirs", async ({ page }) => {
+    await signInThroughLoginForm(page, freshActor())
     await page.goto("/#/org/org_001")
     await expect(page.getByTestId("org-profile")).toBeVisible()
 

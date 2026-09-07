@@ -3,15 +3,16 @@
  *
  * The PO's model answers authorisation with relations, not roles: you may edit
  * this team because you coach it, not because you are a coach. the model's `RELATION`
- * lists the nineteen, and each now carries its derivation as **structured
+ * lists each relation, which carries its derivation as **structured
  * columns** rather than prose, so this file executes them instead of restating
- * them. There is one query builder here, not nineteen resolvers.
+ * them. The query builder is shared by every relation.
  *
- * Three shapes cover all nineteen:
+ * Four derivation shapes are supported:
  *
  *   via=table     a row in `sourceTable` links user to object — optionally
  *                 narrowed by a filter, reached through a second hop, or bounded
- *                 by an end date
+ *                 by start and end dates
+ *   via=parent    inherit a relation through all qualifying parent mappings
  *   via=role      the user's platform role is `roleCode`
  *   via=everyone  no condition
  *
@@ -55,6 +56,19 @@ const tableFor = (fixtureTable: string): string => (FIXTURE_TABLE as Record<stri
  */
 const column = (_table: string, col: string) => col
 
+/** Date and row filters apply in every direction, including inherited relations. */
+function sourceConditions(r: RelationRow, src: ReturnType<typeof sql.identifier>) {
+  const conditions: ReturnType<typeof sql>[] = []
+  const day = new Date().toISOString().slice(0, 10)
+  if (r.filterColumn) conditions.push(sql`${src}.${sql.identifier(r.filterColumn)} = ${r.filterValue}`)
+  if (r.activeFromColumn) conditions.push(sql`${src}.${sql.identifier(r.activeFromColumn)} <= ${day}`)
+  if (r.activeToColumn) {
+    const to = sql.identifier(r.activeToColumn)
+    conditions.push(sql`(${src}.${to} IS NULL OR ${src}.${to} >= ${day})`)
+  }
+  return conditions
+}
+
 /**
  * Build the existence check for one relation.
  *
@@ -88,16 +102,7 @@ async function holdsTableRelation(
     conditions.push(sql`${src}.${userCol} = ${userId}`)
   }
 
-  if (r.filterColumn) {
-    conditions.push(sql`${src}.${sql.identifier(r.filterColumn)} = ${r.filterValue}`)
-  }
-
-  if (r.activeToColumn) {
-    // Historic spells must not still grant the relation: empty means current.
-    const to = sql.identifier(r.activeToColumn)
-    const today = new Date().toISOString().slice(0, 10)
-    conditions.push(sql`(${src}.${to} IS NULL OR ${src}.${to} >= ${today})`)
-  }
+  conditions.push(...sourceConditions(r, src))
 
   const row = await db.get(
     sql`SELECT 1 AS ok FROM ${from} WHERE ${sql.join(conditions, sql` AND `)} LIMIT 1`,
@@ -194,7 +199,7 @@ export async function heldAmong(
     const rows = await inBatches(objectIds, (batch) =>
       db.all<{ id: string; parent: string | null }>(
         sql`SELECT ${src}.${idCol} AS "id", ${src}.${fk} AS "parent"
-            FROM ${src} WHERE ${src}.${idCol} ${inList(batch)}`,
+            FROM ${src} WHERE ${sql.join([sql`${src}.${idCol} ${inList(batch)}`, ...sourceConditions(r, src)], sql` AND `)}`,
       ),
     )
     const parents = [...new Set(rows.map((row) => row.parent).filter((p): p is string => !!p))]
@@ -224,15 +229,7 @@ export async function heldAmong(
     extra.push(sql`${src}.${userCol} = ${user.id}`)
   }
 
-  if (r.filterColumn) {
-    extra.push(sql`${src}.${sql.identifier(r.filterColumn)} = ${r.filterValue}`)
-  }
-  if (r.activeToColumn) {
-    // Historic spells must not still grant the relation: empty means current.
-    const to = sql.identifier(r.activeToColumn)
-    const today = new Date().toISOString().slice(0, 10)
-    extra.push(sql`(${src}.${to} IS NULL OR ${src}.${to} >= ${today})`)
-  }
+  extra.push(...sourceConditions(r, src))
 
   const rows = await inBatches(objectIds, (batch) =>
     db.all<{ objectId: string }>(
@@ -318,6 +315,12 @@ export async function usersHolding(
   objectId: string,
 ): Promise<string[]> {
   const r = RELATION.find((x) => x.code === relationCode)
+  if (r?.via === "parent") {
+    const src = sql.identifier(tableFor(r.sourceTable!))
+    const rows = await db.all<{ parent: string }>(sql`SELECT DISTINCT ${src}.${sql.identifier(r.throughColumn!)} AS parent
+      FROM ${src} WHERE ${sql.join([sql`${src}.${sql.identifier(r.objectColumn!)} = ${objectId}`, ...sourceConditions(r, src)], sql` AND `)}`)
+    return [...new Set((await Promise.all(rows.filter((row) => row.parent).map((row) => usersHolding(db, r.parentRelation!, row.parent)))).flat())]
+  }
   if (!r || r.via !== "table" || !r.sourceTable) return []
 
   const src = sql.identifier(tableFor(r.sourceTable))
@@ -335,14 +338,7 @@ export async function usersHolding(
     selected = sql`${through}.${userCol}`
   }
 
-  if (r.filterColumn) {
-    conditions.push(sql`${src}.${sql.identifier(r.filterColumn)} = ${r.filterValue}`)
-  }
-  if (r.activeToColumn) {
-    const to = sql.identifier(r.activeToColumn)
-    const today = new Date().toISOString().slice(0, 10)
-    conditions.push(sql`(${src}.${to} IS NULL OR ${src}.${to} >= ${today})`)
-  }
+  conditions.push(...sourceConditions(r, src))
   // A player row can have a null user: somebody on a team sheet who has never
   // signed in. They are a real player and not a recipient.
   conditions.push(sql`${selected} IS NOT NULL`)
@@ -376,6 +372,13 @@ export async function objectsHeldBy(
   userId: string,
 ): Promise<string[]> {
   const r = RELATION.find((x) => x.code === relationCode)
+  if (r?.via === "parent") {
+    const parents = await objectsHeldBy(db, r.parentRelation!, userId)
+    const src = sql.identifier(tableFor(r.sourceTable!))
+    const rows = await inBatches(parents, (batch) => db.all<{ objectId: string }>(sql`SELECT DISTINCT ${src}.${sql.identifier(r.objectColumn!)} AS objectId
+      FROM ${src} WHERE ${sql.join([sql`${src}.${sql.identifier(r.throughColumn!)} ${inList(batch)}`, ...sourceConditions(r, src)], sql` AND `)}`))
+    return [...new Set(rows.map((row) => row.objectId))]
+  }
   if (!r || r.via !== "table" || !r.sourceTable || !r.userColumn || !r.objectColumn) return []
 
   const src = sql.identifier(tableFor(r.sourceTable))
@@ -394,14 +397,7 @@ export async function objectsHeldBy(
   }
 
   const conditions = [sql`${userSide} = ${userId}`]
-  if (r.filterColumn) {
-    conditions.push(sql`${src}.${sql.identifier(r.filterColumn)} = ${r.filterValue}`)
-  }
-  if (r.activeToColumn) {
-    const to = sql.identifier(r.activeToColumn)
-    const today = new Date().toISOString().slice(0, 10)
-    conditions.push(sql`(${src}.${to} IS NULL OR ${src}.${to} >= ${today})`)
-  }
+  conditions.push(...sourceConditions(r, src))
 
   const rows = await db.all<{ objectId: string }>(
     sql`SELECT DISTINCT ${selected} AS "objectId" FROM ${from} WHERE ${sql.join(conditions, sql` AND `)}`,
@@ -457,18 +453,13 @@ export async function holds(
    * already defined rather than restating its derivation against a new table.
    *
    * Depth is bounded by the model: a parent relation naming a parent relation
-   * would recurse, and nothing in the model does. `GAME` is the only child
-   * object type, and its parents are all `EVENT`.
+   * would recurse, and nothing in the model does. Player coach relations inherit from all current squads; game relations
+   * inherit from their event. The repository check rejects inheritance cycles.
    */
   if (r.via === "parent") {
-    const src = sql.identifier(tableFor(r.sourceTable!))
-    const idCol = sql.identifier(r.objectColumn!)
-    const fk = sql.identifier(r.throughColumn!)
-    const row = await db.get<{ parent: string | null }>(
-      sql`SELECT ${src}.${fk} AS parent FROM ${src} WHERE ${src}.${idCol} = ${objectId} LIMIT 1`,
-    )
-    if (!row?.parent) return false
-    return holds(db, r.parentRelation!, user, row.parent)
+    // There can be multiple current teams: asking only the first silently denies
+    // coaches on the others. Reuse the set-wise resolver for identical semantics.
+    return (await heldAmong(db, relationCode, user, [objectId])).has(objectId)
   }
 
   return holdsTableRelation(db, r, user.id, objectId)

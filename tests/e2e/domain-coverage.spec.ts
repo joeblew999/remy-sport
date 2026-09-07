@@ -69,3 +69,21 @@ test.describe("player box scores", () => {
     }
   })
 })
+
+test.describe("current squad coach editing", () => {
+  test.use({ storageState: stateFor(actor("COACH", 0)) })
+  test("the coach edits a squad member from the player page and reloads", async ({ page }) => {
+    const original = await (await page.request.get('/api/players/ply_001')).json()
+    try {
+      await page.goto('/#/player/ply_001')
+      await page.getByTestId('edit-player-ply_001').click()
+      await page.getByTestId('player-number-ply_001').fill('19')
+      await page.getByTestId('player-save-ply_001').click()
+      await expect(page.getByTestId('player-meta')).toContainText('#19')
+      await page.reload()
+      await expect(page.getByTestId('player-meta')).toContainText('#19')
+    } finally {
+      expect((await page.request.put('/api/players/ply_001', { data: { jerseyNumber: original.jerseyNumber } })).ok()).toBe(true)
+    }
+  })
+})

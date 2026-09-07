@@ -120,6 +120,13 @@
       "when": 1788496983738,
       "tag": "0016_player_game_stat",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1788748142167,
+      "tag": "0017_current_coach_access",
+      "breakpoints": true
     }
   ]
 }
