@@ -19,12 +19,16 @@ connects to running Chrome/Edge. No extension token or automatic consent bypass
 was configured. The existing repo browser setup was left intact.
 
 The user is in **Codex CLI in a terminal**, not the desktop app. Do not give
-desktop Settings instructions. Installed CLI: 0.153.4. Next: exit with `/quit`,
-then run `codex resume --last` from this repo to reload configuration and resume
-the conversation. Verify `playwright-chrome` tools with `/mcp`, then connect to
-the user's chosen tab. `/mcp` lists tools; it is not a documented reload command.
-Browser attachment has **not** been verified. The earlier Computer Use permission
-error came from a different tool and does not diagnose the Playwright extension.
+desktop Settings instructions. Installed CLI: 0.153.4. After the terminal reload,
+the `playwright-chrome` tools became available and `browser_tabs` with
+`action: "list"` succeeded, returning tab 0 (current) at `about:blank`.
+The extension connection is now verified; interaction with the Remy application
+through this connection remains to be done. Next: use the connected browser for
+the user's shared walkthrough. Do not repeat installation or registration.
+For future configuration reloads, `/quit` then `codex resume --last` resumes the
+conversation. `/mcp` lists tools; it is not a documented reload command.
+The earlier Computer Use permission error came from a different tool and does
+not diagnose the Playwright extension.
 Official host setup: <https://learn.chatgpt.com/docs/extend/mcp?surface=cli>.
 
 ## Completed and verified
