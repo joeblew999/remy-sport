@@ -8,6 +8,7 @@
  */
 
 type MoqElementProps = {
+  key?: React.Key
   /** The relay URL, token included. Cloudflare takes it in the path. */
   url?: string
   /**

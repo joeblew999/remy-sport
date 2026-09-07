@@ -26,6 +26,7 @@
  */
 
 import { useEffect, useState } from "react"
+import type MoqWatch from "@moq/watch/element"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api, orpc } from "../lib/orpc"
 import { useGame } from "../lib/data"
@@ -167,8 +168,35 @@ function useMoqElement(
 export function GameVideo({ gameId }: { gameId: string }) {
   const config = useRelay("watch")
   const [el, setEl] = useState<HTMLElement | null>(null)
+  const [attempt, setAttempt] = useState(0)
   useMoqElement(el, "watch", gameId, false)
   const status = useMoqStatus(el)
+  useEffect(() => {
+    if (!el) return
+    const node = el as MoqWatch
+    let frames = 0
+    let progressedAt = Date.now()
+    // Without discovery, the client's blind subscription stays attached to an
+    // ended broadcast even when a new publisher starts at the same name. A
+    // healthy transport alone therefore does not mean video can recover.
+    // Recreate the watcher after ten seconds without decoded frames, including
+    // when the watcher arrived before the publisher. Leave discovery-capable
+    // relays and paused/background playback to their own lifecycle.
+    const timer = setInterval(() => {
+      const count = node.video?.out.stats.peek()?.frameCount ?? 0
+      if (node.connection?.established.peek()?.discovery !== false ||
+          document.hidden || node.paused || count !== frames) {
+        frames = count
+        progressedAt = Date.now()
+        return
+      }
+      if (Date.now() - progressedAt >= 10_000) {
+        progressedAt = Date.now()
+        setAttempt(value => value + 1)
+      }
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [el])
   /**
    * Whether anybody is actually broadcasting, from our own table.
    *
@@ -184,7 +212,7 @@ export function GameVideo({ gameId }: { gameId: string }) {
     <div className="moq-surface" data-testid="moq-watch">
       {/* Appears only when the browser is missing something it needs. */}
       <moq-watch-support show="warning" />
-      <moq-watch ref={setEl} url={relayUrl(config)} name={broadcastName(gameId)}>
+      <moq-watch key={attempt} ref={setEl} url={relayUrl(config)} name={broadcastName(gameId)}>
         {/* The draw surface. The element has no shadow root; without this it
             subscribes successfully and paints nothing. */}
         <canvas data-testid="moq-canvas" />

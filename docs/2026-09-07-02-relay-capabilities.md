@@ -2,8 +2,9 @@
 
 Status: Development and staging credentials are now configured following the
 user's dashboard setup; production's existing configuration was retained. See
-the environment setup checkpoint below. Actual video delivery still needs a
-fresh browser verification.
+the environment setup checkpoint below. Synthetic-camera video delivery and
+stop/restart now pass against the development relay; physical-camera verification
+and deployment of the recovery fix remain.
 Real relay verification awaits the API token permission update below; the user
 confirmed MoQ is absent from the dashboard Account dropdown. No remote relay
 provisioning, credential rotation or deployment performed. Credentials were not
@@ -269,3 +270,43 @@ roles and expiry have not been independently verified against the registry.
 Next: verify actual Broadcast → Watch video delivery using the development or
 staging relay, including stop/restart. No more dashboard setup or API permission
 changes are required merely to attempt this verification.
+
+## Real development video and restart recovery — 2026-09-07
+
+`bun tests/integration/cloudflare-video.mjs` drives the actual local application
+at `http://localhost:8787` in separate Google Chrome publisher/watcher contexts.
+It signs in as the seeded referee assigned to `gam_002`, uses Chrome's synthetic
+camera, and traverses the configured Cloudflare development relay. No API/media
+responses are mocked. Browser logs, traces and screenshots are disabled to avoid
+recording credential-bearing relay URLs; the created session is released.
+
+Before the fix, an initial attempt failed to receive frames. A subsequent run
+received video and stopped successfully, but the watcher remained connected and
+received no new frames after restarting for the full 45-second deadline.
+Inspection of the installed client's `announcedBroadcast` implementation shows
+its no-discovery path retains a blind consumer until the connection ends.
+
+`GameVideo` now recreates its watcher after ten seconds without decoded-frame
+progress on an established relay connection that lacks discovery. Paused or
+background playback and relays supporting discovery do not trigger this retry.
+Normal advancing video resets the timer. The component's existing credential
+renewal-denial behavior still removes the media element.
+
+The final real-relay run passed all four assertions:
+
+- A watcher opened before the publisher receives more than ten distinct decoded
+  video timestamps painted on its actual canvas after capture starts.
+- Healthy playback retains the same connected element beyond the retry interval.
+- Stop clears/ends the preview capture and stops advancing watcher frames.
+- Restart delivers advancing video to the existing Watch page without reloading.
+
+Typecheck, lint, build, and all 14 cases in `tests/render/moq-page.spec.ts` and
+`tests/render/relay-renewal.spec.ts` passed in the shared working tree. The build
+still reports the previously recorded large-chunk and deprecated
+`inlineDynamicImports` warnings. Existing unrelated pending changes were not
+included in the recovery commit.
+
+This is synthetic-camera proof, not physical-camera proof or a production test.
+No staging or production code was deployed. Next: use a physical camera on the
+development Broadcast page with a separate Watch window, then roll the tested
+recovery change into staging with the rest of the pending relay implementation.
