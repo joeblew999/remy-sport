@@ -53,8 +53,7 @@ export interface Parsed {
   program: Node
 }
 
-export function parse(path: string): Parsed {
-  const source = readFileSync(join(ROOT, path), "utf8")
+export function parse(path: string, source = readFileSync(join(ROOT, path), "utf8")): Parsed {
   const parsed = parseSync(path, source, { sourceType: "module" })
   // A parse error means the walk below is looking at a partial tree, and a rule
   // that silently checked half a file would be worse than one that did not run.
@@ -112,7 +111,7 @@ export function lineOf(parsed: Parsed, node: Node): number {
  * layer. Extensions are added the way the bundler adds them, and `index` is
  * tried last, which is the order every resolver here uses.
  */
-export function resolveLocal(fromFile: string, specifier: string): string | null {
+export function resolveLocal(fromFile: string, specifier: string, virtual: ReadonlySet<string> = new Set()): string | null {
   if (!specifier.startsWith(".")) return null
   const base = join(dirname(fromFile), specifier)
   const candidates = [
@@ -124,6 +123,7 @@ export function resolveLocal(fromFile: string, specifier: string): string | null
     `${base}/index.tsx`,
   ]
   for (const candidate of candidates) {
+    if (virtual.has(candidate)) return candidate
     // A directory is not a module; only its index is.
     try {
       if (statSync(join(ROOT, candidate)).isFile()) return candidate.replace(/^\.\//, "")
@@ -150,7 +150,7 @@ export interface Edge {
  * Re-exports count: `export * from "./x"` is a dependency by any measure, and
  * src/db/schema.ts is nothing but those.
  */
-export function edgesOf(parsed: Parsed): Edge[] {
+export function edgesOf(parsed: Parsed, virtual: ReadonlySet<string> = new Set()): Edge[] {
   const edges: Edge[] = []
   walk(parsed.program, (node) => {
     if (
@@ -162,7 +162,7 @@ export function edgesOf(parsed: Parsed): Edge[] {
     }
     const source = node.source as { value?: string } | null
     if (!source?.value) return
-    const to = resolveLocal(parsed.path, source.value)
+    const to = resolveLocal(parsed.path, source.value, virtual)
     if (!to) return
     // `import type {…}` on the declaration, or every specifier marked `type` —
     // both erase, and the second is how `import { type X }` is written.

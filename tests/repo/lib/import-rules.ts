@@ -26,8 +26,9 @@ export interface Violation {
 }
 
 /** Every local import and re-export in `src`, with the drizzle cycle noted. */
-export function graphOf(files: readonly string[]): Edge[] {
-  return files.flatMap((path) => edgesOf(parse(path)))
+export function graphOf(files: readonly string[], overrides: Readonly<Record<string, string>> = {}): Edge[] {
+  const virtual = new Set(Object.keys(overrides))
+  return [...new Set([...files, ...virtual])].flatMap((path) => edgesOf(parse(path, overrides[path]), virtual))
 }
 
 interface Rule {
@@ -152,9 +153,9 @@ function group(edges: readonly Edge[]): Map<string, string[]> {
   return grouped
 }
 
-export function importViolations(files: readonly string[] = sources("src")): Violation[] {
+export function importViolations(files: readonly string[] = sources("src"), overrides: Readonly<Record<string, string>> = {}): Violation[] {
   grouped = null
-  const edges = graphOf(files)
+  const edges = graphOf(files, overrides)
   const found: Violation[] = []
   for (const rule of RULES) {
     for (const edge of edges) {

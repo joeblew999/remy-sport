@@ -1,4 +1,3 @@
-import { rmSync, writeFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
 import { sources } from "./lib/ast"
 import { IMPORT_RULES, importViolations } from "./lib/import-rules"
@@ -30,9 +29,9 @@ rule(
 /**
  * One file per rule, each breaking exactly it.
  *
- * Written into `src` because the graph is the real one — a fixture tree would
- * be a second graph, and the rules are about this one. Removed in `finally`,
- * and named `.fx-*` so a leftover is obvious.
+ * Overlay fixture modules onto the real graph in memory. Writing temporary
+ * modules into src raced other repository checks scanning that directory,
+ * making a valid deploy fail when a fixture disappeared between list and read.
  */
 const BREAKS: Array<[rule: string, files: Record<string, string>]> = [
   [
@@ -85,25 +84,16 @@ describe("the rules themselves, on a graph whose answer is known", () => {
     expect(guard.broken(edge)).toBe(true)
     expect(guard.broken({ ...edge, typeOnly: true })).toBe(false)
   })
-  const withFiles = <T,>(files: Record<string, string>, body: () => T): T => {
-    for (const [path, source] of Object.entries(files)) writeFileSync(path, source)
-    try {
-      return body()
-    } finally {
-      for (const path of Object.keys(files)) rmSync(path, { force: true })
-    }
-  }
-
   for (const [name, fixture] of BREAKS) {
     it(`catches ${name}`, () => {
-      const broken = withFiles(fixture, () => importViolations(sources("src")))
+      const broken = importViolations(files, fixture)
       expect(broken.map((v) => v.rule)).toContain(name)
     })
   }
 
   for (const [name, fixture] of ALLOWED) {
     it(`allows ${name}`, () => {
-      const found = withFiles(fixture, () => importViolations(sources("src")))
+      const found = importViolations(files, fixture)
       expect(found).toEqual([])
     })
   }
