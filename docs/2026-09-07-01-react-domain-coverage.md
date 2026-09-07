@@ -1,8 +1,39 @@
 # Plan — close the remaining React/domain coverage gaps
 
-Updated 2026-09-07 after implementation commit `5b9d8eb`.
-Status: planned; domain decisions delegated and recorded in the biz repository.
-Implementation remains outstanding; this is not a claim of whole-model coverage.
+Updated 2026-09-07 against HEAD `71c28ab` and the shared working tree.
+Status: implementation in progress; domain decisions are accepted in the biz
+repository. Coach access and browser session revocation have landed. Coverage
+auditing, relay enforcement and the five feature implementations remain open.
+
+## Resume here
+
+This is the main work register. Read the latest checkpoints below alongside
+its status table; their test results describe the recorded checkout, not a fresh
+run. Check `git status` before editing: the shared tree contains substantial
+pending GUI, development tooling, relay and evidence changes from other work.
+
+- Latest committed slice: `71c28ab`, browser session revocation and persisted
+  failure/retry journeys. Remaining work includes development service-worker
+  reload verification and phone/locale/keyboard review.
+- Next independent work: continue GAP-01 item review and GAP-05–08 journeys in
+  the order below. The current generated inventory reports 1,375 items, 64
+  classified and 1,311 unreviewed; this includes uncommitted classifications.
+  Reconcile each with its named behavioral evidence before claiming completion.
+- Relay work: read [the relay investigation](2026-09-07-02-relay-capabilities.md).
+  Local Cloudflare support is restored in the pending changes. Its recorded
+  checks found missing publish/watch tokens and relay API HTTP 403. Real
+  delivery and stream isolation remain unverified; this blocks the relay slice,
+  not the independent coverage work.
+- Earlier GUI work is in [the GUI walk](2026-09-06-01-gui-walk.md),
+  [who sees what](2026-09-06-02-who-sees-what.md) and
+  [one gate](2026-09-06-03-one-gate.md). Their original unchecked steps predate
+  the shared gates recorded below; do not implement them again from the boxes
+  alone. Full matrices and reveal mode are not certified by the gate's existence.
+- Accepted product rules remain Decision 006 linked below. Listing moderation
+  precedes new public bracket/ranking routes; those features remain unfinished.
+
+This reconciliation inspected docs, commit history and source; it did not rerun
+application tests or recheck external credentials.
 
 ## Scope and completion
 
@@ -55,10 +86,10 @@ acceptance evidence recorded here and in the generated inventory where applicabl
 
 | ID | Work | Status | Dependency | Completion evidence |
 | --- | --- | --- | --- | --- |
-| GAP-01 | Establish a precise coverage baseline and evidence contract | Ready | None | Every action/field/relationship has an explicit audit record; unknown additions fail |
-| GAP-02 | Establish relay capabilities and choose a scoped credential design | Ready to investigate | None | Reproducible protocol check and a recorded supported design |
+| GAP-01 | Establish a precise coverage baseline and evidence contract | Contract implemented; item review in progress | None | Every action/field/relationship has an explicit audit record; unknown additions fail |
+| GAP-02 | Establish relay capabilities and choose a scoped credential design | Preliminary review recorded; real relay verification blocked on access | None | Reproducible protocol check and a recorded supported design |
 | GAP-03 | Enforce stream scope at the relay and handle expiry/revocation | Waiting for GAP-02 | GAP-02 | A credential for game A cannot publish game B; real relay tests pass |
-| GAP-04 | Define and resolve the four coach grant mismatches | Rules accepted; implementation pending | Biz Decision 006; GAP-01 for evidence | Four intended grants resolve correctly; precise exceptions removed |
+| GAP-04 | Define and resolve the four coach grant mismatches | Implemented in `8a244c4`; broader matrix audit continues under GAP-06 | Biz Decision 006; GAP-01 for evidence | Four intended grants resolve correctly; precise exceptions removed |
 | GAP-05 | Complete field and relationship coverage in eight domain slices | Ready after baseline | GAP-01; only affected coach cases depend on GAP-04 | Each slice satisfies the shared acceptance checklist |
 | GAP-06 | Complete permission and lifecycle-state matrices | Ready after baseline | GAP-01; grows alongside GAP-05 | Every relevant relation/subtype and state is exercised |
 | GAP-07 | Verify persistence, delivery, navigation and identity changes | Ready per completed slice | GAP-05/06; video portion GAP-03 | Real Worker/browser journeys pass after reload and identity changes |
