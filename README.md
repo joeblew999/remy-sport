@@ -86,5 +86,6 @@ is making `scripts/` smaller.
 
 Staging browser runs verify admin sign-in before testing, restore the previous
 admin test-access setting afterwards, and fail if verification or cleanup fails.
+Staging tests run serially against the shared fixtures.
 The public account picker still hides the admin. Test sessions are recorded per
 run and signed out individually. GitHub CI is not used; run the commands locally.

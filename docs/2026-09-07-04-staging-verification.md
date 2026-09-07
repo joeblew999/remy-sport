@@ -3,7 +3,9 @@
 Status, 2026-09-07: CLI redesign stopped by the user. The current authorized
 work is running the full staging browser suite through the shared CLI, repairing
 its blockers, and recording results. No GitHub CI is wanted. Staging runner
-and test cleanup repairs are in progress; the broader CLI redesign is not implemented. Earlier attempted rewrites were removed. The earlier
+and test cleanup repairs are implemented. A full remote pass has succeeded
+with retries disabled; see the rollout record for final repeat-run results.
+The broader CLI redesign is not implemented. Earlier attempted rewrites were removed. The earlier
 mise migration decision is withdrawn: it was presented before the workflow was
 understood. No replacement tool has been selected or installed.
 
@@ -11,7 +13,7 @@ The requirement in `AGENTS.md` is a small, linear workflow. Developers must not
 coordinate prerequisites, test access, seeding or cleanup themselves. Putting
 existing operations under fewer command names does not meet that requirement.
 
-## What is disconnected
+## Historical audit: what was disconnected
 
 | Developer's job | Current implementation | Work left to the developer |
 | --- | --- | --- |
@@ -28,7 +30,7 @@ system is unnecessary. Local uses workerd/local D1 through Vite; staging uses
 Cloudflare services. They need matching application behavior and fixtures for
 applicable tests, not identical infrastructure or exposed development routes.
 
-## Measured and inspected defects
+## Historical audit: measured and inspected defects
 
 - `bun run deploy -- --help` succeeds and confirms the pipeline ends at smoke.
 - `bun run ops -- --help` attempts installation before help. It failed here with
@@ -48,7 +50,7 @@ No remote command ran during this audit. Previous results are in
 complete staging verification. The intermittent admin refusal remains
 unexplained; propagation is a possibility, not a proven diagnosis.
 
-## Implementation order and acceptance
+## Broader work originally proposed (not a claim of completion)
 
 1. Make development and complete local verification own their prerequisites;
    run verification on the developer’s machine, with no GitHub CI. Keep deliberate maintenance

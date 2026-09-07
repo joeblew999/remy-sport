@@ -492,6 +492,9 @@ export async function signInThroughLoginForm(page: Page, email: string): Promise
   // Hash routing: the SPA stays on one document, so there is no navigation to
   // wait for. Wait for the identity to appear instead.
   await page.getByTestId("topbar-user").waitFor({ state: "visible", timeout: 20000 })
+  // The identity can render before LoginPage finishes its success redirect.
+  // Wait for that redirect before callers navigate to their test's subject.
+  await expect(page.getByTestId("spa-login")).toHaveCount(0)
   await remember(page.request, email)
 }
 

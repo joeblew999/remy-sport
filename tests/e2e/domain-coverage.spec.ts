@@ -78,7 +78,11 @@ test.describe("current squad coach editing", () => {
       await page.goto('/#/player/ply_001')
       await page.getByTestId('edit-player-ply_001').click()
       await page.getByTestId('player-number-ply_001').fill('19')
+      const saved = page.waitForResponse(response => new URL(response.url()).pathname.endsWith('/rpc/players/update') && response.request().method() === 'POST')
       await page.getByTestId('player-save-ply_001').click()
+      const response = await saved
+      expect(response.ok(), await response.text()).toBe(true)
+      await expect(page.getByTestId('player-form-ply_001')).toHaveCount(0)
       await expect(page.getByTestId('player-meta')).toContainText('#19')
       await page.reload()
       await expect(page.getByTestId('player-meta')).toContainText('#19')

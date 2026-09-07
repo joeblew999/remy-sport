@@ -90,3 +90,68 @@ The earlier temporary checkout was removed after its 19 saved sessions were
 verified signed out. The normal checkout's final auth teardown passed. Next:
 reproduce and fix admin preflight through the shared automation before claiming
 all staging-applicable tests pass.
+
+## Shared staging browser workflow repair — 2026-09-07
+
+The user stopped the wider CLI redesign and requested complete staging testing
+through the team's commands, with no GitHub CI. Commits `98adfb6` and `e1fa4dc`
+implement the staging repair and remove the GitHub workflow and Dependabot files.
+No CLI framework or task runner was installed.
+
+The shared E2E command now owns temporary staging admin access, measures actual
+sign-in, restores the prior override, and verifies cleanup. It refuses to skip
+admin tests after failed staging preflight. A run gets its own saved session
+state; cleanup ends recorded sessions individually and verifies their original
+cookies no longer authenticate. Setup no longer prunes other sessions. Role and
+ban assertions restore their tested state in finally blocks.
+
+Failures exposed on the old `b1f9ffa` deployment:
+
+- The login-picker assertion assumed test admin access also made the admin
+  publicly selectable. It now asserts that staging continues to hide that button.
+- A redundant second admin preflight contradicted the first successful sign-in;
+  it has been removed. The access probe measures the capability, and auth setup
+  must still obtain a real admin session. The underlying intermittent refusal
+  was not conclusively diagnosed.
+- The role switcher requested the local outbox on staging. The application now
+  uses the code supplied with the permitted account list, as the login picker
+  already does. The failing role-switch assertion remains intact.
+
+Actual failing runs returned nonzero and verified admin access disabled again.
+The last old-deployment run had 41 passes, the role-switch failure, and four
+explicit development-only skips. Regression tests additionally cover failure
+restoration, preserving a pre-existing override, cleanup failure, and refusing
+automatic test access on production.
+
+The first deployment attempt stopped before publication: import-rule fixtures
+were being written into src while another repo test scanned it. The fixtures
+now overlay the real import graph in memory. The restarted gate passed all 847
+unit/repository/Worker tests and 289 rendering tests. Final deployment and
+remote results will be recorded below after completion.
+
+Remaining scope limits: this is not the wider CLI redesign. There is no
+cross-machine staging-run lock or automatic recovery after SIGKILL/power loss.
+The ban test still uses the seeded player and can revoke that player's sessions
+as part of the behavior under test. Removing broad teardown revocation does
+not establish that every test preserves every pre-existing fixture session.
+
+Staging was then published at `e1fa4dc`, build `2026-09-07T06:57:08.555Z`.
+The local gate and smoke passed; remote verification initially failed, and the
+CLI correctly reported “published, but verification did not complete.” The test
+login helper could navigate before LoginPage's success redirect completed, so
+it now waits for the login screen to leave. Player editing now awaits its actual
+RPC save response and form completion before asserting the refreshed value.
+The first added response wait incorrectly matched REST, causing a timeout; it
+was corrected to match the browser's RPC request. Staging runs now use one
+worker because the suite shares mutable seeded fixtures. Assertions remain;
+retries remain disabled. Further complete remote runs are pending below.
+
+### First complete pass
+
+`bun run test:e2e -- --env staging --retries 0` exited 0 against deployed
+`e1fa4dc`: **42 passed, 4 skipped, 0 failed**, in 2.1 minutes. The skips are the
+two Vite entry tests and two development-service-worker tests. Every admin test
+ran, including impersonation, stop impersonation, role/ban controls, non-admin
+refusals and the repaired role switcher. Session teardown passed. The runner
+verified the temporary admin override disabled and the deployed application
+inputs still matching. The second consecutive pass is running.

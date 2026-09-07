@@ -223,7 +223,7 @@ async function run(adminConfirmed = false): Promise<void> {
     env.TEST_ADMIN_SIGNIN = admin ? "1" : "0"
     if (TARGET.environment === "staging" && !admin) throw new Refused("Staging admin preflight failed; refusing to skip admin tests")
   }
-  const child = spawn("bun", ["x", "playwright", "test", "--project", "e2e", "--project", "authz", ...rest], { stdio: "inherit", env })
+  const child = spawn("bun", ["x", "playwright", "test", "--project", "e2e", "--project", "authz", ...rest, ...(TARGET?.environment === "staging" ? ["--workers", "1"] : [])], { stdio: "inherit", env })
   let interrupted = false
   const cancel = () => { interrupted = true; child.kill("SIGINT") }
   process.on("SIGINT", cancel)
