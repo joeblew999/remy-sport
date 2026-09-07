@@ -1,11 +1,24 @@
-/** Real development Cloudflare relay check, with Chrome's synthetic camera.
+/** Real Cloudflare relay check, with Chrome's synthetic camera.
  * Run: bun tests/integration/cloudflare-video.mjs while bun run dev is running.
+ * Staging: BASE_URL=<staging origin> bun tests/integration/cloudflare-video.mjs --env staging
  * No traces, screenshots or browser logs: relay URLs contain credentials.
  */
 import { chromium, expect } from '@playwright/test'
 import { BASE, IS_LOCAL, REFEREE, signIn, releaseSessions } from '../helpers/auth.ts'
 
-if (!IS_LOCAL) throw new Error('This probe only targets local development')
+if (!IS_LOCAL) {
+  const { originOf, resolveTarget } = await import('../../scripts/lib/cloudflare.ts')
+  const target = resolveTarget(process.argv.slice(2), 'explicit')
+  if (target.environment !== 'staging' || BASE !== originOf(target)) {
+    throw new Error('Remote video checks require --env staging and its configured BASE_URL')
+  }
+  const health = await fetch(`${BASE}/api/health`).then(r => r.json())
+  if (health.environment !== 'staging') throw new Error('The server did not identify itself as staging')
+  // Use the already-enabled fixture sign-in; never change deployment secrets.
+  const accounts = await fetch(`${BASE}/api/dev/accounts`).then(r => r.json())
+  if (!accounts.code) throw new Error('Staging fixture sign-in is not enabled')
+  process.env.TEST_OTP = accounts.code
+}
 const browser = await chromium.launch({ channel: 'chrome', args: [
   '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream',
   '--autoplay-policy=no-user-gesture-required',
