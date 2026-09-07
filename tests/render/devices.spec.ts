@@ -12,7 +12,8 @@ import { seedCache } from "../helpers/seed-cache"
  *
  * tests/worker/session-revocation.test.ts verifies that revocation ends the
  * targeted sessions while preserving the caller and unrelated users, against
- * a real Worker. A persisted browser journey remains to be added.
+ * a real Worker. tests/e2e/devices.spec.ts drives the browser controls and
+ * verifies reload persistence, including failure and retry.
  */
 
 const signedIn = sessionFor("COACH")

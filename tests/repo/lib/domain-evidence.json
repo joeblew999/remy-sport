@@ -329,6 +329,18 @@
     "field.venue.id",
     "field.venue.names",
     "field.venue.provinceCode",
+    "operation.auth.admin/ban-user",
+    "operation.auth.admin/create-user",
+    "operation.auth.admin/impersonate-user",
+    "operation.auth.admin/list-users",
+    "operation.auth.admin/set-role",
+    "operation.auth.admin/stop-impersonating",
+    "operation.auth.admin/unban-user",
+    "operation.auth.email-otp/send-verification-otp",
+    "operation.auth.get-session",
+    "operation.auth.sign-in/email-otp",
+    "operation.auth.sign-out",
+    "operation.browser.install",
     "output.admin.approveReferee.id",
     "output.admin.approveReferee.statusCode",
     "output.divisions.list.items",
@@ -1831,6 +1843,132 @@
         "operations"
       ],
       "cases": []
+    },
+    "operation.auth.list-sessions": {
+      "intent": "display",
+      "reason": "Session ownership is checked in isolated Worker/D1 tests. WebKit journeys verify browser mutations and reload persistence, including injected service failures followed by real Worker retries. Service workers are blocked in these auth journeys; development service-worker reload verification remains separate.",
+      "surfaces": [
+        "src/web/pages/devices.tsx",
+        "src/web/lib/auth.ts"
+      ],
+      "operations": [
+        "auth.list-sessions"
+      ],
+      "audience": [
+        "Authenticated session owner; anonymous callers refused"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/session-revocation.test.ts",
+          "test": "revoking other sessions preserves the current session and other users",
+          "level": "worker",
+          "result": "The caller sees only their sessions; after revoking others the list contains exactly the current session."
+        },
+        {
+          "file": "tests/worker/session-revocation.test.ts",
+          "test": "anonymous callers cannot list or revoke sessions",
+          "level": "worker",
+          "result": "Anonymous requests receive 401 and do not revoke the existing session."
+        },
+        {
+          "file": "tests/e2e/devices.spec.ts",
+          "test": "revoking a device through the browser persists after both devices reload",
+          "level": "persistence",
+          "result": "The selected device loses its session after reload while the current device stays signed in."
+        },
+        {
+          "file": "tests/e2e/devices.spec.ts",
+          "test": "revoking all other devices preserves this browser and an unrelated account after reload",
+          "level": "persistence",
+          "result": "Only the current session remains after reload; another account stays signed in."
+        }
+      ]
+    },
+    "operation.auth.revoke-other-sessions": {
+      "intent": "edit",
+      "reason": "Session ownership is checked in isolated Worker/D1 tests. WebKit journeys verify browser mutations and reload persistence, including injected service failures followed by real Worker retries. Service workers are blocked in these auth journeys; development service-worker reload verification remains separate.",
+      "surfaces": [
+        "src/web/pages/devices.tsx",
+        "src/web/lib/auth.ts"
+      ],
+      "operations": [
+        "auth.revoke-other-sessions"
+      ],
+      "audience": [
+        "Authenticated session owner; anonymous callers refused"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/session-revocation.test.ts",
+          "test": "revoking other sessions preserves the current session and other users",
+          "level": "worker",
+          "result": "Other sessions for this account lose authentication while the current session and another user remain signed in."
+        },
+        {
+          "file": "tests/worker/session-revocation.test.ts",
+          "test": "anonymous callers cannot list or revoke sessions",
+          "level": "worker",
+          "result": "Anonymous requests receive 401 and do not revoke the existing session."
+        },
+        {
+          "file": "tests/e2e/devices.spec.ts",
+          "test": "revoking all other devices preserves this browser and an unrelated account after reload",
+          "level": "persistence",
+          "result": "Only the current session remains after reload; another account stays signed in."
+        },
+        {
+          "file": "tests/e2e/devices.spec.ts",
+          "test": "failed revoke-all keeps other sessions and retries successfully against the Worker",
+          "level": "persistence",
+          "result": "A simulated 503 leaves the other session signed in; retry reaches the real Worker and the other browser is signed out after reload."
+        }
+      ]
+    },
+    "operation.auth.revoke-session": {
+      "intent": "edit",
+      "reason": "Session ownership is checked in isolated Worker/D1 tests. WebKit journeys verify browser mutations and reload persistence, including injected service failures followed by real Worker retries. Service workers are blocked in these auth journeys; development service-worker reload verification remains separate.",
+      "surfaces": [
+        "src/web/pages/devices.tsx",
+        "src/web/lib/auth.ts"
+      ],
+      "operations": [
+        "auth.revoke-session"
+      ],
+      "audience": [
+        "Authenticated session owner; anonymous callers refused"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/session-revocation.test.ts",
+          "test": "revoking one owned session ends that session and preserves the caller",
+          "level": "worker",
+          "result": "The revoked cookie loses authentication and the session disappears from the list; the caller remains signed in."
+        },
+        {
+          "file": "tests/worker/session-revocation.test.ts",
+          "test": "anonymous callers cannot list or revoke sessions",
+          "level": "worker",
+          "result": "Anonymous requests receive 401 and do not revoke the existing session."
+        },
+        {
+          "file": "tests/worker/session-revocation.test.ts",
+          "test": "knowing another user session token does not authorize revoking it",
+          "level": "worker",
+          "result": "A token belonging to another user survives a revocation attempt by the caller."
+        },
+        {
+          "file": "tests/e2e/devices.spec.ts",
+          "test": "revoking a device through the browser persists after both devices reload",
+          "level": "persistence",
+          "result": "The selected device loses its session after reload while the current device stays signed in."
+        },
+        {
+          "file": "tests/e2e/devices.spec.ts",
+          "test": "failed device revocation keeps the session and retries successfully against the Worker",
+          "level": "persistence",
+          "result": "A simulated 503 preserves the session and enables retry; the retry revokes it through the real Worker and survives reload."
+        }
+      ]
     }
   }
 }

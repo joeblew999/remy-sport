@@ -55,6 +55,12 @@ test.describe("The native notification path stays out of the browser's way", () 
 })
 
 test.describe("Live video, before a relay exists", () => {
+  test.beforeEach(async ({ page }) => {
+    // No configured relay is a successful empty response, not an HTTP failure.
+    await page.route('**/rpc/moq/config**', (route) => route.fulfill({
+      json: { json: { url: null, token: null } },
+    }))
+  })
   test("the broadcast page says video is not switched on, rather than failing", async ({
     page,
   }) => {

@@ -367,3 +367,41 @@ Validation: all 77 repository checks, four session-revocation Worker tests and
 typecheck passed. Report regeneration used `bun scripts/ops/coverage-domain.ts
 --write`; the ops wrapper's install preparation was refused by the sandbox's
 temporary-directory permissions. No real user sessions were changed.
+
+## Browser session-management completion — 2026-09-07
+
+The browser slice exposed an authentication defect: deleting a session row did
+not invalidate the signed session-data cookie held by the other browser. It
+continued to authenticate for the former 15-minute cookie-cache lifetime.
+`src/auth.config.ts` now disables that cache so the next authenticated request
+checks the stored session, including when a browser still has an older cache
+cookie. This adds a database session read to authenticated requests. Session
+lifetime and renewal policy are unchanged. No deployment was performed.
+
+Four private-account WebKit journeys in `tests/e2e/devices.spec.ts` now cover
+single-device revocation, all-other-device revocation, and failure/retry for
+both controls. They verify current-session preservation, unrelated-account
+preservation, removal from the list, and signed-out state on the revoked browser
+after reload. The failure response is injected; each successful retry reaches
+the real Worker. Test sessions are released before their browser contexts close;
+seed setup was skipped and no shared actor was used.
+
+The session rows and generated report are included in this commit. The committed
+baseline enrolls all 15 discovered external operations, explicitly leaving the
+other 12 unreviewed: 1,375 items, 49 classified, 1,326 unreviewed. The shared tree
+also contains other agents' classifications (64 classified, 1,311 unreviewed);
+those remain uncommitted. A clean snapshot of the commit's coverage files passed
+all 12 focused inventory/evidence checks and regenerated its report successfully.
+
+Validation: typecheck, lint, build and model checks passed; all 825 core tests
+passed. All four browser journeys passed. The render run passed 287/289; its two
+video failures were corrected with an explicit unconfigured-relay response,
+after which all 12 tests in that file passed. The sandbox blocked the core test
+listener, so that tier was rerun with the local-listener permission.
+
+Remaining release work: phone/locale/keyboard review is not certified by these
+desktop journeys. Development service-worker navigation must also be verified:
+with service workers allowed, WebKit stalled on reload in the multi-browser
+journeys; blocking service workers allowed the auth cases to run and made the
+injected failures directly routable. This is not evidence of working offline or
+service-worker navigation. GAP-01 and the whole-model milestones remain open.

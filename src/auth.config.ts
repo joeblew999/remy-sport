@@ -139,23 +139,13 @@ export function buildAuthOptions(deps: AuthDeps = {}) {
       updateAge: 60 * 60 * 24,
 
       /**
-       * Signed session data in the cookie, so a page load costs one D1 lookup
-       * instead of one per procedure it calls.
-       *
-       * 15 minutes, not the "hours" a longer window would allow, because of
-       * what this platform does with roles: ADR 013 gives admins ban and
-       * impersonation, and `tests/authz.spec.ts` drives a six-role matrix.
-       * better-auth 1.7.1 revokes the cache on the admin paths that change a
-       * permission or ban a user, so those take effect immediately — but the
-       * window still bounds anything changed by a route NOT on that list, and
-       * that is where the next such bug comes from.
-       *
-       * Requires the exact pin in package.json: 1.6.x fixed `getCookieCache`
-       * returning stale data for an expired cache cookie, and made admin
-       * changes take effect immediately with the cache on. A floating range
-       * could drift under a cache whose invalidation semantics it defines.
+       * Revocation must take effect on the next authenticated request. A signed
+       * cookie cache survives deletion of its session row on another device:
+       * the browser journeys in tests/e2e/devices.spec.ts exposed a revoked
+       * browser still authenticated for the old 15-minute cache lifetime.
+       * Read the stored session instead; this also rejects old cached cookies.
        */
-      cookieCache: { enabled: true, maxAge: 60 * 15 },
+      cookieCache: { enabled: false },
     },
 
     /**

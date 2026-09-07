@@ -4,6 +4,7 @@ import * as schema from '../../../src/db/schema'
 import { router } from '../../../src/api/index'
 import { policyOf } from '../../../src/api/base'
 import { ACTION } from '../../../src/domain/vocabularies'
+import { EXTERNAL_OPERATIONS, externalOperations } from './external-operations'
 
 type Node = Record<string, unknown>
 
@@ -59,5 +60,14 @@ export function domainItems() {
     }
   }
   walk(router as unknown as Node, [])
+  for (const name of externalOperations()) {
+    procedures.add(name)
+    items.add(`operation.${name}`)
+    const actions = EXTERNAL_OPERATIONS[name as keyof typeof EXTERNAL_OPERATIONS] ?? []
+    for (const action of actions) {
+      const paths = operations.get(action) ?? new Set<string>()
+      paths.add(name); operations.set(action, paths)
+    }
+  }
   return { items: [...items].sort(), operations, procedures }
 }

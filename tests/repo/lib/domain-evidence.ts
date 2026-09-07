@@ -1,6 +1,7 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import ledger from './domain-evidence.json'
 import { domainItems } from './domain-items'
+import { testTitles } from './test-evidence'
 
 export interface Evidence {
   intent: 'display' | 'edit' | 'derived' | 'internal' | 'implementation_pending'
@@ -33,8 +34,10 @@ export function evidenceProblems(items: readonly string[], ledger: Ledger = evid
     if (!['internal', 'implementation_pending'].includes(row.intent) && !row.cases.length) problems.push(`${item}: no behavior evidence`)
     for (const file of row.surfaces) if (!existsSync(file)) problems.push(`${item}: missing surface ${file}`)
     for (const test of row.cases) {
+      const directory = { render: 'tests/render/', worker: 'tests/worker/', persistence: 'tests/e2e/' }[test.level]
+      if (!directory || !test.file.startsWith(directory)) problems.push(`${item}: evidence level does not match test tier`)
       if (!test.result.trim() || !test.test.trim()) problems.push(`${item}: incomplete test evidence`)
-      if (!existsSync(test.file) || !readFileSync(test.file, 'utf8').includes(test.test)) problems.push(`${item}: missing named test ${test.file}: ${test.test}`)
+      if (!existsSync(test.file) || !testTitles(test.file).has(test.test)) problems.push(`${item}: missing named test ${test.file}: ${test.test}`)
     }
   }
   return problems
