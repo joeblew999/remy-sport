@@ -54,3 +54,19 @@ Production was not deployed or reconfigured. Physical-camera staging delivery
 has not been independently checked; the earlier user walkthrough was local.
 Per-game relay credential enforcement remains GAP-03, so this rollout does not
 claim private game-level isolation. Unrelated shared-tree changes remain pending.
+
+## Full working-tree rollout — 2026-09-07
+
+All 75 pending files were committed as `5b25d76` and pushed to `origin/main`
+at the user's request. The full staging deployment pipeline passed: typecheck,
+lint, build, model checks, 841 unit/repository/Worker tests, rendering checks,
+local end-to-end checks, migration, publish, seed, and deployment smoke.
+The smoke suite retained its four documented staging-policy skips.
+
+- Staging `/api/versions` confirmed commit `5b25d76`, branch `main`, environment
+  `staging`, and build `2026-09-07T05:31:59.111Z`.
+- Cloudflare version: `3c7399f4-1de2-4e00-af3a-c79241dff9b4`.
+- The staging synthetic-camera probe passed separate-page video delivery,
+  healthy-connection retention, capture/video stop, and playback after restart.
+- Production was not deployed. Physical-camera staging verification and the
+  existing GAP-03 relay-isolation limitation remain as described above.
