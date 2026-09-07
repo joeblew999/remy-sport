@@ -10,10 +10,9 @@ import { seedCache } from "../helpers/seed-cache"
  * marked, is it protected from being revoked by accident, is the screen
  * reachable. None of that needs a real session to exist.
  *
- * What stayed in devices.spec.ts is the pair that cannot be faked: revoking a
- * session somewhere else and watching it actually end, and "sign out all other
- * devices" leaving exactly one. Those are the security promise, and the promise
- * is that the *server* forgets — so they run against a real Worker.
+ * tests/worker/session-revocation.test.ts verifies that revocation ends the
+ * targeted sessions while preserving the caller and unrelated users, against
+ * a real Worker. A persisted browser journey remains to be added.
  */
 
 const signedIn = sessionFor("COACH")

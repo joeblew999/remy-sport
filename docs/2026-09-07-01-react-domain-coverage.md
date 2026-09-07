@@ -341,3 +341,29 @@ evidence, not real relay capability enforcement; GAP-02/03 remain open.
 Build output still reports a chunk over 500 kB and a deprecated
 `inlineDynamicImports` option. Investigate bundle composition and the source of
 that option in the tooling work before closing the release checklist.
+
+## External-operation and session audit — 2026-09-07
+
+The external-operation scanner now recognizes both admin mutation methods and
+rejects partially dynamic conditional paths. Incidental auth-path strings cannot
+enroll an operation. Repository checks require the discovered operation set and
+canonical action mapping to agree, including detection of stale mappings.
+
+Added four isolated Worker/D1 regressions in
+`tests/worker/session-revocation.test.ts`: revoking one owned session, revoking
+all other owned sessions, refusal to revoke another user's session, and anonymous
+listing/revocation refusal. The render test's outdated assertion that those
+tests already existed has been corrected. The ledger classifies list-sessions,
+revoke-session and revoke-other-sessions using these exact Worker cases; browser
+mutation/reload/error/retry evidence remains outstanding.
+
+The shared-tree report now has 1,375 items: 64 classified and 1,311 unreviewed.
+Its ledger/report changes remain with the existing uncommitted coverage work,
+which also references uncommitted application changes and tests. This checkpoint
+commits the standalone scanner checks, session regressions and documentation
+without bundling those application changes. GAP-01 is still open.
+
+Validation: all 77 repository checks, four session-revocation Worker tests and
+typecheck passed. Report regeneration used `bun scripts/ops/coverage-domain.ts
+--write`; the ops wrapper's install preparation was refused by the sandbox's
+temporary-directory permissions. No real user sessions were changed.
