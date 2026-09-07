@@ -5,6 +5,25 @@ This is the current status index. Dated checkpoints describe what was true when
 written; they do not override this index. No application tests, remote probes
 or dependency upgrades were run for this documentation reconciliation.
 
+## Active handover: shared Chrome browser (2026-09-07)
+
+The user already installed the Playwright Chrome extension so the user and agent
+can work together in the same visible browser. Do not ask them to install it again.
+The existing `.mcp.json` / `playwright-mcp.json` launches a separate WebKit browser;
+it does not configure this shared Chrome connection.
+
+Registered the missing local Codex server using the supported CLI:
+`codex mcp add playwright-chrome -- bun x @playwright/mcp@0.0.79 --extension`.
+The command succeeded. The installed package's help confirms extension mode
+connects to running Chrome/Edge. No extension token or automatic consent bypass
+was configured. The existing repo browser setup was left intact.
+
+Next: reload the MCP server/tool connection in the app and verify that
+`playwright-chrome` tools are available, then connect to the user's chosen tab.
+Browser attachment has **not** been verified. The earlier Computer Use permission
+error came from a different tool and does not diagnose the Playwright extension.
+Official host setup: <https://learn.chatgpt.com/docs/extend/mcp?surface=cli>.
+
 ## Completed and verified
 
 | Work | Evidence and limits |
