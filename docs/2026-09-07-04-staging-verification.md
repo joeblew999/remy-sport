@@ -1,81 +1,53 @@
-# Developer automation: findings and required fix
+# Staging automation — completed work and remaining limits
 
-Status, 2026-09-07: CLI redesign stopped by the user. The current authorized
-work is running the full staging browser suite through the shared CLI, repairing
-its blockers, and recording results. No GitHub CI is wanted. Staging runner
-and test cleanup repairs are implemented. Two consecutive full remote passes succeeded
-with retries disabled: 42 passed and four development-only skips per run.
-Admin tests and checked cleanup passed. See the rollout record for evidence.
-The broader CLI redesign is not implemented. Earlier attempted rewrites were removed. The earlier
-mise migration decision is withdrawn: it was presented before the workflow was
-understood. No replacement tool has been selected or installed.
+Reconciled 2026-09-07. Start with [project status](README.md). The staging
+verification task is complete; the wider CLI redesign was stopped by the user.
+No GitHub CI, new CLI framework or task runner is part of this work.
 
-The requirement in `AGENTS.md` is a small, linear workflow. Developers must not
-coordinate prerequisites, test access, seeding or cleanup themselves. Putting
-existing operations under fewer command names does not meet that requirement.
+## Completed
 
-## Historical audit: what was disconnected
+- `bun run test:e2e -- --env staging --retries 0` owns temporary admin access,
+  measures actual sign-in and refuses to silently skip admin tests.
+- Staging tests run serially using the existing domain seed. Each run records
+  its sessions and verifies their cleanup. Broad session pruning/revocation was
+  removed from setup/teardown; tested role/ban changes use finally restoration.
+- The runner restores the pre-existing admin override state and verifies it.
+  The public login picker hides the admin even while tests can sign in as admin.
+- `bun run deploy -- --env staging` now includes the remote browser suite after
+  publish/readiness/seed/smoke. Failed verification reports that publication
+  happened but verification did not complete.
+- Source comparison permits test/documentation repairs against unchanged
+  deployed application inputs; application changes require deployment.
+- Two consecutive remote runs passed: **42 passed, four development-only skips,
+  zero retries** each. Admin tests, session cleanup and restoration to disabled
+  admin access passed. Failure runs also returned nonzero and restored access.
 
-| Developer's job | Current implementation | Work left to the developer |
-| --- | --- | --- |
-| Start developing | `package.json` starts Vite directly; `scripts/lib/prepare.ts` separately installs dependencies, generates bindings, prepares credentials, migrates local D1 and installs browsers. | Remember setup after prerequisites change. Preparation comments incorrectly say every command runs it. |
-| Verify a change | The check script runs static checks, build, Worker/unit/repository and rendering tests. `scripts/e2e.ts` runs browsers separately. The former GitHub CI used different preparation; the user has removed it. | Know which commands make a complete local gate. |
-| Ship to staging | `scripts/deploy.ts` runs the local gate and browsers, builds, migrates, publishes, waits for that build, seeds and smoke-tests. | Provision resources/secrets separately and run remote browsers separately. Successful deployment does not establish that staging browser tests passed. |
-| Test admin impersonation | `scripts/e2e.ts` probes admin access and skips admin tests when refused, printing manual demo-on/off commands. | Enable access, wait for propagation, run tests and disable access afterwards. |
-| Finish testing | `tests/e2e/seed.setup.ts` prunes sessions; `tests/e2e/auth.teardown.ts` revokes other fixture sessions and ignores cleanup failures. | Deal with interference with other people/runs using those fixtures. A green suite does not establish successful cleanup. |
-| Change the model | `scripts/model.ts` already orders model pull/copy, migration generation, local migration and checks. | Decide whether schema changes are renames when Drizzle asks. Automation cannot reliably infer that semantic decision. |
-| Maintain the project | `scripts/ops.ts` mixes deployment internals, model tools, dependency updates, asset generation and native builds. | Understand a second catalogue and distinguish prerequisites from deliberate maintenance jobs. |
+The [rollout record](2026-09-07-03-staging-broadcast.md#final-result-two-consecutive-complete-passes)
+contains commits, counts, the discovered application bug and its fix. These are
+recorded results, not a new external verification performed for this doc update.
+Local and staging use different infrastructure; applicable application behavior
+and seed data are shared. Staging does not expose the local mail outbox.
 
-The seed already comes from `src/db/seed.ts` and the domain model. Another seed
-system is unnecessary. Local uses workerd/local D1 through Vite; staging uses
-Cloudflare services. They need matching application behavior and fixtures for
-applicable tests, not identical infrastructure or exposed development routes.
+## Still open
 
-## Historical audit: measured and inspected defects
+- No cross-machine staging-run lock or automatic recovery after SIGKILL/power loss.
+- The ban test still acts on a seeded player and can revoke that player's
+  pre-existing sessions. Individual teardown is not proof of total fixture isolation.
+- Setup remains separate from development; the local check command and browser
+  suite remain separate. Remote resource/credential preparation is still separate
+  from deployment. The larger linear CLI redesign is stopped, not completed.
+- The old ops help/install behavior and standalone demo on/off verifier remain
+  legacy defects. The repaired staging runner does not use that demo workflow.
+- The original intermittent contradictory admin preflight was not conclusively
+  diagnosed. The duplicate probe was removed; real admin setup and complete
+  browser journeys now pass. Do not label propagation as a proven root cause.
 
-- `bun run deploy -- --help` succeeds and confirms the pipeline ends at smoke.
-- `bun run ops -- --help` attempts installation before help. It failed here with
-  a sandbox temp-directory permission error. Source also classifies `--help` as
-  unknown, which would return exit 1 after installation.
-- `bun run test:e2e -- --help` succeeds but shows Playwright help without the
-  wrapper's environment option. Source runs remote preflight before forwarding
-  help when a remote target is named, so that help would contact a deployment.
-- `scripts/ops/demo.ts` switches admin access but verifies ordinary-user access.
-  Ordinary seeded access stays enabled on staging, so this cannot verify the
-  admin switch. Its off action deletes both OTP settings.
-- `scripts/e2e.ts` sets admin capability on success but does not clear an
-  inherited capability on refusal. Preflight session cleanup ignores failure.
+## Decisions retained
 
-No remote command ran during this audit. Previous results are in
-[the rollout record](2026-09-07-03-staging-broadcast.md), and do not establish
-complete staging verification. The intermittent admin refusal remains
-unexplained; propagation is a possibility, not a proven diagnosis.
-
-## Broader work originally proposed (not a claim of completion)
-
-1. Make development and complete local verification own their prerequisites;
-   run verification on the developer’s machine, with no GitHub CI. Keep deliberate maintenance
-   explicit, but remove prerequisite operations from the daily command surface.
-   Do not retain an `ops` catalogue as the solution.
-2. Make staging deployment own required resource preparation, publish readiness,
-   existing seed, measured admin access, remote browser tests and checked cleanup.
-   Resource creation cannot invent missing account credentials: identify missing
-   input before dependent writes. Preserve pre-existing sessions/settings and
-   prevent overlapping staging runs from modifying shared fixtures.
-3. Prove this through the documented commands: fresh local preparation, complete
-   local gate, two staging passes without retries or unexpected skips, and a
-   controlled failing test proving cleanup and nonzero exit. Distinguish
-   publication from successful verification in the result.
-
-Retain the existing specialist tools while fixing their connections: Bun, Vite
-and the Cloudflare plugin, Wrangler, Drizzle, Vitest, Playwright and fnox. mise currently pins tools/environment. A task runner or CLI parser can
-provide invocation and ordering; it cannot supply the app's admin-access policy,
-fixture ownership or assertions. Do not promise those from a tool choice.
-
-Native builds and dependency/model updates are real workflows, not disposable
-commands. New coverage is separate from running the existing suites correctly;
-[relay isolation](2026-09-07-02-relay-capabilities.md) remains open. This work does
-not establish physical-phone behavior or delivery paths the suites do not test.
-
-Commander was proposed in conversation but was not adopted or installed. No
-new CLI framework or task runner is part of the staging test repair.
+Use the team's documented commands, with setup and cleanup inside shared code;
+no ad hoc API wrappers or temporary checkouts to bypass checks. Keep the existing
+Bun, Vite/Cloudflare plugin, Wrangler, Drizzle, Vitest, Playwright and fnox tools;
+mise pins tools/environment. Commander was proposed but not adopted or installed.
+The earlier mise task migration proposal was withdrawn. GitHub CI and Dependabot
+were removed. Native builds and model/dependency maintenance remain real work;
+no command renaming or deletion is authorized by this reconciliation.

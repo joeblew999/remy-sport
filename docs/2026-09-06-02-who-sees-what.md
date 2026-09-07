@@ -1,8 +1,12 @@
 # Plan — who sees what, generated and checked
 
-Historical shared-workspace notes. Some referenced fixes and tests remain
-uncommitted; this is not a statement of what the deployed application contains.
-Paths marked `docs-check-ignore` below name those pending tests.
+Reconciled 2026-09-07: **partially implemented**. Shared action gates and
+`tests/render/who-sees-what.spec.ts` exist; the matrix covers the team page.
+A generated whole-app permission table and exhaustive identity/state coverage
+are not complete. The proposal below describes the original target, not
+verified behavior. Its steps are historical scope, not a second backlog;
+continue through GAP-06–08 in the [domain register](2026-09-07-01-react-domain-coverage.md).
+See [current status](README.md).
 
 ## Why
 
@@ -82,16 +86,16 @@ changed". No pictures, no walking, no memory of who holds what.
   off, which is the only speed at which an agent will run it after every
   change. E2E keeps one job: identity, which needs real sign-in.
 
-## Steps
+## Original proposed steps (not a live checklist)
 
-- [ ] **Controls name their action.** Every button, link or form that
+- **Controls name their action.** Every button, link or form that
       performs a model action carries `data-action="MANAGE_ROSTER"` (the
       action code, nothing invented). Start from the actions
       `tests/repo/actions.test.ts` already maps to screens, so the map that
       test keeps becomes an attribute beside the control and the test reads
       it from the tree instead. Held by that test: an action with a screen
       must have a control naming it.
-- [ ] **The matrix, in the render tier.** One spec: for each surface (the
+- **The matrix, in the render tier.** One spec: for each surface (the
       list `tests/e2e/screens.shots.ts` keeps, with its seeded object) and
       for each relation the model names for that object type — read off
       `GRANTS`, not listed by hand — plus a visitor and a signed-in stranger,
@@ -99,17 +103,17 @@ changed". No pictures, no walking, no memory of who holds what.
       collect the `data-action` values on the page. `projectTeam(id, held)`
       and its siblings already take the relation as their argument, so a
       case is one line.
-- [ ] **The model check, in the same spec.** For each cell, the projection's
+- **The model check, in the same spec.** For each cell, the projection's
       `can` is the model's answer for that person on that object. Assert
       offered ⇔ granted, and report every disagreement as one line: person,
       screen, action, which side is wrong. This is the ReBAC check the GUI
       has never had, and it is what an agent reads to know what to change.
-- [ ] **The table.** The same spec writes `docs/who-sees-what.md` <!-- docs-check-ignore -->
+- **The table.** The same spec writes `docs/who-sees-what.md` <!-- docs-check-ignore -->
       when run with `--update`, and otherwise diffs the committed file
       against what it rendered. A changed cell is a red gate until the table
       is regenerated in the same commit, which puts the change in the diff
       for a person to read.
-- [ ] **Identity on every surface.** Generalise
+- **Identity on every surface.** Generalise
       `tests/e2e/identity-cache.spec.ts`: on each surface, sign in and out <!-- docs-check-ignore -->
       without a reload and assert the offered set becomes the visitor's. The
       fix of 2026-09-06 holds everywhere, not on one team page. This is the

@@ -1,5 +1,10 @@
 # Plan — modern tools do what `scripts/` does by hand
 
+Reconciled 2026-09-07. Completed tooling migration history. The commands, counts and timings below
+are dated checkpoints; use the root README for current commands. Staging
+deploy now also runs remote browser verification. Wider CLI redesign is stopped.
+See [current status](README.md).
+
 ## Why
 
 On 2026-09-05 a dependency update took one command and half a day. None of the
@@ -71,8 +76,8 @@ one copy. Three checks are product invariants and stay (see *Kept*).
 - [x] `prepare.ts`: `bun run setup` runs it once. Phase 2 removed its
       bundle step and the watcher guard; `deploy` still runs its build half
       (install, fonts, types) at its start, which phase 3 and 4 shrink.
-- [ ] `eslint.config.mjs` exists for the i18n rule alone. Keep if Vitest
-      cannot host that rule cheaply; otherwise a repo test and eslint goes.
+- [x] Copy rules moved to `tests/repo/copy.test.ts`; ESLint and its
+      configuration were removed in the subsequent dependency migration.
 
 **Done when** `bun run check` is the gate, `mise.toml` has no `[tasks]`, and
 the orchestrator does not exist. (2026-09-05: it is, it has none, it does not.)
@@ -96,9 +101,8 @@ the orchestrator does not exist. (2026-09-05: it is, it has none, it does not.)
       built file shadowing a Worker route is a deploy-time hazard) and the
       leak list in `tests/repo/bundle.test.ts` (the SW still shares a type
       with src/api). Both read dist/client now.
-- [ ] `tests/repo/envs.test.ts` asks whether two environments share data or traffic. Answer it
-      from the config once, as a repo test, if the plugin's config layout does
-      not make it obvious.
+- [x] `tests/repo/envs.test.ts` checks environment separation from the
+      configuration. This check is implemented.
 
 **Done when** development is `vite`, there is no dist/ until `vite build`, and
 the dev script and the file watcher are gone. (2026-09-05: it is, there is not, they are.)

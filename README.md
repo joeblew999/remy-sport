@@ -5,6 +5,8 @@ Basketball events, teams and live scoring for Thailand. A Cloudflare Worker
 (Hono, oRPC, Drizzle on D1, Better Auth) serving a React SPA, built from the
 Product Owner's model in `remy-sport-biz`.
 
+Current progress and remaining work: [project status](docs/README.md).
+
 ## The commands
 
 Everything is a `package.json` script. `mise` only pins the tools
@@ -13,7 +15,7 @@ Everything is a `package.json` script. `mise` only pins the tools
 ```
 bun run setup                     once after cloning: install, types, local database, browsers
 bun run dev                       Vite: the Worker in workerd and the SPA with HMR on localhost:8787, seeded
-bun run check                     the gate: typecheck, lint, model consistency, every test, the render tier
+bun run check                     static, model, unit/Worker/repository and rendering checks; browsers are test:e2e
 bun run test:e2e                  browser suite; -- --env staging includes temporary admin access and cleanup
 bun run deploy -- --env staging   local gate, publish, smoke, full staging browser suite and cleanup.
 bun run model                     when the Product Owner changes the model: pull it in, migrate, seed, verify
@@ -23,7 +25,7 @@ Smaller pieces, when you want one thing:
 
 ```
 bun run typecheck                 tsc, one config for the Worker, the SPA, the tests and the scripts
-bun run lint                      knip, dependency-cruiser, eslint (i18n), inlang
+bun run lint                      knip; copy and import rules run in the repository tests
 bun run test                      vitest: unit, repo (the rules this repo keeps), worker (in workerd)
 bun run test:watch                the same, on every save
 bun run test:render               the no-backend browser tier

@@ -1,5 +1,9 @@
 # Plan — fewer dependencies
 
+Reconciled 2026-09-07. Completed dependency cleanup history. Package counts and measurements below
+are dated results, not a current dependency inventory.
+See [current status](README.md).
+
 ## Why
 
 `package.json` lists 45 packages. I checked what each one is used for by

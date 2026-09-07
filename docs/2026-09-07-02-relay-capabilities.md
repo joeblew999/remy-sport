@@ -1,16 +1,14 @@
 # Relay capability investigation — GAP-02
 
-Status: Development and staging credentials are now configured following the
-user's dashboard setup; production's existing configuration was retained. See
-the environment setup checkpoint below. Synthetic-camera video delivery and
-stop/restart now pass against the development relay. The user also confirms the
-three-step local physical-camera walkthrough worked; see the confirmation below.
-The recovery fix and relay integration are now deployed and verified on staging
-from main `fbcd6c5`; see the [rollout record](2026-09-07-03-staging-broadcast.md).
-All four synthetic video checks passed there; production is unchanged.
-The earlier API permission blocker below
-describes relay-management automation, not a blocker to using the relays created
-through the dashboard. Credentials are not recorded in this document.
+Current status, reconciled 2026-09-07: ordinary local and staging broadcasting
+is configured and has recorded delivery/stop/restart evidence. The user also
+confirmed a local physical-camera walkthrough. Optional local scoped-adapter
+checks passed. Staging still uses shared Cloudflare credentials: per-game
+credential enforcement is open. See [project status](README.md) and the
+[rollout record](2026-09-07-03-staging-broadcast.md) for the latest deployment.
+No new relay probe was run for this documentation reconciliation.
+
+## Current work
 
 The current client in `src/web/lib/moq.ts` constructs a Cloudflare-style token
 path and uses a game-specific broadcast name. The API gates release of its
@@ -32,6 +30,12 @@ already-open connections, revoke behavior, watcher refusal to publish, and
 cross-game publishing/subscription denial using real relay connections. Record
 commands and results here before choosing an adapter or claiming scoped access.
 Do not assume a locally signed JWT is accepted by Cloudflare's token registry.
+
+## Historical investigation checkpoints
+
+The logs below record earlier conditions. Missing tokens, API permission blockers
+and “no deployment” statements do not describe the current working relays. The
+current unresolved issue is scoped access, as described above.
 
 ## Local Cloudflare broadcasting — 2026-09-07
 

@@ -1,44 +1,34 @@
 # Plan — close the remaining React/domain coverage gaps
 
-Updated 2026-09-07 against HEAD `71c28ab` and the shared working tree.
-Status: implementation in progress; domain decisions are accepted in the biz
-repository. Coach access and browser session revocation have landed. Coverage
-auditing, relay enforcement and the five feature implementations remain open.
+Reconciled 2026-09-07 against `ed0a672`. This is the detailed product/coverage
+register; [project status](README.md) is the current overview. Coach grant
+corrections and session-revocation journeys are implemented. Coverage review,
+relay scope enforcement and five accepted model actions remain open.
 
 ## Resume here
 
-This is the main work register. Read the latest checkpoints below alongside
-its status table; their test results describe the recorded checkout, not a fresh
-run. Check `git status` before editing: the shared tree contains substantial
-pending GUI, development tooling, relay and evidence changes from other work.
+- Existing staging browser coverage passed twice: 42 passes, four development-only
+  skips, retries disabled, including admin impersonation and checked cleanup.
+  Last verified application is `e1fa4dc`; see [the rollout record](2026-09-07-03-staging-broadcast.md).
+- Basic local/staging broadcasting works. Optional local scoped-relay protocol
+  checks passed, but staging still uses shared Cloudflare credentials. There is
+  no remaining dashboard/token setup blocker for ordinary broadcasting.
+  [The relay investigation](2026-09-07-02-relay-capabilities.md) owns GAP-02/03.
+- Next independent work is GAP-01 item review alongside GAP-05–08, one domain
+  slice at a time. The committed inventory has 1,375 items: 64 classified and
+  1,311 unreviewed. These are review states, not a count of broken features.
+- Shared action gates and the team-page matrix exist. Do not recreate them from
+  the historical [one-gate](2026-09-06-03-one-gate.md) or
+  [who-sees-what](2026-09-06-02-who-sees-what.md) checkboxes. Full matrices,
+  reveal mode, phone/locale/keyboard review and service-worker navigation remain
+  incomplete or unverified.
+- Listing moderation precedes public bracket/ranking routes. Product rules
+  are accepted; implementation is pending. No new GitHub CI is wanted, and the
+  wider CLI redesign remains stopped.
 
-- Broadcasting is configured and verified locally and on staging. The
-  [staging rollout](2026-09-07-03-staging-broadcast.md) records deployed main
-  `fbcd6c5` and real-relay delivery/stop/restart evidence. Production is unchanged.
-  The [relay handoff](2026-09-07-02-relay-capabilities.md) records the remaining
-  per-game enforcement gap; no more dashboard setup is needed for these relays.
-- Latest committed coverage slice: `71c28ab`, browser session revocation and persisted
-  failure/retry journeys. Remaining work includes development service-worker
-  reload verification and phone/locale/keyboard review.
-- Next independent work: continue GAP-01 item review and GAP-05–08 journeys in
-  the order below. The current generated inventory reports 1,375 items, 64
-  classified and 1,311 unreviewed; this includes uncommitted classifications.
-  Reconcile each with its named behavioral evidence before claiming completion.
-- Relay work: read [the relay investigation](2026-09-07-02-relay-capabilities.md).
-  Local Cloudflare support is restored in the pending changes. Its recorded
-  checks found missing publish/watch tokens and relay API HTTP 403. Real
-  delivery and stream isolation remain unverified; this blocks the relay slice,
-  not the independent coverage work.
-- Earlier GUI work is in [the GUI walk](2026-09-06-01-gui-walk.md),
-  [who sees what](2026-09-06-02-who-sees-what.md) and
-  [one gate](2026-09-06-03-one-gate.md). Their original unchecked steps predate
-  the shared gates recorded below; do not implement them again from the boxes
-  alone. Full matrices and reveal mode are not certified by the gate's existence.
-- Accepted product rules remain Decision 006 linked below. Listing moderation
-  precedes new public bracket/ranking routes; those features remain unfinished.
-
-This reconciliation inspected docs, commit history and source; it did not rerun
-application tests or recheck external credentials.
+Earlier checkpoint sections below are dated evidence, not current instructions
+about uncommitted work, credentials or deployment. The tree was clean at the
+start of this reconciliation; always inspect it again before implementation.
 
 ## Scope and completion
 
@@ -92,12 +82,12 @@ acceptance evidence recorded here and in the generated inventory where applicabl
 | ID | Work | Status | Dependency | Completion evidence |
 | --- | --- | --- | --- | --- |
 | GAP-01 | Establish a precise coverage baseline and evidence contract | Contract implemented; item review in progress | None | Every action/field/relationship has an explicit audit record; unknown additions fail |
-| GAP-02 | Establish relay capabilities and choose a scoped credential design | Preliminary review recorded; real relay verification blocked on access | None | Reproducible protocol check and a recorded supported design |
+| GAP-02 | Establish relay capabilities and choose a scoped credential design | Basic delivery and optional local scope tests passed; deployed design choice open | None | Reproducible protocol check and a recorded supported design |
 | GAP-03 | Enforce stream scope at the relay and handle expiry/revocation | Waiting for GAP-02 | GAP-02 | A credential for game A cannot publish game B; real relay tests pass |
 | GAP-04 | Define and resolve the four coach grant mismatches | Implemented in `8a244c4`; broader matrix audit continues under GAP-06 | Biz Decision 006; GAP-01 for evidence | Four intended grants resolve correctly; precise exceptions removed |
 | GAP-05 | Complete field and relationship coverage in eight domain slices | Ready after baseline | GAP-01; only affected coach cases depend on GAP-04 | Each slice satisfies the shared acceptance checklist |
 | GAP-06 | Complete permission and lifecycle-state matrices | Ready after baseline | GAP-01; grows alongside GAP-05 | Every relevant relation/subtype and state is exercised |
-| GAP-07 | Verify persistence, delivery, navigation and identity changes | Ready per completed slice | GAP-05/06; video portion GAP-03 | Real Worker/browser journeys pass after reload and identity changes |
+| GAP-07 | Verify persistence, delivery, navigation and identity changes | Existing journeys pass on staging; broader review open | GAP-05/06; video scope portion GAP-03 | Real Worker/browser journeys pass after reload and identity changes |
 | GAP-08 | Complete phone, desktop, keyboard and locale review | Ready per completed slice | GAP-05/06 | Reviewed English/Thai/Japanese evidence and regression checks |
 | GAP-09 | Define and deliver bracket generation and viewing | Rules accepted; implementation pending | Biz draw specification | Persisted draw/progression and valid correction flows |
 | GAP-10 | Define and deliver AI bracket suggestions | Rules accepted; implementation pending | GAP-09 plus biz AI specification | Suggestions are validated and applied only through explicit acceptance |
@@ -182,33 +172,12 @@ Accepted: current head/assistant coaches may edit names, number and position;
 attendance belongs to owners, accepted co-organizers and admins. Birth dates stay
 outside ordinary profile editing. See the biz specification for temporal boundaries.
 
-Known exceptions in `tests/repo/grants.test.ts` (historical questions below are now
-answered by Decision 006):
-
-| Action | Unresolvable relations | Decision required |
-| --- | --- | --- |
-| `EDIT_PLAYER_PROFILE` | `HEAD_COACH`, `ASSISTANT_COACH` | Which current or historical squad relationship authorizes editing a player? What happens when the player transfers or belongs to multiple teams? |
-| `RECORD_ATTENDANCE` | `HEAD_COACH`, `ASSISTANT_COACH` | Which connection between coach, player, event and session authorizes attendance? Is access limited to their players or the whole session? |
-
-Do not assume these two actions need the same relationship traversal. For each,
-use the accepted allowed/refused examples and update the canonical model through
-the workflow described by `scripts/model.ts`. Do not fetch over local biz changes.
-
-- [ ] Choose the model-supported relation derivation or view after the scope is
-  defined; update canonical grants/relations and sync rather than editing copies.
-- [ ] Implement resolution in `src/domain/grants.ts` and affected API projections
-  and handlers. Add schema/view migration only if the chosen design requires it.
-- [ ] Test head and assistant coach, unrelated coach, ended membership, transfer,
-  multiple teams, incorrect parent IDs and post-load permission removal.
-- [ ] Make the permitted player/attendance control reachable and confirm an
-  unauthorized caller is refused by the API even when bypassing React.
-- [ ] Remove each exact exception only when its behavior is proven. Add a check
-  that rejects stale exception entries; do not replace four entries with a broad
-  action exemption.
-
-Acceptance: intended current-coach player access works and unintended coach
-attendance grants are removed, with positive/negative Worker tests and browser
-journeys. All four mismatch exceptions are eliminated by the appropriate change. This is not fixed by showing buttons.
+Completed: the four mismatch exceptions were removed by the accepted model and
+resolver changes in `8a244c4`. `tests/worker/coach-access.test.ts` covers resolver
+boundaries, `tests/repo/grants.test.ts` guards the model, and
+`tests/e2e/domain-coverage.spec.ts` exercises player editing through the browser.
+That journey passed in the two complete staging runs. Broader relation/subtype/
+lifecycle-state review remains GAP-06; it does not reopen the four fixed grants.
 
 ## GAP-05 — audit and finish each domain slice
 
@@ -310,6 +279,11 @@ A failing behavior is fixed in its owning slice before that slice is marked
 complete. If a new domain decision is required, record the exact decision and
 its impact here instead of adding an unexplained exception or a placeholder UI.
 
+
+## Historical checkpoints
+
+The following logs preserve earlier evidence and limitations. Their “next” and
+“uncommitted” statements are superseded by Resume here and the work register.
 
 ## Decision handoff — 2026-09-07
 
