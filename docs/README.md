@@ -1,5 +1,13 @@
 # Project status — start here
 
+## Active GUI plan
+
+[Connected GUI plan](2026-09-07-05-gui-connections.md) owns the next GUI work:
+stable contextual navigation, game details, division-correct competition views,
+linked teams/players/places and a compact shared shell. Planning is complete;
+implementation is pending. It supersedes the event-only Overview proposal and
+provides concrete journeys for domain GAP-05–08, without closing those gaps.
+
 Reconciled 2026-09-07 against `ed0a672`, current source and committed evidence.
 This is the current status index. Dated checkpoints describe what was true when
 written; they do not override this index. No application tests, remote probes
