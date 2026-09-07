@@ -70,3 +70,23 @@ The smoke suite retained its four documented staging-policy skips.
   healthy-connection retention, capture/video stop, and playback after restart.
 - Production was not deployed. Physical-camera staging verification and the
   existing GAP-03 relay-isolation limitation remain as described above.
+
+## Browser run from the normal checkout — 2026-09-07
+
+Main `b1f9ffa` was deployed through `bun run deploy -- --env staging` with build
+`2026-09-07T06:03:35.634Z`. The existing local gate and staging smoke passed.
+The subsequent staging browser run used the existing E2E CLI with retries
+disabled: 35 passed, 11 skipped (four development-only cases and seven admin
+cases). This is not a complete staging browser pass.
+
+An ad hoc wrapper enabled the staging admin override and successfully probed
+admin login, but the E2E CLI's subsequent preflight refused admin login and
+skipped those tests. The cause of that differing result is not established.
+The wrapper removed its override afterward and observed fixed-code admin login
+refused. It is not a supported team workflow and must not be repeated; the
+shared CLI must own and verify the required lifecycle, as AGENTS.md now requires.
+
+The earlier temporary checkout was removed after its 19 saved sessions were
+verified signed out. The normal checkout's final auth teardown passed. Next:
+reproduce and fix admin preflight through the shared automation before claiming
+all staging-applicable tests pass.
