@@ -71,7 +71,7 @@ relays returns HTTP 403 / 10000. The live permission-group endpoint reports:
   relay configuration and MoQ Bench.
 - `MoQ Read`: `42fae5a23ce84d7a896ac12ef509dafa`, account scope; read only.
 
-Required dashboard change: open [user API tokens](https://dash.cloudflare.com/profile/api-tokens),
+Proposed dashboard change (UI availability not yet verified): open [user API tokens](https://dash.cloudflare.com/profile/api-tokens),
 edit `dev`, add Account → MoQ → Edit for the account above, preserve its other
 permissions, and save. The API calls the permission MoQ Write. The current token
 has API Tokens Read, so it can inspect its policy but cannot update that policy.
@@ -145,3 +145,20 @@ Immediate blocker remains the `dev` API token's missing MoQ Write permission.
 Next action after the dashboard edit is the provisioning and real two-browser
 broadcasting verification above. Do not close the task as "broadcasting works"
 until that succeeds.
+
+
+## Dashboard mismatch — 2026-09-07
+
+The user cannot see the instructed option on the API tokens page. The exact
+MoQ Write permission ID is verified by the live API, but Account → MoQ → Edit
+was inferred from Cloudflare's general token editor documentation, not observed
+in this user's dashboard. Do not repeat that path as a confirmed available UI.
+Clarify whether the token Edit menu or the MoQ service within Account permissions
+is absent before prescribing another dashboard change.
+
+If the service is absent from the editor, Cloudflare documents creating a
+bootstrap token using the Create additional tokens template and then managing
+user tokens by permission-group ID through the API. This is a possible fallback,
+not a completed setup; it requires a separate token-management credential and
+must preserve the existing dev policy. No such credential has been requested or
+created. Source: [create tokens via API](https://developers.cloudflare.com/fundamentals/api/how-to/create-via-api/).
