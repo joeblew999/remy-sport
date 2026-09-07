@@ -313,7 +313,9 @@ This intentionally avoids the seed setup's session pruning while the user tries
 the dev system. A seeded outsider account had been promoted to admin locally;
 the organization refusal test now signs in a private account instead of changing
 that person's role back. The real coach edit test restores the jersey it read.
-Biz `check-model.ts --check` and `check-docs.ts` passed (74 actions, 27 relations).
+Biz [model checks](../../remy-sport-biz/scripts/check-model.ts) (with `--check`)
+and [documentation checks](../../remy-sport-biz/scripts/check-docs.ts) passed
+(74 actions, 27 relations).
 
 Next: finish GAP-01 enrollment/review and GAP-05–08 journeys; implement listing
 moderation before public draws/rankings. The five designed actions remain
@@ -321,3 +323,21 @@ implementation pending. GAP-02 has preliminary findings in
 [the relay investigation](2026-09-07-02-relay-capabilities.md); protocol tests and
 GAP-03 are not complete. No deployment has been performed. Unrelated shared-tree
 changes are intentionally outside this checkpoint's commits.
+
+## Evidence audit checkpoint — 2026-09-07
+
+Continued from `8a244c4` with substantial existing uncommitted application,
+tooling and evidence-ledger changes. The static test-title checker now excludes
+tests nested in skipped suites, chained skips and conditional suite declarations.
+Its regression covers Vitest and Playwright declaration forms. Static enrollment
+does not prove execution: runtime skips and actual test results still require
+runner evidence. GAP-01 and the broader completion milestones remain open.
+
+Validation in this shared tree: typecheck passed, all 73 repository tests passed,
+and both publisher/watcher renewal-denial render tests passed. The relay test's
+navigation was corrected to use the shared surface helper. This is UI cleanup
+evidence, not real relay capability enforcement; GAP-02/03 remain open.
+
+Build output still reports a chunk over 500 kB and a deprecated
+`inlineDynamicImports` option. Investigate bundle composition and the source of
+that option in the tooling work before closing the release checklist.
