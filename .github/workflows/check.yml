@@ -26,9 +26,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: jdx/mise-action@v3
+      - uses: jdx/mise-action@v4
         with:
           # mise.toml is the source of truth for bun, node and the rest.
           install: true
@@ -36,7 +36,7 @@ jobs:
 
       # Playwright's browsers, keyed by the version in the lockfile: a cache
       # hit skips a ~200MB download, and a miss is correct rather than stale.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         id: browsers
         with:
           path: .playwright
@@ -57,7 +57,7 @@ jobs:
       - run: bun run test:e2e
 
       # The report is worth having only when something failed.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-report
