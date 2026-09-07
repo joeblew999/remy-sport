@@ -1,15 +1,17 @@
 # Plan — close the remaining React/domain coverage gaps
 
 Updated 2026-09-07 after implementation commit `5b9d8eb`.
-Status: planned. This revision defines the remaining work; it does not authorize
-inventing domain rules or claim whole-model coverage.
+Status: planned; domain decisions delegated and recorded in the biz repository.
+Implementation remains outstanding; this is not a claim of whole-model coverage.
 
 ## Scope and completion
 
-The user approved completing existing-model coverage while keeping five undefined
-features visible. This plan includes a route to resolving all five, but their
-implementation remains blocked until the Product Owner defines their rules.
-Planning their resolution does not change that earlier scope decision.
+The Product Owner subsequently delegated all five feature decisions and coach
+permission rules to the implementation agent and authorized editing the biz repo.
+[Decision 006](../../remy-sport-biz/decisions/decision-006-domain-completion.md) and
+[its implementation specification](../../remy-sport-biz/docs/domain-completion-decisions.md)
+now define the accepted rules. They supersede the earlier decision-pending scope.
+The five missing features remain visibly unfinished until implemented and verified.
 
 There are two completion milestones:
 
@@ -46,8 +48,9 @@ validation run or evidence that every combination was tested.
 
 ## Work register and execution order
 
-The implementer owns code, tests, investigation and evidence. The Product Owner
-owns unresolved domain rules. Each item closes in a reviewable commit with its
+The implementer owns code, tests, investigation and evidence. The Product Owner has delegated the domain rules; the accepted biz specification
+owns their meaning. Record any necessary revisions there rather than improvising
+in application handlers. Each item closes in a reviewable commit with its
 acceptance evidence recorded here and in the generated inventory where applicable.
 
 | ID | Work | Status | Dependency | Completion evidence |
@@ -55,20 +58,22 @@ acceptance evidence recorded here and in the generated inventory where applicabl
 | GAP-01 | Establish a precise coverage baseline and evidence contract | Ready | None | Every action/field/relationship has an explicit audit record; unknown additions fail |
 | GAP-02 | Establish relay capabilities and choose a scoped credential design | Ready to investigate | None | Reproducible protocol check and a recorded supported design |
 | GAP-03 | Enforce stream scope at the relay and handle expiry/revocation | Waiting for GAP-02 | GAP-02 | A credential for game A cannot publish game B; real relay tests pass |
-| GAP-04 | Define and resolve the four coach grant mismatches | Decision needed | Product Owner rules; GAP-01 for evidence | Four intended grants resolve correctly; precise exceptions removed |
+| GAP-04 | Define and resolve the four coach grant mismatches | Rules accepted; implementation pending | Biz Decision 006; GAP-01 for evidence | Four intended grants resolve correctly; precise exceptions removed |
 | GAP-05 | Complete field and relationship coverage in eight domain slices | Ready after baseline | GAP-01; only affected coach cases depend on GAP-04 | Each slice satisfies the shared acceptance checklist |
 | GAP-06 | Complete permission and lifecycle-state matrices | Ready after baseline | GAP-01; grows alongside GAP-05 | Every relevant relation/subtype and state is exercised |
 | GAP-07 | Verify persistence, delivery, navigation and identity changes | Ready per completed slice | GAP-05/06; video portion GAP-03 | Real Worker/browser journeys pass after reload and identity changes |
 | GAP-08 | Complete phone, desktop, keyboard and locale review | Ready per completed slice | GAP-05/06 | Reviewed English/Thai/Japanese evidence and regression checks |
-| GAP-09 | Define and deliver bracket generation and viewing | Decision needed | Product Owner competition rules | Persisted draw/progression and valid correction flows |
-| GAP-10 | Define and deliver AI bracket suggestions | Decision needed | GAP-09 plus suggestion rules | Suggestions are validated and applied only through explicit acceptance |
-| GAP-11 | Define and deliver ranking history across events | Decision needed | Product Owner ranking rules | Reproducible dated ranking history with corrections |
-| GAP-12 | Define and deliver listing moderation | Decision needed | Product Owner listing/visibility rules | Authorized moderation transitions and correct public visibility |
+| GAP-09 | Define and deliver bracket generation and viewing | Rules accepted; implementation pending | Biz draw specification | Persisted draw/progression and valid correction flows |
+| GAP-10 | Define and deliver AI bracket suggestions | Rules accepted; implementation pending | GAP-09 plus biz AI specification | Suggestions are validated and applied only through explicit acceptance |
+| GAP-11 | Define and deliver ranking history across events | Rules accepted; implementation pending | Biz ranking specification; GAP-12 visibility | Reproducible dated ranking history with corrections |
+| GAP-12 | Define and deliver listing moderation | Rules accepted; implementation pending | Biz publication specification | Authorized moderation transitions and correct public visibility |
 | GAP-13 | Consolidate coverage checks and close the release checklist | Waiting for implementation | Relevant milestone's items | Required checks pass; report and completion claim agree |
 
 Order: GAP-01, then GAP-02/03 and the first GAP-05 slice; carry GAP-06/07/08
-through each subsequent slice. Prepare the GAP-04 and GAP-09–12 decision records
-early so waiting on one definition does not stop unrelated existing-model work.
+through each subsequent slice. Follow the accepted GAP-04 and GAP-09–12 rules. Implement GAP-12 publication
+visibility before exposing new bracket/ranking public routes, then GAP-09 draws,
+GAP-11 rankings and GAP-10 AI. GAP-04 attendance resolves by removing unintended
+coach grants; player editing requires a current-squad relation.
 This is a dependency order, not an instruction to spawn parallel agents.
 
 ## GAP-01 — evidence that measures actual coverage
@@ -135,9 +140,14 @@ Acceptance: Worker tests establish issuance policy; relay integration tests
 establish capability enforcement. Mocked API tests alone cannot close this item.
 Deployment is a separate action from preparing and testing the implementation.
 
-## GAP-04 — make the intended coach permissions resolvable
+## GAP-04 — implement the accepted coach permissions
 
-Known exceptions in `tests/repo/grants.test.ts`:
+Accepted: current head/assistant coaches may edit names, number and position;
+attendance belongs to owners, accepted co-organizers and admins. Birth dates stay
+outside ordinary profile editing. See the biz specification for temporal boundaries.
+
+Known exceptions in `tests/repo/grants.test.ts` (historical questions below are now
+answered by Decision 006):
 
 | Action | Unresolvable relations | Decision required |
 | --- | --- | --- |
@@ -145,8 +155,8 @@ Known exceptions in `tests/repo/grants.test.ts`:
 | `RECORD_ATTENDANCE` | `HEAD_COACH`, `ASSISTANT_COACH` | Which connection between coach, player, event and session authorizes attendance? Is access limited to their players or the whole session? |
 
 Do not assume these two actions need the same relationship traversal. For each,
-prepare allowed and refused examples and record the Product Owner's decision in
-the canonical `remy-sport-biz` model workflow described by `scripts/model.ts`.
+use the accepted allowed/refused examples and update the canonical model through
+the workflow described by `scripts/model.ts`. Do not fetch over local biz changes.
 
 - [ ] Choose the model-supported relation derivation or view after the scope is
   defined; update canonical grants/relations and sync rather than editing copies.
@@ -160,8 +170,9 @@ the canonical `remy-sport-biz` model workflow described by `scripts/model.ts`.
   that rejects stale exception entries; do not replace four entries with a broad
   action exemption.
 
-Acceptance: four grants work according to recorded rules, with positive and
-negative Worker tests and browser journeys. This is not fixed by showing buttons.
+Acceptance: intended current-coach player access works and unintended coach
+attendance grants are removed, with positive/negative Worker tests and browser
+journeys. All four mismatch exceptions are eliminated by the appropriate change. This is not fixed by showing buttons.
 
 ## GAP-05 — audit and finish each domain slice
 
@@ -224,14 +235,15 @@ GAP-08, usable presentation:
   one top-of-page screenshot cannot certify the whole journey. Save findings
   and fixes in the tree; add behavioral/layout regression checks for defects.
 
-## GAP-09–12 — decision packets for all five blocked actions
+## GAP-09–12 — implement all five defined but unbuilt actions
 
-Prepare concrete examples and proposed options for Product Owner review. Each
-packet must end with recorded rules, example inputs/outputs, allowed/refused
-transitions, data ownership and correction policy. No implementation starts from
-an unanswered rule. Existing-model work continues while these remain blocked.
+Decision 006 in the biz repository now supplies these rules and worked examples.
+The table below remains the implementation checklist; its former open questions
+are answered there. Use the defined 3–8 team pool/championship format, reviewed AI
+suggestions, division/season team Elo, and versioned event-publication moderation.
+Extend executable model/schema/API/React together in each tested slice.
 
-| Item/actions | Rules the Product Owner must define | Implementation after definition | Required proof |
+| Item/actions | Rule dimensions covered by Decision 006 | Implementation after definition | Required proof |
 | --- | --- | --- | --- |
 | GAP-09: `VIEW_BRACKET`, `GENERATE_BRACKETS` | Supported pilot format, guaranteed games, seeding/byes, rounds, progression, ties/withdrawals, regeneration after results | Canonical model, schema/migration/fixtures, deterministic generator, authorized preview/apply, persisted draw and viewing route | Approved small competition examples produce exact fixtures; advancement and corrections agree with results; regeneration cannot silently discard played games |
 | GAP-10: `AI_BRACKET_SUGGESTIONS` | Suggestion inputs/output, allowed changes, constraints, review/accept rules and what happens when no valid suggestion exists | Suggestions over the approved bracket model; deterministic validation; explicit organizer review before applying; timeout/refusal/retry UI | Invalid suggestions cannot apply; rejecting a suggestion changes nothing; accepted valid output persists through the same authorized write path |
@@ -256,9 +268,21 @@ single elimination or substitute event standings for ranking history.
 - [ ] Review migrations, rollout dependencies and rollback before proposing any
   deployment. Do not mix unrelated shared-tree changes into completion commits.
 - [ ] Update this register with commit/test evidence. Close the existing-model
-  milestone only when its work is proven; keep GAP-09–12 visibly blocked if
-  undecided. Claim whole-model completion only when every item is closed.
+  milestone only when its work is proven; keep GAP-09–12 visibly unfinished until their implementations pass. Claim whole-model completion only when every item is closed.
 
 A failing behavior is fixed in its owning slice before that slice is marked
 complete. If a new domain decision is required, record the exact decision and
 its impact here instead of adding an unexplained exception or a placeholder UI.
+
+
+## Decision handoff — 2026-09-07
+
+Canonical decisions committed in `remy-sport-biz` as `c5b6bd6`. Biz model and
+documentation checks passed; runtime behavior is unchanged by this decision commit.
+
+The application model and its exception lists still describe the pre-decision
+implementation. No schema or grant was changed merely to make an inventory green.
+Next implementation: GAP-01 evidence contract and GAP-04 canonical coach relations/
+attendance grants, with model sync and regression tests in the same work slice.
+Relay investigation can proceed independently. Do not re-request the Product Owner
+decisions already delegated and recorded in Decision 006.
