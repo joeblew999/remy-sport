@@ -3,13 +3,11 @@
 Status: Development and staging credentials are now configured following the
 user's dashboard setup; production's existing configuration was retained. See
 the environment setup checkpoint below. Synthetic-camera video delivery and
-stop/restart now pass against the development relay; physical-camera verification
-and deployment of the recovery fix remain.
-Real relay verification awaits the API token permission update below; the user
-confirmed MoQ is absent from the dashboard Account dropdown. No remote relay
-provisioning, credential rotation or deployment performed. Credentials were not
-recorded in this document. Actual configured deployment identity remains to be
-verified without exposing secrets.
+stop/restart now pass against the development relay. The user also confirms the
+three-step local physical-camera walkthrough worked; see the confirmation below.
+Deployment of the recovery fix remains. The earlier API permission blocker below
+describes relay-management automation, not a blocker to using the relays created
+through the dashboard. Credentials are not recorded in this document.
 
 The current client in `src/web/lib/moq.ts` constructs a Cloudflare-style token
 path and uses a game-specific broadcast name. The API gates release of its
@@ -310,3 +308,18 @@ This is synthetic-camera proof, not physical-camera proof or a production test.
 No staging or production code was deployed. Next: use a physical camera on the
 development Broadcast page with a separate Watch window, then roll the tested
 recovery change into staging with the rest of the pending relay implementation.
+
+## User-confirmed physical-camera walkthrough — 2026-09-07
+
+After the automated checks and recovery fix in `f37c069`, the user completed the
+requested local walkthrough: sign in as the seeded referee, start the camera at
+`/#/broadcast/gam_002`, and open `/#/watch/gam_002` in another window. The user
+reported that all three steps worked. This is user-observed physical-camera
+broadcast/watch confirmation; the agent did not independently observe that
+camera session. Browser/device details and a manual stop/restart check were not
+reported. Automated synthetic-camera stop/restart evidence is recorded above.
+
+Development broadcasting is now confirmed by both the automated real-relay
+check and the user's camera walkthrough. Next: integrate the pending relay
+changes and validate the recovery fix on staging. Production was not changed;
+cross-game relay authorization (GAP-03) remains open.
