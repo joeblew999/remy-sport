@@ -122,3 +122,26 @@ Next: after the user saves Account → MoQ → Edit on `dev`, rerun the access c
 provision the local relay, then verify real publish/watch delivery. Keep GAP-03
 stream isolation open until protocol evidence proves it. No relay is working
 merely because setup succeeds.
+
+## Broadcasting acceptance — 2026-09-07
+
+The user explicitly requires broadcasting. Completion means an authorized user
+starts camera capture on a game's Broadcast page, Cloudflare receives the stream,
+and a separate browser's Watch page displays advancing video frames from it.
+A preview on the publisher, a successful API call, or a connected transport alone
+is insufficient. Verify stop releases capture and ends delivery, and restarting
+broadcasting restores delivery. Record browser, game, command and observed result
+here; keep synthetic-source transport checks distinct from physical-camera proof.
+
+Fresh preflight: `bun run live --check` still returns 403 / 10000. Four tests in
+`tests/worker/relay-credentials.test.ts` passed, including Cloudflare publishing
+permission and separate watcher credentials. The 14 render cases in
+`tests/render/moq-page.spec.ts` and `tests/render/relay-renewal.spec.ts` passed.
+These prove API/UI behavior, not real broadcasting. The build again reports the
+previously recorded large-chunk and deprecated inlineDynamicImports warnings;
+those remain tooling follow-up in the main coverage plan.
+
+Immediate blocker remains the `dev` API token's missing MoQ Write permission.
+Next action after the dashboard edit is the provisioning and real two-browser
+broadcasting verification above. Do not close the task as "broadcasting works"
+until that succeeds.
