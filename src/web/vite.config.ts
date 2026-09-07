@@ -1,4 +1,4 @@
-import { i18nOptions } from "../../scripts/lib/i18n";
+import { i18nOptions } from "../../scripts/lib/i18n.ts";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { cloudflare } from "@cloudflare/vite-plugin";

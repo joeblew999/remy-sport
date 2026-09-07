@@ -21,6 +21,7 @@
 import { readdirSync, readFileSync, existsSync } from "fs"
 import { join, resolve, dirname } from "path"
 import { rule } from "./helpers"
+import { expect, it } from "vitest"
 
 const ROOT = resolve(import.meta.dirname, "../..")
 
@@ -61,7 +62,7 @@ const hasCompanion = existsSync(COMPANION)
  */
 function companionPath(ref: string): string | null {
   const patterns = [
-    /^\.\.\/remy-sport-biz\/(.+)$/,
+    /^(?:\.\.\/)+remy-sport-biz\/(.+)$/,
     /^remy-sport-biz\/(.+)$/,
     /^https:\/\/github\.com\/[^/]+\/remy-sport-biz\/blob\/[^/]+\/(.+)$/,
   ]
@@ -71,6 +72,12 @@ function companionPath(ref: string): string | null {
   }
   return null
 }
+
+it("recognizes companion links relative to nested documentation", () => {
+  expect(companionPath("../../remy-sport-biz/docs/example.md")).toBe("docs/example.md")
+  expect(companionPath("../remy-sport-biz/docs/example.md")).toBe("docs/example.md")
+  expect(companionPath("../../different-repo/docs/example.md")).toBeNull()
+})
 
 const IGNORE = [
   /^https?:/,
