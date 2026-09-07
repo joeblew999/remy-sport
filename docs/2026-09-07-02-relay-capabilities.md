@@ -326,3 +326,24 @@ Development broadcasting is now confirmed by both the automated real-relay
 check and the user's camera walkthrough. Next: integrate the pending relay
 changes and validate the recovery fix on staging. Production was not changed;
 cross-game relay authorization (GAP-03) remains open.
+
+## Scope recheck after the full staging rollout — 2026-09-07
+
+`bun run test:relay` passed against the existing local `moq-relay` binary:
+allowed publish/watch payload delivery, cross-game connection denial, tampered
+and expired credential denial, subscribe-only publishing denial, and closure of
+an already-open connection at token expiry. This is evidence for the optional
+scoped adapter; staging still uses Cloudflare's shared credentials.
+
+Cloudflare's token creation API and overview linked above were rechecked. The
+published token request still exposes operations, expiry and label, without a
+per-game namespace restriction. The existing inference and GAP-03 remain open;
+no remote cross-game protocol test or relay configuration change was made.
+
+Admin impersonation is useful for validating role-specific application journeys.
+`tests/e2e/admin-console.spec.ts` covers entering impersonation, retaining the
+underlying admin identity, returning to admin, and non-admin refusal. Most other
+journeys sign in as their test actors directly. Neither route establishes what
+a copied media credential can do outside the app. The next relay work remains
+the isolated-relay versus scoped-adapter comparison described above, including
+browser transport compatibility and revocation/reconnect evidence before rollout.
