@@ -12,7 +12,10 @@ its status table; their test results describe the recorded checkout, not a fresh
 run. Check `git status` before editing: the shared tree contains substantial
 pending GUI, development tooling, relay and evidence changes from other work.
 
-- Latest committed slice: `71c28ab`, browser session revocation and persisted
+- Current user priority: get the Cloudflare relay working and automate setup.
+  The [relay handoff](2026-09-07-02-relay-capabilities.md) records the exact `dev`
+  token permission change, setup commands, checks and remaining protocol work.
+- Latest committed coverage slice: `71c28ab`, browser session revocation and persisted
   failure/retry journeys. Remaining work includes development service-worker
   reload verification and phone/locale/keyboard review.
 - Next independent work: continue GAP-01 item review and GAP-05–08 journeys in

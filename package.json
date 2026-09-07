@@ -19,7 +19,8 @@
     "deploy": "bun scripts/deploy.ts",
     "db": "bun scripts/db.ts",
     "ops": "bun scripts/ops.ts",
-    "model": "bun scripts/model.ts"
+    "model": "bun scripts/model.ts",
+    "live": "bun scripts/live.ts"
   },
   "dependencies": {
     "@hono/swagger-ui": "^0.6.1",
