@@ -35,3 +35,7 @@ in that shared automation, including failure handling. Never claim a workflow
 works based on a private workaround that developers cannot reproduce through
 the documented command. Ordinary source inspection, editing and Git operations
 are not replacements for these application workflows.
+
+## The CLI MUST not make developers be super human
+
+it must not require a large surface. We both know that means it must be linear and not require co-ordination by the user !!! developers coordinating steps manually is BAD DESIGN !!! 
