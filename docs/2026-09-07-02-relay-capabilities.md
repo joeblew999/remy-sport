@@ -1,7 +1,9 @@
 # Relay capability investigation — GAP-02
 
-Status: Production already has the Cloudflare relay secrets configured; see the
-deployment reconciliation below. Cloudflare permission identified; local provisioning automation tested.
+Status: Development and staging credentials are now configured following the
+user's dashboard setup; production's existing configuration was retained. See
+the environment setup checkpoint below. Actual video delivery still needs a
+fresh browser verification.
 Real relay verification awaits the API token permission update below; the user
 confirmed MoQ is absent from the dashboard Account dropdown. No remote relay
 provisioning, credential rotation or deployment performed. Credentials were not
@@ -241,3 +243,29 @@ work. The earlier resume summary wrongly generalized local setup status to the
 deployed service. Resume by checking the existing production broadcast/watch
 flow before proposing another relay or token-policy change. Current production
 media delivery and credential expiry remain unchecked.
+
+## Environment setup checkpoint — 2026-09-07
+
+The user created separate `remy-sport-dev` and `remy-sport-staging` relays through
+the dashboard and entered their token pairs using hidden terminal prompts.
+Development setup used `bun run live`; staging used the shared Cloudflare
+wrapper's `wrangler secret bulk` with the explicit staging target. Production
+was not changed. No token values are recorded here.
+
+Verified development `.dev.vars` has distinct nonempty publish/watch tokens,
+the Cloudflare draft-16 origin, `ENVIRONMENT=dev`, file mode 0600, and no
+adapter signing key. The local Vite server started successfully; its home page
+and `/api/moq/config?gameId=gam_002&role=watch` returned HTTP 200, with a
+nonempty watcher configuration.
+
+Fresh staging verification lists all three expected `MOQ_RELAY_*` secrets.
+Both `https://staging-remy.ubuntusoftware.net/` and its
+`/api/moq/config?gameId=gam_002&role=watch` endpoint returned HTTP 200; the
+configuration contains the Cloudflare draft-16 URL and a nonempty watch token.
+Only presence booleans and secret names were printed. This confirms deployment
+configuration, not relay acceptance or media delivery. Relay identities, token
+roles and expiry have not been independently verified against the registry.
+
+Next: verify actual Broadcast → Watch video delivery using the development or
+staging relay, including stop/restart. No more dashboard setup or API permission
+changes are required merely to attempt this verification.
