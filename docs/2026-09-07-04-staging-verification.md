@@ -1,7 +1,27 @@
 # Plan — run the existing browser tests on staging
 
-Status: planned; implementation has not started. Simplified after user feedback.
-This replaces the broader automation redesign previously proposed here.
+Status: planned; implementation has not started. The attempted CLI rewrite was
+removed. The tool decision below supersedes the Bun-script orchestration assumed
+by the steps that follow; those steps describe required behavior, not final commands.
+
+## Tool decision — 2026-09-07
+
+Use mise for tool versions AND task orchestration. It is already installed and
+used by CI; its declared dependencies, ordered tasks, task help and dry runs
+replace orchestration implemented by custom command dispatchers. This explicitly
+revises the earlier no-mise-tasks decision in the modern-tooling plan.
+
+Keep Bun for dependencies and TypeScript execution; Vite with the Cloudflare
+plugin for development/build; Wrangler for Cloudflare operations; Vitest and
+Playwright for tests; fnox for the existing local secret workflow; GitHub Actions
+to invoke the same mise workflows in CI. Do not add another task runner or build
+a replacement CLI framework. Domain-specific code remains only where these tools
+do not supply the required behavior, including fixture policy and test-access
+verification. Tool selection does not itself fix those application-specific gaps.
+
+Sources checked: [mise task execution](https://mise.jdx.dev/tasks/running-tasks.html),
+[task configuration](https://mise.jdx.dev/tasks/task-configuration.html).
+No task migration or tool upgrade was performed when recording this decision.
 
 ## The fix
 
