@@ -5,7 +5,10 @@ user's dashboard setup; production's existing configuration was retained. See
 the environment setup checkpoint below. Synthetic-camera video delivery and
 stop/restart now pass against the development relay. The user also confirms the
 three-step local physical-camera walkthrough worked; see the confirmation below.
-Deployment of the recovery fix remains. The earlier API permission blocker below
+The recovery fix and relay integration are now deployed and verified on staging
+from main `fbcd6c5`; see the [rollout record](2026-09-07-03-staging-broadcast.md).
+All four synthetic video checks passed there; production is unchanged.
+The earlier API permission blocker below
 describes relay-management automation, not a blocker to using the relays created
 through the dashboard. Credentials are not recorded in this document.
 

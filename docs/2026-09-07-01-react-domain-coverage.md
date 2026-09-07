@@ -12,9 +12,11 @@ its status table; their test results describe the recorded checkout, not a fresh
 run. Check `git status` before editing: the shared tree contains substantial
 pending GUI, development tooling, relay and evidence changes from other work.
 
-- Current user priority: get the Cloudflare relay working and automate setup.
-  The [relay handoff](2026-09-07-02-relay-capabilities.md) records the exact `dev`
-  token permission change, setup commands, checks and remaining protocol work.
+- Broadcasting is configured and verified locally and on staging. The
+  [staging rollout](2026-09-07-03-staging-broadcast.md) records deployed main
+  `fbcd6c5` and real-relay delivery/stop/restart evidence. Production is unchanged.
+  The [relay handoff](2026-09-07-02-relay-capabilities.md) records the remaining
+  per-game enforcement gap; no more dashboard setup is needed for these relays.
 - Latest committed coverage slice: `71c28ab`, browser session revocation and persisted
   failure/retry journeys. Remaining work includes development service-worker
   reload verification and phone/locale/keyboard review.
