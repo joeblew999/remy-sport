@@ -98,7 +98,8 @@ const INSTALL: Step = {
 
 const BUILD: Step[] = [
   INSTALL,
-  { name: "types", why: "worker-configuration.d.ts is generated from the bindings, and the typecheck reads it", go: () => sh(["bun", "x", "wrangler", "types"]) },
+  { name: "i18n", why: "generate the message modules before typechecking a fresh checkout", go: () => sh(["bun", "scripts/lib/i18n.ts"]) },
+  { name: "types", why: "generate stable binding types independently of local credentials", go: () => sh(["bun", "x", "wrangler", "types", "--env-file", "scripts/lib/types.env"]) },
 ]
 
 /**

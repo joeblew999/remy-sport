@@ -58,6 +58,8 @@ export default defineConfig({
               // Never let a test reach the real mail binding, whatever wrangler.toml
               // says. `outbox` captures messages in the isolate instead of sending.
               bindings: {
+                // Tests must work without a developer's .dev.vars or secrets.
+                BETTER_AUTH_SECRET: "worker-test-only-auth-secret-at-least-32-bytes",
                 MAIL_TRANSPORT: "outbox",
                 // The worker tier is a dev environment: it reads the outbox, asserts
                 // on the seed route and the demo picker, and needs every sample. The

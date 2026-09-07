@@ -1,3 +1,4 @@
+import { i18nOptions } from "../../scripts/lib/i18n";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { cloudflare } from "@cloudflare/vite-plugin";
@@ -110,24 +111,7 @@ export default defineConfig(({ mode, command }) => ({
           seedOnStart(),
         ]),
     react(),
-    paraglideVitePlugin({
-      project: resolve(ROOT, "project.inlang"),
-      outdir: resolve(ROOT, "src/paraglide"),
-      /**
-       * Every message in one bundle, chosen by the locale runtime.
-       *
-       * The default (`locale-modules`) splits each language into its own chunk
-       * and switches with a dynamic import. That is right for a site where
-       * most readers stay in one language. It is wrong here: a locale switch
-       * happened mid-render, the new chunk had not arrived, and the page
-       * flashed English before Thai. `message-modules` keeps every language
-       * in the main bundle so switching is synchronous — three languages of
-       * UI strings cost less than one font.
-       */
-      outputStructure: "message-modules",
-      cookieName: "remy_locale",
-      strategy: ["localStorage", "cookie", "preferredLanguage", "baseLocale"],
-    }),
+    paraglideVitePlugin(i18nOptions),
     /**
      * The service worker is not registered here, and that is deliberate.
      *
