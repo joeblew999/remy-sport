@@ -133,6 +133,21 @@ test.describe("no screen overflows on a phone", () => {
     })
     expect(scrolls.inner, "the tab row scrolls its own content").toBe(true)
     expect(scrolls.fitsParent, "and does not push its parent wider").toBe(true)
+
+    // And says so. "Past" was clipped at the right edge with nothing to show
+    // the strip went on; each strip's last item is now a sticky fade pinned
+    // to that edge. Asked of the computed style, since a pseudo-element has
+    // no box a locator can find.
+    const fades = await page.evaluate(() =>
+      [".tab-row", ".filter-row"].map((s) => {
+        const after = getComputedStyle(document.querySelector(s)!, "::after")
+        return { strip: s, position: after.position, painted: after.backgroundImage !== "none" }
+      }),
+    )
+    for (const fade of fades) {
+      expect(fade.position, `${fade.strip} has a sticky fade at its edge`).toBe("sticky")
+      expect(fade.painted, `${fade.strip}'s fade is painted`).toBe(true)
+    }
   })
 
   test("the shell cannot be panned by a reader", async ({ page }) => {

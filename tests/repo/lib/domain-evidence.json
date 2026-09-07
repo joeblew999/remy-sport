@@ -11,7 +11,6 @@
     "action.CREATE_EVENT",
     "action.CREATE_PLAYER",
     "action.CREATE_TEAM",
-    "action.CREATE_USER_ACCOUNT",
     "action.DEFINE_SESSION_SCHEDULE",
     "action.DELETE_EVENT",
     "action.DELETE_PLAYER",
@@ -22,7 +21,6 @@
     "action.FOLLOW_PLAYER",
     "action.FOLLOW_TEAM",
     "action.GENERATE_FIXTURES",
-    "action.INSTALL_APP",
     "action.INVITE_CO_ORGANIZER",
     "action.INVITE_ORG_MEMBER",
     "action.MANAGE_ALL_USERS",
@@ -35,7 +33,6 @@
     "action.RECEIVE_NOTIFICATIONS",
     "action.RECEIVE_PLAYER_NOTIFICATIONS",
     "action.RECEIVE_TEAM_NOTIFICATIONS",
-    "action.RECORD_ATTENDANCE",
     "action.REGISTER_PLAYER_FOR_EVENT",
     "action.REGISTER_TEAM_FOR_EVENT",
     "action.REMOVE_ORG_MEMBER",
@@ -329,18 +326,6 @@
     "field.venue.id",
     "field.venue.names",
     "field.venue.provinceCode",
-    "operation.auth.admin/ban-user",
-    "operation.auth.admin/create-user",
-    "operation.auth.admin/impersonate-user",
-    "operation.auth.admin/list-users",
-    "operation.auth.admin/set-role",
-    "operation.auth.admin/stop-impersonating",
-    "operation.auth.admin/unban-user",
-    "operation.auth.email-otp/send-verification-otp",
-    "operation.auth.get-session",
-    "operation.auth.sign-in/email-otp",
-    "operation.auth.sign-out",
-    "operation.browser.install",
     "output.admin.approveReferee.id",
     "output.admin.approveReferee.statusCode",
     "output.divisions.list.items",
@@ -1328,6 +1313,59 @@
     "relationship.venue.(province_code)->province.(code)"
   ],
   "reviewed": {
+    "action.AI_BRACKET_SUGGESTIONS": {
+      "intent": "implementation_pending",
+      "reason": "Decision 006 accepted; validated suggestion/review/apply pipeline pending.",
+      "surfaces": [],
+      "operations": [],
+      "audience": [
+        "as defined in biz Decision 006"
+      ],
+      "cases": []
+    },
+    "action.CREATE_USER_ACCOUNT": {
+      "intent": "edit",
+      "reason": "Passwordless account creation request is verified in the render tier; persisted account creation still needs a real Worker/browser case.",
+      "surfaces": [
+        "src/web/pages/admin.tsx"
+      ],
+      "operations": [
+        "auth.admin/create-user"
+      ],
+      "audience": [
+        "Platform administrator with CREATE_USER_ACCOUNT"
+      ],
+      "cases": [
+        {
+          "file": "tests/render/admin.spec.ts",
+          "test": "sends no password at all, so no credential account is made",
+          "level": "render",
+          "result": "The form sends the chosen email/name/role and no password."
+        }
+      ]
+    },
+    "action.EDIT_EVENT": {
+      "intent": "edit",
+      "reason": "Event details and cleared dates are exercised through a real Worker.",
+      "surfaces": [
+        "src/web/components/event-settings.tsx"
+      ],
+      "operations": [
+        "events.update",
+        "events.get"
+      ],
+      "audience": [
+        "owner"
+      ],
+      "cases": [
+        {
+          "file": "tests/e2e/domain-coverage.spec.ts",
+          "test": "create from Discover, edit translations and dates, then read after reload",
+          "level": "persistence",
+          "result": "Names, description and dates persist; clearing dates persists as missing."
+        }
+      ]
+    },
     "action.EDIT_PLAYER_PROFILE": {
       "intent": "edit",
       "reason": "Evidence covers current coaches and direct API refusal; remaining viewer/state combinations need GAP-06 review.",
@@ -1390,25 +1428,72 @@
         }
       ]
     },
-    "action.EDIT_EVENT": {
+    "action.GENERATE_BRACKETS": {
+      "intent": "implementation_pending",
+      "reason": "Decision 006 accepted; pool/championship generator and fixtures pending.",
+      "surfaces": [],
+      "operations": [],
+      "audience": [
+        "as defined in biz Decision 006"
+      ],
+      "cases": []
+    },
+    "action.INSTALL_APP": {
       "intent": "edit",
-      "reason": "Event details and cleared dates are exercised through a real Worker.",
+      "reason": "The browser owns installation; application evidence establishes a manually opened prompt, not successful OS installation.",
       "surfaces": [
-        "src/web/components/event-settings.tsx"
+        "src/web/components/account.tsx"
       ],
       "operations": [
-        "events.update",
-        "events.get"
+        "browser.install"
       ],
       "audience": [
-        "owner"
+        "Visitor on a supported installable browser"
       ],
       "cases": [
         {
-          "file": "tests/e2e/domain-coverage.spec.ts",
-          "test": "create from Discover, edit translations and dates, then read after reload",
-          "level": "persistence",
-          "result": "Names, description and dates persist; clearing dates persists as missing."
+          "file": "tests/render/install.spec.ts",
+          "test": "is set to manual, so it cannot prompt on arrival",
+          "level": "render",
+          "result": "The install element does not automatically prompt on arrival."
+        }
+      ]
+    },
+    "action.MODERATE_LISTINGS": {
+      "intent": "implementation_pending",
+      "reason": "Decision 006 accepted; event publication/revision/visibility implementation pending.",
+      "surfaces": [],
+      "operations": [],
+      "audience": [
+        "as defined in biz Decision 006"
+      ],
+      "cases": []
+    },
+    "action.RECORD_ATTENDANCE": {
+      "intent": "edit",
+      "reason": "Event/session parent boundary and coach refusal are verified; full state and persisted UI matrix remains to audit.",
+      "surfaces": [
+        "src/web/components/event-sessions.tsx"
+      ],
+      "operations": [
+        "events.attendance",
+        "events.recordAttendance"
+      ],
+      "audience": [
+        "Event owner, accepted co-organizer, platform administrator"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/attendance-boundary.test.ts",
+          "test": "attendance reads and writes require the session to belong to the supplied event",
+          "level": "worker",
+          "result": "Wrong-parent reads and both attendance mutations return 404 without changing recorded attendance."
+        },
+        {
+          "file": "tests/worker/coach-access.test.ts",
+          "test": "coaching a camp attendee does not authorize attendance",
+          "level": "worker",
+          "result": "Coaching a registered player alone returns 403."
         }
       ]
     },
@@ -1422,39 +1507,9 @@
       ],
       "cases": []
     },
-    "action.GENERATE_BRACKETS": {
-      "intent": "implementation_pending",
-      "reason": "Decision 006 accepted; pool/championship generator and fixtures pending.",
-      "surfaces": [],
-      "operations": [],
-      "audience": [
-        "as defined in biz Decision 006"
-      ],
-      "cases": []
-    },
-    "action.AI_BRACKET_SUGGESTIONS": {
-      "intent": "implementation_pending",
-      "reason": "Decision 006 accepted; validated suggestion/review/apply pipeline pending.",
-      "surfaces": [],
-      "operations": [],
-      "audience": [
-        "as defined in biz Decision 006"
-      ],
-      "cases": []
-    },
     "action.VIEW_RANKINGS_HISTORY": {
       "intent": "implementation_pending",
       "reason": "Decision 006 accepted; cross-event team Elo and revisioned history pending.",
-      "surfaces": [],
-      "operations": [],
-      "audience": [
-        "as defined in biz Decision 006"
-      ],
-      "cases": []
-    },
-    "action.MODERATE_LISTINGS": {
-      "intent": "implementation_pending",
-      "reason": "Decision 006 accepted; event publication/revision/visibility implementation pending.",
       "surfaces": [],
       "operations": [],
       "audience": [
@@ -1832,17 +1887,202 @@
       ],
       "cases": []
     },
-    "procedure.health.get": {
-      "intent": "internal",
-      "reason": "Infrastructure health probe, not a GUI operation.",
-      "surfaces": [],
+    "operation.auth.admin/ban-user": {
+      "intent": "edit",
+      "reason": "Better Auth admin plugin enforces this operation.",
+      "surfaces": [
+        "src/web/pages/admin.tsx",
+        "src/web/lib/auth.ts"
+      ],
       "operations": [
-        "health.get"
+        "auth.admin/ban-user"
       ],
       "audience": [
-        "operations"
+        "Platform administrator"
       ],
-      "cases": []
+      "cases": [
+        {
+          "file": "tests/e2e/admin-console.spec.ts",
+          "test": "banning is reflected in the list, and reversible",
+          "level": "persistence",
+          "result": "Admin can ban and unban an account."
+        }
+      ]
+    },
+    "operation.auth.admin/create-user": {
+      "intent": "edit",
+      "reason": "Passwordless account creation request is verified in the render tier; persisted account creation still needs a real Worker/browser case.",
+      "surfaces": [
+        "src/web/pages/admin.tsx"
+      ],
+      "operations": [
+        "auth.admin/create-user"
+      ],
+      "audience": [
+        "Platform administrator with CREATE_USER_ACCOUNT"
+      ],
+      "cases": [
+        {
+          "file": "tests/render/admin.spec.ts",
+          "test": "sends no password at all, so no credential account is made",
+          "level": "render",
+          "result": "The form sends the chosen email/name/role and no password."
+        }
+      ]
+    },
+    "operation.auth.admin/impersonate-user": {
+      "intent": "edit",
+      "reason": "Better Auth admin plugin enforces this operation.",
+      "surfaces": [
+        "src/web/pages/admin.tsx",
+        "src/web/lib/auth.ts"
+      ],
+      "operations": [
+        "auth.admin/impersonate-user"
+      ],
+      "audience": [
+        "Platform administrator"
+      ],
+      "cases": [
+        {
+          "file": "tests/e2e/admin-console.spec.ts",
+          "test": "impersonation keeps the admin identity underneath",
+          "level": "persistence",
+          "result": "Impersonation retains the underlying admin identity."
+        }
+      ]
+    },
+    "operation.auth.admin/list-users": {
+      "intent": "display",
+      "reason": "Better Auth admin plugin enforces this operation.",
+      "surfaces": [
+        "src/web/pages/admin.tsx",
+        "src/web/lib/auth.ts"
+      ],
+      "operations": [
+        "auth.admin/list-users"
+      ],
+      "audience": [
+        "Platform administrator"
+      ],
+      "cases": [
+        {
+          "file": "tests/e2e/admin-console.spec.ts",
+          "test": "an admin sees the account list; the plugin's own permission check allows it",
+          "level": "persistence",
+          "result": "Admin receives the account list; non-admin refusal has a separate test."
+        }
+      ]
+    },
+    "operation.auth.admin/set-role": {
+      "intent": "edit",
+      "reason": "Better Auth admin plugin enforces this operation.",
+      "surfaces": [
+        "src/web/pages/admin.tsx",
+        "src/web/lib/auth.ts"
+      ],
+      "operations": [
+        "auth.admin/set-role"
+      ],
+      "audience": [
+        "Platform administrator"
+      ],
+      "cases": [
+        {
+          "file": "tests/e2e/admin-console.spec.ts",
+          "test": "an admin can change someone's role, and it sticks",
+          "level": "persistence",
+          "result": "Changed role remains after the page reloads."
+        }
+      ]
+    },
+    "operation.auth.admin/stop-impersonating": {
+      "intent": "edit",
+      "reason": "Better Auth admin plugin enforces this operation.",
+      "surfaces": [
+        "src/web/pages/admin.tsx",
+        "src/web/lib/auth.ts"
+      ],
+      "operations": [
+        "auth.admin/stop-impersonating"
+      ],
+      "audience": [
+        "Platform administrator"
+      ],
+      "cases": [
+        {
+          "file": "tests/e2e/admin-console.spec.ts",
+          "test": "stopping impersonation returns to the admin, not a signed-out state",
+          "level": "persistence",
+          "result": "Ending impersonation restores the admin session."
+        }
+      ]
+    },
+    "operation.auth.admin/unban-user": {
+      "intent": "edit",
+      "reason": "Better Auth admin plugin enforces this operation.",
+      "surfaces": [
+        "src/web/pages/admin.tsx",
+        "src/web/lib/auth.ts"
+      ],
+      "operations": [
+        "auth.admin/unban-user"
+      ],
+      "audience": [
+        "Platform administrator"
+      ],
+      "cases": [
+        {
+          "file": "tests/e2e/admin-console.spec.ts",
+          "test": "banning is reflected in the list, and reversible",
+          "level": "persistence",
+          "result": "Admin can reverse a ban."
+        }
+      ]
+    },
+    "operation.auth.email-otp/send-verification-otp": {
+      "intent": "edit",
+      "reason": "Better Auth owns this operation; evidence covers the stated browser journey.",
+      "surfaces": [
+        "src/web/lib/auth.ts",
+        "src/web/lib/session.tsx"
+      ],
+      "operations": [
+        "auth.email-otp/send-verification-otp"
+      ],
+      "audience": [
+        "Current visitor/session owner"
+      ],
+      "cases": [
+        {
+          "file": "tests/e2e/spa-login.spec.ts",
+          "test": "requesting a code reveals the code step, same as the dashboard",
+          "level": "persistence",
+          "result": "Requesting the code advances to the verification form."
+        }
+      ]
+    },
+    "operation.auth.get-session": {
+      "intent": "derived",
+      "reason": "Better Auth owns this operation; evidence covers the stated browser journey.",
+      "surfaces": [
+        "src/web/lib/auth.ts",
+        "src/web/lib/session.tsx"
+      ],
+      "operations": [
+        "auth.get-session"
+      ],
+      "audience": [
+        "Current visitor/session owner"
+      ],
+      "cases": [
+        {
+          "file": "tests/e2e/spa-login.spec.ts",
+          "test": "a correct code signs in and the session is shared across the app",
+          "level": "persistence",
+          "result": "The application reads the authenticated session."
+        }
+      ]
     },
     "operation.auth.list-sessions": {
       "intent": "display",
@@ -1969,6 +2209,83 @@
           "result": "A simulated 503 preserves the session and enables retry; the retry revokes it through the real Worker and survives reload."
         }
       ]
+    },
+    "operation.auth.sign-in/email-otp": {
+      "intent": "edit",
+      "reason": "Better Auth owns this operation; evidence covers the stated browser journey.",
+      "surfaces": [
+        "src/web/lib/auth.ts",
+        "src/web/lib/session.tsx"
+      ],
+      "operations": [
+        "auth.sign-in/email-otp"
+      ],
+      "audience": [
+        "Current visitor/session owner"
+      ],
+      "cases": [
+        {
+          "file": "tests/e2e/spa-login.spec.ts",
+          "test": "a correct code signs in and the session is shared across the app",
+          "level": "persistence",
+          "result": "A real OTP creates a session used by the application."
+        }
+      ]
+    },
+    "operation.auth.sign-out": {
+      "intent": "edit",
+      "reason": "Better Auth owns this operation; evidence covers the stated browser journey.",
+      "surfaces": [
+        "src/web/lib/auth.ts",
+        "src/web/lib/session.tsx"
+      ],
+      "operations": [
+        "auth.sign-out"
+      ],
+      "audience": [
+        "Current visitor/session owner"
+      ],
+      "cases": [
+        {
+          "file": "tests/e2e/spa-login.spec.ts",
+          "test": "once signed in the topbar shows who you are, and can sign you out",
+          "level": "persistence",
+          "result": "Sign-out replaces the identity and authenticated controls."
+        }
+      ]
+    },
+    "operation.browser.install": {
+      "intent": "edit",
+      "reason": "The browser owns installation; application evidence establishes a manually opened prompt, not successful OS installation.",
+      "surfaces": [
+        "src/web/components/account.tsx"
+      ],
+      "operations": [
+        "browser.install"
+      ],
+      "audience": [
+        "Visitor on a supported installable browser"
+      ],
+      "cases": [
+        {
+          "file": "tests/render/install.spec.ts",
+          "test": "is set to manual, so it cannot prompt on arrival",
+          "level": "render",
+          "result": "The install element does not automatically prompt on arrival."
+        }
+      ]
+    },
+    "procedure.health.get": {
+      "intent": "internal",
+      "reason": "Infrastructure health probe, not a GUI operation.",
+      "surfaces": [],
+      "operations": [
+        "health.get"
+      ],
+      "audience": [
+        "operations"
+      ],
+      "cases": []
     }
   }
 }

@@ -49,28 +49,52 @@ run under either runtime.
 | `auth` | the Better Auth command-line tool, used to regenerate the auth database schema | Pinned to the exact same version as `better-auth` on purpose. They must match. |
 | `@moq/publish` and `@moq/watch` | live video streaming | Set up and working on production. A real feature. |
 | `@vite-pwa/assets-generator` | cuts all the app icons from `brand.svg` | Used by `bun run ops icons`. The `sharp` override in `package.json` exists so this and miniflare share one image library instead of installing two. |
-| `@tauri-apps/cli`, `@tauri-apps/plugin-log`, `@tauri-apps/plugin-notification` | the desktop and iPhone app shells | **Your decision.** They cost three packages, a Rust toolchain, and ruby + cocoapods in `mise.toml`, and nothing tests them. If desktop and iPhone apps ship this year, keep them. If not, make them install-on-demand. |
+| `@tauri-apps/cli`, `@tauri-apps/plugin-log`, `@tauri-apps/plugin-notification` | the desktop and iPhone app shells | Your decision, 2026-09-06: keep, because desktop and iPhone apps ship this year. They cost three packages, a Rust toolchain, and ruby + cocoapods in `mise.toml`, and nothing tests them. The reason is beside the `tauri` command in `scripts/ops.ts`. |
 
 ## Steps
 
-- [ ] Switch `/doc` to oRPC's documentation page. Delete `@hono/swagger-ui`.
-- [ ] Check whether oRPC provides the operation type. Delete `openapi-types`
-      if it does.
-- [ ] Break a translation file three ways and see what `inlang validate`
+- [x] Switch `/doc` to oRPC's documentation page. Delete `@hono/swagger-ui`.
+      Done: oRPC's page is served at `/api/doc` from `src/index.ts`, and
+      `/doc` redirects there. `tests/worker/read.test.ts` checks the redirect.
+- [x] Check whether oRPC provides the operation type. Delete `openapi-types`
+      if it does. It does: `OpenAPI.OperationObject` from `@orpc/openapi`,
+      used in `src/api/base.ts`. Deleted.
+- [x] Break a translation file three ways and see what `inlang validate`
       catches that the test and the build do not. Delete `@inlang/cli` if
-      nothing.
-- [ ] Change the 21 `Bun.*` calls in the scripts to Node's equivalents.
+      nothing. Done 2026-09-06, and it was nothing. A message missing from
+      `messages/th.json`: the test fails, the build passes, and `validate`
+      says the project is valid. A `th.json` that is not JSON: all three
+      fail. A file for a language the project does not declare: none of the
+      three notice, and none need to, because paraglide compiles only the
+      declared locales. Deleted.
+- [x] Change the 21 `Bun.*` calls in the scripts to Node's equivalents.
       Delete `@types/bun`. Run one script under `node` to prove it works.
-- [ ] Write the reason next to each package that stays (a comment on the line
-      that imports it).
-- [ ] Ask you about Tauri and write the answer here.
+      Done: no `Bun.` call is left in `scripts/`, and
+      `node scripts/ops/domain.ts --check` runs and passes on node 26.8.1.
+- [x] Write the reason next to each package that stays (a comment on the line
+      that imports it). Done 2026-09-06. Where nothing imports the package
+      (`auth`, the icon generator, the Tauri CLI) the reason is beside the
+      command that runs it, and `lit`'s is beside the install element's
+      import in `src/web/main.tsx`. Found on the way: nothing checked that
+      `auth` and `better-auth` are the same version, so
+      `tests/repo/auth-schema.test.ts` now does.
+- [x] Ask you about Tauri and write the answer here. Asked 2026-09-06, and
+      the answer is keep as is: desktop and iPhone apps ship this year, so the
+      three packages, the Rust toolchain and ruby plus cocoapods stay.
 
 ## Done when
 
 `package.json` has 41 packages, and every one of them is either imported
-somewhere or has its reason written next to the import.
+somewhere or has its reason written next to the import. (2026-09-06: 41, and
+every one is imported or explained.)
 
 ## Log
 
 - 2026-09-05 — written. Rewritten the same day in plain words, after the
   first version was rightly called cryptic.
+- 2026-09-06 — done. The four packages had been removed the day before
+  without the boxes being ticked or the proofs run; the proofs are run now
+  and written beside each box. Tauri kept, by decision. Found on the way:
+  `AGENTS.md` named a checks folder that stopped existing with the tooling
+  plan, and the docs test was red on it; fixed. Gate green: 793 tests in
+  Vitest, 258 in the render tier.

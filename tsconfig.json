@@ -44,7 +44,7 @@
     "allowJs": true,
     "useDefineForClassFields": true,
     "noEmit": true,
-    "types": ["@types/node", "@types/bun", "@cloudflare/vitest-plugin/types"]
+    "types": ["@types/node", "@cloudflare/vitest-plugin/types"]
   },
   "include": ["src", "tests", "scripts", "*.ts", "worker-configuration.d.ts"],
   // paraglide is reached through imports; globbing its hundreds of generated

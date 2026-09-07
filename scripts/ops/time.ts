@@ -30,7 +30,7 @@
  * costs; the spread between it and p95 is whether that number can be trusted.
  */
 
-import { DEV_ORIGIN } from "../../src/environment"
+import { DEV_ORIGIN } from "../../src/environment.ts"
 
 const args = process.argv.slice(2)
 

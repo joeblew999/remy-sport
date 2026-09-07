@@ -70,6 +70,63 @@ function seedOnStart(): Plugin {
 }
 
 /**
+ * A dev server that no service worker can shadow.
+ *
+ * Every build registers `/sw.js` as a classic script, and a browser that once
+ * loaded a build from this origin — `wrangler dev` serving dist/, before the
+ * Vite plugin — still holds that registration. Its worker precaches the whole
+ * built shell and answers every navigation from the cache, so `bun run dev`
+ * shows the old build, edit after edit. The way out is an update: the browser
+ * refetches `/sw.js` on navigation and a worker with different bytes takes
+ * over. But in dev vite-plugin-pwa answers `/sw.js` with sw.ts as an ES
+ * module, and a registration made as a classic script cannot load an `import`.
+ * The update fails silently, every time, and no console shows it: the page's
+ * own code is the old build's. Found 2026-09-06, after an hour of edits that
+ * changed nothing on screen.
+ *
+ * So in dev, `/sw.js` is a classic script whose whole job is to leave: it
+ * installs, unregisters itself, and reloads every tab it controls. The next
+ * load comes from Vite, and main.tsx registers the dev worker the plugin
+ * serves at `/dev-sw.js?dev-sw` — which is what dev has used all along.
+ * Nothing in dev asks for `/sw.js` except a stale registration, and this is
+ * its way out. tests/e2e/dev-worker.spec.ts holds it.
+ *
+ * `serve` only, and before the plugin so it answers first: a build writes the
+ * real worker at that path, and preview serves it.
+ */
+function legacyWorkerKillSwitch(): Plugin {
+  const script = [
+    "// The old worker's way out — legacyWorkerKillSwitch in src/web/vite.config.ts.",
+    "self.addEventListener('install', () => self.skipWaiting());",
+    // Claim first: a tab is only listed, and only reloaded, by the worker that
+    // controls it — and the claim itself fires `controllerchange`, which the
+    // shell's own registration code answers with a reload. WebKit needed that
+    // path; Chromium reloaded on `navigate` alone. Both are kept, and a
+    // `navigate` an engine refuses must not stop the worker leaving.
+    "self.addEventListener('activate', (event) => event.waitUntil(",
+    "  self.clients.claim()",
+    "    .then(() => self.registration.unregister())",
+    "    .then(() => self.clients.matchAll({ type: 'window' }))",
+    "    .then((clients) => Promise.all(clients.map((client) => client.navigate(client.url).catch(() => undefined)))),",
+    "));",
+    "",
+  ].join("\n");
+  return {
+    name: "remy:legacy-worker-kill-switch",
+    apply: "serve",
+    enforce: "pre",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if ((req.url ?? "").split("?")[0] !== "/sw.js") return next();
+        res.setHeader("Content-Type", "text/javascript");
+        res.setHeader("Cache-Control", "no-store");
+        res.end(script);
+      });
+    },
+  };
+}
+
+/**
  * What this build is: baked into the Worker as `__BUILD__` (src/build.d.ts) and
  * served at /api/versions. The commit from git, the build id from the deploy
  * (`BUILD_ID`, which it then waits for the origin to report) or the clock, the
@@ -99,6 +156,7 @@ function stamp(command: "build" | "serve") {
 export default defineConfig(({ mode, command }) => ({
   root: __dirname,
   plugins: [
+    legacyWorkerKillSwitch(),
     ...(mode === "render"
       ? []
       : [
@@ -110,7 +168,32 @@ export default defineConfig(({ mode, command }) => ({
           }),
           seedOnStart(),
         ]),
-    react(),
+    react({
+      /**
+       * No Fast Refresh for the entry, and this is why.
+       *
+       * Fast Refresh (oxc's, under this plugin) gives every module with a
+       * component a self-import — `import * as currentExports from
+       * "/main.tsx"` — by its bare URL. After the first edit of a dev session
+       * Vite serves index.html with `<script src="./main.tsx?t=…">`, and a
+       * URL with a query is a different module from the same URL without
+       * one. So the entry ran twice: two React roots on one container, two
+       * QueryClients, two apps listening to the same hash. Sign in happened
+       * in the one you could see; the ghost still held the visitor's session
+       * and bounced you to the login screen from a page you were allowed on.
+       * Found 2026-09-06, and it is very likely what made the GUI feel
+       * unreliable to work on: it only ever happens on a dev server that has
+       * seen an edit, never on a fresh one, never in a build.
+       *
+       * Every other module's self-import gets its `?t=` rewritten and is the
+       * same instance; only the entry, which the HTML names rather than
+       * another module, misses out. The entry cannot hot-refresh anyway — a
+       * change there is a full reload — so excluding it costs nothing.
+       * tests/e2e/dev-entry.spec.ts holds it. `node_modules` stays excluded,
+       * as the plugin's own default has it.
+       */
+      exclude: [/\/node_modules\//, /\/src\/web\/main\.tsx$/],
+    }),
     paraglideVitePlugin(i18nOptions),
     /**
      * The service worker is not registered here, and that is deliberate.
@@ -142,6 +225,23 @@ export default defineConfig(({ mode, command }) => ({
         name: "Remy Sport",
         short_name: "Remy",
         description: "Basketball events, teams and live scoring for Thailand.",
+        /**
+         * The app's identity, which is not its URL.
+         *
+         * Without this the browser identifies the installed app by `start_url`,
+         * so changing that — the one field most likely to change, since it is a
+         * route — orphans every existing install and offers a second copy. `/`
+         * is what the browser was already deriving, so declaring it now costs
+         * nothing and pins it.
+         *
+         * It is also what `<pwa-install>` 0.7.0 will need: its Web Install API
+         * path skips `navigator.install()` when neither the element's
+         * `manifest-id` nor the manifest's own `id` is set, falls back to a
+         * retained `beforeinstallprompt`, and reports a `DataError` if there
+         * isn't one. The version bump that carries the Thai locale carries that
+         * too (khmyznikov/pwa-install#170).
+         */
+        id: "/",
         // Hash routing, so every route is "/" plus a fragment — and a fragment
         // is not sent to the server. See decision-003.
         start_url: "/",
@@ -160,6 +260,45 @@ export default defineConfig(({ mode, command }) => ({
             sizes: "512x512",
             type: "image/png",
             purpose: "maskable",
+          },
+        ],
+        /**
+         * What the install dialog shows before a reader commits.
+         *
+         * `<pwa-install>` reads these for its gallery — the "Show Gallery"
+         * button — and Chromium's own install UI uses them for the richer card
+         * it shows instead of a bare name and icon. Without them the dialog we
+         * chose *because* its GUI is right was showing its plainest form, and
+         * its gallery button had nothing behind it.
+         *
+         * One of each form factor is required, not stylistic: the component
+         * filters the gallery by `deviceFormFactor()`, so a phone in portrait is
+         * shown only the `narrow` entries and would open an empty gallery if
+         * this listed just the desktop shot.
+         *
+         * Both are promoted from the screenshot walk by `bun run ops
+         * screenshots` and committed, because the walk needs a seeded database
+         * and a running Worker and a build may not depend on that. Listed
+         * rather than globbed for the same reason the icons are, and the sizes
+         * are checked against the actual files by tests/repo/manifest.test.ts —
+         * a manifest that misdescribes its own screenshot is ignored silently
+         * by the browser, which is the failure mode this whole file is careful
+         * about.
+         */
+        screenshots: [
+          {
+            src: "screenshot-wide.png",
+            sizes: "1280x900",
+            type: "image/png",
+            form_factor: "wide",
+            label: "Events, teams and live scores",
+          },
+          {
+            src: "screenshot-narrow.png",
+            sizes: "390x844",
+            type: "image/png",
+            form_factor: "narrow",
+            label: "Follow a team from your phone",
           },
         ],
       },

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 
 /**
  * Who is signed in — a query, like every other remote read in this app.
@@ -73,6 +73,39 @@ export function useSession() {
   };
 }
 
+/**
+ * Identity changed: every cached answer was given to the previous person.
+ *
+ * `teams.get` carries `can`, the roster carries the coaches for a signed-in
+ * reader and nobody else, `me.mine` is a list of what *you* hold. After a
+ * sign-in, sign-out, impersonation or role change each of those is an answer
+ * to "what may that other person see". Found on 2026-09-06 by pressing Sign
+ * out on a team page as its head coach: "Team details" and "Manage squad"
+ * stayed on screen for the visitor, and a page read before signing in kept
+ * its visitor's answer after. Only the session key was being invalidated.
+ *
+ * Two moves. Queries nobody is looking at are removed outright — a roster of
+ * children with its coaches' names has no business sitting in a visitor's
+ * cache waiting to be asked for. Queries on screen are invalidated, which
+ * refetches them and keeps the previous answer up only until the new one
+ * lands: a frame, not a state anything should branch on. Not `resetQueries`,
+ * which blanks the session for that frame, and a page that gates on "is
+ * anyone signed in" then redirects to the login screen in the middle of a
+ * role switch — that is what once broke the admin page's role switcher.
+ *
+ * On the cost: an earlier version invalidated only the session and the admin
+ * lists, out of a measured fear that refetching every active query at once
+ * would contend on one local D1 and fail a concurrent spec's sign-in. What
+ * refetches here is the current page's handful of queries, and the e2e tier
+ * is the measurement: it was green twice over after this change.
+ *
+ * Awaited, so a caller that navigates afterwards navigates into the new
+ * identity rather than racing it.
+ */
+export async function identityChanged(qc: QueryClient): Promise<void> {
+  qc.removeQueries({ type: "inactive" });
+  await qc.invalidateQueries();
+}
 
 export function useSignOut() {
   const qc = useQueryClient();
@@ -88,7 +121,7 @@ export function useSignOut() {
       });
     },
     // The whole cache, not just the session: everything in it was an answer
-    // given to the person who just left. See identityChanged() in lib/auth.ts.
-    onSettled: () => qc.invalidateQueries({ queryKey: sessionKey }),
+    // given to the person who just left.
+    onSettled: () => identityChanged(qc),
   });
 }

@@ -20,8 +20,9 @@
  * laptop, and a laptop being off is not a failure to report.
  */
 
-import { ENVIRONMENTS } from "../../src/environment"
-import { originOf, resolveTarget } from "../lib/cloudflare"
+import { spawnSync } from "node:child_process"
+import { ENVIRONMENTS } from "../../src/environment.ts"
+import { originOf, resolveTarget } from "../lib/cloudflare.ts"
 
 interface Stamp {
   _generated?: string
@@ -32,13 +33,10 @@ interface Stamp {
 }
 
 const run = (cmd: string): string => {
-  try {
-    return Bun.spawnSync(cmd.split(" "), { stdout: "pipe", stderr: "ignore" })
-      .stdout.toString()
-      .trim()
-  } catch {
-    return ""
-  }
+  const [bin, ...args] = cmd.split(" ")
+  // A missing binary is an empty answer, not a crash: `error` is set and
+  // `stdout` is not.
+  return spawnSync(bin!, args, { stdio: ["ignore", "pipe", "ignore"] }).stdout?.toString().trim() ?? ""
 }
 
 /**

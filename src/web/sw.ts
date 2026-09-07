@@ -32,7 +32,7 @@ cleanupOutdatedCaches()
  * What src/api/push.ts sends — the sender's own type, not a copy of it.
  *
  * `import type` erases at build time, so the worker carries no server code;
- * `bun run check:bundle` asserts that on every run, because a *value* import
+ * tests/repo/bundle.test.ts asserts that on every run, because a *value* import
  * from the same module would not erase.
  *
  * The two fields that need explaining:

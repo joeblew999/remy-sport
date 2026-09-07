@@ -18,8 +18,9 @@
  * it runs at the head of every command.
  */
 
-import { existsSync, readFileSync, readdirSync, statSync } from "fs"
-import { join } from "path"
+import { spawnSync } from "node:child_process"
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs"
+import { join } from "node:path"
 
 /**
  * Quiet on success, and on failure everything the command said.
@@ -32,15 +33,16 @@ import { join } from "path"
  * order the command wrote them in is the order you read them in.
  */
 function sh(argv: string[], quiet = true): number {
-  const proc = Bun.spawnSync(argv, {
-    stdout: quiet ? "pipe" : "inherit",
-    stderr: quiet ? "pipe" : "inherit",
+  const proc = spawnSync(argv[0]!, argv.slice(1), {
+    stdio: quiet ? ["ignore", "pipe", "pipe"] : "inherit",
   })
-  if (proc.exitCode !== 0 && quiet) {
+  if (proc.status !== 0 && quiet) {
     process.stderr.write(proc.stdout?.toString() ?? "")
     process.stderr.write(proc.stderr?.toString() ?? "")
+    // A missing binary produces no output at all; say what happened instead.
+    if (proc.error) process.stderr.write(`${argv[0]}: ${proc.error.message}\n`)
   }
-  return proc.exitCode ?? 1
+  return proc.status ?? 1
 }
 
 /** Newer than every input, so nothing needs doing. */

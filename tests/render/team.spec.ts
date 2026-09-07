@@ -76,14 +76,17 @@ test.describe("Team page renders what the API returned", () => {
     await expect(page.locator(".team-hero")).not.toContainText("Triam Udom")
   })
 
-  test("record shows a placeholder, not an invented win-loss", async ({ page }) => {
-    // No games table exists yet, so "4–0" must not reappear as if it were real.
-    // AGENTS.md: never invent a value for a field with no table.
-    await seedCache(page, [entry(orpc.teams.get, { id: TEAM }, team(TEAM))])
+  test("record is a dash until a game has been played, never an invented win-loss", async ({ page }) => {
+    // "4–0" was once hardcoded here. The record is counted from the games
+    // list now, and with none there is nothing to count.
+    await seedCache(page, [
+      entry(orpc.teams.get, { id: TEAM }, team(TEAM)),
+      entry(orpc.games.list, { teamId: TEAM }, { viewerTimezone: null, games: [] }),
+    ])
 
     await visit(page, "team", { id: "team_002" })
     await expect(page.locator(".team-hero")).toContainText("RECORD")
-    await expect(page.locator(".team-hero")).not.toContainText("4–0")
+    await expect(page.getByTestId("team-record")).toHaveText("—")
   })
 })
 
@@ -167,6 +170,10 @@ test.describe("Team page, the rest", () => {
     await expect(schedule.nth(1).locator(".result")).toHaveText("—")
     await expect(schedule.nth(1).locator(".outcome")).not.toHaveText("W")
     await expect(schedule.nth(1).locator(".outcome")).not.toHaveText("L")
+
+    // The record in the hero is these same rows counted: one win, and the
+    // unplayed game counts for nothing. It was a dash above five results.
+    await expect(page.getByTestId("team-record")).toHaveText("1–0")
   })
 
   test("says so when a team has no fixtures, rather than inventing a season", async ({ page }) => {

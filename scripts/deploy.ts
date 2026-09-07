@@ -25,9 +25,11 @@
  * which is what proves the two hostnames are disjoint in the first place.
  */
 
-import { prepare } from "./lib/prepare"
-import { Refused, accountId, originOf, resolveTarget, workerName, wrangler, type Target } from "./lib/cloudflare"
-import { buildConfig } from "./deploy/build-config"
+import { spawnSync } from "node:child_process"
+import { setTimeout as sleep } from "node:timers/promises"
+import { prepare } from "./lib/prepare.ts"
+import { Refused, accountId, originOf, resolveTarget, workerName, wrangler, type Target } from "./lib/cloudflare.ts"
+import { buildConfig } from "./deploy/build-config.ts"
 
 /**
  * This build's identity, minted here and baked into the Worker by
@@ -96,12 +98,11 @@ const PIPELINE: Phase[] = [
 
 function step(label: string, argv: string[], env: Record<string, string> = {}): void {
   console.log(`\n── ${label}`)
-  const proc = Bun.spawnSync(argv, {
-    stdout: "inherit",
-    stderr: "inherit",
-    env: { ...process.env, ...env } as Record<string, string>,
+  const proc = spawnSync(argv[0]!, argv.slice(1), {
+    stdio: "inherit",
+    env: { ...process.env, ...env },
   })
-  if (proc.exitCode !== 0) throw new Refused(`${label} failed`)
+  if (proc.status !== 0) throw new Refused(`${label} failed`)
 }
 
 /**
@@ -134,7 +135,7 @@ async function waitFor(origin: string): Promise<void> {
       return
     }
     if (got) console.log(`   origin still serving ${got}, want ${BUILD_ID}`)
-    await Bun.sleep(5_000)
+    await sleep(5_000)
   }
   throw new Refused(`${origin} never reported ${BUILD_ID} within 5 minutes`)
 }

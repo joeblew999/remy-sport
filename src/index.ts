@@ -1,5 +1,4 @@
 import { Hono } from "hono"
-import { swaggerUI } from "@hono/swagger-ui"
 import { cors } from "hono/cors"
 import { logger } from "hono/logger"
 import { csrf } from "hono/csrf"
@@ -7,7 +6,7 @@ import authRoutes from "./routes/auth"
 import seedRoutes from "./routes/seed"
 import { RPCHandler } from "@orpc/server/fetch"
 import { OpenAPIHandler } from "@orpc/openapi/fetch"
-import { OpenAPIGenerator } from "@orpc/openapi"
+import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins"
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4"
 import { router } from "./api"
 import { scheduled } from "./scheduled"
@@ -66,7 +65,49 @@ app.route("/", seedRoutes)
 // context — a type that changes with every middleware — while this reads three
 // fields. src/api/telemetry.ts names exactly what it depends on.
 const intercept = [telemetryInterceptor] as never
-const api = new OpenAPIHandler(router, { interceptors: intercept })
+/**
+ * The API, its specification and its reference page, from one handler.
+ *
+ * `/api/openapi.json` is generated from the same router that serves the
+ * requests — the document cannot describe an endpoint that does not exist —
+ * and `/api/doc` renders it. Both used to be routes of their own beside a
+ * Swagger UI package: a second generator call, a function that rewrote every
+ * path to say `/api`, and a package whose only job the API library already
+ * did. The plugin states the prefix as `servers` instead, which is the same
+ * OpenAPI and lets the paths in the document match the paths in the router.
+ *
+ * Security schemes are declared once here; `authedRoute` in src/api/base.ts
+ * says which operations demand them.
+ */
+const api = new OpenAPIHandler(router, {
+  interceptors: intercept,
+  plugins: [
+    new OpenAPIReferencePlugin({
+      schemaConverters: [new ZodToJsonSchemaConverter()],
+      specPath: "/openapi.json",
+      docsPath: "/doc",
+      docsTitle: "Remy Sport API",
+      specGenerateOptions: {
+        info: { version: "0.1.0", title: "Remy Sport API" },
+        components: {
+          securitySchemes: {
+            Session: {
+              type: "http",
+              scheme: "bearer",
+              description: "Better Auth session token (browser)",
+            },
+            ApiKey: {
+              type: "apiKey",
+              in: "header",
+              name: "x-api-key",
+              description: "Better Auth API key (integrations, MCP)",
+            },
+          },
+        },
+      },
+    }),
+  ],
+})
 const rpc = new RPCHandler(router, { interceptors: intercept })
 app.use("/api/*", async (c, next) => {
   const { matched, response } = await api.handle(c.req.raw, {
@@ -118,49 +159,10 @@ app.get("/api/versions", (c) =>
   }),
 )
 
-// OpenAPI spec at /openapi.json, generated from the same router that serves
-// the requests — the document cannot describe an endpoint that does not exist.
-const openapi = new OpenAPIGenerator({ schemaConverters: [new ZodToJsonSchemaConverter()] })
-
-/**
- * Publish paths under /api, where they are actually served.
- *
- * The contract states paths relative to the handler's prefix, which is right
- * for routing and wrong for a document an integrator reads. Declaring a
- * `servers: [{url: "/api"}]` instead would be equally valid OpenAPI but would
- * change every path in the published spec, and existing clients read these.
- */
-const withApiPrefix = async (doc: { paths?: Record<string, unknown> }) => ({
-  ...doc,
-  paths: Object.fromEntries(Object.entries(doc.paths ?? {}).map(([p, v]) => [`/api${p}`, v])),
-})
-app.get("/openapi.json", async (c) =>
-  c.json(
-    await withApiPrefix(
-      await openapi.generate(router, {
-        info: { version: "0.1.0", title: "Remy Sport API" },
-        components: {
-          securitySchemes: {
-            Session: {
-              type: "http",
-              scheme: "bearer",
-              description: "Better Auth session token (browser)",
-            },
-            ApiKey: {
-              type: "apiKey",
-              in: "header",
-              name: "x-api-key",
-              description: "Better Auth API key (integrations, MCP)",
-            },
-          },
-        },
-      }),
-    ),
-  ),
-)
-
-// Swagger UI at /doc
-app.get("/doc", swaggerUI({ url: "/openapi.json" }))
+// The spec and its reference page moved under the handler that serves the
+// API (see the plugin above). The old addresses still arrive somewhere.
+app.get("/openapi.json", (c) => c.redirect("/api/openapi.json", 301))
+app.get("/doc", (c) => c.redirect("/api/doc", 301))
 
 // ── The GUI (src/web) ───────────────────────────────────────────────────────
 // One GUI, served at the root (ADR 020). It used to live at /app while `/`,

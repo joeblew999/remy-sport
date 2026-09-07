@@ -29,9 +29,9 @@
 
 import { readdirSync, readFileSync, statSync } from "fs"
 import { join, resolve } from "path"
-import { router } from "../../src/api/index"
+import { router } from "../../src/api/index.ts"
 
-const WEB = resolve(import.meta.dir, "../../src/web")
+const WEB = resolve(import.meta.dirname, "../../src/web")
 
 /**
  * Returned on purpose, rendered by nothing — with the reason.

@@ -32,10 +32,10 @@
  * tests the thing rather than a proxy for it.
  */
 
-import { originOf, resolveTarget } from "../lib/cloudflare"
+import { originOf, resolveTarget } from "../lib/cloudflare.ts"
 
-import { DEMO_SIGN_IN_CODE } from "../../src/environment"
-import { SEED_ENTITIES } from "../../src/domain/model/entities"
+import { DEMO_SIGN_IN_CODE } from "../../src/environment.ts"
+import { SEED_ENTITIES } from "../../src/domain/model/entities.ts"
 
 /**
  * An explicit `--env` beats the ambient override, which it did not.

@@ -74,7 +74,9 @@ export function LivePage({ goto, spoiler, setSpoiler }: LiveProps) {
           </div>
         )}
 
-        <div className="dash-card" data-testid="live-list">
+        {/* `live-list` is what gives these rows their own grid — see the note
+            on `.live-list .fixture-row` in styles.css. */}
+        <div className="dash-card live-list" data-testid="live-list">
           {games.map((g) => (
             <div key={g.id} className="fixture-row live" data-testid={`live-${g.id}`}>
               <span className="opponent">

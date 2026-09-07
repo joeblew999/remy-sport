@@ -117,7 +117,10 @@ export function EventPage({ id, goto, spoiler }: EventProps) {
           {/* `title` is already in the reader's language. The em-dash split is
               a typographic flourish on the English form; a title without one
               simply renders whole. */}
-          <>{e.title.split(" — ")[0]}{e.title.includes(" — ") && <em>— {e.title.split(" — ")[1]}</em>}</>
+          {/* The space is the split's own: "2026 — Bangkok Round" was rendering
+              as "2026— Bangkok Round" because JSX keeps no whitespace between
+              an expression and the element after it. */}
+          <>{e.title.split(" — ")[0]}{e.title.includes(" — ") && <>{" "}<em>— {e.title.split(" — ")[1]}</em></>}</>
         </h1>
         <div className="tagline">{e.date} · {e.venue} · {e.city} · {e.division}</div>
         <div className="tagline">{m.organised_by({ name: e.organizer })}</div>

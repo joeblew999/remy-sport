@@ -20,24 +20,17 @@
  * that file. It is the same logic; it is just readable now.
  */
 
-import { mkdtempSync, rmSync, writeFileSync, chmodSync, existsSync, readFileSync } from "fs"
-import { tmpdir } from "os"
-import { join } from "path"
+import { spawnSync } from "node:child_process"
+import { mkdtempSync, rmSync, writeFileSync, chmodSync, existsSync, readFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { fnoxGet } from "../lib/cloudflare.ts"
 
 const DIR = process.env.BIZ_DIR ?? "../remy-sport-biz"
 const URL = process.env.BIZ_REPO_URL ?? "https://github.com/joeblew999/remy-sport-biz.git"
 const KEY = process.env.BIZ_TOKEN_KEY ?? "GITHUB_BIZ_REPO_TOKEN"
 
-function fnox(name: string): string | null {
-  try {
-    const got = Bun.spawnSync(["fnox", "get", name], { stdout: "pipe", stderr: "ignore" })
-    return got.exitCode === 0 ? got.stdout.toString().trim() || null : null
-  } catch {
-    return null // fnox not installed; Bun.spawnSync throws rather than returning a code
-  }
-}
-
-const token = process.env[KEY]?.trim() || fnox(KEY)
+const token = process.env[KEY]?.trim() || fnoxGet(KEY)
 const cloned = existsSync(join(DIR, ".git"))
 
 /**
@@ -88,14 +81,10 @@ esac
     GIT_ASKPASS: askpass,
     BIZ_PAT: token,
     GIT_TERMINAL_PROMPT: "0",
-  } as Record<string, string>
+  }
 
   const git = (args: string[], quiet = false) =>
-    Bun.spawnSync(["git", ...args], {
-      env,
-      stdout: quiet ? "pipe" : "inherit",
-      stderr: quiet ? "pipe" : "inherit",
-    })
+    spawnSync("git", args, { env, stdio: quiet ? ["ignore", "pipe", "pipe"] : "inherit" })
 
   const authFailed = () => {
     console.error(`biz: git could not authenticate.
@@ -111,7 +100,7 @@ esac
     git(["-C", DIR, "remote", "set-url", "origin", URL], true)
     // `-c credential.helper=` empties the helper chain, so a stale entry in the
     // OS keychain cannot answer instead of the askpass above.
-    if (git(["-c", "credential.helper=", "-C", DIR, "fetch", "--quiet", "origin"]).exitCode !== 0) authFailed()
+    if (git(["-c", "credential.helper=", "-C", DIR, "fetch", "--quiet", "origin"]).status !== 0) authFailed()
     const behind = git(["-C", DIR, "rev-list", "--count", "HEAD..origin/main"], true).stdout?.toString().trim() ?? ""
     const head = () => git(["-C", DIR, "rev-parse", "--short", "HEAD"], true).stdout?.toString().trim() ?? ""
     if (behind === "0") {
@@ -121,7 +110,7 @@ esac
       console.log(`biz: fast-forwarded ${behind} commit(s) to ${head()}`)
     }
   } else {
-    if (git(["-c", "credential.helper=", "clone", "--quiet", URL, DIR]).exitCode !== 0) authFailed()
+    if (git(["-c", "credential.helper=", "clone", "--quiet", URL, DIR]).status !== 0) authFailed()
     console.log(`biz: cloned into ${DIR}`)
   }
 

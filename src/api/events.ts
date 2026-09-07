@@ -443,6 +443,9 @@ export const attendance = authed
     ),
   )
   .handler(async ({ context, input }) => {
+    found(await context.db.query.eventSession.findFirst({
+      where: and(eq(schema.eventSession.id, input.sessionId), eq(schema.eventSession.eventId, input.eventId)),
+    }))
     const [entered, marked] = await Promise.all([
       context.db
         .select({ playerId: schema.eventPlayer.playerId, names: schema.player.names })
@@ -475,8 +478,8 @@ export const attendance = authed
  * because "marked absent" and "not marked yet" are different facts and a boolean
  * cannot hold both.
  *
- * Granted more widely than the timetable: a camp's coaches carry the register,
- * and the model says so.
+ * The event owner, accepted co-organizers and admins carry the register.
+ * Coaching an attendee alone confers no attendance permission (Decision 006).
  */
 export const recordAttendance = authed
   .route({
@@ -497,6 +500,9 @@ export const recordAttendance = authed
   .errors({ NOT_REGISTERED: ERRORS.NOT_REGISTERED })
   .use(requireAction("RECORD_ATTENDANCE", (i: { eventId: string }) => i.eventId))
   .handler(async ({ context, input, errors }) => {
+    found(await context.db.query.eventSession.findFirst({
+      where: and(eq(schema.eventSession.id, input.sessionId), eq(schema.eventSession.eventId, input.eventId)),
+    }))
     // Only somebody entered in this camp. Without it a typo writes a row for a
     // child who is not on the course, and the register grows people nobody can
     // explain.

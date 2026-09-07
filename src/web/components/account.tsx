@@ -3,6 +3,7 @@ import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
 import { useCan } from "../lib/data";
 import { useState, useEffect } from "react";
+import { watchInstallable, type PwaInstall } from "../lib/installable";
 
 /**
  * Who you are, and how to stop being them.
@@ -46,26 +47,24 @@ export function Account({ goto }: { goto: (r: Route) => void }) {
    * `<pwa-install>` knows three things a button cannot: whether the browser
    * fired `beforeinstallprompt`, whether the platform is one it can prompt on
    * at all, and whether the app is already installed and running standalone.
-   * Reading them is what makes this offer honest rather than "always visible,
+   * Asking it is what makes this offer honest rather than "always visible,
    * correct only sometimes" — which is the reason the old comment in topbar.tsx
    * gave for having no button, when the real answer was to ask.
    *
-   * Polled once on mount rather than watched: the element sets these while it
-   * initialises, and there is no event for "now installable". A reader who
-   * arrives before the browser has decided sees no offer, and sees one on the
-   * next page they open, which is the right way round — an offer that appears
-   * under the cursor is worse than one that appears a moment late.
+   * Asked once and then subscribed, because every answer arrives late. The
+   * subscription lives in lib/installable.ts, where the unit tier can pin it;
+   * that file carries the full account of why a single read on a timer — which
+   * is what this was — never saw an answer at all.
    */
   const [installable, setInstallable] = useState(false);
-  useEffect(() => {
-    const el = document.getElementById("pwa-install") as
-      | { isInstallAvailable?: boolean; isUnderStandaloneMode?: boolean; showDialog?: (f?: boolean) => void }
-      | null;
-    const t = setTimeout(() => {
-      setInstallable(Boolean(el?.isInstallAvailable) && !el?.isUnderStandaloneMode);
-    }, 1000);
-    return () => clearTimeout(t);
-  }, []);
+  useEffect(
+    () =>
+      watchInstallable(
+        document.getElementById("pwa-install") as PwaInstall | null,
+        setInstallable,
+      ),
+    [],
+  );
   const signOut = useSignOut();
 
   // Render nothing rather than a flash of "Sign in" that turns into a name a
@@ -119,8 +118,7 @@ export function Account({ goto }: { goto: (r: Route) => void }) {
           className="btn"
           data-testid="topbar-install"
           onClick={() =>
-            (document.getElementById("pwa-install") as { showDialog?: (f?: boolean) => void } | null)
-              ?.showDialog?.(true)
+            (document.getElementById("pwa-install") as PwaInstall | null)?.showDialog?.(true)
           }
         >
           {m.install_app()}

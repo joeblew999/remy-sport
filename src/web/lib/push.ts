@@ -78,8 +78,11 @@ const isTauri = isNativeApp
  *
  * A static import would pull the Tauri IPC shim into the web bundle, where
  * `__TAURI_INTERNALS__` does not exist and every call throws. Dynamic, so a
- * browser never evaluates it — and `check:bundle` would catch it if this
+ * browser never evaluates it — and tests/repo/bundle.test.ts would catch it if this
  * regressed into the service worker.
+ *
+ * Why the Tauri packages stay is written once, beside the `tauri` command in
+ * scripts/ops.ts.
  */
 const plugin = () => import("@tauri-apps/plugin-notification")
 

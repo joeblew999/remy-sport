@@ -112,22 +112,28 @@ describe("The published OpenAPI document", () => {
   it("marks protected operations as protected and public ones as public", async () => {
     // What an integrator reads before calling. A write documented as public is
     // worse than an undocumented one.
-    const spec = (await (await api("/openapi.json")).json()) as {
+    const spec = (await (await api("/api/openapi.json")).json()) as {
+      servers: Array<{ url: string }>
       paths: Record<string, Record<string, { security?: unknown }>>
       components: { securitySchemes: Record<string, unknown> }
     }
     expect(Object.keys(spec.components.securitySchemes)).toEqual(
       expect.arrayContaining(["Session", "ApiKey"]),
     )
-    expect(spec.paths["/api/events"]!.post!.security).toBeTruthy()
-    expect(spec.paths["/api/events"]!.get!.security).toBeFalsy()
-    expect(spec.paths["/api/events/{id}"]!.get!.security).toBeFalsy()
+    // Paths as the router states them; the prefix is the document's `servers`.
+    expect(spec.servers[0]?.url).toMatch(/\/api$/)
+    expect(spec.paths["/events"]!.post!.security).toBeTruthy()
+    expect(spec.paths["/events"]!.get!.security).toBeFalsy()
+    expect(spec.paths["/events/{id}"]!.get!.security).toBeFalsy()
   })
 
-  it("serves Swagger UI at /doc", async () => {
-    const res = await api("/doc")
+  it("serves the reference page at /api/doc, and the old address still arrives", async () => {
+    const res = await api("/api/doc")
     expect(res.status).toBe(200)
-    expect(await res.text()).toContain("swagger")
+    expect((await res.text()).toLowerCase()).toContain("scalar")
+    const old = await api("/doc", { redirect: "manual" })
+    expect(old.status).toBe(301)
+    expect(old.headers.get("location")).toContain("/api/doc")
   })
 })
 

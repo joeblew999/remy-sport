@@ -17,12 +17,13 @@ describe("resolving the credential out of fnox", () => {
   /**
    * The branch this exists for.
    *
-   * `Bun.spawnSync` throws on a missing executable — "Executable not found in
-   * $PATH" — rather than returning a non-zero exitCode, so an exit-code check
-   * alone is not enough. Without the catch, a machine that has never
-   * provisioned (CI, a fresh clone, a new contributor) gets a stack trace from
-   * a lookup that is explicitly allowed to find nothing. The shell this
-   * replaced said `2>/dev/null || true`.
+   * Bun's own spawnSync threw on a missing executable — "Executable not found
+   * in $PATH" — rather than returning a non-zero code, so an exit-code check
+   * alone was not enough, and a machine that has never provisioned (CI, a
+   * fresh clone, a new contributor) got a stack trace from a lookup that is
+   * explicitly allowed to find nothing. Node's reports it as `error`, and
+   * this is the check that it is read. The shell this replaced said
+   * `2>/dev/null || true`.
    */
   it("returns null when the binary does not exist, rather than throwing", () => {
     expect(() => fnoxGet("ANYTHING", "definitely-not-a-real-binary-xyz")).not.toThrow()

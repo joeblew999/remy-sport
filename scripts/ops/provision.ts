@@ -35,8 +35,8 @@
  * *write*, and the strictest answer for a write is to not perform it.
  */
 
-import { DEMO_SIGN_IN_CODE, POLICY, type Environment } from "../../src/environment"
-import { DEFAULT_SUBJECT, PRIVATE_KEY, PUBLIC_KEY, generateVapid } from "./keys"
+import { DEMO_SIGN_IN_CODE, POLICY, type Environment } from "../../src/environment.ts"
+import { DEFAULT_SUBJECT, PRIVATE_KEY, PUBLIC_KEY, generateVapid } from "./keys.ts"
 import {
   DEPLOYABLE,
   Refused,
@@ -46,8 +46,8 @@ import {
   resolvedConfig,
   unreachable,
   wrangler,
-} from "../lib/cloudflare"
-import { DEFAULT_BULK_FROM, DEFAULT_FROM } from "../../src/mail/mailer"
+} from "../lib/cloudflare.ts"
+import { DEFAULT_BULK_FROM, DEFAULT_FROM } from "../../src/mail/mailer.ts"
 
 // The target, the credential, the account, how wrangler is run and what its
 // errors mean all live in ./cloudflare now. They were defined here, which is

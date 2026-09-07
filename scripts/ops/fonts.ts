@@ -18,9 +18,9 @@
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "fs"
 import { join, resolve } from "path"
-import { ALL_LOCALES } from "../../src/domain/vocabularies"
+import { ALL_LOCALES } from "../../src/domain/vocabularies.ts"
 
-const ROOT = resolve(import.meta.dir, "../..")
+const ROOT = resolve(import.meta.dirname, "../..")
 const OUT = join(ROOT, "src/web/fonts")
 
 /**

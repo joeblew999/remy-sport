@@ -409,6 +409,17 @@ if (
  * PWAInstallElement — so there is nothing to call and no local workaround
  * short of importing past the exports map. Both asked upstream:
  * https://github.com/khmyznikov/pwa-install/issues/169
+ *
+ * Why the package stays: its GUI is right, and Thai is a translation to
+ * contribute rather than a component to rewrite. The Product Owner's own
+ * pull request, khmyznikov/pwa-install#170, adds it; a version bump here when
+ * it ships.
+ *
+ * Why `lit` is listed beside it in package.json although nothing of ours
+ * imports it: the component's ES build externalizes `lit` instead of bundling
+ * it, so without `lit` installed the vite build cannot resolve `import "lit"`.
+ * knip is fine with that. The gate runs it as `--include files,unlisted`, and
+ * declared-but-unimported is a different report.
  */
 if (typeof window !== "undefined" && !isNativeApp()) {
   import("@khmyznikov/pwa-install").catch(() => {
@@ -422,6 +433,8 @@ if (typeof window !== "undefined" && !isNativeApp()) {
 // nothing the SPA logged, and `tauri info` reported the JS half missing.
 //
 // Guarded and dynamically imported so a plain browser never loads it.
+//
+// Why the Tauri packages stay: see the `tauri` command in scripts/ops.ts.
 if (typeof window !== "undefined" && "__TAURI_INTERNALS__" in window) {
   import("@tauri-apps/plugin-log")
     .then(({ attachConsole }) => attachConsole())

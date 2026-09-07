@@ -25,8 +25,10 @@
  * it would suggest the setting had been changed when it had not.
  */
 
-import { DEMO_SIGN_IN_CODE, POLICY } from "../../src/environment"
-import { Refused, resolveTarget, wrangler } from "../lib/cloudflare"
+import { spawnSync } from "node:child_process"
+import { setTimeout as sleep } from "node:timers/promises"
+import { DEMO_SIGN_IN_CODE, POLICY } from "../../src/environment.ts"
+import { Refused, resolveTarget, wrangler } from "../lib/cloudflare.ts"
 
 const action = process.argv[2] as "on" | "off"
 const argv = process.argv.slice(3)
@@ -125,16 +127,15 @@ try {
     // Same class as the CF_DEPLOY_URL bug in versions.ts: a reader that cannot
     // be told which environment it is asking about does not fail, it answers
     // confidently about the wrong one.
-    const status = Bun.spawnSync(
-      ["bun", "scripts/ops/demo-status.ts", "--env", target.environment],
-      { stdout: "pipe", stderr: "pipe", env: { ...process.env } },
-    )
-    said = status.stdout.toString() + status.stderr.toString()
+    const status = spawnSync("bun", ["scripts/ops/demo-status.ts", "--env", target.environment], {
+      stdio: ["ignore", "pipe", "pipe"],
+    })
+    said = (status.stdout?.toString() ?? "") + (status.stderr?.toString() ?? "")
     if ((/demo: ON/.test(said) && new RegExp(`code ${code}`).test(said)) === want) {
       observed = true
       break
     }
-    if (attempt < ATTEMPTS) Bun.sleepSync(EVERY_MS)
+    if (attempt < ATTEMPTS) await sleep(EVERY_MS)
   }
   console.log(said.trimEnd())
 

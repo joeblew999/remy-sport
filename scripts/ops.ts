@@ -17,9 +17,10 @@
  *   bun run ops analytics 24
  */
 
-import { install } from "./lib/prepare"
+import { spawnSync } from "node:child_process"
+import { install } from "./lib/prepare.ts"
 
-import { Refused } from "./lib/cloudflare"
+import { Refused } from "./lib/cloudflare.ts"
 
 type Group = "deployment" | "report" | "setup" | "model" | "maintenance"
 
@@ -144,13 +145,31 @@ const OPS: Record<string, Op> = {
     group: "setup",
     // Two generators, not one: pwa-assets covers the web manifest, tauri icon
     // the desktop and mobile bundles, and both read src/web/public/brand.svg.
+    // Why @vite-pwa/assets-generator stays although nothing imports it: this
+    // command is its only caller. The `sharp` override in package.json is for
+    // it, so it and miniflare resolve one image library rather than two.
     cmd: () => ["sh", "-c", "bun x pwa-assets-generator && bun x tauri icon src/web/public/brand.svg"],
     help: "icons                            regenerate every app icon from brand.svg",
+  },
+  screenshots: {
+    group: "setup",
+    // The other half of what the manifest ships: two pictures out of the
+    // gitignored walk, committed, because the install dialog shows them.
+    cmd: (rest) => ["bun", "scripts/ops/screenshots.ts", ...rest],
+    help: "screenshots                      promote the manifest's two shots from `bun run shots`",
   },
   tauri: {
     group: "maintenance",
     /**
      * The desktop and mobile targets.
+     *
+     * Why the three Tauri packages stay: `@tauri-apps/cli`, run here, and the
+     * notification and log plugins the SPA loads only inside the shell. The
+     * Product Owner's decision of 2026-09-06, recorded in
+     * docs/2026-09-05-03-fewer-dependencies.md: desktop and iPhone apps ship
+     * this year. They cost three packages, a Rust toolchain, and ruby plus
+     * cocoapods in mise.toml, and nothing in the gate tests them. Revisit if
+     * the year passes without a shipped app.
      *
      * iOS needs cocoapods, which needs the project-local Ruby on PATH —
      * GEM_HOME and RUBY_BIN come from mise's [env], and mise appends its own
@@ -213,9 +232,10 @@ bun run ops <operation>
 }
 
 const argv = OPS[name]!.cmd(rest)
-const proc = Bun.spawnSync(argv, { stdout: "inherit", stderr: "inherit" })
-if (proc.exitCode !== 0) {
-  // The operation printed its own reason; this only carries the code out.
-  if (proc.exitCode === null) throw new Refused(`${name} did not run`)
-  process.exit(proc.exitCode)
+const proc = spawnSync(argv[0]!, argv.slice(1), { stdio: "inherit" })
+if (proc.status !== 0) {
+  // The operation printed its own reason; this only carries the code out. No
+  // status at all means it never ran — the binary is missing or it was killed.
+  if (typeof proc.status !== "number") throw new Refused(`${name} did not run${proc.error ? `: ${proc.error.message}` : ""}`)
+  process.exit(proc.status)
 }

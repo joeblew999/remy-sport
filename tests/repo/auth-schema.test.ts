@@ -41,3 +41,23 @@ it(
   },
   60_000,
 )
+
+/**
+ * The CLI and the runtime are two packages, and they must be one version.
+ *
+ * `auth` generates the schema; `better-auth` queries it. A generator one
+ * release ahead of the runtime writes columns the runtime does not know, and
+ * the test above would then pass against the wrong truth. The rule is exact
+ * pins, and the same one; this is what holds it. scripts/ops/auth-schema.ts
+ * says why `auth` is listed at all.
+ */
+it("package.json pins `auth` and `better-auth` to the same exact version", () => {
+  const pkg = JSON.parse(readFileSync("package.json", "utf8")) as {
+    dependencies: Record<string, string>
+    devDependencies: Record<string, string>
+  }
+  const runtime = pkg.dependencies["better-auth"]
+  const cli = pkg.devDependencies["auth"]
+  expect(runtime, "an exact version, not a range: the two are only equal when neither floats").toMatch(/^\d/)
+  expect(cli, "`auth` must be the version `better-auth` is — see scripts/ops/auth-schema.ts").toBe(runtime)
+})

@@ -89,6 +89,10 @@ export function FollowButton({
       disabled={toggle.isPending}
       onClick={() => toggle.mutate()}
       data-testid={`follow-${objectTypeCode}-${objectId}`}
+      // The model action a press performs now: one of a pair, by state.
+      // tests/render/who-sees-what.spec.ts reads it to check the screen
+      // against the model's grants.
+      data-action={`${isFollowing ? "UNFOLLOW" : "FOLLOW"}_${objectTypeCode}`}
     >
       <Icon name="follow" />
       {isFollowing ? m.following_label() : m.follow()}

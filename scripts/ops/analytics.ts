@@ -29,7 +29,7 @@
  * `cf:audit`: `$CLOUDFLARE_API_TOKEN`, or fnox.
  */
 
-import { accountId, token } from "../lib/cloudflare"
+import { accountId, token } from "../lib/cloudflare.ts"
 
 import {
   EVENTS,
@@ -38,7 +38,7 @@ import {
   fixedColumn,
   type EventName,
   type EventSpec,
-} from "../../src/analytics"
+} from "../../src/analytics.ts"
 
 // Through the boundary, so this consults fnox itself rather than needing its
 // mise task to have exported one first — which is what the shell block there

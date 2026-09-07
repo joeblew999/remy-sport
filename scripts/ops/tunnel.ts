@@ -21,9 +21,10 @@
  * Run once. Re-running is safe and changes nothing that already matches.
  */
 
-import { DEV_ORIGIN } from "../../src/environment"
+import { spawnSync } from "node:child_process"
+import { DEV_ORIGIN } from "../../src/environment.ts"
 
-import { accountApi, apiResult, zoneApi } from "../lib/cloudflare"
+import { accountApi, apiResult, zoneApi } from "../lib/cloudflare.ts"
 
 const env = (name: string): string => {
   const v = process.env[name]
@@ -35,8 +36,8 @@ const env = (name: string): string => {
  * Account and zone calls, through the module.
  *
  * The token resolver that used to live here had both defects the boundary has
- * since fixed — `Bun.spawn` throws on a missing fnox rather than returning a
- * code, and an empty `CLOUDFLARE_API_TOKEN` counted as present — and its
+ * since fixed — a missing fnox threw rather than returning a code, and an
+ * empty `CLOUDFLARE_API_TOKEN` counted as present — and its
  * envelope unwrap was the second copy of `apiResult`.
  */
 const acct = async <T>(path: string, init?: RequestInit): Promise<T> =>
@@ -118,12 +119,11 @@ if (!found.length) {
  * anyone holding it can serve traffic on this hostname.
  */
 const runToken = await acct<string>(`/cfd_tunnel/${id}/token`)
-const set = Bun.spawn(["fnox", "set", "--global", "-p", "keychain", "TUNNEL_RUN_TOKEN"], {
-  stdin: new TextEncoder().encode(runToken),
-  stdout: "ignore",
-  stderr: "pipe",
+const set = spawnSync("fnox", ["set", "--global", "-p", "keychain", "TUNNEL_RUN_TOKEN"], {
+  input: runToken,
+  stdio: ["pipe", "ignore", "pipe"],
 })
-if ((await set.exited) !== 0) {
+if (set.status !== 0) {
   console.error(
     "tunnel-setup: could not store the run token in fnox.\n" +
       "  Store it yourself, then `bun run dev` will pick it up:\n" +
@@ -141,6 +141,7 @@ console.log(`\n  https://${hostname}\n  A fixed URL. 'bun run ops tunnel --run' 
  */
 if (process.argv.includes("--run")) {
   console.log(`tunnel: running https://${hostname} -> ${service} (Ctrl-C stops it)`)
-  const run = Bun.spawn(["cloudflared", "tunnel", "run", "--token", runToken], { stdout: "inherit", stderr: "inherit" })
-  process.exit(await run.exited)
+  // Attached until it ends; Ctrl-C reaches both of us through the terminal.
+  const run = spawnSync("cloudflared", ["tunnel", "run", "--token", runToken], { stdio: "inherit" })
+  process.exit(run.status ?? 1)
 }

@@ -883,6 +883,50 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .fixture-row .kind { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink-3); letter-spacing: 0.1em; text-transform: uppercase; }
 .fixture-row .result { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 16px; text-align: right; }
 .fixture-row .outcome { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; text-align: right; }
+
+/* The live page lists whole games — two names, a venue, a score, a status and
+   sometimes a Watch button — in the same `.fixture-row` the team schedule uses
+   for "vs Opponent". That grid's first track is the date, 90px wide, and a live
+   row has no date, so both team names were auto-placed into it: on a phone,
+   one word per line down a 64px column, with the status alone on the right.
+   Named areas, so nothing depends on the order the spans come in. Three
+   selectors deep on purpose: the phone rules below place `.fixture-row`'s
+   children by column and would otherwise win on source order. */
+.live-list .fixture-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "who status"
+    "venue score"
+    "actions actions";
+  gap: 4px 16px;
+}
+.live-list .fixture-row .opponent { grid-area: who; font-size: 15px; }
+.live-list .fixture-row .kind { grid-area: venue; }
+.live-list .fixture-row .outcome { grid-area: status; }
+.live-list .fixture-row .result { grid-area: score; font-size: 20px; }
+.live-list .fixture-row .live-actions { grid-area: actions; flex-direction: row; gap: 8px; margin-top: 6px; }
+.live-list .fixture-row .live-actions:empty { display: none; }
+
+/* One finished game under "Recent results" on the event overview. The markup
+   carried these class names and the stylesheet had no rule for either, so the
+   two names and the two scores stacked as four bare lines in a bordered box. */
+.result-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0 16px;
+  align-items: center;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--rule);
+}
+.result-row:last-child { border-bottom: none; }
+.result-row .row-title { line-height: 22px; }
+.result-score {
+  font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3); text-align: right;
+}
+.result-score div { line-height: 22px; }
+.result-score .won { color: var(--ink); }
 .section-h h2 {
   font-family:'Space Grotesk', sans-serif; font-weight: 600; font-size: 22px; letter-spacing: -0.02em;
 }
@@ -1204,6 +1248,19 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
     margin-left: 0;
   }
   .filter-row .chip { white-space: nowrap; flex-shrink: 0; }
+  /* A strip that scrolls has to say so. At 390px "Past" was clipped at the
+     right edge of the tab row with its count out of sight, and the province
+     filters sat past the end of the chip row where nothing hinted they were.
+     The strip's own last item, stuck to the right edge, fades whatever is
+     under it — and because it is in the flow, at the end of the scroll it
+     sits after the last item over nothing at all. */
+  .tab-row::after, .filter-row::after, .detail-tabs::after {
+    content: "";
+    position: sticky; right: 0;
+    flex: 0 0 36px; align-self: stretch;
+    pointer-events: none;
+    background: linear-gradient(to right, transparent, var(--paper) 75%);
+  }
 
   /* The live banner is five grid columns with 32px gaps — `auto 1fr auto auto
      auto` — and had no mobile rule at all. Its children were 649px inside a

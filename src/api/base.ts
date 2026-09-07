@@ -14,7 +14,7 @@
  */
 
 import { ORPCError, os } from "@orpc/server"
-import type { OpenAPIV3_1 } from "openapi-types"
+import type { OpenAPI } from "@orpc/openapi"
 import {
   PER_ROW_ACTIONS,
   allowedBy,
@@ -76,7 +76,7 @@ const base = os.$context<ApiContext>()
  * public — which is what an integrator reads before calling it.
  */
 export const authedRoute = {
-  spec: (operation: OpenAPIV3_1.OperationObject): OpenAPIV3_1.OperationObject => ({
+  spec: (operation: OpenAPI.OperationObject): OpenAPI.OperationObject => ({
     ...operation,
     security: [{ Session: [] }, { ApiKey: [] }],
     responses: {

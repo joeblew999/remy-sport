@@ -12,9 +12,9 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { originOf, resolveTarget } from "./lib/cloudflare"
-import { DEMO_SIGN_IN_CODE } from "../src/environment"
-import { SEED_ENTITIES } from "../src/domain/model/entities"
+import { originOf, resolveTarget } from "./lib/cloudflare.ts"
+import { DEMO_SIGN_IN_CODE } from "../src/environment.ts"
+import { SEED_ENTITIES } from "../src/domain/model/entities.ts"
 
 /**
  * Refuse to test a deployment that is not running the code these tests describe.

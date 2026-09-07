@@ -20,9 +20,9 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { readFileSync, writeFileSync } from "fs"
+import { readFileSync, writeFileSync } from "node:fs"
 import { experimental_readRawConfig, unstable_readConfig } from "wrangler"
-import { ENVIRONMENTS, type Environment } from "../../src/environment"
+import { ENVIRONMENTS, type Environment } from "../../src/environment.ts"
 
 const WRANGLER_TOML = "wrangler.toml"
 
@@ -355,22 +355,21 @@ export function token(): string | null {
 /**
  * One secret out of fnox, or null — including when fnox is not installed.
  *
- * `Bun.spawnSync` **throws** on a missing executable rather than returning a
- * non-zero `exitCode`: "Executable not found in $PATH". So the obvious
- * exit-code check is not enough, and without the catch a machine with no fnox —
- * CI, a fresh clone, a contributor who has never provisioned — gets a stack
- * trace from a lookup that is supposed to be allowed to find nothing. The shell
- * this replaced said `2>/dev/null || true` and was right.
+ * A missing executable is not an error here. Bun's own `spawnSync` **threw**
+ * on one — "Executable not found in $PATH" — so the exit-code check alone was
+ * not enough, and a machine with no fnox (CI, a fresh clone, a contributor who
+ * has never provisioned) got a stack trace from a lookup that is supposed to
+ * be allowed to find nothing. Node's `spawnSync` reports it as `error` with no
+ * status, which is what this checks. The shell this replaced said
+ * `2>/dev/null || true` and was right.
  *
  * `bin` is a parameter so the absent-binary path is testable without
  * uninstalling anything.
  */
 export function fnoxGet(name: string, bin = "fnox"): string | null {
-  // node's spawnSync, not Bun's: it reports a missing executable as `error`
-  // rather than throwing, and it runs under Vitest, where this is tested.
   const got = spawnSync(bin, ["get", name], { stdio: ["ignore", "pipe", "ignore"] })
   if (got.error || got.status !== 0) return null
-  return got.stdout.toString().trim() || null
+  return got.stdout?.toString().trim() || null
 }
 
 // ── The account ──────────────────────────────────────────────────────────────
@@ -401,7 +400,7 @@ export function accountId(): string {
 }
 
 /** The environment every Cloudflare child process gets, and nothing else. */
-function credentialEnv(): Record<string, string> {
+function credentialEnv(): NodeJS.ProcessEnv {
   // Discarded from the spread, not overwritten: an empty CLOUDFLARE_API_TOKEN
   // means unset, `token()` reads it that way, and a child that still received
   // "" would be authenticating differently from what this module decided.
@@ -411,7 +410,7 @@ function credentialEnv(): Record<string, string> {
     ...rest,
     CLOUDFLARE_ACCOUNT_ID: accountId(),
     ...(t ? { CLOUDFLARE_API_TOKEN: t } : {}),
-  } as Record<string, string>
+  }
 }
 
 // ── Running wrangler ─────────────────────────────────────────────────────────
@@ -436,16 +435,20 @@ export function wrangler(
   opts: { stdin?: string; inherit?: boolean } = {},
 ): Ran {
   const full = ["x", "wrangler", ...args, ...(target?.flag ? ["--env", target.flag] : [])]
-  const proc = Bun.spawnSync(["bun", ...full], {
-    stdin: opts.stdin === undefined ? "ignore" : new TextEncoder().encode(opts.stdin),
-    stdout: opts.inherit ? "inherit" : "pipe",
-    stderr: opts.inherit ? "inherit" : "pipe",
+  const out = opts.inherit ? "inherit" : "pipe"
+  const proc = spawnSync("bun", full, {
+    input: opts.stdin,
+    stdio: [opts.stdin === undefined ? "ignore" : "pipe", out, out],
     env: credentialEnv(),
+    // Node caps a captured stream at 1 MiB and kills the child past it. A
+    // `d1 execute --json` over a seeded table is bigger than that.
+    maxBuffer: 256 * 1024 * 1024,
   })
   return {
-    code: proc.exitCode,
+    // No status means it never ran or was killed; neither is success.
+    code: proc.status ?? 1,
     out: proc.stdout?.toString() ?? "",
-    err: proc.stderr?.toString() ?? "",
+    err: (proc.stderr?.toString() ?? "") + (proc.error ? `${proc.error.message}\n` : ""),
   }
 }
 

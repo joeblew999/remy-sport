@@ -32,6 +32,8 @@ export function TeamPage({ id, goto }: { id: string; goto: (r: Route) => void })
   const { user } = useSession();
   const { data: teamGames, isPending: gamesLoading } = useTeamGames(id);
   const games = teamGames?.games ?? [];
+  const wins = games.filter((g) => g.won === true).length;
+  const losses = games.filter((g) => g.won === false).length;
 
   if (teamLoading) {
     return <div className="empty">{m.loading_team()}</div>;
@@ -70,13 +72,22 @@ export function TeamPage({ id, goto }: { id: string; goto: (r: Route) => void })
             <a className="btn" href="#team-schedule">{m.schedule()}</a>
           </div>
         </div>
-        {/* RECORD and RANK need played games and a standings table. Both are
-            roadmap Phase 3 (ADR 008) — showing "4–0 · #2" against a real team
-            would read as fact rather than as the placeholder it is. */}
+        {/* The record is the schedule below, counted: wins and losses among
+            the games that have a score, from this team's end. It was a dash
+            while the games table did not exist and "4–0" would have been an
+            invention; the same page now lists five results with W and L
+            beside them, and a dash above those read as broken. A dash stays
+            for a team that has not played. There is still no RANK: that is a
+            standings question, and it is answered on the event page. */}
         <div style={{ display: "flex", gap: 32, alignItems: "baseline" }}>
           <div style={{ textAlign: "right" }}>
             <div style={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.14em", textTransform: "uppercase" }}>{m.record()}</div>
-            <div style={{ fontFamily: "Space Grotesk, sans-serif", fontWeight: 600, fontSize: 32, letterSpacing: "-0.02em", color: "var(--ink-3)" }}>—</div>
+            <div
+              data-testid="team-record"
+              style={{ fontFamily: "Space Grotesk, sans-serif", fontWeight: 600, fontSize: 32, letterSpacing: "-0.02em", color: wins + losses ? "var(--ink)" : "var(--ink-3)" }}
+            >
+              {wins + losses ? `${wins}–${losses}` : "—"}
+            </div>
           </div>
         </div>
       </div>
@@ -218,6 +229,9 @@ function ManageRoster({ teamId, roster }: { teamId: string; roster: Roster }) {
   });
   const error = add.error ?? remove.error;
 
+  // `data-action`: the model action this control performs, read by
+  // tests/render/who-sees-what.spec.ts to check the screen against the
+  // model's grants for every relation a reader can hold on a team.
   return (
     <section className="admin-card" style={{ marginTop: 24 }} data-testid="manage-roster">
       <h2>{m.manage_roster()}</h2>

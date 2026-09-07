@@ -29,7 +29,7 @@
  * or creates an account.
  */
 
-import { originOf, resolveTarget } from "../lib/cloudflare"
+import { originOf, resolveTarget } from "../lib/cloudflare.ts"
 
 /**
  * An explicit --env beats the ambient override.

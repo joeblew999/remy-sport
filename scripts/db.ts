@@ -17,11 +17,12 @@
  * live database by somebody who thought they were on staging.
  */
 
-import { install } from "./lib/prepare"
+import { install } from "./lib/prepare.ts"
 
-import { mkdirSync, writeFileSync } from "node:fs"
-import { Refused, resolveTarget, resolvedConfig, wrangler, type Target } from "./lib/cloudflare"
-import { SEED_STATEMENTS } from "../src/db/seed"
+import { spawnSync, type SpawnSyncOptions } from "node:child_process"
+import { mkdirSync, rmSync, writeFileSync } from "node:fs"
+import { Refused, resolveTarget, resolvedConfig, wrangler, type Target } from "./lib/cloudflare.ts"
+import { SEED_STATEMENTS } from "../src/db/seed.ts"
 
 type Op = "migrate-remote" | "migrate-local" | "reset-local" | "seed-remote" | "tables-remote" | "tables-local" | "generate" | "studio" | "--help"
 
@@ -71,8 +72,8 @@ const argv = process.argv.slice(3)
  * task list got to ninety.
  */
 if (op === "generate" || op === "studio") {
-  const tool = Bun.spawnSync(["bun", "x", "drizzle-kit", op, ...argv], { stdout: "inherit", stderr: "inherit" })
-  process.exit(tool.exitCode ?? 1)
+  const tool = spawnSync("bun", ["x", "drizzle-kit", op, ...argv], { stdio: "inherit" })
+  process.exit(tool.status ?? 1)
 }
 /**
  * No argument means "tell me where the database stands", not "here is a list".
@@ -82,17 +83,18 @@ if (op === "generate" || op === "studio") {
  * locally, and whether any migration is unapplied.
  */
 if (!op) {
-  const quiet = { stdout: "pipe", stderr: "ignore" } as const
-  const migrations = Bun.spawnSync(
-    ["bun", "x", "wrangler", "d1", "migrations", "list", "remy-sport-db", "--local"],
-    quiet,
-  ).stdout.toString()
+  const quiet: SpawnSyncOptions = { stdio: ["ignore", "pipe", "ignore"] }
+  const migrations =
+    spawnSync("bun", ["x", "wrangler", "d1", "migrations", "list", "remy-sport-db", "--local"], quiet)
+      .stdout?.toString() ?? ""
   const pending = (migrations.match(/\.sql/g) ?? []).length
-  const tables = Bun.spawnSync(
-    ["bun", "x", "wrangler", "d1", "execute", "remy-sport-db", "--local", "--json", "--command",
-     "SELECT name FROM sqlite_master WHERE type='table'"],
-    quiet,
-  ).stdout.toString()
+  const tables =
+    spawnSync(
+      "bun",
+      ["x", "wrangler", "d1", "execute", "remy-sport-db", "--local", "--json", "--command",
+       "SELECT name FROM sqlite_master WHERE type='table'"],
+      quiet,
+    ).stdout?.toString() ?? ""
   const count = (tables.match(/"name":/g) ?? []).length
 
   console.log(
@@ -133,7 +135,7 @@ try {
     case "reset-local":
       // Local state only. Named for the database so the message cannot claim to
       // have reset something it did not.
-      Bun.spawnSync(["rm", "-rf", ".wrangler/state/v3/d1"])
+      rmSync(".wrangler/state/v3/d1", { recursive: true, force: true })
       run(["d1", "migrations", "apply", name, "--local"], t)
       console.log(`db: local D1 for "${name}" rebuilt — run 'bun run dev' for test data`)
       break

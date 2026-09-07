@@ -30,6 +30,10 @@
  * validation plugin cannot work in this codebase.
  */
 
+// The one thing taken from @orpc/openapi-client, and why the package stays: it
+// reads an issue's message in the error format @orpc/openapi defines. Copying
+// the helper would be a fork of the format's owner, wrong the day the format
+// moves.
 import { getIssueMessage } from "@orpc/openapi-client/helpers"
 import { isDefinedError, ORPCError } from "@orpc/client"
 import { m } from "./i18n"

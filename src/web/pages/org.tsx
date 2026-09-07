@@ -104,10 +104,15 @@ export function OrgsPage({ goto }: { goto: (r: Route) => void }) {
             <div key={o.id} className="device-row" data-testid={`org-${o.id}`}>
               <div>
                 <div className="device-label">{o.name}</div>
-                <div className="device-meta">{[o.city, o.slug].filter(Boolean).join(" · ")}</div>
+                {/* What kind of organisation, in the reader's language — not
+                    the slug, which is an identifier and read as one. */}
+                <div className="device-meta">{[o.city, o.orgType].filter(Boolean).join(" · ")}</div>
               </div>
+              {/* "Open", not "Manage": this is everyone's list, and a visitor
+                  manages nothing. The rows under "Your organisations" above
+                  keep "Manage", because there the reader holds a role. */}
               <button className="btn" onClick={() => goto({ page: "org", id: o.id })}>
-                {m.org_open()}
+                {m.org_view()}
               </button>
             </div>
           ))}
@@ -134,7 +139,8 @@ export function OrgPage({ id, goto }: { id?: string; goto: (r: Route) => void })
       <div className="page-header">
         <div className="crumbs">{m.nav_orgs()}</div>
         <h1>{org.data.name}</h1>
-        <div className="sub">{[org.data.city, org.data.slug].filter(Boolean).join(" · ")}</div>
+        {/* City and kind, not city and slug: the slug is an identifier. */}
+        <div className="sub">{[org.data.city, org.data.orgType].filter(Boolean).join(" · ")}</div>
       </div>
 
       <OrgProfile id={org.data.id} names={org.data.names} cityCode={org.data.cityCode} provinceCode={org.data.provinceCode} canEdit={org.data.can.EDIT_ORG_PROFILE} />

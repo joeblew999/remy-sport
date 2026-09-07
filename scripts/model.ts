@@ -24,6 +24,8 @@
  * Stops at the first step that fails, because every step after one depends on it.
  */
 
+import { spawnSync } from "node:child_process"
+
 interface Step {
   name: string
   why: string
@@ -71,18 +73,16 @@ if (process.argv.includes("--help")) {
 
 for (const [i, step] of CHAIN.entries()) {
   console.log(`\n── ${i + 1}/${CHAIN.length} ${step.name}`)
-  const proc = Bun.spawnSync(step.cmd, {
-    stdin: step.interactive ? "inherit" : "ignore",
-    stdout: "inherit",
-    stderr: "inherit",
+  const proc = spawnSync(step.cmd[0]!, step.cmd.slice(1), {
+    stdio: [step.interactive ? "inherit" : "ignore", "inherit", "inherit"],
   })
-  if (proc.exitCode !== 0) {
+  if (proc.status !== 0) {
     console.error(
       `\nmodel: stopped at ${step.name}.\n` +
         `  Every step after this one reads what it produces, so running them now\n` +
         `  would build on something that did not happen.\n`,
     )
-    process.exit(proc.exitCode ?? 1)
+    process.exit(proc.status ?? 1)
   }
 }
 

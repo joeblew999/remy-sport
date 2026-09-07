@@ -14,6 +14,10 @@ import type { Localizer } from "./localizer";
 export type ApiEvent = RouterClient<Router>["events"]["get"] extends
   (...a: never[]) => Promise<infer R> ? R : never
 
+// Why temporal-polyfill stays: it is the arithmetic `Date` cannot do (display
+// is lib/dates.ts, through `Intl`), and not every browser this app targets
+// ships Temporal natively yet. Delete it the day they all do. `fns/PlainDate`
+// is the only entry imported anywhere, so the swap is this one line.
 import * as PlainDate from "temporal-polyfill/fns/PlainDate";
 import { formatDayRange, formatMonthShort } from "./dates";
 import { m } from "./i18n";
