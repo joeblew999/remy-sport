@@ -205,3 +205,18 @@ fallback instead of the unavailable dashboard permission selector.
 Validation for the fallback: typecheck, lint, seven unit cases across permission
 editing/provisioning, and the docs path check passed. No remote token policy was
 changed during these checks.
+
+## Investigation checkpoint — 2026-09-07
+
+The user wants to repair the existing `dev` token with minimal manual steps and
+has not supplied a bootstrap credential. The bootstrap path remains prepared but
+unapplied; do not present it as the only possible remedy. Further public-source
+research found no explanation of why the Account dropdown omits MoQ and no
+verified dashboard method to add that permission to this token.
+
+Cloudflare's [relay launch article](https://blog.cloudflare.com/moq-relays/)
+documents creating relays and their publish/subscribe tokens directly under
+Media → Realtime → MoQ Relay. That is a documented manual provisioning route,
+not a fix for API automation permissions; availability in this user's dashboard
+has not been verified. Broadcasting remains unverified. Do not conflate the
+existence of the API permission with proof that the dashboard exposes it.
