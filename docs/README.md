@@ -2,7 +2,12 @@
 
 ## Active GUI plan
 
-[Connected GUI plan](2026-09-07-05-gui-connections.md) owns the next GUI work:
+[GUI consistency plan](2026-09-07-06-gui-consistency.md) owns the next GUI work.
+Status: proposed; source review completed, implementation not started. It aligns
+page layout, controls, forms, feedback and responsive behavior across existing
+screens, with an ordered migration and acceptance checks.
+
+[Connected GUI plan](2026-09-07-05-gui-connections.md) owns the completed foundation:
 stable contextual navigation, game details, division-correct competition views,
 linked teams/players/places and a compact shared shell. Implemented and verified
 locally: 849 unit/repository/Worker checks, 295 rendering checks and all 49
