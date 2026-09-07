@@ -43,7 +43,7 @@ export function Entries({ eventId, divisionId }: { eventId: string; divisionId?:
 
   return (
     <>
-      <section className="admin-card" data-testid="entries">
+      <section className="panel" data-testid="entries">
         <h2>{m.tab_teams()}</h2>
         {data?.registered.length ? (
           <table className="admin-table" data-testid="entries-table">
@@ -129,10 +129,10 @@ function EnterTeam({
   });
 
   return (
-    <section className="admin-card" data-testid="enter-team">
+    <section className="panel" data-testid="enter-team">
       <h2>{m.enter_a_team()}</h2>
       <form
-        className="admin-form"
+        className="form-stack"
         onSubmit={(e) => {
           e.preventDefault();
           const f = new FormData(e.currentTarget);
@@ -174,7 +174,7 @@ function EnterTeam({
             team that never entered, a division that does not match — at form
             level. Neither can be dropped. */}
         {(enterErr().field("divisionId") ?? enterErr().form) && (
-          <p className="admin-error small" data-testid="enter-error">
+          <p className="feedback-error small" data-testid="enter-error" role="alert">
             {enterErr().field("divisionId") ?? enterErr().form}
           </p>
         )}

@@ -506,5 +506,6 @@
   "other_games": "Other fixtures",
   "record_all_events": "Record · all events",
   "venue_multiple_live": "Multiple games are live at this venue. Check the assignment.",
-  "games_unassigned": "Games awaiting a venue"
+  "games_unassigned": "Games awaiting a venue",
+  "divisions_empty": "No divisions available yet."
 }

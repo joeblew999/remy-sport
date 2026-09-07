@@ -1,3 +1,4 @@
+import { QueryError, isNotFound } from "../components/query-error";
 import { useState } from "react";
 import { Icon } from "../components/icon";
 import { EventSettings } from "../components/event-settings";
@@ -23,9 +24,11 @@ export function EventPage({ id, goto, spoiler, query = {}, setParam }: {
   id?: string; goto: (r: Route) => void; spoiler: boolean;
   query?: Record<string, string>; setParam: (key: string, value: string | null) => void;
 }) {
-  const { data: e, isPending } = useEvent(id);
+  const eventQuery = useEvent(id);
+  const { data: e, isPending } = eventQuery;
   const entries = useEntries(id);
   const { data: games } = useGames(id);
+  if (eventQuery.error && !e && !isNotFound(eventQuery.error)) return <QueryError error={eventQuery.error} retry={eventQuery.refetch} pending={eventQuery.isFetching} />;
   if (id && isPending) return <div className="empty">{m.loading_event()}</div>;
   if (!id || !e) return <div className="empty"><p>{m.not_found_event()}</p><a href={routeHref({ page: "discover" })}>{m.back_to_discover()}</a></div>;
   const camp = e.typeCode === "CAMP";
@@ -168,7 +171,7 @@ function EventRules({ event }: { event: Event }) {
   const { label } = useLocale();
   return (
     <div className="page-inner">
-      <div className="dash-card" data-testid="event-rules">
+      <div className="panel-list" data-testid="event-rules">
         <div className="fact-row">
           <span className="row-meta">{m.event_format()}</span>
           <span data-testid="event-format">{label("eventFormats", event.formatCode)}</span>
@@ -183,7 +186,7 @@ function EventRules({ event }: { event: Event }) {
       </div>
 
       <div className="section-h" style={{ marginTop: 24 }}><h2>{m.event_about()}</h2></div>
-      <div className="dash-card">
+      <div className="panel-list">
         {event.description ? (
           <p className="event-description" data-testid="event-description">{event.description}</p>
         ) : (

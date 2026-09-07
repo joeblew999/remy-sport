@@ -1,3 +1,4 @@
+import { QueryError, isNotFound } from "../components/query-error";
 import { NameTranslations, namesFrom } from "../components/name-translations";
 /**
  * Organisations — the GUI for `/api/orgs`.
@@ -36,7 +37,7 @@ import { api, orpc } from "../lib/orpc";
 import { useCan, useMine, useOrg, useOrgMembers, useOrgs, useTeams } from "../lib/data";
 import { useSession } from "../lib/session";
 import { ORG_ROLE_CODES } from "../../domain/vocabularies";
-import type { Route } from "../lib/router";
+import { routeHref } from "../lib/router";
 import { formErrors } from "../lib/form-errors";
 import { m } from "../lib/i18n";
 import { useLocale } from "../lib/locale";
@@ -46,8 +47,9 @@ import { useLocale } from "../lib/locale";
  *
  * A school or club, its people, and the teams it fields.
  */
-export function OrgsPage({ goto }: { goto: (r: Route) => void }) {
+export function OrgsPage() {
   const orgs = useOrgs();
+  const { label } = useLocale();
   /**
    * Yours first, then the rest.
    *
@@ -78,59 +80,61 @@ export function OrgsPage({ goto }: { goto: (r: Route) => void }) {
           <div className="section-h">
             <h2>{m.your_orgs()}</h2>
           </div>
-          <div className="dash-card" data-testid="your-orgs">
+          <div className="panel-list" data-testid="your-orgs">
             {yours.map((o) => (
-              <div key={o.id} className="device-row" data-testid={`your-org-${o.id}`}>
+              <div key={o.id} className="entity-row" data-testid={`your-org-${o.id}`}>
                 <div>
-                  <div className="device-label">{o.name}</div>
-                  <div className="device-meta">
-                    {[o.city, held.get(o.id)].filter(Boolean).join(" · ")}
+                  <div className="entity-label">{o.name}</div>
+                  <div className="entity-meta">
+                    {[o.city, label("relations", held.get(o.id)!)].filter(Boolean).join(" · ")}
                   </div>
                 </div>
-                <button className="btn" onClick={() => goto({ page: "org", id: o.id })}>
+                <a className="btn" href={routeHref({ page: "org", id: o.id })}>
                   {m.org_open()}
-                </button>
+                </a>
               </div>
             ))}
           </div>
         </>
       )}
 
+      {orgs.error && <QueryError error={orgs.error} retry={orgs.refetch} pending={orgs.isFetching} />}
       {orgs.isPending ? (
         <div className="empty">{m.loading_orgs()}</div>
       ) : orgs.data?.length ? (
-        <div className="dash-card" data-testid="orgs-list">
+        <div className="panel-list" data-testid="orgs-list">
           {orgs.data.map((o) => (
-            <div key={o.id} className="device-row" data-testid={`org-${o.id}`}>
+            <div key={o.id} className="entity-row" data-testid={`org-${o.id}`}>
               <div>
-                <div className="device-label">{o.name}</div>
+                <div className="entity-label">{o.name}</div>
                 {/* What kind of organisation, in the reader's language — not
                     the slug, which is an identifier and read as one. */}
-                <div className="device-meta">{[o.city, o.orgType].filter(Boolean).join(" · ")}</div>
+                <div className="entity-meta">{[o.city, o.orgType].filter(Boolean).join(" · ")}</div>
               </div>
               {/* "Open", not "Manage": this is everyone's list, and a visitor
                   manages nothing. The rows under "Your organisations" above
                   keep "Manage", because there the reader holds a role. */}
-              <button className="btn" onClick={() => goto({ page: "org", id: o.id })}>
+              <a className="btn" href={routeHref({ page: "org", id: o.id })}>
                 {m.org_view()}
-              </button>
+              </a>
             </div>
           ))}
         </div>
-      ) : (
+      ) : orgs.error ? null : (
         <div className="empty">{m.orgs_empty()}</div>
       )}
     </div>
   );
 }
 
-export function OrgPage({ id, goto }: { id?: string; goto: (r: Route) => void }) {
+export function OrgPage({ id }: { id?: string }) {
   const org = useOrg(id);
   const { user } = useSession();
   // A platform grant — a coach may create a team, full stop; the school is
   // chosen on the form. It used to ride on the org row as `canCreateTeam`.
   const { data: canCreateTeam } = useCan("CREATE_TEAM");
 
+  if (org.error && !org.data && !isNotFound(org.error)) return <QueryError error={org.error} retry={org.refetch} pending={org.isFetching} />;
   if (org.isPending) return <div className="empty">{m.loading_org()}</div>;
   if (!org.data) return <div className="empty">{m.not_found_org()}</div>;
 
@@ -153,13 +157,12 @@ export function OrgPage({ id, goto }: { id?: string; goto: (r: Route) => void })
       <OrgTeams
         orgId={org.data.id}
         canCreate={canCreateTeam}
-        goto={goto}
       />
 
       <div className="event-actions" style={{ marginTop: 16 }}>
-        <button className="btn" onClick={() => goto({ page: "orgs" })}>
+        <a className="btn" href={routeHref({ page: "orgs" })}>
           ← {m.orgs_heading()}
-        </button>
+        </a>
       </div>
     </div>
   );
@@ -190,7 +193,6 @@ function OrgProfile({
 }) {
   const qc = useQueryClient();
   const { terms, name } = useLocale();
-  const [saved, setSaved] = useState(false);
 
 
   // No `useState` for the error: the mutation already holds it, and a copy in
@@ -200,9 +202,7 @@ function OrgProfile({
     mutationFn: (f: FormData) => api.orgs.update({ id, names: namesFrom(f, names),
       cityCode: String(f.get("cityCode")) as Parameters<typeof api.orgs.update>[0]["cityCode"], provinceCode: String(f.get("provinceCode")) as Parameters<typeof api.orgs.update>[0]["provinceCode"] }),
     onSuccess: () => {
-      setSaved(true);
       qc.invalidateQueries({ queryKey: orpc.orgs.key() });
-      setTimeout(() => setSaved(false), 2000);
     },
   });
 
@@ -210,7 +210,7 @@ function OrgProfile({
 
   if (!canEdit) {
     return (
-      <section className="admin-card" data-testid="org-profile">
+      <section className="panel" data-testid="org-profile">
         <h2>{m.org_profile()}</h2>
         <p className="muted" data-testid="org-name-readonly">{names.en ?? ""}</p>
       </section>
@@ -219,21 +219,25 @@ function OrgProfile({
 
 
   return (
-    <section className="admin-card" data-testid="org-profile">
+    <section className="panel" data-testid="org-profile">
       <h2>{m.org_profile()}</h2>
-      {saved && <div className="admin-ok">{m.org_profile_saved()}</div>}
+      {save.isSuccess && <div className="feedback-success" role="status">{m.org_profile_saved()}</div>}
       {saveErr.form && (
-        <div className="admin-error" data-testid="org-profile-error">{saveErr.form}</div>
+        <div className="feedback-error" data-testid="org-profile-error" role="alert">{saveErr.form}</div>
       )}
       <form
-        className="admin-form"
+        className="form-stack"
         onSubmit={(e) => {
           e.preventDefault();
           const f = new FormData(e.currentTarget);
           save.mutate(f);
         }}
       >
+        <label htmlFor="org-name-en">{m.team_name_label()}</label>
         <input
+          id="org-name-en"
+          aria-invalid={!!saveErr.field("names[en]")}
+          aria-describedby={saveErr.field("names[en]") ? "org-name-issue" : undefined}
           name="name"
           data-testid="org-name-input"
           defaultValue={names.en ?? ""}
@@ -245,7 +249,7 @@ function OrgProfile({
             path ever stops matching, the message moves to `saveErr.form` above
             rather than disappearing. */}
         {saveErr.field("names[en]") && (
-          <p className="admin-error small" data-testid="org-name-issue">
+          <p className="feedback-error small" id="org-name-issue" data-testid="org-name-issue" role="alert">
             {saveErr.field("names[en]")}
           </p>
         )}
@@ -295,7 +299,7 @@ function OrgMembers({ id }: { id: string }) {
   // The server's answer, not a role check. See the note at the top of the file.
   if (members.error) {
     return (
-      <section className="admin-card dim" data-testid="org-members-denied">
+      <section className="panel dim" data-testid="org-members-denied">
         <h2>{m.org_members()}</h2>
         <p className="muted">{m.org_members_denied()}</p>
       </section>
@@ -304,10 +308,10 @@ function OrgMembers({ id }: { id: string }) {
 
   return (
     <>
-      <section className="admin-card" data-testid="org-members">
+      <section className="panel" data-testid="org-members">
         <h2>{m.org_members()}</h2>
         {sectionError && (
-          <div className="admin-error" data-testid="org-members-error">{sectionError}</div>
+          <div className="feedback-error" data-testid="org-members-error" role="alert">{sectionError}</div>
         )}
 
         <table className="admin-table" data-testid="members-table">
@@ -360,10 +364,10 @@ function OrgMembers({ id }: { id: string }) {
       {/* Its own card, like admin.tsx gives "Create event" one. Inside the
           members card the heading butted straight onto the last table row and
           read as another column header. */}
-      <section className="admin-card" data-testid="add-member">
+      <section className="panel" data-testid="add-member">
         <h2>{m.org_add_member()}</h2>
         <form
-          className="admin-form"
+          className="form-stack"
           data-testid="add-member-form"
           onSubmit={(e) => {
             e.preventDefault();
@@ -391,7 +395,7 @@ function OrgMembers({ id }: { id: string }) {
             autoComplete="off"
           />
           {addErr.field("email") && (
-            <p className="admin-error small" data-testid="add-member-email-issue">
+            <p className="feedback-error small" data-testid="add-member-email-issue" role="alert">
               {addErr.field("email")}
             </p>
           )}
@@ -428,11 +432,9 @@ function OrgMembers({ id }: { id: string }) {
 function OrgTeams({
   orgId,
   canCreate,
-  goto,
 }: {
   orgId: string;
   canCreate: boolean;
-  goto: (r: Route) => void;
 }) {
   const qc = useQueryClient();
   const { terms, name } = useLocale();
@@ -459,31 +461,31 @@ function OrgTeams({
   const err = formErrors(add.error, ["names[en]"]);
 
   return (
-    <section className="admin-card" style={{ marginTop: 24 }} data-testid="org-teams">
+    <section className="panel" style={{ marginTop: 24 }} data-testid="org-teams">
       <h2>{m.org_teams()}</h2>
       {isPending && <div className="empty">{m.loading()}</div>}
       {!isPending && mine.length === 0 && (
         <div className="empty" data-testid="org-no-teams">{m.org_no_teams()}</div>
       )}
       {mine.map((t) => (
-        <button
+        <a
           key={t.id}
           className="row-button"
           data-testid={`org-team-${t.id}`}
-          onClick={() => goto({ page: "team", id: t.id })}
+          href={routeHref({ page: "team", id: t.id })}
         >
           <div className="row-title">{t.name}</div>
           <div className="row-meta">{t.ageGroupLabel} · {t.genderLabel}</div>
-        </button>
+        </a>
       ))}
 
       {canCreate && (
         <>
           <h2 style={{ marginTop: 24 }}>{m.org_add_team()}</h2>
-          {created && <div className="admin-ok" data-testid="org-team-created">{m.org_team_created()}</div>}
-          {err.form && <div className="admin-error" data-testid="org-team-error">{err.form}</div>}
+          {created && <div className="feedback-success" data-testid="org-team-created" role="status">{m.org_team_created()}</div>}
+          {err.form && <div className="feedback-error" data-testid="org-team-error" role="alert">{err.form}</div>}
           <form
-            className="admin-form"
+            className="form-stack"
             onSubmit={(e) => {
               e.preventDefault();
               const form = e.currentTarget;
@@ -509,7 +511,7 @@ function OrgTeams({
               autoComplete="off"
             />
             {err.field("names[en]") && (
-              <p className="admin-error small" data-testid="new-team-name-issue">
+              <p className="feedback-error small" data-testid="new-team-name-issue" role="alert">
                 {err.field("names[en]")}
               </p>
             )}

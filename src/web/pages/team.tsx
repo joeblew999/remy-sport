@@ -1,3 +1,4 @@
+import { QueryError, isNotFound } from "../components/query-error";
 import { GameSummary } from "../components/game-summary";
 import { NewPlayer } from "../components/new-player";
 import { NameTranslations, namesFrom } from "../components/name-translations";
@@ -26,7 +27,8 @@ import type { Team } from "../data";
  * guess at "your team" from a list when it had no id, and guessed wrong.
  */
 export function TeamPage({ id, goto, query, spoiler = false }: { id: string; goto: (r: Route) => void; query?: Record<string, string>; spoiler?: boolean }) {
-  const { data: t, isPending: teamLoading } = useTeam(id);
+  const teamQuery = useTeam(id);
+  const { data: t, isPending: teamLoading } = teamQuery;
   const { data: roster } = useRoster(id);
   const { label } = useLocale();
   const { user } = useSession();
@@ -41,6 +43,7 @@ export function TeamPage({ id, goto, query, spoiler = false }: { id: string; got
     document.getElementById(section)?.scrollIntoView({ block: "start" });
   }, [id, query?.section, teamLoading, roster, teamGames]);
 
+  if (teamQuery.error && !t && !isNotFound(teamQuery.error)) return <QueryError error={teamQuery.error} retry={teamQuery.refetch} pending={teamQuery.isFetching} />;
   if (teamLoading) {
     return <div className="empty">{m.loading_team()}</div>;
   }
@@ -49,7 +52,7 @@ export function TeamPage({ id, goto, query, spoiler = false }: { id: string; got
     return (
       <div className="empty">
         <p>{m.not_found_team()}</p>
-        <button onClick={() => goto({ page: "discover" })}>{m.back_to_discover()}</button>
+        <a href={routeHref({ page: "discover" })}>{m.back_to_discover()}</a>
       </div>
     );
   }
@@ -104,13 +107,13 @@ export function TeamPage({ id, goto, query, spoiler = false }: { id: string; got
                   {/* The way in to the player page. The roster was the only place
                       a player appeared and there was nowhere to go from it —
                       which is why FOLLOW_PLAYER had a button nothing rendered. */}
-                  <button
+                  <a
                     className="link-button name"
                     data-testid={`open-player-${p.playerId}`}
-                    onClick={() => goto({ page: "player", id: p.playerId })}
+                    href={routeHref({ page: "player", id: p.playerId })}
                   >
                     {p.name}
-                  </button>
+                  </a>
                   <div className="pos">
                     {p.position}
                     {p.since && <span className="since">{m.roster_since({ date: p.since })}</span>}
@@ -128,7 +131,7 @@ export function TeamPage({ id, goto, query, spoiler = false }: { id: string; got
             fixtures were written and the page never said — a squad with no
             staff reads as a team nobody coaches. */}
         <div className="section-h" style={{ marginTop: 32 }}><h2>{m.coaching_staff()}</h2></div>
-        <div className="dash-card" data-testid="coaching-staff">
+        <div className="panel-list" data-testid="coaching-staff">
           {!user && (
             <div className="empty" data-testid="coaches-signin">{m.coaching_staff_signin()}</div>
           )}
@@ -156,7 +159,7 @@ export function TeamPage({ id, goto, query, spoiler = false }: { id: string; got
         {id && roster && <Can of={t} action="MANAGE_ROSTER"><ManageRoster teamId={id} roster={roster}/></Can>}
 
         <div className="section-h" id="team-schedule" style={{ marginTop: 48 }}><h2>{m.schedule()}</h2></div>
-        <div className="dash-card">
+        <div className="panel-list">
           {gamesLoading && <div className="empty">{m.loading()}</div>}
           {!gamesLoading && games.length === 0 && <div className="empty">{m.no_games_yet()}</div>}
           {games.map((g) => (
@@ -228,12 +231,12 @@ function ManageRoster({ teamId, roster }: { teamId: string; roster: Roster }) {
   // tests/render/who-sees-what.spec.ts to check the screen against the
   // model's grants for every relation a reader can hold on a team.
   return (
-    <section className="admin-card" style={{ marginTop: 24 }} data-testid="manage-roster">
+    <section className="panel" style={{ marginTop: 24 }} data-testid="manage-roster">
       <h2>{m.manage_roster()}</h2>
       {/* formErrors, not `error.message`: the raw message is the Worker's own
           English ("Not found"), which reached a Thai reader verbatim. */}
       {formErrors(error).form && (
-        <div className="admin-error" data-testid="roster-error">{formErrors(error).form}</div>
+        <div className="feedback-error" data-testid="roster-error" role="alert">{formErrors(error).form}</div>
       )}
 
       {roster.players.length > 0 && (
@@ -261,7 +264,7 @@ function ManageRoster({ teamId, roster }: { teamId: string; roster: Roster }) {
 
       {roster.available.length ? (
         <form
-          className="admin-form"
+          className="form-stack"
           data-testid="add-player-form"
           onSubmit={(e) => {
             e.preventDefault();
@@ -331,13 +334,13 @@ function TeamSettings({ team }: { team: Team }) {
   const err = formErrors(save.error, ["names[en]"]);
 
   return (
-    <section className="admin-card" style={{ marginTop: 24 }} data-testid="team-settings">
+    <section className="panel" style={{ marginTop: 24 }} data-testid="team-settings">
       <h2>{m.team_settings()}</h2>
-      {saved && <div className="admin-ok" data-testid="team-saved">{m.event_saved()}</div>}
-      {err.form && <div className="admin-error" data-testid="team-settings-error">{err.form}</div>}
+      {saved && <div className="feedback-success" data-testid="team-saved" role="status">{m.event_saved()}</div>}
+      {err.form && <div className="feedback-error" data-testid="team-settings-error" role="alert">{err.form}</div>}
 
       <form
-        className="admin-form"
+        className="form-stack"
         onSubmit={(e) => {
           e.preventDefault();
           const f = new FormData(e.currentTarget);
@@ -358,7 +361,7 @@ function TeamSettings({ team }: { team: Team }) {
           autoComplete="off"
         />
         {err.field("names[en]") && (
-          <p className="admin-error small" data-testid="team-name-issue">
+          <p className="feedback-error small" data-testid="team-name-issue" role="alert">
             {err.field("names[en]")}
           </p>
         )}

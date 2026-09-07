@@ -70,7 +70,7 @@ test('revoking all other devices preserves this browser and an unrelated account
   await expect(here.getByTestId('revoke-others')).toHaveCount(0)
   await reloadDevice(here)
   await expect(here.getByTestId(`device-${ownId}`)).toBeVisible()
-  await expect(here.getByTestId('devices-list').locator('.device-row')).toHaveCount(1)
+  await expect(here.getByTestId('devices-list').locator('.entity-row')).toHaveCount(1)
   await signedOutAfterReload(elsewhere)
   await reloadDevice(stranger)
   await expect(stranger.getByTestId(`device-${strangerId}`)).toBeVisible()

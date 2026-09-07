@@ -1,7 +1,8 @@
+import { QueryError } from "../components/query-error";
 import { useMine, useTeams } from "../lib/data";
 import { useLocale } from "../lib/locale";
 import { m } from "../lib/i18n";
-import type { Route } from "../lib/router";
+import { routeHref } from "../lib/router";
 
 /**
  * @answers BROWSE_TEAMS
@@ -24,7 +25,7 @@ import type { Route } from "../lib/router";
  * A row goes to the team page that already exists. Nothing here is a second
  * home for a team — it is the way in.
  */
-export function TeamsPage({ goto }: { goto: (r: Route) => void }) {
+export function TeamsPage() {
   const teams = useTeams();
   const { label } = useLocale();
 
@@ -52,49 +53,50 @@ export function TeamsPage({ goto }: { goto: (r: Route) => void }) {
           <div className="section-h">
             <h2>{m.your_teams()}</h2>
           </div>
-          <div className="dash-card" data-testid="your-teams">
+          <div className="panel-list" data-testid="your-teams">
             {yours.map((t) => (
-              <div key={t.id} className="device-row" data-testid={`your-team-${t.id}`}>
+              <div key={t.id} className="entity-row" data-testid={`your-team-${t.id}`}>
                 <div>
-                  <div className="device-label">{t.name}</div>
+                  <div className="entity-label">{t.name}</div>
                   {/* Why this row is above the fold, in the model's own word for
                       it — "Head Coach", "Team Follower" — in the reader's
                       language. This printed the code, HEAD_COACH, until the
                       2026-09-04 walk. */}
-                  <div className="device-meta">
+                  <div className="entity-meta">
                     {[t.orgName, label("relations", held.get(t.id)!)].filter(Boolean).join(" · ")}
                   </div>
                 </div>
-                <button className="btn" onClick={() => goto({ page: "team", id: t.id })}>
+                <a className="btn" href={routeHref({ page: "team", id: t.id })}>
                   {m.team_open()}
-                </button>
+                </a>
               </div>
             ))}
           </div>
         </>
       )}
 
+      {teams.error && <QueryError error={teams.error} retry={teams.refetch} pending={teams.isFetching} />}
       {teams.isPending ? (
         <div className="empty">{m.loading_teams()}</div>
       ) : teams.data?.length ? (
-        <div className="dash-card" data-testid="teams-list">
+        <div className="panel-list" data-testid="teams-list">
           {teams.data.map((t) => (
-            <div key={t.id} className="device-row" data-testid={`team-row-${t.id}`}>
+            <div key={t.id} className="entity-row" data-testid={`team-row-${t.id}`}>
               <div>
-                <div className="device-label">{t.name}</div>
+                <div className="entity-label">{t.name}</div>
                 {/* Age group and gender in the reader's language — `toTeam` has
                     already resolved them from the reference vocabulary. */}
-                <div className="device-meta">
+                <div className="entity-meta">
                   {[t.orgName, t.ageGroupLabel, t.genderLabel].filter(Boolean).join(" · ")}
                 </div>
               </div>
-              <button className="btn" onClick={() => goto({ page: "team", id: t.id })}>
+              <a className="btn" href={routeHref({ page: "team", id: t.id })}>
                 {m.team_open()}
-              </button>
+              </a>
             </div>
           ))}
         </div>
-      ) : (
+      ) : teams.error ? null : (
         <div className="empty" data-testid="teams-empty">
           {m.teams_empty()}
         </div>

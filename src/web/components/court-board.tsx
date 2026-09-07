@@ -27,7 +27,7 @@ export function CourtBoard({ eventId, spoiler = false, courtId }: { eventId?: st
       const assigned = games.filter(g => g.venueId === venueId);
       const live = assigned.filter(g => g.statusCode === "LIVE" || g.statusCode === "HALF_TIME");
       const next = assigned.find(g => g.statusCode === "SCHEDULED");
-      return <section className="game-group dash-card" id={`court-${venueId}`} key={venueId} data-testid={`court-${venueId}`}>
+      return <section className="game-group panel-list" id={`court-${venueId}`} key={venueId} data-testid={`court-${venueId}`}>
         <h3><a href={routeHref({ page: "event", id: eventId, query: { tab: "places", venue: venueId } })}>{title}</a></h3>
         {live.length > 1 && <p role="status">{m.venue_multiple_live()}</p>}
         {live.map(g => <div className="court-game" key={g.id} data-testid={`court-${venueId}-live`}>

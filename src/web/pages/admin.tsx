@@ -162,7 +162,7 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
   if (loading || !user) return <div className="page-header"><h1>{m.loading()}</h1></div>;
 
   return (
-    <div className="admin">
+    <div className="admin page-inner">
       {impersonatedBy && (
         <div className="admin-banner" data-testid="impersonation-banner">
           <span>
@@ -191,9 +191,9 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
         </div>
       </div>
 
-      {error && <div className="admin-error">{error}</div>}
+      {error && <div className="feedback-error" role="alert">{error}</div>}
 
-      <section className="admin-card">
+      <section className="panel">
         <h2>{m.your_permissions()}</h2>
         <div className="admin-perms" data-testid="permissions">
           {["create", "read", "update", "delete"].map((p) => (
@@ -210,7 +210,7 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
         </div>
       </section>
 
-      <section className="admin-card">
+      <section className="panel">
         <h2>{m.events()}</h2>
         <table className="admin-table" data-testid="events-table">
           <thead>
@@ -256,7 +256,7 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
       {canCreate ? (
         <CreateEvent onError={setError} />
       ) : (
-        <section className="admin-card dim" data-testid="create-event-denied">
+        <section className="panel dim" data-testid="create-event-denied">
           <h2>{m.create_event()}</h2>
           <p className="muted">
             {m.create_event_denied({ role })}
@@ -280,7 +280,7 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
       {/* Only for an admin who is not already impersonating: Better Auth does
           not model a nested impersonation, and the way out is the banner. */}
       {isAdmin && !impersonatedBy && (
-        <section className="admin-card" data-testid="admin-console">
+        <section className="panel" data-testid="admin-console">
           <h2>{m.accounts()}</h2>
           <p className="muted">
             {m.accounts_note()}
@@ -457,7 +457,7 @@ function RoleSwitcher({ current }: { current: string }) {
   };
 
   return (
-    <section className="admin-card">
+    <section className="panel">
       <h2>{m.sign_in_as_dev()}</h2>
       <p className="muted small" data-testid="switch-status">
         {status}
@@ -508,12 +508,12 @@ function CreateAccount() {
   const issue = create.error ? formErrors(create.error).form : null;
 
   return (
-    <section className="admin-card" data-testid="create-account">
+    <section className="panel" data-testid="create-account">
       <h2>{m.admin_create_account()}</h2>
       <p className="muted">{m.admin_create_account_sub()}</p>
-      {issue && <div className="admin-error" data-testid="create-account-error">{issue}</div>}
+      {issue && <div className="feedback-error" data-testid="create-account-error" role="alert">{issue}</div>}
       <form
-        className="admin-form"
+        className="form-stack"
         data-testid="create-account-form"
         onSubmit={(e) => {
           e.preventDefault();
@@ -581,7 +581,7 @@ function DeletePlayers() {
   const players = data?.items ?? [];
 
   return (
-    <section className="admin-card" data-testid="admin-players">
+    <section className="panel" data-testid="admin-players">
       <h2>{m.admin_players()}</h2>
       {players.length === 0 && (
         <div className="empty" data-testid="admin-no-players">{m.admin_no_players()}</div>
@@ -637,7 +637,7 @@ function DeleteTeams() {
   });
 
   return (
-    <section className="admin-card" data-testid="admin-teams">
+    <section className="panel" data-testid="admin-teams">
       <h2>{m.admin_teams()}</h2>
       {teams.length === 0 && <div className="empty" data-testid="admin-no-teams">{m.admin_no_teams()}</div>}
       {teams.map((t) => (

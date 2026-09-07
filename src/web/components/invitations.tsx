@@ -59,7 +59,7 @@ export function Invitations({ onAccepted }: { onAccepted?: () => void }) {
       <div className="section-h">
         <h2>{m.invitations()}</h2>
       </div>
-      <div className="dash-card" data-testid="invitations">
+      <div className="panel-list" data-testid="invitations">
         {invitations.map((invite) => (
           <div key={invite.eventId} className="invite-row" data-testid={`invite-${invite.eventId}`}>
             <div>
@@ -76,7 +76,7 @@ export function Invitations({ onAccepted }: { onAccepted?: () => void }) {
             </button>
           </div>
         ))}
-        {err.form && <p role="alert" className="admin-error small">{err.form}</p>}
+        {err.form && <p role="alert" className="feedback-error small">{err.form}</p>}
       </div>
     </>
   )

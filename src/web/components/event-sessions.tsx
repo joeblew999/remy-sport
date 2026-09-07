@@ -80,7 +80,7 @@ export function EventSessions({ eventId, can, timezone }: { eventId: string; can
         <h2>{m.event_sessions()}</h2>
       </div>
 
-      <div className="dash-card" data-testid="event-sessions">
+      <div className="panel-list" data-testid="event-sessions">
         {isPending && <div className="empty">{m.loading()}</div>}
         {!isPending && sessions.length === 0 && (
           <div className="empty" data-testid="sessions-none">{m.event_sessions_none()}</div>
@@ -123,7 +123,7 @@ export function EventSessions({ eventId, can, timezone }: { eventId: string; can
 
       {can.DEFINE_SESSION_SCHEDULE && (
         <form
-          className="admin-card"
+          className="panel"
           style={{ marginTop: 16 }}
           data-testid="add-session"
           onSubmit={(e) => {
@@ -154,7 +154,7 @@ export function EventSessions({ eventId, can, timezone }: { eventId: string; can
           </button>
 
           {err.form && (
-            <p className="admin-error small" data-testid="session-error">{err.form}</p>
+            <p className="feedback-error small" data-testid="session-error" role="alert">{err.form}</p>
           )}
         </form>
       )}
@@ -203,7 +203,7 @@ function Register({
   const players = data?.players ?? []
 
   return (
-    <div className="dash-card" data-testid={`register-list-${sessionId}`} style={{ marginTop: 8 }}>
+    <div className="panel-list" data-testid={`register-list-${sessionId}`} style={{ marginTop: 8 }}>
       {isPending && <div className="empty">{m.loading()}</div>}
       {!isPending && players.length === 0 && (
         <div className="empty" data-testid="register-empty">{m.event_session_register_none()}</div>
@@ -224,7 +224,7 @@ function Register({
           </span>
         </label>
       ))}
-      {attendanceError.form && <p role="alert" className="admin-error small">{attendanceError.form}</p>}
+      {attendanceError.form && <p role="alert" className="feedback-error small">{attendanceError.form}</p>}
     </div>
   )
 }

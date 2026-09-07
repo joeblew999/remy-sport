@@ -2,10 +2,12 @@
 
 ## Active GUI plan
 
-[GUI consistency plan](2026-09-07-06-gui-consistency.md) owns the next GUI work.
-Status: proposed; source review completed, implementation not started. It aligns
+[GUI consistency plan](2026-09-07-06-gui-consistency.md) records the latest GUI work.
+Status: implemented and verified locally, with a desktop Devices screenshot
+limitation recorded as the next capture fix below. It aligns
 page layout, controls, forms, feedback and responsive behavior across existing
-screens, with an ordered migration and acceptance checks.
+screens. Final gate: 851 unit/repository/Worker checks, 312 rendering checks;
+all 49 real-browser checks passed with cleanup.
 
 [Connected GUI plan](2026-09-07-05-gui-connections.md) owns the completed foundation:
 stable contextual navigation, game details, division-correct competition views,
@@ -74,7 +76,8 @@ Official host setup: <https://learn.chatgpt.com/docs/extend/mcp?surface=cli>.
 
 | Priority / state | Work | Where to continue |
 | --- | --- | --- |
-| Next automation fix | Isolate local browser tests and agent runtimes from the developer's `localhost:8787`. Today E2E and shots reuse that server and `.wrangler/state`; a different port alone still shares storage. The shared CLI must own separate ports and persistence, migrations/seed, readiness, session cleanup and shutdown, including failures. Prove that tests leave a running developer server's data and sessions unchanged. Keep `bun run dev` as the developer entry point without manual coordination. | [Current localhost behavior](../README.md#which-localhost-should-i-open); `playwright.config.ts`, `src/web/vite.config.ts`, `scripts/e2e.ts`, `scripts/lib/prepare.ts`. Documentation verified against source and CLI help on 2026-09-07; isolation is not implemented. |
+| Next capture fix | Desktop Devices screenshots intermittently stall in WebKit after data and fonts load. This reproduced in the baseline before the GUI migration; phone captures work. Context cleanup now retains a trace, and the CLI cleans up sessions/storage on failure. Do not call the whole screenshot walk verified. | [GUI consistency implementation record](2026-09-07-06-gui-consistency.md#implementation-record--2026-09-07); reproduce with `bun run shots -- --grep 'devices · ja · desktop' --trace on`. |
+| In progress: separate automation work | Finish and commit the existing local-browser isolation edits. The working-tree CLI now uses 8788 and per-run storage; GUI verification observed startup, seed, session cleanup and storage removal. Lint import-time validation was corrected during GUI work. Developer data/session preservation and broader failure handling still need their own evidence. Keep `bun run dev` as the developer entry point without manual coordination. | [GUI verification and limits](2026-09-07-06-gui-consistency.md#implementation-record--2026-09-07); `playwright.config.ts`, `src/web/vite.config.ts`, `scripts/e2e.ts`, `scripts/lib/prepare.ts`. These pre-existing isolation edits remain uncommitted separately from the GUI change. |
 | Next independent product work | Review existing behavior one domain slice at a time: exact fields, relationships, permitted/refused actions, persistence and delivery. The committed report has **1,375 items: 64 classified, 1,311 unreviewed**. Unreviewed does not mean broken or unimplemented. | [Domain register, GAP-01 and GAP-05–08](2026-09-07-01-react-domain-coverage.md#work-register-and-execution-order); [generated inventory](react-domain-coverage.md). |
 | Open relay work | Choose and prove a per-game credential design, including cross-game denial, expiry/revocation and browser transport compatibility. Ordinary relay setup is working; the old missing-token/403 blockers are historical. | [Relay investigation](2026-09-07-02-relay-capabilities.md#current-work). |
 | Planned product features | Listing moderation before new public draws/rankings, then bracket generation/viewing, ranking history and AI bracket suggestions. These are **five model actions in four feature groups**, with accepted rules but implementation pending. | [GAP-09–12](2026-09-07-01-react-domain-coverage.md). |

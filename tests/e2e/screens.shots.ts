@@ -45,6 +45,12 @@ const OUT = "screenshots"
  */
 const SCREENS: { name: string; path: string; as: string | null; open?: string }[] = [
   { name: "discover", path: "/#/", as: null },
+  { name: "teams", path: "/#/teams", as: null },
+  { name: "game", path: "/#/game/gam_002", as: null },
+  { name: "player", path: "/#/player/ply_001", as: COACH },
+  { name: "places", path: "/#/event/evt_002", as: null, open: "places" },
+  { name: "manage", path: "/#/event/evt_002", as: actor("ORGANIZER", 1), open: "manage" },
+  { name: "watch", path: "/#/watch/gam_002", as: null },
   { name: "orgs", path: "/#/orgs", as: COACH },
   { name: "org", path: "/#/org/org_001", as: COACH },
   // The same URL as the line above, and the point of the pair: this coach
@@ -100,7 +106,7 @@ for (const [role, email] of Object.entries(ACTORS)) {
  * shrink would photograph a desktop pointer on a phone-sized screen.
  */
 const VIEWPORTS = [
-  { name: "desktop", viewport: { width: 1280, height: 900 } },
+  { name: "desktop", viewport: { width: 1440, height: 900 } },
   { name: "mobile", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
 ] as const
 
@@ -135,36 +141,49 @@ for (const screen of SCREENS) {
         viewport: vp.viewport,
         ...("isMobile" in vp ? { isMobile: vp.isMobile, hasTouch: vp.hasTouch } : {}),
       })
-      // Set before the bundle runs. Clicking the switcher would work too, but
-      // it screenshots a page that rendered once in the wrong language first,
-      // and any animation mid-transition lands in the picture.
-      await ctx.addInitScript((l) => localStorage.setItem("remy.locale", l), locale)
+      // Close on failure too, so Playwright can flush the context's trace.
+      try {
+        // Set before the bundle runs. Clicking the switcher would work too, but
+        // it screenshots a page that rendered once in the wrong language first,
+        // and any animation mid-transition lands in the picture.
+        await ctx.addInitScript((l) => localStorage.setItem("remy.locale", l), locale)
 
-      const page = await ctx.newPage()
-      await page.goto(screen.path)
-      if (screen.open) await page.getByTestId(`tab-${screen.open}`).click()
-      // The data arrives over the network, so there is a real moment where the
-      // page says "Loading…". Waiting for the network to settle is what stops
-      // that being what gets captured.
-      await page.waitForLoadState("networkidle")
-      await page.screenshot({
-        path: `${OUT}/${vp.name}/${screen.name}.${locale}.png`,
-        // The app scrolls inside its fixed-height shell. WebKit's fullPage
-        // capture adds thousands of blank pixels below that clipped shell;
-        // capture the actual viewport. The text companion includes all rows.
-        fullPage: false,
-      })
-      // The same screen as text, for a reader without eyes: what the sidebar
-      // offers this person, then everything the page says.
-      const text = await page.evaluate(() => {
-        const nav = [...document.querySelectorAll("aside .nav-item")]
-          .map((n) => (n as HTMLElement).innerText.trim())
-          .join(" | ")
-        const main = (document.querySelector("main") ?? document.body) as HTMLElement
-        return `nav: ${nav}\n\n${main.innerText.replace(/\n{3,}/g, "\n\n").trim()}\n`
-      })
-      writeFileSync(`${OUT}/${vp.name}/${screen.name}.${locale}.txt`, text)
-      await ctx.close()
+        const page = await ctx.newPage()
+        await page.goto(screen.path)
+        await page.bringToFront()
+        if (screen.open) await page.getByTestId(`tab-${screen.open}`).click()
+        // The data arrives over the network, so there is a real moment where the
+        // page says "Loading…". Waiting for the network to settle is what stops
+        // that being what gets captured.
+        if (screen.name === "devices") {
+          // Wait for the actual rows; this surface also starts asynchronous
+          // push-capability checks that are independent of its device list.
+          await page.getByTestId("devices-list").waitFor({ state: "visible" })
+          await page.evaluate(() => document.fonts.ready)
+        } else {
+          await page.waitForLoadState("networkidle")
+        }
+        await page.screenshot({
+          animations: "disabled",
+          path: `${OUT}/${vp.name}/${screen.name}.${locale}.png`,
+          // The app scrolls inside its fixed-height shell. WebKit's fullPage
+          // capture adds thousands of blank pixels below that clipped shell;
+          // capture the actual viewport. The text companion includes all rows.
+          fullPage: false,
+        })
+        // The same screen as text, for a reader without eyes: what the sidebar
+        // offers this person, then everything the page says.
+        const text = await page.evaluate(() => {
+          const nav = [...document.querySelectorAll("aside .nav-item")]
+            .map((n) => (n as HTMLElement).innerText.trim())
+            .join(" | ")
+          const main = (document.querySelector("main") ?? document.body) as HTMLElement
+          return `nav: ${nav}\n\n${main.innerText.replace(/\n{3,}/g, "\n\n").trim()}\n`
+        })
+        writeFileSync(`${OUT}/${vp.name}/${screen.name}.${locale}.txt`, text)
+      } finally {
+        await ctx.close()
+      }
     })
    }
   }

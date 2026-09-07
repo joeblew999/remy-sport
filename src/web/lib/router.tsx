@@ -149,6 +149,12 @@ export interface RouterAPI {
 
 const scrollPositions = new Map<string, number>();
 
+/** Links and imperative navigation must carry the same return destination. */
+export function signInRoute(from: Route, query: Record<string, string> = {}): Route {
+  const next = from.page === "login" ? from.query?.next : routeHref(from);
+  return { page: "login", query: { ...query, ...(next ? { next } : {}) } };
+}
+
 export function useRouter(): RouterAPI {
   const [route, setRoute] = useState<Route>(() => parseRoute(window.location.hash));
   useEffect(() => {
@@ -194,7 +200,7 @@ export function useRouter(): RouterAPI {
   };
 
   const goto = (r: Route) => {
-    write(r.page === "login" && route.page !== "login" ? { ...r, query: { ...r.query, next: routeHref(route) } } : r);
+    write(r.page === "login" ? signInRoute(route, r.query) : r);
   };
 
   const setParam = (key: string, value: string | null) => {

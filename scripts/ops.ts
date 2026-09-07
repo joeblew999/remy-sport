@@ -203,12 +203,10 @@ const OPS: Record<string, Op> = {
   },
 }
 
-install()
-
 const [name, ...rest] = process.argv.slice(2)
 
 if (!name || name === "--help" || !OPS[name]) {
-  const unknown = name && !OPS[name] ? `\nops: no such operation "${name}"\n` : ""
+  const unknown = name && name !== "--help" && !OPS[name] ? `\nops: no such operation "${name}"\n` : ""
   console.log(`${unknown}
 bun run ops <operation>
 
@@ -228,8 +226,11 @@ bun run ops <operation>
     for (const op of ops) console.log(`    ${op.help}`)
   }
   console.log("")
-  process.exit(name && !OPS[name] ? 1 : 0)
+  process.exit(name && name !== "--help" && !OPS[name] ? 1 : 0)
 }
+
+// Help must work on a fresh checkout, without installation or network access.
+install()
 
 const argv = OPS[name]!.cmd(rest)
 const proc = spawnSync(argv[0]!, argv.slice(1), { stdio: "inherit" })

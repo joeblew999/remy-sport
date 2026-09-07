@@ -1,7 +1,8 @@
+import { QueryError } from "../components/query-error";
 import { useSession } from "../lib/session";
 import { useDevices, useRevokeDevice } from "../lib/auth";
 import { toDevices, formatWhen, type RawSession } from "../lib/devices";
-import type { Route } from "../lib/router";
+import { parseRoute, signInRoute, routeHref } from "../lib/router";
 import { m } from "../lib/i18n";
 import { NotificationSettings } from "../components/notification-settings";
 import { useLocale } from "../lib/locale";
@@ -21,7 +22,7 @@ import { useLocale } from "../lib/locale";
  *
  * The devices a notification can reach, and revoking one.
  */
-export function DevicesPage({ goto }: { goto: (r: Route) => void }) {
+export function DevicesPage() {
   const { locale } = useLocale();
   const { user, loading: sessionLoading } = useSession();
   // One query, two mutations. This was ~60 lines: a `useState` for the list, a
@@ -31,7 +32,7 @@ export function DevicesPage({ goto }: { goto: (r: Route) => void }) {
   const q = useDevices();
   const revokeDevice = useRevokeDevice();
   const devices = q.data ? toDevices(q.data.sessions as RawSession[], q.data.currentToken) : null;
-  const error = q.error?.message ?? revokeDevice.error?.message ?? null;
+  const error = revokeDevice.error?.message ?? null;
   const busy = revokeDevice.isPending ? (revokeDevice.variables ?? null) : null;
   const revoke = (token: string) => revokeDevice.mutate(token);
   const revokeOthers = () => revokeDevice.mutate("others");
@@ -53,9 +54,9 @@ export function DevicesPage({ goto }: { goto: (r: Route) => void }) {
     return (
       <div className="empty" data-testid="devices-signed-out">
         <p>{m.sign_in_to_see_devices()}</p>
-        <button className="btn primary" onClick={() => goto({ page: "login" })}>
+        <a className="btn primary" href={routeHref(signInRoute(parseRoute(window.location.hash)))}>
           {m.sign_in()}
-        </button>
+        </a>
       </div>
     );
   }
@@ -72,21 +73,22 @@ export function DevicesPage({ goto }: { goto: (r: Route) => void }) {
         </div>
       </div>
 
+      <QueryError error={q.error} retry={q.refetch} pending={q.isFetching} />
       {error && (
-        <div className="empty" data-testid="devices-error">
+        <div className="feedback-error" role="alert" data-testid="devices-error">
           <p>{error}</p>
         </div>
       )}
 
-      {devices === null ? (
-        <div className="empty">{m.loading_sessions()}</div>
-      ) : (
+      {devices === null ? (q.isPending ? (
+        <div className="empty" role="status">{m.loading_sessions()}</div>
+      ) : null) : (
         <>
-          <div className="dash-card" data-testid="devices-list">
+          <div className="panel-list" data-testid="devices-list">
             {devices.map((d) => (
-              <div key={d.id} className="device-row" data-testid={`device-${d.id}`}>
+              <div key={d.id} className="entity-row" data-testid={`device-${d.id}`}>
                 <div>
-                  <div className="device-label">
+                  <div className="entity-label">
                     {d.label}
                     {d.current && (
                       <span className="device-tag" data-testid="device-current">
@@ -106,7 +108,7 @@ export function DevicesPage({ goto }: { goto: (r: Route) => void }) {
                       "Bangkok, TH · AIS Fibre" answers it where an IP never
                       does. The address stays reachable in the title for the
                       rare case where somebody genuinely needs it. */}
-                  <div className="device-meta" title={d.ipAddress ?? undefined}>
+                  <div className="entity-meta" title={d.ipAddress ?? undefined}>
                     {[
                       d.place ?? d.ipAddress ?? m.ip_not_recorded(),
                       m.last_active({ when: formatWhen(locale, d.lastSeen) }),
@@ -114,7 +116,7 @@ export function DevicesPage({ goto }: { goto: (r: Route) => void }) {
                   </div>
                 </div>
                 {d.current ? (
-                  <span className="device-meta">
+                  <span className="entity-meta">
                     {m.signed_in_when({ when: formatWhen(locale, d.createdAt) })}
                   </span>
                 ) : (

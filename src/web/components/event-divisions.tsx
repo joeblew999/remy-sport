@@ -4,6 +4,7 @@ import { formErrors } from "../lib/form-errors"
 import { useLocale } from "../lib/locale"
 import { m } from "../lib/i18n"
 import type { Event } from "../data"
+import { QueryError } from "./query-error"
 
 /**
  * Which divisions this event runs.
@@ -37,8 +38,10 @@ export function EventDivisions({ eventId, can }: { eventId: string; can: Event["
 
   // The PO's fixtures — a re-seed is the only thing that changes them, which is
   // why the venues list uses the same staleTime.
-  const { data: all } = useQuery(orpc.divisions.list.queryOptions({ staleTime: Infinity }))
-  const { data: entries } = useQuery(orpc.events.entries.queryOptions({ input: { eventId } }))
+  const catalogue = useQuery(orpc.divisions.list.queryOptions({ staleTime: Infinity }))
+  const participation = useQuery(orpc.events.entries.queryOptions({ input: { eventId } }))
+  const all = catalogue.data
+  const entries = participation.data
 
   const running = new Set((entries?.divisions ?? []).map((d) => d.id))
   // Which ones have teams in them, and so cannot be dropped.
@@ -58,7 +61,7 @@ export function EventDivisions({ eventId, can }: { eventId: string; can: Event["
         <h2>{m.event_divisions()}</h2>
       </div>
       <form
-        className="dash-card"
+        className="panel"
         data-testid="event-divisions"
         onSubmit={(e) => {
           e.preventDefault()
@@ -66,7 +69,14 @@ export function EventDivisions({ eventId, can }: { eventId: string; can: Event["
           save.mutate(f.getAll("division").map(String))
         }}
       >
-        {divisions.length === 0 && <div className="empty">{m.loading()}</div>}
+        <QueryError error={catalogue.error} retry={catalogue.refetch} pending={catalogue.isFetching} />
+        <QueryError error={participation.error} retry={participation.refetch} pending={participation.isFetching} />
+        {(catalogue.isPending || participation.isPending) && <p role="status">{m.loading()}</p>}
+        {catalogue.isSuccess && divisions.length === 0 && <p data-testid="divisions-empty">{m.divisions_empty()}</p>}
+        {/* Mount uncontrolled checkboxes only after both queries resolve. Otherwise
+            defaultChecked captures the empty participation set during a slow load. */}
+        {entries && <fieldset disabled={save.isPending || !!participation.error || !!catalogue.error}>
+        <legend className="sr-only">{m.event_divisions()}</legend>
         {divisions.map((d) => (
           <label key={d.id} className="invite-row" data-testid={`division-${d.id}`}>
             <span>
@@ -89,15 +99,17 @@ export function EventDivisions({ eventId, can }: { eventId: string; can: Event["
             </span>
           </label>
         ))}
+        </fieldset>}
 
         {can.MANAGE_DIVISIONS && divisions.length > 0 && (
-          <button type="submit" data-testid="divisions-save" disabled={save.isPending}>
+          <button className="btn primary" type="submit" data-testid="divisions-save" disabled={save.isPending || !entries || !!participation.error || !!catalogue.error}>
             {save.isPending ? m.event_saving() : m.event_save()}
           </button>
         )}
+        {save.isSuccess && <p className="feedback-success" role="status">{m.event_saved()}</p>}
 
         {err.form && (
-          <p className="admin-error small" data-testid="divisions-error">{err.form}</p>
+          <p className="feedback-error small" data-testid="divisions-error" role="alert">{err.form}</p>
         )}
       </form>
     </div>

@@ -3,7 +3,7 @@ import { BuildStamp } from "./build-stamp";
 import { initialsFor } from "./account";
 import { useSession } from "../lib/session";
 import { m } from "../lib/i18n";
-import type { Page } from "../lib/router";
+import { routeHref, type Page } from "../lib/router";
 
 /**
  * Who is actually signed in.
@@ -87,16 +87,16 @@ const BROWSE = (): NavItem[] => [
   { id: "orgs",     label: m.nav_orgs() },
 ];
 
-export function Sidebar({ page, setPage }: { page: Page; setPage: (p: Page) => void }) {
+export function Sidebar({ page, onNavigate }: { page: Page; onNavigate: () => void }) {
   const { user } = useSession();
   const group = (title: string, items: NavItem[]) => (
     <div className="nav-group">
       <div className="label">{title}</div>
       {items.map(it => (
-        <button key={it.id} className={`nav-item ${page === it.id ? "active" : ""}`} onClick={() => setPage(it.id)}>
+        <a key={it.id} className={`nav-item ${page === it.id ? "active" : ""}`} href={routeHref({ page: it.id })} aria-current={page === it.id ? "page" : undefined} onClick={onNavigate}>
           <span className="ico"><Icon name={it.id} /></span>
           <span>{it.label}</span>
-        </button>
+        </a>
       ))}
     </div>
   );

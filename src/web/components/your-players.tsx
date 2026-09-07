@@ -59,12 +59,12 @@ export function YourPlayers({ goto }: { goto: (r: Route) => void }) {
       </div>
       {adding && <AddPlayer onDone={() => setAdding(false)} />}
       {players.length === 0 && !adding && (
-        <div className="dash-card">
+        <div className="panel-list">
           <div className="empty" data-testid="your-players-none">{m.your_players_none()}</div>
         </div>
       )}
       {players.length > 0 && (
-      <div className="dash-card" data-testid="your-players">
+      <div className="panel-list" data-testid="your-players">
         {players.map((p) =>
           editing === p.playerId ? (
             <Can key={p.playerId} of={p} action="EDIT_PLAYER_PROFILE"><EditPlayer player={p} onDone={() => setEditing(null)} /></Can>
@@ -168,7 +168,7 @@ function AddPlayer({ onDone }: { onDone: () => void }) {
 
   return (
     <form
-      className="dash-card player-edit"
+      className="panel-list player-edit"
       data-testid="add-player-form"
       onSubmit={(e) => {
         e.preventDefault()
@@ -225,7 +225,7 @@ function AddPlayer({ onDone }: { onDone: () => void }) {
       <button type="button" className="btn" onClick={onDone}>{m.fixture_cancel()}</button>
 
       {(err.form || err.field("dob")) && (
-        <p className="admin-error small" data-testid="add-player-error">
+        <p className="feedback-error small" data-testid="add-player-error" role="alert">
           {err.form ?? err.field("dob")}
         </p>
       )}
@@ -318,7 +318,7 @@ export function EditPlayer({
       <button type="button" className="btn" onClick={onDone}>{m.fixture_cancel()}</button>
 
       {(err.form || err.field("jerseyNumber")) && (
-        <p className="admin-error small" data-testid={`player-error-${player.playerId}`}>
+        <p className="feedback-error small" data-testid={`player-error-${player.playerId}`} role="alert">
           {err.form ?? err.field("jerseyNumber")}
         </p>
       )}

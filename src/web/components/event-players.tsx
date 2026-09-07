@@ -71,7 +71,7 @@ export function EventPlayers({ eventId }: { eventId: string }) {
   return (
     <div className="page-inner">
       <p className="muted small" style={{ padding: "0 0 12px" }}>{m.event_players_hint()}</p>
-      <div className="dash-card" data-testid="event-players">
+      <div className="panel-list" data-testid="event-players">
         {!user && <div className="empty" data-testid="event-players-signin">{m.sign_in()}</div>}
         {user && players.length === 0 && (
           <div className="empty" data-testid="event-players-none">
@@ -110,7 +110,7 @@ export function EventPlayers({ eventId }: { eventId: string }) {
             </div>
           )
         })}
-        {err.form && <p role="alert" className="admin-error small">{err.form}</p>}
+        {err.form && <p role="alert" className="feedback-error small">{err.form}</p>}
       </div>
     </div>
   )

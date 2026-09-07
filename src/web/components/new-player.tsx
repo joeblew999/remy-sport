@@ -51,13 +51,13 @@ export function NewPlayer({ teamId, onCreated }: { teamId?: string; onCreated: (
 
   if (createdId && teamId) return <div role="alert" data-testid="new-player-join-error">
     <p>{create.isPending ? m.org_saving() : m.player_created_join_failed()}</p>
-    {err.form && <p className="admin-error">{err.form}</p>}
+    {err.form && <p className="feedback-error" role="alert">{err.form}</p>}
     <button className="btn" disabled={create.isPending} onClick={() => create.mutate(create.variables!)}>{m.add_to_squad()}</button>
   </div>;
 
   return (
     <form
-      className="admin-form"
+      className="form-stack"
       data-testid="new-player-form"
       onSubmit={(e) => {
         e.preventDefault();
@@ -106,7 +106,7 @@ export function NewPlayer({ teamId, onCreated }: { teamId?: string; onCreated: (
         {m.fixture_cancel()}
       </button>
       {err.form && (
-        <p className="admin-error small" data-testid="new-player-error">
+        <p className="feedback-error small" data-testid="new-player-error" role="alert">
           {err.form}
         </p>
       )}

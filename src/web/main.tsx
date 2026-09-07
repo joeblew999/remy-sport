@@ -195,10 +195,6 @@ function App() {
     setSpoiler(prev => typeof fn === "function" ? fn(prev) : fn);
   };
 
-  const setPageAndCloseDrawer = (p: Page) => {
-    goto({ page: p });
-    setNavOpen(false);
-  };
 
   /**
    * Every page's screen, keyed by page. Exhaustive by type.
@@ -229,23 +225,23 @@ function App() {
       : <DiscoverPage goto={goto} spoiler={spoiler} query={route.query} setParam={setParam}/>,
     event: () => <EventPage id={route.id} goto={goto} spoiler={spoiler} query={route.query} setParam={setParam}/>,
     game: () => <GamePage id={route.id} goto={goto} spoiler={spoiler}/>,
-    live: () => <LivePage goto={goto} spoiler={spoiler} setSpoiler={handleSpoilerSet}/>,
+    live: () => <LivePage spoiler={spoiler} setSpoiler={handleSpoilerSet}/>,
     // No id: the directory, which already puts yours on top.
-    team: () => route.id ? <TeamPage id={route.id} goto={goto} query={route.query} spoiler={spoiler}/> : <TeamsPage goto={goto}/>,
+    team: () => route.id ? <TeamPage id={route.id} goto={goto} query={route.query} spoiler={spoiler}/> : <TeamsPage/>,
     profile: () => <ProfilePage goto={goto}/>,
     login: () => <LoginPage goto={goto} next={route.query?.next?.startsWith("#/") ? parseRoute(route.query.next) : undefined}/>,
-    devices: () => <DevicesPage goto={goto}/>,
+    devices: () => <DevicesPage/>,
     admin: () => <AdminPage goto={goto}/>,
-    orgs: () => <OrgsPage goto={goto}/>,
-    teams: () => <TeamsPage goto={goto}/>,
-    player: () => <PlayerPage id={route.id} goto={goto}/>,
-    org: () => <OrgPage id={route.id} goto={goto}/>,
+    orgs: () => <OrgsPage/>,
+    teams: () => <TeamsPage/>,
+    player: () => <PlayerPage id={route.id}/>,
+    org: () => <OrgPage id={route.id}/>,
     // Two surfaces, one per direction. `#/broadcast/<gameId>` points a camera
     // at a game; `#/watch/<gameId>` receives it. Separate pages rather than one
     // with a mode, because they need different permissions from the browser and
     // fail in different ways.
-    broadcast: () => lazily(<BroadcastPage id={route.id} goto={goto}/>),
-    watch: () => lazily(<WatchPage id={route.id} goto={goto}/>),
+    broadcast: () => lazily(<BroadcastPage id={route.id}/>),
+    watch: () => lazily(<WatchPage id={route.id}/>),
     /**
      * The address bar said something this app does not serve.
      *
@@ -267,10 +263,10 @@ function App() {
   return (
     <>
       <div className={`app ${navOpen ? "nav-open" : ""}`}>
-        <Sidebar page={sidebarPage} setPage={setPageAndCloseDrawer}/>
+        <Sidebar page={sidebarPage} onNavigate={() => setNavOpen(false)}/>
         {navOpen && <div className="nav-backdrop" onClick={() => setNavOpen(false)}/>}
         <div className="main">
-          <Topbar spoiler={spoiler} setSpoiler={handleSpoilerSet} onMenu={() => setNavOpen(o => !o)} goto={goto}/>
+          <Topbar spoiler={spoiler} setSpoiler={handleSpoilerSet} onMenu={() => setNavOpen(o => !o)}/>
           <PendingApprovalNotice />
           <div className="page">
             {/*

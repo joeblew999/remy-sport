@@ -41,7 +41,6 @@ import type { Event } from "../data"
 export function EventSettings({ event }: { event: Event }) {
   const qc = useQueryClient()
   const { terms, name } = useLocale()
-  const [saved, setSaved] = useState(false)
   const [startDate, setStartDate] = useState(event.startDate ?? "")
   const [endDate, setEndDate] = useState(event.endDate ?? "")
 
@@ -52,9 +51,7 @@ export function EventSettings({ event }: { event: Event }) {
     mutationFn: (v: Omit<Parameters<typeof api.events.update>[0], "id">) =>
       api.events.update({ id: event.id, ...v }),
     onSuccess: () => {
-      setSaved(true)
       void qc.invalidateQueries({ queryKey: orpc.events.key() })
-      setTimeout(() => setSaved(false), 2000)
     },
   })
 
@@ -65,15 +62,15 @@ export function EventSettings({ event }: { event: Event }) {
 
   return (
     <div className="page-inner">
-      <section className="admin-card" data-testid="event-settings">
+      <section className="panel" data-testid="event-settings">
         <h2>{m.event_settings()}</h2>
-        {saved && <div className="admin-ok" data-testid="event-saved">{m.event_saved()}</div>}
+        {save.isSuccess && <div className="feedback-success" data-testid="event-saved" role="status">{m.event_saved()}</div>}
         {err.form && (
-          <div className="admin-error" data-testid="event-settings-error">{err.form}</div>
+          <div className="feedback-error" data-testid="event-settings-error" role="alert">{err.form}</div>
         )}
 
         <form
-          className="admin-form"
+          className="form-stack"
           onSubmit={(e) => {
             e.preventDefault()
             const f = new FormData(e.currentTarget)
@@ -94,6 +91,8 @@ export function EventSettings({ event }: { event: Event }) {
           <label htmlFor="event-name">{m.event_name_label()}</label>
           <input
             id="event-name"
+            aria-invalid={!!err.field("names[en]")}
+            aria-describedby={err.field("names[en]") ? "event-name-issue" : undefined}
             name="name"
             data-testid="event-name-input"
             defaultValue={event.names.en ?? event.title}
@@ -101,7 +100,7 @@ export function EventSettings({ event }: { event: Event }) {
             autoComplete="off"
           />
           {err.field("names[en]") && (
-            <p className="admin-error small" data-testid="event-name-issue">
+            <p className="feedback-error small" id="event-name-issue" data-testid="event-name-issue" role="alert">
               {err.field("names[en]")}
             </p>
           )}
@@ -129,6 +128,8 @@ export function EventSettings({ event }: { event: Event }) {
           <label htmlFor="event-start">{m.event_start_label()}</label>
           <input
             id="event-start"
+            aria-invalid={!!err.field("startDate")}
+            aria-describedby={err.field("startDate") ? "event-start-issue" : undefined}
             name="startDate"
             type="date"
             data-testid="event-start-input"
@@ -136,19 +137,21 @@ export function EventSettings({ event }: { event: Event }) {
             onChange={(e) => setStartDate(e.target.value)}
           />
           {err.field("startDate") && (
-            <p className="admin-error small">{err.field("startDate")}</p>
+            <p id="event-start-issue" className="feedback-error small" role="alert">{err.field("startDate")}</p>
           )}
 
           <label htmlFor="event-end">{m.event_end_label()}</label>
           <input
             id="event-end"
+            aria-invalid={!!err.field("endDate")}
+            aria-describedby={err.field("endDate") ? "event-end-issue" : undefined}
             name="endDate"
             type="date"
             data-testid="event-end-input"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
           />
-          {err.field("endDate") && <p className="admin-error small">{err.field("endDate")}</p>}
+          {err.field("endDate") && <p id="event-end-issue" className="feedback-error small" role="alert">{err.field("endDate")}</p>}
 
           <p className="muted small">{m.event_dates_hint()}</p>
 
@@ -197,14 +200,14 @@ function InviteCoOrganizer({ eventId }: { eventId: string }) {
   const err = formErrors(invite.error, ["email"])
 
   return (
-    <section className="admin-card" style={{ marginTop: 16 }} data-testid="invite-co-organizer">
+    <section className="panel" style={{ marginTop: 16 }} data-testid="invite-co-organizer">
       <h2>{m.invite_co_organizer()}</h2>
       <p className="muted small">{m.invite_co_organizer_hint()}</p>
-      {sent && <div className="admin-ok" data-testid="invite-sent">{m.invite_sent()}</div>}
-      {err.form && <div className="admin-error" data-testid="invite-error">{err.form}</div>}
+      {sent && <div className="feedback-success" data-testid="invite-sent" role="status">{m.invite_sent()}</div>}
+      {err.form && <div className="feedback-error" data-testid="invite-error" role="alert">{err.form}</div>}
 
       <form
-        className="admin-form"
+        className="form-stack"
         onSubmit={(e) => {
           e.preventDefault()
           const form = e.currentTarget
@@ -225,7 +228,7 @@ function InviteCoOrganizer({ eventId }: { eventId: string }) {
           autoComplete="off"
         />
         {err.field("email") && (
-          <p className="admin-error small" data-testid="invite-email-issue">{err.field("email")}</p>
+          <p className="feedback-error small" data-testid="invite-email-issue" role="alert">{err.field("email")}</p>
         )}
         <button type="submit" data-testid="invite-send" disabled={invite.isPending}>
           {invite.isPending ? m.invite_sending() : m.invite_send()}

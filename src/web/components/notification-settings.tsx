@@ -174,7 +174,7 @@ export function NotificationSettings() {
   }
 
   return (
-    <section className="admin-card" data-testid="notification-settings">
+    <section className="panel" data-testid="notification-settings">
       <h2>{m.notifications()}</h2>
       <p className="meta">{m.notifications_intro()}</p>
 

@@ -25,7 +25,7 @@ test.describe.serial("Organisations", () => {
     await page.goto("/#/orgs")
     await expect(page.getByTestId("orgs-page")).toBeVisible()
 
-    await page.getByTestId("org-org_001").getByRole("button").click()
+    await page.getByTestId("org-org_001").getByRole("link").click()
     await expect(page.getByTestId("org-page")).toContainText("Assumption College")
   })
 

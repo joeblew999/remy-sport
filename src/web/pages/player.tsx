@@ -7,7 +7,7 @@ import { usePlayer, usePlayerStats, useTeamGames } from "../lib/data";
 import { useSession } from "../lib/session";
 import { m } from "../lib/i18n";
 import { useLocale } from "../lib/locale";
-import type { Route } from "../lib/router";
+import { routeHref } from "../lib/router";
 
 /**
  * @answers VIEW_PLAYER, VIEW_PLAYER_STATS, EDIT_PLAYER_PROFILE, FOLLOW_PLAYER, UNFOLLOW_PLAYER,
@@ -51,7 +51,7 @@ import type { Route } from "../lib/router";
  * in this model — `game` joins two teams — so labelling their squad's fixtures
  * as theirs would be a claim the data does not make.
  */
-export function PlayerPage({ id, goto }: { id?: string; goto: (r: Route) => void }) {
+export function PlayerPage({ id }: { id?: string }) {
   const { label, name } = useLocale();
   const { user, loading } = useSession();
   const player = usePlayer(id);
@@ -111,12 +111,12 @@ export function PlayerPage({ id, goto }: { id?: string; goto: (r: Route) => void
         <h2>{m.player_team()}</h2>
       </div>
       {p.teamId && p.teamNames ? (
-        <div className="dash-card">
-          <div className="device-row" data-testid={`player-team-${p.teamId}`}>
-            <div className="device-label">{name(p.teamNames)}</div>
-            <button className="btn" onClick={() => goto({ page: "team", id: p.teamId! })}>
+        <div className="panel-list">
+          <div className="entity-row" data-testid={`player-team-${p.teamId}`}>
+            <div className="entity-label">{name(p.teamNames)}</div>
+            <a className="btn" href={routeHref({ page: "team", id: p.teamId! })}>
               {m.team_open()}
-            </button>
+            </a>
           </div>
         </div>
       ) : (
@@ -148,19 +148,19 @@ export function PlayerPage({ id, goto }: { id?: string; goto: (r: Route) => void
           <div className="section-h">
             <h2>{m.player_past_teams()}</h2>
           </div>
-          <div className="dash-card" data-testid="player-past">
+          <div className="panel-list" data-testid="player-past">
             {p.past.map((spell) => (
-              <div key={`${spell.teamId}-${spell.toDate}`} className="device-row"
+              <div key={`${spell.teamId}-${spell.toDate}`} className="entity-row"
                    data-testid={`player-past-${spell.teamId}`}>
                 <div>
-                  <div className="device-label">{name(spell.teamNames)}</div>
-                  <div className="device-meta">
+                  <div className="entity-label">{name(spell.teamNames)}</div>
+                  <div className="entity-meta">
                     {m.player_spell_dates({ from: spell.fromDate, to: spell.toDate })}
                   </div>
                 </div>
-                <button className="btn" onClick={() => goto({ page: "team", id: spell.teamId })}>
+                <a className="btn" href={routeHref({ page: "team", id: spell.teamId })}>
                   {m.team_open()}
-                </button>
+                </a>
               </div>
             ))}
           </div>
@@ -185,7 +185,7 @@ export function PlayerPage({ id, goto }: { id?: string; goto: (r: Route) => void
               {m.player_stats_games({ n: stats.data.recorded })}
             </span>
           </div>
-          <div className="dash-card" data-testid="player-stats">
+          <div className="panel-list" data-testid="player-stats">
             {(
               [
                 ["points", m.stat_points()],
@@ -194,9 +194,9 @@ export function PlayerPage({ id, goto }: { id?: string; goto: (r: Route) => void
                 ["fouls", m.stat_fouls()],
               ] as const
             ).map(([key, heading]) => (
-              <div key={key} className="device-row" data-testid={`stat-${key}`}>
-                <div className="device-label">{heading}</div>
-                <div className="device-meta">
+              <div key={key} className="entity-row" data-testid={`stat-${key}`}>
+                <div className="entity-label">{heading}</div>
+                <div className="entity-meta">
                   {stats.data!.totals[key]}
                   {" · "}
                   {(stats.data!.totals[key] / stats.data!.recorded).toFixed(1)}{" "}
@@ -212,9 +212,9 @@ export function PlayerPage({ id, goto }: { id?: string; goto: (r: Route) => void
         <h2>{m.player_fixtures()}</h2>
       </div>
       {games.data?.games.length ? (
-        <div className="dash-card" data-testid="player-games">
+        <div className="panel-list" data-testid="player-games">
           {games.data.games.slice(0, 10).map((g) => (
-            <div key={g.id} className="device-row" data-testid={`player-game-${g.id}`}>
+            <div key={g.id} className="entity-row" data-testid={`player-game-${g.id}`}>
               <GameSummary game={g} showEvent/>
             </div>
           ))}

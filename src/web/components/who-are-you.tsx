@@ -66,7 +66,7 @@ export function WhoAreYou() {
       <div className="section-h">
         <h2>{m.whoareyou()}</h2>
       </div>
-      <div className="dash-card" data-testid="who-are-you">
+      <div className="panel-list" data-testid="who-are-you">
         <div className="push-note">{m.whoareyou_sub()}</div>
         {OFFERED.map((code) => (
           <button
@@ -80,7 +80,7 @@ export function WhoAreYou() {
             {code === "REFEREE" && <div className="row-meta">{m.role_pending_note()}</div>}
           </button>
         ))}
-        {err.form && <p role="alert" className="admin-error small">{err.form}</p>}
+        {err.form && <p role="alert" className="feedback-error small">{err.form}</p>}
       </div>
     </>
   )

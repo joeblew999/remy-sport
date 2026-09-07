@@ -8,7 +8,7 @@ import { YourGames } from "../components/your-games";
 import { Following } from "../components/following";
 import { formatDayShort } from "../lib/dates";
 import { nextOf } from "../lib/api";
-import type { Route } from "../lib/router";
+import { routeHref, type Route } from "../lib/router";
 import type { Team } from "../data";
 import { m } from "../lib/i18n";
 
@@ -85,29 +85,29 @@ export function HomePage({ goto }: { goto: (r: Route) => void }) {
                 brings her here was the page not looking. */}
             {holdsNothing && <WhoAreYou />}
 
-            {gameHeld.length > 0 && <YourGames goto={goto} />}
+            {gameHeld.length > 0 && <YourGames />}
 
             {(teamHeld.length > 0 || can?.CREATE_TEAM) && (
               <>
                 <div className="section-h">
                   <h2>{m.your_teams()}</h2>
                 </div>
-                <div className="dash-card" data-testid="home-teams">
+                <div className="panel-list" data-testid="home-teams">
                   {teamRows.map((t) => (
-                    <TeamRow key={t.id} team={t} relations={relationsOn("TEAM", t.id)} goto={goto} />
+                    <TeamRow key={t.id} team={t} relations={relationsOn("TEAM", t.id)} />
                   ))}
                   {/* No "you are not coaching yet" sentence: the row below says
                       what can be done, and the sentence was a coach's on the
                       admin's page. CREATE_TEAM is a platform grant; the form is
                       on the school, the one thing a new team needs chosen. */}
                   {can?.CREATE_TEAM && (
-                    <button
+                    <a
                       className="row-button"
                       data-testid="home-create-team"
-                      onClick={() => goto({ page: "orgs" })}
+                      href={routeHref({ page: "orgs" })}
                     >
                       <div className="row-title">{m.home_create_team()}</div>
-                    </button>
+                    </a>
                   )}
                 </div>
               </>
@@ -123,30 +123,30 @@ export function HomePage({ goto }: { goto: (r: Route) => void }) {
                 <div className="section-h">
                   <h2>{m.your_events()}</h2>
                 </div>
-                <div className="dash-card" data-testid="home-events">
+                <div className="panel-list" data-testid="home-events">
                   {organising.map((e) => (
-                    <button
+                    <a
                       key={e.id}
                       className="row-button"
                       data-testid={`home-event-${e.id}`}
-                      onClick={() => goto({ page: "event", id: e.id })}
+                      href={routeHref({ page: "event", id: e.id })}
                     >
                       <div className="row-title">{e.title}</div>
                       <div className="row-meta">
                         {[e.statusLabel, e.division, label("relations", e.relation)].join(" · ")}
                       </div>
-                    </button>
+                    </a>
                   ))}
                   {/* The event form lives on the console page, which nothing
                       linked an organiser to until this row. */}
                   {can?.CREATE_EVENT && (
-                    <button
+                    <a
                       className="row-button"
                       data-testid="home-create-event"
-                      onClick={() => goto({ page: "admin" })}
+                      href={routeHref({ page: "admin" })}
                     >
                       <div className="row-title">{m.home_create_event()}</div>
-                    </button>
+                    </a>
                   )}
                 </div>
               </>
@@ -157,19 +157,19 @@ export function HomePage({ goto }: { goto: (r: Route) => void }) {
                 <div className="section-h">
                   <h2>{m.your_orgs()}</h2>
                 </div>
-                <div className="dash-card" data-testid="home-orgs">
+                <div className="panel-list" data-testid="home-orgs">
                   {orgRows.map((o) => (
-                    <button
+                    <a
                       key={o.id}
                       className="row-button"
                       data-testid={`home-org-${o.id}`}
-                      onClick={() => goto({ page: "org", id: o.id })}
+                      href={routeHref({ page: "org", id: o.id })}
                     >
                       <div className="row-title">{o.name}</div>
                       <div className="row-meta">
                         {[o.city, relationsOn("ORG", o.id)].filter(Boolean).join(" · ")}
                       </div>
-                    </button>
+                    </a>
                   ))}
                 </div>
               </>
@@ -188,14 +188,14 @@ export function HomePage({ goto }: { goto: (r: Route) => void }) {
                 <div className="section-h">
                   <h2>{m.nav_admin()}</h2>
                 </div>
-                <div className="dash-card" data-testid="home-admin">
-                  <button
+                <div className="panel-list" data-testid="home-admin">
+                  <a
                     className="row-button"
                     data-testid="home-admin-console"
-                    onClick={() => goto({ page: "admin" })}
+                    href={routeHref({ page: "admin" })}
                   >
                     <div className="row-title">{m.home_admin()}</div>
-                  </button>
+                  </a>
                 </div>
               </>
             )}
@@ -214,20 +214,18 @@ export function HomePage({ goto }: { goto: (r: Route) => void }) {
 function TeamRow({
   team,
   relations,
-  goto,
 }: {
   team: Team;
   relations: string;
-  goto: (r: Route) => void;
 }) {
   const { locale } = useLocale();
   const { data } = useTeamGames(team.id);
   const next = nextOf(data?.games ?? []);
   return (
-    <button
+    <a
       className="row-button"
       data-testid={`home-team-${team.id}`}
-      onClick={() => goto({ page: "team", id: team.id })}
+      href={routeHref({ page: "team", id: team.id })}
     >
       <div className="row-title">{team.name}</div>
       <div className="row-meta">{[team.orgName, relations].filter(Boolean).join(" · ")}</div>
@@ -239,6 +237,6 @@ function TeamRow({
             })
           : m.home_no_next_game()}
       </div>
-    </button>
+    </a>
   );
 }

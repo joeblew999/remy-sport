@@ -13,7 +13,7 @@ import { visit } from "../helpers/surfaces"
  *   - Every one-sentence push status rendered through `.empty`, which is a
  *     whole-screen empty state — 60px of padding and a dashed border. Five of
  *     them on one page, each a large dashed rectangle around a single line.
- *   - `.admin-card h2` is styled down to 13px uppercase; `h3` had no rule at
+ *   - `.panel h2` is styled down to 13px uppercase; `h3` had no rule at
  *     all, so the three sub-headings came out at the browser default — larger
  *     and blacker than the section title above them.
  *   - `.pref-list` had no rule either, so all three lists carried browser

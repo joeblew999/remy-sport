@@ -30,7 +30,7 @@ export function Following() {
       <div className="section-h">
         <h2>{m.following_label()}</h2>
       </div>
-      <div className="dash-card" data-testid="following-card">
+      <div className="panel-list" data-testid="following-card">
         {data?.following.length ? (
           <ul className="pref-list" data-testid="following-list">
             {data.following.map((f) => (

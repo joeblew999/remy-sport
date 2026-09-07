@@ -2,7 +2,7 @@ import { CreateEvent } from "../components/create-event";
 import { PlatformCan } from "../components/can";
 import { Icon } from "../components/icon";
 import { useEvents, useLiveGames } from "../lib/data";
-import type { Route } from "../lib/router";
+import { routeHref, type Route } from "../lib/router";
 import { m } from "../lib/i18n";
 import { useLocale } from "../lib/locale";
 import type { EventStatus, EventType } from "../data";
@@ -166,7 +166,7 @@ export function DiscoverPage({ goto, spoiler, query, setParam }: DiscoverProps) 
           <span>{m.date()}</span><span>{m.event()}</span><span>{m.type()}</span><span>{m.venue()}</span><span>{m.division()}</span><span>{m.status()}</span><span></span>
         </div>
         {events.map(e => (
-          <button key={e.id} className="event-row" onClick={() => goto({ page: "event", id: e.id })}>
+          <a key={e.id} className="event-row" href={routeHref({ page: "event", id: e.id })}>
             <div className="date">
               <span className="day">{e.day ? String(e.day).padStart(2, "0") : "--"}</span>
               <span className="mo">{e.month}</span>
@@ -190,7 +190,7 @@ export function DiscoverPage({ goto, spoiler, query, setParam }: DiscoverProps) 
             <div className="div">{e.division}</div>
             <div><span className={`status ${e.status}`}>{e.statusLabel}</span></div>
             <div className="arrow"><Icon name="arrow"/></div>
-          </button>
+          </a>
         ))}
         {isPending && <div className="empty">{m.loading_events()}</div>}
         {error && <div className="empty">{m.events_load_failed()}</div>}
@@ -244,12 +244,12 @@ function LiveBanner({ goto, spoiler }: { goto: (r: Route) => void; spoiler: bool
       <div className="quarter">
         <div><b>{game.statusLabel}</b></div>
       </div>
-      <button
+      <a
         className="open-btn"
-        onClick={() => goto({ page: "game", id: game.id })}
+        href={routeHref({ page: "game", id: game.id })}
       >
         {game.isBroadcasting ? m.video_watch() : m.open_game()}
-      </button>
+      </a>
     </div>
   );
 }

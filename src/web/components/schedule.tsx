@@ -18,7 +18,7 @@ import { useEntries, useEventVenues, useGames } from "../lib/data";
 import { useLocale } from "../lib/locale";
 import { formErrors } from "../lib/form-errors";
 import { m } from "../lib/i18n";
-import type { Route } from "../lib/router";
+import { routeHref, type Route } from "../lib/router";
 import type { Event } from "../data";
 import { formatTimeOn, fromLocalInput, toLocalInput } from "../lib/dates";
 import { Can } from "./can";
@@ -119,7 +119,7 @@ export function Schedule({
   return (
     <div data-testid="schedule">
       {groups.filter(group => group.games.length).map(group => <section key={group.label} className="game-group">
-      <h2>{group.label}</h2><div className="dash-card">
+      <h2>{group.label}</h2><div className="panel-list">
       {group.games.map((g) => (
         <GameRow
           key={g.id}
@@ -158,10 +158,10 @@ export function GameRow({
   const played = game.homeScore !== null && game.awayScore !== null;
 
   return (
-    <div className="device-row schedule-game" data-testid={`game-${game.id}`}>
+    <div className="entity-row schedule-game" data-testid={`game-${game.id}`}>
       <div>
         <GameSummary game={game} details={details} showStatus={false} />
-        <div className="device-meta">
+        <div className="entity-meta">
           <Can of={game} action="CONFIRM_MATCH_STATUS" fallback={
             <span
               data-testid={`game-status-${game.id}`}
@@ -216,23 +216,23 @@ export function GameRow({
               exists.
             */}
             {goto && game.isBroadcasting && (
-              <button
+              <a
                 className="btn primary"
                 data-testid={`watch-fixture-${game.id}`}
-                onClick={() => goto?.({ page: "watch", id: game.id })}
+                href={routeHref({ page: "watch", id: game.id })}
               >
                 {m.video_watch()}
-              </button>
+              </a>
             )}
             {goto && !game.isBroadcasting && (
               <Can of={game} action="BROADCAST_GAME">
-              <button
+              <a
                 className="btn"
                 data-testid={`broadcast-fixture-${game.id}`}
-                onClick={() => goto?.({ page: "broadcast", id: game.id })}
+                href={routeHref({ page: "broadcast", id: game.id })}
               >
                 {m.video_broadcast()}
-              </button>
+              </a>
               </Can>
             )}
             <Can of={game} action="ENTER_SCORES">
@@ -322,7 +322,7 @@ function ManageFixture({ game }: { game: Game }) {
         >
           {drop.isPending ? m.fixture_removing() : m.fixture_remove()}
         </button>
-        {dropErr.form && <p role="alert" className="admin-error small">{dropErr.form}</p>}
+        {dropErr.form && <p role="alert" className="feedback-error small">{dropErr.form}</p>}
       </>
     );
   }
@@ -353,7 +353,7 @@ function ManageFixture({ game }: { game: Game }) {
         {m.fixture_cancel()}
       </button>
       {(err.form || err.field("startsAt")) && (
-        <p className="admin-error small" data-testid={`fixture-error-${game.id}`}>
+        <p className="feedback-error small" data-testid={`fixture-error-${game.id}`} role="alert">
           {err.form ?? err.field("startsAt")}
         </p>
       )}
@@ -410,7 +410,7 @@ function AssignVenue({ game, eventId }: { game: Game; eventId: string | undefine
           </option>
         ))}
       </select>
-      {err.form && <p role="alert" className="admin-error small">{err.form}</p>}
+      {err.form && <p role="alert" className="feedback-error small">{err.form}</p>}
     </>
   );
 }
@@ -456,7 +456,7 @@ function GameStatus({ game }: { game: Game }) {
         </option>
       ))}
     </select>
-    {err.form && <p role="alert" className="admin-error small">{err.form}</p>}
+    {err.form && <p role="alert" className="feedback-error small">{err.form}</p>}
     </>
   );
 }
@@ -516,7 +516,7 @@ function Referees({ game }: { game: Game }) {
           ))}
         </select>
       )}
-      {err.form && <span role="alert" className="admin-error small">{err.form}</span>}
+      {err.form && <span role="alert" className="feedback-error small">{err.form}</span>}
     </span>
   );
 }
@@ -573,7 +573,7 @@ function ScoreForm({ game, onDone }: { game: Game; onDone: () => void }) {
       {/* "Give both scores or neither" is a refinement across two fields, so it
           has no single home — it arrives at form level and is said once. */}
       {(scoreErr.field("homeScore") ?? scoreErr.form) && (
-        <p className="admin-error small" data-testid={`score-error-${game.id}`}>
+        <p className="feedback-error small" data-testid={`score-error-${game.id}`} role="alert">
           {scoreErr.field("homeScore") ?? scoreErr.form}
         </p>
       )}
@@ -627,10 +627,10 @@ export function AddFixture({ eventId, can, timezone }: { eventId: string; can: E
       {/* Before the one-at-a-time form, because it is the thing an organiser
           wants first and the form is what you reach for afterwards. */}
       <Can of={{ can }} action="GENERATE_FIXTURES">
-      <section className="admin-card" style={{ marginTop: 16 }}>
+      <section className="panel" style={{ marginTop: 16 }}>
       <h2>{m.generate_fixtures()}</h2>
       <form
-        className="admin-form"
+        className="form-stack"
         data-testid="generate-fixtures"
         onSubmit={(e) => {
           e.preventDefault();
@@ -649,17 +649,17 @@ export function AddFixture({ eventId, can, timezone }: { eventId: string; can: E
           </p>
         )}
         {genErr.form && (
-          <p className="admin-error small" data-testid="generate-error">{genErr.form}</p>
+          <p className="feedback-error small" data-testid="generate-error" role="alert">{genErr.form}</p>
         )}
       </form>
       </section>
       </Can>
 
       <Can of={{ can }} action="MANAGE_FIXTURES">
-      <section className="admin-card" style={{ marginTop: 16 }} data-testid="add-fixture">
+      <section className="panel" style={{ marginTop: 16 }} data-testid="add-fixture">
       <h2>{m.add_fixture()}</h2>
       <form
-        className="admin-form"
+        className="form-stack"
         onSubmit={(e) => {
           e.preventDefault();
           const f = new FormData(e.currentTarget);
@@ -683,7 +683,7 @@ export function AddFixture({ eventId, can, timezone }: { eventId: string; can: E
         <label htmlFor="fixture-starts">{m.fixture_when()} {timezone}</label>
         <input id="fixture-starts" name="startsAt" type="datetime-local" required data-testid="fixture-starts" />
         {addErr.field("startsAt") && (
-          <p className="admin-error small" data-testid="fixture-starts-issue">
+          <p className="feedback-error small" data-testid="fixture-starts-issue" role="alert">
             {addErr.field("startsAt")}
           </p>
         )}
@@ -696,7 +696,7 @@ export function AddFixture({ eventId, can, timezone }: { eventId: string; can: E
             claim. Those belong at the bottom of the form, not beneath an input
             that is not the problem. */}
         {addErr.form && (
-          <p className="admin-error small" data-testid="add-fixture-error">
+          <p className="feedback-error small" data-testid="add-fixture-error" role="alert">
             {addErr.form}
           </p>
         )}

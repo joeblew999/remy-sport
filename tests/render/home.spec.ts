@@ -166,10 +166,10 @@ test.describe("Home", () => {
       gamesOf("team_001"),
     ])
     await visit(page, "home")
-    await expect(page.locator(".sidebar").getByRole("button", { name: "Home" })).toHaveClass(/active/)
+    await expect(page.locator(".sidebar").getByRole("link", { name: "Home" })).toHaveAttribute("aria-current", "page")
 
-    await page.locator(".sidebar").getByRole("button", { name: "Discover" }).click()
+    await page.locator(".sidebar").getByRole("link", { name: "Discover" }).click()
     await expect(page.getByRole("heading", { level: 1 })).toContainText("What's on the court")
-    await expect(page.locator(".sidebar").getByRole("button", { name: "Discover" })).toHaveClass(/active/)
+    await expect(page.locator(".sidebar").getByRole("link", { name: "Discover" })).toHaveClass(/active/)
   })
 })

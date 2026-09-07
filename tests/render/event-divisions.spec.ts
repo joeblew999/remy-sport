@@ -93,6 +93,27 @@ test.describe("An event's divisions", () => {
     expect(sent, "the set, not a delta").toContain("div_001")
   })
 
+  test("waits for participation before mounting the saved checkbox selection", async ({ page }) => {
+    await seedCache(page, [
+      entry(orpc.events.get, { id: "evt_002" }, projectEvent("evt_002", ["OWNER"])),
+      entry(orpc.divisions.list, undefined, DIVISIONS),
+    ])
+    let release!: () => void
+    const ready = new Promise<void>(resolve => { release = resolve })
+    await page.route("**/rpc/events/entries**", async route => {
+      await ready
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify({
+        json: apiEntries({ divisions: [DIVISIONS.items[0]!] }),
+      }) })
+    })
+    await open(page)
+    await expect(page.getByTestId("divisions-save")).toBeDisabled()
+    await expect(page.getByTestId("division-check-div_001")).toHaveCount(0)
+    release()
+    await expect(page.getByTestId("division-check-div_001")).toBeChecked()
+    await expect(page.getByTestId("divisions-save")).toBeEnabled()
+  })
+
   test("is not offered on a camp, which has sessions rather than divisions", async ({ page }) => {
     // MANAGE_DIVISIONS is TOURNAMENT, LEAGUE and SHOWCASE. A camp has
     // DEFINE_SESSION_SCHEDULE, which is a different shape entirely.

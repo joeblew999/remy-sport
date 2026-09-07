@@ -96,14 +96,14 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
       </div>
 
       {error && (
-        <div className="empty" data-testid="login-error">
+        <div className="feedback-error" role="alert" id="login-error" data-testid="login-error">
           <p>{error}</p>
         </div>
       )}
 
       {step === "email" ? (
-        <form onSubmit={submitEmail} className="dash-card" style={{ padding: 24, maxWidth: 420 }}>
-          <label htmlFor="spa-email" style={{ display: "block", marginBottom: 8 }}>
+        <form onSubmit={submitEmail} className="panel form-stack" aria-busy={busy}>
+          <label htmlFor="spa-email">
             {m.email_label()}
           </label>
           <input
@@ -115,18 +115,18 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
             data-testid="spa-email-input"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            style={{ width: "100%", padding: "10px 12px", marginBottom: 16 }}
+            aria-describedby={error ? "login-error" : undefined}
           />
           <button className="btn primary" type="submit" disabled={busy} data-testid="spa-send-code">
             {busy ? m.sending() : m.email_me_a_code()}
           </button>
         </form>
       ) : (
-        <form onSubmit={submitCode} className="dash-card" style={{ padding: 24, maxWidth: 420 }}>
+        <form onSubmit={submitCode} className="panel form-stack" aria-busy={busy}>
           <p style={{ marginBottom: 12 }}>
             {m.code_sent_to({ email })}
           </p>
-          <label htmlFor="spa-otp" style={{ display: "block", marginBottom: 8 }}>
+          <label htmlFor="spa-otp">
             {m.six_digit_code()}
           </label>
           <input
@@ -143,14 +143,8 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
             data-testid="spa-otp-input"
             value={otp}
             onChange={(e) => setOtp(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "10px 12px",
-              marginBottom: 16,
-              letterSpacing: "0.4em",
-              textAlign: "center",
-              fontSize: 18,
-            }}
+            className="login-code"
+            aria-describedby={error ? "login-error" : undefined}
           />
           <button className="btn primary" type="submit" disabled={busy} data-testid="spa-verify-code">
             {busy ? m.signing_in() : m.sign_in()}
@@ -158,7 +152,7 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
           <button
             type="button"
             className="btn"
-            style={{ marginLeft: 8 }}
+
             data-testid="spa-use-different-email"
             onClick={() => {
               setStep("email");

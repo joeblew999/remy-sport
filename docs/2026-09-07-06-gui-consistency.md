@@ -1,6 +1,7 @@
 # GUI consistency plan
 
-Status: proposed, 2026-09-07. Planning only; implementation has not started.
+Status: implemented and verified locally, 2026-09-07, with the desktop Devices
+screenshot limitation below. The user approved with “GO FOR IT”.
 
 ## Outcome and ownership
 
@@ -154,3 +155,93 @@ deployment or claim exhaustive domain coverage.
 
 Planning verification: the existing documentation check passed (one file, two
 tests). No application, rendering or end-to-end tests were run for this plan.
+
+## Implementation record — 2026-09-07
+
+The shared CSS now owns responsive gutters, heading scale, panel spacing,
+fields, action sizes, feedback and focus treatment. The existing unpadded list
+panel remains a deliberate variant of the padded form/content panel. Replaced
+device/admin-specific shared class names throughout their consumers and removed
+the old form/button rules; there are no compatibility aliases. Native Safari
+selects need an explicit height in addition to min-height, covered by a control
+size regression. Reduced-motion preferences disable decorative animation.
+
+| Surface family | Migration and retained variant |
+| --- | --- |
+| Discover, Live and Home | Shared headings, panels/actions and entity links; Discover keeps its competition directory and live banner. Live failures offer recovery. |
+| Teams and Organisations | Aligned headings/lists, real destination links, localised relationship labels and separate failure/empty states. |
+| Event and Team | Compact identity headers share the scale and gutter source; competition tabs/tables and camp Sessions remain distinct. Game status, score and spoiler logic are preserved. |
+| Game, Player and organisation detail | Aligned headers and shared entity metadata/panels. Game's dependent event/entry failures are visible with retry; Team/Event/Org initial failures no longer masquerade as missing records. |
+| Profile, sign-in and Devices | Shared frame, fields and feedback; sign-in has persistent labels and error association. Devices distinguishes session loading from failure and retains existing data during refresh. |
+| Event/organisation/team management and admin | Shared padded panels, form fields, Save/action styles and announced error/success feedback; admin uses the common page frame. Event creation/settings and organisation profile have associated name/validation errors. Existing permission gates remain authoritative. |
+| Watch/broadcast | Shared heading, return links and actions; media-specific controls and connection states remain specialised. This work does not claim new relay reliability or isolation. |
+
+Navigation-only buttons became native links, including sidebar and account
+destinations; obsolete navigation callbacks were removed where no longer used.
+Sidebar active links expose `aria-current`. Sign-in links and imperative
+navigation use the same return-route builder; a filtered event survives opening
+Sign in and reloading. Existing game/date/localisation and permission helpers
+are reused rather than duplicated. True API 404s retain the missing-object
+message; retry is for failed requests, not a replacement for that state.
+
+Divisions now distinguishes loading, empty and query failure. Its uncontrolled
+checkboxes mount only after participation resolves, preventing a slow query
+from capturing an incorrect initial selection. Failed reads cannot submit a
+division change. A regression delays participation to prove this. Event and
+organisation save feedback uses mutation success instead of a second timed
+success flag. Retry controls use the same mutation/query state as their owner.
+
+New checks cover directory retry and keyboard navigation, dependent Game query
+recovery, empty/failed/delayed division data, shared control dimensions, error
+association, 320/390/1440px EN/TH/JA alignment and 200% CSS content magnification.
+The latter is not a claim of exhaustive operating-system/browser zoom testing.
+A repository check rejects undefined shared CSS tokens, including the original
+build-stamp token defect. The ops help command now succeeds without installation,
+with a regression for help and unknown-operation exit status.
+
+The initial screenshot walk passed 150 checks and failed three desktop Devices
+captures before the UI migration. Review of its phone sign-in, organisation,
+event and directory captures confirmed the baseline spacing/control differences.
+The expanded walk now includes Teams, Game, Player, Places, Manage and Watch,
+and uses 1440px desktop plus 390px phone views in all three locales. Its role
+contexts now close even on failure, retaining usable traces. Desktop Devices
+capture remains under investigation; successful mobile captures do not prove it.
+
+The browser-isolation edits present before this task remain separate work.
+During verification, lint could not import their Playwright config because it
+required a run ID at import time. Removed that import-time check in the working
+tree: migration and Vite still validate storage before starting. This correction
+belongs with the pending isolation change. Successful screenshot runs have
+reported session cleanup and isolated storage removal; this does not establish
+the broader developer-session preservation acceptance for that work.
+
+Final application verification: `bun run check` passed **851
+unit/repository/Worker checks and 312 rendering checks**. The subsequent
+`bun run test:e2e -- --reporter=line` passed **all 49 checks**, zero retries,
+including session teardown and isolated storage removal. The first browser run
+found stale organisation/device selectors and loss of the specific 404 state;
+both were corrected and the entire suite rerun. A final review also caught
+the sign-in-link return context; the shared builder and its regression were
+added before this final gate and browser pass.
+
+Logs are retained in the ignored repository test-output directory as
+`.playwright/gui-consistency-check.log` and `.playwright/gui-consistency-e2e.log`.
+The full screenshot command is **not** verified: desktop Devices repeatedly
+stalls after the trace shows loaded rows and fonts. Waiting for device content,
+foregrounding and disabling animation did not resolve it. Its trace is now
+retained on failure. This is the next capture fix in the docs index, not a
+claim of a font/data defect or a reason to increase timeouts. Shared Chrome
+was visually inspected on phone and desktop; its pointer stability wait also
+timed out, so interaction acceptance comes from the normal pointer/keyboard
+rendering and E2E journeys above. Existing bundle-size and deprecated build-option
+warnings remain in their previous register.
+
+Final visual pass: `bun run shots -- --grep-invert 'devices.*desktop'` passed
+**186 checks** (183 captures plus setup/authentication/teardown), zero retries,
+with session cleanup and isolated storage removal. This explicitly excludes
+the three known failing desktop Devices captures; it does not hide or fix them.
+Reviewed the resulting phone organisation/sign-in forms, Thai team directory,
+Japanese game details and desktop management/admin views. Headers align, native
+selects have usable height, Save has the shared primary treatment and Delete
+retains its destructive treatment. The captures and companion text are under
+`screenshots/`; the run log is `.playwright/gui-consistency-shots.log`.

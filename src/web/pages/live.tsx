@@ -1,8 +1,9 @@
+import { QueryError } from "../components/query-error";
 import { GameSummary } from "../components/game-summary";
 import { Can } from "../components/can";
 import { Icon } from "../components/icon";
 import { useLiveGames } from "../lib/data";
-import type { Route } from "../lib/router";
+import { routeHref } from "../lib/router";
 import { m } from "../lib/i18n";
 
 /**
@@ -21,7 +22,6 @@ import { m } from "../lib/i18n";
  */
 
 interface LiveProps {
-  goto: (r: Route) => void;
   spoiler: boolean;
   setSpoiler: (fn: boolean | ((prev: boolean) => boolean)) => void;
 }
@@ -33,8 +33,9 @@ interface LiveProps {
  * hides the score and nothing else — a reader who came for the fixture still
  * gets it.
  */
-export function LivePage({ goto, spoiler, setSpoiler }: LiveProps) {
-  const { data, isPending } = useLiveGames();
+export function LivePage({ spoiler, setSpoiler }: LiveProps) {
+  const liveQuery = useLiveGames();
+  const { data, isPending } = liveQuery;
   const games = data?.games ?? [];
 
   return (
@@ -45,6 +46,7 @@ export function LivePage({ goto, spoiler, setSpoiler }: LiveProps) {
       </div>
 
       <div className="page-inner">
+        <QueryError error={liveQuery.error} retry={liveQuery.refetch} pending={liveQuery.isFetching} />
         <div className="spoiler-bar">
           <span>
             <Icon name={spoiler ? "eyeoff" : "eye"} /> &nbsp;
@@ -69,7 +71,7 @@ export function LivePage({ goto, spoiler, setSpoiler }: LiveProps) {
         </div>
 
         {isPending && <div className="empty">{m.loading()}</div>}
-        {!isPending && games.length === 0 && (
+        {!isPending && !liveQuery.error && games.length === 0 && (
           <div className="empty" data-testid="no-live-games">
             {m.no_live_games()}
           </div>
@@ -77,7 +79,7 @@ export function LivePage({ goto, spoiler, setSpoiler }: LiveProps) {
 
         {/* `live-list` is what gives these rows their own grid — see the note
             on `.live-list .fixture-row` in styles.css. */}
-        <div className="dash-card live-list" data-testid="live-list">
+        <div className="panel-list live-list" data-testid="live-list">
           {games.map((g) => (
             <div key={g.id} className="fixture-row live" data-testid={`live-${g.id}`}>
               <GameSummary game={g} showEvent/>
@@ -101,23 +103,23 @@ export function LivePage({ goto, spoiler, setSpoiler }: LiveProps) {
                     on a game nobody is broadcasting is a link to a black
                     rectangle, which is how this feature earns a reputation. */}
                 {g.isBroadcasting && (
-                  <button
+                  <a
                     className="btn primary"
-                    onClick={() => goto({ page: "watch", id: g.id })}
+                    href={routeHref({ page: "watch", id: g.id })}
                     data-testid={`watch-${g.id}`}
                   >
                     {m.video_watch()}
-                  </button>
+                  </a>
                 )}
                 {!g.isBroadcasting && (
                   <Can of={g} action="BROADCAST_GAME">
-                  <button
+                  <a
                     className="btn"
-                    onClick={() => goto({ page: "broadcast", id: g.id })}
+                    href={routeHref({ page: "broadcast", id: g.id })}
                     data-testid={`broadcast-${g.id}`}
                   >
                     {m.video_broadcast()}
-                  </button>
+                  </a>
                   </Can>
                 )}
               </div>

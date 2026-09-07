@@ -1,3 +1,4 @@
+import { routeHref } from "../lib/router";
 /**
  * The two live-video surfaces: point a camera at a game, or watch one.
  *
@@ -14,7 +15,6 @@
 
 import { GameBroadcast, GameVideo } from "../components/moq-video"
 import { useDefaultGame, useGame } from "../lib/data"
-import type { Route } from "../lib/router"
 import { m } from "../lib/i18n"
 
 /**
@@ -28,7 +28,7 @@ import { m } from "../lib/i18n"
  *
  * Polled, because the score changes while somebody is watching.
  */
-function GameHeading({ gameId, goto }: { gameId: string; goto: (r: Route) => void }) {
+function GameHeading({ gameId }: { gameId: string }) {
   const { data: game } = useGame(gameId, { refetchInterval: 10_000 })
   if (!game) return null
   const played = game.homeScore !== null && game.awayScore !== null
@@ -46,13 +46,13 @@ function GameHeading({ gameId, goto }: { gameId: string; goto: (r: Route) => voi
         )}
         <span className="status">{game.statusLabel}</span>
         {/* Not a dead end: back to the event this game belongs to. */}
-        <button
+        <a
           className="more"
-          onClick={() => goto({ page: "event", id: game.eventId })}
+          href={routeHref({ page: "event", id: game.eventId })}
           data-testid="video-event-link"
         >
           {m.view_schedule()}
-        </button>
+        </a>
       </div>
     </>
   )
@@ -62,21 +62,19 @@ function Shell({
   gameId,
   heading,
   children,
-  goto,
 }: {
   gameId: string
   heading: string
   children: React.ReactNode
-  goto: (r: Route) => void
 }) {
   return (
     <>
       <div className="page-header">
-        <button className="crumbs" onClick={() => goto({ page: "game", id: gameId })} data-testid="video-back">
+        <a className="crumbs" href={routeHref({ page: "game", id: gameId })} data-testid="video-back">
           ← {m.games()}
-        </button>
+        </a>
         <h1>{heading}</h1>
-        <GameHeading gameId={gameId} goto={goto} />
+        <GameHeading gameId={gameId} />
       </div>
       <div className="page-inner">{children}</div>
     </>
@@ -95,34 +93,34 @@ function useGameId(id: string | undefined) {
   return { gameId: id ?? fallback?.id, resolving: !id && isPending }
 }
 
-function Empty({ goto }: { goto: (r: Route) => void }) {
+function Empty() {
   return (
     <div className="empty" data-testid="video-no-game">
       <p>{m.video_no_game()}</p>
-      <button onClick={() => goto({ page: "live" })}>{m.nav_live()}</button>
+      <a href={routeHref({ page: "live" })}>{m.nav_live()}</a>
     </div>
   )
 }
 
 /** Point a camera at an authorized fixture. */
-export function BroadcastPage({ id, goto }: { id?: string; goto: (r: Route) => void }) {
+export function BroadcastPage({ id }: { id?: string }) {
   const { gameId, resolving } = useGameId(id)
   if (resolving) return <div className="empty">{m.loading()}</div>
-  if (!gameId) return <Empty goto={goto} />
+  if (!gameId) return <Empty />
   return (
-    <Shell gameId={gameId} heading={m.video_broadcast_heading()} goto={goto}>
+    <Shell gameId={gameId} heading={m.video_broadcast_heading()}>
       <GameBroadcast gameId={gameId} />
     </Shell>
   )
 }
 
 /** @answers VIEW_LIVE_STREAM */
-export function WatchPage({ id, goto }: { id?: string; goto: (r: Route) => void }) {
+export function WatchPage({ id }: { id?: string }) {
   const { gameId, resolving } = useGameId(id)
   if (resolving) return <div className="empty">{m.loading()}</div>
-  if (!gameId) return <Empty goto={goto} />
+  if (!gameId) return <Empty />
   return (
-    <Shell gameId={gameId} heading={m.video_watch_heading()} goto={goto}>
+    <Shell gameId={gameId} heading={m.video_watch_heading()}>
       <GameVideo gameId={gameId} />
     </Shell>
   )

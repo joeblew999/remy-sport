@@ -18,6 +18,16 @@
   --accent-soft: oklch(0.94 0.04 50);
   --court: oklch(0.78 0.08 60);
   --live: oklch(0.55 0.22 25);
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --page-gutter: 32px;
+  --page-width: 1280px;
+  --radius: 6px;
+  --control-height: 44px;
   --good: oklch(0.55 0.12 145);
 }
 
@@ -121,8 +131,8 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
    "which one am I on", not something to read every day. */
 .build-stamp {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-  margin-top: 10px; font-size: 11px; font-family: var(--mono, monospace);
-  color: var(--muted);
+  margin-top: 10px; font-size: 11px; font-family: 'IBM Plex Mono', monospace;
+  color: var(--ink-3);
 }
 /* Only rendered off production, where it is the whole point. */
 .build-env {
@@ -277,8 +287,12 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   overflow-x: clip;
   padding: 0;
 }
-.page-inner { max-width: 1280px; margin: 0 auto; padding: 32px 32px 80px 32px;}
-.page-header { padding: 32px 32px 24px 32px; border-bottom: 1px solid var(--rule);}
+/* The frame owns gutters; nested sections never add another horizontal inset. */
+.page-inner { width: 100%; max-width: var(--page-width); margin: 0 auto; padding: var(--space-6) var(--page-gutter) 64px; }
+.page-inner .page-inner { padding-inline: 0; }
+.page-inner > .page-header { padding: 0 0 var(--space-6); margin-bottom: var(--space-6); }
+.page-inner .section-h { padding-inline: 0; }
+.page-header { padding: var(--space-6) max(var(--page-gutter), calc((100% - var(--page-width)) / 2 + var(--page-gutter))) var(--space-6); border-bottom: 1px solid var(--rule);}
 .page-header .crumbs {
   display: flex; align-items: center; gap: 10px;
   font-family:'IBM Plex Mono',monospace; font-size: 11px; color: var(--ink-3);
@@ -287,7 +301,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .page-header .crumbs a:hover { color: var(--ink); }
 .page-header .crumbs .sep { opacity: 0.6;}
 .page-header h1 {
-  font-family:'Space Grotesk',sans-serif; font-weight: 600; font-size: 40px; line-height: 1.05;
+  font-family:'Space Grotesk', 'Noto Sans Thai', system-ui, sans-serif; font-weight: 600; font-size: clamp(24px, 3vw, 34px); line-height: 1.15;
   letter-spacing: -0.025em;
 }
 .page-header .sub { color: var(--ink-3); font-size: 15px; margin-top: 6px;}
@@ -456,7 +470,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 }
 
 /* ---------- Event detail page ---------- */
-.event-page { --event-gutter: 32px; }
+.event-page { --event-gutter: var(--page-gutter); }
 .event-page > .page-inner { max-width: none; padding-inline: var(--event-gutter); }
 .event-page .section-h { margin-top: 20px; padding-inline: 0; }
 .event-page .dash-grid > div > .section-h:first-child { margin-top: 0; }
@@ -466,7 +480,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .event-score { font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .event-game .row-meta { margin-top: 8px; }
 .event-hero {
-  padding: 24px var(--event-gutter) 20px;
+  padding: 20px var(--event-gutter);
   border-bottom: 1px solid var(--rule);
 }
 .event-hero .meta-bar {
@@ -474,9 +488,9 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   margin-bottom: 12px; flex-wrap: wrap;
 }
 .event-hero h1 {
-  font-family:'Space Grotesk', sans-serif; font-weight: 600; font-size: clamp(28px, 2.6vw, 40px); line-height: 1.15;
+  font-family:'Space Grotesk', 'Noto Sans Thai', system-ui, sans-serif; font-weight: 600; font-size: clamp(24px, 3vw, 34px); line-height: 1.15;
   letter-spacing: -0.03em;
-  margin-bottom: 8px;
+  margin-block: 10px 6px;
 }
 .event-hero h1 em { color: var(--accent); font-style: normal;}
 .event-hero .tagline { color: var(--ink-3); font-size: 14px; line-height: 1.6; }
@@ -502,9 +516,10 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   display: flex; flex-wrap: wrap; gap: 8px;
   margin-top: 16px;
 }
-.btn {
+.btn, .form-stack button, .admin-table button {
   display: inline-flex; align-items: center; gap: 8px;
-  padding: 9px 18px;
+  justify-content: center; min-height: var(--control-height);
+  padding: var(--space-2) var(--space-4);
   border-radius: 100px;
   font-size: 13px;
   font-weight: 500;
@@ -512,10 +527,10 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   color: var(--ink-2); background: var(--paper);
   transition: all 0.12s;
 }
-.btn:hover { border-color: var(--ink-2); color: var(--ink);}
-.btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink);}
+.btn:hover, .form-stack button:hover, .admin-table button:hover { border-color: var(--ink-2); color: var(--ink);}
+.btn.primary, .form-stack button[type="submit"] { background: var(--ink); color: var(--paper); border-color: var(--ink);}
 .btn.primary:hover { background: var(--ink-2);}
-.btn.accent { background: var(--accent); color: var(--paper); border-color: var(--accent);}
+.btn.accent { background: var(--accent-deep); color: var(--paper); border-color: var(--accent-deep);}
 .btn.accent:hover { background: var(--accent-deep); border-color: var(--accent-deep);}
 
 /* tabs on event detail */
@@ -808,12 +823,12 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 
 /* ---------- Team page ---------- */
 .team-hero {
-  padding: 32px;
+  padding: var(--space-6) var(--page-gutter);
   border-bottom: 1px solid var(--rule);
-  display: grid; grid-template-columns: 120px 1fr auto; gap: 32px; align-items: center;
+  display: grid; grid-template-columns: 80px minmax(0, 1fr) auto; gap: var(--space-6); align-items: center;
 }
 .team-hero .crest {
-  width: 120px; height: 120px; border-radius: 50%;
+  width: 80px; height: 80px; border-radius: 50%;
   background: var(--accent);
   position: relative;
 }
@@ -823,7 +838,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .team-hero .crest::before { border-top: 2px solid var(--paper); border-bottom: 2px solid var(--paper); transform: scaleX(0.6);}
 .team-hero .crest::after { border-left: 2px solid var(--paper); border-right: 2px solid var(--paper); transform: scaleY(0.6);}
 .team-hero h1 {
-  font-family:'Space Grotesk',sans-serif; font-weight: 600; font-size: 44px; line-height: 1.05; letter-spacing: -0.025em;
+  font-family:'Space Grotesk', 'Noto Sans Thai', system-ui, sans-serif; font-weight: 600; font-size: clamp(24px, 3vw, 34px); line-height: 1.15; letter-spacing: -0.025em;
 }
 .team-hero .meta { color: var(--ink-3); font-size: 14px; margin-top: 6px;}
 
@@ -943,18 +958,19 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
    The narrowest column had the most to say. Settings have moved to /#/devices
    and the rest divides evenly. */
 .dash-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px;}
-.dash-card {
+.panel-list {
+  border-radius: var(--radius);
   border: 1px solid var(--rule);
   padding: 0;
   background: var(--paper);
 }
-.dash-card .head {
+.panel-list .head {
   display: flex; justify-content: space-between; align-items: baseline;
   padding: 14px 18px;
   border-bottom: 1px solid var(--rule);
   font-family:'IBM Plex Mono',monospace; font-size: 11px; color: var(--ink-3); letter-spacing: 0.14em; text-transform: uppercase;
 }
-.dash-card .head .more { color: var(--ink-3); font-size: 11px; }
+.panel-list .head .more { color: var(--ink-3); font-size: 11px; }
 
 .next-game {
   padding: 22px 24px;
@@ -1009,7 +1025,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
    character per line. */
 .standing-row.full { grid-template-columns: 40px 1fr 50px 50px 70px 70px 70px 60px; }
 .standing-row.head {
-  /* Keep headings on the same tracks as the rows, overriding .dash-card .head. */
+  /* Keep headings on the same tracks as the rows, overriding .panel-list .head. */
   display: grid;
   font-family:'IBM Plex Mono',monospace; font-size: 10px; color: var(--ink-3); letter-spacing: 0.12em; text-transform: uppercase;
 }
@@ -1180,12 +1196,10 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 /* ─── Tablet: ≤ 1024px ─── */
 @media (max-width: 1024px) {
   .app { grid-template-columns: 220px 1fr; }
-  .page-inner { padding: 24px 24px 64px; }
-  .page-header { padding: 24px 24px 18px; }
+  :root { --page-gutter: 24px; }
   .dash-grid { grid-template-columns: minmax(0, 1fr); gap: 24px; }
   .live-side-grid { grid-template-columns: 1fr; }
   .roster-grid { grid-template-columns: repeat(2, 1fr); }
-  .event-page { --event-gutter: 24px; }
   .topbar .install-btn { display: none; }
   /* Keep the avatar and the sign-out control; the name is the expendable part. */
   .account-meta { display: none; }
@@ -1224,9 +1238,8 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   .menu-btn { min-width: 36px; min-height: 36px; }
 
   /* Page layout */
-  .page-inner { padding: 16px 14px 56px; }
-  .page-header { padding: 16px 14px 14px; }
-  .page-header h1 { font-size: clamp(28px, 6vw, 38px); line-height: 1.1; }
+  :root { --page-gutter: 14px; }
+  .page-header h1 { font-size: clamp(24px, 6vw, 32px); }
 
   /* Discover toolbar wraps; tables become scrollable cards */
   .discover-toolbar { flex-direction: column; align-items: stretch; gap: 12px; padding: 12px 14px; }
@@ -1366,9 +1379,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   .live-header { flex-direction: column; align-items: flex-start; gap: 8px; }
 
   /* Event hero */
-  .event-page { --event-gutter: 14px; }
-  .event-hero { padding: 18px 14px; }
-  .event-hero h1 { font-size: clamp(24px, 6vw, 36px); }
+  .event-hero { padding: var(--space-4) var(--event-gutter); }
   .event-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0; }
   .event-stats .stat-cell:nth-child(n+3) { border-top: 1px solid var(--rule); padding-top: 12px; margin-top: 6px; }
   .stat-cell { border-right: none !important; padding: 8px 0 !important; }
@@ -1403,12 +1414,12 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   .next-game .when .countdown { font-size: 24px; }
 
   /* Team hero: stack */
-  .team-hero { grid-template-columns: 1fr; gap: 16px; padding: 18px 14px; }
+  .team-hero { grid-template-columns: 1fr; gap: var(--space-4); padding: var(--space-4) var(--page-gutter); }
   .team-hero h1 { font-size: clamp(24px, 6vw, 32px); }
 
   /* Section headings */
   .section-h { padding: 16px 14px 8px; }
-  .dash-card { margin: 0 14px; border-radius: 10px; }
+
 }
 
 /* ─── Touch-target safety: bump small buttons everywhere on coarse pointers ─── */
@@ -1431,13 +1442,13 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .dev-account-row .btn:hover { background: var(--paper-2); color: var(--ink); }
 
 /* ---------- Devices (where you're signed in) ---------- */
-.device-row {
+.entity-row {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   padding: 14px 18px; border-bottom: 1px solid var(--rule);
 }
-.device-row:last-child { border-bottom: none; }
-.device-label { font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
-.device-meta {
+.entity-row:last-child { border-bottom: none; }
+.entity-label { font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+.entity-meta {
   font-family: 'IBM Plex Mono', monospace; font-size: 11px;
   color: var(--ink-3); letter-spacing: 0.04em; margin-top: 3px;
 }
@@ -1454,23 +1465,25 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
    the same affordances against this design system's tokens instead. The
    `badge-success` name is load-bearing: tests/authz.spec.ts asserts it on the
    permission grid for all six roles. */
-.admin { display: flex; flex-direction: column; gap: 16px; }
-.admin-card {
-  background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 16px;
+.admin { display: flex; flex-direction: column; gap: var(--space-4); }
+.admin > .panel + .panel { margin-top: 0; }
+.panel {
+  background: var(--paper); border: 1px solid var(--rule); border-radius: var(--radius); padding: var(--space-4);
 }
-.admin-card.dim { opacity: 0.55; }
-.admin-card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); margin: 0 0 10px; }
-.admin-card .muted { color: var(--ink-3); }
-.admin-card .small { font-size: 12px; }
+.panel + .panel { margin-top: var(--space-4); }
+.panel.dim { opacity: 0.55; }
+.panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); margin: 0 0 10px; }
+.panel .muted { color: var(--ink-3); }
+.panel .small { font-size: 12px; }
 .admin-banner {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   background: var(--accent-soft); border: 1px solid var(--court); border-radius: 6px; padding: 10px 14px;
 }
-.admin-error, .admin-ok {
+.feedback-error, .feedback-success {
   border-radius: 6px; padding: 8px 12px; font-size: 13px; margin-bottom: 10px;
 }
-.admin-error { background: var(--accent-soft); color: var(--accent-deep); border: 1px solid var(--live); }
-.admin-ok { background: var(--paper-2); color: var(--good); border: 1px solid var(--good); }
+.feedback-error { background: var(--accent-soft); color: var(--accent-deep); border: 1px solid var(--live); }
+.feedback-success { background: var(--paper-2); color: var(--good); border: 1px solid var(--good); }
 .admin-perms { display: flex; gap: 6px; flex-wrap: wrap; }
 .badge {
   display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: 12px;
@@ -1486,12 +1499,9 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   color: var(--ink-4); border-bottom: 1px solid var(--rule); padding: 6px 8px;
 }
 .admin-table td { padding: 8px; border-bottom: 1px solid var(--rule); vertical-align: middle; }
-.admin-table button {
-  font-size: 12px; padding: 3px 10px; border-radius: 100px;
-  border: 1px solid var(--rule); background: var(--paper); cursor: pointer; margin-right: 4px;
-}
-.admin-table button.danger { color: var(--live); border-color: var(--live); }
-.admin-table select { font-size: 12px; padding: 2px 6px; border: 1px solid var(--rule); border-radius: 4px; }
+.admin-table button { margin-right: var(--space-1); }
+.btn.danger, .form-stack button.danger, .admin-table button.danger { color: var(--live); border-color: var(--live); }
+
 
 /* ─── Mobile data tables: ≤ 768px ───
    Deliberately here and not in the ≤768px block above, which sits ~180 lines
@@ -1563,13 +1573,33 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
     margin-bottom: 0;
   }
 }
-.admin-form { display: flex; flex-direction: column; gap: 8px; max-width: 420px; }
-.admin-form input, .admin-form select {
-  padding: 8px 10px; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper);
+/* Forms share fields and actions with filters, score entry and account settings. */
+.form-stack { display: flex; flex-direction: column; gap: var(--space-2); width: 100%; max-width: 420px; }
+.form-stack label:has(select, input:not([type="checkbox"]):not([type="radio"]), textarea) { display: flex; flex-direction: column; gap: var(--space-1); }
+:where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea) {
+  min-height: var(--control-height); min-width: 0; max-width: 100%;
+  padding: var(--space-2) var(--space-3); border: 1px solid var(--rule-2);
+  border-radius: var(--radius); background: var(--paper); line-height: 1.5;
 }
-.admin-form button {
-  padding: 8px 18px; border-radius: 100px; border: none;
-  background: var(--accent); color: var(--paper); cursor: pointer;
+.form-stack :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { width: 100%; }
+/* Safari's native menu ignores min-height; an explicit height keeps filters
+   and form selects at the same touch size as text fields. */
+select { height: var(--control-height); }
+.form-stack textarea { min-height: 96px; resize: vertical; }
+.form-stack [aria-invalid="true"] { border-color: var(--live); }
+.form-stack > button { align-self: flex-start; }
+.login-code { letter-spacing: 0.4em; text-align: center; font-size: 18px; }
+:where(button, a, input, select, textarea, summary):focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 3px; }
+:where(button, input, select, textarea):disabled { opacity: 0.6; cursor: not-allowed; }
+.query-error { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-block: var(--space-4); }
+.query-error p { flex: 1 1 240px; }
+.entity-row > * { min-width: 0; }
+.entity-row > :first-child { overflow-wrap: anywhere; }
+.entity-row > .btn { flex-shrink: 0; }
+.muted { color: var(--ink-3); }
+.small { font-size: 12px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
 .admin-switcher { display: flex; gap: 6px; flex-wrap: wrap; }
 .admin-switcher button {
@@ -1723,10 +1753,10 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 }
 
 /* Sub-headings inside a card.
-   `.admin-card h2` is 13px uppercase grey; h3 had no rule at all, so every
+   `.panel h2` is 13px uppercase grey; h3 had no rule at all, so every
    sub-heading rendered at the browser default — larger and blacker than the
    section title above it, which read as three separate cards run together. */
-.admin-card h3 {
+.panel h3 {
   font-size: 12px; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.06em;
   color: var(--ink-3);
@@ -1771,13 +1801,11 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 /* A box score expands below its fixture, including on a narrow phone. */
 .schedule-game { flex-wrap: wrap; }
 .game-box-score { flex: 1 0 100%; min-width: 0; }
-.game-box-score .admin-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.game-box-score .form-stack { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .game-box-score h3, .game-box-score [role] { grid-column: 1 / -1; }
 .game-box-score input { width: 100%; box-sizing: border-box; }
 
 /* Connected competition views: shared game identity and compact local navigation. */
-.event-hero { padding-block: 20px; }
-.event-hero h1 { font-size: clamp(24px, 3vw, 34px); margin-block: 10px 6px; }
 .event-hero .event-actions { margin-top: 12px; gap: 8px; }
 .detail-tabs a.tab { text-decoration: none; color: inherit; }
 .event-filters { padding: 16px var(--event-gutter); border-bottom: 1px solid var(--rule); display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
@@ -1787,11 +1815,11 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .game-group h2 { margin: 0 0 12px; font-size: 18px; }
 .game-summary { min-width: 0; }
 .game-summary > a { display: block; width: fit-content; }
-.game-summary .device-label { font-weight: 600; text-decoration: none; color: var(--ink); }
-.game-summary .device-meta { margin-top: 4px; }
+.game-summary .entity-label { font-weight: 600; text-decoration: none; color: var(--ink); }
+.game-summary .entity-meta { margin-top: 4px; }
 .game-summary a:hover, .competition-table a:hover { text-decoration: underline; }
 .game-team-links { display: flex; flex-wrap: wrap; gap: 8px; font-weight: 600; }
-.game-page h1 { font-size: clamp(24px, 3vw, 32px); margin-block: 20px; }
+
 .game-page .crumbs { line-height: 1.7; }
 .schedule-game > div { min-width: 0; }
 .schedule-game > div:last-child { flex-wrap: wrap; }
@@ -1803,7 +1831,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .court-game { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--rule); }
 .event-places .game-group { padding: 16px; }
 .event-places .game-group h3 { margin-bottom: 12px; }
-.event-page a:focus-visible, .game-page a:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+
 @media (max-width: 600px) {
   .event-hero { padding-block: 14px; }
   .event-filters label { width: 100%; }
@@ -1818,7 +1846,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .fixture-row:has(> .game-summary) > .result { grid-area: auto; grid-column: 2; grid-row: 1; }
 .fixture-row:has(> .game-summary) > .outcome { grid-area: auto; grid-column: 3; grid-row: 1; }
 .fixture-row > .live-actions { grid-column: 1 / -1; }
-.game-summary .device-meta { font-size: 12px; line-height: 1.6; }
+.game-summary .entity-meta { font-size: 12px; line-height: 1.6; }
 @media (max-width: 600px) {
   .fixture-row:has(> .game-summary) > .game-summary { grid-column: 1 / -1; }
   .fixture-row:has(> .game-summary) > .result { grid-column: 2; grid-row: 2; }
@@ -1828,3 +1856,5 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   .competition-table th:nth-child(7), .competition-table td:nth-child(7) { display: none; }
   .competition-table th, .competition-table td { padding: 10px 6px; }
 }
+
+fieldset { border: 0; min-width: 0; }

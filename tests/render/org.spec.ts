@@ -51,10 +51,10 @@ test.describe("The organisation list", () => {
     // City and kind, in the reader's language. The second line was the slug —
     // "assumption-college", in monospace — which is an identifier, not a fact
     // about the school.
-    await expect(row.locator(".device-meta")).toHaveText("Bangkok · School")
+    await expect(row.locator(".entity-meta")).toHaveText("Bangkok · School")
     await expect(row).not.toContainText("assumption-college")
     // Everyone's list opens a school; only "Your organisations" manages one.
-    await expect(row.getByRole("button")).toHaveText("Open")
+    await expect(row.getByRole("link")).toHaveText("Open")
   })
 
   test("says so when there are none, rather than rendering an empty box", async ({ page }) => {

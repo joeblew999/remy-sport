@@ -1,5 +1,5 @@
 import { useSession, useSignOut } from "../lib/session";
-import type { Route } from "../lib/router";
+import { parseRoute, signInRoute, routeHref } from "../lib/router";
 import { m } from "../lib/i18n";
 import { useCan } from "../lib/data";
 import { useState, useEffect } from "react";
@@ -37,7 +37,7 @@ export function initialsFor(label: string): string {
  *
  * The other half — signing out.
  */
-export function Account({ goto }: { goto: (r: Route) => void }) {
+export function Account() {
   const { user, loading } = useSession();
   const { data: canAdmin } = useCan("MANAGE_ALL_USERS");
 
@@ -73,9 +73,9 @@ export function Account({ goto }: { goto: (r: Route) => void }) {
 
   if (!user) {
     return (
-      <button className="btn primary" data-testid="topbar-sign-in" onClick={() => goto({ page: "login" })}>
+      <a className="btn primary" data-testid="topbar-sign-in" href={routeHref(signInRoute(parseRoute(window.location.hash)))}>
         {m.sign_in()}
-      </button>
+      </a>
     );
   }
 
@@ -125,13 +125,13 @@ export function Account({ goto }: { goto: (r: Route) => void }) {
         </button>
       )}
       {canAdmin && (
-        <button className="btn" data-testid="topbar-admin" onClick={() => goto({ page: "admin" })}>
+        <a className="btn" data-testid="topbar-admin" href={routeHref({ page: "admin" })}>
           {m.nav_admin()}
-        </button>
+        </a>
       )}
-      <button className="btn" data-testid="topbar-devices" onClick={() => goto({ page: "devices" })}>
+      <a className="btn" data-testid="topbar-devices" href={routeHref({ page: "devices" })}>
         {m.devices()}
-      </button>
+      </a>
       <button className="btn" data-testid="topbar-sign-out" onClick={() => signOut.mutate()}>
         {m.sign_out()}
       </button>

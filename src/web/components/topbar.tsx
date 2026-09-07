@@ -1,6 +1,5 @@
 import { Icon } from "./icon";
 import { Account } from "./account";
-import type { Route } from "../lib/router";
 import { useLocale } from "../lib/locale";
 import { m } from "../lib/i18n";
 
@@ -8,7 +7,6 @@ interface Props {
   spoiler: boolean;
   setSpoiler: (fn: boolean | ((prev: boolean) => boolean)) => void;
   onMenu?: () => void;
-  goto: (r: Route) => void;
 }
 
 /**
@@ -18,7 +16,7 @@ interface Props {
  * who is about to open a result can turn it on before they do rather than
  * after.
  */
-export function Topbar({ spoiler, setSpoiler, onMenu, goto }: Props) {
+export function Topbar({ spoiler, setSpoiler, onMenu }: Props) {
   const { locale, setLocale, available } = useLocale();
   return (
     <header className="topbar">
@@ -63,7 +61,7 @@ export function Topbar({ spoiler, setSpoiler, onMenu, goto }: Props) {
           in the chrome would be a second, worse answer: always visible, correct
           only sometimes, and unable to tell whether the app is already
           installed. */}
-      <Account goto={goto}/>
+      <Account/>
     </header>
   );
 }

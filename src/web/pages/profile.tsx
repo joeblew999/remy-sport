@@ -3,7 +3,7 @@ import { PlatformCan } from "../components/can";
 import { useSession } from "../lib/session";
 import { WhoAreYou } from "../components/who-are-you";
 import { YourPlayers } from "../components/your-players";
-import type { Route } from "../lib/router";
+import { parseRoute, signInRoute, routeHref, type Route } from "../lib/router";
 import { m } from "../lib/i18n";
 import { useLocale } from "../lib/locale";
 import { STORED_ROLE } from "../../domain/vocabularies";
@@ -38,27 +38,27 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
 
       {!user && !loading && (
         <div className="page-inner">
-          <div className="dash-card" data-testid="profile-signin">
+          <div className="panel-list" data-testid="profile-signin">
             <div className="push-note">{m.profile_signed_out_why()}</div>
-            <button
+            <a
               className="btn primary"
               data-testid="profile-signin-button"
-              onClick={() => goto({ page: "login" })}
+              href={routeHref(signInRoute(parseRoute(window.location.hash)))}
             >
               {m.sign_in()}
-            </button>
+            </a>
           </div>
         </div>
       )}
 
       {user && (
         <div className="page-inner" data-testid="profile">
-          <section className="admin-card" data-testid="profile-identity">
+          <section className="panel" data-testid="profile-identity">
             <h2>{m.profile_account()}</h2>
             <p>{user.email}</p>
             <p>{roleCode ? label("roles", roleCode) : user.role}</p>
             {user.statusCode && <p>{label("userStatuses", user.statusCode)}</p>}
-            <button className="btn" onClick={() => goto({ page: "home" })}>{m.profile_responsibilities()}</button>
+            <a className="btn" href={routeHref({ page: "home" })}>{m.profile_responsibilities()}</a>
             <PlatformCan action="CREATE_PLAYER"><NewPlayer onCreated={(id) => goto({ page: "player", id })} /></PlatformCan>
           </section>
           <WhoAreYou />

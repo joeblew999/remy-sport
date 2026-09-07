@@ -48,7 +48,7 @@ function PlayerLine({ line }: { line: Line }) {
     ["points", m.stat_points()], ["rebounds", m.stat_rebounds()],
     ["assists", m.stat_assists()], ["fouls", m.stat_fouls()],
   ] as const;
-  return <form className="admin-form" data-testid={`stat-line-${line.playerId}`} onSubmit={(e) => {
+  return <form className="form-stack" data-testid={`stat-line-${line.playerId}`} onSubmit={(e) => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     const value = (field: string) => form.get(field) === "" ? null : Number(form.get(field));
@@ -62,6 +62,6 @@ function PlayerLine({ line }: { line: Line }) {
     </label>)}
     <button type="submit" disabled={save.isPending}>{save.isPending ? m.org_saving() : m.org_save()}</button>
     {save.isSuccess && <p role="status">{m.game_box_score_saved()}</p>}
-    {err.form && <p role="alert" className="admin-error small">{err.form}</p>}
+    {err.form && <p role="alert" className="feedback-error small">{err.form}</p>}
   </form>;
 }

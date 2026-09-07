@@ -36,7 +36,7 @@ export function EventVenues({ eventId, venueId }: { eventId: string; venueId?: s
   }, [venueId, isPending]);
   return (
     <div className="page-inner">
-      <div className="dash-card" data-testid="event-venues">
+      <div className="panel-list" data-testid="event-venues">
         {isPending && <div className="empty">{m.loading()}</div>}
         {!isPending && rows.length === 0 && (
           <div className="empty" data-testid="event-venues-empty">{m.event_venues_none()}</div>

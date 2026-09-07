@@ -37,14 +37,14 @@ export function CreateEvent({ onError, onCreated }: { onError?: (m: string | nul
   const createErr = formErrors(create.error, ["names[en]", "description"]);
 
   return (
-    <section className="admin-card" data-testid="create-event-form">
+    <section className="panel" data-testid="create-event-form">
       <h2>{m.create_event()}</h2>
-      {done && <div className="admin-ok">{m.event_created()}</div>}
+      {done && <div className="feedback-success" role="status">{m.event_created()}</div>}
       {createErr.form && (
-        <div className="admin-error" data-testid="create-event-error">{createErr.form}</div>
+        <div className="feedback-error" data-testid="create-event-error" role="alert">{createErr.form}</div>
       )}
       <form
-        className="admin-form"
+        className="form-stack"
         onSubmit={(e) => {
           e.preventDefault();
           const f = new FormData(e.currentTarget);
@@ -56,12 +56,13 @@ export function CreateEvent({ onError, onCreated }: { onError?: (m: string | nul
 
         }}
       >
-        <input name="name" aria-label={m.event_name_label()} placeholder={m.event_name_placeholder()} required autoComplete="off" />
+        <label htmlFor="create-event-name-en">{m.event_name_label()}</label>
+        <input id="create-event-name-en" name="name" aria-invalid={!!createErr.field("names[en]")} aria-describedby={createErr.field("names[en]") ? "create-event-name-issue" : undefined} placeholder={m.event_name_placeholder()} required autoComplete="off" />
         <NameTranslations names={{}} id="create-event-name" />
         {/* The schema's own message, under the field it belongs to — `names` is
             a locale map, so an issue on the English name arrives at names.en. */}
         {createErr.field("names[en]") && (
-          <p className="admin-error small" data-testid="create-event-name-issue">
+          <p className="feedback-error small" id="create-event-name-issue" data-testid="create-event-name-issue" role="alert">
             {createErr.field("names[en]")}
           </p>
         )}
@@ -74,8 +75,9 @@ export function CreateEvent({ onError, onCreated }: { onError?: (m: string | nul
             it matched no option and the browser fell back to whichever sorts
             first. It happened to be the right one. Controlled now, because the
             description below has to follow the selection anyway. */}
+        <label htmlFor="create-event-type">{m.event_type()}</label>
         <select
-          aria-label={m.event_type()}
+          id="create-event-type"
           name="type"
           required
           value={type}
@@ -98,9 +100,10 @@ export function CreateEvent({ onError, onCreated }: { onError?: (m: string | nul
             {describe("eventTypes", type)}
           </p>
         )}
-        <input name="description" placeholder={m.event_description_placeholder()} autoComplete="off" />
+        <label htmlFor="create-event-description">{m.description()}</label>
+        <input id="create-event-description" aria-invalid={!!createErr.field("description")} aria-describedby={createErr.field("description") ? "create-event-description-issue" : undefined} name="description" placeholder={m.event_description_placeholder()} autoComplete="off" />
         {createErr.field("description") && (
-          <p className="admin-error small" data-testid="create-event-description-issue">
+          <p className="feedback-error small" id="create-event-description-issue" data-testid="create-event-description-issue" role="alert">
             {createErr.field("description")}
           </p>
         )}
