@@ -113,7 +113,11 @@ build stamp do not move.
       rules, and the stale harness note in `components/account.tsx`. The
       dead-class rule in `tests/repo/styles.test.ts` fails if anything is left
       behind. Proof: that test passes.
-- [ ] **Gate and captures.** `bun run check`, then
+- [x] **Gate and captures.** Done 2026-09-08 as the design-system plan's
+      step 14: `bun run check` 898 + 334, e2e 49, 222 captures in light and
+      dark; the phone captures for the admin, a coach and a visitor are under
+      `screenshots/mobile/`. The Product Owner's look is theirs. As planned:
+      `bun run check`, then
       `bun run shots -- --grep-invert 'devices.*desktop'`. Review the phone
       captures for the admin, a coach and a visitor on Discover, an event page
       and the sign-in page, in EN, TH and JA. Proof: counts in the log, and

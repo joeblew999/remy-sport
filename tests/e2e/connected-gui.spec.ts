@@ -29,7 +29,7 @@ test.describe("Connected signed-in journeys", () => {
   test.use({ storageState: stateFor(COACH) })
   test("game → team → player and back; team section is a real URL", async ({ page }) => {
     await page.goto("/#/game/gam_002")
-    await page.locator('.game-team-links a[href="#/team/team_001"]').click()
+    await page.getByTestId("game-team-links").locator('a[href="#/team/team_001"]').click()
     await page.getByRole("link", { name: "Roster", exact: true }).click()
     await expect(page).toHaveURL(/#\/team\/team_001\?section=roster$/)
     const player = page.locator('[data-testid^="open-player-"]').first()

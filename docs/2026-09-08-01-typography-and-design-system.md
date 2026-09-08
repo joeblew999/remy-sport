@@ -1,11 +1,12 @@
 # Plan — convert the GUI to shadcn
 
-Status, 2026-09-08: the whole GUI is on shadcn. Done and committed: Stage A
-(readable type), B1 (the tooling), B2 step 8 (the shell, `d2ae514`), step 9
-(the forms, `b97f92f`), and steps 10 to 13 (every list, table, card, page
-frame, dialog and input, and the removal of our own tokens for the preset's
-— `00286b2`, `4f964f1`, `228a3c3`). Next: step 14, the one full gate, the
-end-to-end tier, the captures, and the Product Owner's review.
+Status, 2026-09-08: the whole GUI is on shadcn, and the gate is green. Done
+and committed: Stage A (readable type), B1 (the tooling), B2 step 8 (the
+shell, `d2ae514`), step 9 (the forms, `b97f92f`), steps 10 to 13 (every
+list, table, card, page frame, dialog and input, and the removal of our own
+tokens for the preset's — `00286b2`, `4f964f1`, `228a3c3`, `7461a5a`) and
+step 14 (the full gate 898 + 334, e2e 49, 222 captures). Open: the Product
+Owner's review of the captures.
 
 ## The rule
 
@@ -177,11 +178,23 @@ commits and are ticked together.
       nothing hardcodes a light colour. The allowlists in
       `tests/repo/styles.test.ts` are empty and the rules stay to keep them
       that way.
-- [ ] **14. Full gate and visual record.** `bun run check`,
-      `bun run test:e2e`, `bun run shots -- --grep-invert 'devices.*desktop'`,
-      counts recorded here; Product Owner review of Discover, an event,
-      sign-in and the admin console on a phone and a desktop, in EN, TH and
-      JA, light and dark.
+- [x] **14. Full gate and visual record.** Done 2026-09-08. `bun run check`
+      green: typecheck, lint, build, the model check, **898
+      unit/repository/Worker checks and 334 rendering checks**.
+      `bun run test:e2e`: **49 passed** with session cleanup (a first run
+      lost one admin sign-in to a cold-start timeout and two specs to
+      class locators, fixed; the clean rerun is the count).
+      `bun run shots -- --grep-invert 'devices.*desktop'`: **222 captures**,
+      light and dark, EN, TH and JA, under `screenshots/`. Looked at
+      Discover in both themes, the game page, the Thai phone schedule, the
+      phone sign-in and the phone admin console. One defect found and fixed:
+      the admin Events table's description column wrapped one word per line
+      on a phone and pushed Delete off the screen; it is a desktop column
+      now. Dark mode has no light islands.
+- [ ] **Product Owner review** of Discover, an event, sign-in and the admin
+      console on a phone and a desktop, in EN, TH and JA, light and dark.
+      Four captures were sent on 2026-09-08; the rest are under
+      `screenshots/`. The answer is theirs.
 
 **Parked:** our own registry (a manifest naming the game summary row, score
 entry and the standings table) waits until a second repository wants the
@@ -223,5 +236,7 @@ gate is green once and the captures are reviewed in light and dark.
 - 2026-09-08 — steps 10 to 13 done on "OK GET IT DONE", by surface, in three
   commits (`00286b2`, `4f964f1`, `228a3c3`). Two defects found on the way and
   fixed: the Follow button still wore the `.btn` class step 9 had deleted,
-  and the universal reset cancelled every margin and padding utility. Next:
-  step 14.
+  and the universal reset cancelled every margin and padding utility.
+- 2026-09-08 — step 14 done: `bun run check` 898 + 334, e2e 49, 222
+  captures in light and dark. The phone drawer is our own labelled Sheet
+  (`7461a5a`). Open: the Product Owner's review.

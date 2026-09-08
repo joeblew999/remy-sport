@@ -8,13 +8,14 @@ reinvented wheels, and their theme, not ours. Done and committed: Stage A,
 B1 (shadcn's setup, the lock, the MCP server), the shell, the forms, and on
 the same day every list, table, card, page frame, dialog and input, with our
 own tokens removed for the preset's (`d2ae514`, `b97f92f`, `00286b2`,
-`4f964f1`, `228a3c3`). The stylesheet is shadcn's output plus three rules
-that say why. Next: step 14 — the one full gate, the end-to-end tier, the
-captures, and the Product Owner's review.
+`4f964f1`, `228a3c3`, `7461a5a`). The stylesheet is shadcn's output plus
+three rules that say why. The gate is green: 898 unit/repository/Worker
+checks, 334 rendering checks, 49 end-to-end checks with cleanup, 222
+captures in light and dark. Open: the Product Owner's review of the
+captures under `screenshots/`.
 
-[The top of the page on a phone](2026-09-08-02-mobile-top-of-page.md): steps
-1 to 6 are delivered by the shadcn plan and ticked; its gate is the shadcn
-plan's step 14.
+[The top of the page on a phone](2026-09-08-02-mobile-top-of-page.md) is
+complete: every step is delivered by the shadcn plan and ticked.
 
 [GUI consistency plan](2026-09-07-06-gui-consistency.md) records the latest completed GUI work.
 Status: implemented and verified locally, with a desktop Devices screenshot
@@ -90,7 +91,7 @@ Official host setup: <https://learn.chatgpt.com/docs/extend/mcp?surface=cli>.
 
 | Priority / state | Work | Where to continue |
 | --- | --- | --- |
-| Next: shadcn step 14, the gate and the review | Every screen is on the registry and the stylesheet is shadcn's output (`228a3c3`). Step 14 runs the full gate, the end-to-end tier and the captures once, records the counts, and puts the captures in front of the Product Owner in light and dark. | [Convert the GUI to shadcn](2026-09-08-01-typography-and-design-system.md#steps-10-to-14--by-registry-item-done-by-surface) |
+| Next: the Product Owner's review of the shadcn conversion | Every screen is on the registry, the stylesheet is shadcn's output, and the gate, the end-to-end tier and the captures are green (`7461a5a` and after). What remains is a look at the captures on a phone and a desktop, in EN, TH and JA, light and dark, and any change the Product Owner asks for. | [Convert the GUI to shadcn](2026-09-08-01-typography-and-design-system.md#steps-10-to-14--by-registry-item-done-by-surface) |
 | Next capture fix | Desktop Devices screenshots intermittently stall in WebKit after data and fonts load. This reproduced in the baseline before the GUI migration; phone captures work. Context cleanup now retains a trace, and the CLI cleans up sessions/storage on failure. Do not call the whole screenshot walk verified. | [GUI consistency implementation record](2026-09-07-06-gui-consistency.md#implementation-record--2026-09-07); reproduce with `bun run shots -- --grep 'devices · ja · desktop' --trace on`. |
 | In progress: separate automation work | Finish and commit the existing local-browser isolation edits. The working-tree CLI now uses 8788 and per-run storage; GUI verification observed startup, seed, session cleanup and storage removal. Lint import-time validation was corrected during GUI work. Developer data/session preservation and broader failure handling still need their own evidence. Keep `bun run dev` as the developer entry point without manual coordination. | [GUI verification and limits](2026-09-07-06-gui-consistency.md#implementation-record--2026-09-07); `playwright.config.ts`, `src/web/vite.config.ts`, `scripts/e2e.ts`, `scripts/lib/prepare.ts`. These pre-existing isolation edits remain uncommitted separately from the GUI change. |
 | Next independent product work | Review existing behavior one domain slice at a time: exact fields, relationships, permitted/refused actions, persistence and delivery. The committed report has **1,375 items: 64 classified, 1,311 unreviewed**. Unreviewed does not mean broken or unimplemented. | [Domain register, GAP-01 and GAP-05–08](2026-09-07-01-react-domain-coverage.md#work-register-and-execution-order); [generated inventory](react-domain-coverage.md). |

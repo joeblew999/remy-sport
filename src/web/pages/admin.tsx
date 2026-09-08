@@ -256,7 +256,11 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
             <TableRow>
               <TableHead>{m.name()}</TableHead>
               <TableHead>{m.type()}</TableHead>
-              <TableHead>{m.description()}</TableHead>
+              {/* A paragraph of description is a desktop column: on a phone
+                  it wrapped one word per line and pushed Delete off the
+                  screen. The name says which event; the description is on
+                  its page. */}
+              <TableHead className="hidden md:table-cell">{m.description()}</TableHead>
               <TableHead />
             </TableRow>
           </TableHeader>
@@ -266,7 +270,7 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
                 <TableRow key={e.id}>
                   <TableCell className="whitespace-normal font-medium">{e.name}</TableCell>
                   <TableCell><Badge variant="outline">{e.typeCode}</Badge></TableCell>
-                  <TableCell className="whitespace-normal text-muted-foreground">{e.description || "—"}</TableCell>
+                  <TableCell className="hidden max-w-md whitespace-normal text-muted-foreground md:table-cell">{e.description || "—"}</TableCell>
                   <TableCell className="text-right">
                     {e.can.DELETE_EVENT && (
                       <Button variant="destructive" size="sm" onClick={() => deleteEvent.mutate(e.id)}>
