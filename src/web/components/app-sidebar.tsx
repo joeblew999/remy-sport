@@ -13,8 +13,9 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { CompassIcon, HomeIcon, MoonIcon, RadioIcon, SchoolIcon, SunIcon, UserIcon, UsersIcon, type LucideIcon } from "lucide-react";
+import { CompassIcon, HomeIcon, MoonIcon, RadioIcon, SchoolIcon, SunIcon, UserIcon, UsersIcon, XIcon, type LucideIcon } from "lucide-react";
 import { BuildStamp } from "./build-stamp";
 import { useSession } from "../lib/session";
 import { useLocale, type Locale } from "../lib/locale";
@@ -201,6 +202,7 @@ export function AppSidebar({ page, spoiler, onSpoilerChange }: {
   onSpoilerChange: (spoiler: boolean) => void;
 }) {
   const { user } = useSession();
+  const { isMobile, openMobile, setOpenMobile } = useSidebar();
   const group = (title: string, items: NavItem[]) => (
     <SidebarGroup>
       <SidebarGroupLabel>{title}</SidebarGroupLabel>
@@ -213,8 +215,8 @@ export function AppSidebar({ page, spoiler, onSpoilerChange }: {
       </SidebarGroupContent>
     </SidebarGroup>
   );
-  return (
-    <Sidebar collapsible="icon">
+  const content = (
+    <>
       <SidebarContent>
         {user && group(m.nav_you(), YOU())}
         {group(m.browse(), BROWSE())}
@@ -223,6 +225,41 @@ export function AppSidebar({ page, spoiler, onSpoilerChange }: {
       <SidebarFooter className="group-data-[collapsible=icon]:hidden">
         <BuildStamp />
       </SidebarFooter>
-    </Sidebar>
+    </>
   );
+
+  /**
+   * Under 768px, our own Sheet rather than the registry Sidebar's built-in
+   * one. The built-in Sheet announces itself to screen readers in hardcoded
+   * English ("Sidebar", "Displays the mobile sidebar.", "Close"), inside the
+   * locked file, where the rule is never to edit — so the registry's Sheet is
+   * driven from here with our messages instead, on the same `openMobile`
+   * state the menu button toggles. Same content, same width, same side.
+   */
+  if (isMobile) {
+    return (
+      <Sheet open={openMobile} onOpenChange={setOpenMobile}>
+        <SheetContent
+          side="left"
+          showCloseButton={false}
+          data-slot="sidebar"
+          data-mobile="true"
+          className="w-72 bg-sidebar p-0 text-sidebar-foreground"
+        >
+          <SheetHeader className="sr-only">
+            <SheetTitle>{m.menu()}</SheetTitle>
+            <SheetDescription>{m.menu_sheet()}</SheetDescription>
+          </SheetHeader>
+          <SheetClose
+            render={<Button variant="ghost" size="icon-sm" className="absolute top-3 right-3" aria-label={m.dismiss()} data-testid="menu-close" />}
+          >
+            <XIcon />
+          </SheetClose>
+          <div className="flex h-full w-full flex-col">{content}</div>
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  return <Sidebar collapsible="icon">{content}</Sidebar>;
 }

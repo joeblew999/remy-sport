@@ -4,18 +4,17 @@
 
 [Convert the GUI to shadcn](2026-09-08-01-typography-and-design-system.md)
 is the current GUI work, under the Product Owner's rule of 2026-09-08: no
-reinvented wheels, and their theme, not ours. Done and committed: Stage A
-(readable type), B1 (shadcn's setup, the lock, the MCP server) and B2 steps 8
-(the shell on the registry's Sidebar) and 9 (every form on the registry's
-components), in `d2ae514` and `b97f92f`. Next: step 10, lists and tables,
-then page chrome, dialogs and inputs, and the removal of our own tokens in
-favour of the preset. Each step runs the cheap checks; the full gate runs
-once, at the end.
+reinvented wheels, and their theme, not ours. Done and committed: Stage A,
+B1 (shadcn's setup, the lock, the MCP server), the shell, the forms, and on
+the same day every list, table, card, page frame, dialog and input, with our
+own tokens removed for the preset's (`d2ae514`, `b97f92f`, `00286b2`,
+`4f964f1`, `228a3c3`). The stylesheet is shadcn's output plus three rules
+that say why. Next: step 14 — the one full gate, the end-to-end tier, the
+captures, and the Product Owner's review.
 
 [The top of the page on a phone](2026-09-08-02-mobile-top-of-page.md): steps
-1 to 4 were delivered by the shell step above and are ticked; the rest
-(compact headers, sticky tabs) is delivered by the shadcn plan's page-chrome
-step with the registry's parts.
+1 to 6 are delivered by the shadcn plan and ticked; its gate is the shadcn
+plan's step 14.
 
 [GUI consistency plan](2026-09-07-06-gui-consistency.md) records the latest completed GUI work.
 Status: implemented and verified locally, with a desktop Devices screenshot
@@ -91,7 +90,7 @@ Official host setup: <https://learn.chatgpt.com/docs/extend/mcp?surface=cli>.
 
 | Priority / state | Work | Where to continue |
 | --- | --- | --- |
-| Next: shadcn step 10, lists and tables | The shell and every form are on the registry (`d2ae514`, `b97f92f`). Steps 10 to 13 replace lists, tables, cards, page chrome, dialogs and inputs with registry items and delete our tokens for the preset's; step 14 is the one full gate. The phone top-of-page plan's open steps are delivered inside step 11. | [Convert the GUI to shadcn](2026-09-08-01-typography-and-design-system.md#remaining-steps--by-registry-item) |
+| Next: shadcn step 14, the gate and the review | Every screen is on the registry and the stylesheet is shadcn's output (`228a3c3`). Step 14 runs the full gate, the end-to-end tier and the captures once, records the counts, and puts the captures in front of the Product Owner in light and dark. | [Convert the GUI to shadcn](2026-09-08-01-typography-and-design-system.md#steps-10-to-14--by-registry-item-done-by-surface) |
 | Next capture fix | Desktop Devices screenshots intermittently stall in WebKit after data and fonts load. This reproduced in the baseline before the GUI migration; phone captures work. Context cleanup now retains a trace, and the CLI cleans up sessions/storage on failure. Do not call the whole screenshot walk verified. | [GUI consistency implementation record](2026-09-07-06-gui-consistency.md#implementation-record--2026-09-07); reproduce with `bun run shots -- --grep 'devices · ja · desktop' --trace on`. |
 | In progress: separate automation work | Finish and commit the existing local-browser isolation edits. The working-tree CLI now uses 8788 and per-run storage; GUI verification observed startup, seed, session cleanup and storage removal. Lint import-time validation was corrected during GUI work. Developer data/session preservation and broader failure handling still need their own evidence. Keep `bun run dev` as the developer entry point without manual coordination. | [GUI verification and limits](2026-09-07-06-gui-consistency.md#implementation-record--2026-09-07); `playwright.config.ts`, `src/web/vite.config.ts`, `scripts/e2e.ts`, `scripts/lib/prepare.ts`. These pre-existing isolation edits remain uncommitted separately from the GUI change. |
 | Next independent product work | Review existing behavior one domain slice at a time: exact fields, relationships, permitted/refused actions, persistence and delivery. The committed report has **1,375 items: 64 classified, 1,311 unreviewed**. Unreviewed does not mean broken or unimplemented. | [Domain register, GAP-01 and GAP-05–08](2026-09-07-01-react-domain-coverage.md#work-register-and-execution-order); [generated inventory](react-domain-coverage.md). |

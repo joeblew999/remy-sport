@@ -92,7 +92,13 @@ build stamp do not move.
       brand leaves the top of the sidebar, so it is in one place at every
       size. Proof: the new check from step 1 passes for every role at 320 and
       390px, and the desktop captures show the brand once.
-- [ ] **Compact detail headers, one rule.** `.event-hero`, `.team-hero` and
+- [x] **Compact detail headers, one rule.** Done 2026-09-08 with step 11 of
+      the design-system plan, as the registry's parts: the page frame in
+      `components/page.tsx`, actions as one scrolling ButtonGroup, the event
+      tabs as Tabs sticky at the top of the scroller. Checked in
+      `tests/render/event-overview.spec.ts` at 390 × 844: the first game
+      above 60% of the screen, the tab strip still in view after a 400px
+      scroll. As planned: `.event-hero`, `.team-hero` and
       `.page-header` lose padding at phone widths (values, not placement);
       `.event-actions` becomes a row that never wraps and scrolls when it
       must, with the existing fade; `.detail-tabs` is sticky at the top of
@@ -101,7 +107,9 @@ build stamp do not move.
       top is above 60% of the viewport (505px), and that after scrolling 400px
       the tab strip is still within the viewport; the same page at 1440px
       shows every action without scrolling.
-- [ ] **Delete what moved.** The old topbar button rules, the two-row wrap
+- [x] **Delete what moved.** Done 2026-09-08 with step 13: no topbar, hero
+      or tab rule of ours remains, and the stale harness note in
+      `components/account.tsx` is gone. As planned: the old topbar button rules, the two-row wrap
       rules, and the stale harness note in `components/account.tsx`. The
       dead-class rule in `tests/repo/styles.test.ts` fails if anything is left
       behind. Proof: that test passes.

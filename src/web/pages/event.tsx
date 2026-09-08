@@ -78,10 +78,12 @@ export function EventPage({ id, goto, spoiler, query = {}, setParam }: {
       </div>
     </PageHeader>
     {/* Sticky at the top of the page's scroller while the header scrolls away
-        (the phone plan's other rule); the list scrolls sideways when the tabs
-        are wider than the screen. */}
-    <Tabs value={tab} onValueChange={(next) => changeTab(next as EventTab)} className="gap-0">
-      <TabsList variant="line" aria-label={m.nav_event()} className="sticky top-0 z-10 h-auto w-full justify-start overflow-x-auto rounded-none border-b bg-background px-4 sm:px-8">
+        (the phone plan's other rule) — on the Tabs root, because a sticky
+        element only moves within its parent, and the list's parent is the
+        root. The list scrolls sideways when the tabs are wider than the
+        screen. */}
+    <Tabs value={tab} onValueChange={(next) => changeTab(next as EventTab)} className="sticky top-0 z-10 gap-0 bg-background">
+      <TabsList variant="line" aria-label={m.nav_event()} className="h-auto w-full justify-start overflow-x-auto rounded-none border-b px-4 sm:px-8">
         {tabs.map(([key, title]) => (
           <TabsTrigger key={key} value={key} className="flex-none" data-testid={`tab-${key}`} aria-current={tab === key ? "page" : undefined}>{title}</TabsTrigger>
         ))}

@@ -30,6 +30,23 @@ test.describe("Event Games on a phone", () => {
     )
   })
 
+  /**
+   * The phone plan's compact header and sticky tabs, as the registry's parts:
+   * the first game is on the first screen, and the tab strip is still there
+   * after the header has scrolled away.
+   */
+  test("the first game is on the first screen and the tabs stay put while the header scrolls away", async ({ page }) => {
+    const first = page.getByTestId("schedule").locator("[data-slot=item]").first()
+    await expect(first).toBeVisible()
+    const top = (await first.boundingBox())!.y
+    expect(top, "the first game is visible without scrolling").toBeLessThan(844 * 0.6)
+
+    await page.getByTestId("page").evaluate((el) => { el.scrollTop = 400 })
+    const tabs = (await page.getByTestId("tab-games").boundingBox())!
+    expect(tabs.y, "the tab strip is still within the viewport").toBeGreaterThanOrEqual(0)
+    expect(tabs.y + tabs.height).toBeLessThanOrEqual(844)
+  })
+
   test("opens on games with live fixtures before results and real game links", async ({ page }) => {
     const rows = page.getByTestId("schedule").locator("[data-slot=item]")
     await expect(rows).toHaveCount(games.length)
