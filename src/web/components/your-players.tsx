@@ -26,15 +26,20 @@ import { NameTranslations, namesFrom } from "./name-translations"
 
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { ChevronRightIcon } from "lucide-react"
 import { api, orpc } from "../lib/orpc"
 import { formErrors } from "../lib/form-errors"
 import { useLocale } from "../lib/locale"
 import { m } from "../lib/i18n"
 import type { Route } from "../lib/router"
+import { SectionHeading } from "./page"
+import { EmptyState } from "./states"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 
 /**
@@ -53,84 +58,79 @@ export function YourPlayers({ goto }: { goto: (r: Route) => void }) {
   const players = data?.players ?? []
 
   return (
-    <>
-      <div className="section-h">
-        <h2>{m.your_players()}</h2>
+    <section className="flex flex-col gap-3">
+      <SectionHeading title={m.your_players()} className="mt-0 mb-0">
         {!adding && (
           <Button variant="outline" data-testid="add-player" onClick={() => setAdding(true)}>
             {m.player_add()}
           </Button>
         )}
-      </div>
+      </SectionHeading>
       {adding && <AddPlayer onDone={() => setAdding(false)} />}
       {players.length === 0 && !adding && (
-        <div className="panel-list">
-          <div className="empty" data-testid="your-players-none">{m.your_players_none()}</div>
-        </div>
+        <EmptyState data-testid="your-players-none">{m.your_players_none()}</EmptyState>
       )}
       {players.length > 0 && (
-      <div className="panel-list" data-testid="your-players">
+      <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border" data-testid="your-players">
         {players.map((p) =>
           editing === p.playerId ? (
             <Can key={p.playerId} of={p} action="EDIT_PLAYER_PROFILE"><EditPlayer player={p} onDone={() => setEditing(null)} /></Can>
           ) : (
           /**
            * A row, then two controls beside each other — not one inside the
-           * other.
-           *
-           * The first version put the Edit affordance inside the navigating
-           * `<button>` as a `<span role="button">`. That is invalid markup —
-           * interactive content cannot nest — and it breaks for exactly the
-           * people who most need it to work: a keyboard user reaches the outer
-           * button and the inner one is unreachable, while a screen reader is
-           * told about a button that contains a button. `stopPropagation` made
-           * it behave with a mouse, which is what made it look finished.
+           * other. Interactive content cannot nest: a keyboard user reaches
+           * the outer button and an inner one is unreachable, while a screen
+           * reader is told about a button that contains a button.
            */
-          <div key={p.playerId} className="player-row" data-testid={`your-player-${p.playerId}`}>
+          <Item key={p.playerId} className="rounded-none p-0" data-testid={`your-player-${p.playerId}`}>
             <button
-              className="row-main"
+              type="button"
+              className="flex min-w-0 flex-1 items-center gap-2.5 px-4 py-3 text-left outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-default disabled:hover:bg-transparent"
               // Their team, because that is what a guardian is looking for —
-              // the squad, the fixtures, who coaches it. There is no player
-              // page to send them to, and inventing one to hold a jersey
-              // number would be a screen with nothing on it.
+              // the squad, the fixtures, who coaches it.
               disabled={!p.teamId}
               data-testid={`goto-team-${p.playerId}`}
               onClick={() => p.teamId && goto({ page: "team", id: p.teamId })}
             >
-              <div className="row-title">
-                {name(p.names)}
-                <span className="player-jersey">{m.player_jersey({ n: p.jerseyNumber })}</span>
-              </div>
-              <div className="row-meta">
-                {[
-                  // Null where the player *is* you — being yourself is not a
-                  // guardianship, and "Self · Parent" would be nonsense.
-                  p.guardianTypeCode ? label("guardianTypes", p.guardianTypeCode) : null,
-                  label("positions", p.positionCode),
-                  p.teamNames ? name(p.teamNames) : m.player_no_team(),
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </div>
+              <ItemContent>
+                <ItemTitle className="text-base">
+                  {name(p.names)}
+                  <span className="text-xs font-normal text-muted-foreground tabular-nums">{m.player_jersey({ n: p.jerseyNumber })}</span>
+                </ItemTitle>
+                <ItemDescription>
+                  {[
+                    // Null where the player *is* you — being yourself is not a
+                    // guardianship, and "Self · Parent" would be nonsense.
+                    p.guardianTypeCode ? label("guardianTypes", p.guardianTypeCode) : null,
+                    label("positions", p.positionCode),
+                    p.teamNames ? name(p.teamNames) : m.player_no_team(),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </ItemDescription>
+              </ItemContent>
+              {p.teamId && <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden />}
             </button>
             {/* The model's answer for this reader on this player, not assumed
                 from the row being on their own profile — a guardian holds
                 EDIT_PLAYER_PROFILE, and so does a coach who is not here. */}
             <Can of={p} action="EDIT_PLAYER_PROFILE">
-              <button
-                className="row-edit"
-                data-testid={`edit-player-${p.playerId}`}
-                onClick={() => setEditing(p.playerId)}
-              >
-                {m.player_edit()}
-              </button>
+              <ItemActions className="pr-3">
+                <Button
+                  variant="link"
+                  data-testid={`edit-player-${p.playerId}`}
+                  onClick={() => setEditing(p.playerId)}
+                >
+                  {m.player_edit()}
+                </Button>
+              </ItemActions>
             </Can>
-          </div>
+          </Item>
           ),
         )}
-      </div>
+      </ItemGroup>
       )}
-    </>
+    </section>
   )
 }
 
@@ -172,8 +172,9 @@ function AddPlayer({ onDone }: { onDone: () => void }) {
   const err = formErrors(save.error, ["names", "dob", "jerseyNumber", "positionCode"])
 
   return (
+    <Card>
+    <CardContent>
     <form
-      className="panel-list"
       data-testid="add-player-form"
       onSubmit={(e) => {
         e.preventDefault()
@@ -235,18 +236,22 @@ function AddPlayer({ onDone }: { onDone: () => void }) {
           </NativeSelect>
         </Field>
 
-        <Button type="submit" data-testid="add-player-save" disabled={save.isPending} className="w-fit">
-          {save.isPending ? m.event_saving() : m.player_add()}
-        </Button>
-        <Button type="button" variant="outline" className="w-fit" onClick={onDone}>{m.fixture_cancel()}</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" data-testid="add-player-save" disabled={save.isPending}>
+            {save.isPending ? m.event_saving() : m.player_add()}
+          </Button>
+          <Button type="button" variant="outline" onClick={onDone}>{m.fixture_cancel()}</Button>
+        </div>
 
         {(err.form || err.field("dob")) && (
-          <Alert variant="destructive" data-testid="add-player-error" role="alert">
+          <Alert variant="destructive" data-testid="add-player-error">
             <AlertDescription>{err.form ?? err.field("dob")}</AlertDescription>
           </Alert>
         )}
       </FieldGroup>
     </form>
+    </CardContent>
+    </Card>
   )
 }
 
@@ -287,7 +292,7 @@ export function EditPlayer({
 
   return (
     <form
-      className="player-edit"
+      className="flex flex-col gap-4 px-4 py-3"
       data-testid={`player-form-${player.playerId}`}
       onSubmit={(e) => {
         e.preventDefault()
@@ -299,46 +304,57 @@ export function EditPlayer({
         })
       }}
     >
-      <div className="row-title">{name(player.names)}</div>
-      <label>{m.event_name_label()}<Input name="name" defaultValue={player.names.en ?? ""} required /></label>
-      <NameTranslations names={player.names} id={`player-name-${player.playerId}`} />
+      <h3 className="text-base font-semibold">{name(player.names)}</h3>
+      <FieldGroup className="max-w-[420px]">
+        <Field>
+          <FieldLabel htmlFor={`name-${player.playerId}`}>{m.event_name_label()}</FieldLabel>
+          <Input id={`name-${player.playerId}`} name="name" defaultValue={player.names.en ?? ""} required />
+        </Field>
+        <NameTranslations names={player.names} id={`player-name-${player.playerId}`} />
 
-      <label className="sr-only" htmlFor={`n-${player.playerId}`}>{m.player_number()}</label>
-      <Input
-        id={`n-${player.playerId}`}
-        name="jerseyNumber"
-        type="number"
-        min={0}
-        max={99}
-        required
-        data-testid={`player-number-${player.playerId}`}
-        defaultValue={player.jerseyNumber}
-      />
+        <Field>
+          <FieldLabel htmlFor={`n-${player.playerId}`}>{m.player_number()}</FieldLabel>
+          <Input
+            id={`n-${player.playerId}`}
+            name="jerseyNumber"
+            type="number"
+            min={0}
+            max={99}
+            required
+            data-testid={`player-number-${player.playerId}`}
+            defaultValue={player.jerseyNumber}
+          />
+        </Field>
 
-      <label className="sr-only" htmlFor={`p-${player.playerId}`}>{m.player_position()}</label>
-      <NativeSelect
-        id={`p-${player.playerId}`}
-        name="positionCode"
-        data-testid={`player-position-${player.playerId}`}
-        defaultValue={player.positionCode}
-      >
-        {/* From the reference vocabulary, with the compiled fallback, so the
-            control is never an empty box before a fetch lands. */}
-        {terms("positions").map((t) => (
-          <NativeSelectOption key={t.code} value={t.code}>{label("positions", t.code)}</NativeSelectOption>
-        ))}
-      </NativeSelect>
+        <Field>
+          <FieldLabel htmlFor={`p-${player.playerId}`}>{m.player_position()}</FieldLabel>
+          <NativeSelect
+            id={`p-${player.playerId}`}
+            name="positionCode"
+            data-testid={`player-position-${player.playerId}`}
+            defaultValue={player.positionCode}
+          >
+            {/* From the reference vocabulary, with the compiled fallback, so the
+                control is never an empty box before a fetch lands. */}
+            {terms("positions").map((t) => (
+              <NativeSelectOption key={t.code} value={t.code}>{label("positions", t.code)}</NativeSelectOption>
+            ))}
+          </NativeSelect>
+        </Field>
 
-      <Button type="submit" data-testid={`player-save-${player.playerId}`} disabled={save.isPending}>
-        {save.isPending ? m.event_saving() : m.event_save()}
-      </Button>
-      <Button type="button" variant="outline" onClick={onDone}>{m.fixture_cancel()}</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" data-testid={`player-save-${player.playerId}`} disabled={save.isPending}>
+            {save.isPending ? m.event_saving() : m.event_save()}
+          </Button>
+          <Button type="button" variant="outline" onClick={onDone}>{m.fixture_cancel()}</Button>
+        </div>
 
-      {(err.form || err.field("jerseyNumber")) && (
-        <Alert variant="destructive" data-testid={`player-error-${player.playerId}`} role="alert">
-          <AlertDescription>{err.form ?? err.field("jerseyNumber")}</AlertDescription>
-        </Alert>
-      )}
+        {(err.form || err.field("jerseyNumber")) && (
+          <Alert variant="destructive" data-testid={`player-error-${player.playerId}`}>
+            <AlertDescription>{err.form ?? err.field("jerseyNumber")}</AlertDescription>
+          </Alert>
+        )}
+      </FieldGroup>
     </form>
   )
 }

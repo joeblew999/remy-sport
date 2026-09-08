@@ -6,8 +6,13 @@ import { parseRoute, signInRoute, routeHref } from "../lib/router";
 import { m } from "../lib/i18n";
 import { NotificationSettings } from "../components/notification-settings";
 import { useLocale } from "../lib/locale";
+import { PageHeader, PageInner } from "../components/page";
+import { EmptyState, Loading } from "../components/states";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "../components/button-link";
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
 
 /**
  * "Where am I signed in?" — ADR 014.
@@ -27,10 +32,7 @@ import { ButtonLink } from "../components/button-link";
 export function DevicesPage() {
   const { locale } = useLocale();
   const { user, loading: sessionLoading } = useSession();
-  // One query, two mutations. This was ~60 lines: a `useState` for the list, a
-  // `useState` for the error, a `useState` for which row is busy, a `load`
-  // callback, a `useEffect` to call it, and each write re-running `load()` by
-  // hand. Invalidation does that now, from lib/auth.ts.
+  // One query, two mutations. Invalidation refreshes the list, from lib/auth.ts.
   const q = useDevices();
   const revokeDevice = useRevokeDevice();
   const devices = q.data ? toDevices(q.data.sessions as RawSession[], q.data.currentToken) : null;
@@ -39,135 +41,111 @@ export function DevicesPage() {
   const revoke = (token: string) => revokeDevice.mutate(token);
   const revokeOthers = () => revokeDevice.mutate("others");
 
-
-  if (sessionLoading) return <div className="empty">{m.loading()}</div>;
+  if (sessionLoading) return <PageInner><Loading /></PageInner>;
 
   /**
-   * Signed out: the sign-in prompt and nothing else.
-   *
-   * The notification settings were rendered here too for a while, on the
-   * argument that browser support and blocked permissions are facts about the
-   * device worth knowing before signing in. As a reader sees it that is wrong —
-   * an empty device list and a row of preference checkboxes under "sign in to
-   * see your devices", none of it actionable until they do. Every control in
-   * that section needs a session; the state alone was not worth the panel.
+   * Signed out: the sign-in prompt and nothing else. Every control on this
+   * page needs a session; the notification settings were once rendered here
+   * too, and an empty device list over a row of preference checkboxes under
+   * "sign in to see your devices" was not worth the panel.
    */
   if (!user) {
     return (
-      <div className="empty" data-testid="devices-signed-out">
-        <p>{m.sign_in_to_see_devices()}</p>
-        <ButtonLink href={routeHref(signInRoute(parseRoute(window.location.hash)))}>
-          {m.sign_in()}
-        </ButtonLink>
-      </div>
+      <PageInner>
+        <EmptyState data-testid="devices-signed-out">
+          <p>{m.sign_in_to_see_devices()}</p>
+          <ButtonLink href={routeHref(signInRoute(parseRoute(window.location.hash)))}>
+            {m.sign_in()}
+          </ButtonLink>
+        </EmptyState>
+      </PageInner>
     );
   }
 
   const others = devices?.filter((d) => !d.current) ?? [];
 
   return (
-    <div className="page-inner" data-testid="devices-page">
-      <div className="page-header">
-        <div className="crumbs">{m.security()}</div>
-        <h1>{m.signed_in_devices()}</h1>
-        <div className="sub">
-          {m.sessions_note()}
-        </div>
-      </div>
+    <div data-testid="devices-page">
+      <PageHeader crumbs={[{ label: m.security() }]} title={m.signed_in_devices()} sub={m.sessions_note()} />
+      <PageInner className="flex flex-col gap-6">
+        <QueryError error={q.error} retry={q.refetch} pending={q.isFetching} />
+        {error && (
+          <Alert variant="destructive" data-testid="devices-error">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-      <QueryError error={q.error} retry={q.refetch} pending={q.isFetching} />
-      {error && (
-        <div className="feedback-error" role="alert" data-testid="devices-error">
-          <p>{error}</p>
-        </div>
-      )}
+        {devices === null ? (q.isPending ? (
+          <Loading>{m.loading_sessions()}</Loading>
+        ) : null) : (
+          <section className="flex flex-col gap-4">
+            <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border" data-testid="devices-list">
+              {devices.map((d) => (
+                <Item key={d.id} className="rounded-none px-4 py-3" data-testid={`device-${d.id}`}>
+                  <ItemContent>
+                    <ItemTitle className="text-base">
+                      {d.label}
+                      {d.current && <Badge variant="secondary" data-testid="device-current">{m.this_device()}</Badge>}
+                      {/* Worth surfacing: an admin viewing as you produces a real
+                          session on your account, and you should be able to see it. */}
+                      {d.impersonated && <Badge variant="outline" data-testid="device-impersonated">{m.admin_session()}</Badge>}
+                    </ItemTitle>
+                    {/* Place before time, and the address only as a fallback: a
+                        person scanning this page is asking "was that me?", and
+                        "Bangkok, TH · AIS Fibre" answers it where an IP never
+                        does. The address stays reachable in the title for the
+                        rare case where somebody genuinely needs it. */}
+                    <ItemDescription title={d.ipAddress ?? undefined}>
+                      {[
+                        d.place ?? d.ipAddress ?? m.ip_not_recorded(),
+                        m.last_active({ when: formatWhen(locale, d.lastSeen) }),
+                      ].join(" · ")}
+                    </ItemDescription>
+                  </ItemContent>
+                  <ItemActions>
+                    {d.current ? (
+                      <span className="text-sm text-muted-foreground">
+                        {m.signed_in_when({ when: formatWhen(locale, d.createdAt) })}
+                      </span>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        data-testid={`revoke-${d.id}`}
+                        disabled={busy === d.token}
+                        onClick={() => void revoke(d.token)}
+                      >
+                        {busy === d.token ? m.signing_out() : m.sign_out()}
+                      </Button>
+                    )}
+                  </ItemActions>
+                </Item>
+              ))}
+            </ItemGroup>
 
-      {devices === null ? (q.isPending ? (
-        <div className="empty" role="status">{m.loading_sessions()}</div>
-      ) : null) : (
-        <>
-          <div className="panel-list" data-testid="devices-list">
-            {devices.map((d) => (
-              <div key={d.id} className="entity-row" data-testid={`device-${d.id}`}>
-                <div>
-                  <div className="entity-label">
-                    {d.label}
-                    {d.current && (
-                      <span className="device-tag" data-testid="device-current">
-                        {m.this_device()}
-                      </span>
-                    )}
-                    {/* Worth surfacing: an admin viewing as you produces a real
-                        session on your account, and you should be able to see it. */}
-                    {d.impersonated && (
-                      <span className="device-tag warn" data-testid="device-impersonated">
-                        {m.admin_session()}
-                      </span>
-                    )}
-                  </div>
-                  {/* Place before time, and the address only as a fallback: a
-                      person scanning this page is asking "was that me?", and
-                      "Bangkok, TH · AIS Fibre" answers it where an IP never
-                      does. The address stays reachable in the title for the
-                      rare case where somebody genuinely needs it. */}
-                  <div className="entity-meta" title={d.ipAddress ?? undefined}>
-                    {[
-                      d.place ?? d.ipAddress ?? m.ip_not_recorded(),
-                      m.last_active({ when: formatWhen(locale, d.lastSeen) }),
-                    ].join(" · ")}
-                  </div>
-                </div>
-                {d.current ? (
-                  <span className="entity-meta">
-                    {m.signed_in_when({ when: formatWhen(locale, d.createdAt) })}
-                  </span>
-                ) : (
-                  <Button
-                    variant="outline"
-                    data-testid={`revoke-${d.id}`}
-                    disabled={busy === d.token}
-                    onClick={() => void revoke(d.token)}
-                  >
-                    {busy === d.token ? m.signing_out() : m.sign_out()}
-                  </Button>
-                )}
+            {others.length > 0 && (
+              <div>
+                <Button
+                  variant="outline"
+                  data-testid="revoke-others"
+                  disabled={busy === "others"}
+                  onClick={() => void revokeOthers()}
+                >
+                  {busy === "others"
+                    ? m.signing_out()
+                    : m.sign_out_others({ count: others.length })}
+                </Button>
               </div>
-            ))}
-          </div>
+            )}
+          </section>
+        )}
 
-          {others.length > 0 && (
-            <div className="event-actions" style={{ marginTop: 16 }}>
-              <Button
-                variant="outline"
-                data-testid="revoke-others"
-                disabled={busy === "others"}
-                onClick={() => void revokeOthers()}
-              >
-                {busy === "others"
-                  ? m.signing_out()
-                  : m.sign_out_others({ count: others.length })}
-              </Button>
-            </div>
-          )}
-        </>
-      )}
-
-      {/*
-        The other device list, deliberately on the same page.
-
-        These two were in different places and both said "this device", which is
-        how a reader ends up certain they are looking at one list. They are not
-        the same thing and they genuinely diverge — measured on 2026-09-02, a Mac
-        held a push subscription for an account it was signed OUT of, while a
-        signed-in iPhone had no push registration at all.
-
-        Above: where you are signed in — a session, revocable.
-        Below: where notifications are delivered — a subscription, per browser.
-
-        Adjacent, the difference is visible. Apart, it is a coincidence of
-        wording nobody can be expected to notice.
-      */}
-      <NotificationSettings />
+        {/* The other device list, deliberately on the same page. Above: where
+            you are signed in — a session, revocable. Below: where notifications
+            are delivered — a subscription, per browser. Adjacent, the
+            difference is visible; apart, it is a coincidence of wording
+            nobody can be expected to notice. */}
+        <NotificationSettings />
+      </PageInner>
     </div>
   );
 }

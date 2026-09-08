@@ -6,11 +6,16 @@ import { WhoAreYou } from "../components/who-are-you";
 import { YourPlayers } from "../components/your-players";
 import { YourGames } from "../components/your-games";
 import { Following } from "../components/following";
+import { LinkRow, PageHeader, PageInner, SectionHeading } from "../components/page";
+import { Loading } from "../components/states";
 import { formatDayShort } from "../lib/dates";
 import { nextOf } from "../lib/api";
 import { routeHref, type Route } from "../lib/router";
 import type { Team } from "../data";
 import { m } from "../lib/i18n";
+import { ItemDescription, ItemGroup } from "@/components/ui/item";
+
+const LIST = "gap-0 divide-y overflow-hidden rounded-xl border";
 
 /**
  * Home: what you are connected to, and what is next.
@@ -66,14 +71,14 @@ export function HomePage({ goto }: { goto: (r: Route) => void }) {
 
   return (
     <>
-      <div className="page-header">
-        <div className="crumbs">{m.home_crumb()}</div>
-        <h1>{m.welcome_back({ name: user?.name || user?.email || "" })}</h1>
-        <div className="sub">{m.home_sub()}</div>
-      </div>
+      <PageHeader
+        crumbs={[{ label: m.home_crumb() }]}
+        title={m.welcome_back({ name: user?.name || user?.email || "" })}
+        sub={m.home_sub()}
+      />
 
-      <div className="page-inner" data-testid="home">
-        {isPending && <div className="empty">{m.loading()}</div>}
+      <PageInner className="flex flex-col gap-6" data-testid="home">
+        {isPending && <Loading />}
         {!isPending && (
           <>
             {/* Things to act on first: an invitation moves an event into the
@@ -88,11 +93,9 @@ export function HomePage({ goto }: { goto: (r: Route) => void }) {
             {gameHeld.length > 0 && <YourGames />}
 
             {(teamHeld.length > 0 || can?.CREATE_TEAM) && (
-              <>
-                <div className="section-h">
-                  <h2>{m.your_teams()}</h2>
-                </div>
-                <div className="panel-list" data-testid="home-teams">
+              <section>
+                <SectionHeading title={m.your_teams()} className="mt-0" />
+                <ItemGroup className={LIST} data-testid="home-teams">
                   {teamRows.map((t) => (
                     <TeamRow key={t.id} team={t} relations={relationsOn("TEAM", t.id)} />
                   ))}
@@ -101,16 +104,10 @@ export function HomePage({ goto }: { goto: (r: Route) => void }) {
                       admin's page. CREATE_TEAM is a platform grant; the form is
                       on the school, the one thing a new team needs chosen. */}
                   {can?.CREATE_TEAM && (
-                    <a
-                      className="row-button"
-                      data-testid="home-create-team"
-                      href={routeHref({ page: "orgs" })}
-                    >
-                      <div className="row-title">{m.home_create_team()}</div>
-                    </a>
+                    <LinkRow data-testid="home-create-team" href={routeHref({ page: "orgs" })} title={m.home_create_team()} />
                   )}
-                </div>
-              </>
+                </ItemGroup>
+              </section>
             )}
 
             {/* Children you are guardian to, or yourself as a player. Shown to
@@ -119,60 +116,34 @@ export function HomePage({ goto }: { goto: (r: Route) => void }) {
             {(playerHeld.length > 0 || holdsNothing) && <YourPlayers goto={goto} />}
 
             {(eventHeld.length > 0 || can?.CREATE_EVENT) && (
-              <>
-                <div className="section-h">
-                  <h2>{m.your_events()}</h2>
-                </div>
-                <div className="panel-list" data-testid="home-events">
+              <section>
+                <SectionHeading title={m.your_events()} className="mt-0" />
+                <ItemGroup className={LIST} data-testid="home-events">
                   {organising.map((e) => (
-                    <a
-                      key={e.id}
-                      className="row-button"
-                      data-testid={`home-event-${e.id}`}
-                      href={routeHref({ page: "event", id: e.id })}
-                    >
-                      <div className="row-title">{e.title}</div>
-                      <div className="row-meta">
-                        {[e.statusLabel, e.division, label("relations", e.relation)].join(" · ")}
-                      </div>
-                    </a>
+                    <LinkRow key={e.id} data-testid={`home-event-${e.id}`} href={routeHref({ page: "event", id: e.id })} title={e.title}>
+                      <ItemDescription>{[e.statusLabel, e.division, label("relations", e.relation)].join(" · ")}</ItemDescription>
+                    </LinkRow>
                   ))}
                   {/* The event form lives on the console page, which nothing
                       linked an organiser to until this row. */}
                   {can?.CREATE_EVENT && (
-                    <a
-                      className="row-button"
-                      data-testid="home-create-event"
-                      href={routeHref({ page: "admin" })}
-                    >
-                      <div className="row-title">{m.home_create_event()}</div>
-                    </a>
+                    <LinkRow data-testid="home-create-event" href={routeHref({ page: "admin" })} title={m.home_create_event()} />
                   )}
-                </div>
-              </>
+                </ItemGroup>
+              </section>
             )}
 
             {orgHeld.length > 0 && (
-              <>
-                <div className="section-h">
-                  <h2>{m.your_orgs()}</h2>
-                </div>
-                <div className="panel-list" data-testid="home-orgs">
+              <section>
+                <SectionHeading title={m.your_orgs()} className="mt-0" />
+                <ItemGroup className={LIST} data-testid="home-orgs">
                   {orgRows.map((o) => (
-                    <a
-                      key={o.id}
-                      className="row-button"
-                      data-testid={`home-org-${o.id}`}
-                      href={routeHref({ page: "org", id: o.id })}
-                    >
-                      <div className="row-title">{o.name}</div>
-                      <div className="row-meta">
-                        {[o.city, relationsOn("ORG", o.id)].filter(Boolean).join(" · ")}
-                      </div>
-                    </a>
+                    <LinkRow key={o.id} data-testid={`home-org-${o.id}`} href={routeHref({ page: "org", id: o.id })} title={o.name}>
+                      <ItemDescription>{[o.city, relationsOn("ORG", o.id)].filter(Boolean).join(" · ")}</ItemDescription>
+                    </LinkRow>
                   ))}
-                </div>
-              </>
+                </ItemGroup>
+              </section>
             )}
 
             {/* Always, once signed in: FOLLOW_* is granted to anyone with an
@@ -184,24 +155,16 @@ export function HomePage({ goto }: { goto: (r: Route) => void }) {
             {/* The platform admin's real home. MANAGE_ALL_USERS is the model's
                 answer, not a role string; the account menu offers the same door. */}
             {can?.MANAGE_ALL_USERS && (
-              <>
-                <div className="section-h">
-                  <h2>{m.nav_admin()}</h2>
-                </div>
-                <div className="panel-list" data-testid="home-admin">
-                  <a
-                    className="row-button"
-                    data-testid="home-admin-console"
-                    href={routeHref({ page: "admin" })}
-                  >
-                    <div className="row-title">{m.home_admin()}</div>
-                  </a>
-                </div>
-              </>
+              <section>
+                <SectionHeading title={m.nav_admin()} className="mt-0" />
+                <ItemGroup className={LIST} data-testid="home-admin">
+                  <LinkRow data-testid="home-admin-console" href={routeHref({ page: "admin" })} title={m.home_admin()} />
+                </ItemGroup>
+              </section>
             )}
           </>
         )}
-      </div>
+      </PageInner>
     </>
   );
 }
@@ -222,21 +185,16 @@ function TeamRow({
   const { data } = useTeamGames(team.id);
   const next = nextOf(data?.games ?? []);
   return (
-    <a
-      className="row-button"
-      data-testid={`home-team-${team.id}`}
-      href={routeHref({ page: "team", id: team.id })}
-    >
-      <div className="row-title">{team.name}</div>
-      <div className="row-meta">{[team.orgName, relations].filter(Boolean).join(" · ")}</div>
-      <div className="row-meta" data-testid={`home-team-next-${team.id}`}>
+    <LinkRow data-testid={`home-team-${team.id}`} href={routeHref({ page: "team", id: team.id })} title={team.name}>
+      <ItemDescription>{[team.orgName, relations].filter(Boolean).join(" · ")}</ItemDescription>
+      <ItemDescription data-testid={`home-team-next-${team.id}`}>
         {next
           ? m.home_next_game({
               opponent: next.opponent,
               when: next.live ? next.statusLabel : formatDayShort(locale, new Date(next.startsAt)),
             })
           : m.home_no_next_game()}
-      </div>
-    </a>
+      </ItemDescription>
+    </LinkRow>
   );
 }

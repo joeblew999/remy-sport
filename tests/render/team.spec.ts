@@ -56,8 +56,8 @@ test.describe("Team page renders what the API returned", () => {
 
     await visit(page, "team", { id: "team_002" })
     await expect(page.getByTestId("team-name")).toHaveText("Triam Udom U18 Girls")
-    await expect(page.locator(".team-hero")).toContainText("Triam Udom Suksa School")
-    await expect(page.locator(".team-hero")).toContainText("U18 Girls")
+    await expect(page.getByTestId("team-hero")).toContainText("Triam Udom Suksa School")
+    await expect(page.getByTestId("team-hero")).toContainText("U18 Girls")
   })
 
   test("a different id renders a different team", async ({ page }) => {
@@ -72,8 +72,8 @@ test.describe("Team page renders what the API returned", () => {
     await visit(page, "team", { id: "team_003" })
     await expect(page.getByTestId("team-name")).toHaveText("Montfort U16 Boys")
     // ...and it is genuinely a different school, not the same one relabelled.
-    await expect(page.locator(".team-hero")).toContainText("Montfort College")
-    await expect(page.locator(".team-hero")).not.toContainText("Triam Udom")
+    await expect(page.getByTestId("team-hero")).toContainText("Montfort College")
+    await expect(page.getByTestId("team-hero")).not.toContainText("Triam Udom")
   })
 
   test("a live lead is not a win and spoiler mode hides the team record", async ({ page }) => {
@@ -87,7 +87,7 @@ test.describe("Team page renders what the API returned", () => {
     // The spoiler switch is in the sidebar's Settings group (B2 step 8); a
     // switch has the switch role, not button.
     await page.getByRole("switch", { name: "Spoiler mode" }).click()
-    await expect(page.locator(".fixture-row .result")).toHaveText("—")
+    await expect(page.getByTestId("fixture-result")).toHaveText("—")
   })
 
   test("record is a dash until a game has been played, never an invented win-loss", async ({ page }) => {
@@ -99,7 +99,7 @@ test.describe("Team page renders what the API returned", () => {
     ])
 
     await visit(page, "team", { id: "team_002" })
-    await expect(page.locator(".team-hero")).toContainText("Record")
+    await expect(page.getByTestId("team-hero")).toContainText("Record")
     await expect(page.getByTestId("team-record")).toHaveText("—")
   })
 })
@@ -128,7 +128,7 @@ test.describe("Team page, the rest", () => {
     // No per-game averages: there is no stats table, so the numbers the old
     // fixture showed are absent rather than invented again.
     await expect(page.getByTestId("roster")).not.toContainText("PPG")
-    await expect(page.locator(".section-h", { hasText: "Roster" })).not.toContainText("SAMPLE DATA")
+    await expect(page.getByTestId("roster-heading")).not.toContainText("SAMPLE DATA")
   })
 
   test("an empty roster says so rather than rendering nothing", async ({ page }) => {
@@ -169,21 +169,21 @@ test.describe("Team page, the rest", () => {
     ])
     await visit(page, "team", { id: "team_002" })
 
-    const schedule = page.locator(".fixture-row")
+    const schedule = page.getByTestId("team-fixture")
     await expect(schedule).toHaveCount(2)
 
     // The opponent, not whoever happens to be the home side.
     await expect(schedule.first()).toContainText("Satriwitthaya")
     // Their score first, then the opponent's — 74–61, not 61–74.
-    await expect(schedule.first().locator(".result")).toHaveText("74–61")
+    await expect(schedule.first().getByTestId("fixture-result")).toHaveText("74–61")
     // "W", the same single character the standings column uses — and a real
     // abbreviation in each language ("ช", "勝"), not an English initial.
-    await expect(schedule.first().locator(".outcome")).toHaveText("W")
+    await expect(schedule.first().getByTestId("fixture-outcome")).toHaveText("W")
 
     // An unplayed game has no result and no outcome to claim.
-    await expect(schedule.nth(1).locator(".result")).toHaveText("—")
-    await expect(schedule.nth(1).locator(".outcome")).not.toHaveText("W")
-    await expect(schedule.nth(1).locator(".outcome")).not.toHaveText("L")
+    await expect(schedule.nth(1).getByTestId("fixture-result")).toHaveText("—")
+    await expect(schedule.nth(1).getByTestId("fixture-outcome")).not.toHaveText("W")
+    await expect(schedule.nth(1).getByTestId("fixture-outcome")).not.toHaveText("L")
 
     // The record in the hero is these same rows counted: one win, and the
     // unplayed game counts for nothing. It was a dash above five results.
@@ -196,7 +196,7 @@ test.describe("Team page, the rest", () => {
       entry(orpc.games.list, { teamId: TEAM }, { viewerTimezone: null, games: [] }),
     ])
     await visit(page, "team", { id: "team_002" })
-    await expect(page.locator(".fixture-row")).toHaveCount(0)
+    await expect(page.getByTestId("team-fixture")).toHaveCount(0)
     await expect(page.getByText("No games scheduled yet.")).toBeVisible()
   })
 })

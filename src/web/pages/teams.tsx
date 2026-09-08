@@ -4,6 +4,9 @@ import { useLocale } from "../lib/locale";
 import { m } from "../lib/i18n";
 import { routeHref } from "../lib/router";
 import { ButtonLink } from "../components/button-link";
+import { PageHeader, PageInner, SectionHeading } from "../components/page";
+import { EmptyState, Loading } from "../components/states";
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
 
 /**
  * @answers BROWSE_TEAMS
@@ -42,66 +45,63 @@ export function TeamsPage() {
   const yours = (teams.data ?? []).filter((t) => held.has(t.id));
 
   return (
-    <div className="page-inner" data-testid="teams-page">
-      <div className="page-header">
-        <div className="crumbs">{m.nav_teams()}</div>
-        <h1>{m.teams_heading()}</h1>
-        <div className="sub">{m.teams_sub()}</div>
-      </div>
+    <div data-testid="teams-page">
+      <PageHeader crumbs={[{ label: m.nav_teams() }]} title={m.teams_heading()} sub={m.teams_sub()} />
+      <PageInner className="flex flex-col gap-6">
+        {yours.length > 0 && (
+          <section>
+            <SectionHeading title={m.your_teams()} className="mt-0" />
+            <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border" data-testid="your-teams">
+              {yours.map((t) => (
+                <Item key={t.id} className="rounded-none px-4 py-3" data-testid={`your-team-${t.id}`}>
+                  <ItemContent>
+                    <ItemTitle className="text-base">{t.name}</ItemTitle>
+                    {/* Why this row is above the fold, in the model's own word for
+                        it — "Head Coach", "Team Follower" — in the reader's
+                        language. This printed the code, HEAD_COACH, until the
+                        2026-09-04 walk. */}
+                    <ItemDescription>
+                      {[t.orgName, label("relations", held.get(t.id)!)].filter(Boolean).join(" · ")}
+                    </ItemDescription>
+                  </ItemContent>
+                  <ItemActions>
+                    <ButtonLink variant="outline" href={routeHref({ page: "team", id: t.id })}>
+                      {m.team_open()}
+                    </ButtonLink>
+                  </ItemActions>
+                </Item>
+              ))}
+            </ItemGroup>
+          </section>
+        )}
 
-      {yours.length > 0 && (
-        <>
-          <div className="section-h">
-            <h2>{m.your_teams()}</h2>
-          </div>
-          <div className="panel-list" data-testid="your-teams">
-            {yours.map((t) => (
-              <div key={t.id} className="entity-row" data-testid={`your-team-${t.id}`}>
-                <div>
-                  <div className="entity-label">{t.name}</div>
-                  {/* Why this row is above the fold, in the model's own word for
-                      it — "Head Coach", "Team Follower" — in the reader's
-                      language. This printed the code, HEAD_COACH, until the
-                      2026-09-04 walk. */}
-                  <div className="entity-meta">
-                    {[t.orgName, label("relations", held.get(t.id)!)].filter(Boolean).join(" · ")}
-                  </div>
-                </div>
-                <ButtonLink variant="outline" href={routeHref({ page: "team", id: t.id })}>
-                  {m.team_open()}
-                </ButtonLink>
-              </div>
+        {teams.error && <QueryError error={teams.error} retry={teams.refetch} pending={teams.isFetching} />}
+        {teams.isPending ? (
+          <Loading>{m.loading_teams()}</Loading>
+        ) : teams.data?.length ? (
+          <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border" data-testid="teams-list">
+            {teams.data.map((t) => (
+              <Item key={t.id} className="rounded-none px-4 py-3" data-testid={`team-row-${t.id}`}>
+                <ItemContent>
+                  <ItemTitle className="text-base">{t.name}</ItemTitle>
+                  {/* Age group and gender in the reader's language — `toTeam` has
+                      already resolved them from the reference vocabulary. */}
+                  <ItemDescription>
+                    {[t.orgName, t.ageGroupLabel, t.genderLabel].filter(Boolean).join(" · ")}
+                  </ItemDescription>
+                </ItemContent>
+                <ItemActions>
+                  <ButtonLink variant="outline" href={routeHref({ page: "team", id: t.id })}>
+                    {m.team_open()}
+                  </ButtonLink>
+                </ItemActions>
+              </Item>
             ))}
-          </div>
-        </>
-      )}
-
-      {teams.error && <QueryError error={teams.error} retry={teams.refetch} pending={teams.isFetching} />}
-      {teams.isPending ? (
-        <div className="empty">{m.loading_teams()}</div>
-      ) : teams.data?.length ? (
-        <div className="panel-list" data-testid="teams-list">
-          {teams.data.map((t) => (
-            <div key={t.id} className="entity-row" data-testid={`team-row-${t.id}`}>
-              <div>
-                <div className="entity-label">{t.name}</div>
-                {/* Age group and gender in the reader's language — `toTeam` has
-                    already resolved them from the reference vocabulary. */}
-                <div className="entity-meta">
-                  {[t.orgName, t.ageGroupLabel, t.genderLabel].filter(Boolean).join(" · ")}
-                </div>
-              </div>
-              <ButtonLink variant="outline" href={routeHref({ page: "team", id: t.id })}>
-                {m.team_open()}
-              </ButtonLink>
-            </div>
-          ))}
-        </div>
-      ) : teams.error ? null : (
-        <div className="empty" data-testid="teams-empty">
-          {m.teams_empty()}
-        </div>
-      )}
+          </ItemGroup>
+        ) : teams.error ? null : (
+          <EmptyState data-testid="teams-empty">{m.teams_empty()}</EmptyState>
+        )}
+      </PageInner>
     </div>
   );
 }

@@ -8,6 +8,9 @@ import { m } from "../lib/i18n";
 import { useLocale } from "../lib/locale";
 import { STORED_ROLE } from "../../domain/vocabularies";
 import { ButtonLink } from "../components/button-link";
+import { PageHeader, PageInner } from "../components/page";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 /**
  * Your account: who you are here, and the people you are responsible for.
@@ -27,43 +30,45 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
 
   return (
     <>
-      <div className="page-header">
-        <div className="crumbs">{m.profile_crumb()}</div>
-        <h1>
-          {user ? m.welcome_back({ name: user.name || user.email }) : m.profile_signed_out()}
-        </h1>
-        <div className="sub">
-          {user ? m.profile_sub() : loading ? "" : m.profile_signed_out_sub()}
-        </div>
-      </div>
+      <PageHeader
+        crumbs={[{ label: m.profile_crumb() }]}
+        title={user ? m.welcome_back({ name: user.name || user.email }) : m.profile_signed_out()}
+        sub={user ? m.profile_sub() : loading ? "" : m.profile_signed_out_sub()}
+      />
 
       {!user && !loading && (
-        <div className="page-inner">
-          <div className="panel-list" data-testid="profile-signin">
-            <div className="push-note">{m.profile_signed_out_why()}</div>
-            <ButtonLink
-              data-testid="profile-signin-button"
-              href={routeHref(signInRoute(parseRoute(window.location.hash)))}
-            >
-              {m.sign_in()}
-            </ButtonLink>
-          </div>
-        </div>
+        <PageInner>
+          <Card data-testid="profile-signin">
+            <CardContent className="flex flex-col items-start gap-4">
+              <Alert><AlertDescription>{m.profile_signed_out_why()}</AlertDescription></Alert>
+              <ButtonLink
+                data-testid="profile-signin-button"
+                href={routeHref(signInRoute(parseRoute(window.location.hash)))}
+              >
+                {m.sign_in()}
+              </ButtonLink>
+            </CardContent>
+          </Card>
+        </PageInner>
       )}
 
       {user && (
-        <div className="page-inner" data-testid="profile">
-          <section className="panel" data-testid="profile-identity">
-            <h2>{m.profile_account()}</h2>
-            <p>{user.email}</p>
-            <p>{roleCode ? label("roles", roleCode) : user.role}</p>
-            {user.statusCode && <p>{label("userStatuses", user.statusCode)}</p>}
-            <ButtonLink variant="outline" href={routeHref({ page: "home" })}>{m.profile_responsibilities()}</ButtonLink>
-            <PlatformCan action="CREATE_PLAYER"><NewPlayer onCreated={(id) => goto({ page: "player", id })} /></PlatformCan>
-          </section>
+        <PageInner className="flex flex-col gap-6" data-testid="profile">
+          <Card data-testid="profile-identity">
+            <CardHeader><CardTitle>{m.profile_account()}</CardTitle></CardHeader>
+            <CardContent className="flex flex-col items-start gap-3">
+              <div>
+                <p>{user.email}</p>
+                <p className="text-muted-foreground">{roleCode ? label("roles", roleCode) : user.role}</p>
+                {user.statusCode && <p className="text-muted-foreground">{label("userStatuses", user.statusCode)}</p>}
+              </div>
+              <ButtonLink variant="outline" href={routeHref({ page: "home" })}>{m.profile_responsibilities()}</ButtonLink>
+              <PlatformCan action="CREATE_PLAYER"><NewPlayer onCreated={(id) => goto({ page: "player", id })} /></PlatformCan>
+            </CardContent>
+          </Card>
           <WhoAreYou />
           <YourPlayers goto={goto} />
-        </div>
+        </PageInner>
       )}
     </>
   );

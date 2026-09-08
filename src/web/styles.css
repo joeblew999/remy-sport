@@ -294,9 +294,6 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
-/* Thai-first, for a line that is Thai with a Latin word or two in it: one face
-   for the whole line reads better than Inter's Latin spliced into Noto's Thai. */
-.thai { font-family: var(--font-thai); }
 
 /* Element defaults, in the base layer — the same layer Tailwind's preflight
    sits in. Unlayered, these beat every utility regardless of specificity
@@ -350,11 +347,6 @@ body {
   letter-spacing: -0.025em;
 }
 .page-header .sub { color: var(--ink-3); font-size: var(--type-base); margin-top: 6px;}
-.page-header .sub.thai { font-family: var(--font-thai); }
-
-/* How long a player has been on the roster, beside their position. */
-.pos .since { color: var(--ink-3); }
-.pos .since::before { content: " · "; opacity: 0.5; }
 
 /* The admin console's row buttons are the last users of the hand-rolled
    button: they live in the tables that move to the system's Table in step 10,
@@ -373,77 +365,6 @@ body {
 }
 .admin-table button:hover { border-color: var(--ink-2); color: var(--ink);}
 
-/* ---------- Team page ---------- */
-.team-hero {
-  padding: var(--space-6) var(--page-gutter);
-  border-bottom: 1px solid var(--rule);
-  display: grid; grid-template-columns: 80px minmax(0, 1fr) auto; gap: var(--space-6); align-items: center;
-}
-.team-hero .crest {
-  width: 80px; height: 80px; border-radius: 50%;
-  background: var(--brand);
-  position: relative;
-}
-.team-hero .crest::before, .team-hero .crest::after {
-  content:""; position: absolute; inset: 0; border-radius: 50%;
-}
-.team-hero .crest::before { border-top: 2px solid var(--paper); border-bottom: 2px solid var(--paper); transform: scaleX(0.6);}
-.team-hero .crest::after { border-left: 2px solid var(--paper); border-right: 2px solid var(--paper); transform: scaleY(0.6);}
-.team-hero h1 {
-  font-family: var(--font-display); font-weight: 600; font-size: var(--type-h1); line-height: 1.15; letter-spacing: -0.025em;
-}
-.team-hero .meta { color: var(--ink-3); font-size: var(--type-base); margin-top: 6px;}
-.team-hero .meta.thai { color: var(--ink-2); margin-top: 4px; }
-/* Wins and losses, beside the hero. See pages/team.tsx for what counts. */
-.team-record { text-align: right; }
-.team-record .label { font-size: var(--type-xs); color: var(--ink-3); margin-bottom: 2px; }
-.team-record .value {
-  font-family: var(--font-display); font-weight: 600; font-size: 32px; letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-}
-.team-record .value.none { color: var(--ink-3); }
-
-.roster {
-  margin-top: 24px;
-}
-.roster-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 12px;
-  margin-top: 16px;
-}
-.player-card {
-  border: 1px solid var(--rule);
-  padding: 16px;
-  display: grid;
-  grid-template-columns: 48px 1fr;
-  gap: 14px;
-  align-items: start;
-}
-.player-card .ava {
-  width: 48px; height: 48px; border-radius: 50%;
-  background: var(--paper-3); color: var(--ink);
-  display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-display); font-weight: 600; font-size: var(--type-base);
-}
-.player-card .num {
-  position: absolute; top: 12px; right: 14px;
-  font-family: var(--font-display); font-weight: 600; font-size: var(--type-2xl); letter-spacing: -0.02em; color: var(--paper-3);
-}
-.player-card { position: relative;}
-.player-card .name { font-weight: 500; font-size: var(--type-base);}
-/* The roster name is a way in to the player page, so it is a button. Styled
-   back to reading as the text it replaced — a bordered control per player
-   turns a squad list into a wall of buttons. */
-.link-button {
-  background: none; border: 0; padding: 0; margin: 0;
-  font: inherit; color: inherit; text-align: left; cursor: pointer;
-}
-.link-button:hover { text-decoration: underline;}
-.player-card .pos { font-size: var(--type-sm); color: var(--ink-3); margin-top: 2px;}
-.player-card .stats { display: flex; gap: 8px; margin-top: 8px; font-size: var(--type-sm); color: var(--ink-2);}
-.player-card .stats span { display: inline-flex; gap: 3px;}
-.player-card .stats span b { color: var(--ink); font-weight: 600;}
-
 /* ---------- Profile / dashboard ---------- */
 .section-h {
   display: flex; align-items: baseline; justify-content: space-between;
@@ -451,50 +372,11 @@ body {
   margin: 32px 0 12px 0;
 }
 
-/* One fixture on the team page. Was an inline `gridTemplateColumns` in
-   team.tsx — 350px of fixed tracks plus 1fr — which no media query could
-   reach, because an inline style always wins. Layout belongs in the stylesheet. */
-.fixture-row {
-  display: grid;
-  grid-template-columns: 90px 1fr 80px 100px 80px;
-  gap: 8px;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--rule);
-  align-items: center;
-}
-.fixture-row.live { background: var(--brand-soft); }
-.fixture-row .date { font-family: var(--font-display); font-weight: 500; font-size: var(--type-md); }
-.fixture-row .opponent { font-size: var(--type-base); }
-.fixture-row .kind { font-size: var(--type-sm); color: var(--ink-3); }
-.fixture-row .result { font-family: var(--font-display); font-weight: 600; font-size: var(--type-base); text-align: right; font-variant-numeric: tabular-nums; }
-.fixture-row .outcome { font-size: var(--type-xs); font-weight: 500; letter-spacing: var(--tracking-caps); text-transform: uppercase; text-align: right; }
-
 .section-h h2 {
   font-family: var(--font-display); font-weight: 600; font-size: var(--type-xl); letter-spacing: -0.02em;
 }
 .section-h .more { font-size: var(--type-sm); color: var(--ink-3);}
 .section-h .more:hover { color: var(--brand);}
-
-/* Convention for every grid in this file: `minmax(0, …)` on a track, not a
-   bare `fr`. A grid item defaults to `min-width: auto`, which is its
-   min-content width, so a bare `1fr` track cannot shrink below the widest
-   thing inside it — the track grows past the grid instead. On the event page
-   that made a 362px grid resolve a 406.5px column, and everything in it
-   overflowed by 31px. `minmax(0, 1fr)` is the standard fix and the same defect
-   as `min-width: 0` on a flex child. */
-.panel-list {
-  border-radius: var(--radius-legacy);
-  border: 1px solid var(--rule);
-  padding: 0;
-  background: var(--paper);
-}
-.panel-list .head {
-  display: flex; justify-content: space-between; align-items: baseline;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--rule);
-  font-size: var(--type-xs); font-weight: 500; color: var(--ink-3);
-}
-.panel-list .head .more { color: var(--ink-3); font-size: var(--type-xs); }
 
 /* ---------- Generic helpers ---------- */
 .muted { color: var(--ink-3);}
@@ -503,65 +385,6 @@ body {
   border: 1px dashed var(--rule);
 }
 
-/* Editing a player, inline in the row it replaces. */
-.player-edit {
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  padding: 14px 18px; border-bottom: 1px solid var(--rule);
-}
-.player-edit input[type="number"] { width: 5em; }
-/* A row that navigates, with a second control beside it — siblings, because
-   interactive content cannot nest. */
-.player-row {
-  display: flex; align-items: stretch;
-  border-bottom: 1px solid var(--rule);
-}
-.player-row:last-child { border-bottom: none; }
-.row-main {
-  flex: 1; text-align: left; padding: 14px 18px;
-  background: transparent; border: none; cursor: pointer; color: inherit;
-}
-.row-main:hover:not(:disabled) { background: var(--paper-2); }
-.row-main:disabled { cursor: default; }
-.row-edit {
-  flex: none; padding: 0 18px; background: transparent; border: none;
-  font-size: var(--type-sm); font-weight: 500; color: var(--brand);
-  cursor: pointer;
-}
-.row-edit:hover { background: var(--paper-2); }
-
-/* A jersey number beside a name — monospace so two digits do not shift the
-   name, which is what a column of them looks wrong without. */
-.player-jersey {
-  margin-left: 8px; font-family: var(--font-mono);
-  font-size: var(--type-xs); color: var(--ink-3); font-weight: 400;
-}
-.row-button:disabled { cursor: default; }
-.row-button:disabled:hover { background: transparent; }
-
-/* A coach: initials, name, and what they do. Not a button — there is no
-   person page to go to, and a row that looks clickable and is not is the same
-   lie as a button that does nothing. */
-.coach-row {
-  display: grid; grid-template-columns: 32px 1fr auto; gap: 12px;
-  align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--rule);
-}
-.coach-row:last-child { border-bottom: none; }
-.coach-row .ava {
-  width: 32px; height: 32px; border-radius: 50%; background: var(--paper-2);
-  display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-display); font-size: var(--type-xs); font-weight: 500;
-}
-
-/* ─── A row in a dashboard card that navigates somewhere ──────────────────
-   Was four copies of the same twelve inline style properties, one per list on
-   the profile page, which is how two of them ended up differing by a pixel. */
-.row-button {
-  display: block; width: 100%; text-align: left;
-  padding: 14px 18px; border: none; border-bottom: 1px solid var(--rule);
-  background: transparent; cursor: pointer; color: inherit;
-}
-.row-button:last-child { border-bottom: none; }
-.row-button:hover { background: var(--paper-2); }
 .row-title {
   font-family: var(--font-display); font-weight: 600;
   font-size: var(--type-base); letter-spacing: -0.01em;
@@ -594,7 +417,6 @@ body {
 /* ─── Tablet: ≤ 1024px ─── */
 @media (max-width: 1024px) {
   :root { --page-gutter: 24px; }
-  .roster-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* ─── Mobile: ≤ 768px ─── */
@@ -609,48 +431,10 @@ body {
   :root { --page-gutter: 14px; }
   .page-header h1 { font-size: clamp(24px, 6vw, 32px); }
 
-  .roster-grid { grid-template-columns: 1fr; }
-  .player-card { padding: 12px; }
-
-  /* A fixture is five columns of 350px on the desktop. On a phone it becomes
-     two rows: who and when on the first, the outcome on the second. */
-  .fixture-row {
-    grid-template-columns: 64px minmax(0, 1fr) auto;
-    gap: 4px 10px;
-    padding: 12px 14px;
-  }
-  .fixture-row .kind { grid-column: 2 / -1; }
-  .fixture-row .outcome { grid-column: 3; grid-row: 1; }
-  .fixture-row .result { grid-column: 3; grid-row: 2; }
-
-  /* Team hero: stack */
-  .team-hero { grid-template-columns: 1fr; gap: var(--space-4); padding: var(--space-4) var(--page-gutter); }
-  .team-hero h1 { font-size: clamp(24px, 6vw, 32px); }
-  .team-record { text-align: left; }
-
   /* Section headings */
   .section-h { padding: 16px 14px 8px; }
 
 }
-
-/* ---------- Devices (where you're signed in) ---------- */
-.entity-row {
-  display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  padding: 14px 18px; border-bottom: 1px solid var(--rule);
-}
-.entity-row:last-child { border-bottom: none; }
-.entity-label { font-size: var(--type-base); font-weight: 500; display: flex; align-items: center; gap: 8px; }
-.entity-meta {
-  font-size: var(--type-sm);
-  color: var(--ink-3); margin-top: 3px;
-}
-.device-tag {
-  font-size: var(--type-xs); font-weight: 500;
-  letter-spacing: var(--tracking-caps); text-transform: uppercase;
-  background: var(--brand-soft); color: var(--brand-deep);
-  padding: 1px 7px; border-radius: 100px;
-}
-.device-tag.warn { background: var(--rule); color: var(--ink-2); }
 
 /* ---------- Admin console (ADR 013, moved into the SPA by ADR 020) ---------- */
 /* Ported from src/views/dashboard.ts, which used DaisyUI from a CDN. These are
@@ -782,8 +566,6 @@ select { height: var(--control-height); }
 .login-code { font-family: var(--font-mono); letter-spacing: 0.4em; text-align: center; font-size: var(--type-lg); }
 :where(button, a, input, select, textarea, summary):focus-visible { outline: 2px solid var(--brand-deep); outline-offset: 3px; }
 :where(button, input, select, textarea):disabled { opacity: 0.6; cursor: not-allowed; }
-.entity-row > * { min-width: 0; }
-.entity-row > :first-child { overflow-wrap: anywhere; }
 .small { font-size: var(--type-sm); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }

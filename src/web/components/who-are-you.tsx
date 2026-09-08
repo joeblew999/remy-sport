@@ -1,9 +1,13 @@
 import { formErrors } from "../lib/form-errors"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { ChevronRightIcon } from "lucide-react"
 import { api } from "../lib/orpc"
 import { useSession } from "../lib/session"
 import { useLocale } from "../lib/locale"
 import { m } from "../lib/i18n"
+import { SectionHeading } from "./page"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item"
 
 /**
  * Saying what you are, after signing up.
@@ -62,26 +66,33 @@ export function WhoAreYou() {
   const OFFERED = ["PLAYER", "COACH", "ORGANIZER", "REFEREE"] as const
 
   return (
-    <>
-      <div className="section-h">
-        <h2>{m.whoareyou()}</h2>
+    <section>
+      <SectionHeading title={m.whoareyou()} className="mt-0" />
+      <div className="flex flex-col gap-3" data-testid="who-are-you">
+        <Alert><AlertDescription>{m.whoareyou_sub()}</AlertDescription></Alert>
+        <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border">
+          {OFFERED.map((code) => (
+            <Item
+              key={code}
+              className="rounded-none px-4 py-3 text-left hover:bg-muted disabled:opacity-50"
+              render={<button type="button" disabled={choose.isPending} />}
+              data-testid={`choose-role-${code}`}
+              onClick={() => choose.mutate(code)}
+            >
+              <ItemContent>
+                <ItemTitle className="text-base">{label("roles", code)}</ItemTitle>
+                {code === "REFEREE" && <ItemDescription>{m.role_pending_note()}</ItemDescription>}
+              </ItemContent>
+              <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden />
+            </Item>
+          ))}
+        </ItemGroup>
+        {err.form && (
+          <Alert variant="destructive">
+            <AlertDescription>{err.form}</AlertDescription>
+          </Alert>
+        )}
       </div>
-      <div className="panel-list" data-testid="who-are-you">
-        <div className="push-note">{m.whoareyou_sub()}</div>
-        {OFFERED.map((code) => (
-          <button
-            key={code}
-            className="row-button"
-            data-testid={`choose-role-${code}`}
-            disabled={choose.isPending}
-            onClick={() => choose.mutate(code)}
-          >
-            <div className="row-title">{label("roles", code)}</div>
-            {code === "REFEREE" && <div className="row-meta">{m.role_pending_note()}</div>}
-          </button>
-        ))}
-        {err.form && <p role="alert" className="feedback-error small">{err.form}</p>}
-      </div>
-    </>
+    </section>
   )
 }

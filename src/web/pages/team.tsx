@@ -10,16 +10,28 @@ import { api, orpc } from "../lib/orpc";
 import { useRoster, useTeam, useTeamGames } from "../lib/data";
 import { routeHref, type Route } from "../lib/router";
 import { m } from "../lib/i18n";
+import { PageHeader, PageInner, SectionHeading } from "../components/page";
+import { EmptyState, Loading } from "../components/states";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import { ButtonLink } from "../components/button-link";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Item, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import { useLocale } from "../lib/locale";
 import { useSession } from "../lib/session";
 import { formErrors } from "../lib/form-errors";
 import type { Team } from "../data";
+
+/** Two letters for a crest or an avatar. */
+const initials = (label: string) => label.split(" ").filter(Boolean).slice(0, 2).map((x) => x[0]!).join("");
 
 /**
  * @answers VIEW_TEAM, EDIT_TEAM_PROFILE, MANAGE_ROSTER, CREATE_PLAYER
@@ -32,7 +44,7 @@ import type { Team } from "../data";
  * `me.mine`; `#/team` with no id renders the directory. This page used to
  * guess at "your team" from a list when it had no id, and guessed wrong.
  */
-export function TeamPage({ id, goto, query, spoiler = false }: { id: string; goto: (r: Route) => void; query?: Record<string, string>; spoiler?: boolean }) {
+export function TeamPage({ id, goto: _goto, query, spoiler = false }: { id: string; goto: (r: Route) => void; query?: Record<string, string>; spoiler?: boolean }) {
   const teamQuery = useTeam(id);
   const { data: t, isPending: teamLoading } = teamQuery;
   const { data: roster } = useRoster(id);
@@ -49,106 +61,103 @@ export function TeamPage({ id, goto, query, spoiler = false }: { id: string; got
     document.getElementById(section)?.scrollIntoView({ block: "start" });
   }, [id, query?.section, teamLoading, roster, teamGames]);
 
-  if (teamQuery.error && !t && !isNotFound(teamQuery.error)) return <QueryError error={teamQuery.error} retry={teamQuery.refetch} pending={teamQuery.isFetching} />;
-  if (teamLoading) {
-    return <div className="empty">{m.loading_team()}</div>;
-  }
-
+  if (teamQuery.error && !t && !isNotFound(teamQuery.error)) return <PageInner><QueryError error={teamQuery.error} retry={teamQuery.refetch} pending={teamQuery.isFetching} /></PageInner>;
+  if (teamLoading) return <PageInner><Loading>{m.loading_team()}</Loading></PageInner>;
   if (!t) {
     return (
-      <div className="empty">
-        <p>{m.not_found_team()}</p>
-        <a href={routeHref({ page: "discover" })}>{m.back_to_discover()}</a>
-      </div>
+      <PageInner>
+        <EmptyState data-testid="not-found">
+          <p>{m.not_found_team()}</p>
+          <a href={routeHref({ page: "discover" })}>{m.back_to_discover()}</a>
+        </EmptyState>
+      </PageInner>
     );
   }
   return (
     <>
-      <div className="team-hero">
-        <div className={`crest ${t.crest}`}></div>
-        <div>
-          <h1 data-testid="team-name">{t.name}</h1>
-          <div className="meta thai">
-            <a href={routeHref({ page: "org", id: t.orgId })}>{t.orgName}</a>{t.city && ` · ${t.city}`}
+      <PageHeader
+        data-testid="team-hero"
+        media={<Avatar size="lg" className="size-16" aria-hidden="true"><AvatarFallback className="bg-primary/15 text-lg font-semibold text-primary">{initials(t.name)}</AvatarFallback></Avatar>}
+        title={<span data-testid="team-name">{t.name}</span>}
+        sub={<><a className="hover:underline" href={routeHref({ page: "org", id: t.orgId })}>{t.orgName}</a>{t.city && ` · ${t.city}`}</>}
+        subLang="th"
+        // The record is the schedule below, counted: wins and losses among
+        // the games that have a score, from this team's end. A dash stays for
+        // a team that has not played. There is still no RANK: that is a
+        // standings question, and it is answered on the event page.
+        extra={
+          <div className="text-right">
+            <div className="text-xs text-muted-foreground">{m.record_all_events()}</div>
+            <div data-testid="team-record" className={cn("text-3xl font-semibold tabular-nums", !(wins + losses) && "text-muted-foreground")}>
+              {!spoiler && wins + losses ? `${wins}–${losses}` : "—"}
+            </div>
           </div>
-          <div className="meta">{t.ageGroupLabel} {t.genderLabel} · {t.short}</div>
-          <div className="event-actions" style={{ marginTop: 16 }}>
+        }
+      >
+        <p className="mt-1 text-muted-foreground">{t.ageGroupLabel} {t.genderLabel} · {t.short}</p>
+        <div className="mt-4 overflow-x-auto">
+          <ButtonGroup>
             {t.id && <FollowButton objectTypeCode="TEAM" objectId={t.id} />}
             <ButtonLink variant="outline" href={routeHref({ page: "team", id, query: { section: "roster" } })}>{m.roster()}</ButtonLink>
             <ButtonLink variant="outline" href={routeHref({ page: "team", id, query: { section: "schedule" } })}>{m.schedule()}</ButtonLink>
-          </div>
+          </ButtonGroup>
         </div>
-        {/* The record is the schedule below, counted: wins and losses among
-            the games that have a score, from this team's end. It was a dash
-            while the games table did not exist and "4–0" would have been an
-            invention; the same page now lists five results with W and L
-            beside them, and a dash above those read as broken. A dash stays
-            for a team that has not played. There is still no RANK: that is a
-            standings question, and it is answered on the event page. */}
-        <div className="team-record">
-          <div className="label">{m.record_all_events()}</div>
-          <div data-testid="team-record" className={wins + losses ? "value" : "value none"}>
-            {!spoiler && wins + losses ? `${wins}–${losses}` : "—"}
-          </div>
-        </div>
-      </div>
+      </PageHeader>
 
-      <div className="page-inner">
+      <PageInner className="flex flex-col gap-6">
         {/* Real players now — `player` and `playerTeam`, current spells only.
             No per-game averages: the fixture this replaced showed points,
             assists and rebounds per person and there is no stats table, so they
             are absent rather than invented a second time. */}
-        <div className="section-h" id="roster"><h2>{m.roster()}</h2></div>
-        {roster?.players.length ? (
-          <div className="roster-grid" data-testid="roster">
-            {roster.players.map(p => (
-              <div key={p.playerId} className="player-card" data-testid={`player-${p.playerId}`}>
-                <div className="ava">{p.name.split(" ").map(x => x[0]).join("")}</div>
-                <div>
-                  {/* The way in to the player page. The roster was the only place
-                      a player appeared and there was nowhere to go from it —
-                      which is why FOLLOW_PLAYER had a button nothing rendered. */}
-                  <a
-                    className="link-button name"
-                    data-testid={`open-player-${p.playerId}`}
-                    href={routeHref({ page: "player", id: p.playerId })}
-                  >
-                    {p.name}
-                  </a>
-                  <div className="pos">
-                    {p.position}
-                    {p.since && <span className="since">{m.roster_since({ date: p.since })}</span>}
-                  </div>
-                </div>
-                <div className="num">{p.jerseyNumber}</div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="empty" data-testid="roster-empty">{m.roster_empty()}</div>
-        )}
+        <section>
+          <SectionHeading title={m.roster()} id="roster" data-testid="roster-heading" className="mt-0" />
+          {roster?.players.length ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" data-testid="roster">
+              {roster.players.map(p => (
+                <Item key={p.playerId} variant="outline" className="items-start" data-testid={`player-${p.playerId}`}>
+                  <ItemMedia><Avatar size="lg" aria-hidden="true"><AvatarFallback>{initials(p.name)}</AvatarFallback></Avatar></ItemMedia>
+                  <ItemContent>
+                    {/* The way in to the player page. The roster was the only place
+                        a player appeared and there was nowhere to go from it —
+                        which is why FOLLOW_PLAYER had a button nothing rendered. */}
+                    <ItemTitle className="text-base">
+                      <a className="hover:underline" data-testid={`open-player-${p.playerId}`} href={routeHref({ page: "player", id: p.playerId })}>{p.name}</a>
+                    </ItemTitle>
+                    <ItemDescription>
+                      {p.position}
+                      {p.since && <> · {m.roster_since({ date: p.since })}</>}
+                    </ItemDescription>
+                  </ItemContent>
+                  <span className="text-2xl font-semibold tabular-nums text-muted-foreground/60" aria-hidden="true">{p.jerseyNumber}</span>
+                </Item>
+              ))}
+            </div>
+          ) : (
+            <EmptyState data-testid="roster-empty">{m.roster_empty()}</EmptyState>
+          )}
+        </section>
 
         {/* Who runs the team. `team_coaches` carried this from the day the
             fixtures were written and the page never said — a squad with no
             staff reads as a team nobody coaches. */}
-        <div className="section-h" style={{ marginTop: 32 }}><h2>{m.coaching_staff()}</h2></div>
-        <div className="panel-list" data-testid="coaching-staff">
-          {!user && (
-            <div className="empty" data-testid="coaches-signin">{m.coaching_staff_signin()}</div>
-          )}
-          {user && (roster?.coaches.length ?? 0) === 0 && (
-            <div className="empty" data-testid="coaches-empty">{m.coaching_staff_none()}</div>
-          )}
-          {(roster?.coaches ?? []).map((c) => (
-            <div key={c.userId} className="coach-row" data-testid={`coach-${c.userId}`}>
-              <div className="ava">{c.name.split(" ").map((x) => x[0]).join("")}</div>
-              <div className="row-title">{c.name}</div>
-              {/* From the reference vocabulary, in the reader's language — not
-                  a map of role codes written out here. */}
-              <div className="row-meta">{label("coachRoles", c.coachRoleCode)}</div>
-            </div>
-          ))}
-        </div>
+        <section>
+          <SectionHeading title={m.coaching_staff()} className="mt-0" />
+          <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border" data-testid="coaching-staff">
+            {!user && <EmptyState className="border-0" data-testid="coaches-signin">{m.coaching_staff_signin()}</EmptyState>}
+            {user && (roster?.coaches.length ?? 0) === 0 && <EmptyState className="border-0" data-testid="coaches-empty">{m.coaching_staff_none()}</EmptyState>}
+            {(roster?.coaches ?? []).map((c) => (
+              <Item key={c.userId} className="rounded-none px-4 py-3" data-testid={`coach-${c.userId}`}>
+                <ItemMedia><Avatar aria-hidden="true"><AvatarFallback>{initials(c.name)}</AvatarFallback></Avatar></ItemMedia>
+                <ItemContent>
+                  <ItemTitle className="text-base">{c.name}</ItemTitle>
+                  {/* From the reference vocabulary, in the reader's language — not
+                      a map of role codes written out here. */}
+                  <ItemDescription>{label("coachRoles", c.coachRoleCode)}</ItemDescription>
+                </ItemContent>
+              </Item>
+            ))}
+          </ItemGroup>
+        </section>
 
         {/* `teams.update` was enforced by EDIT_TEAM_PROFILE and unreachable, so
             a team named wrong when it was created stayed named wrong. */}
@@ -159,41 +168,41 @@ export function TeamPage({ id, goto, query, spoiler = false }: { id: string; got
             team, not worked out from the viewer's role. */}
         {id && roster && <Can of={t} action="MANAGE_ROSTER"><ManageRoster teamId={id} roster={roster}/></Can>}
 
-        <div className="section-h" id="team-schedule" style={{ marginTop: 48 }}><h2>{m.schedule()}</h2></div>
-        <div className="panel-list">
-          {gamesLoading && <div className="empty">{m.loading()}</div>}
-          {!gamesLoading && games.length === 0 && <div className="empty">{m.no_games_yet()}</div>}
-          {games.map((g) => (
-            <div key={g.id} className={`fixture-row${g.live ? " live" : ""}`}>
-              <GameSummary game={g} showEvent/>
-              <span className="result">
-                {/* Both or neither. A played game has two scores; anything else
-                    is a fixture, and "61–" is not a result. */}
-                {!spoiler && g.us !== null && g.them !== null
-                  ? `${g.us}–${g.them}`
-                  : <span className="muted">—</span>}
-              </span>
-              <span
-                className="outcome"
-                style={{
-                  color: g.live ? "var(--live)" : g.won === true ? "var(--good)" : "var(--ink-3)",
-                  fontWeight: g.live || g.won === true ? 500 : 400,
-                }}
-              >
-                {/* The status the server stored, except where the result says
-                    more than "finished" does. */}
-                {spoiler ? g.statusLabel : g.live
-                  ? m.status_live()
-                  : g.won === true
-                    ? m.col_won()
-                    : g.won === false
-                      ? m.col_lost()
-                      : g.statusLabel}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
+        <section>
+          <SectionHeading title={m.schedule()} id="team-schedule" className="mt-0" />
+          <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border">
+            {gamesLoading && <Loading className="border-0" />}
+            {!gamesLoading && games.length === 0 && <EmptyState className="border-0">{m.no_games_yet()}</EmptyState>}
+            {games.map((g) => (
+              <Item key={g.id} className={cn("flex-wrap rounded-none px-4 py-3", g.live && "bg-destructive/5")} data-testid="team-fixture">
+                <ItemContent className="basis-full sm:basis-auto">
+                  <GameSummary game={g} showEvent/>
+                </ItemContent>
+                <ItemContent className="ml-auto flex-none items-end text-right">
+                  {/* Both or neither. A played game has two scores; anything else
+                      is a fixture, and "61–" is not a result. */}
+                  <span className="text-base font-semibold tabular-nums" data-testid="fixture-result">
+                    {!spoiler && g.us !== null && g.them !== null
+                      ? `${g.us}–${g.them}`
+                      : <span className="text-muted-foreground">—</span>}
+                  </span>
+                  {/* The status the server stored, except where the result says
+                      more than "finished" does. */}
+                  <Badge data-testid="fixture-outcome" variant={g.live ? "destructive" : g.won === true ? "default" : "outline"}>
+                    {spoiler ? g.statusLabel : g.live
+                      ? m.status_live()
+                      : g.won === true
+                        ? m.col_won()
+                        : g.won === false
+                          ? m.col_lost()
+                          : g.statusLabel}
+                  </Badge>
+                </ItemContent>
+              </Item>
+            ))}
+          </ItemGroup>
+        </section>
+      </PageInner>
     </>
   );
 }
@@ -232,35 +241,38 @@ function ManageRoster({ teamId, roster }: { teamId: string; roster: Roster }) {
   // tests/render/who-sees-what.spec.ts to check the screen against the
   // model's grants for every relation a reader can hold on a team.
   return (
-    <section className="panel" style={{ marginTop: 24 }} data-testid="manage-roster">
-      <h2>{m.manage_roster()}</h2>
+    <Card data-testid="manage-roster">
+      <CardHeader><CardTitle>{m.manage_roster()}</CardTitle></CardHeader>
+      <CardContent className="flex flex-col gap-4">
       {/* formErrors, not `error.message`: the raw message is the Worker's own
           English ("Not found"), which reached a Thai reader verbatim. */}
       {formErrors(error).form && (
-        <div className="feedback-error" data-testid="roster-error" role="alert">{formErrors(error).form}</div>
+        <Alert variant="destructive" data-testid="roster-error">
+          <AlertDescription>{formErrors(error).form}</AlertDescription>
+        </Alert>
       )}
 
       {roster.players.length > 0 && (
-        <table className="admin-table" data-testid="roster-table">
-          <tbody>
+        <Table data-testid="roster-table">
+          <TableBody>
             {roster.players.map((p) => (
-              <tr key={p.playerId}>
-                <td>{p.name}</td>
-                <td className="muted">{p.position}</td>
-                <td>
-                  <button
-                    className="danger"
+              <TableRow key={p.playerId}>
+                <TableCell className="whitespace-normal font-medium">{p.name}</TableCell>
+                <TableCell className="text-muted-foreground">{p.position}</TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    variant="destructive"
                     data-testid={`remove-player-${p.playerId}`}
                     disabled={remove.isPending}
                     onClick={() => remove.mutate(p.playerId)}
                   >
                     {m.remove_from_squad()}
-                  </button>
-                </td>
-              </tr>
+                  </Button>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       )}
 
       {roster.available.length ? (
@@ -288,11 +300,12 @@ function ManageRoster({ teamId, roster }: { teamId: string; roster: Roster }) {
           </FieldGroup>
         </form>
       ) : (
-        <p className="muted" data-testid="no-available-players">{m.everyone_on_squad()}</p>
+        <p className="text-muted-foreground" data-testid="no-available-players">{m.everyone_on_squad()}</p>
       )}
 
       <PlatformCan action="CREATE_PLAYER"><NewPlayer teamId={teamId} onCreated={invalidate} /></PlatformCan>
-    </section>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -339,11 +352,16 @@ function TeamSettings({ team }: { team: Team }) {
   const err = formErrors(save.error, ["names[en]"]);
 
   return (
-    <section className="panel" style={{ marginTop: 24 }} data-testid="team-settings">
-      <h2>{m.team_settings()}</h2>
-      {saved && <div className="feedback-success" data-testid="team-saved" role="status">{m.event_saved()}</div>}
+    <Card data-testid="team-settings">
+      <CardHeader><CardTitle>{m.team_settings()}</CardTitle></CardHeader>
+      <CardContent className="flex flex-col gap-4">
+      {saved && (
+        <Alert role="status" data-testid="team-saved">
+          <AlertDescription>{m.event_saved()}</AlertDescription>
+        </Alert>
+      )}
       {err.form && (
-        <Alert variant="destructive" data-testid="team-settings-error" role="alert">
+        <Alert variant="destructive" data-testid="team-settings-error">
           <AlertDescription>{err.form}</AlertDescription>
         </Alert>
       )}
@@ -402,6 +420,7 @@ function TeamSettings({ team }: { team: Team }) {
           </Button>
         </FieldGroup>
       </form>
-    </section>
+      </CardContent>
+    </Card>
   );
 }

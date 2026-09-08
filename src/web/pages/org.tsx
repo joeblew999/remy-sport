@@ -1,11 +1,18 @@
 import { QueryError, isNotFound } from "../components/query-error";
 import { NameTranslations, namesFrom } from "../components/name-translations";
+import { PageHeader, PageInner, SectionHeading } from "../components/page";
+import { EmptyState, Loading } from "../components/states";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "../components/button-link";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ChevronRightIcon } from "lucide-react";
 /**
  * Organisations — the GUI for `/api/orgs`.
  *
@@ -29,12 +36,6 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
  * field it belongs to — so "Invalid email address" appears beneath the email
  * box rather than as a banner saying "Input validation failed". The rules are
  * the procedure's zod schema and are never restated here.
- *
- * Deliberately NOT oRPC's `RequestValidationPlugin`, which would validate the
- * same rules *before* the request: it takes a runtime contract router, and this
- * repo removed its contract on purpose (see src/api/domain.ts). Reinstating one
- * would put the schemas in the browser bundle, which is exactly what
- * lib/orpc.ts's `import type` avoids.
  */
 
 import { useState } from "react";
@@ -47,6 +48,9 @@ import { routeHref } from "../lib/router";
 import { formErrors } from "../lib/form-errors";
 import { m } from "../lib/i18n";
 import { useLocale } from "../lib/locale";
+
+const LIST = "gap-0 divide-y overflow-hidden rounded-xl border";
+const ROW = "rounded-none px-4 py-3";
 
 /**
  * @answers VIEW_ORG, EDIT_ORG_PROFILE, INVITE_ORG_MEMBER, REMOVE_ORG_MEMBER, CREATE_TEAM
@@ -74,61 +78,56 @@ export function OrgsPage() {
   const yours = (orgs.data ?? []).filter((o) => held.has(o.id));
 
   return (
-    <div className="page-inner" data-testid="orgs-page">
-      <div className="page-header">
-        <div className="crumbs">{m.nav_orgs()}</div>
-        <h1>{m.orgs_heading()}</h1>
-        <div className="sub">{m.orgs_sub()}</div>
-      </div>
+    <div data-testid="orgs-page">
+      <PageHeader crumbs={[{ label: m.nav_orgs() }]} title={m.orgs_heading()} sub={m.orgs_sub()} />
+      <PageInner className="flex flex-col gap-6">
+        {yours.length > 0 && (
+          <section>
+            <SectionHeading title={m.your_orgs()} className="mt-0" />
+            <ItemGroup className={LIST} data-testid="your-orgs">
+              {yours.map((o) => (
+                <Item key={o.id} className={ROW} data-testid={`your-org-${o.id}`}>
+                  <ItemContent>
+                    <ItemTitle className="text-base">{o.name}</ItemTitle>
+                    <ItemDescription>
+                      {[o.city, label("relations", held.get(o.id)!)].filter(Boolean).join(" · ")}
+                    </ItemDescription>
+                  </ItemContent>
+                  <ItemActions>
+                    <ButtonLink variant="outline" href={routeHref({ page: "org", id: o.id })}>{m.org_open()}</ButtonLink>
+                  </ItemActions>
+                </Item>
+              ))}
+            </ItemGroup>
+          </section>
+        )}
 
-      {yours.length > 0 && (
-        <>
-          <div className="section-h">
-            <h2>{m.your_orgs()}</h2>
-          </div>
-          <div className="panel-list" data-testid="your-orgs">
-            {yours.map((o) => (
-              <div key={o.id} className="entity-row" data-testid={`your-org-${o.id}`}>
-                <div>
-                  <div className="entity-label">{o.name}</div>
-                  <div className="entity-meta">
-                    {[o.city, label("relations", held.get(o.id)!)].filter(Boolean).join(" · ")}
-                  </div>
-                </div>
-                <ButtonLink variant="outline" href={routeHref({ page: "org", id: o.id })}>
-                  {m.org_open()}
-                </ButtonLink>
-              </div>
+        {orgs.error && <QueryError error={orgs.error} retry={orgs.refetch} pending={orgs.isFetching} />}
+        {orgs.isPending ? (
+          <Loading>{m.loading_orgs()}</Loading>
+        ) : orgs.data?.length ? (
+          <ItemGroup className={LIST} data-testid="orgs-list">
+            {orgs.data.map((o) => (
+              <Item key={o.id} className={ROW} data-testid={`org-${o.id}`}>
+                <ItemContent>
+                  <ItemTitle className="text-base">{o.name}</ItemTitle>
+                  {/* What kind of organisation, in the reader's language — not
+                      the slug, which is an identifier and read as one. */}
+                  <ItemDescription>{[o.city, o.orgType].filter(Boolean).join(" · ")}</ItemDescription>
+                </ItemContent>
+                {/* "Open", not "Manage": this is everyone's list, and a visitor
+                    manages nothing. The rows under "Your organisations" above
+                    keep "Manage", because there the reader holds a role. */}
+                <ItemActions>
+                  <ButtonLink variant="outline" href={routeHref({ page: "org", id: o.id })}>{m.org_view()}</ButtonLink>
+                </ItemActions>
+              </Item>
             ))}
-          </div>
-        </>
-      )}
-
-      {orgs.error && <QueryError error={orgs.error} retry={orgs.refetch} pending={orgs.isFetching} />}
-      {orgs.isPending ? (
-        <div className="empty">{m.loading_orgs()}</div>
-      ) : orgs.data?.length ? (
-        <div className="panel-list" data-testid="orgs-list">
-          {orgs.data.map((o) => (
-            <div key={o.id} className="entity-row" data-testid={`org-${o.id}`}>
-              <div>
-                <div className="entity-label">{o.name}</div>
-                {/* What kind of organisation, in the reader's language — not
-                    the slug, which is an identifier and read as one. */}
-                <div className="entity-meta">{[o.city, o.orgType].filter(Boolean).join(" · ")}</div>
-              </div>
-              {/* "Open", not "Manage": this is everyone's list, and a visitor
-                  manages nothing. The rows under "Your organisations" above
-                  keep "Manage", because there the reader holds a role. */}
-              <ButtonLink variant="outline" href={routeHref({ page: "org", id: o.id })}>
-                {m.org_view()}
-              </ButtonLink>
-            </div>
-          ))}
-        </div>
-      ) : orgs.error ? null : (
-        <div className="empty">{m.orgs_empty()}</div>
-      )}
+          </ItemGroup>
+        ) : orgs.error ? null : (
+          <EmptyState>{m.orgs_empty()}</EmptyState>
+        )}
+      </PageInner>
     </div>
   );
 }
@@ -140,36 +139,28 @@ export function OrgPage({ id }: { id?: string }) {
   // chosen on the form. It used to ride on the org row as `canCreateTeam`.
   const { data: canCreateTeam } = useCan("CREATE_TEAM");
 
-  if (org.error && !org.data && !isNotFound(org.error)) return <QueryError error={org.error} retry={org.refetch} pending={org.isFetching} />;
-  if (org.isPending) return <div className="empty">{m.loading_org()}</div>;
-  if (!org.data) return <div className="empty">{m.not_found_org()}</div>;
+  if (org.error && !org.data && !isNotFound(org.error)) return <PageInner><QueryError error={org.error} retry={org.refetch} pending={org.isFetching} /></PageInner>;
+  if (org.isPending) return <PageInner><Loading>{m.loading_org()}</Loading></PageInner>;
+  if (!org.data) return <PageInner><EmptyState data-testid="not-found">{m.not_found_org()}</EmptyState></PageInner>;
 
   return (
-    <div className="page-inner" data-testid="org-page">
-      <div className="page-header">
-        <div className="crumbs">{m.nav_orgs()}</div>
-        <h1>{org.data.name}</h1>
-        {/* City and kind, not city and slug: the slug is an identifier. */}
-        <div className="sub">{[org.data.city, org.data.orgType].filter(Boolean).join(" · ")}</div>
-      </div>
-
-      <OrgProfile id={org.data.id} names={org.data.names} cityCode={org.data.cityCode} provinceCode={org.data.provinceCode} canEdit={org.data.can.EDIT_ORG_PROFILE} />
-      {/* Signed-out visitors are not offered a members section at all: the
-          query would 403 for a reason that has nothing to do with this org. */}
-      {user && <OrgMembers id={org.data.id} />}
-      {/* A school's own teams, and — for a coach — the only way to make one.
-          `teams.create` was enforced and unreachable, so a team could not be
-          created from the app at all. */}
-      <OrgTeams
-        orgId={org.data.id}
-        canCreate={canCreateTeam}
+    <div data-testid="org-page">
+      <PageHeader
+        crumbs={[{ label: m.nav_orgs(), href: routeHref({ page: "orgs" }) }]}
+        title={org.data.name}
+        // City and kind, not city and slug: the slug is an identifier.
+        sub={[org.data.city, org.data.orgType].filter(Boolean).join(" · ")}
       />
-
-      <div className="event-actions" style={{ marginTop: 16 }}>
-        <ButtonLink variant="outline" href={routeHref({ page: "orgs" })}>
-          ← {m.orgs_heading()}
-        </ButtonLink>
-      </div>
+      <PageInner className="flex flex-col gap-6">
+        <OrgProfile id={org.data.id} names={org.data.names} cityCode={org.data.cityCode} provinceCode={org.data.provinceCode} canEdit={org.data.can.EDIT_ORG_PROFILE} />
+        {/* Signed-out visitors are not offered a members section at all: the
+            query would 403 for a reason that has nothing to do with this org. */}
+        {user && <OrgMembers id={org.data.id} />}
+        {/* A school's own teams, and — for a coach — the only way to make one.
+            `teams.create` was enforced and unreachable, so a team could not be
+            created from the app at all. */}
+        <OrgTeams orgId={org.data.id} canCreate={canCreateTeam} />
+      </PageInner>
     </div>
   );
 }
@@ -200,7 +191,6 @@ function OrgProfile({
   const qc = useQueryClient();
   const { terms, name } = useLocale();
 
-
   // No `useState` for the error: the mutation already holds it, and a copy in
   // state has to be cleared by hand on every success — which is a second place
   // for "is there an error right now" to be wrong.
@@ -216,20 +206,24 @@ function OrgProfile({
 
   if (!canEdit) {
     return (
-      <section className="panel" data-testid="org-profile">
-        <h2>{m.org_profile()}</h2>
-        <p className="muted" data-testid="org-name-readonly">{names.en ?? ""}</p>
-      </section>
+      <Card data-testid="org-profile">
+        <CardHeader><CardTitle>{m.org_profile()}</CardTitle></CardHeader>
+        <CardContent><p className="text-muted-foreground" data-testid="org-name-readonly">{names.en ?? ""}</p></CardContent>
+      </Card>
     );
   }
 
-
   return (
-    <section className="panel" data-testid="org-profile">
-      <h2>{m.org_profile()}</h2>
-      {save.isSuccess && <div className="feedback-success" role="status">{m.org_profile_saved()}</div>}
+    <Card data-testid="org-profile">
+      <CardHeader><CardTitle>{m.org_profile()}</CardTitle></CardHeader>
+      <CardContent className="flex flex-col gap-4">
+      {save.isSuccess && (
+        <Alert role="status">
+          <AlertDescription>{m.org_profile_saved()}</AlertDescription>
+        </Alert>
+      )}
       {saveErr.form && (
-        <Alert variant="destructive" data-testid="org-profile-error" role="alert">
+        <Alert variant="destructive" data-testid="org-profile-error">
           <AlertDescription>{saveErr.form}</AlertDescription>
         </Alert>
       )}
@@ -280,7 +274,8 @@ function OrgProfile({
           </Button>
         </FieldGroup>
       </form>
-    </section>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -311,73 +306,77 @@ function OrgMembers({ id }: { id: string }) {
   // The server's answer, not a role check. See the note at the top of the file.
   if (members.error) {
     return (
-      <section className="panel dim" data-testid="org-members-denied">
-        <h2>{m.org_members()}</h2>
-        <p className="muted">{m.org_members_denied()}</p>
-      </section>
+      <Card className="opacity-60" data-testid="org-members-denied">
+        <CardHeader><CardTitle>{m.org_members()}</CardTitle><CardDescription>{m.org_members_denied()}</CardDescription></CardHeader>
+      </Card>
     );
   }
 
   return (
     <>
-      <section className="panel" data-testid="org-members">
-        <h2>{m.org_members()}</h2>
+      <Card data-testid="org-members">
+        <CardHeader><CardTitle>{m.org_members()}</CardTitle></CardHeader>
+        <CardContent className="flex flex-col gap-4">
         {sectionError && (
-          <div className="feedback-error" data-testid="org-members-error" role="alert">{sectionError}</div>
+          <Alert variant="destructive" data-testid="org-members-error">
+            <AlertDescription>{sectionError}</AlertDescription>
+          </Alert>
         )}
 
-        <table className="admin-table" data-testid="members-table">
-          <thead>
-            <tr>
-              <th>{m.org_add_member_email()}</th>
-              <th>{m.org_role()}</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
+        <Table data-testid="members-table">
+          <TableHeader>
+            <TableRow>
+              <TableHead>{m.org_add_member_email()}</TableHead>
+              <TableHead>{m.org_role()}</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {members.data?.length ? (
               members.data.map((mem) => (
-                <tr key={mem.userId} data-testid={`member-row-${mem.email}`}>
-                  <td>
+                <TableRow key={mem.userId} data-testid={`member-row-${mem.email}`}>
+                  <TableCell className="whitespace-normal">
                     {mem.name || mem.email}
-                    <div className="muted small">{mem.email}</div>
-                  </td>
-                  <td>
+                    <div className="text-sm text-muted-foreground">{mem.email}</div>
+                  </TableCell>
+                  <TableCell>
                     {/* The model's name for the role, in the reader's
                         language. This printed the raw code — "ORG_ADMIN" — so
                         a Thai reader got a SCREAMING_SNAKE identifier, and the
                         `orgRoles` vocabulary that exists to name it was
                         fetched on every page load and read by nothing. */}
-                    <span className="badge badge-outline">{label("orgRoles", mem.orgRoleCode)}</span>
-                  </td>
-                  <td>
-                    <button
-                      className="danger"
+                    <Badge variant="outline">{label("orgRoles", mem.orgRoleCode)}</Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="destructive"
                       data-testid={`remove-${mem.email}`}
                       disabled={remove.isPending}
                       onClick={() => remove.mutate(mem.userId)}
                     >
                       {m.org_remove_member()}
-                    </button>
-                  </td>
-                </tr>
+                    </Button>
+                  </TableCell>
+                </TableRow>
               ))
             ) : (
-              <tr>
-                <td colSpan={3} className="muted">
+              <TableRow>
+                <TableCell colSpan={3} className="text-muted-foreground">
                   {members.isPending ? m.loading() : m.org_members_empty()}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
-      </section>
+          </TableBody>
+        </Table>
+        </CardContent>
+      </Card>
 
       {/* Its own card, like admin.tsx gives "Create event" one. Inside the
           members card the heading butted straight onto the last table row and
           read as another column header. */}
-      <section className="panel" data-testid="add-member">
-        <h2>{m.org_add_member()}</h2>
+      <Card data-testid="add-member">
+        <CardHeader><CardTitle>{m.org_add_member()}</CardTitle></CardHeader>
+        <CardContent>
         <form
           data-testid="add-member-form"
           onSubmit={(e) => {
@@ -430,7 +429,8 @@ function OrgMembers({ id }: { id: string }) {
           </Button>
           </FieldGroup>
         </form>
-      </section>
+        </CardContent>
+      </Card>
     </>
   );
 }
@@ -480,29 +480,38 @@ function OrgTeams({
   const err = formErrors(add.error, ["names[en]"]);
 
   return (
-    <section className="panel" style={{ marginTop: 24 }} data-testid="org-teams">
-      <h2>{m.org_teams()}</h2>
-      {isPending && <div className="empty">{m.loading()}</div>}
-      {!isPending && mine.length === 0 && (
-        <div className="empty" data-testid="org-no-teams">{m.org_no_teams()}</div>
+    <Card data-testid="org-teams">
+      <CardHeader><CardTitle>{m.org_teams()}</CardTitle></CardHeader>
+      <CardContent className="flex flex-col gap-4">
+      {isPending && <Loading />}
+      {!isPending && mine.length === 0 && <EmptyState data-testid="org-no-teams">{m.org_no_teams()}</EmptyState>}
+      {mine.length > 0 && (
+        <ItemGroup className={LIST}>
+          {mine.map((t) => (
+            <Item key={t.id} className={ROW} data-testid={`org-team-${t.id}`} render={<a href={routeHref({ page: "team", id: t.id })} />}>
+              <ItemContent>
+                <ItemTitle className="text-base">{t.name}</ItemTitle>
+                <ItemDescription>{t.ageGroupLabel} · {t.genderLabel}</ItemDescription>
+              </ItemContent>
+              <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden />
+            </Item>
+          ))}
+        </ItemGroup>
       )}
-      {mine.map((t) => (
-        <a
-          key={t.id}
-          className="row-button"
-          data-testid={`org-team-${t.id}`}
-          href={routeHref({ page: "team", id: t.id })}
-        >
-          <div className="row-title">{t.name}</div>
-          <div className="row-meta">{t.ageGroupLabel} · {t.genderLabel}</div>
-        </a>
-      ))}
 
       {canCreate && (
-        <>
-          <h2 style={{ marginTop: 24 }}>{m.org_add_team()}</h2>
-          {created && <div className="feedback-success" data-testid="org-team-created" role="status">{m.org_team_created()}</div>}
-          {err.form && <div className="feedback-error" data-testid="org-team-error" role="alert">{err.form}</div>}
+        <section className="flex flex-col gap-4">
+          <h3 className="text-base font-semibold">{m.org_add_team()}</h3>
+          {created && (
+            <Alert role="status" data-testid="org-team-created">
+              <AlertDescription>{m.org_team_created()}</AlertDescription>
+            </Alert>
+          )}
+          {err.form && (
+            <Alert variant="destructive" data-testid="org-team-error">
+              <AlertDescription>{err.form}</AlertDescription>
+            </Alert>
+          )}
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -560,8 +569,9 @@ function OrgTeams({
               </Button>
             </FieldGroup>
           </form>
-        </>
+        </section>
       )}
-    </section>
+      </CardContent>
+    </Card>
   );
 }

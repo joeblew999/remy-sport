@@ -1,5 +1,8 @@
 import { formErrors } from "../lib/form-errors"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item"
+import { SectionHeading } from "./page"
 /**
  * "Someone asked you to help run this event."
  *
@@ -56,28 +59,32 @@ export function Invitations({ onAccepted }: { onAccepted?: () => void }) {
   if (invitations.length === 0) return null
 
   return (
-    <>
-      <div className="section-h">
-        <h2>{m.invitations()}</h2>
-      </div>
-      <div className="panel-list" data-testid="invitations">
+    <section>
+      <SectionHeading title={m.invitations()} className="mt-0" />
+      <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border" data-testid="invitations">
         {invitations.map((invite) => (
-          <div key={invite.eventId} className="invite-row" data-testid={`invite-${invite.eventId}`}>
-            <div>
-              <div className="row-title">{name(invite.names, invite.name)}</div>
-              <div className="row-meta">{m.invitation_co_organize()} · <time dateTime={invite.addedAt}>{new Date(invite.addedAt).toLocaleDateString(locale)}</time></div>
-            </div>
-            <Button
-              data-testid={`accept-${invite.eventId}`}
-              disabled={accept.isPending}
-              onClick={() => accept.mutate({ id: invite.eventId })}
-            >
-              {m.invitation_accept()}
-            </Button>
-          </div>
+          <Item key={invite.eventId} className="rounded-none px-4 py-3" data-testid={`invite-${invite.eventId}`}>
+            <ItemContent>
+              <ItemTitle className="text-base">{name(invite.names, invite.name)}</ItemTitle>
+              <ItemDescription>{m.invitation_co_organize()} · <time dateTime={invite.addedAt}>{new Date(invite.addedAt).toLocaleDateString(locale)}</time></ItemDescription>
+            </ItemContent>
+            <ItemActions>
+              <Button
+                data-testid={`accept-${invite.eventId}`}
+                disabled={accept.isPending}
+                onClick={() => accept.mutate({ id: invite.eventId })}
+              >
+                {m.invitation_accept()}
+              </Button>
+            </ItemActions>
+          </Item>
         ))}
-        {err.form && <p role="alert" className="feedback-error small">{err.form}</p>}
-      </div>
-    </>
+        {err.form && (
+          <Alert variant="destructive" className="rounded-none border-0">
+            <AlertDescription>{err.form}</AlertDescription>
+          </Alert>
+        )}
+      </ItemGroup>
+    </section>
   )
 }

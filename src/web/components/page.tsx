@@ -12,7 +12,9 @@
  * registry component that carries a word of its own.
  */
 import { Fragment, type ComponentProps, type ReactNode } from "react";
+import { ChevronRightIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Item, ItemContent, ItemTitle } from "@/components/ui/item";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -57,12 +59,15 @@ export function Crumbs({ items, ...props }: { items: Crumb[] } & ComponentProps<
 /**
  * The top of a page: crumbs, an optional badge beside them, the title, one
  * line under it, and whatever the page adds (a status, an action row).
- * `subLang="th"` sets the Thai-first face for a line that is Thai with a
- * Latin word or two in it.
+ * `media` sits left of the title (a team's crest), `extra` right of it (a
+ * team's record). `subLang="th"` sets the Thai-first face for a line that
+ * is Thai with a Latin word or two in it.
  */
 export function PageHeader({
   crumbs,
   aside,
+  media,
+  extra,
   title,
   sub,
   subLang,
@@ -72,6 +77,8 @@ export function PageHeader({
 }: {
   crumbs?: Crumb[];
   aside?: ReactNode;
+  media?: ReactNode;
+  extra?: ReactNode;
   title: ReactNode;
   sub?: ReactNode;
   subLang?: "th";
@@ -85,11 +92,17 @@ export function PageHeader({
             {aside}
           </div>
         )}
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
-        {sub && (
-          <p className={cn("mt-1.5 text-muted-foreground", subLang === "th" && "font-thai")}>{sub}</p>
-        )}
-        {children}
+        <div className="flex flex-wrap items-start gap-4">
+          {media}
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
+            {sub && (
+              <p className={cn("mt-1.5 text-muted-foreground", subLang === "th" && "font-thai")}>{sub}</p>
+            )}
+            {children}
+          </div>
+          {extra}
+        </div>
       </div>
     </header>
   );
@@ -99,6 +112,19 @@ export function PageHeader({
 export function PageInner({ className, ...props }: ComponentProps<"div">) {
   return (
     <div className={cn("mx-auto w-full max-w-7xl px-4 py-6 pb-16 sm:px-8", className)} {...props} />
+  );
+}
+
+/** A row that opens something: the registry's Item as a link, with a chevron. */
+export function LinkRow({ href, title, children, ...props }: { href: string; title: ReactNode; children?: ReactNode; "data-testid"?: string }) {
+  return (
+    <Item className="rounded-none px-4 py-3" render={<a href={href} />} {...props}>
+      <ItemContent>
+        <ItemTitle className="text-base">{title}</ItemTitle>
+        {children}
+      </ItemContent>
+      <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden />
+    </Item>
   );
 }
 

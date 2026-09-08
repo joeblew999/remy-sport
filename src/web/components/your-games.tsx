@@ -3,6 +3,9 @@ import { useLocale } from "../lib/locale";
 import { formatDayShort } from "../lib/dates";
 import { routeHref } from "../lib/router";
 import { m } from "../lib/i18n";
+import { LinkRow, SectionHeading } from "./page";
+import { EmptyState } from "./states";
+import { ItemDescription, ItemGroup } from "@/components/ui/item";
 
 /**
  * The games you are refereeing — the screen Adisorn never had.
@@ -33,38 +36,26 @@ export function YourGames() {
   if (mine.length === 0) return null;
 
   return (
-    <>
-      <div className="section-h">
-        <h2>{m.your_games()}</h2>
-      </div>
-      <div className="panel-list" data-testid="your-games">
+    <section>
+      <SectionHeading title={m.your_games()} className="mt-0" />
+      <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border" data-testid="your-games">
         {games.length === 0 ? (
-          <div className="empty" data-testid="your-games-none">
-            {m.home_no_upcoming_games()}
-          </div>
+          <EmptyState className="border-0" data-testid="your-games-none">{m.home_no_upcoming_games()}</EmptyState>
         ) : (
           games.map((g) => {
             const live = isLive(g);
             return (
-              <a
-                key={g.id}
-                className="row-button"
-                data-testid={`your-game-${g.id}`}
-                // Every assignment opens its game, including before tip-off.
-                href={routeHref({ page: "game", id: g.id })}
-              >
-                <div className="row-title">
-                  {g.homeTeam} {m.versus()} {g.awayTeam}
-                </div>
-                <div className="row-meta">
+              // Every assignment opens its game, including before tip-off.
+              <LinkRow key={g.id} data-testid={`your-game-${g.id}`} href={routeHref({ page: "game", id: g.id })} title={<>{g.homeTeam} {m.versus()} {g.awayTeam}</>}>
+                <ItemDescription>
                   {live ? g.statusLabel : formatDayShort(locale, new Date(g.startsAt))}
                   {g.venue ? ` · ${g.venue}` : ""}
-                </div>
-              </a>
+                </ItemDescription>
+              </LinkRow>
             );
           })
         )}
-      </div>
-    </>
+      </ItemGroup>
+    </section>
   );
 }
