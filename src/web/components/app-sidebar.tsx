@@ -15,8 +15,10 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { CompassIcon, HomeIcon, MoonIcon, RadioIcon, SchoolIcon, SunIcon, UserIcon, UsersIcon, XIcon, type LucideIcon } from "lucide-react";
+import { CompassIcon, DownloadIcon, HomeIcon, MoonIcon, RadioIcon, SchoolIcon, SunIcon, UserIcon, UsersIcon, XIcon, type LucideIcon } from "lucide-react";
 import { BuildStamp } from "./build-stamp";
+import { isNativeApp } from "../lib/push";
+import type { PwaInstall } from "../lib/installable";
 import { useSession } from "../lib/session";
 import { useLocale, type Locale } from "../lib/locale";
 import { useTheme } from "../lib/theme-provider";
@@ -156,9 +158,40 @@ function SettingsGroup({ spoiler, onSpoilerChange }: {
               onCheckedChange={(checked) => onSpoilerChange(checked === true)}
             />
           </label>
+          <InstallRow />
         </div>
       </SidebarGroupContent>
     </SidebarGroup>
+  );
+}
+
+/**
+ * Install app, back in the GUI at the Product Owner's ask (2026-09-08).
+ *
+ * @answers INSTALL_APP
+ *
+ * Always offered in a browser that is not already running the installed app:
+ * `showDialog(true)` is the element's forced dialog, which shows the
+ * platform's own install steps whether or not the browser has fired its
+ * install prompt yet — so the button always does something true. Not inside
+ * Tauri, where main.tsx renders no element and the reader has the native app.
+ */
+function InstallRow() {
+  if (isNativeApp()) return null;
+  if (typeof window !== "undefined" && window.matchMedia("(display-mode: standalone)").matches) return null;
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-sm text-muted-foreground">{m.install_app()}</span>
+      <Button
+        variant="outline"
+        size="sm"
+        data-testid="install-app"
+        onClick={() => (document.getElementById("pwa-install") as PwaInstall | null)?.showDialog?.(true)}
+      >
+        <DownloadIcon data-icon="inline-start" />
+        {m.install_app()}
+      </Button>
+    </div>
   );
 }
 

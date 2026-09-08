@@ -78,9 +78,22 @@ export default defineConfig({
     { name: "auth-teardown", testMatch: /auth\.teardown\.ts/ },
     {
       name: "e2e",
-      testIgnore: [/.*\.setup\.ts/, /authz\.spec\.ts/],
+      testIgnore: [/.*\.setup\.ts/, /authz\.spec\.ts/, /admin-console\.spec\.ts/],
       dependencies: ["auth"],
     },
+    /**
+     * After the rest, on its own, for the reason the role switcher below is.
+     *
+     * The admin console signs in through the login form as the admin and the
+     * coach — a real one-time code each — while, with `workers: 2`, the other
+     * specs that sign in the same way run beside it. Two requests for the same
+     * person's code inside Better Auth's re-send window leave one of them
+     * redeeming a code the other already spent, and the symptom is a sign-in
+     * that never completes: the code step waits out its timeout on a cold
+     * `vite dev`. Measured on 2026-09-08 as two failures in five full runs,
+     * each in a different admin-console test. Sequenced, it signs in alone.
+     */
+    { name: "admin", testMatch: /admin-console\.spec\.ts/, dependencies: ["e2e"] },
     /**
      * Also last, and for a neighbouring reason.
      *
@@ -98,13 +111,13 @@ export default defineConfig({
      * a private actor nothing else signs in as — pushes the collision one
      * seeded account further away rather than removing it.
      */
-    { name: "authz", testMatch: /authz\.spec\.ts/, dependencies: ["e2e"] },
+    { name: "authz", testMatch: /authz\.spec\.ts/, dependencies: ["admin"] },
     /**
      * Screenshots, not tests — `bun run shots`, which names this project and
      * nothing else. Everything about its environment is this tier's: the same
      * Worker, the same seeded database, the same signed-in states, which is
      * why it lives here rather than in a config of its own (it had one, whose
-     * whole content was "the same as e2e"). `bun run test:e2e` names the e2e
+     * whole content was "the same as e2e"). `bun run test:e2e` names the e2e, admin
      * and authz projects, so a test run never takes pictures.
      */
     { name: "shots", testMatch: /screens\.shots\.ts/, dependencies: ["auth"] },

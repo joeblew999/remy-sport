@@ -112,7 +112,7 @@ Named tests describe specific cases, not exhaustive permission coverage or the l
 | FOLLOW_TEAM | TEAM | [src/web/components/follow.tsx](../src/web/components/follow.tsx) | — | notifications.follow |
 | GENERATE_BRACKETS | EVENT | BLOCKED: Decision 006 accepted; pool/championship generation implementation pending | — | Non-router or unimplemented; audit required |
 | GENERATE_FIXTURES | EVENT | [src/web/components/schedule.tsx](../src/web/components/schedule.tsx) | [src/web/components/schedule.tsx](../src/web/components/schedule.tsx) | games.generateFixtures |
-| INSTALL_APP | PLATFORM | [src/web/components/account.tsx](../src/web/components/account.tsx), [src/web/main.tsx](../src/web/main.tsx) | — | browser.install |
+| INSTALL_APP | PLATFORM | [src/web/components/account.tsx](../src/web/components/account.tsx), [src/web/components/app-sidebar.tsx](../src/web/components/app-sidebar.tsx), [src/web/main.tsx](../src/web/main.tsx) | — | browser.install |
 | INVITE_CO_ORGANIZER | EVENT | [src/web/components/event-settings.tsx](../src/web/components/event-settings.tsx) | [src/web/components/event-settings.tsx](../src/web/components/event-settings.tsx) | events.addCoOrganizer |
 | INVITE_ORG_MEMBER | ORG | [src/web/pages/org.tsx](../src/web/pages/org.tsx) | — | orgs.addMember, orgs.members |
 | MANAGE_ALL_USERS | PLATFORM | [src/web/pages/admin.tsx](../src/web/pages/admin.tsx) | — | auth.admin/ban-user, auth.admin/impersonate-user, auth.admin/list-users, auth.admin/set-role, auth.admin/stop-impersonating, auth.admin/unban-user |

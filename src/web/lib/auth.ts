@@ -133,6 +133,21 @@ export const useDevAccounts = () =>
   });
 
 /** Read a just-emailed code back out of the dev outbox. */
+/**
+ * Forget a pending code before asking for a new one, on a development server.
+ *
+ * Better Auth invalidates a code after `allowedAttempts` and throttles re-sends,
+ * so a second request inside the window returns 200, issues nothing, and
+ * leaves the outbox holding a code somebody else may already have spent. The
+ * test helper clears first for that reason; the dev role switcher, which is
+ * the same sign-in driven from the console, has to as well. Best effort: a
+ * deployment has no outbox and answers 404, which is fine — there is no dev
+ * outbox there to read the code from either.
+ */
+export async function clearDevCode(email: string): Promise<void> {
+  await fetch(`/api/dev/otp?to=${encodeURIComponent(email)}`, { method: "DELETE" }).catch(() => undefined);
+}
+
 export async function codeFromOutbox(email: string): Promise<string | null> {
   const res = await fetch(`/api/dev/outbox?to=${encodeURIComponent(email)}`);
   if (!res.ok) return null;

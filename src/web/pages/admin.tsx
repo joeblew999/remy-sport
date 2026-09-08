@@ -27,7 +27,7 @@ import { formErrors } from "../lib/form-errors";
 import { m } from "../lib/i18n";
 import { useLocale } from "../lib/locale";
 import { api, orpc } from "../lib/orpc";
-import { useAccounts, useAdminAction, useDevAccounts, useRequestCode, useVerifyCode, codeFromOutbox, signOutSilently } from "../lib/auth";
+import { useAccounts, useAdminAction, useDevAccounts, useRequestCode, useVerifyCode, clearDevCode, codeFromOutbox, signOutSilently } from "../lib/auth";
 import { useSession } from "../lib/session";
 import { useCan, useTeams } from "../lib/data";
 import { STORED_ROLE } from "../../domain/vocabularies";
@@ -462,7 +462,11 @@ function RoleSwitcher({ current }: { current: string }) {
       setStatus("Signing out…");
       await signOutSilently();
 
+      // A code somebody else requested for this person inside the re-send
+      // window would be the one read back below, already spent. Clear it,
+      // the way the test helper does; see lib/auth.ts.
       setStatus("Requesting a code…");
+      await clearDevCode(email);
       await requestCode.mutateAsync(email);
 
       const otp = devAccounts.data?.code ?? (await codeFromOutbox(email));
