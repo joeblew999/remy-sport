@@ -1,5 +1,11 @@
 import { QueryError, isNotFound } from "../components/query-error";
 import { NameTranslations, namesFrom } from "../components/name-translations";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { ButtonLink } from "../components/button-link";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 /**
  * Organisations — the GUI for `/api/orgs`.
  *
@@ -89,9 +95,9 @@ export function OrgsPage() {
                     {[o.city, label("relations", held.get(o.id)!)].filter(Boolean).join(" · ")}
                   </div>
                 </div>
-                <a className="btn" href={routeHref({ page: "org", id: o.id })}>
+                <ButtonLink variant="outline" href={routeHref({ page: "org", id: o.id })}>
                   {m.org_open()}
-                </a>
+                </ButtonLink>
               </div>
             ))}
           </div>
@@ -114,9 +120,9 @@ export function OrgsPage() {
               {/* "Open", not "Manage": this is everyone's list, and a visitor
                   manages nothing. The rows under "Your organisations" above
                   keep "Manage", because there the reader holds a role. */}
-              <a className="btn" href={routeHref({ page: "org", id: o.id })}>
+              <ButtonLink variant="outline" href={routeHref({ page: "org", id: o.id })}>
                 {m.org_view()}
-              </a>
+              </ButtonLink>
             </div>
           ))}
         </div>
@@ -160,9 +166,9 @@ export function OrgPage({ id }: { id?: string }) {
       />
 
       <div className="event-actions" style={{ marginTop: 16 }}>
-        <a className="btn" href={routeHref({ page: "orgs" })}>
+        <ButtonLink variant="outline" href={routeHref({ page: "orgs" })}>
           ← {m.orgs_heading()}
-        </a>
+        </ButtonLink>
       </div>
     </div>
   );
@@ -223,50 +229,56 @@ function OrgProfile({
       <h2>{m.org_profile()}</h2>
       {save.isSuccess && <div className="feedback-success" role="status">{m.org_profile_saved()}</div>}
       {saveErr.form && (
-        <div className="feedback-error" data-testid="org-profile-error" role="alert">{saveErr.form}</div>
+        <Alert variant="destructive" data-testid="org-profile-error" role="alert">
+          <AlertDescription>{saveErr.form}</AlertDescription>
+        </Alert>
       )}
       <form
-        className="form-stack"
         onSubmit={(e) => {
           e.preventDefault();
           const f = new FormData(e.currentTarget);
           save.mutate(f);
         }}
       >
-        <label htmlFor="org-name-en">{m.team_name_label()}</label>
-        <input
-          id="org-name-en"
-          aria-invalid={!!saveErr.field("names[en]")}
-          aria-describedby={saveErr.field("names[en]") ? "org-name-issue" : undefined}
-          name="name"
-          data-testid="org-name-input"
-          defaultValue={names.en ?? ""}
-          required
-          autoComplete="off"
-        />
-        {/* Bracket notation for the path into the input object: the schema takes
-            `names` as a locale map, so the issue arrives at `names.en`. If that
-            path ever stops matching, the message moves to `saveErr.form` above
-            rather than disappearing. */}
-        {saveErr.field("names[en]") && (
-          <p className="feedback-error small" id="org-name-issue" data-testid="org-name-issue" role="alert">
-            {saveErr.field("names[en]")}
-          </p>
-        )}
-        <NameTranslations names={names} id="org-name" />
-        {([
-          ["cityCode", "cities", m.event_city(), cityCode],
-          ["provinceCode", "provinces", m.province(), provinceCode],
-        ] as const).map(([field, vocabulary, title, value]) => (
-          <label key={field}>{title}
-            <select name={field} defaultValue={value}>
-              {terms(vocabulary).map((term) => <option key={term.code} value={term.code}>{name(term.names, term.code)}</option>)}
-            </select>
-          </label>
-        ))}
-        <button type="submit" data-testid="org-save" disabled={save.isPending}>
-          {save.isPending ? m.org_saving() : m.org_save()}
-        </button>
+        <FieldGroup className="max-w-[420px]">
+          <Field data-invalid={!!saveErr.field("names[en]") || undefined}>
+            <FieldLabel htmlFor="org-name-en">{m.team_name_label()}</FieldLabel>
+            <Input
+              id="org-name-en"
+              aria-invalid={!!saveErr.field("names[en]")}
+              aria-describedby={saveErr.field("names[en]") ? "org-name-issue" : undefined}
+              name="name"
+              data-testid="org-name-input"
+              defaultValue={names.en ?? ""}
+              required
+              autoComplete="off"
+            />
+            {/* Bracket notation for the path into the input object: the schema takes
+                `names` as a locale map, so the issue arrives at `names.en`. If that
+                path ever stops matching, the message moves to `saveErr.form` above
+                rather than disappearing. */}
+            {saveErr.field("names[en]") && (
+              <FieldError id="org-name-issue" data-testid="org-name-issue">
+                {saveErr.field("names[en]")}
+              </FieldError>
+            )}
+          </Field>
+          <NameTranslations names={names} id="org-name" />
+          {([
+            ["cityCode", "cities", m.event_city(), cityCode],
+            ["provinceCode", "provinces", m.province(), provinceCode],
+          ] as const).map(([field, vocabulary, title, value]) => (
+            <Field key={field}>
+              <FieldLabel htmlFor={`org-${field}`}>{title}</FieldLabel>
+              <NativeSelect id={`org-${field}`} name={field} defaultValue={value}>
+                {terms(vocabulary).map((term) => <NativeSelectOption key={term.code} value={term.code}>{name(term.names, term.code)}</NativeSelectOption>)}
+              </NativeSelect>
+            </Field>
+          ))}
+          <Button type="submit" data-testid="org-save" disabled={save.isPending} className="w-fit">
+            {save.isPending ? m.org_saving() : m.org_save()}
+          </Button>
+        </FieldGroup>
       </form>
     </section>
   );
@@ -367,7 +379,6 @@ function OrgMembers({ id }: { id: string }) {
       <section className="panel" data-testid="add-member">
         <h2>{m.org_add_member()}</h2>
         <form
-          className="form-stack"
           data-testid="add-member-form"
           onSubmit={(e) => {
             e.preventDefault();
@@ -383,33 +394,41 @@ function OrgMembers({ id }: { id: string }) {
             );
           }}
         >
+          <FieldGroup className="max-w-[420px]">
           {/* No `type="email"`: the browser would refuse to submit and the
               server's own rule — the one that actually decides — would never
               run. The schema is the single source of what a valid address is,
               and its message is what the reader sees. */}
-          <input
-            name="email"
-            data-testid="add-member-email"
-            placeholder={m.org_add_member_email()}
-            required
-            autoComplete="off"
-          />
-          {addErr.field("email") && (
-            <p className="feedback-error small" data-testid="add-member-email-issue" role="alert">
-              {addErr.field("email")}
-            </p>
-          )}
+          <Field data-invalid={!!addErr.field("email") || undefined}>
+            <FieldLabel htmlFor="add-member-email">{m.org_add_member_email()}</FieldLabel>
+            <Input
+              id="add-member-email"
+              name="email"
+              data-testid="add-member-email"
+              required
+              autoComplete="off"
+            />
+            {addErr.field("email") && (
+              <FieldError data-testid="add-member-email-issue">
+                {addErr.field("email")}
+              </FieldError>
+            )}
+          </Field>
           {/* From the PO's vocabulary, not a list written out here. */}
-          <select name="role" defaultValue="MEMBER">
-            {ORG_ROLE_CODES.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </select>
-          <button type="submit" data-testid="add-member-submit" disabled={add.isPending}>
+          <Field>
+            <FieldLabel htmlFor="add-member-role">{m.org_role()}</FieldLabel>
+            <NativeSelect id="add-member-role" name="role" defaultValue="MEMBER">
+              {ORG_ROLE_CODES.map((r) => (
+                <NativeSelectOption key={r} value={r}>
+                  {r}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </Field>
+          <Button type="submit" data-testid="add-member-submit" disabled={add.isPending} className="w-fit">
             {m.org_add_member_submit()}
-          </button>
+          </Button>
+          </FieldGroup>
         </form>
       </section>
     </>
@@ -485,7 +504,6 @@ function OrgTeams({
           {created && <div className="feedback-success" data-testid="org-team-created" role="status">{m.org_team_created()}</div>}
           {err.form && <div className="feedback-error" data-testid="org-team-error" role="alert">{err.form}</div>}
           <form
-            className="form-stack"
             onSubmit={(e) => {
               e.preventDefault();
               const form = e.currentTarget;
@@ -502,37 +520,45 @@ function OrgTeams({
               );
             }}
           >
-            <label htmlFor="new-team-name">{m.team_name_label()}</label>
-            <input
-              id="new-team-name"
-              name="name"
-              data-testid="new-team-name"
-              required
-              autoComplete="off"
-            />
-            {err.field("names[en]") && (
-              <p className="feedback-error small" data-testid="new-team-name-issue" role="alert">
-                {err.field("names[en]")}
-              </p>
-            )}
+            <FieldGroup className="max-w-[420px]">
+              <Field data-invalid={!!err.field("names[en]") || undefined}>
+                <FieldLabel htmlFor="new-team-name">{m.team_name_label()}</FieldLabel>
+                <Input
+                  id="new-team-name"
+                  name="name"
+                  data-testid="new-team-name"
+                  required
+                  autoComplete="off"
+                />
+                {err.field("names[en]") && (
+                  <FieldError data-testid="new-team-name-issue">
+                    {err.field("names[en]")}
+                  </FieldError>
+                )}
+              </Field>
 
-            <label htmlFor="new-team-age">{m.team_age_label()}</label>
-            <select id="new-team-age" name="ageGroupCode" data-testid="new-team-age">
-              {terms("ageGroups").map((a) => (
-                <option key={a.code} value={a.code}>{name(a.names, a.code)}</option>
-              ))}
-            </select>
+              <Field>
+                <FieldLabel htmlFor="new-team-age">{m.team_age_label()}</FieldLabel>
+                <NativeSelect id="new-team-age" name="ageGroupCode" data-testid="new-team-age">
+                  {terms("ageGroups").map((a) => (
+                    <NativeSelectOption key={a.code} value={a.code}>{name(a.names, a.code)}</NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              </Field>
 
-            <label htmlFor="new-team-gender">{m.team_gender_label()}</label>
-            <select id="new-team-gender" name="genderCode" data-testid="new-team-gender">
-              {terms("genders").map((g) => (
-                <option key={g.code} value={g.code}>{name(g.names, g.code)}</option>
-              ))}
-            </select>
+              <Field>
+                <FieldLabel htmlFor="new-team-gender">{m.team_gender_label()}</FieldLabel>
+                <NativeSelect id="new-team-gender" name="genderCode" data-testid="new-team-gender">
+                  {terms("genders").map((g) => (
+                    <NativeSelectOption key={g.code} value={g.code}>{name(g.names, g.code)}</NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              </Field>
 
-            <button type="submit" data-testid="create-team" disabled={add.isPending}>
-              {add.isPending ? m.event_saving() : m.org_add_team()}
-            </button>
+              <Button type="submit" data-testid="create-team" disabled={add.isPending} className="w-fit">
+                {add.isPending ? m.event_saving() : m.org_add_team()}
+              </Button>
+            </FieldGroup>
           </form>
         </>
       )}

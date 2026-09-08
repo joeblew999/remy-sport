@@ -18,6 +18,10 @@ import { useEntries } from "../lib/data";
 import { formErrors } from "../lib/form-errors";
 import { routeHref } from "../lib/router";
 import { m } from "../lib/i18n";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 
 /**
  * @answers REGISTER_TEAM_FOR_EVENT
@@ -132,52 +136,60 @@ function EnterTeam({
     <section className="panel" data-testid="enter-team">
       <h2>{m.enter_a_team()}</h2>
       <form
-        className="form-stack"
         onSubmit={(e) => {
           e.preventDefault();
           const f = new FormData(e.currentTarget);
           enter.mutate({ teamId, divisionId: String(f.get("division")) });
         }}
       >
-        <select
-          name="team"
-          data-testid="enter-team-select"
-          value={teamId}
-          onChange={(e) => setTeamId(e.target.value)}
-        >
-          {data.registrable.map((t) => (
-            <option key={t.teamId} value={t.teamId}>
-              {t.team}
-            </option>
-          ))}
-        </select>
+        <FieldGroup className="max-w-[420px]">
+          <Field>
+            <FieldLabel htmlFor="enter-team-select">{m.teams()}</FieldLabel>
+            <NativeSelect
+              id="enter-team-select"
+              name="team"
+              data-testid="enter-team-select"
+              value={teamId}
+              onChange={(e) => setTeamId(e.target.value)}
+            >
+              {data.registrable.map((t) => (
+                <NativeSelectOption key={t.teamId} value={t.teamId}>
+                  {t.team}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </Field>
 
-        {options.length ? (
-          <select name="division" data-testid="enter-division-select">
-            {options.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.division}
-              </option>
-            ))}
-          </select>
-        ) : (
-          // Nothing this team could be entered into. Said plainly rather than
-          // rendering an empty select that submits nothing.
-          <p className="muted" data-testid="no-division">{m.no_matching_division()}</p>
-        )}
+          {options.length ? (
+            <Field>
+              <FieldLabel htmlFor="enter-division-select">{m.division()}</FieldLabel>
+              <NativeSelect id="enter-division-select" name="division" data-testid="enter-division-select">
+                {options.map((d) => (
+                  <NativeSelectOption key={d.id} value={d.id}>
+                    {d.division}
+                  </NativeSelectOption>
+                ))}
+              </NativeSelect>
+            </Field>
+          ) : (
+            // Nothing this team could be entered into. Said plainly rather than
+            // rendering an empty select that submits nothing.
+            <p className="muted" data-testid="no-division">{m.no_matching_division()}</p>
+          )}
 
-        <button type="submit" data-testid="enter-team-submit" disabled={!options.length || enter.isPending}>
-          {enter.isPending ? m.org_saving() : m.enter_a_team()}
-        </button>
+          <Button type="submit" data-testid="enter-team-submit" disabled={!options.length || enter.isPending} className="w-fit">
+            {enter.isPending ? m.org_saving() : m.enter_a_team()}
+          </Button>
 
-        {/* Either the division issue on its own field, or anything else — a
-            team that never entered, a division that does not match — at form
-            level. Neither can be dropped. */}
-        {(enterErr().field("divisionId") ?? enterErr().form) && (
-          <p className="feedback-error small" data-testid="enter-error" role="alert">
-            {enterErr().field("divisionId") ?? enterErr().form}
-          </p>
-        )}
+          {/* Either the division issue on its own field, or anything else — a
+              team that never entered, a division that does not match — at form
+              level. Neither can be dropped. */}
+          {(enterErr().field("divisionId") ?? enterErr().form) && (
+            <Alert variant="destructive" data-testid="enter-error" role="alert">
+              <AlertDescription>{enterErr().field("divisionId") ?? enterErr().form}</AlertDescription>
+            </Alert>
+          )}
+        </FieldGroup>
       </form>
     </section>
   );

@@ -32,6 +32,12 @@ import { api, orpc } from "../lib/orpc"
 import { formErrors } from "../lib/form-errors"
 import { m } from "../lib/i18n"
 import type { Event } from "../data"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
+import { Textarea } from "@/components/ui/textarea"
 
 /**
  * @answers EDIT_EVENT, INVITE_CO_ORGANIZER
@@ -66,11 +72,12 @@ export function EventSettings({ event }: { event: Event }) {
         <h2>{m.event_settings()}</h2>
         {save.isSuccess && <div className="feedback-success" data-testid="event-saved" role="status">{m.event_saved()}</div>}
         {err.form && (
-          <div className="feedback-error" data-testid="event-settings-error" role="alert">{err.form}</div>
+          <Alert variant="destructive" data-testid="event-settings-error" role="alert">
+            <AlertDescription>{err.form}</AlertDescription>
+          </Alert>
         )}
 
         <form
-          className="form-stack"
           onSubmit={(e) => {
             e.preventDefault()
             const f = new FormData(e.currentTarget)
@@ -88,76 +95,91 @@ export function EventSettings({ event }: { event: Event }) {
             })
           }}
         >
-          <label htmlFor="event-name">{m.event_name_label()}</label>
-          <input
-            id="event-name"
-            aria-invalid={!!err.field("names[en]")}
-            aria-describedby={err.field("names[en]") ? "event-name-issue" : undefined}
-            name="name"
-            data-testid="event-name-input"
-            defaultValue={event.names.en ?? event.title}
-            required
-            autoComplete="off"
-          />
-          {err.field("names[en]") && (
-            <p className="feedback-error small" id="event-name-issue" data-testid="event-name-issue" role="alert">
-              {err.field("names[en]")}
-            </p>
-          )}
+          <FieldGroup className="max-w-[420px]">
+            <Field data-invalid={!!err.field("names[en]") || undefined}>
+              <FieldLabel htmlFor="event-name">{m.event_name_label()}</FieldLabel>
+              <Input
+                id="event-name"
+                aria-invalid={!!err.field("names[en]")}
+                aria-describedby={err.field("names[en]") ? "event-name-issue" : undefined}
+                name="name"
+                data-testid="event-name-input"
+                defaultValue={event.names.en ?? event.title}
+                required
+                autoComplete="off"
+              />
+              {err.field("names[en]") && (
+                <FieldError id="event-name-issue" data-testid="event-name-issue">
+                  {err.field("names[en]")}
+                </FieldError>
+              )}
+            </Field>
 
-          <NameTranslations names={event.names} id="event-name" />
-          <label htmlFor="event-description">{m.description()}</label>
-          <textarea id="event-description" name="description" defaultValue={event.description ?? ""} />
-          <label htmlFor="event-timezone">{m.event_timezone()}</label>
-          <input id="event-timezone" name="timezone" required defaultValue={event.timezone ?? "UTC"} />
-          {([
-            ["typeCode", "eventTypes", m.event_type(), event.typeCode],
-            ["formatCode", "eventFormats", m.event_format(), event.formatCode],
-            ["cityCode", "cities", m.event_city(), event.cityCode],
-            ["provinceCode", "provinces", m.province(), event.provinceCode],
-          ] as const).map(([field, vocabulary, title, value]) => (
-            <label key={field} htmlFor={`event-${field}`}>{title}
-              <select id={`event-${field}`} name={field} defaultValue={value ?? ""}>
-                {!value && <option value="">—</option>}
-                {terms(vocabulary).map((term) => <option key={term.code} value={term.code}>{name(term.names, term.code)}</option>)}
-              </select>
+            <NameTranslations names={event.names} id="event-name" />
+            <Field>
+              <FieldLabel htmlFor="event-description">{m.description()}</FieldLabel>
+              <Textarea id="event-description" name="description" defaultValue={event.description ?? ""} />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="event-timezone">{m.event_timezone()}</FieldLabel>
+              <Input id="event-timezone" name="timezone" required defaultValue={event.timezone ?? "UTC"} />
+            </Field>
+            {([
+              ["typeCode", "eventTypes", m.event_type(), event.typeCode],
+              ["formatCode", "eventFormats", m.event_format(), event.formatCode],
+              ["cityCode", "cities", m.event_city(), event.cityCode],
+              ["provinceCode", "provinces", m.province(), event.provinceCode],
+            ] as const).map(([field, vocabulary, title, value]) => (
+              <Field key={field}>
+                <FieldLabel htmlFor={`event-${field}`}>{title}</FieldLabel>
+                <NativeSelect id={`event-${field}`} name={field} defaultValue={value ?? ""}>
+                  {!value && <NativeSelectOption value="">—</NativeSelectOption>}
+                  {terms(vocabulary).map((term) => <NativeSelectOption key={term.code} value={term.code}>{name(term.names, term.code)}</NativeSelectOption>)}
+                </NativeSelect>
+              </Field>
+            ))}
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="isFibaCertified" defaultChecked={event.isFibaCertified} /> {m.event_fiba()}
             </label>
-          ))}
-          <label><input type="checkbox" name="isFibaCertified" defaultChecked={event.isFibaCertified} /> {m.event_fiba()}</label>
 
-          <label htmlFor="event-start">{m.event_start_label()}</label>
-          <input
-            id="event-start"
-            aria-invalid={!!err.field("startDate")}
-            aria-describedby={err.field("startDate") ? "event-start-issue" : undefined}
-            name="startDate"
-            type="date"
-            data-testid="event-start-input"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
-          {err.field("startDate") && (
-            <p id="event-start-issue" className="feedback-error small" role="alert">{err.field("startDate")}</p>
-          )}
+            <Field data-invalid={!!err.field("startDate") || undefined}>
+              <FieldLabel htmlFor="event-start">{m.event_start_label()}</FieldLabel>
+              <Input
+                id="event-start"
+                aria-invalid={!!err.field("startDate")}
+                aria-describedby={err.field("startDate") ? "event-start-issue" : undefined}
+                name="startDate"
+                type="date"
+                data-testid="event-start-input"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+              {err.field("startDate") && (
+                <FieldError id="event-start-issue">{err.field("startDate")}</FieldError>
+              )}
+            </Field>
 
-          <label htmlFor="event-end">{m.event_end_label()}</label>
-          <input
-            id="event-end"
-            aria-invalid={!!err.field("endDate")}
-            aria-describedby={err.field("endDate") ? "event-end-issue" : undefined}
-            name="endDate"
-            type="date"
-            data-testid="event-end-input"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-          />
-          {err.field("endDate") && <p id="event-end-issue" className="feedback-error small" role="alert">{err.field("endDate")}</p>}
+            <Field data-invalid={!!err.field("endDate") || undefined}>
+              <FieldLabel htmlFor="event-end">{m.event_end_label()}</FieldLabel>
+              <Input
+                id="event-end"
+                aria-invalid={!!err.field("endDate")}
+                aria-describedby={err.field("endDate") ? "event-end-issue" : undefined}
+                name="endDate"
+                type="date"
+                data-testid="event-end-input"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+              {err.field("endDate") && <FieldError id="event-end-issue">{err.field("endDate")}</FieldError>}
+            </Field>
 
-          <p className="muted small">{m.event_dates_hint()}</p>
+            <p className="muted small">{m.event_dates_hint()}</p>
 
-          <button type="submit" data-testid="event-save" disabled={save.isPending}>
-            {save.isPending ? m.event_saving() : m.event_save()}
-          </button>
+            <Button type="submit" data-testid="event-save" disabled={save.isPending} className="w-fit">
+              {save.isPending ? m.event_saving() : m.event_save()}
+            </Button>
+          </FieldGroup>
         </form>
       </section>
 
@@ -204,10 +226,13 @@ function InviteCoOrganizer({ eventId }: { eventId: string }) {
       <h2>{m.invite_co_organizer()}</h2>
       <p className="muted small">{m.invite_co_organizer_hint()}</p>
       {sent && <div className="feedback-success" data-testid="invite-sent" role="status">{m.invite_sent()}</div>}
-      {err.form && <div className="feedback-error" data-testid="invite-error" role="alert">{err.form}</div>}
+      {err.form && (
+        <Alert variant="destructive" data-testid="invite-error" role="alert">
+          <AlertDescription>{err.form}</AlertDescription>
+        </Alert>
+      )}
 
       <form
-        className="form-stack"
         onSubmit={(e) => {
           e.preventDefault()
           const form = e.currentTarget
@@ -218,21 +243,25 @@ function InviteCoOrganizer({ eventId }: { eventId: string }) {
           })
         }}
       >
-        <label htmlFor="invite-email">{m.invite_email()}</label>
-        <input
-          id="invite-email"
-          name="email"
-          type="email"
-          data-testid="invite-email-input"
-          required
-          autoComplete="off"
-        />
-        {err.field("email") && (
-          <p className="feedback-error small" data-testid="invite-email-issue" role="alert">{err.field("email")}</p>
-        )}
-        <button type="submit" data-testid="invite-send" disabled={invite.isPending}>
-          {invite.isPending ? m.invite_sending() : m.invite_send()}
-        </button>
+        <FieldGroup className="max-w-[420px]">
+          <Field data-invalid={!!err.field("email") || undefined}>
+            <FieldLabel htmlFor="invite-email">{m.invite_email()}</FieldLabel>
+            <Input
+              id="invite-email"
+              name="email"
+              type="email"
+              data-testid="invite-email-input"
+              required
+              autoComplete="off"
+            />
+            {err.field("email") && (
+              <FieldError data-testid="invite-email-issue">{err.field("email")}</FieldError>
+            )}
+          </Field>
+          <Button type="submit" data-testid="invite-send" disabled={invite.isPending} className="w-fit">
+            {invite.isPending ? m.invite_sending() : m.invite_send()}
+          </Button>
+        </FieldGroup>
       </form>
     </section>
   )

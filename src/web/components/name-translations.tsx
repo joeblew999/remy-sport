@@ -1,13 +1,15 @@
 import { useLocale } from "../lib/locale";
+import { Input } from "@/components/ui/input";
+import { Field, FieldLabel } from "@/components/ui/field";
 
 /** Additional names follow the model's locales; the form keeps its primary name input. */
 export function NameTranslations({ names, id }: { names: Record<string, string | undefined>; id: string }) {
   const { available, label } = useLocale();
   return <>{available.filter((locale) => locale !== "en").map((locale) =>
-    <label key={locale} htmlFor={`${id}-${locale}`}>
-      {label("locales", locale)}
-      <input id={`${id}-${locale}`} name={`names[${locale}]`} defaultValue={names[locale] ?? ""} />
-    </label>,
+    <Field key={locale}>
+      <FieldLabel htmlFor={`${id}-${locale}`}>{label("locales", locale)}</FieldLabel>
+      <Input id={`${id}-${locale}`} name={`names[${locale}]`} defaultValue={names[locale] ?? ""} />
+    </Field>,
   )}</>;
 }
 

@@ -5,6 +5,7 @@ import { Icon } from "../components/icon";
 import { useLiveGames } from "../lib/data";
 import { routeHref } from "../lib/router";
 import { m } from "../lib/i18n";
+import { ButtonLink } from "../components/button-link";
 
 /**
  * What is being played right now, and what can be watched.
@@ -103,23 +104,22 @@ export function LivePage({ spoiler, setSpoiler }: LiveProps) {
                     on a game nobody is broadcasting is a link to a black
                     rectangle, which is how this feature earns a reputation. */}
                 {g.isBroadcasting && (
-                  <a
-                    className="btn primary"
+                  <ButtonLink
                     href={routeHref({ page: "watch", id: g.id })}
                     data-testid={`watch-${g.id}`}
                   >
                     {m.video_watch()}
-                  </a>
+                  </ButtonLink>
                 )}
                 {!g.isBroadcasting && (
                   <Can of={g} action="BROADCAST_GAME">
-                  <a
-                    className="btn"
+                  <ButtonLink
+                    variant="outline"
                     href={routeHref({ page: "broadcast", id: g.id })}
                     data-testid={`broadcast-${g.id}`}
                   >
                     {m.video_broadcast()}
-                  </a>
+                  </ButtonLink>
                   </Can>
                 )}
               </div>

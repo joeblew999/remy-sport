@@ -1,6 +1,7 @@
 import { formErrors } from "../lib/form-errors";
 import { m } from "../lib/i18n";
 import { ORPCError } from "@orpc/client";
+import { Button } from "@/components/ui/button";
 
 /** A missing object has a stable empty state; a failed request can be retried. */
 export function isNotFound(error: unknown): boolean {
@@ -14,8 +15,8 @@ export function QueryError({ error, retry, pending = false }: {
   if (!error) return null;
   return <div className="feedback-error query-error" role="alert">
     <p>{formErrors(error).form ?? m.test_failed()}</p>
-    <button className="btn" type="button" disabled={pending} onClick={() => void retry()}>
+    <Button variant="outline" type="button" disabled={pending} onClick={() => void retry()}>
       {pending ? m.loading() : m.push_retry()}
-    </button>
+    </Button>
   </div>;
 }

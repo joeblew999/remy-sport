@@ -4,6 +4,10 @@ import { api, orpc } from "../lib/orpc";
 import { formErrors } from "../lib/form-errors";
 import { useLocale } from "../lib/locale";
 import { m } from "../lib/i18n";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 
 /** @answers ENTER_SCORES
  * Mounted inside the game's action gate, including while a line is being edited.
@@ -11,9 +15,9 @@ import { m } from "../lib/i18n";
 export function GameStats({ gameId }: { gameId: string }) {
   const [open, setOpen] = useState(false);
   return <>
-    <button className="btn" data-testid={`box-score-${gameId}`} onClick={() => setOpen(!open)} aria-expanded={open}>
+    <Button variant="outline" data-testid={`box-score-${gameId}`} onClick={() => setOpen(!open)} aria-expanded={open}>
       {m.game_box_score()}
-    </button>
+    </Button>
     {open && <Lines gameId={gameId} />}
   </>;
 }
@@ -23,7 +27,12 @@ function Lines({ gameId }: { gameId: string }) {
   const q = useQuery(orpc.games.stats.queryOptions({ input: { id: gameId } }));
   const err = formErrors(q.error);
   if (q.isPending) return <p>{m.loading()}</p>;
-  if (err.form) return <div role="alert">{err.form}<button className="btn" onClick={() => q.refetch()}>{m.push_retry()}</button></div>;
+  if (err.form) return (
+    <Alert variant="destructive" role="alert">
+      <AlertDescription>{err.form}</AlertDescription>
+      <Button variant="outline" onClick={() => q.refetch()}>{m.push_retry()}</Button>
+    </Alert>
+  );
   return <section className="game-box-score" data-testid={`box-score-lines-${gameId}`}>
     <p className="muted small">{m.game_box_score_hint()}</p>
     {!q.data?.players.length && <p>{m.game_box_score_empty()}</p>}
@@ -48,20 +57,30 @@ function PlayerLine({ line }: { line: Line }) {
     ["points", m.stat_points()], ["rebounds", m.stat_rebounds()],
     ["assists", m.stat_assists()], ["fouls", m.stat_fouls()],
   ] as const;
-  return <form className="form-stack" data-testid={`stat-line-${line.playerId}`} onSubmit={(e) => {
+  return <form data-testid={`stat-line-${line.playerId}`} onSubmit={(e) => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     const value = (field: string) => form.get(field) === "" ? null : Number(form.get(field));
     save.mutate({ id: line.gameId, playerId: line.playerId,
       points: value("points"), rebounds: value("rebounds"), assists: value("assists"), fouls: value("fouls") });
   }}>
-    <h3>{name(line.names)}</h3>
-    {fields.map(([field, label]) => <label key={field}>
-      {label}
-      <input name={field} type="number" min="0" step="1" defaultValue={line[field] ?? ""} disabled={save.isPending} />
-    </label>)}
-    <button type="submit" disabled={save.isPending}>{save.isPending ? m.org_saving() : m.org_save()}</button>
-    {save.isSuccess && <p role="status">{m.game_box_score_saved()}</p>}
-    {err.form && <p role="alert" className="feedback-error small">{err.form}</p>}
+    <FieldGroup className="max-w-[420px]">
+      <h3>{name(line.names)}</h3>
+      {fields.map(([field, label]) => (
+        <Field key={field}>
+          {/* The id carries the player: several lines can be open at once, and
+              a duplicated id would associate every label with the first. */}
+          <FieldLabel htmlFor={`${line.playerId}-${field}`}>{label}</FieldLabel>
+          <Input id={`${line.playerId}-${field}`} name={field} type="number" min="0" step="1" defaultValue={line[field] ?? ""} disabled={save.isPending} />
+        </Field>
+      ))}
+      <Button type="submit" disabled={save.isPending} className="w-fit">{save.isPending ? m.org_saving() : m.org_save()}</Button>
+      {save.isSuccess && <p role="status">{m.game_box_score_saved()}</p>}
+      {err.form && (
+        <Alert variant="destructive" role="alert">
+          <AlertDescription>{err.form}</AlertDescription>
+        </Alert>
+      )}
+    </FieldGroup>
   </form>;
 }

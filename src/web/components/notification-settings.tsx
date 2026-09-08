@@ -28,6 +28,7 @@ import { m } from "../../paraglide/messages.js"
 import { useLocale } from "../lib/locale"
 import { useRouter } from "../lib/router"
 import { PushFailure, currentDeviceId, disablePush, enableNative, enablePush, pushState, type PushState } from "../lib/push"
+import { Button } from "@/components/ui/button"
 
 /**
  * The types worth offering, not all fourteen.
@@ -193,9 +194,9 @@ export function NotificationSettings() {
           ) : state.status === "native" ? (
             <div className="meta" data-testid="push-native-on">{m.push_native_on()}</div>
           ) : (
-            <button
+            <Button
               type="button"
-              className="btn"
+              variant="outline"
               disabled={busy}
               data-testid="push-native-enable"
               onClick={() => {
@@ -206,7 +207,7 @@ export function NotificationSettings() {
               }}
             >
               {m.push_native_enable()}
-            </button>
+            </Button>
           )}
           {/* Shown in every native state, including denied: it is the answer to
               "why did nothing arrive overnight", which is the question a reader
@@ -221,21 +222,20 @@ export function NotificationSettings() {
       ) : state.status === "unknown" ? (
         <div className="push-note" data-testid="push-unknown">
           <span>{m.push_unknown()}</span>{" "}
-          <button type="button" className="btn" data-testid="push-retry" onClick={check}>
+          <Button type="button" variant="outline" data-testid="push-retry" onClick={check}>
             {m.push_retry()}
-          </button>
+          </Button>
         </div>
       ) : state.status === "on" || state.status === "off" ? (
         <>
-          <button
+          <Button
             type="button"
-            className="btn"
             disabled={busy}
             onClick={() => void toggle()}
             data-testid="push-toggle"
           >
             {state.status === "on" ? m.disable_notifications() : m.enable_notifications()}
-          </button>
+          </Button>
           {toggleFailed && (
             <div className="push-note is-blocked" data-testid="push-toggle-error">
               {toggleFailed === "subscribe"
@@ -275,15 +275,15 @@ export function NotificationSettings() {
               actually appears depends on the push service, the OS and any Focus
               mode — none of which we can see, and none of which a test suite
               can stand in for. So the reader presses it and looks. */}
-          <button
+          <Button
             type="button"
-            className="btn"
+            variant="outline"
             disabled={test.isPending}
             onClick={() => test.mutate()}
             data-testid="push-test"
           >
             {m.send_test_notification()}
-          </button>
+          </Button>
           {/*
             Proof of the last step, which nothing else can give.
 
@@ -295,14 +295,14 @@ export function NotificationSettings() {
           {tapped && (
             <div className="push-note" data-testid="push-test-tapped">
               <span>{m.test_tap_confirmed()}</span>{" "}
-              <button
+              <Button
                 type="button"
-                className="btn"
+                variant="outline"
                 data-testid="push-test-tapped-clear"
                 onClick={() => setParam("pushtest", null)}
               >
                 {m.dismiss()}
-              </button>
+              </Button>
             </div>
           )}
           {test.isError && (

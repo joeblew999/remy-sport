@@ -6,8 +6,10 @@ Stage B decided the same day: **shadcn**, by the Product Owner, in two
 stages. **B1, the tooling, is done and verified** (868 + 319 + 49 + 186;
 no component swapped; one heading default put back). **B2 step 8, the shell,
 is done the same day on the Product Owner's word** (868 + 333 + 49 + 222,
-captures now in light and dark); step 9, the forms, is next. Before step 8
-the raw registry items steps 9 and 10 will use were added through
+captures now in light and dark), and **step 9, the forms, is done the same
+day** (897 + 333 + e2e; the replaced button and field rules are deleted —
+no compatibility aliases). Step 10, the lists and tables, is next. Before
+step 8 the raw registry items steps 9 and 10 will use were added through
 `bun run ops ui add` with no surface swapped.
 
 ## Why
@@ -397,11 +399,46 @@ unless it is wired to that formatter and the reader's locale.
         banner is the loudest) render as light islands in the dark shots.
         That is step 13's work, not step 8's: the dark palette for the
         remaining bespoke rules is still owed.
-- [ ] **9. Forms.** Sign-in, organisation editing, event settings, score
-      entry: Field, Input, Select, Textarea, Button and Alert. Delete the
-      replaced field and button rules from `src/web/styles.css` in the same
-      change; no compatibility aliases. This is the point of no cheap return.
-      Proof: the form journeys in `tests/render/` and `tests/e2e/` pass.
+- [x] **9. Forms.** Done 2026-09-08. Every form is the system's components:
+      sign-in, organisation editing, event settings, score entry, invitations,
+      divisions, players, sessions, profile, devices, notifications, the box
+      score and the admin forms — Field/FieldLabel/FieldError/FieldGroup,
+      Input, NativeSelect, Textarea, Button, Alert. The replaced rules are
+      deleted from `src/web/styles.css` in the same change: `.btn` and its
+      variants, `.form-stack` and the global `:where(input, select, textarea)`
+      field rule, `.province-filter` — no compatibility aliases, and the
+      dead-class check holds the line. What deliberately stays: the
+      `admin-table` button rules (the tables are step 10's surface), the
+      global field rule scoped to its last users (the admin role select and
+      the two inline fixture controls), `.login-code`, and the focus ring.
+      Proof: `bun run check` — **897 unit/repository/Worker checks and 333
+      rendering checks**; `bun run test:e2e` all green.
+
+      Three findings the swap surfaced, recorded because each one is a rule
+      for the steps that follow:
+
+      - **Base UI's Button must not render links.** It enforces
+        `role="button"` on whatever it renders — its own docs say links have
+        their own semantics and must not pass through it. The first swap used
+        `render={<a>}` with `nativeButton={false}`; every such control
+        rendered as an anchor that announced itself as a button, and
+        `getByRole("link")` found nothing. The answer is
+        `src/web/components/button-link.tsx`: an `<a>` with the registry's
+        `buttonVariants` plus `min-h-11`, used at every route link that is
+        dressed as a button (17 sites).
+      - **Unlayered CSS beats utilities, whatever the specificity.** The old
+        `button { background: none }` reset sat unlayered while Tailwind's
+        `.bg-primary` lives in `@layer utilities`, so the Save button rendered
+        with no fill at all. The element resets now sit in `@layer base`,
+        where a reset belongs: defaults that any component's utilities beat.
+      - **The 44px control height is a product rule, not a legacy accident.**
+        The registry sizes for a desktop mouse (button and select 32px, input
+        36px); the render tier holds every control to `--control-height`
+        (44px) for a thumb at courtside. One min-height rule in our layer
+        lifts them all via their `data-slot` hooks — the locked files stay
+        byte-identical — and the topbar is the documented exception, because
+        its row is 56px by the mobile plan's number and the overflow check
+        holds it there.
 - [ ] **10. Lists and tables.** Event list, standings, management tables,
       badges and type tags: Table, Badge, Card. Proof: same, plus the
       320/390/1440 EN/TH/JA alignment checks.

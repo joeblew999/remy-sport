@@ -6,6 +6,8 @@ import { parseRoute, signInRoute, routeHref } from "../lib/router";
 import { m } from "../lib/i18n";
 import { NotificationSettings } from "../components/notification-settings";
 import { useLocale } from "../lib/locale";
+import { Button } from "@/components/ui/button";
+import { ButtonLink } from "../components/button-link";
 
 /**
  * "Where am I signed in?" — ADR 014.
@@ -54,9 +56,9 @@ export function DevicesPage() {
     return (
       <div className="empty" data-testid="devices-signed-out">
         <p>{m.sign_in_to_see_devices()}</p>
-        <a className="btn primary" href={routeHref(signInRoute(parseRoute(window.location.hash)))}>
+        <ButtonLink href={routeHref(signInRoute(parseRoute(window.location.hash)))}>
           {m.sign_in()}
-        </a>
+        </ButtonLink>
       </div>
     );
   }
@@ -120,14 +122,14 @@ export function DevicesPage() {
                     {m.signed_in_when({ when: formatWhen(locale, d.createdAt) })}
                   </span>
                 ) : (
-                  <button
-                    className="btn"
+                  <Button
+                    variant="outline"
                     data-testid={`revoke-${d.id}`}
                     disabled={busy === d.token}
                     onClick={() => void revoke(d.token)}
                   >
                     {busy === d.token ? m.signing_out() : m.sign_out()}
-                  </button>
+                  </Button>
                 )}
               </div>
             ))}
@@ -135,16 +137,16 @@ export function DevicesPage() {
 
           {others.length > 0 && (
             <div className="event-actions" style={{ marginTop: 16 }}>
-              <button
-                className="btn"
+              <Button
+                variant="outline"
                 data-testid="revoke-others"
                 disabled={busy === "others"}
                 onClick={() => void revokeOthers()}
               >
                 {busy === "others"
                   ? m.signing_out()
-                  : `Sign out all other devices (${others.length})`}
-              </button>
+                  : m.sign_out_others({ count: others.length })}
+              </Button>
             </div>
           )}
         </>

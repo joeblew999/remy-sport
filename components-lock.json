@@ -79,9 +79,35 @@
         "src/web/components/ui/tooltip.tsx": "f83d5f511812573f4ac98b866d397a46fda0f27eeb0af0ea89af01969eefbc5a",
         "src/web/components/ui/button.tsx": "313353436d0fcc8e44ab470adb614b9fd013d28626f624328ea0d66d41a6c81b",
         "src/web/components/ui/input.tsx": "dab990dfefa0ba78854ab6602ad074270dba9d7d1262184d9bfbb62bd990903b",
-        "src/web/components/ui/separator.tsx": "8a1d9397433ccf70631104f377b0e778754582a74c93a57cf13a2f2dcba778bf",
         "src/web/components/ui/skeleton.tsx": "4c2af7fa9c645358a0fb188779deab6f0b981733b62befc25e18aaebea1350dc",
         "src/web/components/ui/sheet.tsx": "db422e2934b79774850defd2ea12bf2d469a77f7237bf93ce0416bde87d8a610"
+      }
+    },
+    "@shadcn/field": {
+      "files": {
+        "src/web/components/ui/label.tsx": "86232709f634da7f357a8aaec0e815f3f562604bb67202c88997fae97659b450",
+        "src/web/components/ui/field.tsx": "d7c372e8df76de0b4714c02497fefba29299e6baefb7c12fba289a2a374362bb",
+        "src/web/components/ui/separator.tsx": "9a80ff8c110e0c55489509f4f82ebcc929c0174b59544047147b7134f86a54e7"
+      }
+    },
+    "@shadcn/select": {
+      "files": {
+        "src/web/components/ui/select.tsx": "d3c275e0212325c0bba459800fb155839783d33d5c91d363b5b974973aa7e9e0"
+      }
+    },
+    "@shadcn/textarea": {
+      "files": {
+        "src/web/components/ui/textarea.tsx": "82601c91ffc6c727d924162c78d7cb853114bcced4e2eb922a68ca12d4239c0f"
+      }
+    },
+    "@shadcn/alert": {
+      "files": {
+        "src/web/components/ui/alert.tsx": "f253568242c1c69b343f12474002fdbe229f603158171c59e21c491ab79f2e6e"
+      }
+    },
+    "@shadcn/native-select": {
+      "files": {
+        "src/web/components/ui/native-select.tsx": "93262e9e6c108df664725a0043f0c06ef844e173088b18c0f807e753e2f86d22"
       }
     }
   }

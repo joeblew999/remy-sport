@@ -351,6 +351,7 @@
   "security": "セキュリティ",
   "see_all": "すべて →",
   "settings": "設定",
+  "sign_out_others": "他のすべての端末をサインアウト（{count}）",
   "seed_n": "シード{n}",
   "send_test_notification": "テスト通知を送る",
   "sending": "送信しています…",

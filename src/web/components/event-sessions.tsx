@@ -6,6 +6,10 @@ import { useLocale } from "../lib/locale"
 import { formatClockOn, fromLocalInput } from "../lib/dates"
 import { m } from "../lib/i18n"
 import type { Event } from "../data"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
 
 /**
  * A camp's timetable.
@@ -98,22 +102,22 @@ export function EventSessions({ eventId, can, timezone }: { eventId: string; can
             <span>
               {/* The register, one session at a time. Two open at once is a way
                   to tick the wrong morning. */}
-              <button
-                className="btn"
+              <Button
+                variant="outline"
                 data-testid={`register-${s.id}`}
                 onClick={() => setOpenRegister(openRegister === s.id ? null : s.id)}
               >
                 {m.event_session_register()}
-              </button>
+              </Button>
               {can.DEFINE_SESSION_SCHEDULE && (
-                <button
-                  className="btn"
+                <Button
+                  variant="outline"
                   data-testid={`remove-session-${s.id}`}
                   disabled={removeSession.isPending}
                   onClick={() => removeSession.mutate(s.id)}
                 >
                   {m.fixture_remove()}
-                </button>
+                </Button>
               )}
             </span>
           </div>
@@ -140,22 +144,32 @@ export function EventSessions({ eventId, can, timezone }: { eventId: string; can
           }}
         >
           <h2>{m.event_session_add()}</h2>
-          <label htmlFor="session-name">{m.event_session_name()}</label>
-          <input id="session-name" name="name" required data-testid="session-name" />
+          <FieldGroup className="max-w-[420px]">
+            <Field>
+              <FieldLabel htmlFor="session-name">{m.event_session_name()}</FieldLabel>
+              <Input id="session-name" name="name" required data-testid="session-name" />
+            </Field>
 
-          <label htmlFor="session-start">{m.event_session_starts()}</label>
-          <input id="session-start" name="startsAt" type="datetime-local" required data-testid="session-start" />
+            <Field>
+              <FieldLabel htmlFor="session-start">{m.event_session_starts()}</FieldLabel>
+              <Input id="session-start" name="startsAt" type="datetime-local" required data-testid="session-start" />
+            </Field>
 
-          <label htmlFor="session-end">{m.event_session_ends()}</label>
-          <input id="session-end" name="endsAt" type="datetime-local" required data-testid="session-end" />
+            <Field>
+              <FieldLabel htmlFor="session-end">{m.event_session_ends()}</FieldLabel>
+              <Input id="session-end" name="endsAt" type="datetime-local" required data-testid="session-end" />
+            </Field>
 
-          <button type="submit" data-testid="session-save" disabled={addSession.isPending}>
-            {addSession.isPending ? m.org_saving() : m.event_session_add()}
-          </button>
+            <Button type="submit" data-testid="session-save" disabled={addSession.isPending} className="w-fit">
+              {addSession.isPending ? m.org_saving() : m.event_session_add()}
+            </Button>
 
-          {err.form && (
-            <p className="feedback-error small" data-testid="session-error" role="alert">{err.form}</p>
-          )}
+            {err.form && (
+              <Alert variant="destructive" data-testid="session-error" role="alert">
+                <AlertDescription>{err.form}</AlertDescription>
+              </Alert>
+            )}
+          </FieldGroup>
         </form>
       )}
     </div>
@@ -224,7 +238,11 @@ function Register({
           </span>
         </label>
       ))}
-      {attendanceError.form && <p role="alert" className="feedback-error small">{attendanceError.form}</p>}
+      {attendanceError.form && (
+        <Alert variant="destructive" role="alert">
+          <AlertDescription>{attendanceError.form}</AlertDescription>
+        </Alert>
+      )}
     </div>
   )
 }

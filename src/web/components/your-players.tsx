@@ -31,6 +31,11 @@ import { formErrors } from "../lib/form-errors"
 import { useLocale } from "../lib/locale"
 import { m } from "../lib/i18n"
 import type { Route } from "../lib/router"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 
 /**
  * @answers SIGN_UP_PLAYER_AS_GUARDIAN, EDIT_PLAYER_PROFILE, VIEW_PLAYER
@@ -52,9 +57,9 @@ export function YourPlayers({ goto }: { goto: (r: Route) => void }) {
       <div className="section-h">
         <h2>{m.your_players()}</h2>
         {!adding && (
-          <button className="btn" data-testid="add-player" onClick={() => setAdding(true)}>
+          <Button variant="outline" data-testid="add-player" onClick={() => setAdding(true)}>
             {m.player_add()}
-          </button>
+          </Button>
         )}
       </div>
       {adding && <AddPlayer onDone={() => setAdding(false)} />}
@@ -168,7 +173,7 @@ function AddPlayer({ onDone }: { onDone: () => void }) {
 
   return (
     <form
-      className="panel-list player-edit"
+      className="panel-list"
       data-testid="add-player-form"
       onSubmit={(e) => {
         e.preventDefault()
@@ -182,53 +187,65 @@ function AddPlayer({ onDone }: { onDone: () => void }) {
         })
       }}
     >
-      <label htmlFor="add-name">{m.player_name()}</label>
-      <input id="add-name" name="name" required data-testid="add-player-name" />
-      <NameTranslations names={{}} id="add-player-name" />
+      <FieldGroup className="max-w-[420px]">
+        <Field>
+          <FieldLabel htmlFor="add-name">{m.player_name()}</FieldLabel>
+          <Input id="add-name" name="name" required data-testid="add-player-name" />
+        </Field>
+        <NameTranslations names={{}} id="add-player-name" />
 
-      <label htmlFor="add-dob">{m.player_dob()}</label>
-      {/* A real date input: the API wants YYYY-MM-DD and a free-text box is how
-          "18/04/2012" reaches it and comes back a 400 the parent cannot read. */}
-      <input id="add-dob" name="dob" type="date" required data-testid="add-player-dob" />
+        <Field>
+          <FieldLabel htmlFor="add-dob">{m.player_dob()}</FieldLabel>
+          {/* A real date input: the API wants YYYY-MM-DD and a free-text box is how
+              "18/04/2012" reaches it and comes back a 400 the parent cannot read. */}
+          <Input id="add-dob" name="dob" type="date" required data-testid="add-player-dob" />
+        </Field>
 
-      <label htmlFor="add-number">{m.player_number()}</label>
-      <input
-        id="add-number"
-        name="jerseyNumber"
-        type="number"
-        min={0}
-        max={99}
-        required
-        defaultValue={0}
-        data-testid="add-player-number"
-      />
+        <Field>
+          <FieldLabel htmlFor="add-number">{m.player_number()}</FieldLabel>
+          <Input
+            id="add-number"
+            name="jerseyNumber"
+            type="number"
+            min={0}
+            max={99}
+            required
+            defaultValue={0}
+            data-testid="add-player-number"
+          />
+        </Field>
 
-      <label htmlFor="add-position">{m.player_position()}</label>
-      <select id="add-position" name="positionCode" data-testid="add-player-position">
-        {terms("positions").map((t) => (
-          <option key={t.code} value={t.code}>{label("positions", t.code)}</option>
-        ))}
-      </select>
+        <Field>
+          <FieldLabel htmlFor="add-position">{m.player_position()}</FieldLabel>
+          <NativeSelect id="add-position" name="positionCode" data-testid="add-player-position">
+            {terms("positions").map((t) => (
+              <NativeSelectOption key={t.code} value={t.code}>{label("positions", t.code)}</NativeSelectOption>
+            ))}
+          </NativeSelect>
+        </Field>
 
-      <label htmlFor="add-relationship">{m.player_relationship()}</label>
-      {/* From the reference vocabulary — Parent, Grandparent, Legal Guardian —
-          because the model distinguishes them and the row renders which. */}
-      <select id="add-relationship" name="guardianTypeCode" data-testid="add-player-relationship">
-        {terms("guardianTypes").map((t) => (
-          <option key={t.code} value={t.code}>{label("guardianTypes", t.code)}</option>
-        ))}
-      </select>
+        <Field>
+          <FieldLabel htmlFor="add-relationship">{m.player_relationship()}</FieldLabel>
+          {/* From the reference vocabulary — Parent, Grandparent, Legal Guardian —
+              because the model distinguishes them and the row renders which. */}
+          <NativeSelect id="add-relationship" name="guardianTypeCode" data-testid="add-player-relationship">
+            {terms("guardianTypes").map((t) => (
+              <NativeSelectOption key={t.code} value={t.code}>{label("guardianTypes", t.code)}</NativeSelectOption>
+            ))}
+          </NativeSelect>
+        </Field>
 
-      <button type="submit" data-testid="add-player-save" disabled={save.isPending}>
-        {save.isPending ? m.event_saving() : m.player_add()}
-      </button>
-      <button type="button" className="btn" onClick={onDone}>{m.fixture_cancel()}</button>
+        <Button type="submit" data-testid="add-player-save" disabled={save.isPending} className="w-fit">
+          {save.isPending ? m.event_saving() : m.player_add()}
+        </Button>
+        <Button type="button" variant="outline" className="w-fit" onClick={onDone}>{m.fixture_cancel()}</Button>
 
-      {(err.form || err.field("dob")) && (
-        <p className="feedback-error small" data-testid="add-player-error" role="alert">
-          {err.form ?? err.field("dob")}
-        </p>
-      )}
+        {(err.form || err.field("dob")) && (
+          <Alert variant="destructive" data-testid="add-player-error" role="alert">
+            <AlertDescription>{err.form ?? err.field("dob")}</AlertDescription>
+          </Alert>
+        )}
+      </FieldGroup>
     </form>
   )
 }
@@ -283,11 +300,11 @@ export function EditPlayer({
       }}
     >
       <div className="row-title">{name(player.names)}</div>
-      <label>{m.event_name_label()}<input name="name" defaultValue={player.names.en ?? ""} required /></label>
+      <label>{m.event_name_label()}<Input name="name" defaultValue={player.names.en ?? ""} required /></label>
       <NameTranslations names={player.names} id={`player-name-${player.playerId}`} />
 
       <label className="sr-only" htmlFor={`n-${player.playerId}`}>{m.player_number()}</label>
-      <input
+      <Input
         id={`n-${player.playerId}`}
         name="jerseyNumber"
         type="number"
@@ -299,7 +316,7 @@ export function EditPlayer({
       />
 
       <label className="sr-only" htmlFor={`p-${player.playerId}`}>{m.player_position()}</label>
-      <select
+      <NativeSelect
         id={`p-${player.playerId}`}
         name="positionCode"
         data-testid={`player-position-${player.playerId}`}
@@ -308,19 +325,19 @@ export function EditPlayer({
         {/* From the reference vocabulary, with the compiled fallback, so the
             control is never an empty box before a fetch lands. */}
         {terms("positions").map((t) => (
-          <option key={t.code} value={t.code}>{label("positions", t.code)}</option>
+          <NativeSelectOption key={t.code} value={t.code}>{label("positions", t.code)}</NativeSelectOption>
         ))}
-      </select>
+      </NativeSelect>
 
-      <button type="submit" data-testid={`player-save-${player.playerId}`} disabled={save.isPending}>
+      <Button type="submit" data-testid={`player-save-${player.playerId}`} disabled={save.isPending}>
         {save.isPending ? m.event_saving() : m.event_save()}
-      </button>
-      <button type="button" className="btn" onClick={onDone}>{m.fixture_cancel()}</button>
+      </Button>
+      <Button type="button" variant="outline" onClick={onDone}>{m.fixture_cancel()}</Button>
 
       {(err.form || err.field("jerseyNumber")) && (
-        <p className="feedback-error small" data-testid={`player-error-${player.playerId}`} role="alert">
-          {err.form ?? err.field("jerseyNumber")}
-        </p>
+        <Alert variant="destructive" data-testid={`player-error-${player.playerId}`} role="alert">
+          <AlertDescription>{err.form ?? err.field("jerseyNumber")}</AlertDescription>
+        </Alert>
       )}
     </form>
   )

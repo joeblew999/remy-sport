@@ -32,6 +32,7 @@ import { api, orpc } from "../lib/orpc"
 import { useGame } from "../lib/data"
 import { m } from "../lib/i18n"
 import { Can } from "./can"
+import { Button } from "@/components/ui/button"
 import {
   ENCODER,
   RECONNECT,
@@ -376,21 +377,20 @@ function Publisher({ gameId, config }: { gameId: string; config: NonNullable<Ret
       <div className="moq-controls">
         {source === null ? (
           <>
-            <button
-              className="btn primary"
+            <Button
               onClick={() => start("camera")}
               data-testid="moq-start-camera"
             >
               {m.video_start_camera()}
-            </button>
-            <button className="btn" onClick={() => start("screen")} data-testid="moq-start-screen">
+            </Button>
+            <Button variant="outline" onClick={() => start("screen")} data-testid="moq-start-screen">
               {m.video_start_screen()}
-            </button>
+            </Button>
           </>
         ) : (
-          <button className="btn" onClick={stop} data-testid="moq-stop">
+          <Button variant="outline" onClick={stop} data-testid="moq-stop">
             {m.video_stop()}
-          </button>
+          </Button>
         )}
       </div>
 

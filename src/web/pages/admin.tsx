@@ -32,6 +32,11 @@ import { useSession } from "../lib/session";
 import { useCan, useTeams } from "../lib/data";
 import { STORED_ROLE } from "../../domain/vocabularies";
 import type { Route } from "../lib/router";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 
 /**
  * The roles, as Better Auth stores them — derived, not typed out again.
@@ -511,9 +516,12 @@ function CreateAccount() {
     <section className="panel" data-testid="create-account">
       <h2>{m.admin_create_account()}</h2>
       <p className="muted">{m.admin_create_account_sub()}</p>
-      {issue && <div className="feedback-error" data-testid="create-account-error" role="alert">{issue}</div>}
+      {issue && (
+        <Alert variant="destructive" data-testid="create-account-error" role="alert">
+          <AlertDescription>{issue}</AlertDescription>
+        </Alert>
+      )}
       <form
-        className="form-stack"
         data-testid="create-account-form"
         onSubmit={(e) => {
           e.preventDefault();
@@ -530,18 +538,27 @@ function CreateAccount() {
           });
         }}
       >
-        <input name="email" type="email" required data-testid="create-account-email"
-               placeholder={m.admin_create_account_email()} />
-        <input name="name" required data-testid="create-account-name"
-               placeholder={m.admin_create_account_name()} />
-        <select name="role" data-testid="create-account-role" defaultValue={STORED_ROLE.SPECTATOR}>
-          {ROLES.map((r) => (
-            <option key={r} value={r}>{label("roles", ROLE_CODE[r] ?? r)}</option>
-          ))}
-        </select>
-        <button type="submit" data-testid="create-account-submit" disabled={create.isPending}>
-          {m.admin_create_account_submit()}
-        </button>
+        <FieldGroup className="max-w-[420px]">
+          <Field>
+            <FieldLabel htmlFor="create-account-email">{m.admin_create_account_email()}</FieldLabel>
+            <Input name="email" type="email" required id="create-account-email" data-testid="create-account-email" />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="create-account-name">{m.admin_create_account_name()}</FieldLabel>
+            <Input name="name" required id="create-account-name" data-testid="create-account-name" />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="create-account-role">{m.role()}</FieldLabel>
+            <NativeSelect name="role" id="create-account-role" data-testid="create-account-role" defaultValue={STORED_ROLE.SPECTATOR}>
+              {ROLES.map((r) => (
+                <NativeSelectOption key={r} value={r}>{label("roles", ROLE_CODE[r] ?? r)}</NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </Field>
+          <Button type="submit" data-testid="create-account-submit" disabled={create.isPending} className="w-fit">
+            {m.admin_create_account_submit()}
+          </Button>
+        </FieldGroup>
       </form>
     </section>
   );
@@ -596,8 +613,8 @@ function DeletePlayers() {
               {[`#${p.jerseyNumber}`, label("positions", p.positionCode)].join(" · ")}
             </div>
           </div>
-          <button
-            className="btn"
+          <Button
+            variant="outline"
             data-testid={`delete-player-${p.id}`}
             disabled={remove.isPending}
             onClick={() => {
@@ -606,7 +623,7 @@ function DeletePlayers() {
             }}
           >
             {m.admin_delete_player()}
-          </button>
+          </Button>
         </div>
       ))}
     </section>
@@ -646,8 +663,8 @@ function DeleteTeams() {
             <div className="row-title">{t.name}</div>
             <div className="row-meta">{[t.orgName, t.ageGroupLabel, t.genderLabel].filter(Boolean).join(" · ")}</div>
           </div>
-          <button
-            className="btn"
+          <Button
+            variant="outline"
             data-testid={`delete-team-${t.id}`}
             disabled={remove.isPending}
             onClick={() => {
@@ -655,7 +672,7 @@ function DeleteTeams() {
             }}
           >
             {m.admin_delete_team()}
-          </button>
+          </Button>
         </div>
       ))}
     </section>

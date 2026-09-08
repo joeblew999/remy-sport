@@ -32,6 +32,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react"
 import { m } from "../lib/i18n"
 import { reportClientError } from "../lib/report"
+import { Button } from "@/components/ui/button"
 
 interface Props {
   children: ReactNode
@@ -79,9 +80,9 @@ export class CrashBoundary extends Component<Props, State> {
       <div className="crash" role="alert" data-testid="crash">
         <h1>{text.title}</h1>
         <p>{text.body}</p>
-        <button className="btn primary" onClick={() => window.location.reload()}>
+        <Button onClick={() => window.location.reload()}>
           {text.reload}
-        </button>
+        </Button>
       </div>
     )
   }

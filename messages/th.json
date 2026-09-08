@@ -351,6 +351,7 @@
   "security": "ความปลอดภัย",
   "see_all": "ทั้งหมด →",
   "settings": "การตั้งค่า",
+  "sign_out_others": "ออกจากอุปกรณ์อื่นทั้งหมด ({count})",
   "seed_n": "อันดับ {n}",
   "send_test_notification": "ส่งการแจ้งเตือนทดสอบ",
   "sending": "กำลังส่ง…",

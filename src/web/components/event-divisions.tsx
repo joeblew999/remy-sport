@@ -5,6 +5,7 @@ import { useLocale } from "../lib/locale"
 import { m } from "../lib/i18n"
 import type { Event } from "../data"
 import { QueryError } from "./query-error"
+import { Button } from "@/components/ui/button"
 
 /**
  * Which divisions this event runs.
@@ -102,9 +103,9 @@ export function EventDivisions({ eventId, can }: { eventId: string; can: Event["
         </fieldset>}
 
         {can.MANAGE_DIVISIONS && divisions.length > 0 && (
-          <button className="btn primary" type="submit" data-testid="divisions-save" disabled={save.isPending || !entries || !!participation.error || !!catalogue.error}>
+          <Button type="submit" data-testid="divisions-save" disabled={save.isPending || !entries || !!participation.error || !!catalogue.error} className="w-fit">
             {save.isPending ? m.event_saving() : m.event_save()}
-          </button>
+          </Button>
         )}
         {save.isSuccess && <p className="feedback-success" role="status">{m.event_saved()}</p>}
 

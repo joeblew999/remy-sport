@@ -3,6 +3,7 @@ import { useMine, useTeams } from "../lib/data";
 import { useLocale } from "../lib/locale";
 import { m } from "../lib/i18n";
 import { routeHref } from "../lib/router";
+import { ButtonLink } from "../components/button-link";
 
 /**
  * @answers BROWSE_TEAMS
@@ -66,9 +67,9 @@ export function TeamsPage() {
                     {[t.orgName, label("relations", held.get(t.id)!)].filter(Boolean).join(" · ")}
                   </div>
                 </div>
-                <a className="btn" href={routeHref({ page: "team", id: t.id })}>
+                <ButtonLink variant="outline" href={routeHref({ page: "team", id: t.id })}>
                   {m.team_open()}
-                </a>
+                </ButtonLink>
               </div>
             ))}
           </div>
@@ -90,9 +91,9 @@ export function TeamsPage() {
                   {[t.orgName, t.ageGroupLabel, t.genderLabel].filter(Boolean).join(" · ")}
                 </div>
               </div>
-              <a className="btn" href={routeHref({ page: "team", id: t.id })}>
+              <ButtonLink variant="outline" href={routeHref({ page: "team", id: t.id })}>
                 {m.team_open()}
-              </a>
+              </ButtonLink>
             </div>
           ))}
         </div>

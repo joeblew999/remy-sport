@@ -16,6 +16,8 @@ import { routeHref, type Route } from "../lib/router";
 import { useLocale } from "../lib/locale";
 import { m } from "../lib/i18n";
 import { CourtBoard } from "../components/court-board";
+import { Button } from "@/components/ui/button";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 
 type EventTab = "games" | "standings" | "teams" | "players" | "places" | "sessions" | "about" | "manage";
 
@@ -53,9 +55,9 @@ export function EventPage({ id, goto, spoiler, query = {}, setParam }: {
       <h1>{e.title}</h1>
       <div className="tagline">{e.date} · {e.venue} · {e.city}</div>
       <div className="event-actions">
-        {e.status !== "closed" && <button className="btn accent" data-testid="hero-register" onClick={() => changeTab(camp || e.typeCode === "SHOWCASE" ? "players" : "teams")}>{camp || e.typeCode === "SHOWCASE" ? m.tab_players() : m.register_team()}</button>}
+        {e.status !== "closed" && <Button data-testid="hero-register" onClick={() => changeTab(camp || e.typeCode === "SHOWCASE" ? "players" : "teams")}>{camp || e.typeCode === "SHOWCASE" ? m.tab_players() : m.register_team()}</Button>}
         <FollowButton objectTypeCode="EVENT" objectId={e.id}/>
-        {e.startDate && <button className="btn" data-testid="add-to-calendar" onClick={() => downloadICS({ id: e.id, title: e.title, startDate: e.startDate, endDate: e.endDate, location: [e.venue, e.city].join(", "), url: `${location.origin}/#/event/${e.id}` })}>{m.add_to_calendar()}</button>}
+        {e.startDate && <Button variant="outline" data-testid="add-to-calendar" onClick={() => downloadICS({ id: e.id, title: e.title, startDate: e.startDate, endDate: e.endDate, location: [e.venue, e.city].join(", "), url: `${location.origin}/#/event/${e.id}` })}>{m.add_to_calendar()}</Button>}
         <ShareButton title={e.title}/>
       </div>
     </div>
@@ -63,10 +65,10 @@ export function EventPage({ id, goto, spoiler, query = {}, setParam }: {
       {tabs.map(([key, title]) => <a key={key} className={`tab ${tab === key ? "active" : ""}`} data-testid={`tab-${key}`} aria-current={tab === key ? "page" : undefined} href={routeHref({ page: "event", id: e.id, query: { ...query, tab: key } })}>{title}</a>)}
     </nav>
     {!camp && ["games", "standings", "teams"].includes(tab) && <div className="event-filters">
-      <label>{m.division()} <select data-testid="event-division" value={division ?? ""} onChange={event => setParam("division", event.target.value || null)}>
-        <option value="">{m.all_divisions()}</option>
-        {entries.data?.divisions.map(d => <option key={d.id} value={d.id}>{d.division}</option>)}
-      </select></label>
+      <label>{m.division()} <NativeSelect data-testid="event-division" value={division ?? ""} onChange={event => setParam("division", event.target.value || null)}>
+        <NativeSelectOption value="">{m.all_divisions()}</NativeSelectOption>
+        {entries.data?.divisions.map(d => <NativeSelectOption key={d.id} value={d.id}>{d.division}</NativeSelectOption>)}
+      </NativeSelect></label>
       {divisionInvalid && <span role="status">{m.invalid_division()}</span>}
     </div>}
     {tab === "games" && <div className="page-inner">
@@ -146,10 +148,10 @@ function ShareButton({ title }: { title: string }) {
   };
 
   return (
-    <button className="btn" data-testid="share" onClick={() => void share()}>
+    <Button variant="outline" data-testid="share" onClick={() => void share()}>
       <Icon name="share"/>
       {copied ? m.share_copied() : m.share()}
-    </button>
+    </Button>
   );
 }
 

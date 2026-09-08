@@ -211,6 +211,27 @@
   --control-height: 44px;
 }
 
+/* Touch targets. This app is used at courtside, one-handed, sometimes in
+   gloves — which is why --control-height is 44px and why the render tier
+   checks it. The registry's components are sized for a desktop mouse (button
+   and select 32px, input 36px); min-height beats the height their utilities
+   set, so this one rule in the layer we own lifts every control without
+   touching the locked files. Dense surfaces that genuinely need to opt out
+   (the admin tables, in step 10) can size themselves below and say why. */
+[data-slot="button"],
+[data-slot="input"],
+[data-slot="textarea"],
+[data-slot="native-select"] {
+  min-height: var(--control-height);
+}
+/* The topbar is the exception, and it is not a compromise: its row is 56px by
+   the mobile plan's number — a 32px control plus 12px of padding a side — and
+   the topbar overflow check holds it there. A 44px control in it wraps the
+   row. Chrome keeps the registry's compact size — whatever kind of control it
+   renders, system Button or a dressed link — and everything a reader fills in
+   or taps to act on content, outside the chrome, gets the 44. */
+.topbar :where(button, a, input, select, textarea) { min-height: 0; }
+
 /* Paper, ink and orange at night. Provisional: nobody has looked at it yet,
    because nothing sets the class until the shell arrives (B2 step 8); it is
    here so that the day the switch renders, every shadcn semantic above and
@@ -277,9 +298,18 @@ body {
    for the whole line reads better than Inter's Latin spliced into Noto's Thai. */
 .thai { font-family: var(--font-thai); }
 
-button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit;}
-a { color: inherit; text-decoration: none;}
-input, select, textarea { font-family: inherit; font-size: inherit; color: inherit;}
+/* Element defaults, in the base layer — the same layer Tailwind's preflight
+   sits in. Unlayered, these beat every utility regardless of specificity
+   (layers win over specificity), and `button { background: none }` was
+   stripping the system Button's `bg-primary` to transparent: the Save button
+   rendered as text in a box with no fill. In the base layer they stay
+   defaults — anything a component says wins, and the bare buttons that have
+   no component (the video retry, the locale switcher) keep sane styling. */
+@layer base {
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  a { color: inherit; text-decoration: none; }
+  input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
+}
 
 /* ---------- App shell ----------
    The shell is the registry's Sidebar now (B2 step 8): the viewport wrapper,
@@ -487,19 +517,6 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .chip .x { opacity: 0.5;}
 .chip:hover { border-color: var(--ink-3);}
 
-/* The province filter sits in the same row as the city chips and matches them:
-   a select rather than chips because the model defines 77 provinces. */
-.province-filter {
-  padding: 6px 12px;
-  border: 1px solid var(--rule);
-  border-radius: 100px;
-  font-size: var(--type-sm);
-  font-family: inherit;
-  color: var(--ink-2);
-  background: var(--paper);
-}
-.province-filter:hover { border-color: var(--ink-3); }
-
 /* The province under a city, on an event row. Quieter than the city: it is
    the coarser fact, and only shown when it adds one. */
 .city .province::before { content: " · "; opacity: 0.5; }
@@ -636,7 +653,11 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   display: flex; flex-wrap: wrap; gap: 8px;
   margin-top: 16px;
 }
-.btn, .form-stack button, .admin-table button {
+/* The admin console's row buttons are the last users of the hand-rolled
+   button: they live in the tables that move to the system's Table in step 10,
+   and these rules are theirs until then — not an alias for anything that
+   migrated, which is now the system's Button everywhere. */
+.admin-table button {
   display: inline-flex; align-items: center; gap: 8px;
   justify-content: center; min-height: var(--control-height);
   padding: var(--space-2) var(--space-4);
@@ -647,11 +668,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   color: var(--ink-2); background: var(--paper);
   transition: all 0.12s;
 }
-.btn:hover, .form-stack button:hover, .admin-table button:hover { border-color: var(--ink-2); color: var(--ink);}
-.btn.primary, .form-stack button[type="submit"] { background: var(--ink); color: var(--paper); border-color: var(--ink);}
-.btn.primary:hover { background: var(--ink-2);}
-.btn.accent { background: var(--brand-deep); color: var(--paper); border-color: var(--brand-deep);}
-.btn.accent:hover { background: var(--brand-deep); border-color: var(--brand-deep);}
+.admin-table button:hover { border-color: var(--ink-2); color: var(--ink);}
 
 /* tabs on event detail */
 .detail-tabs {
@@ -1022,7 +1039,6 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   /* Event hero */
   .event-hero { padding: var(--space-4) var(--event-gutter); }
   .event-actions { flex-wrap: wrap; }
-  .event-actions .btn { flex: 1 1 auto; min-height: 44px; }
 
   /* Tab bars become horizontally scrollable */
   .detail-tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; padding: 0 14px; }
@@ -1177,7 +1193,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 }
 .admin-table td { padding: 8px; border-bottom: 1px solid var(--rule); vertical-align: middle; }
 .admin-table button { margin-right: var(--space-1); }
-.btn.danger, .form-stack button.danger, .admin-table button.danger { color: var(--live); border-color: var(--live); }
+.admin-table button.danger { color: var(--live); border-color: var(--live); }
 
 /* ─── Mobile data tables: ≤ 768px ───
    Deliberately here and not in the ≤768px block above, which sits EARLIER in
@@ -1249,21 +1265,19 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
     margin-bottom: 0;
   }
 }
-/* Forms share fields and actions with filters, score entry and account settings. */
-.form-stack { display: flex; flex-direction: column; gap: var(--space-2); width: 100%; max-width: 420px; }
-.form-stack label:has(select, input:not([type="checkbox"]):not([type="radio"]), textarea) { display: flex; flex-direction: column; gap: var(--space-1); }
+/* The last native fields: the admin console's role select and the two inline
+   row controls on a fixture (court and status), which keep their own rules
+   below. Everything that is a form is the system's Field, Input, NativeSelect
+   and Textarea now — this is what the leftovers still share, and it goes with
+   the tables in step 10. */
 :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea) {
   min-height: var(--control-height); min-width: 0; max-width: 100%;
   padding: var(--space-2) var(--space-3); border: 1px solid var(--rule-2);
   border-radius: var(--radius-legacy); background: var(--paper); line-height: 1.5;
 }
-.form-stack :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { width: 100%; }
-/* Safari's native menu ignores min-height; an explicit height keeps filters
-   and form selects at the same touch size as text fields. */
+/* Safari's native menu ignores min-height; an explicit height keeps the
+   remaining native selects at the same touch size as text fields. */
 select { height: var(--control-height); }
-.form-stack textarea { min-height: 96px; resize: vertical; }
-.form-stack [aria-invalid="true"] { border-color: var(--live); }
-.form-stack > button { align-self: flex-start; }
 /* The one-time sign-in code: six digits, spaced out, in the face where every
    digit is the same width. */
 .login-code { font-family: var(--font-mono); letter-spacing: 0.4em; text-align: center; font-size: var(--type-lg); }
@@ -1273,7 +1287,6 @@ select { height: var(--control-height); }
 .query-error p { flex: 1 1 240px; }
 .entity-row > * { min-width: 0; }
 .entity-row > :first-child { overflow-wrap: anywhere; }
-.entity-row > .btn { flex-shrink: 0; }
 .small { font-size: var(--type-sm); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
@@ -1475,9 +1488,6 @@ select { height: var(--control-height); }
 /* A box score expands below its fixture, including on a narrow phone. */
 .schedule-game { flex-wrap: wrap; }
 .game-box-score { flex: 1 0 100%; min-width: 0; }
-.game-box-score .form-stack { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.game-box-score h3, .game-box-score [role] { grid-column: 1 / -1; }
-.game-box-score input { width: 100%; box-sizing: border-box; }
 
 /* Connected competition views: shared game identity and compact local navigation. */
 .event-hero .event-actions { margin-top: 12px; gap: 8px; }

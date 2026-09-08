@@ -7,6 +7,7 @@ import { parseRoute, signInRoute, routeHref, type Route } from "../lib/router";
 import { m } from "../lib/i18n";
 import { useLocale } from "../lib/locale";
 import { STORED_ROLE } from "../../domain/vocabularies";
+import { ButtonLink } from "../components/button-link";
 
 /**
  * Your account: who you are here, and the people you are responsible for.
@@ -40,13 +41,12 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
         <div className="page-inner">
           <div className="panel-list" data-testid="profile-signin">
             <div className="push-note">{m.profile_signed_out_why()}</div>
-            <a
-              className="btn primary"
+            <ButtonLink
               data-testid="profile-signin-button"
               href={routeHref(signInRoute(parseRoute(window.location.hash)))}
             >
               {m.sign_in()}
-            </a>
+            </ButtonLink>
           </div>
         </div>
       )}
@@ -58,7 +58,7 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
             <p>{user.email}</p>
             <p>{roleCode ? label("roles", roleCode) : user.role}</p>
             {user.statusCode && <p>{label("userStatuses", user.statusCode)}</p>}
-            <a className="btn" href={routeHref({ page: "home" })}>{m.profile_responsibilities()}</a>
+            <ButtonLink variant="outline" href={routeHref({ page: "home" })}>{m.profile_responsibilities()}</ButtonLink>
             <PlatformCan action="CREATE_PLAYER"><NewPlayer onCreated={(id) => goto({ page: "player", id })} /></PlatformCan>
           </section>
           <WhoAreYou />

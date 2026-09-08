@@ -1,4 +1,5 @@
 import { formErrors } from "../lib/form-errors"
+import { Button } from "@/components/ui/button"
 /**
  * "Someone asked you to help run this event."
  *
@@ -66,14 +67,13 @@ export function Invitations({ onAccepted }: { onAccepted?: () => void }) {
               <div className="row-title">{name(invite.names, invite.name)}</div>
               <div className="row-meta">{m.invitation_co_organize()} · <time dateTime={invite.addedAt}>{new Date(invite.addedAt).toLocaleDateString(locale)}</time></div>
             </div>
-            <button
-              className="btn primary"
+            <Button
               data-testid={`accept-${invite.eventId}`}
               disabled={accept.isPending}
               onClick={() => accept.mutate({ id: invite.eventId })}
             >
               {m.invitation_accept()}
-            </button>
+            </Button>
           </div>
         ))}
         {err.form && <p role="alert" className="feedback-error small">{err.form}</p>}

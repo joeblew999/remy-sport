@@ -1,4 +1,5 @@
 import { formErrors } from "../lib/form-errors"
+import { Button } from "@/components/ui/button"
 /**
  * Entering your child in a camp.
  *
@@ -89,23 +90,22 @@ export function EventPlayers({ eventId }: { eventId: string }) {
                 </div>
               </div>
               {entered ? (
-                <button
-                  className="btn"
+                <Button
+                  variant="outline"
                   data-testid={`withdraw-${p.playerId}`}
                   disabled={busy}
                   onClick={() => withdraw.mutate(p.playerId)}
                 >
                   {m.event_withdraw()}
-                </button>
+                </Button>
               ) : (
-                <button
-                  className="btn primary"
+                <Button
                   data-testid={`enter-${p.playerId}`}
                   disabled={busy}
                   onClick={() => enter.mutate(p.playerId)}
                 >
                   {m.event_enter()}
-                </button>
+                </Button>
               )}
             </div>
           )

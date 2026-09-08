@@ -351,6 +351,7 @@
   "security": "Security",
   "see_all": "All →",
   "settings": "Settings",
+  "sign_out_others": "Sign out all other devices ({count})",
   "seed_n": "Seed {n}",
   "send_test_notification": "Send a test notification",
   "sending": "Sending…",

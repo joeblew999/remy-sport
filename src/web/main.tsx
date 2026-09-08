@@ -5,6 +5,7 @@ import { AppSidebar } from "./components/app-sidebar";
 import { Topbar } from "./components/topbar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { ThemeProvider } from "./lib/theme-provider";
+import { Button } from "@/components/ui/button";
 import { isNativeApp, pushState } from "./lib/push";
 import { useNativeScoreNotifications } from "./lib/data";
 import { parseRoute, useRouter, type Page } from "./lib/router";
@@ -253,9 +254,9 @@ function App() {
     "not-found": () => (
       <div className="empty" data-testid="route-not-found">
         <p>{m.route_not_found()}</p>
-        <button className="btn primary" onClick={() => goto({ page: "discover" })}>
+        <Button onClick={() => goto({ page: "discover" })}>
           {m.browse()}
-        </button>
+        </Button>
       </div>
     ),
   };

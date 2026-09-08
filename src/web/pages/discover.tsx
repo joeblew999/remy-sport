@@ -6,6 +6,7 @@ import { routeHref, type Route } from "../lib/router";
 import { m } from "../lib/i18n";
 import { useLocale } from "../lib/locale";
 import type { EventStatus, EventType } from "../data";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 
 interface DiscoverProps {
   goto: (r: Route) => void;
@@ -110,7 +111,12 @@ export function DiscoverPage({ goto, spoiler, query, setParam }: DiscoverProps) 
 
       <PlatformCan action="CREATE_EVENT">
         <details className="page-inner" data-testid="discover-create-event">
-          <summary className="btn">{m.create_event()}</summary>
+          {/* A summary, not a Button: the disclosure element owns the toggle,
+              and a button inside one would be interactive inside interactive.
+              It wears the outline button's look with utilities instead. */}
+          <summary className="inline-flex h-8 w-fit cursor-pointer list-none items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-sm font-medium transition-colors hover:bg-muted">
+            {m.create_event()}
+          </summary>
           <CreateEvent onCreated={(id) => goto({ page: "event", id })} />
         </details>
       </PlatformCan>
@@ -141,22 +147,22 @@ export function DiscoverPage({ goto, spoiler, query, setParam }: DiscoverProps) 
               onClick={() => setFilterCity(filterCity === c.code ? null : c.code)}>{c.label}</button>
           ))}
           {/* A select rather than chips: the model defines 77 provinces, and a
-              row of chips is a control for five things, not for seventy. */}
+              row of chips is a control for five things, not for seventy. The
+              system's native select — native, so the phone keeps its picker. */}
           {PROVINCES.length > 1 && (
-            <select
-              className="province-filter"
+            <NativeSelect
               data-testid="province-filter"
               aria-label={m.filter_by_province()}
               value={filterProvince ?? ""}
               onChange={(e) => setFilterProvince(e.target.value || null)}
             >
-              <option value="">{m.all_provinces()}</option>
+              <NativeSelectOption value="">{m.all_provinces()}</NativeSelectOption>
               {PROVINCES.map(p => (
-                <option key={p.code} value={p.code}>
+                <NativeSelectOption key={p.code} value={p.code}>
                   {m.filter_option_count({ name: p.label, count: p.count })}
-                </option>
+                </NativeSelectOption>
               ))}
-            </select>
+            </NativeSelect>
           )}
         </div>
       </div>

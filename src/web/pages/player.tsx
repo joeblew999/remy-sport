@@ -7,6 +7,8 @@ import { usePlayer, usePlayerStats, useTeamGames } from "../lib/data";
 import { useSession } from "../lib/session";
 import { m } from "../lib/i18n";
 import { useLocale } from "../lib/locale";
+import { Button } from "@/components/ui/button";
+import { ButtonLink } from "../components/button-link";
 import { routeHref } from "../lib/router";
 
 /**
@@ -104,7 +106,7 @@ export function PlayerPage({ id }: { id?: string }) {
 
       <Can of={p} action="EDIT_PLAYER_PROFILE">
         {editing ? <EditPlayer key={p.playerId} player={p} onDone={() => setEditing(false)} /> :
-          <button className="btn" data-testid={`edit-player-${p.playerId}`} onClick={() => setEditing(true)}>{m.player_edit()}</button>}
+          <Button variant="outline" data-testid={`edit-player-${p.playerId}`} onClick={() => setEditing(true)}>{m.player_edit()}</Button>}
       </Can>
 
       <div className="section-h">
@@ -114,9 +116,9 @@ export function PlayerPage({ id }: { id?: string }) {
         <div className="panel-list">
           <div className="entity-row" data-testid={`player-team-${p.teamId}`}>
             <div className="entity-label">{name(p.teamNames)}</div>
-            <a className="btn" href={routeHref({ page: "team", id: p.teamId! })}>
+            <ButtonLink variant="outline" href={routeHref({ page: "team", id: p.teamId! })}>
               {m.team_open()}
-            </a>
+            </ButtonLink>
           </div>
         </div>
       ) : (
@@ -158,9 +160,9 @@ export function PlayerPage({ id }: { id?: string }) {
                     {m.player_spell_dates({ from: spell.fromDate, to: spell.toDate })}
                   </div>
                 </div>
-                <a className="btn" href={routeHref({ page: "team", id: spell.teamId })}>
+                <ButtonLink variant="outline" href={routeHref({ page: "team", id: spell.teamId })}>
                   {m.team_open()}
-                </a>
+                </ButtonLink>
               </div>
             ))}
           </div>

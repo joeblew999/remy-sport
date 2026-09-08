@@ -24,6 +24,12 @@ import { formatTimeOn, fromLocalInput, toLocalInput } from "../lib/dates";
 import { Can } from "./can";
 import { GameSummary } from "./game-summary";
 import { GameStats } from "./game-stats";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { ButtonLink } from "./button-link";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 
 /** Fixture/result changes also alter event progress, standings and team records. */
 function refreshGameViews(qc: QueryClient) {
@@ -216,33 +222,32 @@ export function GameRow({
               exists.
             */}
             {goto && game.isBroadcasting && (
-              <a
-                className="btn primary"
+              <ButtonLink
                 data-testid={`watch-fixture-${game.id}`}
                 href={routeHref({ page: "watch", id: game.id })}
               >
                 {m.video_watch()}
-              </a>
+              </ButtonLink>
             )}
             {goto && !game.isBroadcasting && (
               <Can of={game} action="BROADCAST_GAME">
-              <a
-                className="btn"
+              <ButtonLink
+                variant="outline"
                 data-testid={`broadcast-fixture-${game.id}`}
                 href={routeHref({ page: "broadcast", id: game.id })}
               >
                 {m.video_broadcast()}
-              </a>
+              </ButtonLink>
               </Can>
             )}
             <Can of={game} action="ENTER_SCORES">
-              <button
-                className="btn"
+              <Button
+                variant="outline"
                 data-testid={`enter-score-${game.id}`}
                 onClick={() => setEditing(true)}
               >
                 {played ? m.correct_score() : m.enter_score()}
-              </button>
+              </Button>
             </Can>
             {/* Both `games.update` and `games.remove` were enforced and
                 unreachable, so a fixture entered at the wrong time stayed at
@@ -305,15 +310,15 @@ function ManageFixture({ game }: { game: Game }) {
   if (!open) {
     return (
       <>
-        <button
-          className="btn"
+        <Button
+          variant="outline"
           data-testid={`edit-fixture-${game.id}`}
           onClick={() => setOpen(true)}
         >
           {m.fixture_edit()}
-        </button>
-        <button
-          className="btn"
+        </Button>
+        <Button
+          variant="outline"
           data-testid={`remove-fixture-${game.id}`}
           disabled={drop.isPending}
           onClick={() => {
@@ -321,7 +326,7 @@ function ManageFixture({ game }: { game: Game }) {
           }}
         >
           {drop.isPending ? m.fixture_removing() : m.fixture_remove()}
-        </button>
+        </Button>
         {dropErr.form && <p role="alert" className="feedback-error small">{dropErr.form}</p>}
       </>
     );
@@ -338,7 +343,7 @@ function ManageFixture({ game }: { game: Game }) {
       }}
     >
       <label className="sr-only" htmlFor={`starts-${game.id}`}>{m.fixture_when()}</label>
-      <input
+      <Input
         id={`starts-${game.id}`}
         name="startsAt"
         type="datetime-local"
@@ -346,12 +351,12 @@ function ManageFixture({ game }: { game: Game }) {
         defaultValue={toLocalInput(game.startsAt, game.timezone)}
         required
       />
-      <button type="submit" data-testid={`save-fixture-${game.id}`} disabled={move.isPending}>
+      <Button type="submit" data-testid={`save-fixture-${game.id}`} disabled={move.isPending}>
         {move.isPending ? m.event_saving() : m.event_save()}
-      </button>
-      <button type="button" className="btn" onClick={() => setOpen(false)}>
+      </Button>
+      <Button type="button" variant="outline" onClick={() => setOpen(false)}>
         {m.fixture_cancel()}
-      </button>
+      </Button>
       {(err.form || err.field("startsAt")) && (
         <p className="feedback-error small" data-testid={`fixture-error-${game.id}`} role="alert">
           {err.form ?? err.field("startsAt")}
@@ -501,20 +506,21 @@ function Referees({ game }: { game: Game }) {
         </button>
       ))}
       {free.length > 0 && (
-        <select
+        <NativeSelect
+          size="sm"
           aria-label={m.assign_referee()}
           disabled={pending}
           value=""
           data-testid={`referee-select-${game.id}`}
           onChange={(e) => e.target.value && assign.mutate(e.target.value)}
         >
-          <option value="">{m.assign_referee()}</option>
+          <NativeSelectOption value="">{m.assign_referee()}</NativeSelectOption>
           {free.map((c) => (
-            <option key={c.userId} value={c.userId}>
+            <NativeSelectOption key={c.userId} value={c.userId}>
               {c.name}
-            </option>
+            </NativeSelectOption>
           ))}
-        </select>
+        </NativeSelect>
       )}
       {err.form && <span role="alert" className="feedback-error small">{err.form}</span>}
     </span>
@@ -545,7 +551,7 @@ function ScoreForm({ game, onDone }: { game: Game; onDone: () => void }) {
         save.mutate({ homeScore: Number(f.get("home")), awayScore: Number(f.get("away")) });
       }}
     >
-      <input
+      <Input
         name="home"
         type="number"
         min="0"
@@ -555,7 +561,7 @@ function ScoreForm({ game, onDone }: { game: Game; onDone: () => void }) {
         data-testid={`home-score-${game.id}`}
       />
       <span className="muted">–</span>
-      <input
+      <Input
         name="away"
         type="number"
         min="0"
@@ -564,12 +570,12 @@ function ScoreForm({ game, onDone }: { game: Game; onDone: () => void }) {
         aria-label={game.awayTeam}
         data-testid={`away-score-${game.id}`}
       />
-      <button type="submit" disabled={save.isPending} data-testid={`save-score-${game.id}`}>
+      <Button type="submit" disabled={save.isPending} data-testid={`save-score-${game.id}`}>
         {save.isPending ? m.org_saving() : m.org_save()}
-      </button>
-      <button type="button" className="btn" onClick={onDone}>
+      </Button>
+      <Button type="button" variant="outline" onClick={onDone}>
         {m.cancel()}
-      </button>
+      </Button>
       {/* "Give both scores or neither" is a refinement across two fields, so it
           has no single home — it arrives at form level and is said once. */}
       {(scoreErr.field("homeScore") ?? scoreErr.form) && (
@@ -630,7 +636,6 @@ export function AddFixture({ eventId, can, timezone }: { eventId: string; can: E
       <section className="panel" style={{ marginTop: 16 }}>
       <h2>{m.generate_fixtures()}</h2>
       <form
-        className="form-stack"
         data-testid="generate-fixtures"
         onSubmit={(e) => {
           e.preventDefault();
@@ -638,19 +643,25 @@ export function AddFixture({ eventId, can, timezone }: { eventId: string; can: E
           generate.mutate({ startDate: String(f.get("startDate")) });
         }}
       >
-        <label htmlFor="gen-start">{m.first_matchday()}</label>
-        <input id="gen-start" name="startDate" type="date" required data-testid="generate-start" />
-        <button type="submit" data-testid="generate-submit" disabled={generate.isPending}>
-          {generate.isPending ? m.org_saving() : m.generate_fixtures()}
-        </button>
-        {generate.data && (
-          <p className="muted small" data-testid="generate-result">
-            {m.generate_result({ created: generate.data.created, skipped: generate.data.skipped })}
-          </p>
-        )}
-        {genErr.form && (
-          <p className="feedback-error small" data-testid="generate-error" role="alert">{genErr.form}</p>
-        )}
+        <FieldGroup className="max-w-[420px]">
+          <Field>
+            <FieldLabel htmlFor="gen-start">{m.first_matchday()}</FieldLabel>
+            <Input id="gen-start" name="startDate" type="date" required data-testid="generate-start" />
+          </Field>
+          <Button type="submit" data-testid="generate-submit" disabled={generate.isPending} className="w-fit">
+            {generate.isPending ? m.org_saving() : m.generate_fixtures()}
+          </Button>
+          {generate.data && (
+            <p className="muted small" data-testid="generate-result">
+              {m.generate_result({ created: generate.data.created, skipped: generate.data.skipped })}
+            </p>
+          )}
+          {genErr.form && (
+            <Alert variant="destructive" data-testid="generate-error" role="alert">
+              <AlertDescription>{genErr.form}</AlertDescription>
+            </Alert>
+          )}
+        </FieldGroup>
       </form>
       </section>
       </Can>
@@ -659,7 +670,6 @@ export function AddFixture({ eventId, can, timezone }: { eventId: string; can: E
       <section className="panel" style={{ marginTop: 16 }} data-testid="add-fixture">
       <h2>{m.add_fixture()}</h2>
       <form
-        className="form-stack"
         onSubmit={(e) => {
           e.preventDefault();
           const f = new FormData(e.currentTarget);
@@ -670,36 +680,46 @@ export function AddFixture({ eventId, can, timezone }: { eventId: string; can: E
           });
         }}
       >
-        <select name="home" data-testid="fixture-home">
-          {teams.map((t) => (
-            <option key={t.teamId} value={t.teamId}>{t.team}</option>
-          ))}
-        </select>
-        <select name="away" data-testid="fixture-away" defaultValue={teams[1]!.teamId}>
-          {teams.map((t) => (
-            <option key={t.teamId} value={t.teamId}>{t.team}</option>
-          ))}
-        </select>
-        <label htmlFor="fixture-starts">{m.fixture_when()} {timezone}</label>
-        <input id="fixture-starts" name="startsAt" type="datetime-local" required data-testid="fixture-starts" />
-        {addErr.field("startsAt") && (
-          <p className="feedback-error small" data-testid="fixture-starts-issue" role="alert">
-            {addErr.field("startsAt")}
-          </p>
-        )}
-        <button type="submit" data-testid="add-fixture-submit" disabled={add.isPending}>
-          {add.isPending ? m.org_saving() : m.add_fixture()}
-        </button>
-        {/* A refusal with no field to sit under — "that team is not registered
-            for this event", "a team cannot play itself", "those teams are in
-            different divisions" — plus any issue the fields above did not
-            claim. Those belong at the bottom of the form, not beneath an input
-            that is not the problem. */}
-        {addErr.form && (
-          <p className="feedback-error small" data-testid="add-fixture-error" role="alert">
-            {addErr.form}
-          </p>
-        )}
+        <FieldGroup className="max-w-[420px]">
+          <Field>
+            <FieldLabel htmlFor="fixture-home">{m.home_team()}</FieldLabel>
+            <NativeSelect id="fixture-home" name="home" data-testid="fixture-home">
+              {teams.map((t) => (
+                <NativeSelectOption key={t.teamId} value={t.teamId}>{t.team}</NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="fixture-away">{m.away()}</FieldLabel>
+            <NativeSelect id="fixture-away" name="away" data-testid="fixture-away" defaultValue={teams[1]!.teamId}>
+              {teams.map((t) => (
+                <NativeSelectOption key={t.teamId} value={t.teamId}>{t.team}</NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </Field>
+          <Field data-invalid={!!addErr.field("startsAt") || undefined}>
+            <FieldLabel htmlFor="fixture-starts">{m.fixture_when()} {timezone}</FieldLabel>
+            <Input id="fixture-starts" name="startsAt" type="datetime-local" required data-testid="fixture-starts" />
+            {addErr.field("startsAt") && (
+              <FieldError data-testid="fixture-starts-issue">
+                {addErr.field("startsAt")}
+              </FieldError>
+            )}
+          </Field>
+          <Button type="submit" data-testid="add-fixture-submit" disabled={add.isPending} className="w-fit">
+            {add.isPending ? m.org_saving() : m.add_fixture()}
+          </Button>
+          {/* A refusal with no field to sit under — "that team is not registered
+              for this event", "a team cannot play itself", "those teams are in
+              different divisions" — plus any issue the fields above did not
+              claim. Those belong at the bottom of the form, not beneath an input
+              that is not the problem. */}
+          {addErr.form && (
+            <Alert variant="destructive" data-testid="add-fixture-error" role="alert">
+              <AlertDescription>{addErr.form}</AlertDescription>
+            </Alert>
+          )}
+        </FieldGroup>
       </form>
       </section>
       </Can>

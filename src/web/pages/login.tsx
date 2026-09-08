@@ -2,6 +2,10 @@ import { useState } from "react";
 import { useDevAccounts, useRequestCode, useVerifyCode, codeFromOutbox } from "../lib/auth";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 
 /**
  * Passwordless sign-in for the SPA (ADR 012).
@@ -96,74 +100,81 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
       </div>
 
       {error && (
-        <div className="feedback-error" role="alert" id="login-error" data-testid="login-error">
-          <p>{error}</p>
-        </div>
+        <Alert variant="destructive" role="alert" id="login-error" data-testid="login-error">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       {step === "email" ? (
-        <form onSubmit={submitEmail} className="panel form-stack" aria-busy={busy}>
-          <label htmlFor="spa-email">
-            {m.email_label()}
-          </label>
-          <input
-            id="spa-email"
-            type="email"
-            required
-            autoComplete="email"
-            placeholder={m.email_placeholder()}
-            data-testid="spa-email-input"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            aria-describedby={error ? "login-error" : undefined}
-          />
-          <button className="btn primary" type="submit" disabled={busy} data-testid="spa-send-code">
-            {busy ? m.sending() : m.email_me_a_code()}
-          </button>
+        <form onSubmit={submitEmail} aria-busy={busy}>
+          <FieldGroup className="max-w-[420px]">
+            <Field>
+              <FieldLabel htmlFor="spa-email">{m.email_label()}</FieldLabel>
+              <Input
+                id="spa-email"
+                type="email"
+                required
+                autoComplete="email"
+                placeholder={m.email_placeholder()}
+                data-testid="spa-email-input"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                aria-describedby={error ? "login-error" : undefined}
+              />
+            </Field>
+            <Button type="submit" disabled={busy} className="w-fit" data-testid="spa-send-code">
+              {busy ? m.sending() : m.email_me_a_code()}
+            </Button>
+          </FieldGroup>
         </form>
       ) : (
-        <form onSubmit={submitCode} className="panel form-stack" aria-busy={busy}>
-          <p style={{ marginBottom: 12 }}>
-            {m.code_sent_to({ email })}
-          </p>
-          <label htmlFor="spa-otp">
-            {m.six_digit_code()}
-          </label>
-          <input
-            id="spa-otp"
-            type="text"
-            required
-            /* one-time-code lets phones offer the code straight from the
-               notification instead of forcing an app switch. */
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            pattern="[0-9]{6}"
-            maxLength={6}
-            placeholder="000000"
-            data-testid="spa-otp-input"
-            value={otp}
-            onChange={(e) => setOtp(e.target.value)}
-            className="login-code"
-            aria-describedby={error ? "login-error" : undefined}
-          />
-          <button className="btn primary" type="submit" disabled={busy} data-testid="spa-verify-code">
-            {busy ? m.signing_in() : m.sign_in()}
-          </button>
-          <button
-            type="button"
-            className="btn"
-
-            data-testid="spa-use-different-email"
-            onClick={() => {
-              setStep("email");
-              setOtp("");
-              // Clears the failed-code message: the error is the mutation's
-              // now, so resetting it is what dismisses it.
-              verifyCode.reset();
-            }}
-          >
-            {m.use_different_email()}
-          </button>
+        <form onSubmit={submitCode} aria-busy={busy}>
+          <FieldGroup className="max-w-[420px]">
+            <p className="text-sm text-muted-foreground">
+              {m.code_sent_to({ email })}
+            </p>
+            <Field>
+              <FieldLabel htmlFor="spa-otp">{m.six_digit_code()}</FieldLabel>
+              <Input
+                id="spa-otp"
+                type="text"
+                required
+                /* one-time-code lets phones offer the code straight from the
+                   notification instead of forcing an app switch. */
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                placeholder="000000"
+                data-testid="spa-otp-input"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                className="login-code"
+                aria-describedby={error ? "login-error" : undefined}
+              />
+              {/* Better Auth answers whole-form, so the message hangs off the
+                  code field, the one the reader is on when it arrives. */}
+              {error && <FieldError>{error}</FieldError>}
+            </Field>
+            <Button type="submit" disabled={busy} className="w-fit" data-testid="spa-verify-code">
+              {busy ? m.signing_in() : m.sign_in()}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-fit"
+              data-testid="spa-use-different-email"
+              onClick={() => {
+                setStep("email");
+                setOtp("");
+                // Clears the failed-code message: the error is the mutation's
+                // now, so resetting it is what dismisses it.
+                verifyCode.reset();
+              }}
+            >
+              {m.use_different_email()}
+            </Button>
+          </FieldGroup>
         </form>
       )}
 

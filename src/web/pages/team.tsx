@@ -10,6 +10,12 @@ import { api, orpc } from "../lib/orpc";
 import { useRoster, useTeam, useTeamGames } from "../lib/data";
 import { routeHref, type Route } from "../lib/router";
 import { m } from "../lib/i18n";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { ButtonLink } from "../components/button-link";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { useLocale } from "../lib/locale";
 import { useSession } from "../lib/session";
 import { formErrors } from "../lib/form-errors";
@@ -68,8 +74,8 @@ export function TeamPage({ id, goto, query, spoiler = false }: { id: string; got
           <div className="meta">{t.ageGroupLabel} {t.genderLabel} · {t.short}</div>
           <div className="event-actions" style={{ marginTop: 16 }}>
             {t.id && <FollowButton objectTypeCode="TEAM" objectId={t.id} />}
-            <a className="btn" href={routeHref({ page: "team", id, query: { section: "roster" } })}>{m.roster()}</a>
-            <a className="btn" href={routeHref({ page: "team", id, query: { section: "schedule" } })}>{m.schedule()}</a>
+            <ButtonLink variant="outline" href={routeHref({ page: "team", id, query: { section: "roster" } })}>{m.roster()}</ButtonLink>
+            <ButtonLink variant="outline" href={routeHref({ page: "team", id, query: { section: "schedule" } })}>{m.schedule()}</ButtonLink>
           </div>
         </div>
         {/* The record is the schedule below, counted: wins and losses among
@@ -259,23 +265,27 @@ function ManageRoster({ teamId, roster }: { teamId: string; roster: Roster }) {
 
       {roster.available.length ? (
         <form
-          className="form-stack"
           data-testid="add-player-form"
           onSubmit={(e) => {
             e.preventDefault();
             add.mutate(String(new FormData(e.currentTarget).get("player")));
           }}
         >
-          <select name="player" data-testid="add-player-select">
-            {roster.available.map((p) => (
-              <option key={p.playerId} value={p.playerId}>
-                {p.jerseyNumber} · {p.name}
-              </option>
-            ))}
-          </select>
-          <button type="submit" data-testid="add-player-submit" disabled={add.isPending}>
-            {m.add_to_squad()}
-          </button>
+          <FieldGroup className="max-w-[420px]">
+            <Field>
+              <FieldLabel htmlFor="add-player-select">{m.roster()}</FieldLabel>
+              <NativeSelect id="add-player-select" name="player" data-testid="add-player-select">
+                {roster.available.map((p) => (
+                  <NativeSelectOption key={p.playerId} value={p.playerId}>
+                    {p.jerseyNumber} · {p.name}
+                  </NativeSelectOption>
+                ))}
+              </NativeSelect>
+            </Field>
+            <Button type="submit" data-testid="add-player-submit" disabled={add.isPending} className="w-fit">
+              {m.add_to_squad()}
+            </Button>
+          </FieldGroup>
         </form>
       ) : (
         <p className="muted" data-testid="no-available-players">{m.everyone_on_squad()}</p>
@@ -332,10 +342,13 @@ function TeamSettings({ team }: { team: Team }) {
     <section className="panel" style={{ marginTop: 24 }} data-testid="team-settings">
       <h2>{m.team_settings()}</h2>
       {saved && <div className="feedback-success" data-testid="team-saved" role="status">{m.event_saved()}</div>}
-      {err.form && <div className="feedback-error" data-testid="team-settings-error" role="alert">{err.form}</div>}
+      {err.form && (
+        <Alert variant="destructive" data-testid="team-settings-error" role="alert">
+          <AlertDescription>{err.form}</AlertDescription>
+        </Alert>
+      )}
 
       <form
-        className="form-stack"
         onSubmit={(e) => {
           e.preventDefault();
           const f = new FormData(e.currentTarget);
@@ -346,40 +359,48 @@ function TeamSettings({ team }: { team: Team }) {
           });
         }}
       >
-        <label htmlFor="team-name">{m.team_name_label()}</label>
-        <input
-          id="team-name"
-          name="name"
-          data-testid="team-name-input"
-          defaultValue={team.names.en ?? team.name}
-          required
-          autoComplete="off"
-        />
-        {err.field("names[en]") && (
-          <p className="feedback-error small" data-testid="team-name-issue" role="alert">
-            {err.field("names[en]")}
-          </p>
-        )}
+        <FieldGroup className="max-w-[420px]">
+          <Field data-invalid={!!err.field("names[en]") || undefined}>
+            <FieldLabel htmlFor="team-name">{m.team_name_label()}</FieldLabel>
+            <Input
+              id="team-name"
+              name="name"
+              data-testid="team-name-input"
+              defaultValue={team.names.en ?? team.name}
+              required
+              autoComplete="off"
+            />
+            {err.field("names[en]") && (
+              <FieldError data-testid="team-name-issue">
+                {err.field("names[en]")}
+              </FieldError>
+            )}
+          </Field>
 
-        <NameTranslations names={team.names} id="team-name" />
+          <NameTranslations names={team.names} id="team-name" />
 
-        <label htmlFor="team-age">{m.team_age_label()}</label>
-        <select id="team-age" name="ageGroupCode" data-testid="team-age-input" defaultValue={team.ageGroupCode}>
-          {terms("ageGroups").map((a) => (
-            <option key={a.code} value={a.code}>{name(a.names, a.code)}</option>
-          ))}
-        </select>
+          <Field>
+            <FieldLabel htmlFor="team-age">{m.team_age_label()}</FieldLabel>
+            <NativeSelect id="team-age" name="ageGroupCode" data-testid="team-age-input" defaultValue={team.ageGroupCode}>
+              {terms("ageGroups").map((a) => (
+                <NativeSelectOption key={a.code} value={a.code}>{name(a.names, a.code)}</NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </Field>
 
-        <label htmlFor="team-gender">{m.team_gender_label()}</label>
-        <select id="team-gender" name="genderCode" data-testid="team-gender-input" defaultValue={team.genderCode}>
-          {terms("genders").map((g) => (
-            <option key={g.code} value={g.code}>{name(g.names, g.code)}</option>
-          ))}
-        </select>
+          <Field>
+            <FieldLabel htmlFor="team-gender">{m.team_gender_label()}</FieldLabel>
+            <NativeSelect id="team-gender" name="genderCode" data-testid="team-gender-input" defaultValue={team.genderCode}>
+              {terms("genders").map((g) => (
+                <NativeSelectOption key={g.code} value={g.code}>{name(g.names, g.code)}</NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </Field>
 
-        <button type="submit" data-testid="team-save" disabled={save.isPending}>
-          {save.isPending ? m.event_saving() : m.event_save()}
-        </button>
+          <Button type="submit" data-testid="team-save" disabled={save.isPending} className="w-fit">
+            {save.isPending ? m.event_saving() : m.event_save()}
+          </Button>
+        </FieldGroup>
       </form>
     </section>
   );

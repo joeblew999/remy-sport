@@ -4,7 +4,7 @@ import { m } from "../lib/i18n";
 import { useCan } from "../lib/data";
 import { useState, useEffect } from "react";
 import { watchInstallable, type PwaInstall } from "../lib/installable";
-import { Button } from "@/components/ui/button";
+import { ButtonLink } from "../components/button-link";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -88,20 +88,17 @@ export function Account() {
 
   if (!user) {
     return (
-      // `nativeButton={false}` because the entry point is a link — a route,
-      // openable in a new tab like every other navigation — and Base UI's
-      // button warns when its `render` is not a real <button>.
-      <Button
-        nativeButton={false}
-        render={
-          <a
-            data-testid="topbar-sign-in"
-            href={routeHref(signInRoute(parseRoute(window.location.hash)))}
-          />
-        }
+      // The entry point is a link — a route, openable in a new tab like every
+      // other navigation — so it is an `<a>` styled with the button's variants.
+      // Base UI's Button is the wrong tool here: it enforces `role="button"`
+      // and the docs say links have their own semantics and must not pass
+      // through it.
+      <ButtonLink
+        data-testid="topbar-sign-in"
+        href={routeHref(signInRoute(parseRoute(window.location.hash)))}
       >
         {m.sign_in()}
-      </Button>
+      </ButtonLink>
     );
   }
 
