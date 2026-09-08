@@ -7,9 +7,13 @@ the account chores went into a **DropdownMenu on the topbar avatar** (not nav
 items in the sidebar), and the settings went into the sidebar's Settings
 group. The old <!-- docs-check-ignore --> `components/sidebar.tsx` is gone — it
 names the file this plan replaced, kept so the history reads; the shell is the registry's
-Sidebar driven by `components/app-sidebar.tsx`. The remaining steps (compact
-detail headers, sticky tabs, the overflow check) stay open here. The Product
-Owner asked for it the same day: "on mobile it is totally cluttered".
+Sidebar driven by `components/app-sidebar.tsx`, committed as `d2ae514`. The
+overflow check (step 1) landed with it. The remaining steps (compact detail
+headers, sticky tabs) are delivered by the page-chrome step of that plan under
+the Product Owner's rule of 2026-09-08 — no reinvented wheels — with the
+registry's Tabs and ButtonGroup, not sticky and scrolling rules of our own.
+The Product Owner asked for it the same day: "on mobile it is totally
+cluttered".
 
 ## What is wrong, from the captures
 
@@ -61,12 +65,13 @@ build stamp do not move.
 
 ## Steps
 
-- [ ] **Make the defect visible to a check.** Extend `tests/render/mobile-layout.spec.ts`:
-      for every role at 320 and 390px, the topbar is one row (height at most
-      64px) and every control in it has a bounding box inside the viewport.
-      Proof: it fails today on the admin at 390px, naming Sign out, and passes
-      when the plan is done.
-- [ ] **Account into the sidebar — absorbed, with a change.** B2 step 8 put
+- [x] **Make the defect visible to a check.** Done in `d2ae514` with B2 step 8:
+      "the topbar stays one row" in `tests/render/mobile-layout.spec.ts` holds
+      every role at 320 and 390px to one row with every control inside the
+      viewport, 14 checks, measuring after the stylesheet and
+      `document.fonts.ready` have loaded. It failed on the admin's Sign out
+      first, as this step predicted.
+- [x] **Account into the sidebar — absorbed, with a change.** Done in `d2ae514`. B2 step 8 put
       the account chores in a DropdownMenu on the topbar avatar instead of
       nav items in the sidebar, and `components/account.tsx` shrank to the
       topbar's Sign in button or the avatar-and-name trigger, as planned.
@@ -76,14 +81,14 @@ build stamp do not move.
       `tests/e2e/spa-login.spec.ts`, `tests/render/admin-reachable.spec.ts` and
       `tests/render/devices.spec.ts`. Proof: those suites pass, and the
       end-to-end sign-out journey still signs out.
-- [ ] **Settings into the sidebar.** The language switch and the spoiler switch
+- [x] **Settings into the sidebar.** Done in `d2ae514` by B2 step 8. The language switch and the spoiler switch
       move to a Settings group at the bottom of the sidebar; the eye leaves the
       topbar. New messages `settings` and `language` in all three locales;
       `spoiler_mode` and `menu` already exist. `tests/render/i18n.spec.ts` and
       `tests/render/geography.spec.ts` open the drawer on a phone before
       switching language, the way a reader does. Proof: those suites pass at
       both widths.
-- [ ] **One topbar.** Menu button while folded, brand, spacer, account. The
+- [x] **One topbar.** Done in `d2ae514` by B2 step 8. Menu button while folded, brand, spacer, account. The
       brand leaves the top of the sidebar, so it is in one place at every
       size. Proof: the new check from step 1 passes for every role at 320 and
       390px, and the desktop captures show the brand once.
@@ -117,16 +122,17 @@ screenshot walk are green and the counts are below.
 
 ## Under shadcn (decided 2026-09-08)
 
-The design-system gate chose shadcn the same day, so this plan's steps 2 to 4
-are delivered by step 5 of that plan: the Sidebar block (which becomes a
-Sheet under 768px by itself), a DropdownMenu on the avatar for the account
-items, a ToggleGroup for the language and a Switch for the spoiler in the
-sidebar's Settings group, and a sticky-header block for the topbar. What
-this plan decides — what is in the sidebar, that the topbar is one row, that
-tabs stick and actions scroll — does not change, and its step 1 check (no
-clipped topbar control at 320 and 390px for any role) is the acceptance for
-that shell step. Steps 5 to 7 here (compact detail headers, deletion, gate)
-remain this plan's own.
+The design-system gate chose shadcn the same day, and this plan's steps 1 to 4
+were delivered by step 8 of that plan (`d2ae514`): the registry's Sidebar
+(which becomes a Sheet under 768px by itself), a DropdownMenu on the avatar
+for the account items, a ToggleGroup for the language and a Switch for the
+spoiler in the sidebar's Settings group. What this plan decides — what is in
+the sidebar, that the topbar is one row, that tabs stick and actions scroll —
+does not change, and its step 1 check is the acceptance that shell step met.
+Steps 5 to 7 (compact detail headers, deletion, gate) are delivered by that
+plan's page-chrome step and its final gate, with the registry's Tabs and
+ButtonGroup rather than sticky and scrolling rules of our own, on the Product
+Owner's rule of 2026-09-08: no reinvented wheels, and their theme, not ours.
 
 ## Log
 
@@ -137,3 +143,6 @@ remain this plan's own.
   Product Owner's question. The first draft had a brand that appeared only
   on phones, an action row that scrolled only on phones, and an avatar that
   did different things by width. All three are now one rule each.
+- 2026-09-08 — steps 1 to 4 done by B2 step 8 of the design-system plan and
+  committed in `d2ae514`; boxes ticked here the same day. Steps 5 to 7 move
+  to that plan's page-chrome step under the no-wheels rule.

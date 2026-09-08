@@ -149,20 +149,21 @@ const DYNAMIC_CLASSES: Record<string, string> = {
   kbd: "the shortcut hint inside the kept .search rules",
   dark: "shadcn's dark mode: put on <html> by the theme provider (lib/theme.ts), read by `@custom-variant dark`",
 }
-function webSource(): string {
-  const out: string[] = []
+function webFiles(): { path: string; text: string }[] {
+  const out: { path: string; text: string }[] = []
   const walk = (dir: string) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       if (entry.name === "paraglide" || entry.name === "fonts" || entry.name === "public") continue
       const path = join(dir, entry.name)
       if (entry.isDirectory()) walk(path)
-      else if (/\.(tsx?|html)$/.test(entry.name)) out.push(readFileSync(path, "utf8"))
+      else if (/\.(tsx?|html)$/.test(entry.name)) out.push({ path, text: readFileSync(path, "utf8") })
     }
   }
   walk("src/web")
-  return out.join("\n")
+  return out
 }
-const source = webSource()
+const files = webFiles()
+const source = files.map(f => f.text).join("\n")
 const classNames = [...new Set([...stripComments(css).matchAll(/\.(-?[_a-zA-Z][\w-]*)/g)].map(m => m[1]!))]
 const dead = classNames.filter(name =>
   !(name in DYNAMIC_CLASSES) && !new RegExp(`(^|[^\\w-])${name}([^\\w-]|$)`).test(source))
@@ -204,3 +205,20 @@ rule(`no Tailwind class sets text under ${FLOOR}px`, smallArbitrary,
 const fontClass = [...source.matchAll(/\bfont-\[[^\]]+\]/g)].map(m => m[0])
 rule("no Tailwind class names a typeface", fontClass,
   `Arbitrary font families in src/web JSX:\n  ${fontClass.join("\n  ")}\n\nUse font-sans, font-display, font-thai or font-mono, which read the tokens.`)
+
+/* The registry's look is the look (the Product Owner, 2026-09-08: no
+   reinvented wheels, their theme not ours). Tailwind offers the two escapes
+   the allowlists above close in CSS — `uppercase` and `font-mono` — as
+   classes, and the badge and table steps are where they would arrive: a pill
+   shouted back into capitals, a score column set in mono when tabular-nums
+   is what aligns digits. The registry's own files are exempt: they are
+   hash-locked, and this rule is for what we author. */
+const JSX_ESCAPES_ALLOWED: Record<string, string> = {}
+const stripTsxComments = (text: string) => stripComments(text).replace(/^\s*\/\/.*$/gm, "")
+const escapes = files
+  .filter(f => !f.path.startsWith("src/web/components/ui/") && !(f.path in JSX_ESCAPES_ALLOWED))
+  .flatMap(f => [...stripTsxComments(f.text).matchAll(/\b(uppercase|font-mono)\b/g)].map(m => `${f.path}: ${m[1]}`))
+rule("no authored JSX sets uppercase or monospace by class", escapes,
+  `Tailwind escapes in src/web JSX:\n  ${escapes.join("\n  ")}\n\n` +
+  `A registry Badge is sentence case, and a column of digits aligns with tabular-nums. If a case is\n` +
+  `real, add the file to JSX_ESCAPES_ALLOWED with why.`)
