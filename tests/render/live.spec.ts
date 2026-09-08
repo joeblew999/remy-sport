@@ -25,13 +25,18 @@ test.describe("The live list on a phone", () => {
     await seedCache(page, [entry(orpc.games.list, {}, { viewerTimezone: null, games: live })])
     await visit(page, "live")
 
-    const rows = page.locator(".live-list .fixture-row")
+    const rows = page.getByTestId("live-list").locator("[data-slot=item]")
     await expect(rows).toHaveCount(live.length)
 
     const boxes = await rows.evaluateAll((els) =>
       els.map((row) => {
         const box = (sel: string) => row.querySelector(sel)!.getBoundingClientRect()
-        return { row: row.getBoundingClientRect(), names: box(".game-summary"), status: box(".outcome"), score: box(".result") }
+        return {
+          row: row.getBoundingClientRect(),
+          names: box("[data-testid=live-game]"),
+          status: box("[data-testid=live-status]"),
+          score: box("[data-testid=live-score]"),
+        }
       }),
     )
     for (const b of boxes) {

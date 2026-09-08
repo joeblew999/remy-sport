@@ -54,7 +54,7 @@ const event = projectEvent("evt_002")
  */
 async function offenders(page: import("@playwright/test").Page) {
   return page.evaluate(() => {
-    const scroller = document.querySelector(".page") ?? document.body
+    const scroller = document.querySelector("[data-testid=page]") ?? document.body
     const limit = scroller.clientWidth
     const found: string[] = []
     for (const el of scroller.querySelectorAll<HTMLElement>("*")) {
@@ -107,12 +107,12 @@ test.describe("no screen overflows on a phone", () => {
       const failures: string[] = []
       for (const route of ROUTES) {
         await page.goto(`/#${route}`) // check-ignore: iterates ROUTES — every route must fit
-        await page.waitForFunction(() => !!document.querySelector(".page"))
+        await page.waitForFunction(() => !!document.querySelector("[data-testid=page]"))
         // The view swaps on hash change; give React a frame to commit it.
         await page.waitForTimeout(250)
 
         const over = await page.evaluate(() => {
-          const p = document.querySelector(".page")!
+          const p = document.querySelector("[data-testid=page]")!
           return p.scrollWidth - p.clientWidth
         })
         if (over > 1) {
@@ -125,36 +125,25 @@ test.describe("no screen overflows on a phone", () => {
   }
 
   test("the strips that are meant to scroll still do", async ({ page }) => {
-    // The counterpart assertion: this must not be "fixed" by making the tab row
-    // wrap or shrink. It is a horizontally scrollable strip on purpose, and the
-    // check above passes it deliberately rather than by accident.
+    // The counterpart assertion: this must not be "fixed" by making the tab
+    // strips shrink. The registry's tab lists (Discover's status tabs, the
+    // event page's tabs) scroll their own content sideways on purpose, and the
+    // check above passes them deliberately rather than by accident.
     await page.setViewportSize({ width: 390, height: 844 })
     await seedCache(page, [entry(orpc.events.list, undefined, { events: [event] })])
     await visit(page, "discover")
 
-    const scrolls = await page.evaluate(() => {
-      const el = document.querySelector(".tab-row")!
-      return {
-        inner: el.scrollWidth > el.clientWidth,
-        fitsParent: el.getBoundingClientRect().width <= document.querySelector(".page")!.clientWidth + 1,
-      }
+    const strips = await page.evaluate(() => {
+      const limit = document.querySelector("[data-testid=page]")!.clientWidth + 1
+      return [...document.querySelectorAll<HTMLElement>("[data-slot=tabs-list]")].map((el) => ({
+        overflowX: getComputedStyle(el).overflowX,
+        fitsParent: el.getBoundingClientRect().width <= limit,
+      }))
     })
-    expect(scrolls.inner, "the tab row scrolls its own content").toBe(true)
-    expect(scrolls.fitsParent, "and does not push its parent wider").toBe(true)
-
-    // And says so. "Past" was clipped at the right edge with nothing to show
-    // the strip went on; each strip's last item is now a sticky fade pinned
-    // to that edge. Asked of the computed style, since a pseudo-element has
-    // no box a locator can find.
-    const fades = await page.evaluate(() =>
-      [".tab-row", ".filter-row"].map((s) => {
-        const after = getComputedStyle(document.querySelector(s)!, "::after")
-        return { strip: s, position: after.position, painted: after.backgroundImage !== "none" }
-      }),
-    )
-    for (const fade of fades) {
-      expect(fade.position, `${fade.strip} has a sticky fade at its edge`).toBe("sticky")
-      expect(fade.painted, `${fade.strip}'s fade is painted`).toBe(true)
+    expect(strips.length, "Discover has a tab strip").toBeGreaterThan(0)
+    for (const strip of strips) {
+      expect(strip.overflowX, "the tab strip scrolls its own content").toBe("auto")
+      expect(strip.fitsParent, "and does not push its parent wider").toBe(true)
     }
   })
 
@@ -167,7 +156,7 @@ test.describe("no screen overflows on a phone", () => {
     await seedCache(page, [entry(orpc.events.list, undefined, { events: [event] })])
     await visit(page, "discover")
     const overflowX = await page.evaluate(
-      () => getComputedStyle(document.querySelector(".page")!).overflowX,
+      () => getComputedStyle(document.querySelector("[data-testid=page]")!).overflowX,
     )
     // `clip` computes to `hidden` when the other axis is not visible. Either
     // value means a reader cannot drag the shell sideways; `visible` or `auto`
@@ -260,7 +249,7 @@ test.describe("no screen overflows on a narrow desktop", () => {
       await visit(page, "discover")
 
       const over = await page.evaluate(() => {
-        const p = document.querySelector(".page")!
+        const p = document.querySelector("[data-testid=page]")!
         return p.scrollWidth - p.clientWidth
       })
       expect(over, `discover overflows by ${over}px at ${width}px`).toBeLessThanOrEqual(1)

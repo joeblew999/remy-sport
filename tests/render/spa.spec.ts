@@ -67,21 +67,20 @@ test.describe("Event view models are derived, not stored", () => {
     await seedCache(page, [entry(orpc.events.list, undefined, { events: [FINISHED] })])
     await visit(page, "discover")
 
-    const row = page.locator(".event-row", { hasText: FINISHED.name })
+    const row = page.getByTestId("event-row").filter({ hasText: FINISHED.name })
     await expect(row).toBeVisible()
-    await expect(row.locator(".date .day")).toHaveText("15")
-    // "Apr", not "APR": the month comes from Intl.DateTimeFormat now, and the
-    // uppercase is CSS (`.mo { text-transform: uppercase }`). That is the right
-    // place for it — text-transform is a no-op for Thai and Japanese, whereas
-    // the hardcoded MONTHS array this replaced was uppercase in every language.
-    await expect(row.locator(".date .mo")).toHaveText("Apr")
-    await expect(row.locator(".status")).toHaveText("Finished")
+    await expect(row.getByTestId("event-day")).toHaveText("15")
+    // "Apr", not "APR": the month comes from Intl.DateTimeFormat, in the
+    // reader's language, and nothing shouts it — the hardcoded MONTHS array
+    // this replaced was uppercase in every language.
+    await expect(row.getByTestId("event-month")).toHaveText("Apr")
+    await expect(row.getByTestId("event-status")).toHaveText("Finished")
   })
 
   test("an event deep-link renders that event", async ({ page }) => {
     await seedCache(page, [entry(orpc.events.get, { id: LEAGUE }, EVENT)])
     await visit(page, "event", { id: "evt_002" })
-    await expect(page.locator(".event-hero")).toContainText("Bangkok Schools Basketball League 2026")
+    await expect(page.getByTestId("event-hero")).toContainText("Bangkok Schools Basketball League 2026")
   })
 
 })

@@ -56,18 +56,18 @@ test.describe("Localisation, rendered", () => {
   test("switching to Thai translates the chrome AND the data together", async ({ page }) => {
     await seeded(page)
     await visit(page, "discover")
-    await expect(page.locator(".page-header h1")).toHaveText(m.discover_heading({}, { locale: "en" }))
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(m.discover_heading({}, { locale: "en" }))
 
     await page.getByTestId("lang-th").click()
 
     // UI copy — from the compiled messages.
-    await expect(page.locator(".page-header h1")).toHaveText(m.discover_heading({}, { locale: "th" }))
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(m.discover_heading({}, { locale: "th" }))
 
     // Data names — the event type badge is a vocabulary label, so it proves the
     // reference data resolved in the reader's language rather than a hardcoded
     // string changing.
     const thaiTypes = VOCABULARY.eventTypes.map((t) => t.names.th)
-    const badge = page.locator(".event-row .type").first()
+    const badge = page.getByTestId("event-type").first()
     await expect(badge).toBeVisible()
     expect(thaiTypes).toContain((await badge.textContent())?.trim())
   })
@@ -76,12 +76,12 @@ test.describe("Localisation, rendered", () => {
     await seeded(page)
     await visit(page, "discover")
     await page.getByTestId("lang-th").click()
-    await expect(page.locator(".page-header h1")).toHaveText(m.discover_heading({}, { locale: "th" }))
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(m.discover_heading({}, { locale: "th" }))
 
     await page.reload()
     // Persisted in localStorage by LocaleProvider — a reader who picked Thai
     // should not have to pick it again.
-    await expect(page.locator(".page-header h1")).toHaveText(m.discover_heading({}, { locale: "th" }))
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(m.discover_heading({}, { locale: "th" }))
   })
 
   test("no raw vocabulary code reaches the page", async ({ page }) => {
@@ -90,7 +90,7 @@ test.describe("Localisation, rendered", () => {
     // long as /api/reference took — a database code, shown to a reader.
     await seeded(page)
     await visit(page, "discover")
-    await expect(page.locator(".event-row").first()).toBeVisible()
+    await expect(page.getByTestId("event-row").first()).toBeVisible()
     const body = (await page.locator("main").textContent()) ?? ""
     // Codes that could not be mistaken for prose: BANGKOK collides with the
     // word in a headline, CHIANG_MAI cannot.

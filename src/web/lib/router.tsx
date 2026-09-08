@@ -166,7 +166,7 @@ export function useRouter(): RouterAPI {
   // Store the actual scroll container, not window.scrollY. Retain positions
   // across locale remounts and restore after asynchronous content arrives.
   useEffect(() => {
-    const page = document.querySelector<HTMLElement>(".page");
+    const page = document.getElementById("page");
     if (!page) return;
     const key = routeHref(route);
     const target = scrollPositions.get(key) ?? 0;

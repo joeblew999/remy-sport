@@ -31,7 +31,7 @@ test.describe("Event Games on a phone", () => {
   })
 
   test("opens on games with live fixtures before results and real game links", async ({ page }) => {
-    const rows = page.locator(".schedule-game")
+    const rows = page.getByTestId("schedule").locator("[data-slot=item]")
     await expect(rows).toHaveCount(games.length)
     const first = games.find(g => g.statusCode === "LIVE" || g.statusCode === "HALF_TIME") ?? games.find(g => g.statusCode === "SCHEDULED") ?? finished.at(-1)!
     await expect(rows.first()).toHaveAttribute("data-testid", `game-${first.id}`)

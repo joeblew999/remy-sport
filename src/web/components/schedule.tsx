@@ -24,11 +24,25 @@ import { formatTimeOn, fromLocalInput, toLocalInput } from "../lib/dates";
 import { Can } from "./can";
 import { GameSummary } from "./game-summary";
 import { GameStats } from "./game-stats";
+import { EmptyState, Loading } from "./states";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "./button-link";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Item, ItemActions, ItemContent, ItemGroup } from "@/components/ui/item";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 
 /** Fixture/result changes also alter event progress, standings and team records. */
@@ -38,6 +52,15 @@ function refreshGameViews(qc: QueryClient) {
 }
 
 type Game = NonNullable<ReturnType<typeof useGames>["data"]>["games"][number];
+
+/** An error with no field to sit under, as the system's Alert, on its own line. */
+function FormAlert({ children, ...props }: { children: React.ReactNode; "data-testid"?: string }) {
+  return (
+    <Alert variant="destructive" className="basis-full" {...props}>
+      <AlertDescription>{children}</AlertDescription>
+    </Alert>
+  );
+}
 
 /**
  * When a game starts, on a named clock, in the reader's language.
@@ -111,32 +134,33 @@ export function Schedule({
     { label: m.other_games(), games: visible.filter(g => !["LIVE", "HALF_TIME", "SCHEDULED", "FINISHED"].includes(g.statusCode)) },
   ];
 
-  if (games.isPending) return <div className="empty">{m.loading()}</div>;
+  if (games.isPending) return <Loading />;
   if (!visible.length) {
     // Not an empty table: an event with no fixtures yet has none, and a header
     // over nothing reads as a loading state that never finishes.
-    return (
-      <div className="empty" data-testid="schedule-empty">
-        {m.schedule_empty()}
-      </div>
-    );
+    return <EmptyState data-testid="schedule-empty">{m.schedule_empty()}</EmptyState>;
   }
 
   return (
-    <div data-testid="schedule">
-      {groups.filter(group => group.games.length).map(group => <section key={group.label} className="game-group">
-      <h2>{group.label}</h2><div className="panel-list">
-      {group.games.map((g) => (
-        <GameRow
-          key={g.id}
-          game={g}
-          spoiler={spoiler}
-          viewerZone={games.data?.viewerTimezone ?? null}
-          can={can}
-          eventId={eventId}
-          goto={goto}
-        />
-      ))}</div></section>)}
+    <div className="flex flex-col gap-6" data-testid="schedule">
+      {groups.filter(group => group.games.length).map(group => (
+        <section key={group.label}>
+          <h2 className="mb-3 text-lg font-semibold">{group.label}</h2>
+          <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border">
+            {group.games.map((g) => (
+              <GameRow
+                key={g.id}
+                game={g}
+                spoiler={spoiler}
+                viewerZone={games.data?.viewerTimezone ?? null}
+                can={can}
+                eventId={eventId}
+                goto={goto}
+              />
+            ))}
+          </ItemGroup>
+        </section>
+      ))}
     </div>
   );
 }
@@ -164,14 +188,14 @@ export function GameRow({
   const played = game.homeScore !== null && game.awayScore !== null;
 
   return (
-    <div className="entity-row schedule-game" data-testid={`game-${game.id}`}>
-      <div>
+    <Item className="flex-wrap items-start rounded-none px-4 py-3" data-testid={`game-${game.id}`}>
+      <ItemContent className="basis-full sm:basis-auto">
         <GameSummary game={game} details={details} showStatus={false} />
-        <div className="entity-meta">
+        <div className="text-sm text-muted-foreground">
           <Can of={game} action="CONFIRM_MATCH_STATUS" fallback={
             <span
               data-testid={`game-status-${game.id}`}
-              style={game.statusCode === "LIVE" ? { color: "var(--live)" } : undefined}
+              className={game.statusCode === "LIVE" ? "font-medium text-destructive" : undefined}
             >
               {game.statusLabel}
             </span>
@@ -193,30 +217,29 @@ export function GameRow({
               </span>
             </>
           )}
-
         </div>
-      </div>
+      </ItemContent>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <ItemActions className="ml-auto flex-wrap justify-end">
         {editing ? (
           <Can of={game} action="ENTER_SCORES">
           <ScoreForm game={game} onDone={() => setEditing(false)} />
           </Can>
         ) : (
           <>
-            <span className="score-cell" data-testid={`score-${game.id}`}>
+            <span className="min-w-[4.5rem] text-right text-base tabular-nums" data-testid={`score-${game.id}`}>
               {/* Spoiler mode hides the result, not the fixture. */}
               {spoiler && played ? m.spoiler_hidden() : played ? `${game.homeScore}–${game.awayScore}` : "—"}
             </span>
             <Can of={game} action="ASSIGN_REFEREE"><Referees game={game} /></Can>
             {/*
               Where a broadcaster actually starts.
-       
+
               A referee arrives at the gym before tip-off, when their game is
               still SCHEDULED — so offering this only on the Live page, which
               lists games already in play, is offering it after the moment they
               needed it. It sits on the fixture they are standing in front of.
-       
+
               And Watch appears here for everyone once a camera is on it, so
               somebody reading a schedule does not have to know a second page
               exists.
@@ -256,9 +279,9 @@ export function GameRow({
             <Can of={{ can }} action="ASSIGN_COURTS"><AssignVenue game={game} eventId={eventId} /></Can>
           </>
         )}
-      </div>
+      </ItemActions>
       <Can of={game} action="ENTER_SCORES"><GameStats gameId={game.id} /></Can>
-    </div>
+    </Item>
   );
 }
 
@@ -281,13 +304,15 @@ export function GameRow({
  * ## Removing asks first
  *
  * It cascades: the referee rows point at the game and are deleted with it, so
- * an accidental press loses assignments as well as the fixture. `confirm` is
- * blunt and it is honest about a thing that cannot be undone — there is no
- * restore, because a deleted fixture is not a state the model keeps.
+ * an accidental press loses assignments as well as the fixture. The registry's
+ * AlertDialog asks, in the reader's language, about a thing that cannot be
+ * undone — there is no restore, because a deleted fixture is not a state the
+ * model keeps.
  */
 function ManageFixture({ game }: { game: Game }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const invalidate = () => refreshGameViews(qc);
 
   const move = useMutation({
@@ -317,24 +342,39 @@ function ManageFixture({ game }: { game: Game }) {
         >
           {m.fixture_edit()}
         </Button>
-        <Button
-          variant="outline"
-          data-testid={`remove-fixture-${game.id}`}
-          disabled={drop.isPending}
-          onClick={() => {
-            if (window.confirm(m.fixture_confirm_remove())) drop.mutate();
-          }}
-        >
-          {drop.isPending ? m.fixture_removing() : m.fixture_remove()}
-        </Button>
-        {dropErr.form && <p role="alert" className="feedback-error small">{dropErr.form}</p>}
+        <AlertDialog open={confirming} onOpenChange={setConfirming}>
+          <Button
+            variant="outline"
+            data-testid={`remove-fixture-${game.id}`}
+            disabled={drop.isPending}
+            onClick={() => setConfirming(true)}
+          >
+            {drop.isPending ? m.fixture_removing() : m.fixture_remove()}
+          </Button>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{m.fixture_remove()}</AlertDialogTitle>
+              <AlertDialogDescription>{m.fixture_confirm_remove()}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{m.cancel()}</AlertDialogCancel>
+              <AlertDialogAction
+                data-testid={`confirm-remove-fixture-${game.id}`}
+                onClick={() => { setConfirming(false); drop.mutate(); }}
+              >
+                {m.fixture_remove()}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        {dropErr.form && <FormAlert>{dropErr.form}</FormAlert>}
       </>
     );
   }
 
   return (
     <form
-      className="fixture-edit"
+      className="flex flex-wrap items-center gap-2"
       data-testid={`fixture-form-${game.id}`}
       onSubmit={(e) => {
         e.preventDefault();
@@ -358,9 +398,9 @@ function ManageFixture({ game }: { game: Game }) {
         {m.fixture_cancel()}
       </Button>
       {(err.form || err.field("startsAt")) && (
-        <p className="feedback-error small" data-testid={`fixture-error-${game.id}`} role="alert">
+        <FormAlert data-testid={`fixture-error-${game.id}`}>
           {err.form ?? err.field("startsAt")}
-        </p>
+        </FormAlert>
       )}
     </form>
   );
@@ -400,22 +440,22 @@ function AssignVenue({ game, eventId }: { game: Game; eventId: string | undefine
   return (
     <>
       <label className="sr-only" htmlFor={`venue-${game.id}`}>{m.assign_venue()}</label>
-      <select
+      <NativeSelect
         id={`venue-${game.id}`}
-        className="venue-select"
+        size="sm"
         data-testid={`assign-venue-${game.id}`}
         value={game.venueId ?? ""}
         disabled={assign.isPending}
         onChange={(e) => assign.mutate(e.target.value || null)}
       >
-        <option value="">{m.venue_unassigned()}</option>
+        <NativeSelectOption value="">{m.venue_unassigned()}</NativeSelectOption>
         {rows.map(({ venue }) => (
-          <option key={venue.id} value={venue.id}>
+          <NativeSelectOption key={venue.id} value={venue.id}>
             {name(venue.names as Record<string, string>, venue.id)}
-          </option>
+          </NativeSelectOption>
         ))}
-      </select>
-      {err.form && <p role="alert" className="feedback-error small">{err.form}</p>}
+      </NativeSelect>
+      {err.form && <FormAlert>{err.form}</FormAlert>}
     </>
   );
 }
@@ -446,22 +486,22 @@ function GameStatus({ game }: { game: Game }) {
   return (
     <>
     <label className="sr-only" htmlFor={`status-${game.id}`}>{game.homeTeam} {m.versus()} {game.awayTeam}</label>
-    <select
+    <NativeSelect
       id={`status-${game.id}`}
-      className="status-select"
+      size="sm"
+      className={game.statusCode === "LIVE" ? "font-medium text-destructive" : undefined}
       data-testid={`game-status-${game.id}`}
       value={game.statusCode}
       disabled={set.isPending}
       onChange={(e) => set.mutate(e.target.value)}
-      style={game.statusCode === "LIVE" ? { color: "var(--live)" } : undefined}
     >
       {terms("gameStatuses").map((s) => (
-        <option key={s.code} value={s.code}>
+        <NativeSelectOption key={s.code} value={s.code}>
           {name(s.names, s.code)}
-        </option>
+        </NativeSelectOption>
       ))}
-    </select>
-    {err.form && <p role="alert" className="feedback-error small">{err.form}</p>}
+    </NativeSelect>
+    {err.form && <FormAlert>{err.form}</FormAlert>}
     </>
   );
 }
@@ -492,18 +532,18 @@ function Referees({ game }: { game: Game }) {
   const pending = assign.isPending || unassign.isPending;
 
   return (
-    <span className="referee-picker" data-testid={`assign-referee-${game.id}`}>
+    <span className="inline-flex flex-wrap items-center gap-1.5" data-testid={`assign-referee-${game.id}`}>
       {game.referees.map((r) => (
-        <button
+        <Badge
           key={r.userId}
-          className="badge badge-outline"
+          variant="outline"
+          render={<button type="button" disabled={pending} />}
           title={m.remove_from_squad()}
           data-testid={`unassign-${game.id}-${r.userId}`}
-          disabled={pending}
           onClick={() => unassign.mutate(r.userId)}
         >
           {r.name} ×
-        </button>
+        </Badge>
       ))}
       {free.length > 0 && (
         <NativeSelect
@@ -522,7 +562,7 @@ function Referees({ game }: { game: Game }) {
           ))}
         </NativeSelect>
       )}
-      {err.form && <span role="alert" className="feedback-error small">{err.form}</span>}
+      {err.form && <FormAlert>{err.form}</FormAlert>}
     </span>
   );
 }
@@ -543,7 +583,7 @@ function ScoreForm({ game, onDone }: { game: Game; onDone: () => void }) {
 
   return (
     <form
-      className="score-form"
+      className="flex flex-wrap items-center gap-1.5"
       data-testid={`score-form-${game.id}`}
       onSubmit={(e) => {
         e.preventDefault();
@@ -556,16 +596,18 @@ function ScoreForm({ game, onDone }: { game: Game; onDone: () => void }) {
         type="number"
         min="0"
         required
+        className="w-16 text-center tabular-nums"
         defaultValue={game.homeScore ?? ""}
         aria-label={game.homeTeam}
         data-testid={`home-score-${game.id}`}
       />
-      <span className="muted">–</span>
+      <span className="text-muted-foreground">–</span>
       <Input
         name="away"
         type="number"
         min="0"
         required
+        className="w-16 text-center tabular-nums"
         defaultValue={game.awayScore ?? ""}
         aria-label={game.awayTeam}
         data-testid={`away-score-${game.id}`}
@@ -579,9 +621,9 @@ function ScoreForm({ game, onDone }: { game: Game; onDone: () => void }) {
       {/* "Give both scores or neither" is a refinement across two fields, so it
           has no single home — it arrives at form level and is said once. */}
       {(scoreErr.field("homeScore") ?? scoreErr.form) && (
-        <p className="feedback-error small" data-testid={`score-error-${game.id}`} role="alert">
+        <FormAlert data-testid={`score-error-${game.id}`}>
           {scoreErr.field("homeScore") ?? scoreErr.form}
-        </p>
+        </FormAlert>
       )}
     </form>
   );
@@ -629,12 +671,12 @@ export function AddFixture({ eventId, can, timezone }: { eventId: string; can: E
 
   return (
     <>
-
       {/* Before the one-at-a-time form, because it is the thing an organiser
           wants first and the form is what you reach for afterwards. */}
       <Can of={{ can }} action="GENERATE_FIXTURES">
-      <section className="panel" style={{ marginTop: 16 }}>
-      <h2>{m.generate_fixtures()}</h2>
+      <Card>
+      <CardHeader><CardTitle>{m.generate_fixtures()}</CardTitle></CardHeader>
+      <CardContent>
       <form
         data-testid="generate-fixtures"
         onSubmit={(e) => {
@@ -652,23 +694,25 @@ export function AddFixture({ eventId, can, timezone }: { eventId: string; can: E
             {generate.isPending ? m.org_saving() : m.generate_fixtures()}
           </Button>
           {generate.data && (
-            <p className="muted small" data-testid="generate-result">
+            <p className="text-sm text-muted-foreground" data-testid="generate-result">
               {m.generate_result({ created: generate.data.created, skipped: generate.data.skipped })}
             </p>
           )}
           {genErr.form && (
-            <Alert variant="destructive" data-testid="generate-error" role="alert">
+            <Alert variant="destructive" data-testid="generate-error">
               <AlertDescription>{genErr.form}</AlertDescription>
             </Alert>
           )}
         </FieldGroup>
       </form>
-      </section>
+      </CardContent>
+      </Card>
       </Can>
 
       <Can of={{ can }} action="MANAGE_FIXTURES">
-      <section className="panel" style={{ marginTop: 16 }} data-testid="add-fixture">
-      <h2>{m.add_fixture()}</h2>
+      <Card data-testid="add-fixture">
+      <CardHeader><CardTitle>{m.add_fixture()}</CardTitle></CardHeader>
+      <CardContent>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -715,13 +759,14 @@ export function AddFixture({ eventId, can, timezone }: { eventId: string; can: E
               claim. Those belong at the bottom of the form, not beneath an input
               that is not the problem. */}
           {addErr.form && (
-            <Alert variant="destructive" data-testid="add-fixture-error" role="alert">
+            <Alert variant="destructive" data-testid="add-fixture-error">
               <AlertDescription>{addErr.form}</AlertDescription>
             </Alert>
           )}
         </FieldGroup>
       </form>
-      </section>
+      </CardContent>
+      </Card>
       </Can>
     </>
   );

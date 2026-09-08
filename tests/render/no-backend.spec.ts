@@ -166,7 +166,7 @@ test.describe("Unhandled rejections in dev", () => {
     await expect(page.locator("[data-dev-rejections]")).toBeVisible()
     // Still a working page. A rejection is usually not fatal, and a crash
     // screen for one is false severity a developer learns to dismiss.
-    await expect(page.locator(".event-list")).toBeVisible()
+    await expect(page.getByTestId("event-list")).toBeVisible()
     await expect(page.getByTestId("crash")).toHaveCount(0)
   })
 

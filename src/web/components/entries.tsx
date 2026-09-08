@@ -18,10 +18,14 @@ import { useEntries } from "../lib/data";
 import { formErrors } from "../lib/form-errors";
 import { routeHref } from "../lib/router";
 import { m } from "../lib/i18n";
+import { Loading } from "./states";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 /**
  * @answers REGISTER_TEAM_FOR_EVENT
@@ -43,58 +47,60 @@ export function Entries({ eventId, divisionId }: { eventId: string; divisionId?:
     onSuccess: invalidate,
   });
 
-  if (isPending) return <div className="empty">{m.loading()}</div>;
+  if (isPending) return <Loading />;
 
   return (
     <>
-      <section className="panel" data-testid="entries">
-        <h2>{m.tab_teams()}</h2>
+      <Card data-testid="entries">
+        <CardHeader><CardTitle>{m.tab_teams()}</CardTitle></CardHeader>
+        <CardContent>
         {data?.registered.length ? (
-          <table className="admin-table" data-testid="entries-table">
-            <thead>
-              <tr>
-                <th>{m.team()}</th>
-                <th>{m.division()}</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
+          <Table data-testid="entries-table">
+            <TableHeader>
+              <TableRow>
+                <TableHead>{m.team()}</TableHead>
+                <TableHead>{m.division()}</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {data.registered.filter(r => !divisionId || r.divisionId === divisionId).map((r) => (
-                <tr key={r.teamId} data-testid={`entry-${r.teamId}`}>
-                  <td>
-                    <a href={routeHref({ page: "team", id: r.teamId })}>{r.team}</a>
+                <TableRow key={r.teamId} data-testid={`entry-${r.teamId}`}>
+                  <TableCell className="whitespace-normal">
+                    <a className="font-medium hover:underline" href={routeHref({ page: "team", id: r.teamId })}>{r.team}</a>
                     {/* When they entered, which nothing showed. An organiser
                         looking at a full event could not tell who was first —
                         the question behind every waiting list. */}
                     {r.entered && (
-                      <div className="muted small" data-testid={`entered-${r.teamId}`}>
+                      <div className="text-sm text-muted-foreground" data-testid={`entered-${r.teamId}`}>
                         {m.registered_on({ date: r.entered })}
                       </div>
                     )}
-                  </td>
-                  <td>
-                    <a className="badge badge-outline" href={routeHref({ page: "event", id: eventId, query: { tab: "standings", division: r.divisionId ?? "" } })}>{r.division}</a>
-                  </td>
-                  <td>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" render={<a href={routeHref({ page: "event", id: eventId, query: { tab: "standings", division: r.divisionId ?? "" } })} />}>{r.division}</Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
                     {r.can.REGISTER_TEAM_FOR_EVENT && (
-                      <button
-                        className="danger"
+                      <Button
+                        variant="destructive"
                         data-testid={`withdraw-${r.teamId}`}
                         disabled={withdraw.isPending}
                         onClick={() => withdraw.mutate(r.teamId)}
                       >
                         {m.withdraw()}
-                      </button>
+                      </Button>
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         ) : (
-          <p className="muted" data-testid="entries-empty">{m.entries_empty()}</p>
+          <p className="text-muted-foreground" data-testid="entries-empty">{m.entries_empty()}</p>
         )}
-      </section>
+        </CardContent>
+      </Card>
 
       {/* Only for someone with a team to enter. */}
       {data?.registrable.length ? (
@@ -133,8 +139,9 @@ function EnterTeam({
   });
 
   return (
-    <section className="panel" data-testid="enter-team">
-      <h2>{m.enter_a_team()}</h2>
+    <Card data-testid="enter-team">
+      <CardHeader><CardTitle>{m.enter_a_team()}</CardTitle></CardHeader>
+      <CardContent>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -174,7 +181,7 @@ function EnterTeam({
           ) : (
             // Nothing this team could be entered into. Said plainly rather than
             // rendering an empty select that submits nothing.
-            <p className="muted" data-testid="no-division">{m.no_matching_division()}</p>
+            <p className="text-muted-foreground" data-testid="no-division">{m.no_matching_division()}</p>
           )}
 
           <Button type="submit" data-testid="enter-team-submit" disabled={!options.length || enter.isPending} className="w-fit">
@@ -185,12 +192,13 @@ function EnterTeam({
               team that never entered, a division that does not match — at form
               level. Neither can be dropped. */}
           {(enterErr().field("divisionId") ?? enterErr().form) && (
-            <Alert variant="destructive" data-testid="enter-error" role="alert">
+            <Alert variant="destructive" data-testid="enter-error">
               <AlertDescription>{enterErr().field("divisionId") ?? enterErr().form}</AlertDescription>
             </Alert>
           )}
         </FieldGroup>
       </form>
-    </section>
+      </CardContent>
+    </Card>
   );
 }

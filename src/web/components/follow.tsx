@@ -13,10 +13,11 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { HeartIcon } from "lucide-react"
 import { api, orpc } from "../lib/orpc"
 import { m } from "../../paraglide/messages.js"
 import { useSession } from "../lib/session"
-import { Icon } from "./icon"
+import { Button } from "@/components/ui/button"
 
 type ObjectTypeCode = "EVENT" | "TEAM" | "GAME" | "PLAYER" | "ORG"
 
@@ -75,13 +76,13 @@ export function FollowButton({
   if (!signedIn) return null
 
   return (
-    <button
+    <Button
       type="button"
       // Filled while not following, plain once following: the button is an
       // invitation before the fact and a status after it, and a permanently
       // filled primary button would keep drawing the eye to something already
       // done.
-      className={isFollowing ? "btn" : "btn primary"}
+      variant={isFollowing ? "outline" : "default"}
       // The label says what is true rather than what a press would do —
       // `aria-pressed` is what tells a screen reader it is a toggle, so the
       // visible text does not have to flip to "Unfollow" on hover.
@@ -94,8 +95,8 @@ export function FollowButton({
       // against the model's grants.
       data-action={`${isFollowing ? "UNFOLLOW" : "FOLLOW"}_${objectTypeCode}`}
     >
-      <Icon name="follow" />
+      <HeartIcon data-icon="inline-start" />
       {isFollowing ? m.following_label() : m.follow()}
-    </button>
+    </Button>
   )
 }

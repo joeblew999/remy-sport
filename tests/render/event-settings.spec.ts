@@ -281,7 +281,7 @@ test.describe("The Venues tab", () => {
     if (secondary) {
       await expect(page.getByTestId(`venue-primary-${secondary.venueId}`)).toHaveCount(0)
     }
-    const order = await page.getByTestId("event-venues").locator(".venue-row").allTextContents()
+    const order = await page.getByTestId("event-venues").locator("[data-slot=item]").allTextContents()
     expect(order[0]).toContain(nameOf(primary.venueId).names.en!)
   })
 

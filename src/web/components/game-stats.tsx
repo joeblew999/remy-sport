@@ -4,7 +4,7 @@ import { api, orpc } from "../lib/orpc";
 import { formErrors } from "../lib/form-errors";
 import { useLocale } from "../lib/locale";
 import { m } from "../lib/i18n";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -26,15 +26,15 @@ type Line = Awaited<ReturnType<typeof api.games.stats>>["players"][number];
 function Lines({ gameId }: { gameId: string }) {
   const q = useQuery(orpc.games.stats.queryOptions({ input: { id: gameId } }));
   const err = formErrors(q.error);
-  if (q.isPending) return <p>{m.loading()}</p>;
+  if (q.isPending) return <p className="basis-full">{m.loading()}</p>;
   if (err.form) return (
-    <Alert variant="destructive" role="alert">
+    <Alert variant="destructive" className="basis-full">
       <AlertDescription>{err.form}</AlertDescription>
-      <Button variant="outline" onClick={() => q.refetch()}>{m.push_retry()}</Button>
+      <AlertAction><Button variant="outline" size="sm" onClick={() => q.refetch()}>{m.push_retry()}</Button></AlertAction>
     </Alert>
   );
-  return <section className="game-box-score" data-testid={`box-score-lines-${gameId}`}>
-    <p className="muted small">{m.game_box_score_hint()}</p>
+  return <section className="flex min-w-0 basis-full flex-col gap-4" data-testid={`box-score-lines-${gameId}`}>
+    <p className="text-sm text-muted-foreground">{m.game_box_score_hint()}</p>
     {!q.data?.players.length && <p>{m.game_box_score_empty()}</p>}
     {q.data?.players.map((line) => <PlayerLine key={line.playerId} line={line} />)}
   </section>;
@@ -65,7 +65,7 @@ function PlayerLine({ line }: { line: Line }) {
       points: value("points"), rebounds: value("rebounds"), assists: value("assists"), fouls: value("fouls") });
   }}>
     <FieldGroup className="max-w-[420px]">
-      <h3>{name(line.names)}</h3>
+      <h3 className="text-base font-semibold">{name(line.names)}</h3>
       {fields.map(([field, label]) => (
         <Field key={field}>
           {/* The id carries the player: several lines can be open at once, and
@@ -77,7 +77,7 @@ function PlayerLine({ line }: { line: Line }) {
       <Button type="submit" disabled={save.isPending} className="w-fit">{save.isPending ? m.org_saving() : m.org_save()}</Button>
       {save.isSuccess && <p role="status">{m.game_box_score_saved()}</p>}
       {err.form && (
-        <Alert variant="destructive" role="alert">
+        <Alert variant="destructive">
           <AlertDescription>{err.form}</AlertDescription>
         </Alert>
       )}

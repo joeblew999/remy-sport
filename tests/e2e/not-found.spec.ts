@@ -9,10 +9,10 @@ import { test, expect } from "@playwright/test"
  */
 test("a deep-link to a missing team says so, rather than showing another one", async ({ page }) => {
   await page.goto("/#/team/team_does_not_exist")
-  await expect(page.locator(".empty")).toContainText("does not exist")
+  await expect(page.getByTestId("not-found")).toContainText("does not exist")
 })
 
 test("a deep-link to a missing event says so, rather than showing another one", async ({ page }) => {
   await page.goto("/#/event/evt_does_not_exist")
-  await expect(page.locator(".empty")).toContainText("does not exist")
+  await expect(page.getByTestId("not-found")).toContainText("does not exist")
 })

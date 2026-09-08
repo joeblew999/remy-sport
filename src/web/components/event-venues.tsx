@@ -23,6 +23,9 @@ import { routeHref } from "../lib/router"
 import { useLocale } from "../lib/locale"
 import { useEventVenues } from "../lib/data"
 import { m } from "../lib/i18n"
+import { EmptyState, Loading } from "./states"
+import { Badge } from "@/components/ui/badge"
+import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item"
 
 export function EventVenues({ eventId, venueId }: { eventId: string; venueId?: string }) {
   const { name, label } = useLocale()
@@ -35,35 +38,33 @@ export function EventVenues({ eventId, venueId }: { eventId: string; venueId?: s
     if (venueId && !isPending) document.getElementById(`venue-${venueId}`)?.scrollIntoView({ block: "start" });
   }, [venueId, isPending]);
   return (
-    <div className="page-inner">
-      <div className="panel-list" data-testid="event-venues">
-        {isPending && <div className="empty">{m.loading()}</div>}
-        {!isPending && rows.length === 0 && (
-          <div className="empty" data-testid="event-venues-empty">{m.event_venues_none()}</div>
-        )}
-        {rows.map(({ link, venue }) => (
-          <div id={`venue-${venue.id}`} key={venue.id} className="venue-row" data-testid={`venue-${venue.id}`}>
-            <div>
-              <div className="row-title">
-                <a href={routeHref({ page: "event", id: eventId, query: { tab: "places", court: venue.id } })}>{name(venue.names as Record<string, string>, venue.id)}</a>
-                {link.isPrimary && (
-                  <span className="venue-primary" data-testid={`venue-primary-${venue.id}`}>
-                    {m.venue_primary()}
-                  </span>
-                )}
-              </div>
-              {/* The address as written, then the city from the vocabulary —
-                  so a Thai reader gets "กรุงเทพมหานคร" rather than "BANGKOK",
-                  the same as everywhere else a code is shown. */}
-              <div className="row-meta">
-                {[venue.address, label("cities", venue.cityCode), label("provinces", venue.provinceCode)]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+    <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border" data-testid="event-venues">
+      {isPending && <Loading className="border-0" />}
+      {!isPending && rows.length === 0 && (
+        <EmptyState className="border-0" data-testid="event-venues-empty">{m.event_venues_none()}</EmptyState>
+      )}
+      {rows.map(({ link, venue }) => (
+        <Item id={`venue-${venue.id}`} key={venue.id} className="rounded-none px-4 py-3" data-testid={`venue-${venue.id}`}>
+          <ItemContent>
+            <ItemTitle className="text-base">
+              <a className="hover:underline" href={routeHref({ page: "event", id: eventId, query: { tab: "places", court: venue.id } })}>{name(venue.names as Record<string, string>, venue.id)}</a>
+              {link.isPrimary && (
+                <Badge variant="outline" data-testid={`venue-primary-${venue.id}`}>
+                  {m.venue_primary()}
+                </Badge>
+              )}
+            </ItemTitle>
+            {/* The address as written, then the city from the vocabulary —
+                so a Thai reader gets "กรุงเทพมหานคร" rather than "BANGKOK",
+                the same as everywhere else a code is shown. */}
+            <ItemDescription>
+              {[venue.address, label("cities", venue.cityCode), label("provinces", venue.provinceCode)]
+                .filter(Boolean)
+                .join(" · ")}
+            </ItemDescription>
+          </ItemContent>
+        </Item>
+      ))}
+    </ItemGroup>
   )
 }

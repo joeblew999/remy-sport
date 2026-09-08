@@ -6,12 +6,12 @@ import { visit } from "../helpers/surfaces"
 test("directory failure is recoverable and never claims there are no teams", async ({ page }) => {
   await seedCache(page, [])
   await visit(page, "teams")
-  await expect(page.locator(".page").getByRole("alert")).toBeVisible()
+  await expect(page.getByTestId("page").getByRole("alert")).toBeVisible()
   await expect(page.getByTestId("teams-empty")).toHaveCount(0)
   await page.route("**/rpc/teams/list**", route => route.fulfill({
     contentType: "application/json", body: JSON.stringify({ json: { teams: projectTeams() } }),
   }))
-  await page.locator(".page").getByRole("button", { name: "Try again" }).click()
+  await page.getByTestId("page").getByRole("button", { name: "Try again" }).click()
   const link = page.getByTestId("team-row-team_001").getByRole("link")
   await expect(link).toHaveAttribute("href", "#/team/team_001")
   await link.focus()
@@ -26,12 +26,12 @@ test("game's failed event query offers retry instead of permanent loading", asyn
     entry(orpc.events.entries, { eventId: game.eventId }, projectEntries(game.eventId)),
   ])
   await visit(page, "game", { id: game.id })
-  await expect(page.locator(".game-page").getByRole("alert")).toBeVisible()
-  await expect(page.locator(".game-page").getByText("Loading…", { exact: true })).toHaveCount(0)
+  await expect(page.getByTestId("game-page").getByRole("alert")).toBeVisible()
+  await expect(page.getByTestId("game-page").getByText("Loading…", { exact: true })).toHaveCount(0)
   await page.route("**/rpc/events/get**", route => route.fulfill({
     contentType: "application/json", body: JSON.stringify({ json: projectEvent(game.eventId) }),
   }))
-  await page.locator(".game-page").getByRole("button", { name: "Try again" }).click()
+  await page.getByTestId("game-page").getByRole("button", { name: "Try again" }).click()
   await expect(page.getByTestId(`game-${game.id}`)).toBeVisible()
 })
 
@@ -97,7 +97,7 @@ test("content remains usable at 200 percent magnification", async ({ page }) => 
   await visit(page, "teams")
   await page.evaluate(() => { document.documentElement.style.zoom = "2" })
   await expect(page.getByTestId("teams-list")).toBeVisible()
-  expect(await page.locator(".page").evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThan(2)
+  expect(await page.getByTestId("page").evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThan(2)
   await page.getByTestId("team-row-team_001").getByRole("link").focus()
   await expect(page.getByTestId("team-row-team_001").getByRole("link")).toBeFocused()
 })
@@ -125,21 +125,21 @@ for (const width of [320, 390, 1440]) {
       await page.addInitScript(l => localStorage.setItem("remy.locale", l), locale)
       await seedCache(page, [entry(orpc.teams.list, undefined, { teams: projectTeams() })])
       await visit(page, "teams")
-      const title = page.locator(".page h1")
+      const title = page.getByTestId("page").getByRole("heading", { level: 1 })
       const list = page.getByTestId("teams-list")
       await expect(list).toBeVisible()
       const titleBox = await title.boundingBox()
       const listBox = await list.boundingBox()
       expect(Math.abs(titleBox!.x - listBox!.x)).toBeLessThan(2)
-      expect(await page.locator(".page").evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThan(2)
+      expect(await page.getByTestId("page").evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThan(2)
       const link = page.getByTestId("team-row-team_001").getByRole("link")
       expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44)
       await visit(page, "login")
       await expect(page.getByTestId("spa-email-input")).toBeVisible()
-      const heading = await page.locator(".page h1").boundingBox()
-      const form = await page.locator(".page form").boundingBox()
+      const heading = await page.getByTestId("page").getByRole("heading", { level: 1 }).boundingBox()
+      const form = await page.getByTestId("page").locator("form").boundingBox()
       expect(Math.abs(heading!.x - form!.x)).toBeLessThan(2)
-      expect(await page.locator(".page").evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThan(2)
+      expect(await page.getByTestId("page").evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThan(2)
     })
   }
 }

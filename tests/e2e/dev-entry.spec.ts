@@ -29,7 +29,7 @@ test.describe("the entry module runs once", () => {
 
   test("a page loads the entry once", async ({ page }) => {
     await page.goto("/")
-    await expect(page.locator(".page")).toBeVisible()
+    await expect(page.getByTestId("page")).toBeVisible()
     const loads = await page.evaluate(() =>
       performance.getEntriesByType("resource").filter((e) => /\/main\.tsx(\?|$)/.test(e.name)).length,
     )

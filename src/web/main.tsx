@@ -14,6 +14,9 @@ import { LocaleProvider, useLocale, type Locale } from "./lib/locale";
 import { useSession } from "./lib/session";
 import { m } from "./lib/i18n";
 import { CrashBoundary } from "./components/crash";
+import { PageInner } from "./components/page";
+import { EmptyState, Loading } from "./components/states";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { watchForClientErrors } from "./lib/report";
 
 import { DiscoverPage } from "./pages/discover";
@@ -51,7 +54,6 @@ const BroadcastPage = lazy(() =>
 const WatchPage = lazy(() => import("./pages/video").then((m) => ({ default: m.WatchPage })));
 
 interface TweakDefaults {
-  accentColor?: string;
   spoilerMode?: boolean;
   language?: Locale;
 }
@@ -63,7 +65,6 @@ declare global {
 }
 
 const DEFAULTS: Required<TweakDefaults> = {
-  accentColor: "#D17246",
   spoilerMode: false,
   language: "en",
 };
@@ -102,9 +103,9 @@ function PendingApprovalNotice() {
   const { user } = useSession();
   if (user?.statusCode !== "PENDING_APPROVAL") return null;
   return (
-    <div className="admin-banner" data-testid="pending-approval-banner">
-      <span>{m.pending_banner()}</span>
-    </div>
+    <Alert className="rounded-none border-x-0 border-t-0" data-testid="pending-approval-banner">
+      <AlertDescription>{m.pending_banner()}</AlertDescription>
+    </Alert>
   );
 }
 
@@ -178,11 +179,6 @@ function App() {
   // visitor. Nothing else in the shell depends on the session.
   const { user, loading: sessionLoading } = useSession();
 
-  useEffect(() => {
-    document.documentElement.style.setProperty("--brand", tweaks.accentColor);
-    document.documentElement.style.setProperty("--brand-deep", tweaks.accentColor);
-  }, [tweaks.accentColor]);
-
   // A detail page keeps its list highlighted in the nav, and the root is
   // Discover's for a visitor, who has no Home.
   const sidebarPage = route.page === "home" && !user ? "discover"
@@ -211,7 +207,7 @@ function App() {
    * the event's Standings tab.
    */
   const lazily = (node: React.ReactNode) => (
-    <Suspense fallback={<div className="empty">{loadingLabel()}</div>}>{node}</Suspense>
+    <Suspense fallback={<PageInner><Loading>{loadingLabel()}</Loading></PageInner>}>{node}</Suspense>
   );
 
   const RENDER: Record<Page, () => React.ReactNode> = {
@@ -221,7 +217,7 @@ function App() {
     // What is yours when signed in; the platform when not. Held until the
     // session is known, so a coach does not see Discover flash before Home.
     home: () =>
-      sessionLoading ? <div className="empty">{loadingLabel()}</div>
+      sessionLoading ? <PageInner><Loading>{loadingLabel()}</Loading></PageInner>
       : user ? <HomePage goto={goto}/>
       : <DiscoverPage goto={goto} spoiler={spoiler} query={route.query} setParam={setParam}/>,
     event: () => <EventPage id={route.id} goto={goto} spoiler={spoiler} query={route.query} setParam={setParam}/>,
@@ -252,12 +248,14 @@ function App() {
      * rather than the link being wrong.
      */
     "not-found": () => (
-      <div className="empty" data-testid="route-not-found">
-        <p>{m.route_not_found()}</p>
-        <Button onClick={() => goto({ page: "discover" })}>
-          {m.browse()}
-        </Button>
-      </div>
+      <PageInner>
+        <EmptyState data-testid="route-not-found">
+          <p>{m.route_not_found()}</p>
+          <Button onClick={() => goto({ page: "discover" })}>
+            {m.browse()}
+          </Button>
+        </EmptyState>
+      </PageInner>
     ),
   };
 
@@ -278,7 +276,20 @@ function App() {
         <SidebarInset className="overflow-hidden">
           <Topbar />
           <PendingApprovalNotice />
-          <div className="page">
+          {/*
+            The app shell must never pan sideways. `overflow-x-clip` is the
+            structural fix for a class of bug found three times by eye and
+            never by a check: `overflow-y: auto` alone computes `overflow-x`
+            to `auto`, so any too-wide descendant made the whole content area
+            slide under a topbar that stayed put. `clip` is the only value
+            that does not force the other axis. Anything too wide is now
+            clipped rather than reachable by dragging, which is worse-looking
+            and therefore better: it turns a silent escape hatch into a
+            visible defect, and tests/render/mobile-layout.spec.ts names the
+            element responsible. Fix the widget; do not reach for a wider
+            container.
+          */}
+          <div id="page" className="flex-1 overflow-x-clip overflow-y-auto" data-testid="page">
             {/*
               One entry per page, and the type makes that mandatory.
 

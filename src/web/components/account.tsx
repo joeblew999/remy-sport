@@ -5,6 +5,7 @@ import { useCan } from "../lib/data";
 import { useState, useEffect } from "react";
 import { watchInstallable, type PwaInstall } from "../lib/installable";
 import { ButtonLink } from "../components/button-link";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,9 +21,6 @@ import {
  * sign-in was reachable only by typing `#/login` into the address bar. The
  * tests navigated by URL and passed, which is exactly how a feature can be
  * fully covered and completely unusable at the same time.
- *
- * Lives in the topbar because that is where the account control sits in the
- * harness too — the two GUIs should not disagree about where "sign out" is.
  */
 /**
  * Two letters for an avatar, from a name or an address.
@@ -83,8 +81,8 @@ export function Account() {
   const signOut = useSignOut();
 
   // Render nothing rather than a flash of "Sign in" that turns into a name a
-  // moment later.
-  if (loading) return <span className="account-slot" aria-busy="true" />;
+  // moment later. The row is reserved so the topbar does not jump.
+  if (loading) return <span className="min-h-9 shrink-0" aria-busy="true" />;
 
   if (!user) {
     return (
@@ -116,12 +114,17 @@ export function Account() {
           />
         }
       >
-        <span className="account-ava" aria-hidden="true">{initials}</span>
-        <span className="account-meta">
-          <span className="account-name" data-testid="account-user">{label}</span>
+        <Avatar aria-hidden="true">
+          <AvatarFallback className="bg-primary/15 text-xs font-semibold text-primary">{initials}</AvatarFallback>
+        </Avatar>
+        <span className="flex min-w-0 flex-col leading-tight">
+          {/* Wide enough to be a name on a desktop, willing to become an
+              ellipsis on a 320px phone, where the row is menu + brand + this
+              and something has to give. The full name is the menu it opens. */}
+          <span className="max-w-[min(160px,24vw)] truncate text-sm font-medium" data-testid="account-user">{label}</span>
           {/* The platform role, not an org role — the two are different things
               (ADR 009), and this is the one that decides what you may do. */}
-          {user.role && <span className="account-role" data-testid="account-role">{user.role}</span>}
+          {user.role && <span className="text-xs text-muted-foreground" data-testid="account-role">{user.role}</span>}
         </span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" data-testid="account-menu">

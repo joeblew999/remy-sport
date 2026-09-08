@@ -6,7 +6,7 @@ test.describe("existing-model editing journeys", () => {
 
   test("create from Discover, edit translations and dates, then read after reload", async ({ page }) => {
     await page.goto("/#/discover")
-    await page.getByTestId("discover-create-event").locator("summary").click()
+    await page.getByTestId("discover-create-event-toggle").click()
     const form = page.getByTestId("create-event-form")
     await form.getByRole("textbox", { name: "Name", exact: true }).fill("Domain coverage journey")
     await page.getByTestId("create-event-type").selectOption("LEAGUE")

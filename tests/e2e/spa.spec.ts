@@ -26,7 +26,7 @@ test.describe("SPA events come from the API", () => {
     })
 
     await page.goto("/")
-    await expect(page.locator(".event-row").first()).toBeVisible()
+    await expect(page.getByTestId("event-row").first()).toBeVisible()
     // The SPA talks oRPC at /rpc, not REST at /api. Both are the same router:
     // /api is the documented REST surface for external clients, /rpc is the
     // typed one our own client uses. What matters here is that the page got its
@@ -35,7 +35,7 @@ test.describe("SPA events come from the API", () => {
 
     // The seeded fixtures come from remy-sport-biz/`s` in the model and
     // never existed in the old mock data, so seeing one proves the source swap.
-    const titles = await page.locator(".event-row .name").allTextContents()
+    const titles = await page.getByTestId("event-title").allTextContents()
     expect(titles).toContain("Chiang Mai Summer Basketball Camp 2026")
 
     // Equally: nothing from the deleted fixture set should appear.

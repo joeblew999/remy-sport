@@ -6,10 +6,16 @@ import { useLocale } from "../lib/locale"
 import { formatClockOn, fromLocalInput } from "../lib/dates"
 import { m } from "../lib/i18n"
 import type { Event } from "../data"
+import { SectionHeading } from "./page"
+import { EmptyState, Loading } from "./states"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item"
+import { Label } from "@/components/ui/label"
 
 /**
  * A camp's timetable.
@@ -79,27 +85,25 @@ export function EventSessions({ eventId, can, timezone }: { eventId: string; can
   const zone = timezone ?? data?.sessions[0]?.timezone ?? null
 
   return (
-    <div className="page-inner">
-      <div className="section-h">
-        <h2>{m.event_sessions()}</h2>
-      </div>
+    <div className="flex flex-col gap-4">
+      <SectionHeading title={m.event_sessions()} className="mt-0 mb-0" />
 
-      <div className="panel-list" data-testid="event-sessions">
-        {isPending && <div className="empty">{m.loading()}</div>}
+      <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border" data-testid="event-sessions">
+        {isPending && <Loading className="border-0" />}
         {!isPending && sessions.length === 0 && (
-          <div className="empty" data-testid="sessions-none">{m.event_sessions_none()}</div>
+          <EmptyState className="border-0" data-testid="sessions-none">{m.event_sessions_none()}</EmptyState>
         )}
         {sessions.map((s) => (
-          <div key={s.id} className="invite-row" data-testid={`session-${s.id}`}>
-            <div>
-              <div className="row-title">{name(s.names)}</div>
-              <div className="row-meta">
+          <Item key={s.id} className="flex-wrap rounded-none px-4 py-3" data-testid={`session-${s.id}`}>
+            <ItemContent>
+              <ItemTitle className="text-base">{name(s.names)}</ItemTitle>
+              <ItemDescription>
                 {[when(s.startsAt, s.endsAt, s.timezone), s.venueNames ? name(s.venueNames) : null]
                   .filter(Boolean)
                   .join(" · ")}
-              </div>
-            </div>
-            <span>
+              </ItemDescription>
+            </ItemContent>
+            <ItemActions>
               {/* The register, one session at a time. Two open at once is a way
                   to tick the wrong morning. */}
               <Button
@@ -119,16 +123,17 @@ export function EventSessions({ eventId, can, timezone }: { eventId: string; can
                   {m.fixture_remove()}
                 </Button>
               )}
-            </span>
-          </div>
+            </ItemActions>
+            {openRegister === s.id && <Register eventId={eventId} sessionId={s.id} can={can} />}
+          </Item>
         ))}
-        {openRegister && <Register eventId={eventId} sessionId={openRegister} can={can} />}
-      </div>
+      </ItemGroup>
 
       {can.DEFINE_SESSION_SCHEDULE && (
+        <Card>
+        <CardHeader><CardTitle>{m.event_session_add()}</CardTitle></CardHeader>
+        <CardContent>
         <form
-          className="panel"
-          style={{ marginTop: 16 }}
           data-testid="add-session"
           onSubmit={(e) => {
             e.preventDefault()
@@ -143,7 +148,6 @@ export function EventSessions({ eventId, can, timezone }: { eventId: string; can
             })
           }}
         >
-          <h2>{m.event_session_add()}</h2>
           <FieldGroup className="max-w-[420px]">
             <Field>
               <FieldLabel htmlFor="session-name">{m.event_session_name()}</FieldLabel>
@@ -165,12 +169,14 @@ export function EventSessions({ eventId, can, timezone }: { eventId: string; can
             </Button>
 
             {err.form && (
-              <Alert variant="destructive" data-testid="session-error" role="alert">
+              <Alert variant="destructive" data-testid="session-error">
                 <AlertDescription>{err.form}</AlertDescription>
               </Alert>
             )}
           </FieldGroup>
         </form>
+        </CardContent>
+        </Card>
       )}
     </div>
   )
@@ -217,32 +223,30 @@ function Register({
   const players = data?.players ?? []
 
   return (
-    <div className="panel-list" data-testid={`register-list-${sessionId}`} style={{ marginTop: 8 }}>
-      {isPending && <div className="empty">{m.loading()}</div>}
+    <ItemGroup className="mt-2 basis-full gap-0 divide-y overflow-hidden rounded-lg border" data-testid={`register-list-${sessionId}`}>
+      {isPending && <Loading className="border-0" />}
       {!isPending && players.length === 0 && (
-        <div className="empty" data-testid="register-empty">{m.event_session_register_none()}</div>
+        <EmptyState className="border-0" data-testid="register-empty">{m.event_session_register_none()}</EmptyState>
       )}
       {players.map((p) => (
-        <label key={p.playerId} className="invite-row" data-testid={`attendee-${p.playerId}`}>
-          <span>
-            <input
-              type="checkbox"
-              checked={p.attended}
-              disabled={!can.RECORD_ATTENDANCE || record.isPending}
-              data-testid={`attended-${p.playerId}`}
-              onChange={(e) =>
-                record.mutate({ playerId: p.playerId, attended: e.target.checked })
-              }
-            />{" "}
-            {name(p.names)}
-          </span>
-        </label>
+        <Item key={p.playerId} className="rounded-none" data-testid={`attendee-${p.playerId}`}>
+          <Checkbox
+            id={`attended-${p.playerId}`}
+            checked={p.attended}
+            disabled={!can.RECORD_ATTENDANCE || record.isPending}
+            data-testid={`attended-${p.playerId}`}
+            onCheckedChange={(checked) =>
+              record.mutate({ playerId: p.playerId, attended: checked === true })
+            }
+          />
+          <Label htmlFor={`attended-${p.playerId}`} className="flex-1 font-normal">{name(p.names)}</Label>
+        </Item>
       ))}
       {attendanceError.form && (
-        <Alert variant="destructive" role="alert">
+        <Alert variant="destructive">
           <AlertDescription>{attendanceError.form}</AlertDescription>
         </Alert>
       )}
-    </div>
+    </ItemGroup>
   )
 }

@@ -77,7 +77,6 @@
         "src/web/hooks/use-mobile.ts": "ad0936f84f1df79d3697bfbff9c18f8ad58431c1cbaf2359c6a853b0fcc9f28b",
         "src/web/components/ui/sidebar.tsx": "29f85b8b5997eeab0ee5efe54f853a7acfdd22a7f64f0e86cb384b2668786e71",
         "src/web/components/ui/tooltip.tsx": "f83d5f511812573f4ac98b866d397a46fda0f27eeb0af0ea89af01969eefbc5a",
-        "src/web/components/ui/button.tsx": "313353436d0fcc8e44ab470adb614b9fd013d28626f624328ea0d66d41a6c81b",
         "src/web/components/ui/input.tsx": "dab990dfefa0ba78854ab6602ad074270dba9d7d1262184d9bfbb62bd990903b",
         "src/web/components/ui/skeleton.tsx": "4c2af7fa9c645358a0fb188779deab6f0b981733b62befc25e18aaebea1350dc",
         "src/web/components/ui/sheet.tsx": "db422e2934b79774850defd2ea12bf2d469a77f7237bf93ce0416bde87d8a610"
@@ -86,8 +85,7 @@
     "@shadcn/field": {
       "files": {
         "src/web/components/ui/label.tsx": "86232709f634da7f357a8aaec0e815f3f562604bb67202c88997fae97659b450",
-        "src/web/components/ui/field.tsx": "d7c372e8df76de0b4714c02497fefba29299e6baefb7c12fba289a2a374362bb",
-        "src/web/components/ui/separator.tsx": "9a80ff8c110e0c55489509f4f82ebcc929c0174b59544047147b7134f86a54e7"
+        "src/web/components/ui/field.tsx": "d7c372e8df76de0b4714c02497fefba29299e6baefb7c12fba289a2a374362bb"
       }
     },
     "@shadcn/select": {
@@ -108,6 +106,63 @@
     "@shadcn/native-select": {
       "files": {
         "src/web/components/ui/native-select.tsx": "93262e9e6c108df664725a0043f0c06ef844e173088b18c0f807e753e2f86d22"
+      }
+    },
+    "@shadcn/item": {
+      "files": {
+        "src/web/components/ui/item.tsx": "08cc237a727e1b0d1de24ca60ca49fcf44ad3923620c71b6c70ab16ac2f575b6"
+      }
+    },
+    "@shadcn/empty": {
+      "files": {
+        "src/web/components/ui/empty.tsx": "1280f9207787f9e7c219f7181459387b5e103606b6d91872de33a7a9752ee7a7"
+      }
+    },
+    "@shadcn/spinner": {
+      "files": {
+        "src/web/components/ui/spinner.tsx": "6916679a40ad1c7624520de5eaa7b337635e81f9a76413201267f8619844646f"
+      }
+    },
+    "@shadcn/breadcrumb": {
+      "files": {
+        "src/web/components/ui/breadcrumb.tsx": "cbd2b85e7a0097438855ff1bba8ac0cc3d1229e4c94bda3d52176fd22ea2ac62"
+      }
+    },
+    "@shadcn/button-group": {
+      "files": {
+        "src/web/components/ui/button-group.tsx": "8c091198a9a4fe7fa3359834087727addfd5ac4c1259689632220389215b33c1",
+        "src/web/components/ui/separator.tsx": "8a1d9397433ccf70631104f377b0e778754582a74c93a57cf13a2f2dcba778bf"
+      }
+    },
+    "@shadcn/kbd": {
+      "files": {
+        "src/web/components/ui/kbd.tsx": "d17724eb15923ea4f0432cd1cf22538addb14a386f4f9326661efcce7f97e33b"
+      }
+    },
+    "@shadcn/collapsible": {
+      "files": {
+        "src/web/components/ui/collapsible.tsx": "3de60b605e64c835588cecc189fbcf907eb602b0158f970d614b067e868b491e"
+      }
+    },
+    "@shadcn/alert-dialog": {
+      "files": {
+        "src/web/components/ui/alert-dialog.tsx": "f679acf47722af0435957a886e2f70bfbdd1e9e8438f08e4285e8c53f2237997"
+      }
+    },
+    "@shadcn/dialog": {
+      "files": {
+        "src/web/components/ui/dialog.tsx": "8081cc14ab4d744b75925706523192f60cc75863e05cb986aaf6a08677c83304",
+        "src/web/components/ui/button.tsx": "313353436d0fcc8e44ab470adb614b9fd013d28626f624328ea0d66d41a6c81b"
+      }
+    },
+    "@shadcn/input-otp": {
+      "files": {
+        "src/web/components/ui/input-otp.tsx": "e31fcd48744ea3c072d0046eb900b8635b9f01e978e9ff44b1e614b779ad0dde"
+      }
+    },
+    "@shadcn/checkbox": {
+      "files": {
+        "src/web/components/ui/checkbox.tsx": "51b82e5ca459ea7792d8f24ac924f13aeaa2b2cd338560d2b4291e38b648c12e"
       }
     }
   }

@@ -5,7 +5,13 @@ import { useLocale } from "../lib/locale"
 import { m } from "../lib/i18n"
 import type { Event } from "../data"
 import { QueryError } from "./query-error"
+import { SectionHeading } from "./page"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Item, ItemContent, ItemDescription, ItemGroup } from "@/components/ui/item"
+import { Label } from "@/components/ui/label"
 
 /**
  * Which divisions this event runs.
@@ -57,12 +63,12 @@ export function EventDivisions({ eventId, can }: { eventId: string; can: Event["
   const divisions = all?.items ?? []
 
   return (
-    <div className="page-inner">
-      <div className="section-h">
-        <h2>{m.event_divisions()}</h2>
-      </div>
+    <div className="flex flex-col gap-3">
+      <SectionHeading title={m.event_divisions()} className="mt-0 mb-0" />
+      <Card>
+      <CardContent>
       <form
-        className="panel"
+        className="flex flex-col gap-4"
         data-testid="event-divisions"
         onSubmit={(e) => {
           e.preventDefault()
@@ -78,28 +84,30 @@ export function EventDivisions({ eventId, can }: { eventId: string; can: Event["
             defaultChecked captures the empty participation set during a slow load. */}
         {entries && <fieldset disabled={save.isPending || !!participation.error || !!catalogue.error}>
         <legend className="sr-only">{m.event_divisions()}</legend>
+        <ItemGroup className="gap-0 divide-y">
         {divisions.map((d) => (
-          <label key={d.id} className="invite-row" data-testid={`division-${d.id}`}>
-            <span>
-              <input
-                type="checkbox"
-                name="division"
-                value={d.id}
-                defaultChecked={running.has(d.id)}
-                // Ticked and locked: it has teams in it, so it cannot be
-                // dropped without unregistering them.
-                disabled={!can.MANAGE_DIVISIONS || occupied.has(d.id)}
-                data-testid={`division-check-${d.id}`}
-              />{" "}
-              {name(d.names)}
-            </span>
-            <span className="row-meta">
+          <Item key={d.id} className="rounded-none px-0" data-testid={`division-${d.id}`}>
+            <Checkbox
+              id={`division-check-${d.id}`}
+              name="division"
+              value={d.id}
+              defaultChecked={running.has(d.id)}
+              // Ticked and locked: it has teams in it, so it cannot be
+              // dropped without unregistering them.
+              disabled={!can.MANAGE_DIVISIONS || occupied.has(d.id)}
+              data-testid={`division-check-${d.id}`}
+            />
+            <ItemContent>
+              <Label htmlFor={`division-check-${d.id}`} className="font-normal">{name(d.names)}</Label>
+            </ItemContent>
+            <ItemDescription>
               {[label("ageGroups", d.ageGroupCode), label("genders", d.genderCode)]
                 .filter(Boolean)
                 .join(" · ")}
-            </span>
-          </label>
+            </ItemDescription>
+          </Item>
         ))}
+        </ItemGroup>
         </fieldset>}
 
         {can.MANAGE_DIVISIONS && divisions.length > 0 && (
@@ -107,12 +115,20 @@ export function EventDivisions({ eventId, can }: { eventId: string; can: Event["
             {save.isPending ? m.event_saving() : m.event_save()}
           </Button>
         )}
-        {save.isSuccess && <p className="feedback-success" role="status">{m.event_saved()}</p>}
+        {save.isSuccess && (
+          <Alert role="status">
+            <AlertDescription>{m.event_saved()}</AlertDescription>
+          </Alert>
+        )}
 
         {err.form && (
-          <p className="feedback-error small" data-testid="divisions-error" role="alert">{err.form}</p>
+          <Alert variant="destructive" data-testid="divisions-error">
+            <AlertDescription>{err.form}</AlertDescription>
+          </Alert>
         )}
       </form>
+      </CardContent>
+      </Card>
     </div>
   )
 }

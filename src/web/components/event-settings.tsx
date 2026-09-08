@@ -34,8 +34,11 @@ import { m } from "../lib/i18n"
 import type { Event } from "../data"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Textarea } from "@/components/ui/textarea"
 
@@ -67,12 +70,17 @@ export function EventSettings({ event }: { event: Event }) {
   const err = formErrors(save.error, ["names[en]", "startDate", "endDate"])
 
   return (
-    <div className="page-inner">
-      <section className="panel" data-testid="event-settings">
-        <h2>{m.event_settings()}</h2>
-        {save.isSuccess && <div className="feedback-success" data-testid="event-saved" role="status">{m.event_saved()}</div>}
+    <div className="flex flex-col gap-6">
+      <Card data-testid="event-settings">
+        <CardHeader><CardTitle>{m.event_settings()}</CardTitle></CardHeader>
+        <CardContent className="flex flex-col gap-4">
+        {save.isSuccess && (
+          <Alert role="status" data-testid="event-saved">
+            <AlertDescription>{m.event_saved()}</AlertDescription>
+          </Alert>
+        )}
         {err.form && (
-          <Alert variant="destructive" data-testid="event-settings-error" role="alert">
+          <Alert variant="destructive" data-testid="event-settings-error">
             <AlertDescription>{err.form}</AlertDescription>
           </Alert>
         )}
@@ -138,9 +146,10 @@ export function EventSettings({ event }: { event: Event }) {
                 </NativeSelect>
               </Field>
             ))}
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" name="isFibaCertified" defaultChecked={event.isFibaCertified} /> {m.event_fiba()}
-            </label>
+            <div className="flex items-center gap-2">
+              <Checkbox id="event-fiba" name="isFibaCertified" defaultChecked={event.isFibaCertified} />
+              <Label htmlFor="event-fiba" className="font-normal">{m.event_fiba()}</Label>
+            </div>
 
             <Field data-invalid={!!err.field("startDate") || undefined}>
               <FieldLabel htmlFor="event-start">{m.event_start_label()}</FieldLabel>
@@ -174,14 +183,15 @@ export function EventSettings({ event }: { event: Event }) {
               {err.field("endDate") && <FieldError id="event-end-issue">{err.field("endDate")}</FieldError>}
             </Field>
 
-            <p className="muted small">{m.event_dates_hint()}</p>
+            <p className="text-sm text-muted-foreground">{m.event_dates_hint()}</p>
 
             <Button type="submit" data-testid="event-save" disabled={save.isPending} className="w-fit">
               {save.isPending ? m.event_saving() : m.event_save()}
             </Button>
           </FieldGroup>
         </form>
-      </section>
+        </CardContent>
+      </Card>
 
       {/* A *different* grant from the one above. EDIT_EVENT is granted to
           OWNER, CO_ORGANIZER and PLATFORM_ADMIN; INVITE_CO_ORGANIZER only to
@@ -222,12 +232,19 @@ function InviteCoOrganizer({ eventId }: { eventId: string }) {
   const err = formErrors(invite.error, ["email"])
 
   return (
-    <section className="panel" style={{ marginTop: 16 }} data-testid="invite-co-organizer">
-      <h2>{m.invite_co_organizer()}</h2>
-      <p className="muted small">{m.invite_co_organizer_hint()}</p>
-      {sent && <div className="feedback-success" data-testid="invite-sent" role="status">{m.invite_sent()}</div>}
+    <Card data-testid="invite-co-organizer">
+      <CardHeader>
+        <CardTitle>{m.invite_co_organizer()}</CardTitle>
+        <CardDescription>{m.invite_co_organizer_hint()}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+      {sent && (
+        <Alert role="status" data-testid="invite-sent">
+          <AlertDescription>{m.invite_sent()}</AlertDescription>
+        </Alert>
+      )}
       {err.form && (
-        <Alert variant="destructive" data-testid="invite-error" role="alert">
+        <Alert variant="destructive" data-testid="invite-error">
           <AlertDescription>{err.form}</AlertDescription>
         </Alert>
       )}
@@ -263,6 +280,7 @@ function InviteCoOrganizer({ eventId }: { eventId: string }) {
           </Button>
         </FieldGroup>
       </form>
-    </section>
+      </CardContent>
+    </Card>
   )
 }

@@ -22,18 +22,31 @@ import { m } from "../lib/i18n";
  *   The old five button chores (Install, Admin, Devices, Sign out) live in
  *   that dropdown; see components/account.tsx.
  *
- * One row, one layout, at every size. Values may scale; placement never does.
+ * One row, one layout, at every size: 56px, which is the mobile plan's
+ * number and the one the topbar overflow check holds us to. The `topbar`
+ * class is the hook for the stylesheet's one exception to the 44px control
+ * height — chrome keeps the registry's compact size.
+ *
+ * No search box: it had a placeholder, a ⌘K hint and no handler of any kind.
+ * It comes back as the registry's Command when there is something to search.
+ * No bell: it carried an unread dot over a notifications feature that does
+ * not exist. No "Install app": the account dropdown offers it only while the
+ * install element says it can be done.
  */
 
 /**
- * The brand, verbatim from the old sidebar. A proper noun in two scripts is
- * not a string to translate — the copy check's allowlist says the same.
+ * The brand. A proper noun in two scripts is not a string to translate — the
+ * copy check's allowlist says the same. Shrinkable with an ellipsis rather
+ * than fixed: the row must fit at 320px while the webfont is still loading.
  */
 function Brand() {
   return (
-    <div className="brand">
-      <div className="brand-mark"></div>
-      <div className="brand-name">Remy Sport<span className="sub">เรมีสปอร์ต</span></div>
+    <div className="flex min-w-0 items-center gap-2.5" data-testid="brand">
+      <span className="size-7 shrink-0 rounded-full bg-primary" aria-hidden="true" />
+      <span className="min-w-0 leading-tight">
+        <span className="block truncate text-base font-semibold tracking-tight">Remy Sport</span>
+        <span className="block truncate font-thai text-xs text-muted-foreground">เรมีสปอร์ต</span>
+      </span>
     </div>
   );
 }
@@ -41,7 +54,7 @@ function Brand() {
 export function Topbar() {
   const { toggleSidebar } = useSidebar();
   return (
-    <header className="topbar">
+    <header className="topbar flex h-14 shrink-0 items-center gap-2 border-b bg-background px-3 sm:px-4">
       <Button
         variant="ghost"
         size="icon"
@@ -52,25 +65,7 @@ export function Topbar() {
         <PanelLeftIcon />
       </Button>
       <Brand />
-      {/* The search box is gone, and it is the one worth explaining. It had a
-          placeholder, a ⌘K hint and no handler of any kind: you could type into
-          it and nothing would ever happen. A control that invites input and
-          discards it is worse than an absent one, and it was the most
-          prominent thing in the chrome.
-
-          It comes back when there is something to search. `search_placeholder`
-          and the `.search` styles are kept for that. */}
-      <div className="topbar-spacer" />
-      {/* No bell: it carried an unread dot over a notifications feature that
-          does not exist. The model has `user_notification_channels` and
-          `user_notification_preferences`, so this is buildable — it is not built.
-
-          No "Install app" either: main.tsx renders <pwa-install>, which asks at
-          the moment the browser says installing is possible, and the account
-          dropdown offers it only while the element says it can be done. A
-          button in the chrome would be a second, worse answer: always visible,
-          correct only sometimes, and unable to tell whether the app is already
-          installed. */}
+      <div className="flex-1" />
       <Account />
     </header>
   );

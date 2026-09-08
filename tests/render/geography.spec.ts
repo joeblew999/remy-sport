@@ -57,15 +57,15 @@ test.describe("Filtering events by province", () => {
   test("selecting one narrows the list to that province", async ({ page }) => {
     await seeded(page)
     await visit(page, "discover")
-    await expect(page.locator(".event-row")).toHaveCount(3)
+    await expect(page.getByTestId("event-row")).toHaveCount(3)
 
     await page.getByTestId("province-filter").selectOption("CMI")
-    await expect(page.locator(".event-row")).toHaveCount(1)
-    await expect(page.locator(".event-row")).toContainText(chiangMai.name)
+    await expect(page.getByTestId("event-row")).toHaveCount(1)
+    await expect(page.getByTestId("event-row")).toContainText(chiangMai.name)
 
     // And back, so the test cannot pass by filtering everything away.
     await page.getByTestId("province-filter").selectOption("")
-    await expect(page.locator(".event-row")).toHaveCount(3)
+    await expect(page.getByTestId("event-row")).toHaveCount(3)
   })
 
   /**
@@ -82,10 +82,10 @@ test.describe("Filtering events by province", () => {
     await seeded(page)
     await visit(page, "discover")
     await page.getByTestId("province-filter").selectOption("CMI")
-    await expect(page.locator(".event-row")).toHaveCount(1)
+    await expect(page.getByTestId("event-row")).toHaveCount(1)
 
     await page.getByTestId("lang-th").click()
-    await expect(page.locator(".event-row")).toHaveCount(1)
+    await expect(page.getByTestId("event-row")).toHaveCount(1)
     // And the control still agrees with the list, which is the half that made
     // the old bug hard to see.
     await expect(page.getByTestId("province-filter")).toHaveValue("CMI")
@@ -94,8 +94,8 @@ test.describe("Filtering events by province", () => {
   test("is a link somebody can send", async ({ page }) => {
     await seeded(page)
     await visit(page, "discover", { query: { province: "CMI" } })
-    await expect(page.locator(".event-row")).toHaveCount(1)
-    await expect(page.locator(".event-row")).toContainText(chiangMai.name)
+    await expect(page.getByTestId("event-row")).toHaveCount(1)
+    await expect(page.getByTestId("event-row")).toContainText(chiangMai.name)
   })
 
   test("the tab and the chips go in the address bar too", async ({ page }) => {
@@ -120,7 +120,7 @@ test.describe("Filtering events by province", () => {
   test("shows the province on the event row, beside the city", async ({ page }) => {
     await seeded(page)
     await visit(page, "discover")
-    const row = page.locator(".event-row").filter({ hasText: chiangMai.name })
-    await expect(row.locator(".city")).toContainText("Chiang Mai")
+    const row = page.getByTestId("event-row").filter({ hasText: chiangMai.name })
+    await expect(row.getByTestId("event-city")).toContainText("Chiang Mai")
   })
 })

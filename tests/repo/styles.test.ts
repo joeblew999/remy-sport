@@ -144,9 +144,6 @@ rule("uppercase is reserved for pills and tags", upperStrays,
    anywhere in src/web, which is generous: a class that shares its name with
    an ordinary word will pass. It still catches whole dead families. */
 const DYNAMIC_CLASSES: Record<string, string> = {
-  showcase: "`type ${kind}` on an event row; the other kinds happen to appear as words",
-  search: "the search box is gone and its styles are kept for its return — see components/topbar.tsx",
-  kbd: "the shortcut hint inside the kept .search rules",
   dark: "shadcn's dark mode: put on <html> by the theme provider (lib/theme.ts), read by `@custom-variant dark`",
 }
 function webFiles(): { path: string; text: string }[] {

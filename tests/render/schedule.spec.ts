@@ -147,7 +147,7 @@ test.describe("Standings", () => {
       line({ teamId: "team_003", teamNames: projectTeam("team_003").names, rank: 2, won: 0, lost: 1, pointsFor: 54, pointsAgainst: 68, pointsDiff: -14, leaguePoints: 0 }),
     ])
     await visit(page, "event", { id: "evt_002" })
-    await page.getByRole("link", { name: "Standings", exact: true }).click()
+    await page.getByTestId("tab-standings").click()
 
     await expect(page.getByTestId("standing-team_001")).toContainText(projectTeam("team_001").name)
     // Two points for a win — the PO's STANDINGS_POINTS, not a number here.
@@ -160,14 +160,14 @@ test.describe("Standings", () => {
       line({ teamId: "team_004", teamNames: { en: "Assumption U18" }, played: 0, won: 0, lost: 0, pointsFor: 0, pointsAgainst: 0, pointsDiff: 0, leaguePoints: 0 }),
     ])
     await visit(page, "event", { id: "evt_002" })
-    await page.getByRole("link", { name: "Standings", exact: true }).click()
+    await page.getByTestId("tab-standings").click()
     await expect(page.getByTestId("standing-team_004")).toBeVisible()
   })
 
   test("an event with no registrations says so", async ({ page }) => {
     await seedStandings(page, [])
     await visit(page, "event", { id: "evt_002" })
-    await page.getByRole("link", { name: "Standings", exact: true }).click()
+    await page.getByTestId("tab-standings").click()
     await expect(page.getByTestId("standings-empty")).toBeVisible()
     await expect(page.getByTestId("standings")).toHaveCount(0)
   })
@@ -392,18 +392,18 @@ const managed = { ...upcoming, timezone: "Asia/Bangkok" }
 
   test("asks before removing, because the referees go with it", async ({ page }) => {
     await seed(page, [managed], ["OWNER"])
-    let asked = ""
-    page.on("dialog", (d) => {
-      asked = d.message()
-      void d.dismiss()
-    })
     await visit(page, "event", { id: "evt_002" })
     await page.getByTestId("tab-games").click()
     await page.getByTestId(`remove-fixture-${upcoming.id}`).click()
 
-    // Dismissed, so the fixture is still there. A delete that fires on the
-    // first click cannot be taken back — the model keeps no deleted state.
-    await expect.poll(() => asked).toContain("Remove this fixture")
+    // The registry's AlertDialog, in the reader's language, not the browser's
+    // confirm. Cancelled, so the fixture is still there. A delete that fires
+    // on the first click cannot be taken back — the model keeps no deleted
+    // state.
+    const dialog = page.getByRole("alertdialog")
+    await expect(dialog).toContainText("Remove this fixture")
+    await dialog.getByRole("button", { name: "Cancel", exact: true }).click()
+    await expect(dialog).toBeHidden()
     await expect(page.getByTestId(`game-${upcoming.id}`)).toBeVisible()
   })
 })

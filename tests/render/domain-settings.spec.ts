@@ -11,7 +11,7 @@ test("an organiser reaches event creation from Discover without admin access", a
     entry(orpc.events.list, undefined, { events: [] }),
   ])
   await visit(page, "discover")
-  await page.getByTestId("discover-create-event").locator("summary").click()
+  await page.getByTestId("discover-create-event-toggle").click()
   await expect(page.getByTestId("create-event-type").locator("option")).not.toHaveCount(0)
   let sent: unknown
   await page.route("**/rpc/events/create", async (route) => {

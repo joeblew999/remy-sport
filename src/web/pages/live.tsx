@@ -1,11 +1,17 @@
+import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { QueryError } from "../components/query-error";
 import { GameSummary } from "../components/game-summary";
 import { Can } from "../components/can";
-import { Icon } from "../components/icon";
+import { PageHeader, PageInner } from "../components/page";
+import { EmptyState, Loading } from "../components/states";
+import { StatusBadge } from "../components/status-badge";
 import { useLiveGames } from "../lib/data";
 import { routeHref } from "../lib/router";
 import { m } from "../lib/i18n";
 import { ButtonLink } from "../components/button-link";
+import { Item, ItemActions, ItemContent, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 /**
  * What is being played right now, and what can be watched.
@@ -41,92 +47,76 @@ export function LivePage({ spoiler, setSpoiler }: LiveProps) {
 
   return (
     <>
-      <div className="page-header">
-        <div className="crumbs">{m.nav_live()}</div>
-        <h1>{m.live_and_next()}</h1>
-      </div>
+      <PageHeader crumbs={[{ label: m.nav_live() }]} title={m.live_and_next()} />
 
-      <div className="page-inner">
+      <PageInner className="flex flex-col gap-4">
         <QueryError error={liveQuery.error} retry={liveQuery.refetch} pending={liveQuery.isFetching} />
-        <div className="spoiler-bar">
-          <span>
-            <Icon name={spoiler ? "eyeoff" : "eye"} /> &nbsp;
-            {spoiler ? m.spoiler_on() : m.spoiler_off()}
-          </span>
-          <button
-            className="toggle"
-            onClick={() => setSpoiler((s) => !s)}
-            style={{
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              color: "var(--ink-3)",
-            }}
-          >
-            {m.hide_scores()}
-            <span className={`toggle-track ${spoiler ? "on" : ""}`} />
-          </button>
-        </div>
 
-        {isPending && <div className="empty">{m.loading()}</div>}
+        {/* The in-context spoiler control. The setting itself lives in the
+            sidebar's Settings group; this is the same switch where the scores
+            are. */}
+        <Item variant="muted" data-testid="spoiler-bar">
+          <ItemMedia variant="icon">{spoiler ? <EyeOffIcon /> : <EyeIcon />}</ItemMedia>
+          <ItemContent>
+            <ItemTitle>{spoiler ? m.spoiler_on() : m.spoiler_off()}</ItemTitle>
+          </ItemContent>
+          <ItemActions>
+            <Label htmlFor="live-spoiler">{m.hide_scores()}</Label>
+            <Switch
+              id="live-spoiler"
+              checked={spoiler}
+              data-testid="live-spoiler"
+              onCheckedChange={(checked) => setSpoiler(checked === true)}
+            />
+          </ItemActions>
+        </Item>
+
+        {isPending && <Loading />}
         {!isPending && !liveQuery.error && games.length === 0 && (
-          <div className="empty" data-testid="no-live-games">
-            {m.no_live_games()}
-          </div>
+          <EmptyState data-testid="no-live-games">{m.no_live_games()}</EmptyState>
         )}
 
-        {/* `live-list` is what gives these rows their own grid — see the note
-            on `.live-list .fixture-row` in styles.css. */}
-        <div className="panel-list live-list" data-testid="live-list">
-          {games.map((g) => (
-            <div key={g.id} className="fixture-row live" data-testid={`live-${g.id}`}>
-              <GameSummary game={g} showEvent/>
-              <span className="result">
-                {/* Spoiler mode hides the score and nothing else: a viewer who
-                    wants to watch without knowing the result still needs to
-                    find the game. */}
-                {spoiler ? (
-                  <span className="muted">—</span>
-                ) : g.homeScore !== null && g.awayScore !== null ? (
-                  `${g.homeScore}–${g.awayScore}`
-                ) : (
-                  <span className="muted">—</span>
-                )}
-              </span>
-              <span className="outcome" style={{ color: "var(--live)", fontWeight: 500 }}>
-                {g.statusLabel}
-              </span>
-              <div className="live-actions">
+        {games.length > 0 && (
+          <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border" data-testid="live-list">
+            {games.map((g) => (
+              <Item key={g.id} className="flex-wrap rounded-none px-4 py-3" data-testid={`live-${g.id}`}>
+                <ItemContent className="basis-full sm:basis-auto" data-testid="live-game">
+                  <GameSummary game={g} showEvent/>
+                </ItemContent>
+                <ItemContent className="ml-auto flex-none items-end text-right">
+                  {/* Spoiler mode hides the score and nothing else: a viewer who
+                      wants to watch without knowing the result still needs to
+                      find the game. */}
+                  <span className="text-base font-semibold tabular-nums" data-testid="live-score">
+                    {spoiler || g.homeScore === null || g.awayScore === null
+                      ? <span className="text-muted-foreground">—</span>
+                      : `${g.homeScore}–${g.awayScore}`}
+                  </span>
+                  <StatusBadge status={g.statusCode} data-testid="live-status">{g.statusLabel}</StatusBadge>
+                </ItemContent>
                 {/* Only where a camera is actually pointed at it. A Watch link
                     on a game nobody is broadcasting is a link to a black
                     rectangle, which is how this feature earns a reputation. */}
-                {g.isBroadcasting && (
-                  <ButtonLink
-                    href={routeHref({ page: "watch", id: g.id })}
-                    data-testid={`watch-${g.id}`}
-                  >
-                    {m.video_watch()}
-                  </ButtonLink>
-                )}
-                {!g.isBroadcasting && (
-                  <Can of={g} action="BROADCAST_GAME">
-                  <ButtonLink
-                    variant="outline"
-                    href={routeHref({ page: "broadcast", id: g.id })}
-                    data-testid={`broadcast-${g.id}`}
-                  >
-                    {m.video_broadcast()}
-                  </ButtonLink>
-                  </Can>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+                {/* `empty:hidden`: the gate decides whether anything renders
+                    here, and an empty action row must not keep its gap. */}
+                <ItemActions className="basis-full empty:hidden">
+                  {g.isBroadcasting ? (
+                    <ButtonLink href={routeHref({ page: "watch", id: g.id })} data-testid={`watch-${g.id}`}>
+                      {m.video_watch()}
+                    </ButtonLink>
+                  ) : (
+                    <Can of={g} action="BROADCAST_GAME">
+                      <ButtonLink variant="outline" href={routeHref({ page: "broadcast", id: g.id })} data-testid={`broadcast-${g.id}`}>
+                        {m.video_broadcast()}
+                      </ButtonLink>
+                    </Can>
+                  )}
+                </ItemActions>
+              </Item>
+            ))}
+          </ItemGroup>
+        )}
+      </PageInner>
     </>
   );
 }

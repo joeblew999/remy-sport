@@ -221,7 +221,8 @@
 [data-slot="button"],
 [data-slot="input"],
 [data-slot="textarea"],
-[data-slot="native-select"] {
+[data-slot="native-select"],
+[data-slot="tabs-trigger"] {
   min-height: var(--control-height);
 }
 /* The topbar is the exception, and it is not a compromise: its row is 56px by
@@ -283,7 +284,6 @@
   }
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0;}
 html, body { height: 100%; }
 body {
   font-family: var(--font-sans);
@@ -311,40 +311,6 @@ body {
   input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
 }
 
-/* ---------- App shell ----------
-   The shell is the registry's Sidebar now (B2 step 8): the viewport wrapper,
-   the desktop rail and the phone Sheet are Tailwind utilities inside
-   `components/ui/sidebar.tsx`, driven by `components/app-sidebar.tsx` and
-   wired in `main.tsx`. What is left here is the chrome we author: the
-   topbar, the brand, the account trigger's text block and the page frame. */
-.brand {
-  display: flex; align-items: center; gap: 10px;
-  /* The topbar's own padding is the gutter; the brand adds none of its own
-     and carries no rule of its own. These were the sidebar's, and they are
-     what wrapped the topbar to two rows the first hour it lived there.
-     Shrinkable with an ellipsis rather than fixed: the row must fit while the
-     webfont is still loading, when the fallback face measures differently. */
-  padding: 0;
-  min-width: 0;
-}
-.brand-mark {
-  width: 28px; height: 28px; border-radius: 50%;
-  background: var(--brand); position: relative; flex-shrink: 0;
-}
-.brand-mark::before, .brand-mark::after { content:""; position: absolute; inset:0; border-radius:50%;}
-.brand-mark::before { border-top: 1.2px solid var(--paper); border-bottom: 1.2px solid var(--paper); transform: scaleX(0.55);}
-.brand-mark::after  { border-left: 1.2px solid var(--paper); border-right: 1.2px solid var(--paper); transform: scaleY(0.6);}
-.brand-name {
-  font-family: var(--font-display); font-weight: 600; font-size: var(--type-lg); line-height: 1.1;
-  letter-spacing: -0.01em;
-  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-/* The Thai name under the Latin one. */
-.brand-name .sub {
-  display: block;
-  font-family: var(--font-thai);
-  font-size: var(--type-sm); font-weight: 400; color: var(--ink-3); margin-top: 2px;
-}
 /* What this page is. Quiet by default — it is for the moment someone asks
    "which one am I on", not something to read every day. The hash is mono
    because it is a hash. */
@@ -367,95 +333,6 @@ body {
   background: var(--brand); color: #fff;
 }
 
-/* ---------- Topbar ---------- */
-/* One row at every size: menu button, brand, spacer, account. 12px + 32px of
-   control + 12px keeps the row at 56px plus its rule, which is the mobile
-   plan's number and the number the topbar overflow check holds us to. */
-.topbar {
-  display: flex; align-items: center; gap: 8px;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--rule);
-  background: var(--paper);
-  flex-shrink: 0;
-}
-/* Holds the right-hand controls to the right, the way `.search` used to while
-   it was still there. See components/topbar.tsx for why it went. */
-.topbar-spacer { flex: 1; }
-/* Kept for the day search comes back; see components/topbar.tsx. */
-.search {
-  flex: 1; max-width: 480px;
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 14px;
-  border: 1px solid var(--rule);
-  border-radius: 100px;
-  background: var(--paper-2);
-}
-.search:focus-within { border-color: var(--ink); background: var(--paper);}
-.search input { flex: 1; background: transparent; border: none; outline: none; font-size: var(--type-md); color: var(--ink);}
-.search input::placeholder { color: var(--ink-3);}
-/* A keyboard shortcut, which is the one kind of label that belongs in mono. */
-.search .kbd {
-  font-family: var(--font-mono); font-size: var(--type-xs); color: var(--ink-3);
-  background: var(--paper); border: 1px solid var(--rule); padding: 2px 6px; border-radius: 4px;
-}
-
-/* ---------- Account (topbar sign-in / signed-in identity) ---------- */
-/* The SPA had no auth affordance at all before ADR 012 — a login route with
-   nothing linking to it. This is that entry point. The trigger's chrome
-   (rounding, hover, focus ring) is Tailwind on the button in
-   components/account.tsx; what is here is the two-line text block it shows. */
-.account-slot {
-  display: flex; align-items: center; gap: 10px;
-  /* Reserve the row while the session resolves, so the topbar does not jump
-     when "Sign in" is replaced by a name. */
-  min-height: 36px;
-  flex-shrink: 0;
-}
-.account-ava {
-  width: 32px; height: 32px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--brand-soft); color: var(--brand-deep);
-  font-family: var(--font-display); font-weight: 600; font-size: var(--type-sm);
-  letter-spacing: 0.02em;
-  flex-shrink: 0;
-}
-.account-meta { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
-.account-name {
-  font-size: var(--type-md); font-weight: 500; color: var(--ink);
-  /* Wide enough to be a name on a desktop, willing to become an ellipsis on
-     a 320px phone, where the row is menu + brand + this and something has to
-     give. The full name is the menu it opens. */
-  max-width: min(160px, 24vw); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.account-role { font-size: var(--type-xs); color: var(--ink-3); }
-
-/* ---------- Page ---------- */
-.page {
-  flex: 1;
-  overflow-y: auto;
-  /* The app shell must never pan sideways. This is the structural fix for a
-     class of bug that was found three times by eye and never by a check.
-
-     `overflow-y: auto` alone is not enough: CSS computes `overflow-x: visible`
-     to `auto` when the other axis is not visible, so this element silently
-     became horizontally scrollable and any too-wide descendant made the whole
-     content area slide — under a topbar that stayed put, because the topbar is
-     outside `.page`. Every document-level check passed throughout, because the
-     document genuinely does not scroll: the shell wrapper is a viewport-height
-     flex column (the registry sidebar's provider, with `h-svh` from
-     `main.tsx`).
-
-     `clip` is the only value that does NOT force the other axis. So vertical
-     scrolling still works and horizontal panning is impossible.
-
-     This is deliberately a floor, not a cure. Anything too wide is now clipped
-     rather than reachable by dragging, which is worse-looking and therefore
-     better: it turns a silent layout escape hatch into a visible defect, and
-     tests/render/mobile-layout.spec.ts names the element responsible. Fix the
-     widget; do not reach for a wider container. */
-  overflow-x: clip;
-  padding: 0;
-}
 /* The frame owns gutters; nested sections never add another horizontal inset. */
 .page-inner { width: 100%; max-width: var(--page-width); margin: 0 auto; padding: var(--space-6) var(--page-gutter) 64px; }
 .page-inner .page-inner { padding-inline: 0; }
@@ -468,7 +345,6 @@ body {
   margin-bottom: 12px;
 }
 .page-header .crumbs a:hover { color: var(--ink); }
-.page-header .crumbs .sep { opacity: 0.6;}
 .page-header h1 {
   font-family: var(--font-display); font-weight: 600; font-size: var(--type-h1); line-height: 1.15;
   letter-spacing: -0.025em;
@@ -476,183 +352,10 @@ body {
 .page-header .sub { color: var(--ink-3); font-size: var(--type-base); margin-top: 6px;}
 .page-header .sub.thai { font-family: var(--font-thai); }
 
-/* ---------- Discover (events list) ---------- */
-.discover-toolbar {
-  padding: 0 32px;
-  border-bottom: 1px solid var(--rule);
-  display: flex; align-items: center; gap: 16px;
-  background: var(--paper);
-}
-.tab-row { display: flex; gap: 0;}
-.tab {
-  padding: 14px 18px;
-  font-size: var(--type-md); color: var(--ink-3);
-  border-bottom: 2px solid transparent;
-  font-weight: 500;
-  display: inline-flex; align-items: center; gap: 8px;
-}
-.tab .count {
-  font-size: var(--type-xs); font-variant-numeric: tabular-nums;
-  background: var(--paper-2); padding: 2px 7px; border-radius: 100px;
-  color: var(--ink-3);
-}
-.tab.active { color: var(--ink); border-color: var(--brand);}
-.tab.active .count { background: var(--brand-soft); color: var(--brand-deep);}
-
-.filter-row {
-  margin-left: auto; display: flex; align-items: center; gap: 8px; padding: 8px 0;
-}
-.chip {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 12px;
-  border: 1px solid var(--rule);
-  border-radius: 100px;
-  font-size: var(--type-sm);
-  color: var(--ink-2);
-  background: var(--paper);
-  /* A chip is one label; "Camp / Clinic" on two lines is a broken pill, not a wrap. */
-  white-space: nowrap;
-}
-.chip.active { background: var(--ink); color: var(--paper); border-color: var(--ink);}
-.chip .x { opacity: 0.5;}
-.chip:hover { border-color: var(--ink-3);}
-
-/* The province under a city, on an event row. Quieter than the city: it is
-   the coarser fact, and only shown when it adds one. */
-.city .province::before { content: " · "; opacity: 0.5; }
-.city .province { color: var(--ink-3); }
-
 /* How long a player has been on the roster, beside their position. */
 .pos .since { color: var(--ink-3); }
 .pos .since::before { content: " · "; opacity: 0.5; }
 
-/* The court picker on a fixture row. */
-.venue-select {
-  padding: 4px 8px;
-  border: 1px solid var(--rule);
-  border-radius: 6px;
-  font-size: var(--type-sm);
-  font-family: inherit;
-  color: var(--ink-2);
-  background: var(--paper);
-}
-
-.event-list {
-  display: flex; flex-direction: column;
-}
-.event-list-header {
-  display: grid; grid-template-columns: 60px 2.4fr 1fr 1.4fr 1fr 1fr 100px;
-  gap: 16px;
-  padding: 8px 16px;
-  font-size: var(--type-xs); font-weight: 500; color: var(--ink-3);
-  border-bottom: 1px solid var(--rule);
-}
-.event-row {
-  display: grid; grid-template-columns: 60px 2.4fr 1fr 1.4fr 1fr 1fr 100px;
-  gap: 16px;
-  padding: 18px 16px;
-  border-bottom: 1px solid var(--rule);
-  cursor: pointer;
-  align-items: center;
-  transition: background 0.1s;
-  text-align: left; width: 100%;
-}
-.event-row:hover { background: var(--paper-2);}
-.event-row .date {
-  font-family: var(--font-display); font-weight: 500;
-  font-size: var(--type-sm); color: var(--ink-3); letter-spacing: 0;
-  display: flex; flex-direction: column; align-items: flex-start;
-}
-.event-row .date .day { font-size: var(--type-2xl); font-weight: 600; color: var(--ink); line-height: 1; letter-spacing: -0.02em;}
-.event-row .date .mo { font-size: var(--type-xs); font-weight: 500; margin-top: 2px;}
-.event-row .title {
-  display: flex; flex-direction: column; gap: 4px;
-}
-.event-row .title .name { font-family: var(--font-display); font-weight: 600; font-size: var(--type-lg); letter-spacing: -0.01em;}
-.event-row .title .meta { font-size: var(--type-sm); color: var(--ink-3);}
-.event-row .type {
-  display: inline-flex; align-self: start; padding: 2px 8px;
-  font-size: var(--type-xs); font-weight: 500; letter-spacing: var(--tracking-caps);
-  border: 1px solid var(--ink); text-transform: uppercase;
-}
-.event-row .type.tournament { background: var(--ink); color: var(--paper);}
-.event-row .type.league { border-color: var(--ink); color: var(--ink);}
-.event-row .type.camp { border-color: var(--ink-3); color: var(--ink-3);}
-.event-row .type.showcase { border-color: var(--brand); color: var(--brand-deep);}
-.event-row .loc { font-size: var(--type-md); color: var(--ink-2);}
-.event-row .loc .city { color: var(--ink-3); font-size: var(--type-sm); margin-top: 2px; display: block;}
-.event-row .div { font-size: var(--type-md); color: var(--ink-2);}
-.event-row .status {
-  font-size: var(--type-xs); font-weight: 500; letter-spacing: var(--tracking-caps); text-transform: uppercase;
-  display: inline-flex; align-items: center; gap: 6px;
-}
-.event-row .status.live { color: var(--live);}
-.event-row .status.live::before { content:""; width: 6px; height: 6px; border-radius: 50%; background: var(--live); animation: pulse 1.4s infinite;}
-.event-row .status.open { color: var(--good);}
-.event-row .status.upcoming { color: var(--ink-3); }
-.event-row .status.closed { color: var(--ink-4); }
-.event-row .arrow { color: var(--ink-3); font-size: var(--type-md); text-align: right;}
-.event-row:hover .arrow { color: var(--brand);}
-
-@keyframes pulse { 50% { opacity: 0.3;} }
-
-/* ---------- Featured (live) banner ---------- */
-.live-banner {
-  background: var(--ink);
-  color: var(--paper);
-  padding: 24px 32px;
-  margin: 0 0 0 0;
-  display: grid; grid-template-columns: auto 1fr auto auto auto;
-  gap: 32px; align-items: center;
-}
-.live-banner .pill {
-  display: inline-flex; align-items: center; gap: 6px;
-  background: var(--live); color: var(--paper);
-  padding: 4px 10px; border-radius: 100px;
-  font-size: var(--type-xs); font-weight: 500; letter-spacing: var(--tracking-caps); text-transform: uppercase;
-}
-.live-banner .pill .dot { width: 6px; height: 6px; border-radius:50%; background: #fff; animation: pulse 1.4s infinite;}
-.live-banner .label { font-size: var(--type-sm); color: oklch(0.7 0.01 270); margin-bottom: 4px;}
-.live-banner .matchup { font-family: var(--font-display); font-weight: 600; font-size: var(--type-xl); letter-spacing: -0.01em;}
-.live-banner .matchup .vs { color: oklch(0.6 0.01 270); margin: 0 12px; font-weight: 400;}
-.live-banner .score-mini {
-  font-family: var(--font-display); font-weight: 600; font-size: var(--type-2xl); letter-spacing: -0.02em; line-height: 1;
-}
-.live-banner .score-mini .leading { color: var(--brand);}
-/* The game clock: quarter and time, mono so the digits hold still. */
-.live-banner .quarter { font-family: var(--font-mono); font-size: var(--type-sm); color: oklch(0.7 0.01 270); text-align: center;}
-.live-banner .quarter b { color: var(--paper); font-weight: 500;}
-.live-banner .open-btn {
-  background: var(--paper); color: var(--ink);
-  padding: 8px 14px; border-radius: 100px; font-size: var(--type-md); font-weight: 500;
-}
-
-/* ---------- Event detail page ---------- */
-.event-page { --event-gutter: var(--page-gutter); }
-.event-page > .page-inner { max-width: none; padding-inline: var(--event-gutter); }
-.event-page .section-h { margin-top: 20px; padding-inline: 0; }
-.event-page [data-testid="event-progress"] { margin-bottom: 20px; font-size: var(--type-md); }
-.event-hero {
-  padding: 20px var(--event-gutter);
-  border-bottom: 1px solid var(--rule);
-}
-.event-hero .meta-bar {
-  display: flex; align-items: center; gap: 12px;
-  margin-bottom: 12px; flex-wrap: wrap;
-}
-.event-hero h1 {
-  font-family: var(--font-display); font-weight: 600; font-size: var(--type-h1); line-height: 1.15;
-  letter-spacing: -0.03em;
-  margin-block: 10px 6px;
-}
-.event-hero h1 em { color: var(--brand); font-style: normal;}
-.event-hero .tagline { color: var(--ink-3); font-size: var(--type-base); line-height: 1.6; }
-.event-hero .tagline.thai { font-family: var(--font-thai); margin-top: 4px; }
-
-.event-actions {
-  display: flex; flex-wrap: wrap; gap: 8px;
-  margin-top: 16px;
-}
 /* The admin console's row buttons are the last users of the hand-rolled
    button: they live in the tables that move to the system's Table in step 10,
    and these rules are theirs until then — not an alias for anything that
@@ -669,43 +372,6 @@ body {
   transition: all 0.12s;
 }
 .admin-table button:hover { border-color: var(--ink-2); color: var(--ink);}
-
-/* tabs on event detail */
-.detail-tabs {
-  display: flex; gap: 0;
-  padding: 0 var(--event-gutter, 32px);
-  overflow-x: auto;
-  border-bottom: 1px solid var(--rule);
-  background: var(--paper);
-}
-.detail-tabs .tab { padding: 14px 16px; white-space: nowrap; flex-shrink: 0; }
-
-/* spoiler mode bar (pages/live.tsx) */
-.spoiler-bar {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 16px;
-  background: oklch(0.28 0.01 270);
-  color: oklch(0.85 0.01 270);
-  border-bottom: 1px solid oklch(0.32 0.01 270);
-  font-size: var(--type-sm);
-  margin-bottom: 16px;
-}
-.spoiler-bar .toggle {
-  display: inline-flex; align-items: center; gap: 8px;
-}
-.toggle-track {
-  width: 32px; height: 16px; border-radius: 100px;
-  background: oklch(0.4 0.01 270);
-  position: relative; transition: background 0.15s;
-  flex-shrink: 0;
-}
-.toggle-track.on { background: var(--brand);}
-.toggle-track::after {
-  content: ""; position: absolute; left: 2px; top: 2px;
-  width: 12px; height: 12px; border-radius: 50%; background: var(--paper);
-  transition: left 0.15s;
-}
-.toggle-track.on::after { left: 18px;}
 
 /* ---------- Team page ---------- */
 .team-hero {
@@ -803,17 +469,6 @@ body {
 .fixture-row .result { font-family: var(--font-display); font-weight: 600; font-size: var(--type-base); text-align: right; font-variant-numeric: tabular-nums; }
 .fixture-row .outcome { font-size: var(--type-xs); font-weight: 500; letter-spacing: var(--tracking-caps); text-transform: uppercase; text-align: right; }
 
-/* The live page lists whole games — two names, a venue, a score, a status and
-   sometimes a Watch button — in the same `.fixture-row` the team schedule uses
-   for "vs Opponent". That grid's first track is the date, 90px wide, and a live
-   row has no date, so both team names were auto-placed into it: on a phone,
-   one word per line down a 64px column, with the status alone on the right.
-   Named areas, so nothing depends on the order the spans come in. Three
-   selectors deep on purpose: the phone rules below place `.fixture-row`'s
-   children by column and would otherwise win on source order. */
-.live-list .fixture-row .live-actions { display: flex; gap: 8px; margin-top: 6px; }
-.live-list .fixture-row .live-actions:empty { display: none; }
-
 .section-h h2 {
   font-family: var(--font-display); font-weight: 600; font-size: var(--type-xl); letter-spacing: -0.02em;
 }
@@ -883,27 +538,6 @@ body {
 .row-button:disabled { cursor: default; }
 .row-button:disabled:hover { background: transparent; }
 
-/* A label and its value on one line — the shape a facts list wants. */
-.fact-row {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: 16px; padding: 14px 18px; border-bottom: 1px solid var(--rule);
-}
-.fact-row:last-child { border-bottom: none; }
-.event-description {
-  padding: 18px; margin: 0; line-height: 1.6; font-size: var(--type-base);
-  color: var(--ink-2); max-width: 68ch;
-}
-
-/* A venue on the event's Venues tab. */
-.venue-row { padding: 14px 18px; border-bottom: 1px solid var(--rule); }
-.venue-row:last-child { border-bottom: none; }
-.venue-primary {
-  margin-left: 8px; padding: 1px 6px;
-  font-size: var(--type-xs); font-weight: 500;
-  letter-spacing: var(--tracking-caps); text-transform: uppercase;
-  border: 1px solid var(--brand); color: var(--brand-deep);
-}
-
 /* A coach: initials, name, and what they do. Not a button — there is no
    person page to go to, and a row that looks clickable and is not is the same
    lie as a button that does nothing. */
@@ -944,17 +578,6 @@ body {
 }
 .invite-row:last-child { border-bottom: none; }
 
-/* A label a screen reader reads and nothing else shows. The datetime box in a
-   schedule row has no space for a visible one, and an input with no label at
-   all is unusable without sight. */
-.sr-only {
-  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
-  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
-}
-/* Rescheduling, inline in the row it belongs to rather than in a dialog: the
-   fixture stays visible while its time is changed. */
-.fixture-edit { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-
 /* ─── The page that replaces a white screen ───────────────────────────────
    Deliberately centred in the viewport rather than in the app layout: the
    boundary sits outside the sidebar and topbar, so when it renders there is no
@@ -974,15 +597,6 @@ body {
   .roster-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
-/* ─── Narrow desktop: the content column is too narrow for the Discover tabs
-     and the filter chips to share a row (they need ~1050px together, which
-     only fits once the viewport is past ~1300px). The filter row takes its own
-     line and scrolls horizontally when the chips are still wider than it. ─── */
-@media (min-width: 769px) and (max-width: 1280px) {
-  .discover-toolbar { flex-wrap: wrap; }
-  .filter-row { flex: 1 1 100%; margin-left: 0; min-width: 0; overflow-x: auto; }
-}
-
 /* ─── Mobile: ≤ 768px ─── */
 @media (max-width: 768px) {
   /* The sidebar's phone drawer is the registry component's Sheet (B2 step 8);
@@ -995,54 +609,8 @@ body {
   :root { --page-gutter: 14px; }
   .page-header h1 { font-size: clamp(24px, 6vw, 32px); }
 
-  /* Discover toolbar wraps; tables become scrollable cards */
-  .discover-toolbar { flex-direction: column; align-items: stretch; gap: 12px; padding: 12px 14px; }
-  /* min-width: 0 on both: a flex item defaults to `min-width: auto`, which is
-     its content size, so `overflow-x: auto` cannot take effect and the item
-     pushes its parent wide instead of scrolling inside it. */
-  .tab-row, .filter-row { min-width: 0; }
-  .tab-row { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
-  .tab-row .tab { white-space: nowrap; }
-  .filter-row {
-    overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; padding-bottom: 4px;
-    /* `margin-left: auto` pushes the filters right in the desktop ROW. Here the
-       toolbar is a COLUMN, so that margin is on the cross axis — where an auto
-       margin overrides `align-items: stretch` and sizes the item to its content
-       instead. It became 546px inside a 402px toolbar, pushed `.page` to 649px,
-       and `.page` pans because `overflow-y: auto` forces `overflow-x` to `auto`
-       too. The whole content area scrolled sideways under a fixed topbar. */
-    margin-left: 0;
-  }
-  .filter-row .chip { white-space: nowrap; flex-shrink: 0; }
-  /* A strip that scrolls has to say so. At 390px "Past" was clipped at the
-     right edge of the tab row with its count out of sight, and the province
-     filters sat past the end of the chip row where nothing hinted they were.
-     The strip's own last item, stuck to the right edge, fades whatever is
-     under it — and because it is in the flow, at the end of the scroll it
-     sits after the last item over nothing at all. */
-  .tab-row::after, .filter-row::after, .detail-tabs::after {
-    content: "";
-    position: sticky; right: 0;
-    flex: 0 0 36px; align-self: stretch;
-    pointer-events: none;
-    background: linear-gradient(to right, transparent, var(--paper) 75%);
-  }
-
   .roster-grid { grid-template-columns: 1fr; }
   .player-card { padding: 12px; }
-
-  /* The spoiler bar is a two-column row that does not fit: "Showing live
-     scores" and "Hide scores" each broke mid-phrase into two lines. */
-  .spoiler-bar { flex-direction: column; align-items: flex-start; gap: 10px; }
-  .spoiler-bar .toggle { align-self: stretch; justify-content: space-between; }
-
-  /* Event hero */
-  .event-hero { padding: var(--space-4) var(--event-gutter); }
-  .event-actions { flex-wrap: wrap; }
-
-  /* Tab bars become horizontally scrollable */
-  .detail-tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; padding: 0 14px; }
-  .detail-tabs .tab { white-space: nowrap; flex-shrink: 0; min-height: 40px; }
 
   /* A fixture is five columns of 350px on the desktop. On a phone it becomes
      two rows: who and when on the first, the outcome on the second. */
@@ -1063,75 +631,6 @@ body {
   /* Section headings */
   .section-h { padding: 16px 14px 8px; }
 
-}
-
-/* ─── Discover event list: the seven-column rows need ~634px, which the
-     content column only has once the viewport is past ~900px. Below that the
-     rows collapse to date + name + status (the same card layout phones get),
-     so a narrow desktop column never overflows. ─── */
-@media (max-width: 900px) {
-  .event-list-header { display: none; }
-  .event-row {
-    grid-template-columns: 60px 1fr auto;
-    grid-template-areas:
-      "date title arrow"
-      "date meta arrow"
-      "date status arrow";
-    gap: 4px 12px;
-    padding: 14px 16px;
-    min-height: 80px;
-  }
-  .event-row > :nth-child(1) { grid-area: date; }
-  .event-row > :nth-child(2) { grid-area: title; }
-  .event-row > :nth-child(7) { grid-area: arrow; }
-  .event-row > :nth-child(3),
-  .event-row > :nth-child(4),
-  .event-row > :nth-child(5) { display: none; }
-  .event-row > :nth-child(6) { grid-area: status; align-self: start; }
-}
-
-/* ─── Live banner: the desktop five-column row (`auto 1fr auto auto auto`
-     with 32px gaps) needs ~570px, which the content column only has once the
-     viewport is past ~840px. Below that — tablet and phone — keep it a
-     wrapping flex row instead: the venue + matchup text takes the room it
-     needs, while the compact actions (score, quarter, open) sit beside it and
-     drop to their own line only when the title is long. `min-width: 0` so a
-     long club name wraps instead of setting the width — the original overflow
-     fix, preserved. ─── */
-@media (max-width: 840px) {
-  .live-banner {
-    display: flex; flex-wrap: wrap; align-items: center;
-    column-gap: 20px; row-gap: 12px;
-    padding: 18px 16px;
-  }
-  .live-banner > :nth-child(2) { flex: 1 1 240px; min-width: 0; }
-  .live-banner .score-mini { margin-left: auto; }
-  .live-banner .matchup { font-size: var(--type-lg); line-height: 1.25; }
-  .live-banner .matchup .vs { margin: 0 6px; }
-  .live-banner .quarter { text-align: left; }
-  .live-banner .open-btn { min-height: 40px; display: inline-flex; align-items: center; }
-}
-
-/* ─── Narrow phones: the wrapping row above has no room to share, so the
-     banner stacks back to a single column. Deliberately not folded into the
-     768px block — that block covers tablets too, where stacking wastes the
-     available width. The original overflow guard (`min-width: 0`, content
-     left-aligned rather than stretched) still applies here. ─── */
-@media (max-width: 520px) {
-  .live-banner {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
-  }
-  .live-banner > * { min-width: 0; justify-self: start; }
-  .live-banner .score-mini { margin-left: 0; }
-}
-
-/* ─── Touch-target safety: bump small buttons everywhere on coarse pointers ─── */
-@media (pointer: coarse) {
-  .tab, .chip {
-    min-height: 40px;
-  }
 }
 
 /* ---------- Devices (where you're signed in) ---------- */
@@ -1283,8 +782,6 @@ select { height: var(--control-height); }
 .login-code { font-family: var(--font-mono); letter-spacing: 0.4em; text-align: center; font-size: var(--type-lg); }
 :where(button, a, input, select, textarea, summary):focus-visible { outline: 2px solid var(--brand-deep); outline-offset: 3px; }
 :where(button, input, select, textarea):disabled { opacity: 0.6; cursor: not-allowed; }
-.query-error { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-block: var(--space-4); }
-.query-error p { flex: 1 1 240px; }
 .entity-row > * { min-width: 0; }
 .entity-row > :first-child { overflow-wrap: anywhere; }
 .small { font-size: var(--type-sm); }
@@ -1297,25 +794,6 @@ select { height: var(--control-height); }
   border: 1px solid var(--rule); background: var(--paper); cursor: pointer;
 }
 .admin-switcher button.active { background: var(--brand); color: var(--paper); border-color: var(--brand); }
-
-/* Scores in a schedule row. Tabular figures in the mono face so 7–7 and 71–54
-   line up down the column. */
-.score-cell {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--type-base);
-  color: var(--ink);
-  min-width: 72px;
-  text-align: right;
-}
-.score-form { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.score-form input {
-  width: 56px; padding: 6px 8px; text-align: center;
-  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
-  border: 1px solid var(--rule-2); border-radius: 6px; background: var(--paper);
-  color: var(--ink);
-}
-.score-form input:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 
 /* The seeded sign-in list. One row per person, with the relations they hold —
    see routes/dev-mail.ts for why all of them and not one per role. */
@@ -1331,16 +809,6 @@ select { height: var(--control-height); }
   font-size: var(--type-xs);
   color: var(--ink-3); line-height: 1.5;
 }
-
-/* The status control sits inline in a metadata line, so it carries none of a
-   select's usual chrome — only the caret marks it as editable. */
-.status-select {
-  border: none; background: transparent; padding: 0 2px 0 0;
-  font-size: inherit;
-  color: inherit; cursor: pointer;
-}
-.status-select:hover { text-decoration: underline; }
-.status-select:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
 /*
  * The live-video surfaces.
@@ -1485,61 +953,3 @@ select { height: var(--control-height); }
   font-weight: 600;
 }
 
-/* A box score expands below its fixture, including on a narrow phone. */
-.schedule-game { flex-wrap: wrap; }
-.game-box-score { flex: 1 0 100%; min-width: 0; }
-
-/* Connected competition views: shared game identity and compact local navigation. */
-.event-hero .event-actions { margin-top: 12px; gap: 8px; }
-.detail-tabs a.tab { text-decoration: none; color: inherit; }
-.event-filters { padding: 16px var(--event-gutter); border-bottom: 1px solid var(--rule); display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
-.event-filters label { display: flex; align-items: center; gap: 12px; }
-.event-filters select { min-height: 44px; max-width: 100%; }
-.game-group { margin: 0 0 24px; }
-.game-group h2 { margin: 0 0 12px; font-size: var(--type-lg); }
-.game-summary { min-width: 0; }
-.game-summary > a { display: block; width: fit-content; }
-.game-summary .entity-label { font-weight: 600; text-decoration: none; color: var(--ink); }
-.game-summary .entity-meta { margin-top: 4px; }
-.game-summary a:hover, .competition-table a:hover { text-decoration: underline; }
-.game-team-links { display: flex; flex-wrap: wrap; gap: 8px; font-weight: 600; }
-
-.game-page .crumbs { line-height: 1.7; }
-.schedule-game > div { min-width: 0; }
-.schedule-game > div:last-child { flex-wrap: wrap; }
-.table-scroll { overflow-x: auto; }
-.competition-table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
-.competition-table th, .competition-table td { padding: 12px; border-bottom: 1px solid var(--rule); text-align: right; white-space: nowrap; }
-.competition-table th { font-size: var(--type-xs); font-weight: 500; color: var(--ink-3); }
-.competition-table th:nth-child(2), .competition-table td:nth-child(2) { text-align: left; white-space: normal; min-width: 150px; }
-.competition-table a { color: var(--ink); text-decoration: none; }
-.court-game { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--rule); }
-.event-places .game-group { padding: 16px; }
-.event-places .game-group h3 { margin-bottom: 12px; }
-
-@media (max-width: 600px) {
-  .event-hero { padding-block: 14px; }
-  .event-filters label { width: 100%; }
-  .event-filters select { flex: 1; min-width: 0; }
-  .schedule-game { gap: 12px; }
-  .schedule-game > div:last-child { justify-content: flex-start; }
-  .live-list .fixture-row { display: flex; flex-wrap: wrap; }
-  .live-list .game-summary { flex-basis: 100%; }
-}
-.fixture-row:has(> .game-summary) { display: grid; grid-template-areas: none; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; }
-.fixture-row > .game-summary { grid-column: 1; grid-row: 1; }
-.fixture-row:has(> .game-summary) > .result { grid-area: auto; grid-column: 2; grid-row: 1; }
-.fixture-row:has(> .game-summary) > .outcome { grid-area: auto; grid-column: 3; grid-row: 1; }
-.fixture-row > .live-actions { grid-column: 1 / -1; }
-.game-summary .entity-meta { font-size: var(--type-sm); line-height: 1.6; }
-@media (max-width: 600px) {
-  .fixture-row:has(> .game-summary) > .game-summary { grid-column: 1 / -1; }
-  .fixture-row:has(> .game-summary) > .result { grid-column: 2; grid-row: 2; }
-  .fixture-row:has(> .game-summary) > .outcome { grid-column: 3; grid-row: 2; }
-  .competition-table th:nth-child(5), .competition-table td:nth-child(5),
-  .competition-table th:nth-child(6), .competition-table td:nth-child(6),
-  .competition-table th:nth-child(7), .competition-table td:nth-child(7) { display: none; }
-  .competition-table th, .competition-table td { padding: 10px 6px; }
-}
-
-fieldset { border: 0; min-width: 0; }
