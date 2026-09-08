@@ -14,7 +14,9 @@
   },
   "items": {
     "@shadcn/button": {
-      "files": {}
+      "files": {
+        "src/web/components/ui/button.tsx": "313353436d0fcc8e44ab470adb614b9fd013d28626f624328ea0d66d41a6c81b"
+      }
     },
     "@shadcn/card": {
       "files": {
@@ -88,11 +90,6 @@
         "src/web/components/ui/field.tsx": "d7c372e8df76de0b4714c02497fefba29299e6baefb7c12fba289a2a374362bb"
       }
     },
-    "@shadcn/select": {
-      "files": {
-        "src/web/components/ui/select.tsx": "d3c275e0212325c0bba459800fb155839783d33d5c91d363b5b974973aa7e9e0"
-      }
-    },
     "@shadcn/textarea": {
       "files": {
         "src/web/components/ui/textarea.tsx": "82601c91ffc6c727d924162c78d7cb853114bcced4e2eb922a68ca12d4239c0f"
@@ -134,11 +131,6 @@
         "src/web/components/ui/separator.tsx": "8a1d9397433ccf70631104f377b0e778754582a74c93a57cf13a2f2dcba778bf"
       }
     },
-    "@shadcn/kbd": {
-      "files": {
-        "src/web/components/ui/kbd.tsx": "d17724eb15923ea4f0432cd1cf22538addb14a386f4f9326661efcce7f97e33b"
-      }
-    },
     "@shadcn/collapsible": {
       "files": {
         "src/web/components/ui/collapsible.tsx": "3de60b605e64c835588cecc189fbcf907eb602b0158f970d614b067e868b491e"
@@ -147,12 +139,6 @@
     "@shadcn/alert-dialog": {
       "files": {
         "src/web/components/ui/alert-dialog.tsx": "f679acf47722af0435957a886e2f70bfbdd1e9e8438f08e4285e8c53f2237997"
-      }
-    },
-    "@shadcn/dialog": {
-      "files": {
-        "src/web/components/ui/dialog.tsx": "8081cc14ab4d744b75925706523192f60cc75863e05cb986aaf6a08677c83304",
-        "src/web/components/ui/button.tsx": "313353436d0fcc8e44ab470adb614b9fd013d28626f624328ea0d66d41a6c81b"
       }
     },
     "@shadcn/input-otp": {

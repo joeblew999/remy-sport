@@ -3,6 +3,7 @@
  *
  *   bun run ops ui add button dialog     copy items from the registry, then lock them
  *   bun run ops ui add @acme/thing       from an allowed namespace only
+ *   bun run ops ui remove button         delete an item's files and its lock entry
  *   bun run ops ui theme                 write the theme shadcn's preset system decides
  *   bun run ops ui check                 what tests/repo/registry.test.ts checks
  *
@@ -23,14 +24,29 @@
 import { spawnSync } from "node:child_process"
 import { writeFileSync } from "node:fs"
 import { join, resolve } from "node:path"
-import { LOCK_FILE, hashFile, namespaceOf, qualify, readLock, verifyLock } from "../lib/registry-lock.ts"
+import { LOCK_FILE, hashFile, namespaceOf, qualify, readLock, removeItem, verifyLock } from "../lib/registry-lock.ts"
 
 const ROOT = resolve(import.meta.dirname, "../..")
 const [action, ...items] = process.argv.slice(2)
 
 function usage(code: number): never {
-  console.log("usage: bun run ops ui add <item...> | theme | check")
+  console.log("usage: bun run ops ui add <item...> | remove <item...> | theme | check")
   process.exit(code)
+}
+
+if (action === "remove") {
+  if (items.length === 0) usage(1)
+  for (const item of items.map(qualify)) {
+    const { removed, kept } = removeItem(ROOT, item)
+    console.log(`ui: removed ${item}${removed.length ? ` and ${removed.join(", ")}` : ""}`)
+    if (kept.length) console.log(`ui: kept ${kept.join(", ")} — still imported; re-homed in the lock`)
+  }
+  const problems = verifyLock(ROOT)
+  if (problems.length) {
+    console.error(`ui: the lock and the tree still disagree\n  ${problems.join("\n  ")}`)
+    process.exit(1)
+  }
+  process.exit(0)
 }
 
 if (action === "theme") {

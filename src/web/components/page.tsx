@@ -28,6 +28,8 @@ import { m } from "../lib/i18n";
 export interface Crumb {
   label: ReactNode;
   href?: string;
+  /** For a spec that follows the crumb back. */
+  testId?: string;
 }
 
 export function Crumbs({ items, ...props }: { items: Crumb[] } & ComponentProps<typeof Breadcrumb>) {
@@ -41,7 +43,7 @@ export function Crumbs({ items, ...props }: { items: Crumb[] } & ComponentProps<
               {i > 0 && <BreadcrumbSeparator />}
               <BreadcrumbItem>
                 {item.href ? (
-                  <BreadcrumbLink href={item.href}>{item.label}</BreadcrumbLink>
+                  <BreadcrumbLink href={item.href} data-testid={item.testId}>{item.label}</BreadcrumbLink>
                 ) : last ? (
                   <BreadcrumbPage>{item.label}</BreadcrumbPage>
                 ) : (

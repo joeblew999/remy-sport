@@ -33,7 +33,7 @@ const OUT = join(ROOT, "src/web/fonts")
  * So the rule here is: self-host only what an OS cannot be relied on to have,
  * and let `system-ui` cover the rest.
  *
- *   Latin  — self-hosted. It is the brand (Inter, Space Grotesk, IBM Plex Mono).
+ *   Latin  — self-hosted. It is the brand (Inter, IBM Plex Mono).
  *   Thai   — self-hosted. Small (3 subsets, ~40KB) and system Thai faces by
  *            platform enough to be visible.
  *   CJK    — NOT self-hosted. Noto Sans JP alone is 366 @font-face blocks and
@@ -76,7 +76,6 @@ if (unknown.length) {
 
 /** The UI families, plus one per declared script that needs its own. */
 const FAMILIES = [
-  "Space+Grotesk:wght@400;500;600;700",
   "Inter:wght@400;500;600",
   "IBM+Plex+Mono:wght@400;500;600",
   ...new Set(ALL_LOCALES.map((l) => SCRIPTS[l]!.family).filter(Boolean) as string[]),

@@ -19,7 +19,7 @@ import { projectEvent, type Held } from "../helpers/projections"
  * here is what the API says, and the role is only what it should always have
  * been: the thing that decides whether the *account console* appears.
  *
- * `badge-success` is the contract, not decoration — it is what says an action
+ * `data-held` is the contract, not decoration — it is what says an action
  * is granted.
  *
  * Every fixture goes through `projectEvent()`, so the row is the seed's own and
@@ -77,19 +77,19 @@ test.describe("The permission grid reflects what the server granted", () => {
     ])
     await visit(page, "admin")
     await expect(page.getByTestId("create-event-form")).toBeVisible()
-    await expect(page.getByTestId("perm-create")).toHaveClass(/badge-success/)
-    await expect(page.getByTestId("perm-read")).toHaveClass(/badge-success/)
-    await expect(page.getByTestId("perm-update")).toHaveClass(/badge-success/)
-    await expect(page.getByTestId("perm-delete")).toHaveClass(/badge-success/)
+    await expect(page.getByTestId("perm-create")).toHaveAttribute("data-held", "true")
+    await expect(page.getByTestId("perm-read")).toHaveAttribute("data-held", "true")
+    await expect(page.getByTestId("perm-update")).toHaveAttribute("data-held", "true")
+    await expect(page.getByTestId("perm-delete")).toHaveAttribute("data-held", "true")
   })
 
   test("a viewer the server says may only read sees the denial", async ({ page }) => {
     await seedCache(page, [as("COACH"), asNotAdmin, events()])
     await visit(page, "admin")
     await expect(page.getByTestId("create-event-denied")).toBeVisible()
-    await expect(page.getByTestId("perm-create")).not.toHaveClass(/badge-success/)
-    await expect(page.getByTestId("perm-delete")).not.toHaveClass(/badge-success/)
-    await expect(page.getByTestId("perm-read")).toHaveClass(/badge-success/)
+    await expect(page.getByTestId("perm-create")).toHaveAttribute("data-held", "false")
+    await expect(page.getByTestId("perm-delete")).toHaveAttribute("data-held", "false")
+    await expect(page.getByTestId("perm-read")).toHaveAttribute("data-held", "true")
   })
 
   /**
@@ -108,9 +108,9 @@ test.describe("The permission grid reflects what the server granted", () => {
       events(["CO_ORGANIZER"]),
     ])
     await visit(page, "admin")
-    await expect(page.getByTestId("perm-update")).toHaveClass(/badge-success/)
-    await expect(page.getByTestId("perm-delete")).not.toHaveClass(/badge-success/)
-    await expect(page.getByTestId("events-table").locator("button.danger")).toHaveCount(0)
+    await expect(page.getByTestId("perm-update")).toHaveAttribute("data-held", "true")
+    await expect(page.getByTestId("perm-delete")).toHaveAttribute("data-held", "false")
+    await expect(page.getByTestId("events-table").getByRole("button", { name: "Delete", exact: true })).toHaveCount(0)
   })
 
   test("a viewer the server says may delete gets the button", async ({ page }) => {
@@ -120,7 +120,7 @@ test.describe("The permission grid reflects what the server granted", () => {
       events(["PLATFORM_ADMIN"]),
     ])
     await visit(page, "admin")
-    await expect(page.getByTestId("events-table").locator("button.danger")).toHaveCount(1)
+    await expect(page.getByTestId("events-table").getByRole("button", { name: "Delete", exact: true })).toHaveCount(1)
   })
 
   test("a non-admin sees no account console at all", async ({ page }) => {
@@ -247,7 +247,7 @@ test.describe("The permission grid reflects what the server granted", () => {
     await expect(rowFor("gone@remy.test")).toContainText("Deactivated")
     await expect(rowFor("fine@remy.test")).toContainText("Active")
     // And the one that is genuinely active is the only one not marked off.
-    await expect(rowFor("suspended@remy.test").locator(".badge-off")).toHaveCount(1)
+    await expect(rowFor("suspended@remy.test").locator("[data-off=true]")).toHaveCount(1)
   })
 
   test("a signed-out visitor is sent to the login screen", async ({ page }) => {

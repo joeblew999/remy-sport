@@ -28,6 +28,8 @@
  */
 import { useEffect, useState } from "react";
 import { m } from "../lib/i18n";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface Stamp {
   environment?: string;
@@ -150,19 +152,19 @@ export function BuildStamp() {
   // and inventing a version there would be worse than an empty corner.
   if (!serverCommit) return null;
 
+  // Quiet by default — it is for the moment someone asks "which one am I on".
+  // The environment is shown only off production, where it is the whole
+  // point; the hash is a hash, so it keeps its digits aligned.
   return (
-    <div className="build-stamp" data-testid="build-stamp">
-      {env && env !== "production" && <span className="build-env">{env}</span>}
-      <span className="build-commit">{serverCommit}</span>
+    <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground" data-testid="build-stamp">
+      {env && env !== "production" && <Badge>{env}</Badge>}
+      <span className="tabular-nums">{serverCommit}</span>
       {stale && (
-        <button
-          type="button"
-          className="build-stale"
-          data-testid="build-stale"
-          onClick={() => window.location.reload()}
-        >
+        // Loud enough to notice, and a button rather than a notice because
+        // the fix is one click.
+        <Button size="xs" data-testid="build-stale" onClick={() => window.location.reload()}>
           {m.build_update_available()}
-        </button>
+        </Button>
       )}
     </div>
   );

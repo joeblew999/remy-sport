@@ -23,7 +23,7 @@
  * own. `registries` maps a namespace to the reason it is allowed.
  */
 import { createHash } from "node:crypto"
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs"
+import { existsSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs"
 import { join, relative } from "node:path"
 
 export const LOCK_FILE = "components-lock.json"
@@ -74,7 +74,22 @@ function walk(dir: string, out: string[] = []): string[] {
   return out
 }
 
-/** Every way the tree and the lock can disagree, as sentences. Empty means they agree. */
+/**
+ * The alias a locked file is imported by: `src/web/components/ui/button.tsx`
+ * is `@/components/ui/button`, the way components.json spells it and the way
+ * both the app and the registry's own files import each other.
+ */
+function aliasOf(file: string): string {
+  return "@/" + file.replace(/^src\/web\//, "").replace(/\.tsx?$/, "")
+}
+
+/**
+ * Every way the tree and the lock can disagree, as sentences. Empty means
+ * they agree. The last question is whether each locked file is imported by
+ * anything at all: an item added ahead of the surface that will use it is
+ * fine for a step, and dead weight after it — knip cannot see this, because
+ * the locked folder is an entry there, so the lock asks.
+ */
 export function verifyLock(root: string): string[] {
   const lock = readLock(root)
   const problems: string[] = []
@@ -98,5 +113,58 @@ export function verifyLock(root: string): string[] {
     if (!locked.has(file)) problems.push(`${file} is under ${UI_DIR} but no registry item in the lock wrote it`)
   }
 
+  const sources = walk(join(root, "src/web"))
+    .filter((path) => /\.tsx?$/.test(path))
+    .map((path) => ({ file: relative(root, path), text: readFileSync(path, "utf8") }))
+  for (const [file, { item }] of locked) {
+    const alias = aliasOf(file)
+    const imported = sources.some((s) => s.file !== file && s.text.includes(`"${alias}"`))
+    if (!imported) problems.push(`${file} is locked (from ${item}) but nothing imports ${alias} — remove it with \`bun run ops ui remove ${item}\`, or use it`)
+  }
+
   return problems
+}
+
+/**
+ * Take an item out: its files, unless something still imports them, and its
+ * entry. The inverse of `add`, so the lock never records a file the tree has
+ * lost and the tree never keeps a file the lock has forgotten.
+ *
+ * A batch add records every file it wrote under the first item and moves
+ * shared files out of older entries — so `dialog`'s entry can list
+ * `button.tsx`, which the whole app imports. A file still imported by another
+ * source is kept, and its record moves to the item named after it
+ * (`@shadcn/button`), which is where it belongs.
+ */
+export function removeItem(root: string, item: string): { removed: string[]; kept: string[] } {
+  const lock = readLock(root)
+  const entry = lock.items[item]
+  if (!entry) throw new Error(`${item} is not in ${LOCK_FILE}`)
+  const elsewhere = new Set(
+    Object.entries(lock.items).filter(([name]) => name !== item).flatMap(([, e]) => Object.keys(e.files)),
+  )
+  const sources = walk(join(root, "src/web"))
+    .filter((path) => /\.tsx?$/.test(path))
+    .map((path) => ({ file: relative(root, path), text: readFileSync(path, "utf8") }))
+  const removed: string[] = []
+  const kept: string[] = []
+  for (const [file, hash] of Object.entries(entry.files)) {
+    if (elsewhere.has(file)) continue
+    const alias = aliasOf(file)
+    const importedByOthers = sources.some(
+      (s) => s.file !== file && !(s.file in entry.files) && s.text.includes(`"${alias}"`),
+    )
+    if (importedByOthers) {
+      const home = `${namespaceOf(item)}/${file.split("/").pop()!.replace(/\.tsx?$/, "")}`
+      lock.items[home] = { files: { ...(lock.items[home]?.files ?? {}), [file]: hash } }
+      kept.push(file)
+      continue
+    }
+    const path = join(root, file)
+    if (existsSync(path)) unlinkSync(path)
+    removed.push(file)
+  }
+  delete lock.items[item]
+  writeFileSync(join(root, LOCK_FILE), JSON.stringify(lock, null, 2) + "\n")
+  return { removed, kept }
 }

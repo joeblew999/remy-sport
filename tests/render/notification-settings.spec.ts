@@ -54,23 +54,26 @@ test.describe("The notification section, as a reader sees it", () => {
     const size = (sel: string) =>
       section.locator(sel).first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize))
 
-    const [h2, h3] = [await size("h2"), await size("h3")]
-    expect(h3, `h3 (${h3}px) must not shout louder than h2 (${h2}px)`).toBeLessThanOrEqual(h2)
+    // The section is the registry's Card: its title is the card title, and the
+    // sub-headings under it are h3s.
+    const [title, h3] = [await size("[data-slot=card-title]"), await size("h3")]
+    expect(h3, `h3 (${h3}px) must not shout louder than the card title (${title}px)`).toBeLessThanOrEqual(title)
   })
 
   test("the preference list is a list of settings, not a bulleted list", async ({ page }) => {
     await as(page, "ADMIN")
     await visit(page, "notifications")
 
-    const list = page.getByTestId("notification-settings").locator("ul.pref-list").first()
+    // The registry's ItemGroup: a list by role, with no browser bullets and no
+    // 40px indent, which is what the old `<ul>` had to be styled out of.
+    const list = page
+      .getByTestId("notification-settings")
+      .locator("[data-slot=item-group]")
+      .filter({ has: page.getByTestId("pref-MATCH_START") })
     await expect(list).toBeVisible()
-
-    const style = await list.evaluate((el) => {
-      const s = getComputedStyle(el)
-      return { marker: s.listStyleType, indent: parseFloat(s.paddingLeft) }
-    })
-    expect(style.marker, "browser bullets in a settings card").toBe("none")
-    expect(style.indent, "the browser's 40px list indent").toBeLessThan(8)
+    await expect(list).toHaveAttribute("role", "list")
+    const indent = await list.evaluate((el) => parseFloat(getComputedStyle(el).paddingLeft))
+    expect(indent, "the browser's 40px list indent").toBeLessThan(8)
   })
 
   /**

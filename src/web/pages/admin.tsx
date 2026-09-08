@@ -11,10 +11,10 @@ import { CreateEvent } from "../components/create-event";
  * asserted per-actor *rendering*, not authorization.
  *
  * So the page moves rather than the argument surviving. Everything the specs
- * hook on — the testids, and the `badge-success` class the permission grid is
- * asserted against — is preserved verbatim, which is what makes the port
- * checkable: the tests written for the implementation being replaced still pass
- * against the replacement.
+ * hook on — the testids, and the `data-held` attribute the permission grid is
+ * asserted against — is preserved, which is what makes the port checkable: the
+ * tests written for the implementation being replaced still pass against the
+ * replacement.
  *
  * Reads go through TanStack Query. Writes are Better Auth's admin endpoints,
  * called directly: they are Better Auth's contract, not ours, and wrapping them
@@ -32,11 +32,28 @@ import { useSession } from "../lib/session";
 import { useCan, useTeams } from "../lib/data";
 import { STORED_ROLE } from "../../domain/vocabularies";
 import type { Route } from "../lib/router";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { PageHeader, PageInner } from "../components/page";
+import { EmptyState, Loading } from "../components/states";
+import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 /**
  * The roles, as Better Auth stores them — derived, not typed out again.
@@ -53,6 +70,36 @@ const ROLE_CODE = Object.fromEntries(
   Object.entries(STORED_ROLE).map(([code, stored]) => [stored, code]),
 ) as Record<string, string>;
 
+const LIST = "gap-0 divide-y overflow-hidden rounded-xl border";
+const ROW = "rounded-none px-4 py-3";
+
+/**
+ * A delete that asks first, as the registry's AlertDialog in the reader's
+ * language. The description names what goes with the row — a player's
+ * guardians, a team's history — because agreeing to delete one is not the
+ * same as agreeing to delete the other.
+ */
+function ConfirmDelete({ label, description, onConfirm, disabled, "data-testid": testId }: {
+  label: string; description: string; onConfirm: () => void; disabled?: boolean; "data-testid": string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <Button variant="outline" data-testid={testId} disabled={disabled} onClick={() => setOpen(true)}>{label}</Button>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{label}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{m.cancel()}</AlertDialogCancel>
+          <AlertDialogAction variant="destructive" data-testid={`confirm-${testId}`} onClick={() => { setOpen(false); onConfirm(); }}>{label}</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 /**
  * There is no role→permission table here any more.
  *
@@ -61,11 +108,6 @@ const ROLE_CODE = Object.fromEntries(
  * whether the create form appeared, and whether a Delete button did. Beside the
  * second it also tested `e.organizerUserId === user.id`, which is the OWNER
  * relation reimplemented in a component.
- *
- * It happened to agree with the model, so nothing was visibly broken — which is
- * the failure mode a second copy has. It agrees until the model changes, and
- * then it is a screen offering a control the API refuses, or hiding one the
- * viewer is entitled to, with no test able to tell.
  *
  * Every answer below is the server's: `can.CREATE_EVENT` from `me.mine`
  * (a PLATFORM action, so it belongs to no event), `can.DELETE_EVENT` and
@@ -91,16 +133,8 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
 
   const role = user?.role || "user";
   /**
-   * The model's answer, not a role string read in the browser.
-   *
-   * This was `role === "admin"`, which is a second copy of a rule `GRANTS`
-   * already holds — `MANAGE_ALL_USERS` is granted to PLATFORM_ADMIN there. The
-   * two can disagree, and they already did once: the console "decided this
-   * from a role table copied
-   * into the client, which is a second answer to a question the model already
-   * answers".
-   *
-   * `role` survives below only for display — showing a person what they are.
+   * The model's answer, not a role string read in the browser. `role` survives
+   * below only for display — showing a person what they are.
    */
   const { data: isAdmin } = useCan("MANAGE_ALL_USERS");
   // Asked of the model, not inferred from `isAdmin`: they happen to have the
@@ -125,14 +159,10 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
   });
 
   /**
-   * What the viewer may do, as the server reports it.
-   *
-   * `read` is true by definition — this list is what they are reading. `update`
-   * and `delete` are "on at least one event you can see", because that is the
-   * only honest role-level reading of a permission the model resolves per
-   * object: a co-organiser holds EDIT_EVENT on one tournament and nothing on
-   * the rest, and a single badge cannot say more than whether they hold it
-   * anywhere.
+   * What the viewer may do, as the server reports it. `read` is true by
+   * definition — this list is what they are reading. `update` and `delete` are
+   * "on at least one event you can see", the only honest role-level reading of
+   * a permission the model resolves per object.
    */
   const rows = events.data?.events ?? [];
   const { data: canCreate } = useCan("CREATE_EVENT");
@@ -151,7 +181,6 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
    */
   const accounts = useAccounts(isAdmin && !impersonatedBy);
 
-
   // One definition, in lib/auth.ts, shared with every other admin write.
   // Invalidating the session and the account list is its job, not this page's —
   // so nothing here calls window.location.reload().
@@ -164,109 +193,110 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
     onError: (e: Error) => setError(formErrors(e).form),
   });
 
-  if (loading || !user) return <div className="page-header"><h1>{m.loading()}</h1></div>;
+  if (loading || !user) return <PageInner><Loading /></PageInner>;
 
   return (
-    <div className="admin page-inner">
+    <div data-testid="admin-page">
       {impersonatedBy && (
-        <div className="admin-banner" data-testid="impersonation-banner">
-          <span>
-            {m.impersonating_as({ email: user.email })}
-          </span>
-          <button
-            data-testid="stop-impersonating"
-            onClick={() =>
-              adminAction.mutate({ path: "stop-impersonating", body: {} })
-            }
-          >
-            {m.stop_impersonating()}
-          </button>
-        </div>
+        <Alert className="rounded-none border-x-0 border-t-0" data-testid="impersonation-banner">
+          <AlertDescription>{m.impersonating_as({ email: user.email })}</AlertDescription>
+          <AlertAction>
+            <Button
+              size="sm"
+              variant="outline"
+              data-testid="stop-impersonating"
+              onClick={() => adminAction.mutate({ path: "stop-impersonating", body: {} })}
+            >
+              {m.stop_impersonating()}
+            </Button>
+          </AlertAction>
+        </Alert>
       )}
 
-      <div className="page-header">
-        <div className="crumbs">{m.admin_crumb()}</div>
-        {/* "Dashboard" until Home existed; this is the console. */}
-        <h1>{m.home_admin()}</h1>
-        <div className="sub">
-          {user.name || user.email} ·{" "}
-          <span className="badge" data-testid="role-badge">
-            {role}
-          </span>
-        </div>
-      </div>
+      <PageHeader
+        crumbs={[{ label: m.admin_crumb() }]}
+        // "Dashboard" until Home existed; this is the console.
+        title={m.home_admin()}
+        sub={<>{user.name || user.email} · <Badge variant="secondary" data-testid="role-badge">{role}</Badge></>}
+      />
 
-      {error && <div className="feedback-error" role="alert">{error}</div>}
+      <PageInner className="flex flex-col gap-6">
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
-      <section className="panel">
-        <h2>{m.your_permissions()}</h2>
-        <div className="admin-perms" data-testid="permissions">
-          {["create", "read", "update", "delete"].map((p) => (
-            <span
-              key={p}
-              // `badge-success` is asserted directly by the render specs. The
-              // class name is the contract, not decoration.
-              className={`badge ${held[p] ? "badge-success" : "badge-off"}`}
-              data-testid={`perm-${p}`}
-            >
-              {p}
-            </span>
-          ))}
-        </div>
-      </section>
+      <Card>
+        <CardHeader><CardTitle>{m.your_permissions()}</CardTitle></CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-1.5" data-testid="permissions">
+            {["create", "read", "update", "delete"].map((p) => (
+              <Badge
+                key={p}
+                // `data-held` is asserted directly by the render specs. The
+                // attribute is the contract, not decoration.
+                variant={held[p] ? "default" : "outline"}
+                className={held[p] ? undefined : "opacity-60"}
+                data-held={held[p] ? "true" : "false"}
+                data-testid={`perm-${p}`}
+              >
+                {p}
+              </Badge>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
-      <section className="panel">
-        <h2>{m.events()}</h2>
-        <table className="admin-table" data-testid="events-table">
-          <thead>
-            <tr>
-              <th>{m.name()}</th>
-              <th>{m.type()}</th>
-              <th>{m.description()}</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
+      <Card>
+        <CardHeader><CardTitle>{m.events()}</CardTitle></CardHeader>
+        <CardContent>
+        <Table data-testid="events-table">
+          <TableHeader>
+            <TableRow>
+              <TableHead>{m.name()}</TableHead>
+              <TableHead>{m.type()}</TableHead>
+              <TableHead>{m.description()}</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {events.data?.events.length ? (
               events.data.events.map((e) => (
-                <tr key={e.id}>
-                  <td>{e.name}</td>
-                  <td>
-                    <span className="badge badge-outline">{e.typeCode}</span>
-                  </td>
-                  <td className="muted">{e.description || "—"}</td>
-                  <td>
+                <TableRow key={e.id}>
+                  <TableCell className="whitespace-normal font-medium">{e.name}</TableCell>
+                  <TableCell><Badge variant="outline">{e.typeCode}</Badge></TableCell>
+                  <TableCell className="whitespace-normal text-muted-foreground">{e.description || "—"}</TableCell>
+                  <TableCell className="text-right">
                     {e.can.DELETE_EVENT && (
-                      <button
-                        className="danger"
-                        onClick={() => deleteEvent.mutate(e.id)}
-                      >
+                      <Button variant="destructive" size="sm" onClick={() => deleteEvent.mutate(e.id)}>
                         {m.delete()}
-                      </button>
+                      </Button>
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))
             ) : (
-              <tr>
-                <td colSpan={4} className="muted">
+              <TableRow>
+                <TableCell colSpan={4} className="text-muted-foreground">
                   {events.isPending ? m.loading() : m.no_events_yet()}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
-      </section>
+          </TableBody>
+        </Table>
+        </CardContent>
+      </Card>
 
       {canCreate ? (
         <CreateEvent onError={setError} />
       ) : (
-        <section className="panel dim" data-testid="create-event-denied">
-          <h2>{m.create_event()}</h2>
-          <p className="muted">
-            {m.create_event_denied({ role })}
-          </p>
-        </section>
+        <Card className="opacity-60" data-testid="create-event-denied">
+          <CardHeader>
+            <CardTitle>{m.create_event()}</CardTitle>
+            <CardDescription>{m.create_event_denied({ role })}</CardDescription>
+          </CardHeader>
+        </Card>
       )}
 
       {/* `teams.delete` is granted to PLATFORM_ADMIN and to nobody else — no
@@ -285,29 +315,31 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
       {/* Only for an admin who is not already impersonating: Better Auth does
           not model a nested impersonation, and the way out is the banner. */}
       {isAdmin && !impersonatedBy && (
-        <section className="panel" data-testid="admin-console">
-          <h2>{m.accounts()}</h2>
-          <p className="muted">
-            {m.accounts_note()}
-          </p>
-          <table className="admin-table" data-testid="accounts-table">
-            <thead>
-              <tr>
-                <th>{m.email_column()}</th>
-                <th>{m.role()}</th>
-                <th>{m.status()}</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
+        <Card data-testid="admin-console">
+          <CardHeader>
+            <CardTitle>{m.accounts()}</CardTitle>
+            <CardDescription>{m.accounts_note()}</CardDescription>
+          </CardHeader>
+          <CardContent>
+          <Table data-testid="accounts-table">
+            <TableHeader>
+              <TableRow>
+                <TableHead>{m.email_column()}</TableHead>
+                <TableHead>{m.role()}</TableHead>
+                <TableHead>{m.status()}</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {(accounts.data ?? []).map((a) => (
-                <tr key={a.id} data-testid={`account-row-${a.email}`}>
-                  <td>
+                <TableRow key={a.id} data-testid={`account-row-${a.email}`}>
+                  <TableCell className="whitespace-normal">
                     {a.name || a.email}
-                    <div className="muted small">{a.email}</div>
-                  </td>
-                  <td>
-                    <select
+                    <div className="text-sm text-muted-foreground">{a.email}</div>
+                  </TableCell>
+                  <TableCell>
+                    <NativeSelect
+                      size="sm"
                       data-testid={`role-select-${a.email}`}
                       value={a.role ?? "spectator"}
                       onChange={(ev) =>
@@ -318,92 +350,76 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
                       }
                     >
                       {ROLES.map((r) => (
-                        <option key={r} value={r}>
-                          {r}
-                        </option>
+                        <NativeSelectOption key={r} value={r}>{r}</NativeSelectOption>
                       ))}
-                    </select>
-                  </td>
-                  <td>
+                    </NativeSelect>
+                  </TableCell>
+                  <TableCell>
                     {/* Banned first: it is Better Auth's own flag and overrides
-                        whatever the model's lifecycle says.
-
-                        Then the model's own status, resolved through the
-                        `userStatuses` vocabulary rather than branched on here.
-                        This tested for PENDING_APPROVAL and called everything
-                        else "Active" — and the model defines four: ACTIVE,
-                        PENDING_APPROVAL, SUSPENDED and DEACTIVATED. A suspended
-                        account read as active in the admin console, which is
-                        the one screen whose job is to say otherwise.
-
-                        The pending testid stays, because approval is a state
-                        with an action beside it and the specs hook on it. */}
+                        whatever the model's lifecycle says. Then the model's own
+                        status, through the `userStatuses` vocabulary — ACTIVE,
+                        PENDING_APPROVAL, SUSPENDED and DEACTIVATED. The pending
+                        testid stays, because approval is a state with an action
+                        beside it and the specs hook on it. */}
                     {a.banned ? (
-                      <span className="badge badge-danger" data-testid={`banned-${a.email}`}>
-                        {m.banned()}
-                      </span>
+                      <Badge variant="destructive" data-testid={`banned-${a.email}`}>{m.banned()}</Badge>
                     ) : (
-                      <span
-                        className={`badge ${a.statusCode === "ACTIVE" ? "" : "badge-off"}`}
-                        data-testid={
-                          a.statusCode === "PENDING_APPROVAL" ? `pending-${a.email}` : undefined
-                        }
+                      <Badge
+                        variant={a.statusCode === "ACTIVE" ? "secondary" : "outline"}
+                        data-off={a.statusCode === "ACTIVE" ? undefined : "true"}
+                        data-testid={a.statusCode === "PENDING_APPROVAL" ? `pending-${a.email}` : undefined}
                       >
                         {label("userStatuses", a.statusCode ?? "ACTIVE")}
-                      </span>
+                      </Badge>
                     )}
-                  </td>
-                  <td>
+                  </TableCell>
+                  <TableCell className="text-right">
                     {a.id === user.id ? (
-                      <span className="muted small">{m.you()}</span>
+                      <span className="text-sm text-muted-foreground">{m.you()}</span>
                     ) : (
-                      <>
-                        <button
+                      <div className="flex flex-wrap justify-end gap-1.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
                           data-testid={`impersonate-${a.email}`}
-                          onClick={() =>
-                            adminAction.mutate({
-                              path: "impersonate-user",
-                              body: { userId: a.id },
-                            })
-                          }
+                          onClick={() => adminAction.mutate({ path: "impersonate-user", body: { userId: a.id } })}
                         >
                           {m.impersonate()}
-                        </button>
+                        </Button>
                         {/* Only where it means something. APPROVE_REFEREE is
                             "approve a referee", not "set a status", so the
                             control exists exactly where the action does. */}
                         {a.statusCode === "PENDING_APPROVAL" && a.role === "referee" && (
-                          <button
-                            className="primary"
+                          <Button
+                            size="sm"
                             data-testid={`approve-${a.email}`}
                             disabled={approve.isPending}
                             onClick={() => approve.mutate(a.id)}
                           >
                             {m.approve()}
-                          </button>
+                          </Button>
                         )}
-                        <button
+                        <Button
+                          variant="outline"
+                          size="sm"
                           data-testid={`ban-${a.email}`}
-                          onClick={() =>
-                            adminAction.mutate({
-                              path: a.banned ? "unban-user" : "ban-user",
-                              body: { userId: a.id },
-                            })
-                          }
+                          onClick={() => adminAction.mutate({ path: a.banned ? "unban-user" : "ban-user", body: { userId: a.id } })}
                         >
                           {a.banned ? m.unban() : m.ban()}
-                        </button>
-                      </>
+                        </Button>
+                      </div>
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </section>
+            </TableBody>
+          </Table>
+          </CardContent>
+        </Card>
       )}
 
       <RoleSwitcher current={role} />
+      </PageInner>
     </div>
   );
 }
@@ -426,11 +442,9 @@ function RoleSwitcher({ current }: { current: string }) {
   const verifyCode = useVerifyCode();
   const devAccounts = useDevAccounts();
   // The server supplies permitted actors and, on staging, their seeded code.
-  // One per role, deliberately. /api/dev/accounts lists every seeded person now,
-  // because the differences *within* a role are what you check a permission
-  // against — but this control switches ROLE, and three buttons all reading
-  // "Coach" would be three ways to do the same thing. Choosing a particular
-  // person is the login page's job.
+  // One per role, deliberately: this control switches ROLE, and three buttons
+  // all reading "Coach" would be three ways to do the same thing. Choosing a
+  // particular person is the login page's job.
   const actors = (devAccounts.data?.accounts ?? [])
     .filter((a, i, all) => all.findIndex((o) => o.role === a.role) === i)
     .map((a) => ({ ...a, label: a.role.charAt(0).toUpperCase() + a.role.slice(1) }));
@@ -440,10 +454,7 @@ function RoleSwitcher({ current }: { current: string }) {
       // Sign out first, and this is not optional: Better Auth refuses a
       // sign-in from a request that already carries a session cookie, so
       // switching straight from one actor to another silently does nothing.
-      //
       // Silently, because this is one step of a switch and not a sign-out.
-      // Invalidating here resolves the session to nobody for a moment, and
-      // this page redirects to /#/login when nobody is signed in.
       setStatus("Signing out…");
       await signOutSilently();
 
@@ -462,24 +473,29 @@ function RoleSwitcher({ current }: { current: string }) {
   };
 
   return (
-    <section className="panel">
-      <h2>{m.sign_in_as_dev()}</h2>
-      <p className="muted small" data-testid="switch-status">
-        {status}
-      </p>
-      <div className="admin-switcher" data-testid="role-switcher">
-        {actors.map((a) => (
-          <button
-            key={a.email}
-            title={a.email}
-            className={current === a.role ? "active" : ""}
-            onClick={() => switchTo(a.email)}
-          >
-            {a.label}
-          </button>
-        ))}
-      </div>
-    </section>
+    <Card>
+      <CardHeader>
+        <CardTitle>{m.sign_in_as_dev()}</CardTitle>
+        <CardDescription data-testid="switch-status">{status}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ToggleGroup
+          variant="outline"
+          value={[current]}
+          data-testid="role-switcher"
+          aria-label={m.sign_in_as_dev()}
+          onValueChange={(groupValue: unknown[]) => {
+            const next = groupValue.at(-1);
+            const actor = actors.find((a) => a.role === next);
+            if (actor) void switchTo(actor.email);
+          }}
+        >
+          {actors.map((a) => (
+            <ToggleGroupItem key={a.email} value={a.role} title={a.email}>{a.label}</ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -498,14 +514,9 @@ function RoleSwitcher({ current }: { current: string }) {
  * `create-user` treats `password` as optional — it links a credential account
  * only `if (ctx.body.password)`. So this sends none, the row exists with no way
  * to sign in by password, and the person gets in the way everybody else does:
- * they ask for a code. Sending a throwaway password would create a credential
- * account nobody can use and one more thing to explain.
- *
- * The role is sent explicitly and survives: the `user.create.before` hook reads
- * `u.role ?? "spectator"`, so it fills a gap rather than overwriting a choice.
- * Better Auth refuses a duplicate address itself, with
- * USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL, so there is no check here that could
- * disagree with it.
+ * they ask for a code. The role is sent explicitly and survives: the
+ * `user.create.before` hook reads `u.role ?? "spectator"`, so it fills a gap
+ * rather than overwriting a choice.
  */
 function CreateAccount() {
   const { label } = useLocale();
@@ -513,11 +524,14 @@ function CreateAccount() {
   const issue = create.error ? formErrors(create.error).form : null;
 
   return (
-    <section className="panel" data-testid="create-account">
-      <h2>{m.admin_create_account()}</h2>
-      <p className="muted">{m.admin_create_account_sub()}</p>
+    <Card data-testid="create-account">
+      <CardHeader>
+        <CardTitle>{m.admin_create_account()}</CardTitle>
+        <CardDescription>{m.admin_create_account_sub()}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
       {issue && (
-        <Alert variant="destructive" data-testid="create-account-error" role="alert">
+        <Alert variant="destructive" data-testid="create-account-error">
           <AlertDescription>{issue}</AlertDescription>
         </Alert>
       )}
@@ -560,30 +574,22 @@ function CreateAccount() {
           </Button>
         </FieldGroup>
       </form>
-    </section>
+      </CardContent>
+    </Card>
   );
 }
 
 /**
  * Removing a player, which only a platform admin may do.
  *
- * The same line the PO drew for teams, drawn again: `DELETE_PLAYER` is granted
- * to `PLATFORM_ADMIN` and to nobody else. A head coach manages a squad and may
- * not delete the people in it — so this sits here rather than beside "Remove"
- * on the roster, which is a coach's tool. Those two buttons mean genuinely
- * different things and putting them side by side would invite the mistake.
- *
- * Removing from a squad *ends the spell*: `playerTeam` carries from and to
- * dates and the departure stops granting access without making last season's
- * team sheet wrong. This deletes the person. Four tables carry a non-null FK to
- * `player.id` — squads, event entries, attendance and guardians — and none is
- * ON DELETE CASCADE, so the procedure clears them first. The confirmation names
- * them for the reason the team one does: agreeing to delete a player is not the
- * same as agreeing to delete who was responsible for them.
- *
- * The list is `players.list`, which already existed and is already behind a
- * session — `domain.ts` holds it stricter than the model on purpose, because
- * these rows name minors.
+ * `DELETE_PLAYER` is granted to `PLATFORM_ADMIN` and to nobody else. A head
+ * coach manages a squad and may not delete the people in it — so this sits here
+ * rather than beside "Remove" on the roster, which is a coach's tool. Removing
+ * from a squad *ends the spell*; this deletes the person. Four tables carry a
+ * non-null FK to `player.id` — squads, event entries, attendance and guardians
+ * — and the procedure clears them first. The confirmation names them: agreeing
+ * to delete a player is not the same as agreeing to delete who was responsible
+ * for them.
  */
 function DeletePlayers() {
   const qc = useQueryClient();
@@ -598,35 +604,35 @@ function DeletePlayers() {
   const players = data?.items ?? [];
 
   return (
-    <section className="panel" data-testid="admin-players">
-      <h2>{m.admin_players()}</h2>
-      {players.length === 0 && (
-        <div className="empty" data-testid="admin-no-players">{m.admin_no_players()}</div>
+    <Card data-testid="admin-players">
+      <CardHeader><CardTitle>{m.admin_players()}</CardTitle></CardHeader>
+      <CardContent>
+      {players.length === 0 && <EmptyState data-testid="admin-no-players">{m.admin_no_players()}</EmptyState>}
+      {players.length > 0 && (
+        <ItemGroup className={LIST}>
+          {players.map((p) => (
+            <Item key={p.id} className={ROW} data-testid={`admin-player-${p.id}`}>
+              <ItemContent>
+                <ItemTitle className="text-base">{name(p.names)}</ItemTitle>
+                {/* The code is the model's, not a reader's — `label` is how every
+                    other screen turns one into words, in their language. */}
+                <ItemDescription>{[`#${p.jerseyNumber}`, label("positions", p.positionCode)].join(" · ")}</ItemDescription>
+              </ItemContent>
+              <ItemActions>
+                <ConfirmDelete
+                  label={m.admin_delete_player()}
+                  description={m.admin_delete_player_confirm({ player: name(p.names) })}
+                  disabled={remove.isPending}
+                  data-testid={`delete-player-${p.id}`}
+                  onConfirm={() => remove.mutate(p.id)}
+                />
+              </ItemActions>
+            </Item>
+          ))}
+        </ItemGroup>
       )}
-      {players.map((p) => (
-        <div key={p.id} className="invite-row" data-testid={`admin-player-${p.id}`}>
-          <div>
-            <div className="row-title">{name(p.names)}</div>
-            {/* The code is the model's, not a reader's — `label` is how every
-                other screen turns one into words, in their language. */}
-            <div className="row-meta">
-              {[`#${p.jerseyNumber}`, label("positions", p.positionCode)].join(" · ")}
-            </div>
-          </div>
-          <Button
-            variant="outline"
-            data-testid={`delete-player-${p.id}`}
-            disabled={remove.isPending}
-            onClick={() => {
-              if (window.confirm(m.admin_delete_player_confirm({ player: name(p.names) })))
-                remove.mutate(p.id);
-            }}
-          >
-            {m.admin_delete_player()}
-          </Button>
-        </div>
-      ))}
-    </section>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -634,15 +640,9 @@ function DeletePlayers() {
  * Removing a team, which only a platform admin may do.
  *
  * `DELETE_TEAM` is granted to `PLATFORM_ADMIN` alone: a head coach may edit
- * their team's profile and manage its roster, and may not delete it. That is
- * the PO's line and it is why this control is here rather than beside the edit
- * form on the team page.
- *
- * It cascades. Three tables carry a non-null FK to `team.id` — the roster, the
- * coaching staff and the event entries — and the procedure clears them first,
- * because none is declared ON DELETE CASCADE. So the confirmation names what
- * goes with it rather than asking a bare "are you sure": somebody agreeing to
- * delete a team is not necessarily agreeing to delete its history.
+ * their team's profile and manage its roster, and may not delete it. It
+ * cascades — the roster, the coaching staff and the event entries go with it —
+ * so the confirmation names what goes rather than asking a bare "are you sure".
  */
 function DeleteTeams() {
   const qc = useQueryClient();
@@ -654,27 +654,32 @@ function DeleteTeams() {
   });
 
   return (
-    <section className="panel" data-testid="admin-teams">
-      <h2>{m.admin_teams()}</h2>
-      {teams.length === 0 && <div className="empty" data-testid="admin-no-teams">{m.admin_no_teams()}</div>}
-      {teams.map((t) => (
-        <div key={t.id} className="invite-row" data-testid={`admin-team-${t.id}`}>
-          <div>
-            <div className="row-title">{t.name}</div>
-            <div className="row-meta">{[t.orgName, t.ageGroupLabel, t.genderLabel].filter(Boolean).join(" · ")}</div>
-          </div>
-          <Button
-            variant="outline"
-            data-testid={`delete-team-${t.id}`}
-            disabled={remove.isPending}
-            onClick={() => {
-              if (window.confirm(m.admin_delete_team_confirm({ team: t.name }))) remove.mutate(t.id);
-            }}
-          >
-            {m.admin_delete_team()}
-          </Button>
-        </div>
-      ))}
-    </section>
+    <Card data-testid="admin-teams">
+      <CardHeader><CardTitle>{m.admin_teams()}</CardTitle></CardHeader>
+      <CardContent>
+      {teams.length === 0 && <EmptyState data-testid="admin-no-teams">{m.admin_no_teams()}</EmptyState>}
+      {teams.length > 0 && (
+        <ItemGroup className={LIST}>
+          {teams.map((t) => (
+            <Item key={t.id} className={ROW} data-testid={`admin-team-${t.id}`}>
+              <ItemContent>
+                <ItemTitle className="text-base">{t.name}</ItemTitle>
+                <ItemDescription>{[t.orgName, t.ageGroupLabel, t.genderLabel].filter(Boolean).join(" · ")}</ItemDescription>
+              </ItemContent>
+              <ItemActions>
+                <ConfirmDelete
+                  label={m.admin_delete_team()}
+                  description={m.admin_delete_team_confirm({ team: t.name })}
+                  disabled={remove.isPending}
+                  data-testid={`delete-team-${t.id}`}
+                  onConfirm={() => remove.mutate(t.id)}
+                />
+              </ItemActions>
+            </Item>
+          ))}
+        </ItemGroup>
+      )}
+      </CardContent>
+    </Card>
   );
 }

@@ -1,23 +1,22 @@
 import { useState } from "react";
+import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { useDevAccounts, useRequestCode, useVerifyCode, codeFromOutbox } from "../lib/auth";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
+import { PageHeader, PageInner, SectionHeading } from "../components/page";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
 
 /**
  * Passwordless sign-in for the SPA (ADR 012).
  *
- * Deliberately the same two steps, in the same order, against the same two
- * endpoints as the harness screen in src/views/login.ts. They are two stacks —
- * React here, template literals there (ADR 008) — so the markup cannot be
- * shared, but the *flow* is the thing users notice, and it now matches.
- *
- * This is also what removes the jarring hand-off ADR 011 flagged: an invitee
- * landing on the accept page no longer gets bounced into the other GUI to sign
- * in.
+ * Two steps, in the same order, against the same two endpoints as the old
+ * harness screen: ask for a code, redeem it.
  *
  * No `getIssueMessage` here, and that is not an oversight. These two forms post
  * to Better Auth, not to an oRPC procedure, and Better Auth answers with
@@ -34,10 +33,7 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState<"email" | "code">("email");
 
-  // Two mutations and a query, all defined once in lib/auth.ts. This page used
-  // to hold five `fetch` calls, a `busy` useState, an `error` useState, a
-  // `useEffect` with a `live` race guard, and three near-identical try/catch
-  // blocks — the machine TanStack already is.
+  // Two mutations and a query, all defined once in lib/auth.ts.
   const requestCode = useRequestCode();
   const verifyCode = useVerifyCode();
   const devAccounts = useDevAccounts();
@@ -70,11 +66,8 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
    *
    * Either way this completes a *real* sign-in — request a code, redeem it — so
    * what you get is an ordinary session and nothing here bypasses Better Auth.
-   *
-   * One click, as the picker promises. This used to fill the code in and stop
-   * at the Verify button — a second click every demo and every agent paid,
-   * while AGENTS.md said "sign in with one click". With a code in hand it signs
-   * in; without one it stays on the code step so a person can type what they got.
+   * One click, as the picker promises: with a code in hand it signs in; without
+   * one it stays on the code step so a person can type what they got.
    */
   async function fillDev(address: string) {
     setEmail(address);
@@ -92,15 +85,11 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
   }
 
   return (
-    <div className="page-inner" data-testid="spa-login">
-      <div className="page-header">
-        <div className="crumbs">{m.sign_in_crumb()}</div>
-        <h1>{m.welcome()}</h1>
-        <div className="sub">{m.sign_in_sub()}</div>
-      </div>
-
+    <div data-testid="spa-login">
+      <PageHeader crumbs={[{ label: m.sign_in_crumb() }]} title={m.welcome()} sub={m.sign_in_sub()} />
+      <PageInner className="flex flex-col gap-6">
       {error && (
-        <Alert variant="destructive" role="alert" id="login-error" data-testid="login-error">
+        <Alert variant="destructive" id="login-error" data-testid="login-error">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
@@ -135,55 +124,55 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
             </p>
             <Field>
               <FieldLabel htmlFor="spa-otp">{m.six_digit_code()}</FieldLabel>
-              <Input
+              {/* The registry's one-time-code field: six slots, digits only, and
+                  `autocomplete="one-time-code"` from the library so a phone can
+                  offer the code straight from the notification. */}
+              <InputOTP
                 id="spa-otp"
-                type="text"
-                required
-                /* one-time-code lets phones offer the code straight from the
-                   notification instead of forcing an app switch. */
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                pattern="[0-9]{6}"
                 maxLength={6}
-                placeholder="000000"
-                data-testid="spa-otp-input"
+                pattern={REGEXP_ONLY_DIGITS}
+                required
                 value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                className="login-code"
+                onChange={setOtp}
+                data-testid="spa-otp-input"
                 aria-describedby={error ? "login-error" : undefined}
-              />
+              >
+                <InputOTPGroup>
+                  {[0, 1, 2, 3, 4, 5].map((i) => <InputOTPSlot key={i} index={i} className="size-11 text-base" />)}
+                </InputOTPGroup>
+              </InputOTP>
               {/* Better Auth answers whole-form, so the message hangs off the
                   code field, the one the reader is on when it arrives. */}
               {error && <FieldError>{error}</FieldError>}
             </Field>
-            <Button type="submit" disabled={busy} className="w-fit" data-testid="spa-verify-code">
-              {busy ? m.signing_in() : m.sign_in()}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-fit"
-              data-testid="spa-use-different-email"
-              onClick={() => {
-                setStep("email");
-                setOtp("");
-                // Clears the failed-code message: the error is the mutation's
-                // now, so resetting it is what dismisses it.
-                verifyCode.reset();
-              }}
-            >
-              {m.use_different_email()}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button type="submit" disabled={busy} data-testid="spa-verify-code">
+                {busy ? m.signing_in() : m.sign_in()}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                data-testid="spa-use-different-email"
+                onClick={() => {
+                  setStep("email");
+                  setOtp("");
+                  // Clears the failed-code message: the error is the mutation's
+                  // now, so resetting it is what dismisses it.
+                  verifyCode.reset();
+                }}
+              >
+                {m.use_different_email()}
+              </Button>
+            </div>
           </FieldGroup>
         </form>
       )}
 
       {devAccounts.data?.accounts.length ? (
-        <div className="dev-accounts" data-testid="spa-dev-accounts">
-          <div className="section-h" style={{ marginTop: 32 }}>
-            <h2>{m.dev_accounts()}</h2>
-            <a className="more">{devAccounts.data?.code ? m.demo_accounts_note() : m.local_only()}</a>
-          </div>
+        <section data-testid="spa-dev-accounts">
+          <SectionHeading title={m.dev_accounts()} className="mt-2">
+            <span className="text-sm text-muted-foreground">{devAccounts.data?.code ? m.demo_accounts_note() : m.local_only()}</span>
+          </SectionHeading>
           {/* Every seeded person, not one per role. The differences *within* a
               role are the point: two coaches run different schools, two referees
               are on different games, and signing in as the wrong one is why a
@@ -191,29 +180,33 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
 
               `holds` is derived from the model server-side, so what is printed
               here is the same answer the API will give when you act as them. */}
-          <div className="dev-account-list">
+          <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border">
             {devAccounts.data.accounts.map((account) => (
-              <button
+              <Item
                 key={account.email}
-                className="dev-account"
+                className="rounded-none px-4 py-3 text-left hover:bg-muted"
+                render={<button type="button" />}
                 // Still a per-role testid for the first of each, because specs
                 // that want "the referee" mean the role and should not have to
                 // know a person's name.
                 data-testid={`spa-dev-${account.email}`}
                 onClick={() => void fillDev(account.email)}
               >
-                <span className="dev-account-who">
-                  <strong>{account.name}</strong>
-                  <span className="badge badge-outline">{account.role}</span>
-                </span>
-                <span className="dev-account-holds">
-                  {account.holds.length ? account.holds.join(" · ") : m.dev_holds_nothing()}
-                </span>
-              </button>
+                <ItemContent>
+                  <ItemTitle className="text-base">
+                    {account.name}
+                    <Badge variant="outline">{account.role}</Badge>
+                  </ItemTitle>
+                  <ItemDescription className="line-clamp-none">
+                    {account.holds.length ? account.holds.join(" · ") : m.dev_holds_nothing()}
+                  </ItemDescription>
+                </ItemContent>
+              </Item>
             ))}
-          </div>
-        </div>
+          </ItemGroup>
+        </section>
       ) : null}
+      </PageInner>
     </div>
   );
 }

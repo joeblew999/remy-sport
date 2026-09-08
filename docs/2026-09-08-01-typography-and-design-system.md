@@ -152,7 +152,7 @@ migrates; no `locator(".…")` remains for a migrated surface.
       the phone plan's compact headers, sticky tabs and scrolling action rows
       are delivered here with the registry's parts, not sticky and scrolling
       rules of our own. Action rows are ButtonGroup (`.event-actions` goes).
-      The 17 hand-drawn SVGs in `components/icon.tsx` become lucide-react
+      The 17 hand-drawn SVGs of the old icon component become lucide-react
       icons, which the registry already installed, and the file is deleted.
       The search rules kept "for its return" are deleted; when search
       returns it is Command. Under 768px the shell renders our own labelled

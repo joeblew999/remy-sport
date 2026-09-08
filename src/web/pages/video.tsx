@@ -14,6 +14,9 @@ import { routeHref } from "../lib/router";
  */
 
 import { GameBroadcast, GameVideo } from "../components/moq-video"
+import { PageHeader, PageInner } from "../components/page"
+import { EmptyState, Loading } from "../components/states"
+import { StatusBadge } from "../components/status-badge"
 import { useDefaultGame, useGame } from "../lib/data"
 import { m } from "../lib/i18n"
 
@@ -34,20 +37,20 @@ function GameHeading({ gameId }: { gameId: string }) {
   const played = game.homeScore !== null && game.awayScore !== null
   return (
     <>
-      <div className="tagline" data-testid="video-game">
+      <p className="mt-1.5 text-muted-foreground" data-testid="video-game">
         {game.homeTeam} {m.versus()} {game.awayTeam}
         {game.venue ? ` · ${game.venue}` : ""}
-      </div>
-      <div className="video-score" data-testid="video-score">
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-3" data-testid="video-score">
         {played && (
-          <span className="score">
+          <span className="text-2xl font-semibold tabular-nums">
             {game.homeScore}–{game.awayScore}
           </span>
         )}
-        <span className="status">{game.statusLabel}</span>
+        <StatusBadge status={game.statusCode}>{game.statusLabel}</StatusBadge>
         {/* Not a dead end: back to the event this game belongs to. */}
         <a
-          className="more"
+          className="text-sm underline underline-offset-4"
           href={routeHref({ page: "event", id: game.eventId })}
           data-testid="video-event-link"
         >
@@ -69,14 +72,10 @@ function Shell({
 }) {
   return (
     <>
-      <div className="page-header">
-        <a className="crumbs" href={routeHref({ page: "game", id: gameId })} data-testid="video-back">
-          ← {m.games()}
-        </a>
-        <h1>{heading}</h1>
+      <PageHeader crumbs={[{ label: m.games(), href: routeHref({ page: "game", id: gameId }), testId: "video-back" }]} title={heading}>
         <GameHeading gameId={gameId} />
-      </div>
-      <div className="page-inner">{children}</div>
+      </PageHeader>
+      <PageInner>{children}</PageInner>
     </>
   )
 }
@@ -93,20 +92,22 @@ function useGameId(id: string | undefined) {
   return { gameId: id ?? fallback?.id, resolving: !id && isPending }
 }
 
-function Empty() {
+function NoGame() {
   return (
-    <div className="empty" data-testid="video-no-game">
-      <p>{m.video_no_game()}</p>
-      <a href={routeHref({ page: "live" })}>{m.nav_live()}</a>
-    </div>
+    <PageInner>
+      <EmptyState data-testid="video-no-game">
+        <p>{m.video_no_game()}</p>
+        <a href={routeHref({ page: "live" })}>{m.nav_live()}</a>
+      </EmptyState>
+    </PageInner>
   )
 }
 
 /** Point a camera at an authorized fixture. */
 export function BroadcastPage({ id }: { id?: string }) {
   const { gameId, resolving } = useGameId(id)
-  if (resolving) return <div className="empty">{m.loading()}</div>
-  if (!gameId) return <Empty />
+  if (resolving) return <PageInner><Loading /></PageInner>
+  if (!gameId) return <NoGame />
   return (
     <Shell gameId={gameId} heading={m.video_broadcast_heading()}>
       <GameBroadcast gameId={gameId} />
@@ -117,8 +118,8 @@ export function BroadcastPage({ id }: { id?: string }) {
 /** @answers VIEW_LIVE_STREAM */
 export function WatchPage({ id }: { id?: string }) {
   const { gameId, resolving } = useGameId(id)
-  if (resolving) return <div className="empty">{m.loading()}</div>
-  if (!gameId) return <Empty />
+  if (resolving) return <PageInner><Loading /></PageInner>
+  if (!gameId) return <NoGame />
   return (
     <Shell gameId={gameId} heading={m.video_watch_heading()}>
       <GameVideo gameId={gameId} />

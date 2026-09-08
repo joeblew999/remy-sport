@@ -89,8 +89,8 @@ rule("every font-family is a --font-* token", literalFontFamilies(css),
 
 /* The tails are load-bearing: Thai is self-hosted and system-ui renders CJK.
    Drop either and a declared locale becomes tofu. The mono token is exempt on
-   purpose — it is only ever used for digits. */
-const tailless = ["--font-sans", "--font-display", "--font-thai"].filter(token => {
+   purpose — it is only ever used for code and digits. */
+const tailless = ["--font-sans", "--font-thai"].filter(token => {
   const value = stripComments(css).match(new RegExp(`${token}\\s*:\\s*([^;]+)`))?.[1] ?? ""
   return !value.includes("'Noto Sans Thai'") || !value.includes("system-ui")
 })
@@ -100,39 +100,22 @@ rule("the text font tokens keep Noto Sans Thai and system-ui in their tails", ta
 const FLOOR = 12
 rule(`no text is set below ${FLOOR}px`, sizesBelow(css, FLOOR),
   `${CSS_PATH} sets text under ${FLOOR}px:\n  ${sizesBelow(css, FLOOR).join("\n  ")}\n\n` +
-  `The floor is var(--type-xs) in our rules and text-xs in Tailwind's. If something genuinely needs to be smaller, it is decoration, not text.`)
+  `The floor is text-xs. If something genuinely needs to be smaller, it is decoration, not text.`)
 
-/* Where digits have to line up, and nowhere else. Metadata — venues, dates,
-   organisers, roles, labels — is set in the sans face; a line of it in mono
-   is what made the app read like a terminal. */
-const MONO_ALLOWED = [
-  ".build-stamp",        // the build hash
-  ".search .kbd",        // a keyboard shortcut
-  ".live-banner .quarter", // the game clock in the Discover banner
-  ".player-jersey",      // a jersey number beside a name
-  ".login-code",         // the six-digit sign-in code
-  ".score-cell",         // scores down a schedule column
-  ".score-form input",   // score entry
-  ".moq-name",           // the broadcast identifier, compared across devices
-]
+/* Nowhere, any more: the registry's components carry their own faces, and a
+   column of digits aligns with tabular-nums. The rule stays so a stray
+   monospace label cannot come back — a line of metadata in mono is what made
+   the app read like a terminal. */
+const MONO_ALLOWED: readonly string[] = []
 const monoStrays = blocksUsing(css, /var\(--font-mono\)/, MONO_ALLOWED)
 rule("the monospace face is used only where digits align", monoStrays,
   `${CSS_PATH} sets var(--font-mono) on selectors not in the allowlist:\n  ${monoStrays.join("\n  ")}\n\n` +
   `Mono is for numbers that have to line up (scores, clocks, codes, hashes). Metadata is sans.\n` +
   `If this is a new column of digits, add the selector to MONO_ALLOWED in ${import.meta.url.split("/").slice(-2).join("/")} with what it aligns.`)
 
-/* Uppercase is a pill or a tag: a short status word in a box. Headings,
-   labels and table headers are sentence case. */
-const UPPERCASE_ALLOWED = [
-  ".build-env",          // the DEV / STAGING stamp
-  ".event-row .type",    // TOURNAMENT / LEAGUE / CAMP / SHOWCASE tag
-  ".event-row .status",  // LIVE NOW / FINISHED
-  ".live-banner .pill",  // LIVE NOW
-  ".fixture-row .outcome", // W / L
-  ".device-tag",         // THIS DEVICE / EXPIRED
-  ".venue-primary",      // PRIMARY venue tag
-  ".video-score .status", // LIVE on the broadcast page
-]
+/* Nowhere: a pill is the registry's Badge, sentence case as it ships.
+   Headings, labels and table headers are sentence case too. */
+const UPPERCASE_ALLOWED: readonly string[] = []
 const upperStrays = blocksUsing(css, /text-transform\s*:\s*uppercase/, UPPERCASE_ALLOWED)
 rule("uppercase is reserved for pills and tags", upperStrays,
   `${CSS_PATH} sets text-transform: uppercase on selectors not in the allowlist:\n  ${upperStrays.join("\n  ")}\n\n` +

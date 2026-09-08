@@ -39,9 +39,10 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
       {!user && !loading && (
         <PageInner>
           <Card data-testid="profile-signin">
-            <CardContent className="flex flex-col items-start gap-4">
+            <CardContent className="flex flex-col gap-4">
               <Alert><AlertDescription>{m.profile_signed_out_why()}</AlertDescription></Alert>
               <ButtonLink
+                className="w-fit"
                 data-testid="profile-signin-button"
                 href={routeHref(signInRoute(parseRoute(window.location.hash)))}
               >
@@ -56,13 +57,16 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
         <PageInner className="flex flex-col gap-6" data-testid="profile">
           <Card data-testid="profile-identity">
             <CardHeader><CardTitle>{m.profile_account()}</CardTitle></CardHeader>
-            <CardContent className="flex flex-col items-start gap-3">
+            {/* No `items-start`: the player form below is wrapped by the gate's
+                `display: contents` div, and a block form whose fields are
+                `w-full` shrinks to nothing inside a start-aligned column. */}
+            <CardContent className="flex flex-col gap-3">
               <div>
                 <p>{user.email}</p>
                 <p className="text-muted-foreground">{roleCode ? label("roles", roleCode) : user.role}</p>
                 {user.statusCode && <p className="text-muted-foreground">{label("userStatuses", user.statusCode)}</p>}
               </div>
-              <ButtonLink variant="outline" href={routeHref({ page: "home" })}>{m.profile_responsibilities()}</ButtonLink>
+              <ButtonLink variant="outline" className="w-fit" href={routeHref({ page: "home" })}>{m.profile_responsibilities()}</ButtonLink>
               <PlatformCan action="CREATE_PLAYER"><NewPlayer onCreated={(id) => goto({ page: "player", id })} /></PlatformCan>
             </CardContent>
           </Card>

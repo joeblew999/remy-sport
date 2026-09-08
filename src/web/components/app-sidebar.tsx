@@ -14,8 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { MoonIcon, SunIcon } from "lucide-react";
-import { Icon } from "./icon";
+import { CompassIcon, HomeIcon, MoonIcon, RadioIcon, SchoolIcon, SunIcon, UserIcon, UsersIcon, type LucideIcon } from "lucide-react";
 import { BuildStamp } from "./build-stamp";
 import { useSession } from "../lib/session";
 import { useLocale, type Locale } from "../lib/locale";
@@ -55,20 +54,21 @@ import { routeHref, type Page } from "../lib/router";
 interface NavItem {
   id: Page;
   label: string;
+  icon: LucideIcon;
 }
 
 /** What is yours, offered only to somebody signed in. */
 const YOU = (): NavItem[] => [
-  { id: "home", label: m.nav_home() },
-  { id: "profile", label: m.nav_profile() },
+  { id: "home", label: m.nav_home(), icon: HomeIcon },
+  { id: "profile", label: m.nav_profile(), icon: UserIcon },
 ];
 
 /** The platform: what is on, what is live, every team, every school. */
 const BROWSE = (): NavItem[] => [
-  { id: "discover", label: m.nav_discover() },
-  { id: "live", label: m.nav_live() },
-  { id: "teams", label: m.nav_teams() },
-  { id: "orgs", label: m.nav_orgs() },
+  { id: "discover", label: m.nav_discover(), icon: CompassIcon },
+  { id: "live", label: m.nav_live(), icon: RadioIcon },
+  { id: "teams", label: m.nav_teams(), icon: UsersIcon },
+  { id: "orgs", label: m.nav_orgs(), icon: SchoolIcon },
 ];
 
 /**
@@ -95,7 +95,7 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
         isActive={active}
         tooltip={item.label}
       >
-        <Icon name={item.id} />
+        <item.icon />
         <span>{item.label}</span>
       </SidebarMenuButton>
     </SidebarMenuItem>

@@ -76,10 +76,13 @@ export class CrashBoundary extends Component<Props, State> {
           reload: "Reload the page",
         }
       : { title: m.crash_title(), body: m.crash_body(), reload: m.crash_reload() }
+    // Centred in the viewport rather than in the app layout: the boundary sits
+    // outside the sidebar and topbar, so when it renders there is no layout to
+    // sit inside.
     return (
-      <div className="crash" role="alert" data-testid="crash">
-        <h1>{text.title}</h1>
-        <p>{text.body}</p>
+      <div className="flex min-h-svh flex-col items-center justify-center gap-4 px-6 py-10 text-center" role="alert" data-testid="crash">
+        <h1 className="text-xl font-semibold">{text.title}</h1>
+        <p className="max-w-[42ch] text-muted-foreground">{text.body}</p>
         <Button onClick={() => window.location.reload()}>
           {text.reload}
         </Button>

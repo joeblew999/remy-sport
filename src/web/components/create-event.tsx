@@ -7,7 +7,8 @@ import { m } from "../lib/i18n";
 import { NameTranslations, namesFrom } from "./name-translations";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 
@@ -42,11 +43,16 @@ export function CreateEvent({ onError, onCreated }: { onError?: (m: string | nul
   const createErr = formErrors(create.error, ["names[en]", "description"]);
 
   return (
-    <section className="panel" data-testid="create-event-form">
-      <h2>{m.create_event()}</h2>
-      {done && <div className="feedback-success" role="status">{m.event_created()}</div>}
+    <Card data-testid="create-event-form">
+      <CardHeader><CardTitle>{m.create_event()}</CardTitle></CardHeader>
+      <CardContent className="flex flex-col gap-4">
+      {done && (
+        <Alert role="status">
+          <AlertDescription>{m.event_created()}</AlertDescription>
+        </Alert>
+      )}
       {createErr.form && (
-        <Alert variant="destructive" data-testid="create-event-error" role="alert">
+        <Alert variant="destructive" data-testid="create-event-error">
           <AlertDescription>{createErr.form}</AlertDescription>
         </Alert>
       )}
@@ -59,7 +65,6 @@ export function CreateEvent({ onError, onCreated }: { onError?: (m: string | nul
             typeCode: String(f.get("type")) as Parameters<typeof api.events.create>[0]["typeCode"],
             description: String(f.get("description") || "") || undefined,
           });
-
         }}
       >
         <FieldGroup className="max-w-[420px]">
@@ -75,15 +80,9 @@ export function CreateEvent({ onError, onCreated }: { onError?: (m: string | nul
             )}
           </Field>
           <NameTranslations names={{}} id="create-event-name" />
-          {/* From the PO's vocabulary, not four hardcoded English strings. The
-              same shape GameStatus uses: an event type added upstream appears
-              here, already translated, with nothing edited in this file. The
-              hardcoded version was also a second place for the code list to
-              drift from the model. */}
-          {/* `defaultValue` was "tournament" and the codes are "TOURNAMENT", so
-              it matched no option and the browser fell back to whichever sorts
-              first. It happened to be the right one. Controlled now, because the
-              description below has to follow the selection anyway. */}
+          {/* From the PO's vocabulary, not four hardcoded English strings: an
+              event type added upstream appears here, already translated.
+              Controlled, because the description below follows the selection. */}
           <Field>
             <FieldLabel htmlFor="create-event-type">{m.event_type()}</FieldLabel>
             <NativeSelect
@@ -100,15 +99,14 @@ export function CreateEvent({ onError, onCreated }: { onError?: (m: string | nul
                 </NativeSelectOption>
               ))}
             </NativeSelect>
-            {/* What the choice actually means. It decides which tabs the event
-                gets and which actions the model grants on it — a camp has sessions
-                and no fixtures — and the four words in the dropdown say none of
-                that. The model has explained each one in three languages since the
-                fixtures were written. */}
+            {/* What the choice actually means: it decides which tabs the event
+                gets and which actions the model grants on it — a camp has
+                sessions and no fixtures. The model has explained each one in
+                three languages since the fixtures were written. */}
             {describe("eventTypes", type) && (
-              <p className="meta" data-testid="create-event-type-note">
+              <FieldDescription data-testid="create-event-type-note">
                 {describe("eventTypes", type)}
-              </p>
+              </FieldDescription>
             )}
           </Field>
           <Field data-invalid={!!createErr.field("description") || undefined}>
@@ -125,6 +123,7 @@ export function CreateEvent({ onError, onCreated }: { onError?: (m: string | nul
           </Button>
         </FieldGroup>
       </form>
-    </section>
+      </CardContent>
+    </Card>
   );
 }

@@ -5,52 +5,41 @@
 @import "shadcn/tailwind.css";
 @import "./fonts.css";
 
-/* Remy Sport — paper, ink and one orange.
+/* Remy Sport, on shadcn's theme.
 
-   Type is set through tokens, and tests/repo/styles.test.ts holds the line:
-   every font-family is a `--font-*` token, nothing is smaller than 12px, the
-   monospace face appears only where digits have to line up, and uppercase is
-   for pills and tags. The plan behind those rules is
-   docs/2026-09-08-01-typography-and-design-system.md.
+   The look is the preset recorded in components-lock.json — style Nova, base
+   colour Stone, theme Orange — written into this file by `bun run ops ui theme`
+   and never edited by hand. Everything the app renders is a registry component
+   or a Tailwind utility on one. The rules of our own that remain are the three
+   at the bottom, and each says why it cannot be a component. The plan behind
+   this is docs/2026-09-08-01-typography-and-design-system.md, and
+   tests/repo/styles.test.ts holds the line. */
 
-   shadcn is set up (that plan, Stage B1) and no component is replaced yet.
-   Its pieces here: the dark variant, Tailwind's theme blocks, the semantic
-   colour names its components use (mapped onto our tokens, so a shadcn
-   button is paper and ink without being told), and the base layer its init
-   writes. The rules of this file apply to those parts too. */
-
-/* Dark is a class on the root — `.dark` — set by the theme provider that
-   arrives with the shell (B2). Nothing sets it yet; the app stays light. */
+/* Dark is a class on the root — `.dark` — set by lib/theme-provider.tsx. */
 @custom-variant dark (&:is(.dark *));
 
-/* The faces, as Tailwind theme tokens so shadcn's components inherit them:
-   its `font-sans` is our Inter, its `font-mono` our Plex. `@theme static` so
-   Tailwind emits every one of these as a variable whether or not a utility
-   uses it — our own rules below read them with var().
+/* The faces, as Tailwind theme tokens so the registry's components inherit
+   them: its `font-sans` is our Inter, its `font-mono` our Plex.
 
    The tails are load-bearing, not politeness: Latin and Thai are self-hosted
    (scripts/ops/fonts.ts); CJK is deliberately not, because Noto Sans JP alone
    is 5.3MB and every device that reads it ships a better face already.
    `system-ui` is what renders Japanese, Korean and Chinese here — drop it and
-   a declared locale becomes tofu. The mono face carries no Thai on purpose: it
-   is only ever used for digits. */
+   a declared locale becomes tofu. `font-thai` is the Thai-first face for a
+   line that is Thai with a Latin word or two in it: one face for the whole
+   line reads better than Inter's Latin spliced into Noto's Thai. The mono
+   face carries no Thai on purpose: it is only ever used for code and digits. */
 @theme {
   --font-sans: 'Inter', 'Noto Sans Thai', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-display: 'Space Grotesk', 'Noto Sans Thai', system-ui, sans-serif;
   --font-thai: 'Noto Sans Thai', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
-  /* The only letter-spacing wider than natural: on the few uppercase pills. */
-  --tracking-caps: 0.06em;
 }
 
 /* ─── shadcn's theme, as its tooling writes it ───────────────────────────────
    Everything from here to the end of the base layer is shadcn's: the theme
    block its init writes, and the light and dark values its preset system
-   decides for style Nova, base colour Stone, theme Orange (the preset is
-   recorded in components-lock.json). `bun run ops ui theme` regenerates the
-   values; nobody edits them. One line is ours: headings in the display face. */
+   decides. `bun run ops ui theme` regenerates the values; nobody edits them. */
 @theme inline {
-    --font-heading: var(--font-display);
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -160,64 +149,35 @@
     --sidebar-ring: oklch(0.553 0.013 58.071);
 }
 
-/* ─── Ours, until B2 deletes them ────────────────────────────────────────────
-   The tokens the rules below this point use. They no longer share a name
-   with anything shadcn's theme defines: the orange is `--brand` (shadcn's
-   `--accent` is its quiet hover colour), the 6px corner is `--radius-legacy`
-   (shadcn's `--radius` is its own). */
-
-:root {
-  --paper: oklch(0.985 0.005 90);
-  --paper-2: oklch(0.965 0.008 90);
-  --paper-3: oklch(0.93 0.01 80);
-  --ink: oklch(0.18 0.01 270);
-  --ink-2: oklch(0.32 0.01 270);
-  --ink-3: oklch(0.55 0.01 270);
-  --ink-4: oklch(0.7 0.01 270);
-  --rule: oklch(0.88 0.005 90);
-  --rule-2: oklch(0.82 0.005 90);
-  --brand: oklch(0.62 0.18 35);
-  --brand-deep: oklch(0.48 0.18 35);
-  --brand-soft: oklch(0.94 0.04 50);
-  --court: oklch(0.78 0.08 60);
-  --live: oklch(0.55 0.22 25);
-  --good: oklch(0.55 0.12 145);
-
-  /* The scale our own rules use. Named `--type-*`, not `--text-*`, on
-     purpose: `--text-sm` is Tailwind's own token and shadcn's components are
-     designed against Tailwind's scale (text-sm is 14px there), so the two
-     scales stay apart — ours for the rules in this file until B2 replaces
-     them, Tailwind's for every component from the registry. Body is the
-     browser default, which is also the size below which iOS Safari zooms into
-     a focused field. `--type-xs` is the floor. */
-  --type-xs: 12px;
-  --type-sm: 13px;
-  --type-md: 14px;
-  --type-base: 16px;
-  --type-lg: 18px;
-  --type-xl: 22px;
-  --type-2xl: 28px;
-  --type-h1: clamp(26px, 3vw, 36px);
-
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-6: 24px;
-  --space-8: 32px;
-  --page-gutter: 32px;
-  --page-width: 1280px;
-  --radius-legacy: 6px;
-  --control-height: 44px;
+/* What shadcn's init writes, kept as it writes it: every border defaults to
+   the border token, focus outlines to the ring, the body to background and
+   foreground, the document to the sans face. `antialiased` is the one word
+   added, for the Thai face on a phone. */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  html {
+    @apply font-sans;
+  }
 }
 
-/* Touch targets. This app is used at courtside, one-handed, sometimes in
-   gloves — which is why --control-height is 44px and why the render tier
-   checks it. The registry's components are sized for a desktop mouse (button
-   and select 32px, input 36px); min-height beats the height their utilities
-   set, so this one rule in the layer we own lifts every control without
-   touching the locked files. Dense surfaces that genuinely need to opt out
-   (the admin tables, in step 10) can size themselves below and say why. */
+/* ─── Ours ───────────────────────────────────────────────────────────────────
+   Three rules the registry cannot carry, each saying why. Anything else that
+   arrives here is a component that should have been installed instead. */
+
+/* 1. Touch targets. This app is used at courtside, one-handed, sometimes in
+   gloves. The registry sizes controls for a desktop mouse (button 32px, input
+   36px, select 32px); one min-height rule on its data-slot hooks lifts every
+   control we author to 44px without touching a locked file, and the render
+   tier holds them to it. The topbar is the exception, and it is not a
+   compromise: its row is 56px by the mobile plan's number and the topbar
+   overflow check holds it there — a 44px control in it wraps the row, so
+   chrome keeps the registry's compact size. */
+:root { --control-height: 44px; }
 [data-slot="button"],
 [data-slot="input"],
 [data-slot="textarea"],
@@ -225,389 +185,16 @@
 [data-slot="tabs-trigger"] {
   min-height: var(--control-height);
 }
-/* The topbar is the exception, and it is not a compromise: its row is 56px by
-   the mobile plan's number — a 32px control plus 12px of padding a side — and
-   the topbar overflow check holds it there. A 44px control in it wraps the
-   row. Chrome keeps the registry's compact size — whatever kind of control it
-   renders, system Button or a dressed link — and everything a reader fills in
-   or taps to act on content, outside the chrome, gets the 44. */
 .topbar :where(button, a, input, select, textarea) { min-height: 0; }
 
-/* Paper, ink and orange at night. Provisional: nobody has looked at it yet,
-   because nothing sets the class until the shell arrives (B2 step 8); it is
-   here so that the day the switch renders, every shadcn semantic above and
-   every rule below already have their dark values. Tune it then, once, by
-   eye. */
-.dark {
-  --paper: oklch(0.19 0.01 270);
-  --paper-2: oklch(0.23 0.01 270);
-  --paper-3: oklch(0.28 0.01 270);
-  --ink: oklch(0.96 0.005 90);
-  --ink-2: oklch(0.86 0.005 90);
-  --ink-3: oklch(0.68 0.01 90);
-  --ink-4: oklch(0.5 0.01 270);
-  --rule: oklch(0.3 0.01 270);
-  --rule-2: oklch(0.36 0.01 270);
-  --brand: oklch(0.7 0.17 40);
-  --brand-deep: oklch(0.78 0.15 45);
-  --brand-soft: oklch(0.3 0.05 45);
-  --court: oklch(0.6 0.08 60);
-  --live: oklch(0.7 0.2 25);
-  --good: oklch(0.7 0.12 145);
-}
-
-/* What shadcn's init writes, kept as it writes it: every border defaults to
-   the border token, focus outlines to the ring, the body to background and
-   foreground, the document to the sans face. All four resolve to what this
-   file already set, so they change nothing until a component relies on them. */
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-  html {
-    @apply font-sans;
-  }
-  /* Tailwind's reset makes headings inherit size and weight, so a heading
-     with no rule of its own — the court names on the Places page were the
-     ones — went from the browser's bold default to plain body text. This is
-     the one thing the reset moved in B1's captures, put back here as a base
-     style rather than by trimming the reset. Headings with their own rule
-     are unaffected. */
-  h1, h2, h3, h4 {
-    font-weight: 600;
-  }
-  h3 {
-    font-size: var(--type-lg);
-  }
-}
-
-html, body { height: 100%; }
-body {
-  font-family: var(--font-sans);
-  background: var(--paper);
-  color: var(--ink);
-  font-size: var(--type-base);
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
-
-/* Element defaults, in the base layer — the same layer Tailwind's preflight
-   sits in. Unlayered, these beat every utility regardless of specificity
-   (layers win over specificity), and `button { background: none }` was
-   stripping the system Button's `bg-primary` to transparent: the Save button
-   rendered as text in a box with no fill. In the base layer they stay
-   defaults — anything a component says wins, and the bare buttons that have
-   no component (the video retry, the locale switcher) keep sane styling. */
-@layer base {
-  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
-  a { color: inherit; text-decoration: none; }
-  input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
-}
-
-/* What this page is. Quiet by default — it is for the moment someone asks
-   "which one am I on", not something to read every day. The hash is mono
-   because it is a hash. */
-.build-stamp {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-  margin-top: 10px; font-size: var(--type-xs); font-family: var(--font-mono);
-  color: var(--ink-3);
-}
-/* Only rendered off production, where it is the whole point. */
-.build-env {
-  padding: 1px 6px; border-radius: 999px;
-  background: var(--brand); color: #fff; text-transform: uppercase;
-  letter-spacing: var(--tracking-caps); font-size: var(--type-xs);
-}
-/* The server has moved on and this tab has not. Loud enough to notice, and a
-   button rather than a notice because the fix is one click. */
-.build-stale {
-  border: 0; cursor: pointer; font: inherit;
-  padding: 2px 8px; border-radius: 999px;
-  background: var(--brand); color: #fff;
-}
-
-/* The frame owns gutters; nested sections never add another horizontal inset. */
-.page-inner { width: 100%; max-width: var(--page-width); margin: 0 auto; padding: var(--space-6) var(--page-gutter) 64px; }
-.page-inner .page-inner { padding-inline: 0; }
-.page-inner > .page-header { padding: 0 0 var(--space-6); margin-bottom: var(--space-6); }
-.page-inner .section-h { padding-inline: 0; }
-.page-header { padding: var(--space-6) max(var(--page-gutter), calc((100% - var(--page-width)) / 2 + var(--page-gutter))) var(--space-6); border-bottom: 1px solid var(--rule);}
-.page-header .crumbs {
-  display: flex; align-items: center; gap: 10px;
-  font-size: var(--type-sm); color: var(--ink-3);
-  margin-bottom: 12px;
-}
-.page-header .crumbs a:hover { color: var(--ink); }
-.page-header h1 {
-  font-family: var(--font-display); font-weight: 600; font-size: var(--type-h1); line-height: 1.15;
-  letter-spacing: -0.025em;
-}
-.page-header .sub { color: var(--ink-3); font-size: var(--type-base); margin-top: 6px;}
-
-/* The admin console's row buttons are the last users of the hand-rolled
-   button: they live in the tables that move to the system's Table in step 10,
-   and these rules are theirs until then — not an alias for anything that
-   migrated, which is now the system's Button everywhere. */
-.admin-table button {
-  display: inline-flex; align-items: center; gap: 8px;
-  justify-content: center; min-height: var(--control-height);
-  padding: var(--space-2) var(--space-4);
-  border-radius: 100px;
-  font-size: var(--type-md);
-  font-weight: 500;
-  border: 1px solid var(--rule);
-  color: var(--ink-2); background: var(--paper);
-  transition: all 0.12s;
-}
-.admin-table button:hover { border-color: var(--ink-2); color: var(--ink);}
-
-/* ---------- Profile / dashboard ---------- */
-.section-h {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: 12px;
-  margin: 32px 0 12px 0;
-}
-
-.section-h h2 {
-  font-family: var(--font-display); font-weight: 600; font-size: var(--type-xl); letter-spacing: -0.02em;
-}
-.section-h .more { font-size: var(--type-sm); color: var(--ink-3);}
-.section-h .more:hover { color: var(--brand);}
-
-/* ---------- Generic helpers ---------- */
-.muted { color: var(--ink-3);}
-.empty {
-  padding: 60px; text-align: center; color: var(--ink-3); font-size: var(--type-base);
-  border: 1px dashed var(--rule);
-}
-
-.row-title {
-  font-family: var(--font-display); font-weight: 600;
-  font-size: var(--type-base); letter-spacing: -0.01em;
-}
-.row-meta {
-  font-size: var(--type-sm);
-  color: var(--ink-3); margin-top: 4px;
-}
-
-/* An invitation: what it is on the left, what to do about it on the right. */
-.invite-row {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--rule);
-}
-.invite-row:last-child { border-bottom: none; }
-
-/* ─── The page that replaces a white screen ───────────────────────────────
-   Deliberately centred in the viewport rather than in the app layout: the
-   boundary sits outside the sidebar and topbar, so when it renders there is no
-   layout to sit inside. */
-.crash {
-  min-height: 100vh;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  gap: 16px; padding: 40px 24px; text-align: center;
-}
-.crash h1 { font-size: var(--type-xl); font-weight: 600; margin: 0; }
-.crash p { max-width: 42ch; color: var(--ink-3); font-size: var(--type-base); margin: 0; line-height: 1.5; }
-
-/* ─── Tablet: ≤ 1024px ─── */
-@media (max-width: 1024px) {
-  :root { --page-gutter: 24px; }
-}
-
-/* ─── Mobile: ≤ 768px ─── */
-@media (max-width: 768px) {
-  /* The sidebar's phone drawer is the registry component's Sheet (B2 step 8);
-     nothing about the shell is re-laid out here. What scales is values: the
-     page gutter, the topbar's, and the detail-page type. At 320px the topbar
-     row is menu + brand + account and 16px gutters do not fit — this is the
-     8px the topbar overflow check wants. */
-  .topbar { padding: 12px; }
-
-  :root { --page-gutter: 14px; }
-  .page-header h1 { font-size: clamp(24px, 6vw, 32px); }
-
-  /* Section headings */
-  .section-h { padding: 16px 14px 8px; }
-
-}
-
-/* ---------- Admin console (ADR 013, moved into the SPA by ADR 020) ---------- */
-/* Ported from src/views/dashboard.ts, which used DaisyUI from a CDN. These are
-   the same affordances against this design system's tokens instead. The
-   `badge-success` name is load-bearing: tests/authz.spec.ts asserts it on the
-   permission grid for all six roles. */
-.admin { display: flex; flex-direction: column; gap: var(--space-4); }
-.admin > .panel + .panel { margin-top: 0; }
-.panel {
-  background: var(--paper); border: 1px solid var(--rule); border-radius: var(--radius-legacy); padding: var(--space-4);
-}
-.panel + .panel { margin-top: var(--space-4); }
-.panel.dim { opacity: 0.55; }
-.panel h2 { font-size: var(--type-base); font-weight: 600; color: var(--ink-2); margin: 0 0 10px; }
-.panel .muted { color: var(--ink-3); }
-.panel .small { font-size: var(--type-sm); }
-.admin-banner {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  background: var(--brand-soft); border: 1px solid var(--court); border-radius: 6px; padding: 10px 14px;
-}
-.feedback-error, .feedback-success {
-  border-radius: 6px; padding: 8px 12px; font-size: var(--type-md); margin-bottom: 10px;
-}
-.feedback-error { background: var(--brand-soft); color: var(--brand-deep); border: 1px solid var(--live); }
-.feedback-success { background: var(--paper-2); color: var(--good); border: 1px solid var(--good); }
-.admin-perms { display: flex; gap: 6px; flex-wrap: wrap; }
-.badge {
-  display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: var(--type-xs);
-  background: var(--paper-2); border: 1px solid var(--rule); color: var(--ink-2);
-}
-.badge-success { background: var(--good); border-color: var(--good); color: var(--paper); }
-.badge-off { opacity: 0.3; }
-.badge-danger { background: var(--live); border-color: var(--live); color: var(--paper); }
-.badge-outline { background: transparent; }
-.admin-table { width: 100%; border-collapse: collapse; font-size: var(--type-md); }
-.admin-table th {
-  text-align: left; font-size: var(--type-xs); font-weight: 500;
-  color: var(--ink-3); border-bottom: 1px solid var(--rule); padding: 6px 8px;
-}
-.admin-table td { padding: 8px; border-bottom: 1px solid var(--rule); vertical-align: middle; }
-.admin-table button { margin-right: var(--space-1); }
-.admin-table button.danger { color: var(--live); border-color: var(--live); }
-
-/* ─── Mobile data tables: ≤ 768px ───
-   Deliberately here and not in the ≤768px block above, which sits EARLIER in
-   this file than the `.admin-table` rules it would need to beat. A media
-   query adds no specificity, so `.admin-table td` up there and
-   `.admin-table td` down here tie, and the later one wins — the stacking
-   applied while `padding` and `border-bottom` silently did not, leaving desktop
-   rules drawn across a card layout. Overrides go after what they override. */
-@media (max-width: 768px) {
-  /* ── Data tables stack into cards ──
-     Every `.admin-table` — events, accounts, org members, roster, entries — is
-     four columns of desktop layout in 390px. Nothing overflowed the page, which
-     is why no check caught it, but "Chiang Mai Summer Basketball Camp 2026"
-     rendered one word per line down a 150px Name column while Description sat
-     empty beside it. Six lines to say one event.
-
-     A sideways-scrolling table was the other option and is worse: the reader
-     has to discover the scroll, and the column that matters is the one off
-     screen. So the row becomes the card instead.
-
-     No component changes and no `data-label` pseudo-elements. The header row is
-     dropped because all five tables put the identity in the first cell and the
-     action in the last, so a stacked row reads as name-then-detail without a
-     label to reinstate. If a table ever arrives whose columns are not
-     self-describing, that is when to add labels — not before. */
-  .admin-table thead { display: none; }
-  .admin-table,
-  .admin-table tbody,
-  .admin-table tr,
-  .admin-table td { display: block; width: 100%; }
-  .admin-table tr {
-    border: 1px solid var(--rule);
-    border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 10px;
-    background: var(--paper);
-  }
-  .admin-table td {
-    border-bottom: none;
-    padding: 3px 0;
-  }
-  /* The identity of the row, given the weight the missing header used to carry. */
-  .admin-table td:first-child {
-    font-size: var(--type-base);
-    font-weight: 600;
-    line-height: 1.25;
-    color: var(--ink);
-  }
-  /* The action gets its own line and a real tap target — 30px of button was
-     fine under a mouse and is not under a thumb. */
-  .admin-table td:last-child:has(button) { padding-top: 10px; }
-  .admin-table td button {
-    width: 100%;
-    min-height: 44px;
-  }
-  /* The empty state is one cell spanning the whole table; as a card it would
-     read as a row of data that happens to say "none". */
-  .admin-table td[colspan] {
-    border: none;
-    background: none;
-    font-size: var(--type-sm);
-    font-weight: 400;
-    padding: 4px 0;
-  }
-  .admin-table tr:has(td[colspan]) {
-    border: none;
-    background: none;
-    padding: 4px 0;
-    margin-bottom: 0;
-  }
-}
-/* The last native fields: the admin console's role select and the two inline
-   row controls on a fixture (court and status), which keep their own rules
-   below. Everything that is a form is the system's Field, Input, NativeSelect
-   and Textarea now — this is what the leftovers still share, and it goes with
-   the tables in step 10. */
-:where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea) {
-  min-height: var(--control-height); min-width: 0; max-width: 100%;
-  padding: var(--space-2) var(--space-3); border: 1px solid var(--rule-2);
-  border-radius: var(--radius-legacy); background: var(--paper); line-height: 1.5;
-}
-/* Safari's native menu ignores min-height; an explicit height keeps the
-   remaining native selects at the same touch size as text fields. */
-select { height: var(--control-height); }
-/* The one-time sign-in code: six digits, spaced out, in the face where every
-   digit is the same width. */
-.login-code { font-family: var(--font-mono); letter-spacing: 0.4em; text-align: center; font-size: var(--type-lg); }
-:where(button, a, input, select, textarea, summary):focus-visible { outline: 2px solid var(--brand-deep); outline-offset: 3px; }
-:where(button, input, select, textarea):disabled { opacity: 0.6; cursor: not-allowed; }
-.small { font-size: var(--type-sm); }
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
-}
-.admin-switcher { display: flex; gap: 6px; flex-wrap: wrap; }
-.admin-switcher button {
-  font-size: var(--type-sm); padding: 4px 12px; border-radius: 100px;
-  border: 1px solid var(--rule); background: var(--paper); cursor: pointer;
-}
-.admin-switcher button.active { background: var(--brand); color: var(--paper); border-color: var(--brand); }
-
-/* The seeded sign-in list. One row per person, with the relations they hold —
-   see routes/dev-mail.ts for why all of them and not one per role. */
-.dev-account-list { display: flex; flex-direction: column; gap: 6px; }
-.dev-account {
-  display: flex; flex-direction: column; gap: 4px; align-items: flex-start;
-  width: 100%; padding: 10px 12px; text-align: left;
-  border: 1px solid var(--rule); border-radius: 8px; background: var(--paper);
-}
-.dev-account:hover { background: var(--paper-2); border-color: var(--rule-2); }
-.dev-account-who { display: flex; align-items: center; gap: 8px; font-size: var(--type-md); }
-.dev-account-holds {
-  font-size: var(--type-xs);
-  color: var(--ink-3); line-height: 1.5;
-}
-
-/*
- * The live-video surfaces.
- *
- * A custom element is `display: inline` with no intrinsic size, so the player
- * and the camera preview render at 0×0 unless told otherwise — the connection
- * succeeds, the catalog arrives, and the page stays blank. The child `<video>`
- * and `<canvas>` are the actual draw surfaces (the elements have no shadow
- * root), so they carry the aspect ratio.
- */
-.moq-surface {
-  margin-top: 16px;
-  background: var(--ink);
-  border: 1px solid var(--rule);
-  overflow: hidden;
-}
-
+/* 2. The live-video surface (components/moq-video.tsx). A custom element is
+   `display: inline` with no intrinsic size, so the player and the camera
+   preview render at 0×0 unless told otherwise; the child <video> and <canvas>
+   are the actual draw surfaces — the elements have no shadow root — and carry
+   the aspect ratio. The element sets `display: none` on its child until
+   capture starts, and that inline style beats a stylesheet rule, so this only
+   shapes the surface once the element has revealed it. A utility cannot reach
+   a custom element's children by tag, which is why this is a rule. */
 .moq-surface moq-publish-ui,
 .moq-surface moq-watch-ui,
 .moq-surface moq-publish,
@@ -615,13 +202,6 @@ select { height: var(--control-height); }
   display: block;
   width: 100%;
 }
-
-/*
- * The element sets `display: none` on its child until capture starts, and that
- * inline style beats a stylesheet rule — so this only shapes the surface once
- * the element has revealed it. `!important` is not the fix: an always-visible
- * black box before a source exists would be a worse lie than an empty one.
- */
 .moq-surface video,
 .moq-surface canvas {
   width: 100%;
@@ -631,107 +211,7 @@ select { height: var(--control-height); }
   object-fit: contain;
 }
 
-.moq-controls {
-  display: flex;
-  gap: 8px;
-  padding: 12px;
-  flex-wrap: wrap;
-  background: var(--paper);
-  border-top: 1px solid var(--rule);
+/* 3. Motion off when the reader asked for it, everywhere at once. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
-
-.moq-hint {
-  padding: 0 12px 12px;
-  font-size: var(--type-sm);
-  color: var(--ink-3);
-  background: var(--paper);
-}
-
-/* The broadcast name and raw state, small, for checking two devices against
-   each other rather than guessing which game each one picked. An identifier,
-   so mono. */
-.moq-name {
-  font-family: var(--font-mono);
-  font-size: var(--type-xs);
-  color: var(--ink-3);
-}
-
-/* The game, above the video: score, status, and a way back to the event. */
-.video-score { display: flex; align-items: baseline; gap: 14px; margin-top: 8px; flex-wrap: wrap; }
-.video-score .score { font-family: var(--font-display); font-weight: 600; font-size: var(--type-2xl); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-.video-score .status { font-size: var(--type-xs); font-weight: 500; letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--live); }
-.video-score .more { background: transparent; border: none; padding: 0; cursor: pointer; }
-
-/* The preference, device and following lists.
-   Unstyled until now, so all three rendered with browser bullets and the
-   default 40px indent inside a card where nothing else has either. */
-.pref-list {
-  list-style: none;
-  margin: 0 0 4px;
-  padding: 0;
-}
-.pref-list > li {
-  padding: 7px 0;
-  border-bottom: 1px solid var(--rule);
-}
-.pref-list > li:last-child { border-bottom: 0; }
-/* The checkbox and its label on one line, so the note below hangs under the
-   text rather than under the box. */
-.pref-list label {
-  display: flex; align-items: center; gap: 8px;
-  cursor: pointer;
-}
-.pref-list input[type="checkbox"] { accent-color: var(--brand); flex: none; }
-/* A preference that cannot be changed yet should look like it — the switches
-   are disabled until push is on, and nothing said so visually. */
-.pref-list label:has(input:disabled) { cursor: default; color: var(--ink-3); }
-.pref-list .pref-note {
-  margin-left: 24px;
-  font-size: var(--type-sm);
-  color: var(--ink-3);
-}
-
-/* Sub-headings inside a card. h3 had no rule at all, so every sub-heading
-   rendered at the browser default — larger and blacker than the section title
-   above it, which read as three separate cards run together. */
-.panel h3 {
-  font-size: var(--type-sm); font-weight: 600;
-  color: var(--ink-3);
-  margin: 18px 0 6px;
-  padding-top: 12px;
-  border-top: 1px solid var(--rule);
-}
-
-/* An inline status line, where `.empty` was being used for one.
-   `.empty` is a whole-screen empty state — 60px of padding and a dashed
-   border — and this rendered every one-sentence push status as a large dashed
-   rectangle with a line floating in it. Five of them on one page. It stays as
-   it is for the ten other components that use it as intended. */
-.push-note {
-  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
-  padding: 9px 11px;
-  border-radius: 5px;
-  background: var(--paper-2);
-  border: 1px solid var(--rule);
-  color: var(--ink-2);
-  font-size: var(--type-md);
-  line-height: 1.45;
-}
-/* Blocked, denied, unsupported: the reader cannot fix these from here, so they
-   read as a state rather than an error to act on. */
-.push-note.is-blocked {
-  background: var(--brand-soft);
-  border-color: var(--brand);
-  color: var(--ink);
-}
-
-/* "this device", in the push device list. Quiet — it is a fact about the row,
-   not a warning; the warning is the .push-note underneath when the row is
-   absent entirely. */
-.device-here {
-  margin-left: 6px;
-  font-size: var(--type-xs);
-  color: var(--brand-deep);
-  font-weight: 600;
-}
-

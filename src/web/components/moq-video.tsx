@@ -32,6 +32,8 @@ import { api, orpc } from "../lib/orpc"
 import { useGame } from "../lib/data"
 import { m } from "../lib/i18n"
 import { Can } from "./can"
+import { EmptyState } from "./states"
+import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
   ENCODER,
@@ -66,10 +68,10 @@ function useRelay(role: "watch" | "publish", gameId: string) {
 }
 
 function RelayError({ error, retry }: { error: unknown; retry: () => unknown }) {
-  return <div className="moq-hint" role="alert" data-testid="moq-renewal-denied">
-    {formErrors(error).form ?? m.video_not_permitted()}
-    <button type="button" onClick={() => { void retry() }}>{m.push_retry()}</button>
-  </div>
+  return <Alert variant="destructive" data-testid="moq-renewal-denied">
+    <AlertDescription>{formErrors(error).form ?? m.video_not_permitted()}</AlertDescription>
+    <AlertAction><Button type="button" variant="outline" size="sm" onClick={() => { void retry() }}>{m.push_retry()}</Button></AlertAction>
+  </Alert>
 }
 
 /**
@@ -121,12 +123,12 @@ function statusLine(s: { connection: string; broadcast: string }): string {
 
 /** Shown wherever no relay is configured. */
 function NoRelay() {
-  return (
-    <div className="empty" data-testid="moq-unconfigured">
-      {m.video_not_configured()}
-    </div>
-  )
+  return <EmptyState data-testid="moq-unconfigured">{m.video_not_configured()}</EmptyState>
 }
+
+/** The registry has no live-video surface; this is the app's, on its tokens. */
+const SURFACE = "moq-surface overflow-hidden rounded-xl border bg-foreground"
+const HINT = "bg-background px-3 pb-3 text-sm text-muted-foreground"
 
 /**
  * Settings that cannot be attributes, plus session reporting.
@@ -231,7 +233,7 @@ export function GameVideo({ gameId }: { gameId: string }) {
   if (!config) return <NoRelay />
 
   return (
-    <div className="moq-surface" data-testid="moq-watch">
+    <div className={SURFACE} data-testid="moq-watch">
       {/* Appears only when the browser is missing something it needs. */}
       <moq-watch-support show="warning" />
       <moq-watch key={attempt} ref={setEl} url={relayUrl(config)} name={broadcastName(gameId)}>
@@ -239,12 +241,12 @@ export function GameVideo({ gameId }: { gameId: string }) {
             subscribes successfully and paints nothing. */}
         <canvas data-testid="moq-canvas" />
       </moq-watch>
-      <div className="moq-hint" data-testid="moq-status">
+      <div className={`${HINT} pt-3`} data-testid="moq-status">
         {game && !game.isBroadcasting ? m.video_status_nobody_live() : statusLine(status)}
         {/* The broadcast being watched, so two devices can be checked against
             each other rather than guessed at. */}
-        <span className="moq-name"> · {broadcastName(gameId)}</span>
-        <span className="moq-name"> · {status.connection}/{status.broadcast}</span>
+        <span className="text-xs tabular-nums"> · {broadcastName(gameId)}</span>
+        <span className="text-xs tabular-nums"> · {status.connection}/{status.broadcast}</span>
       </div>
     </div>
   )
@@ -257,7 +259,7 @@ export function GameBroadcast({ gameId }: { gameId: string }) {
   if (error) return <RelayError error={error} retry={retry} />
   if (!config) return <NoRelay />
   return <Can of={game} action="BROADCAST_GAME" fallback={
-    <div className="moq-hint" data-testid="moq-not-permitted">{game ? m.video_not_permitted() : m.loading()}</div>
+    <EmptyState data-testid="moq-not-permitted">{game ? m.video_not_permitted() : m.loading()}</EmptyState>
   }><Publisher gameId={gameId} config={config} /></Can>
 }
 
@@ -360,7 +362,7 @@ function Publisher({ gameId, config }: { gameId: string; config: NonNullable<Ret
   if (!config) return <NoRelay />
 
   return (
-    <div className="moq-surface" data-testid="moq-publish">
+    <div className={SURFACE} data-testid="moq-publish">
       <moq-publish-support show="warning" />
       {/* `announce="source"` so the broadcast is not advertised before capture
           starts — otherwise a viewer sees a live game sending nothing. */}
@@ -373,8 +375,12 @@ function Publisher({ gameId, config }: { gameId: string; config: NonNullable<Ret
         <video data-testid="moq-preview" muted autoPlay playsInline />
       </moq-publish>
 
-      {broadcastError != null && <div role="alert" data-testid="moq-broadcast-error">{formErrors(broadcastError).form}</div>}
-      <div className="moq-controls">
+      {broadcastError != null && (
+        <Alert variant="destructive" className="rounded-none border-x-0" data-testid="moq-broadcast-error">
+          <AlertDescription>{formErrors(broadcastError).form}</AlertDescription>
+        </Alert>
+      )}
+      <div className="flex flex-wrap gap-2 border-t bg-background p-3">
         {source === null ? (
           <>
             <Button
@@ -394,7 +400,7 @@ function Publisher({ gameId, config }: { gameId: string; config: NonNullable<Ret
         )}
       </div>
 
-      <div className="moq-hint">
+      <div className={HINT}>
         {source === null ? m.video_broadcast_hint() : m.video_broadcasting()}
       </div>
     </div>
