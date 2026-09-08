@@ -36,6 +36,11 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
+    // `@/` is the SPA. shadcn's registry writes components that import
+    // `@/lib/utils` and `@/components/ui/...` (components.json `aliases`), so
+    // the alias is theirs to keep, not a style choice of ours; vite.config.ts
+    // carries the same mapping for the bundler.
+    "paths": { "@/*": ["./src/web/*"] },
     // Vite's native config loader wants the extension on an import, and with
     // `noEmit` there is nothing an extension could mislead.
     "allowImportingTsExtensions": true,

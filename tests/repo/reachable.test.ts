@@ -56,7 +56,9 @@ const pages = [
 ].map((m) => m[1]!)
 
 
-const sidebar = readFileSync("src/web/components/sidebar.tsx", "utf8")
+// The shell's navigation moved from components/sidebar.tsx into the registry
+// sidebar in B2 step 8; the NavItem shape (`id: "<page>"`) is unchanged.
+const sidebar = readFileSync("src/web/components/app-sidebar.tsx", "utf8")
 
 /** Files that describe the route table rather than navigate within it. */
 const NOT_A_LINK = new Set(["src/web/lib/router.tsx", "src/web/main.tsx"])

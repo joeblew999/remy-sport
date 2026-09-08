@@ -41,7 +41,7 @@ test.describe("The install prompt", () => {
      * something else and require that it works. Checking the element exists
      * would have passed on the day this broke.
      */
-    await page.getByTestId("topbar-user").click({ timeout: 5_000 })
+    await page.getByTestId("account").click({ timeout: 5_000 })
   })
 
   test("is set to manual, so it cannot prompt on arrival", async ({ page }) => {

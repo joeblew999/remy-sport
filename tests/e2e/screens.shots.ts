@@ -91,6 +91,21 @@ for (const [role, email] of Object.entries(ACTORS)) {
 }
 
 /**
+ * The same screens again in the dark, for the pair the design system is
+ * reviewed in (B2 step 8's proof: captures in light and dark). A slice, not a
+ * dimension — light is the default and the whole grid; dark needs the screens
+ * the Product Owner actually reviews, which is what step 14 names. The theme
+ * choice is read from localStorage before first paint, so an init script is
+ * the whole mechanism. Declared after `YOURS`, because `home-coach` is one of
+ * the generated lines and the lookup needs it to exist first.
+ */
+const DARK_SLICE = ["discover", "places", "game", "home-coach", "admin", "login"]
+for (const name of DARK_SLICE) {
+  const base = SCREENS.find((s) => s.name === name)!
+  SCREENS.push({ ...base, name: `${name}-dark` })
+}
+
+/**
  * Desktop and phone, because the two disagree and only one was ever looked at.
  *
  * Every `.admin-table` — events, accounts, org members, roster, entries — was
@@ -145,8 +160,12 @@ for (const screen of SCREENS) {
       try {
         // Set before the bundle runs. Clicking the switcher would work too, but
         // it screenshots a page that rendered once in the wrong language first,
-        // and any animation mid-transition lands in the picture.
+        // and any animation mid-transition lands in the picture. The dark
+        // slice is the same trick with the theme choice (B2 step 8).
         await ctx.addInitScript((l) => localStorage.setItem("remy.locale", l), locale)
+        if (screen.name.endsWith("-dark")) {
+          await ctx.addInitScript(() => localStorage.setItem("remy.theme", "dark"))
+        }
 
         const page = await ctx.newPage()
         await page.goto(screen.path)
@@ -172,9 +191,11 @@ for (const screen of SCREENS) {
           fullPage: false,
         })
         // The same screen as text, for a reader without eyes: what the sidebar
-        // offers this person, then everything the page says.
+        // offers this person, then everything the page says. The registry
+        // sidebar renders divs (B2 step 8), so the nav rows are found by their
+        // `nav-<page>` test ids inside the sidebar's own slots.
         const text = await page.evaluate(() => {
-          const nav = [...document.querySelectorAll("aside .nav-item")]
+          const nav = [...document.querySelectorAll('[data-slot="sidebar"] [data-testid^="nav-"]')]
             .map((n) => (n as HTMLElement).innerText.trim())
             .join(" | ")
           const main = (document.querySelector("main") ?? document.body) as HTMLElement

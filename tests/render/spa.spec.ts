@@ -87,24 +87,27 @@ test.describe("Event view models are derived, not stored", () => {
 })
 
 /**
- * The sidebar shows the signed-in account, not an invented one.
+ * The app shows the signed-in account, not an invented one.
  *
  * It used to render "Coach Sukasem · Head Coach · SGS", hardcoded, at the bottom
  * of every page — while the topbar showed the real account. A signed-in coach
  * saw two different people on one screen, and nothing marked either as sample.
+ * The user card is gone (B2 step 8): the person is the topbar's dropdown
+ * trigger, in one place, and the sidebar carries navigation only.
  */
-test.describe("The sidebar identity", () => {
-  test("is the signed-in user, and matches the topbar", async ({ page }) => {
+test.describe("The signed-in identity", () => {
+  test("is the signed-in user, shown once", async ({ page }) => {
     await seedCache(page, [
       sessionFor("COACH"),
     ])
     await visit(page, "discover")
 
-    await expect(page.getByTestId("sidebar-user")).toContainText("Wichai Srisuk")
-    await expect(page.getByTestId("sidebar-user")).toContainText("coach")
-    await expect(page.getByTestId("topbar-user")).toHaveText("Wichai Srisuk")
+    await expect(page.getByTestId("account-user")).toHaveText("Wichai Srisuk")
+    // The platform role, which is what decides permissions (ADR 009).
+    await expect(page.getByTestId("account-role")).toHaveText("coach")
     // The name nobody is signed in as.
-    await expect(page.getByTestId("sidebar-user")).not.toContainText("Sukasem")
+    await expect(page.getByTestId("account-user")).not.toContainText("Sukasem")
+    await expect(page.getByTestId("account-user")).toHaveCount(1)
   })
 
   test("renders nothing at all when signed out, rather than a placeholder person", async ({
@@ -114,6 +117,7 @@ test.describe("The sidebar identity", () => {
       VISITOR,
     ])
     await visit(page, "discover")
-    await expect(page.getByTestId("sidebar-user")).toHaveCount(0)
+    await expect(page.getByTestId("account")).toHaveCount(0)
+    await expect(page.getByTestId("topbar-sign-in")).toBeVisible()
   })
 })

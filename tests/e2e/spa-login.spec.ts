@@ -107,14 +107,16 @@ test.describe.serial("SPA sign-in", () => {
     await page.getByTestId("spa-otp-input").fill(LOCAL_CODE)
     await page.getByTestId("spa-verify-code").click()
 
-    await expect(page.getByTestId("topbar-account")).toBeVisible()
-    await expect(page.getByTestId("topbar-user")).toContainText(ACTOR_NAMES.COACH)
+    await expect(page.getByTestId("account")).toBeVisible()
+    await expect(page.getByTestId("account-user")).toContainText(ACTOR_NAMES.COACH)
     // The platform role, which is what decides permissions (ADR 009).
-    await expect(page.getByTestId("topbar-role")).toHaveText("coach")
+    await expect(page.getByTestId("account-role")).toHaveText("coach")
 
-    await page.getByTestId("topbar-sign-out").click()
+    // The chores are menu items in the dropdown on the person (B2 step 8).
+    await page.getByTestId("account").click()
+    await page.getByTestId("account-sign-out").click()
     await expect(page.getByTestId("topbar-sign-in")).toBeVisible()
-    await expect(page.getByTestId("topbar-account")).toHaveCount(0)
+    await expect(page.getByTestId("account")).toHaveCount(0)
 
     // Signing out must actually end the session, not just re-render.
     const stillSignedIn = await page.evaluate(async () => {
@@ -154,7 +156,7 @@ test.describe.serial("SPA sign-in", () => {
     // No Verify to press: with a code in hand the button redeems it itself.
     // This test used to click Verify, which is the second click the picker
     // promised nobody would need.
-    await expect(page.getByTestId("topbar-role")).toHaveText("referee")
+    await expect(page.getByTestId("account-role")).toHaveText("referee")
   })
 
 })

@@ -173,7 +173,7 @@ export function DiscoverPage({ goto, spoiler, query, setParam }: DiscoverProps) 
             </div>
             <div className="title">
               <div className="name">{e.title}</div>
-              <div className="meta">{e.organizer.toUpperCase()}</div>
+              <div className="meta">{e.organizer}</div>
             </div>
             <div><span className={`type ${e.typeCode.toLowerCase()}`}>{typeLabel(e.typeCode)}</span></div>
             <div className="loc">

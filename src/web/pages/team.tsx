@@ -62,7 +62,7 @@ export function TeamPage({ id, goto, query, spoiler = false }: { id: string; got
         <div className={`crest ${t.crest}`}></div>
         <div>
           <h1 data-testid="team-name">{t.name}</h1>
-          <div className="meta thai" style={{ fontFamily: "Noto Sans Thai, sans-serif", fontSize: 16, color: "var(--ink-2)", marginTop: 4 }}>
+          <div className="meta thai">
             <a href={routeHref({ page: "org", id: t.orgId })}>{t.orgName}</a>{t.city && ` · ${t.city}`}
           </div>
           <div className="meta">{t.ageGroupLabel} {t.genderLabel} · {t.short}</div>
@@ -79,15 +79,10 @@ export function TeamPage({ id, goto, query, spoiler = false }: { id: string; got
             beside them, and a dash above those read as broken. A dash stays
             for a team that has not played. There is still no RANK: that is a
             standings question, and it is answered on the event page. */}
-        <div style={{ display: "flex", gap: 32, alignItems: "baseline" }}>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.14em", textTransform: "uppercase" }}>{m.record_all_events()}</div>
-            <div
-              data-testid="team-record"
-              style={{ fontFamily: "Space Grotesk, sans-serif", fontWeight: 600, fontSize: 32, letterSpacing: "-0.02em", color: wins + losses ? "var(--ink)" : "var(--ink-3)" }}
-            >
-              {!spoiler && wins + losses ? `${wins}–${losses}` : "—"}
-            </div>
+        <div className="team-record">
+          <div className="label">{m.record_all_events()}</div>
+          <div data-testid="team-record" className={wins + losses ? "value" : "value none"}>
+            {!spoiler && wins + losses ? `${wins}–${losses}` : "—"}
           </div>
         </div>
       </div>

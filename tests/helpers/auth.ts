@@ -1,3 +1,4 @@
+import { LOCAL_BROWSER_ORIGIN } from "../../scripts/lib/local-browser"
 import { expect, test, type APIRequestContext, type BrowserContext, type Page } from "@playwright/test"
 import { existsSync, readFileSync } from "node:fs"
 import { saveSession, endSession } from "./session-cleanup"
@@ -23,7 +24,7 @@ import { E2E_EMAIL_DOMAIN, isReservedTestEmail } from "../../src/environment"
  *     only for that domain.
  */
 
-export const BASE = process.env.BASE_URL || "http://localhost:8787"
+export const BASE = process.env.BASE_URL || LOCAL_BROWSER_ORIGIN
 export const IS_LOCAL = !process.env.BASE_URL
 
 /**
@@ -491,7 +492,7 @@ export async function signInThroughLoginForm(page: Page, email: string): Promise
   await page.getByTestId("spa-verify-code").click()
   // Hash routing: the SPA stays on one document, so there is no navigation to
   // wait for. Wait for the identity to appear instead.
-  await page.getByTestId("topbar-user").waitFor({ state: "visible", timeout: 20000 })
+  await page.getByTestId("account-user").waitFor({ state: "visible", timeout: 20000 })
   // The identity can render before LoginPage finishes its success redirect.
   // Wait for that redirect before callers navigate to their test's subject.
   await expect(page.getByTestId("spa-login")).toHaveCount(0)

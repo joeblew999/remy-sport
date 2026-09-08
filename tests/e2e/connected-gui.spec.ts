@@ -15,7 +15,10 @@ test("a visitor can filter, open a game and return to the same competition on a 
   await expect(page).toHaveURL(/#\/game\/gam_002$/)
   await expect(page.getByTestId("game-gam_002")).toBeVisible()
   await expect(page.getByTestId("enter-score-gam_002")).toHaveCount(0)
-  await page.getByRole("button", { name: "Spoiler mode" }).click()
+  // The spoiler switch lives in the sidebar's Settings group (B2 step 8); on a
+  // phone that is a Sheet, so the reader opens it the way they always have.
+  await page.getByTestId("menu-btn").click()
+  await page.getByRole("switch", { name: "Spoiler mode" }).click()
   await expect(page.getByTestId("score-gam_002")).toContainText("hidden")
   await page.goBack()
   await expect(page.getByTestId("event-division")).toHaveValue("div_001")

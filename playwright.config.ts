@@ -1,7 +1,10 @@
+import { LOCAL_BROWSER_ORIGIN } from "./scripts/lib/local-browser.ts"
 import { defineConfig } from "@playwright/test"
 
-const baseURL = process.env.BASE_URL || "http://localhost:8787"
+const baseURL = process.env.BASE_URL || LOCAL_BROWSER_ORIGIN
 const isLocal = !process.env.BASE_URL
+// Reading configuration (lint, editor tooling) must not require a running test.
+// Migration and Vite validate the run directory before touching local storage.
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -108,13 +111,11 @@ export default defineConfig({
   ],
   ...(isLocal && {
     webServer: {
-      // The same server `bun run dev` is: Vite, with the Worker in workerd. A
-      // running one is reused; it serves from source, so there is no bundle a
-      // test could read half-written.
-      command: "bun x vite --config src/web/vite.config.ts",
-      url: "http://localhost:8787/api/health",
-      reuseExistingServer: !process.env.CI,
-      timeout: 30_000,
+      // Fresh storage per run; never attach tests to an existing server.
+      command: "bun run db migrate-local --test-run && bun run dev --mode e2e",
+      url: `${LOCAL_BROWSER_ORIGIN}/api/health`,
+      reuseExistingServer: false,
+      timeout: 60_000,
     },
   }),
 })

@@ -17,6 +17,7 @@
  * live database by somebody who thought they were on staging.
  */
 
+import { localBrowserState } from "./lib/local-browser.ts"
 import { install } from "./lib/prepare.ts"
 
 import { spawnSync, type SpawnSyncOptions } from "node:child_process"
@@ -109,7 +110,7 @@ if (op === "--help") {
   console.log(`
 bun run db <operation>
 
-  migrate-local                 apply migrations to .wrangler/state
+  migrate-local                 apply migrations to .wrangler/state; --test-run uses the browser run storage
   migrate-remote --env X        apply them to a deployment
   seed-remote --env X           load the fixtures into a deployment
   tables-local | tables-remote  what tables exist
@@ -130,7 +131,7 @@ try {
       run(["d1", "migrations", "apply", name, "--remote"], t)
       break
     case "migrate-local":
-      run(["d1", "migrations", "apply", name, "--local"], t)
+      run(["d1", "migrations", "apply", name, "--local", ...(argv.includes("--test-run") ? ["--persist-to", localBrowserState(process.env.E2E_STATE_DIR)] : [])], t)
       break
     case "reset-local":
       // Local state only. Named for the database so the message cannot claim to

@@ -68,6 +68,11 @@ const OPS: Record<string, Op> = {
     cmd: (rest) => ["bun", "scripts/ops/tunnel.ts", ...rest],
     help: "tunnel [--run]                   create the dev tunnel and its hostname; --run keeps it up beside bun run dev",
   },
+  ui: {
+    group: "setup",
+    cmd: (rest) => ["bun", "scripts/ops/ui.ts", ...rest],
+    help: "ui add <item...> | check         copy shadcn components in and lock them; never edit them by hand",
+  },
   versions: {
     group: "report",
     /**

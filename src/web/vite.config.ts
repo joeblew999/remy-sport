@@ -1,6 +1,11 @@
+import { localBrowserState } from "../../scripts/lib/local-browser.ts";
 import { i18nOptions } from "../../scripts/lib/i18n.ts";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+// Tailwind, because shadcn's components are written in it. It processes the
+// stylesheet index.html links (src/web/styles.css) and nothing else changes;
+// see docs/2026-09-08-01-typography-and-design-system.md, Stage B1.
+import tailwindcss from "@tailwindcss/vite";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import { VitePWA } from "vite-plugin-pwa";
@@ -155,8 +160,13 @@ function stamp(command: "build" | "serve") {
 
 export default defineConfig(({ mode, command }) => ({
   root: __dirname,
+  // `@/` is this directory: shadcn's components import `@/lib/utils` and
+  // `@/components/ui/...` (components.json `aliases`). tsconfig.json carries
+  // the same mapping for the type checker.
+  resolve: { alias: { "@": __dirname } },
   plugins: [
     legacyWorkerKillSwitch(),
+    tailwindcss(),
     ...(mode === "render"
       ? []
       : [
@@ -164,7 +174,7 @@ export default defineConfig(({ mode, command }) => ({
             configPath: resolve(ROOT, "wrangler.toml"),
             // The same local D1 that `wrangler d1 migrations apply --local`
             // writes, so the database the tests migrate is the one dev serves.
-            persistState: { path: resolve(ROOT, ".wrangler/state") },
+            persistState: { path: mode === "e2e" ? localBrowserState(process.env.E2E_STATE_DIR) : resolve(ROOT, ".wrangler/state") },
           }),
           seedOnStart(),
         ]),
@@ -320,7 +330,7 @@ export default defineConfig(({ mode, command }) => ({
    * reach it — and sign-in works from either address, because trustedOrigins
    * derives from the request URL (src/auth.ts).
    */
-  server: { port: 8787, strictPort: true, host: true },
+  server: { port: mode === "e2e" ? 8788 : 8787, strictPort: true, host: true },
   define: { __BUILD__: JSON.stringify(stamp(command)) },
   build: {
     // The plugin writes dist/client and dist/remy_sport beneath this.

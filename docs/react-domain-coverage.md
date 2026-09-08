@@ -137,7 +137,7 @@ Named tests describe specific cases, not exhaustive permission coverage or the l
 | SIGN_UP_AS_REFEREE_REQUEST | PLATFORM | [src/web/components/who-are-you.tsx](../src/web/components/who-are-you.tsx) | — | Non-router or unimplemented; audit required |
 | SIGN_UP_AS_SPECTATOR | PLATFORM | [src/web/pages/login.tsx](../src/web/pages/login.tsx) | — | auth.email-otp/send-verification-otp, auth.sign-in/email-otp |
 | SIGN_UP_PLAYER_AS_GUARDIAN | PLATFORM | [src/web/components/your-players.tsx](../src/web/components/your-players.tsx) | — | players.signUpAsGuardian |
-| SPOILER_MODE | PLATFORM | [src/web/components/topbar.tsx](../src/web/components/topbar.tsx), [src/web/pages/live.tsx](../src/web/pages/live.tsx) | — | Non-router or unimplemented; audit required |
+| SPOILER_MODE | PLATFORM | [src/web/components/app-sidebar.tsx](../src/web/components/app-sidebar.tsx), [src/web/pages/live.tsx](../src/web/pages/live.tsx) | — | Non-router or unimplemented; audit required |
 | UNFOLLOW_EVENT | EVENT | [src/web/components/follow.tsx](../src/web/components/follow.tsx) | — | notifications.unfollow |
 | UNFOLLOW_PLAYER | PLAYER | [src/web/components/follow.tsx](../src/web/components/follow.tsx), [src/web/pages/player.tsx](../src/web/pages/player.tsx) | — | notifications.unfollow |
 | UNFOLLOW_TEAM | TEAM | [src/web/components/follow.tsx](../src/web/components/follow.tsx) | — | notifications.unfollow |

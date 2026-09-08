@@ -1,7 +1,7 @@
 /**
  * The e2e tier: a real browser against a real Worker — `bun run test:e2e`.
  *
- *   bun run test:e2e                       localhost:8787, starting a Worker if none is up
+ *   bun run test:e2e                       localhost:8788, with fresh isolated storage
  *   bun run test:e2e -- --env staging      the deployed origin, resolved the way deploy resolves it
  *   bun run test:e2e -- --env production
  *   bun run test:e2e -- -g "sign-in"       anything else goes to Playwright
@@ -11,13 +11,15 @@
  * as a sentence than as thirty red specs.
  */
 
+import { rmSync } from "node:fs"
+import { LOCAL_BROWSER_ORIGIN, localBrowserState } from "./lib/local-browser.ts"
 import { spawn, spawnSync } from "node:child_process"
 import { Refused, originOf, resolveTarget } from "./lib/cloudflare.ts"
 import { endRunSessions } from "../tests/helpers/session-cleanup.ts"
 import { affectsDeployment } from "./lib/deployed-source.ts"
 import { randomUUID } from "node:crypto"
 import { withStagingAccess } from "./lib/staging-test-access.ts"
-import { DEV_ORIGIN, DEMO_SIGN_IN_CODE } from "../src/environment.ts"
+import { DEMO_SIGN_IN_CODE } from "../src/environment.ts"
 import { SEED_ENTITIES } from "../src/domain/model/entities.ts"
 
 /**
@@ -205,7 +207,7 @@ function target(argv: string[]): { origin: string; environment: string } | null 
 
 const argv = process.argv.slice(2)
 if (argv.includes("--help") || argv.includes("-h")) {
-  console.log("bun run test:e2e [-- --env staging] [Playwright options]\nRecovery: --cleanup-run <run UUID> [--env staging] ends only recorded sessions from that run.\nStaging runs include automatic admin access and checked restoration. --retries 0 disables retries.")
+  console.log("bun run test:e2e [-- --env staging] [Playwright options]\nLocal runs start an isolated Worker on localhost:8788 and remove its storage afterwards.\nRecovery: --cleanup-run <run UUID> [--env staging] ends only recorded sessions from that run.\nStaging runs include automatic admin access and checked restoration. --retries 0 disables retries.")
   process.exit(0)
 }
 const TARGET = target(argv)
@@ -213,7 +215,11 @@ const cleanupAt = argv.indexOf("--cleanup-run")
 if (cleanupAt !== -1) {
   const runId = argv[cleanupAt + 1] ?? ""
   if (!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(runId)) throw new Refused("--cleanup-run requires a run UUID")
-  await endRunSessions(TARGET?.origin ?? DEV_ORIGIN, `.playwright/runs/${runId}/sessions`)
+  if (TARGET) await endRunSessions(TARGET.origin, `.playwright/runs/${runId}/sessions`)
+  else {
+    rmSync(localBrowserState(`.playwright/runs/${runId}`), { recursive: true, force: true })
+    rmSync(`.playwright/runs/${runId}/sessions`, { recursive: true, force: true })
+  }
   console.log(`Verified session cleanup for run ${runId}`)
   process.exit(0)
 }
@@ -221,7 +227,7 @@ const env: NodeJS.ProcessEnv = { ...process.env, E2E_STATE_DIR: `.playwright/run
 delete env.BASE_URL
 delete env.TEST_OTP
 delete env.TEST_ADMIN_SIGNIN
-const rest = argv.filter((a, i) => !(a === "--env" || a.startsWith("--env=") || (i > 0 && argv[i - 1] === "--env")))
+const rest = argv.filter((a, i) => a !== "--shots" && !(a === "--env" || a.startsWith("--env=") || (i > 0 && argv[i - 1] === "--env")))
 
 async function run(adminConfirmed = false): Promise<void> {
   if (TARGET) {
@@ -231,7 +237,7 @@ async function run(adminConfirmed = false): Promise<void> {
     env.TEST_ADMIN_SIGNIN = admin ? "1" : "0"
     if (TARGET.environment === "staging" && !admin) throw new Refused("Staging admin preflight failed; refusing to skip admin tests")
   }
-  const child = spawn("bun", ["x", "playwright", "test", "--project", "e2e", "--project", "authz", ...rest, ...(TARGET?.environment === "staging" ? ["--workers", "1"] : [])], { stdio: "inherit", env })
+  const child = spawn("bun", ["x", "playwright", "test", ...(argv.includes("--shots") ? ["--project", "shots"] : ["--project", "e2e", "--project", "authz"]), ...rest, ...(TARGET?.environment === "staging" ? ["--workers", "1"] : [])], { stdio: "inherit", env })
   let interrupted = false
   const cancel = () => { interrupted = true; child.kill("SIGINT") }
   process.on("SIGINT", cancel)
@@ -245,13 +251,20 @@ async function run(adminConfirmed = false): Promise<void> {
   } finally {
     process.off("SIGINT", cancel)
     process.off("SIGTERM", cancel)
-    await endRunSessions(TARGET?.origin ?? DEV_ORIGIN, `${env.E2E_STATE_DIR}/sessions`)
+    if (TARGET) await endRunSessions(TARGET.origin, `${env.E2E_STATE_DIR}/sessions`)
+    else {
+      // Playwright has stopped its Worker. Deleting that run's entire storage
+      // also revokes sessions when setup or teardown failed.
+      rmSync(localBrowserState(env.E2E_STATE_DIR), { recursive: true, force: true })
+      rmSync(`${env.E2E_STATE_DIR}/sessions`, { recursive: true, force: true })
+      console.log("e2e: isolated local storage removed")
+    }
   }
 }
 
 try {
   console.log(`e2e: session records ${env.E2E_STATE_DIR}`)
-  console.log(`e2e: against ${TARGET ? `${TARGET.environment} — ${TARGET.origin}` : "dev — http://localhost:8787"}`)
+  console.log(`e2e: against ${TARGET ? `${TARGET.environment} — ${TARGET.origin}` : `isolated dev — ${LOCAL_BROWSER_ORIGIN}`}`)
   if (TARGET) await sameCode(TARGET.origin, TARGET.environment)
   if (TARGET?.environment === "staging") {
     await withStagingAccess(resolveTarget(argv, "explicit"), () => run(true))

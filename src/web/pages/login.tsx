@@ -171,7 +171,7 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
         <div className="dev-accounts" data-testid="spa-dev-accounts">
           <div className="section-h" style={{ marginTop: 32 }}>
             <h2>{m.dev_accounts()}</h2>
-            <a className="more">{devAccounts.data?.code ? m.demo_accounts_note() : "LOCAL ONLY"}</a>
+            <a className="more">{devAccounts.data?.code ? m.demo_accounts_note() : m.local_only()}</a>
           </div>
           {/* Every seeded person, not one per role. The differences *within* a
               role are the point: two coaches run different schools, two referees

@@ -1,7 +1,170 @@
+/* Tailwind first, because shadcn's components are written in it, then the
+   animations and base styles shadcn's own package ships, then our fonts. */
+@import "tailwindcss" source("./");
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 @import "./fonts.css";
 
-/* claude-design: app/styles.css */
-/* Remy Sport — Editorial Court design system */
+/* Remy Sport — paper, ink and one orange.
+
+   Type is set through tokens, and tests/repo/styles.test.ts holds the line:
+   every font-family is a `--font-*` token, nothing is smaller than 12px, the
+   monospace face appears only where digits have to line up, and uppercase is
+   for pills and tags. The plan behind those rules is
+   docs/2026-09-08-01-typography-and-design-system.md.
+
+   shadcn is set up (that plan, Stage B1) and no component is replaced yet.
+   Its pieces here: the dark variant, Tailwind's theme blocks, the semantic
+   colour names its components use (mapped onto our tokens, so a shadcn
+   button is paper and ink without being told), and the base layer its init
+   writes. The rules of this file apply to those parts too. */
+
+/* Dark is a class on the root — `.dark` — set by the theme provider that
+   arrives with the shell (B2). Nothing sets it yet; the app stays light. */
+@custom-variant dark (&:is(.dark *));
+
+/* The faces, as Tailwind theme tokens so shadcn's components inherit them:
+   its `font-sans` is our Inter, its `font-mono` our Plex. `@theme static` so
+   Tailwind emits every one of these as a variable whether or not a utility
+   uses it — our own rules below read them with var().
+
+   The tails are load-bearing, not politeness: Latin and Thai are self-hosted
+   (scripts/ops/fonts.ts); CJK is deliberately not, because Noto Sans JP alone
+   is 5.3MB and every device that reads it ships a better face already.
+   `system-ui` is what renders Japanese, Korean and Chinese here — drop it and
+   a declared locale becomes tofu. The mono face carries no Thai on purpose: it
+   is only ever used for digits. */
+@theme {
+  --font-sans: 'Inter', 'Noto Sans Thai', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Space Grotesk', 'Noto Sans Thai', system-ui, sans-serif;
+  --font-thai: 'Noto Sans Thai', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+  /* The only letter-spacing wider than natural: on the few uppercase pills. */
+  --tracking-caps: 0.06em;
+}
+
+/* ─── shadcn's theme, as its tooling writes it ───────────────────────────────
+   Everything from here to the end of the base layer is shadcn's: the theme
+   block its init writes, and the light and dark values its preset system
+   decides for style Nova, base colour Stone, theme Orange (the preset is
+   recorded in components-lock.json). `bun run ops ui theme` regenerates the
+   values; nobody edits them. One line is ours: headings in the display face. */
+@theme inline {
+    --font-heading: var(--font-display);
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.147 0.004 49.25);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.147 0.004 49.25);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.147 0.004 49.25);
+    --primary: oklch(0.553 0.195 38.402);
+    --primary-foreground: oklch(0.98 0.016 73.684);
+    --secondary: oklch(0.967 0.001 286.375);
+    --secondary-foreground: oklch(0.21 0.006 285.885);
+    --muted: oklch(0.97 0.001 106.424);
+    --muted-foreground: oklch(0.553 0.013 58.071);
+    --accent: oklch(0.97 0.001 106.424);
+    --accent-foreground: oklch(0.216 0.006 56.043);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.923 0.003 48.717);
+    --input: oklch(0.923 0.003 48.717);
+    --ring: oklch(0.709 0.01 56.259);
+    --chart-1: oklch(0.837 0.128 66.29);
+    --chart-2: oklch(0.705 0.213 47.604);
+    --chart-3: oklch(0.646 0.222 41.116);
+    --chart-4: oklch(0.553 0.195 38.402);
+    --chart-5: oklch(0.47 0.157 37.304);
+    --radius: 0.625rem;
+    --sidebar: oklch(0.985 0.001 106.423);
+    --sidebar-foreground: oklch(0.147 0.004 49.25);
+    --sidebar-primary: oklch(0.646 0.222 41.116);
+    --sidebar-primary-foreground: oklch(0.98 0.016 73.684);
+    --sidebar-accent: oklch(0.97 0.001 106.424);
+    --sidebar-accent-foreground: oklch(0.216 0.006 56.043);
+    --sidebar-border: oklch(0.923 0.003 48.717);
+    --sidebar-ring: oklch(0.709 0.01 56.259);
+}
+
+.dark {
+    --background: oklch(0.147 0.004 49.25);
+    --foreground: oklch(0.985 0.001 106.423);
+    --card: oklch(0.216 0.006 56.043);
+    --card-foreground: oklch(0.985 0.001 106.423);
+    --popover: oklch(0.216 0.006 56.043);
+    --popover-foreground: oklch(0.985 0.001 106.423);
+    --primary: oklch(0.47 0.157 37.304);
+    --primary-foreground: oklch(0.98 0.016 73.684);
+    --secondary: oklch(0.274 0.006 286.033);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.268 0.007 34.298);
+    --muted-foreground: oklch(0.709 0.01 56.259);
+    --accent: oklch(0.268 0.007 34.298);
+    --accent-foreground: oklch(0.985 0.001 106.423);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.553 0.013 58.071);
+    --chart-1: oklch(0.837 0.128 66.29);
+    --chart-2: oklch(0.705 0.213 47.604);
+    --chart-3: oklch(0.646 0.222 41.116);
+    --chart-4: oklch(0.553 0.195 38.402);
+    --chart-5: oklch(0.47 0.157 37.304);
+    --sidebar: oklch(0.216 0.006 56.043);
+    --sidebar-foreground: oklch(0.985 0.001 106.423);
+    --sidebar-primary: oklch(0.705 0.213 47.604);
+    --sidebar-primary-foreground: oklch(0.98 0.016 73.684);
+    --sidebar-accent: oklch(0.268 0.007 34.298);
+    --sidebar-accent-foreground: oklch(0.985 0.001 106.423);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.553 0.013 58.071);
+}
+
+/* ─── Ours, until B2 deletes them ────────────────────────────────────────────
+   The tokens the rules below this point use. They no longer share a name
+   with anything shadcn's theme defines: the orange is `--brand` (shadcn's
+   `--accent` is its quiet hover colour), the 6px corner is `--radius-legacy`
+   (shadcn's `--radius` is its own). */
 
 :root {
   --paper: oklch(0.985 0.005 90);
@@ -13,11 +176,29 @@
   --ink-4: oklch(0.7 0.01 270);
   --rule: oklch(0.88 0.005 90);
   --rule-2: oklch(0.82 0.005 90);
-  --accent: oklch(0.62 0.18 35);
-  --accent-deep: oklch(0.48 0.18 35);
-  --accent-soft: oklch(0.94 0.04 50);
+  --brand: oklch(0.62 0.18 35);
+  --brand-deep: oklch(0.48 0.18 35);
+  --brand-soft: oklch(0.94 0.04 50);
   --court: oklch(0.78 0.08 60);
   --live: oklch(0.55 0.22 25);
+  --good: oklch(0.55 0.12 145);
+
+  /* The scale our own rules use. Named `--type-*`, not `--text-*`, on
+     purpose: `--text-sm` is Tailwind's own token and shadcn's components are
+     designed against Tailwind's scale (text-sm is 14px there), so the two
+     scales stay apart — ours for the rules in this file until B2 replaces
+     them, Tailwind's for every component from the registry. Body is the
+     browser default, which is also the size below which iOS Safari zooms into
+     a focused field. `--type-xs` is the floor. */
+  --type-xs: 12px;
+  --type-sm: 13px;
+  --type-md: 14px;
+  --type-base: 16px;
+  --type-lg: 18px;
+  --type-xl: 22px;
+  --type-2xl: 28px;
+  --type-h1: clamp(26px, 3vw, 36px);
+
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -26,151 +207,143 @@
   --space-8: 32px;
   --page-gutter: 32px;
   --page-width: 1280px;
-  --radius: 6px;
+  --radius-legacy: 6px;
   --control-height: 44px;
-  --good: oklch(0.55 0.12 145);
+}
+
+/* Paper, ink and orange at night. Provisional: nobody has looked at it yet,
+   because nothing sets the class until the shell arrives (B2 step 8); it is
+   here so that the day the switch renders, every shadcn semantic above and
+   every rule below already have their dark values. Tune it then, once, by
+   eye. */
+.dark {
+  --paper: oklch(0.19 0.01 270);
+  --paper-2: oklch(0.23 0.01 270);
+  --paper-3: oklch(0.28 0.01 270);
+  --ink: oklch(0.96 0.005 90);
+  --ink-2: oklch(0.86 0.005 90);
+  --ink-3: oklch(0.68 0.01 90);
+  --ink-4: oklch(0.5 0.01 270);
+  --rule: oklch(0.3 0.01 270);
+  --rule-2: oklch(0.36 0.01 270);
+  --brand: oklch(0.7 0.17 40);
+  --brand-deep: oklch(0.78 0.15 45);
+  --brand-soft: oklch(0.3 0.05 45);
+  --court: oklch(0.6 0.08 60);
+  --live: oklch(0.7 0.2 25);
+  --good: oklch(0.7 0.12 145);
+}
+
+/* What shadcn's init writes, kept as it writes it: every border defaults to
+   the border token, focus outlines to the ring, the body to background and
+   foreground, the document to the sans face. All four resolve to what this
+   file already set, so they change nothing until a component relies on them. */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+  /* Tailwind's reset makes headings inherit size and weight, so a heading
+     with no rule of its own — the court names on the Places page were the
+     ones — went from the browser's bold default to plain body text. This is
+     the one thing the reset moved in B1's captures, put back here as a base
+     style rather than by trimming the reset. Headings with their own rule
+     are unaffected. */
+  h1, h2, h3, h4 {
+    font-weight: 600;
+  }
+  h3 {
+    font-size: var(--type-lg);
+  }
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0;}
 html, body { height: 100%; }
 body {
-  /* The tail is load-bearing, not politeness.
-     Latin and Thai are self-hosted (see scripts/fonts-vendor.ts); CJK is
-     deliberately not, because Noto Sans JP alone is 5.3MB and every device that
-     reads it ships a better face already. `system-ui` is what renders Japanese,
-     Korean and Chinese here — drop it and a declared locale becomes tofu. */
-  font-family: 'Inter', 'Noto Sans Thai', system-ui, -apple-system,
-    BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-sans);
   background: var(--paper);
   color: var(--ink);
-  font-size: 14px;
+  font-size: var(--type-base);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
-.display { font-family: 'Space Grotesk', 'Noto Sans Thai', system-ui, sans-serif; letter-spacing: -0.02em; }
-.mono { font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace; }
-.thai { font-family: 'Noto Sans Thai', system-ui, sans-serif; }
+/* Thai-first, for a line that is Thai with a Latin word or two in it: one face
+   for the whole line reads better than Inter's Latin spliced into Noto's Thai. */
+.thai { font-family: var(--font-thai); }
 
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit;}
 a { color: inherit; text-decoration: none;}
 input, select, textarea { font-family: inherit; font-size: inherit; color: inherit;}
 
-/* ---------- App shell ---------- */
-.app {
-  display: grid;
-  grid-template-columns: 240px 1fr;
-  height: 100vh;
-  min-height: 100vh;
-  background: var(--paper);
-}
-
-/* Sidebar */
-.sidebar {
-  background: var(--paper);
-  border-right: 1px solid var(--rule);
-  display: flex; flex-direction: column;
-  overflow-y: auto;
-}
+/* ---------- App shell ----------
+   The shell is the registry's Sidebar now (B2 step 8): the viewport wrapper,
+   the desktop rail and the phone Sheet are Tailwind utilities inside
+   `components/ui/sidebar.tsx`, driven by `components/app-sidebar.tsx` and
+   wired in `main.tsx`. What is left here is the chrome we author: the
+   topbar, the brand, the account trigger's text block and the page frame. */
 .brand {
-  display: flex; align-items: center; gap: 12px;
-  padding: 22px 24px 22px 24px;
-  border-bottom: 1px solid var(--rule);
+  display: flex; align-items: center; gap: 10px;
+  /* The topbar's own padding is the gutter; the brand adds none of its own
+     and carries no rule of its own. These were the sidebar's, and they are
+     what wrapped the topbar to two rows the first hour it lived there.
+     Shrinkable with an ellipsis rather than fixed: the row must fit while the
+     webfont is still loading, when the fallback face measures differently. */
+  padding: 0;
+  min-width: 0;
 }
 .brand-mark {
-  width: 32px; height: 32px; border-radius: 50%;
-  background: var(--accent); position: relative; flex-shrink: 0;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--brand); position: relative; flex-shrink: 0;
 }
 .brand-mark::before, .brand-mark::after { content:""; position: absolute; inset:0; border-radius:50%;}
 .brand-mark::before { border-top: 1.2px solid var(--paper); border-bottom: 1.2px solid var(--paper); transform: scaleX(0.55);}
 .brand-mark::after  { border-left: 1.2px solid var(--paper); border-right: 1.2px solid var(--paper); transform: scaleY(0.6);}
 .brand-name {
-  font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 17px; line-height: 1.1;
+  font-family: var(--font-display); font-weight: 600; font-size: var(--type-lg); line-height: 1.1;
   letter-spacing: -0.01em;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+/* The Thai name under the Latin one. */
 .brand-name .sub {
   display: block;
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px; font-weight: 500; color: var(--ink-3); letter-spacing: 0.1em; margin-top: 2px;
-  text-transform: uppercase;
-}
-.nav-group { padding: 18px 12px 0 12px;}
-.nav-group .label {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px; color: var(--ink-3); letter-spacing: 0.14em; text-transform: uppercase;
-  padding: 0 12px 8px 12px;
-}
-.nav-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 12px; border-radius: 6px;
-  font-size: 14px; color: var(--ink-2); cursor: pointer;
-  margin-bottom: 1px;
-  transition: background 0.12s;
-  width: 100%; text-align: left;
-}
-.nav-item:hover { background: var(--paper-2);}
-.nav-item.active {
-  background: var(--ink); color: var(--paper);
-}
-.nav-item .ico {
-  width: 16px; height: 16px; flex-shrink: 0; display:inline-flex; align-items:center; justify-content: center;
-}
-.nav-item .ico svg { width: 16px; height: 16px;}
-.nav-item .count {
-  margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 11px;
-  color: var(--ink-3); letter-spacing: 0.04em;
-}
-.nav-item.active .count { color: var(--ink-4);}
-
-.sidebar-bottom {
-  margin-top: auto;
-  padding: 16px;
-  border-top: 1px solid var(--rule);
+  font-family: var(--font-thai);
+  font-size: var(--type-sm); font-weight: 400; color: var(--ink-3); margin-top: 2px;
 }
 /* What this page is. Quiet by default — it is for the moment someone asks
-   "which one am I on", not something to read every day. */
+   "which one am I on", not something to read every day. The hash is mono
+   because it is a hash. */
 .build-stamp {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-  margin-top: 10px; font-size: 11px; font-family: 'IBM Plex Mono', monospace;
+  margin-top: 10px; font-size: var(--type-xs); font-family: var(--font-mono);
   color: var(--ink-3);
 }
 /* Only rendered off production, where it is the whole point. */
 .build-env {
   padding: 1px 6px; border-radius: 999px;
-  background: var(--accent); color: #fff; text-transform: uppercase;
-  letter-spacing: 0.04em; font-size: 10px;
+  background: var(--brand); color: #fff; text-transform: uppercase;
+  letter-spacing: var(--tracking-caps); font-size: var(--type-xs);
 }
 /* The server has moved on and this tab has not. Loud enough to notice, and a
    button rather than a notice because the fix is one click. */
 .build-stale {
   border: 0; cursor: pointer; font: inherit;
   padding: 2px 8px; border-radius: 999px;
-  background: var(--accent); color: #fff;
+  background: var(--brand); color: #fff;
 }
-.user-card {
-  display: flex; align-items: center; gap: 10px; padding: 8px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-.user-card:hover { background: var(--paper-2);}
-.avatar {
-  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
-  background: var(--accent); color: var(--paper);
-  display: flex; align-items: center; justify-content: center;
-  font-family: 'Space Grotesk',sans-serif; font-weight: 600; font-size: 12px;
-  letter-spacing: 0;
-}
-.user-card .info .name { font-weight: 500; font-size: 13px; line-height: 1.2;}
-.user-card .info .role { font-family:'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink-3); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 2px;}
 
 /* ---------- Topbar ---------- */
-.main {
-  display: flex; flex-direction: column;
-  overflow: hidden;
-}
+/* One row at every size: menu button, brand, spacer, account. 12px + 32px of
+   control + 12px keeps the row at 56px plus its rule, which is the mobile
+   plan's number and the number the topbar overflow check holds us to. */
 .topbar {
-  display: flex; align-items: center; gap: 16px;
-  padding: 14px 32px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--rule);
   background: var(--paper);
   flex-shrink: 0;
@@ -178,6 +351,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 /* Holds the right-hand controls to the right, the way `.search` used to while
    it was still there. See components/topbar.tsx for why it went. */
 .topbar-spacer { flex: 1; }
+/* Kept for the day search comes back; see components/topbar.tsx. */
 .search {
   flex: 1; max-width: 480px;
   display: flex; align-items: center; gap: 10px;
@@ -187,43 +361,19 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   background: var(--paper-2);
 }
 .search:focus-within { border-color: var(--ink); background: var(--paper);}
-.search input { flex: 1; background: transparent; border: none; outline: none; font-size: 13px; color: var(--ink);}
+.search input { flex: 1; background: transparent; border: none; outline: none; font-size: var(--type-md); color: var(--ink);}
 .search input::placeholder { color: var(--ink-3);}
+/* A keyboard shortcut, which is the one kind of label that belongs in mono. */
 .search .kbd {
-  font-family:'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink-3);
+  font-family: var(--font-mono); font-size: var(--type-xs); color: var(--ink-3);
   background: var(--paper); border: 1px solid var(--rule); padding: 2px 6px; border-radius: 4px;
-  letter-spacing: 0.04em;
 }
-.topbar .lang-switch {
-  display: flex; align-items: center; gap: 0;
-  border: 1px solid var(--rule); border-radius: 100px; padding: 2px;
-  font-family:'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.06em;
-}
-.topbar .lang-switch button { padding: 4px 10px; border-radius: 100px; color: var(--ink-3);}
-.topbar .lang-switch button.active { background: var(--ink); color: var(--paper);}
-.topbar .icon-btn {
-  width: 36px; height: 36px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--ink-2);
-  position: relative;
-}
-.topbar .icon-btn:hover { background: var(--paper-2);}
-.topbar .icon-btn .badge {
-  position: absolute; top: 6px; right: 6px;
-  width: 7px; height: 7px; border-radius: 50%; background: var(--accent);
-}
-.topbar .install-btn {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 16px;
-  background: var(--ink); color: var(--paper);
-  border-radius: 100px;
-  font-size: 13px; font-weight: 500;
-}
-.topbar .install-btn:hover { background: var(--ink-2);}
 
 /* ---------- Account (topbar sign-in / signed-in identity) ---------- */
 /* The SPA had no auth affordance at all before ADR 012 — a login route with
-   nothing linking to it. This is that entry point. */
+   nothing linking to it. This is that entry point. The trigger's chrome
+   (rounding, hover, focus ring) is Tailwind on the button in
+   components/account.tsx; what is here is the two-line text block it shows. */
 .account-slot {
   display: flex; align-items: center; gap: 10px;
   /* Reserve the row while the session resolves, so the topbar does not jump
@@ -234,33 +384,20 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .account-ava {
   width: 32px; height: 32px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  background: var(--accent-soft); color: var(--accent-deep);
-  font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 12px;
+  background: var(--brand-soft); color: var(--brand-deep);
+  font-family: var(--font-display); font-weight: 600; font-size: var(--type-sm);
   letter-spacing: 0.02em;
   flex-shrink: 0;
 }
 .account-meta { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
 .account-name {
-  font-size: 13px; font-weight: 500; color: var(--ink);
-  max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--type-md); font-weight: 500; color: var(--ink);
+  /* Wide enough to be a name on a desktop, willing to become an ellipsis on
+     a 320px phone, where the row is menu + brand + this and something has to
+     give. The full name is the menu it opens. */
+  max-width: min(160px, 24vw); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.account-role {
-  font-family: 'IBM Plex Mono', monospace; font-size: 10px;
-  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3);
-}
-.account-slot .btn {
-  padding: 7px 14px; font-size: 13px;
-  border: 1px solid var(--rule); border-radius: 100px;
-  color: var(--ink-2); background: transparent;
-}
-.account-slot .btn:hover { background: var(--paper-2); color: var(--ink); }
-.topbar > .btn.primary {
-  padding: 8px 18px; border-radius: 100px;
-  background: var(--accent); color: #fff;
-  font-size: 13px; font-weight: 500;
-  flex-shrink: 0;
-}
-.topbar > .btn.primary:hover { background: var(--accent-deep); }
+.account-role { font-size: var(--type-xs); color: var(--ink-3); }
 
 /* ---------- Page ---------- */
 .page {
@@ -268,17 +405,19 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   overflow-y: auto;
   /* The app shell must never pan sideways. This is the structural fix for a
      class of bug that was found three times by eye and never by a check.
-     
+
      `overflow-y: auto` alone is not enough: CSS computes `overflow-x: visible`
      to `auto` when the other axis is not visible, so this element silently
      became horizontally scrollable and any too-wide descendant made the whole
      content area slide — under a topbar that stayed put, because the topbar is
      outside `.page`. Every document-level check passed throughout, because the
-     document genuinely does not scroll: `.app` is a viewport-height grid.
-     
+     document genuinely does not scroll: the shell wrapper is a viewport-height
+     flex column (the registry sidebar's provider, with `h-svh` from
+     `main.tsx`).
+
      `clip` is the only value that does NOT force the other axis. So vertical
      scrolling still works and horizontal panning is impossible.
-     
+
      This is deliberately a floor, not a cure. Anything too wide is now clipped
      rather than reachable by dragging, which is worse-looking and therefore
      better: it turns a silent layout escape hatch into a visible defect, and
@@ -295,17 +434,17 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .page-header { padding: var(--space-6) max(var(--page-gutter), calc((100% - var(--page-width)) / 2 + var(--page-gutter))) var(--space-6); border-bottom: 1px solid var(--rule);}
 .page-header .crumbs {
   display: flex; align-items: center; gap: 10px;
-  font-family:'IBM Plex Mono',monospace; font-size: 11px; color: var(--ink-3);
-  letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 12px;
+  font-size: var(--type-sm); color: var(--ink-3);
+  margin-bottom: 12px;
 }
 .page-header .crumbs a:hover { color: var(--ink); }
 .page-header .crumbs .sep { opacity: 0.6;}
 .page-header h1 {
-  font-family:'Space Grotesk', 'Noto Sans Thai', system-ui, sans-serif; font-weight: 600; font-size: clamp(24px, 3vw, 34px); line-height: 1.15;
+  font-family: var(--font-display); font-weight: 600; font-size: var(--type-h1); line-height: 1.15;
   letter-spacing: -0.025em;
 }
-.page-header .sub { color: var(--ink-3); font-size: 15px; margin-top: 6px;}
-.page-header .sub.thai { font-family:'Noto Sans Thai',sans-serif; }
+.page-header .sub { color: var(--ink-3); font-size: var(--type-base); margin-top: 6px;}
+.page-header .sub.thai { font-family: var(--font-thai); }
 
 /* ---------- Discover (events list) ---------- */
 .discover-toolbar {
@@ -317,30 +456,32 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .tab-row { display: flex; gap: 0;}
 .tab {
   padding: 14px 18px;
-  font-size: 14px; color: var(--ink-3);
+  font-size: var(--type-md); color: var(--ink-3);
   border-bottom: 2px solid transparent;
   font-weight: 500;
   display: inline-flex; align-items: center; gap: 8px;
 }
 .tab .count {
-  font-family:'IBM Plex Mono', monospace; font-size: 11px;
-  background: var(--paper-2); padding: 2px 6px; border-radius: 100px;
+  font-size: var(--type-xs); font-variant-numeric: tabular-nums;
+  background: var(--paper-2); padding: 2px 7px; border-radius: 100px;
   color: var(--ink-3);
 }
-.tab.active { color: var(--ink); border-color: var(--accent);}
-.tab.active .count { background: var(--accent-soft); color: var(--accent-deep);}
+.tab.active { color: var(--ink); border-color: var(--brand);}
+.tab.active .count { background: var(--brand-soft); color: var(--brand-deep);}
 
 .filter-row {
   margin-left: auto; display: flex; align-items: center; gap: 8px; padding: 8px 0;
 }
 .chip {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 10px;
+  padding: 6px 12px;
   border: 1px solid var(--rule);
   border-radius: 100px;
-  font-size: 12px;
+  font-size: var(--type-sm);
   color: var(--ink-2);
   background: var(--paper);
+  /* A chip is one label; "Camp / Clinic" on two lines is a broken pill, not a wrap. */
+  white-space: nowrap;
 }
 .chip.active { background: var(--ink); color: var(--paper); border-color: var(--ink);}
 .chip .x { opacity: 0.5;}
@@ -349,10 +490,10 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 /* The province filter sits in the same row as the city chips and matches them:
    a select rather than chips because the model defines 77 provinces. */
 .province-filter {
-  padding: 6px 10px;
+  padding: 6px 12px;
   border: 1px solid var(--rule);
   border-radius: 100px;
-  font-size: 12px;
+  font-size: var(--type-sm);
   font-family: inherit;
   color: var(--ink-2);
   background: var(--paper);
@@ -373,7 +514,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   padding: 4px 8px;
   border: 1px solid var(--rule);
   border-radius: 6px;
-  font-size: 12px;
+  font-size: var(--type-sm);
   font-family: inherit;
   color: var(--ink-2);
   background: var(--paper);
@@ -386,8 +527,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   display: grid; grid-template-columns: 60px 2.4fr 1fr 1.4fr 1fr 1fr 100px;
   gap: 16px;
   padding: 8px 16px;
-  font-family:'IBM Plex Mono',monospace; font-size: 10px; color: var(--ink-3);
-  letter-spacing: 0.12em; text-transform: uppercase;
+  font-size: var(--type-xs); font-weight: 500; color: var(--ink-3);
   border-bottom: 1px solid var(--rule);
 }
 .event-row {
@@ -402,40 +542,40 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 }
 .event-row:hover { background: var(--paper-2);}
 .event-row .date {
-  font-family: 'Space Grotesk', sans-serif; font-weight: 500;
-  font-size: 12px; color: var(--ink-3); letter-spacing: 0;
+  font-family: var(--font-display); font-weight: 500;
+  font-size: var(--type-sm); color: var(--ink-3); letter-spacing: 0;
   display: flex; flex-direction: column; align-items: flex-start;
 }
-.event-row .date .day { font-size: 28px; font-weight: 600; color: var(--ink); line-height: 1; letter-spacing: -0.02em;}
-.event-row .date .mo { font-family:'IBM Plex Mono',monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 2px;}
+.event-row .date .day { font-size: var(--type-2xl); font-weight: 600; color: var(--ink); line-height: 1; letter-spacing: -0.02em;}
+.event-row .date .mo { font-size: var(--type-xs); font-weight: 500; margin-top: 2px;}
 .event-row .title {
   display: flex; flex-direction: column; gap: 4px;
 }
-.event-row .title .name { font-family:'Space Grotesk', sans-serif; font-weight: 600; font-size: 17px; letter-spacing: -0.01em;}
-.event-row .title .meta { font-family:'IBM Plex Mono',monospace; font-size: 11px; color: var(--ink-3); letter-spacing: 0.06em;}
+.event-row .title .name { font-family: var(--font-display); font-weight: 600; font-size: var(--type-lg); letter-spacing: -0.01em;}
+.event-row .title .meta { font-size: var(--type-sm); color: var(--ink-3);}
 .event-row .type {
-  display: inline-flex; align-self: start; padding: 3px 8px;
-  font-family:'IBM Plex Mono',monospace; font-size: 10px; letter-spacing: 0.1em;
+  display: inline-flex; align-self: start; padding: 2px 8px;
+  font-size: var(--type-xs); font-weight: 500; letter-spacing: var(--tracking-caps);
   border: 1px solid var(--ink); text-transform: uppercase;
 }
 .event-row .type.tournament { background: var(--ink); color: var(--paper);}
 .event-row .type.league { border-color: var(--ink); color: var(--ink);}
 .event-row .type.camp { border-color: var(--ink-3); color: var(--ink-3);}
-.event-row .type.showcase { border-color: var(--accent); color: var(--accent-deep);}
-.event-row .loc { font-size: 13px; color: var(--ink-2);}
-.event-row .loc .city { color: var(--ink-3); font-size: 11px; font-family:'IBM Plex Mono',monospace; letter-spacing: 0.06em; text-transform: uppercase; margin-top: 2px; display: block;}
-.event-row .div { font-family:'IBM Plex Mono',monospace; font-size: 12px; color: var(--ink-2); letter-spacing: 0.04em;}
+.event-row .type.showcase { border-color: var(--brand); color: var(--brand-deep);}
+.event-row .loc { font-size: var(--type-md); color: var(--ink-2);}
+.event-row .loc .city { color: var(--ink-3); font-size: var(--type-sm); margin-top: 2px; display: block;}
+.event-row .div { font-size: var(--type-md); color: var(--ink-2);}
 .event-row .status {
-  font-family:'IBM Plex Mono',monospace; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+  font-size: var(--type-xs); font-weight: 500; letter-spacing: var(--tracking-caps); text-transform: uppercase;
   display: inline-flex; align-items: center; gap: 6px;
 }
-.event-row .status.live { color: var(--live); font-weight: 500;}
+.event-row .status.live { color: var(--live);}
 .event-row .status.live::before { content:""; width: 6px; height: 6px; border-radius: 50%; background: var(--live); animation: pulse 1.4s infinite;}
-.event-row .status.open { color: var(--good); font-weight: 500;}
+.event-row .status.open { color: var(--good);}
 .event-row .status.upcoming { color: var(--ink-3); }
 .event-row .status.closed { color: var(--ink-4); }
-.event-row .arrow { color: var(--ink-3); font-size: 14px; text-align: right;}
-.event-row:hover .arrow { color: var(--accent);}
+.event-row .arrow { color: var(--ink-3); font-size: var(--type-md); text-align: right;}
+.event-row:hover .arrow { color: var(--brand);}
 
 @keyframes pulse { 50% { opacity: 0.3;} }
 
@@ -452,33 +592,29 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   display: inline-flex; align-items: center; gap: 6px;
   background: var(--live); color: var(--paper);
   padding: 4px 10px; border-radius: 100px;
-  font-family:'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+  font-size: var(--type-xs); font-weight: 500; letter-spacing: var(--tracking-caps); text-transform: uppercase;
 }
 .live-banner .pill .dot { width: 6px; height: 6px; border-radius:50%; background: #fff; animation: pulse 1.4s infinite;}
-.live-banner .label { font-family:'IBM Plex Mono', monospace; font-size: 10px; color: oklch(0.7 0.01 270); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 4px;}
-.live-banner .matchup { font-family:'Space Grotesk',sans-serif; font-weight: 600; font-size: 22px; letter-spacing: -0.01em;}
+.live-banner .label { font-size: var(--type-sm); color: oklch(0.7 0.01 270); margin-bottom: 4px;}
+.live-banner .matchup { font-family: var(--font-display); font-weight: 600; font-size: var(--type-xl); letter-spacing: -0.01em;}
 .live-banner .matchup .vs { color: oklch(0.6 0.01 270); margin: 0 12px; font-weight: 400;}
 .live-banner .score-mini {
-  font-family:'Space Grotesk',sans-serif; font-weight: 600; font-size: 28px; letter-spacing: -0.02em; line-height: 1;
+  font-family: var(--font-display); font-weight: 600; font-size: var(--type-2xl); letter-spacing: -0.02em; line-height: 1;
 }
-.live-banner .score-mini .leading { color: var(--accent);}
-.live-banner .quarter { font-family:'IBM Plex Mono',monospace; font-size: 11px; color: oklch(0.7 0.01 270); letter-spacing: 0.06em; text-align: center;}
+.live-banner .score-mini .leading { color: var(--brand);}
+/* The game clock: quarter and time, mono so the digits hold still. */
+.live-banner .quarter { font-family: var(--font-mono); font-size: var(--type-sm); color: oklch(0.7 0.01 270); text-align: center;}
 .live-banner .quarter b { color: var(--paper); font-weight: 500;}
 .live-banner .open-btn {
   background: var(--paper); color: var(--ink);
-  padding: 8px 14px; border-radius: 100px; font-size: 12px; font-weight: 500;
+  padding: 8px 14px; border-radius: 100px; font-size: var(--type-md); font-weight: 500;
 }
 
 /* ---------- Event detail page ---------- */
 .event-page { --event-gutter: var(--page-gutter); }
 .event-page > .page-inner { max-width: none; padding-inline: var(--event-gutter); }
 .event-page .section-h { margin-top: 20px; padding-inline: 0; }
-.event-page .dash-grid > div > .section-h:first-child { margin-top: 0; }
-.event-page [data-testid="event-progress"] { margin-bottom: 20px; font-size: 13px; }
-.event-match { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; align-items: baseline; }
-.event-match .row-title { overflow-wrap: anywhere; }
-.event-score { font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.event-game .row-meta { margin-top: 8px; }
+.event-page [data-testid="event-progress"] { margin-bottom: 20px; font-size: var(--type-md); }
 .event-hero {
   padding: 20px var(--event-gutter);
   border-bottom: 1px solid var(--rule);
@@ -488,29 +624,13 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   margin-bottom: 12px; flex-wrap: wrap;
 }
 .event-hero h1 {
-  font-family:'Space Grotesk', 'Noto Sans Thai', system-ui, sans-serif; font-weight: 600; font-size: clamp(24px, 3vw, 34px); line-height: 1.15;
+  font-family: var(--font-display); font-weight: 600; font-size: var(--type-h1); line-height: 1.15;
   letter-spacing: -0.03em;
   margin-block: 10px 6px;
 }
-.event-hero h1 em { color: var(--accent); font-style: normal;}
-.event-hero .tagline { color: var(--ink-3); font-size: 14px; line-height: 1.6; }
-.event-hero .tagline.thai { font-family: 'Noto Sans Thai', sans-serif; margin-top: 4px; }
-
-.event-stats {
-  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin-top: 20px;
-  border-top: 1px solid var(--rule);
-}
-.stat-cell {
-  padding: 12px 20px 8px 0;
-  border-right: 1px solid var(--rule);
-}
-.stat-cell:last-child { border-right: none;}
-.stat-cell:not(:first-child) { padding-left: 24px;}
-.stat-cell .label { font-family:'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink-3); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 6px;}
-.stat-cell .value { font-family:'Space Grotesk', sans-serif; font-weight: 600; font-size: 26px; letter-spacing: -0.02em; line-height: 1.1; color: var(--ink);}
-.stat-cell .value em { color: var(--accent); font-style: normal;}
-.stat-cell .sub { font-size: 12px; color: var(--ink-3); margin-top: 4px;}
+.event-hero h1 em { color: var(--brand); font-style: normal;}
+.event-hero .tagline { color: var(--ink-3); font-size: var(--type-base); line-height: 1.6; }
+.event-hero .tagline.thai { font-family: var(--font-thai); margin-top: 4px; }
 
 .event-actions {
   display: flex; flex-wrap: wrap; gap: 8px;
@@ -521,7 +641,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   justify-content: center; min-height: var(--control-height);
   padding: var(--space-2) var(--space-4);
   border-radius: 100px;
-  font-size: 13px;
+  font-size: var(--type-md);
   font-weight: 500;
   border: 1px solid var(--rule);
   color: var(--ink-2); background: var(--paper);
@@ -530,8 +650,8 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .btn:hover, .form-stack button:hover, .admin-table button:hover { border-color: var(--ink-2); color: var(--ink);}
 .btn.primary, .form-stack button[type="submit"] { background: var(--ink); color: var(--paper); border-color: var(--ink);}
 .btn.primary:hover { background: var(--ink-2);}
-.btn.accent { background: var(--accent-deep); color: var(--paper); border-color: var(--accent-deep);}
-.btn.accent:hover { background: var(--accent-deep); border-color: var(--accent-deep);}
+.btn.accent { background: var(--brand-deep); color: var(--paper); border-color: var(--brand-deep);}
+.btn.accent:hover { background: var(--brand-deep); border-color: var(--brand-deep);}
 
 /* tabs on event detail */
 .detail-tabs {
@@ -543,265 +663,14 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 }
 .detail-tabs .tab { padding: 14px 16px; white-space: nowrap; flex-shrink: 0; }
 
-/* ---------- Bracket ---------- */
-.bracket-page { padding: 32px 32px 80px 32px;}
-.bracket-page .legend { display: flex; gap: 24px; margin-bottom: 24px; align-items: center; font-family:'IBM Plex Mono',monospace; font-size: 11px; color: var(--ink-3); letter-spacing: 0.06em;}
-.bracket-page .legend .swatch { display:inline-flex; align-items:center; gap: 8px;}
-.bracket-page .legend .swatch .dot { width: 10px; height: 10px;}
-.bracket-page .legend .swatch.live .dot { background: var(--live); border-radius:50%;}
-.bracket-page .legend .swatch.done .dot { background: var(--ink);}
-.bracket-page .legend .swatch.upcoming .dot { background: var(--paper); border: 1px solid var(--ink-3);}
-
-.bracket {
-  display: flex; gap: 32px;
-  align-items: stretch;
-  overflow-x: auto;
-  padding-bottom: 24px;
-}
-.bracket-round {
-  display: flex; flex-direction: column;
-  flex-shrink: 0;
-  min-width: 240px;
-}
-.bracket-round .round-label {
-  font-family:'IBM Plex Mono',monospace; font-size: 11px; color: var(--ink-3);
-  letter-spacing: 0.14em; text-transform: uppercase;
-  padding-bottom: 12px; margin-bottom: 16px;
-  border-bottom: 1px solid var(--rule);
-}
-.matches {
-  display: flex; flex-direction: column;
-  justify-content: space-around;
-  flex: 1;
-  gap: 12px;
-}
-.match {
-  border: 1px solid var(--rule);
-  background: var(--paper);
-  padding: 0;
-  cursor: pointer;
-  transition: all 0.12s;
-  position: relative;
-}
-.match:hover { border-color: var(--ink-3);}
-.match.live { border-color: var(--live); border-width: 1.5px;}
-.match-head {
-  display: flex; justify-content: space-between;
-  padding: 6px 12px;
-  font-family:'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink-3); letter-spacing: 0.06em;
-  border-bottom: 1px solid var(--rule);
-}
-.match.live .match-head { color: var(--live); font-weight: 500;}
-.match.live .match-head::before { content:""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--live); margin-right: 4px; vertical-align: middle; animation: pulse 1.4s infinite;}
-.match-team {
-  display: grid; grid-template-columns: 24px 1fr auto;
-  gap: 10px;
-  padding: 10px 12px;
-  align-items: center;
-  font-size: 13px;
-}
-.match-team + .match-team { border-top: 1px solid var(--rule);}
-.match-team.win { font-weight: 600;}
-.match-team.win .seed { color: var(--ink);}
-.match-team.lose { color: var(--ink-3);}
-.match-team.tba { color: var(--ink-3); font-style: italic;}
-.match-team .seed { font-family:'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-3);}
-.match-team .name { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
-.match-team .score { font-family:'Space Grotesk',sans-serif; font-weight: 600; font-size: 16px; letter-spacing: -0.02em; min-width: 24px; text-align: right;}
-.match-team.win .score { color: var(--accent);}
-.match-team.win.live .score { color: var(--live); }
-
-/* ---------- Live game ---------- */
-.live-page {
-  background: var(--ink);
-  color: var(--paper);
-  min-height: 100%;
-  padding: 32px 32px 80px 32px;
-}
-.live-page .crumbs { color: oklch(0.6 0.01 270);}
-.live-page .crumbs a:hover { color: var(--paper);}
-.live-header {
-  display: flex; justify-content: space-between; align-items: baseline;
-  margin-bottom: 32px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid oklch(0.32 0.01 270);
-}
-.live-header .court {
-  font-family:'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em;
-  color: oklch(0.7 0.01 270); text-transform: uppercase;
-}
-.live-header .pill {
-  display: inline-flex; align-items: center; gap: 6px;
-  background: var(--live);
-  padding: 4px 10px; border-radius: 100px;
-  font-family:'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
-}
-.live-header .pill .dot { width: 6px; height: 6px; border-radius: 50%; background: #fff; animation: pulse 1.4s infinite;}
-
-.live-scoreboard {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: 40px;
-  align-items: center;
-  margin-bottom: 48px;
-}
-.score-team { text-align: left;}
-.score-team.r { text-align: right;}
-.score-team .crest {
-  width: 88px; height: 88px; border-radius: 50%;
-  margin-bottom: 16px;
-}
-.score-team.r .crest { margin-left: auto;}
-.score-team .crest.a { background: var(--accent);}
-.score-team .crest.b {
-  background: var(--court);
-  background: repeating-linear-gradient(135deg, var(--court) 0 6px, oklch(0.62 0.06 60) 6px 12px);
-}
-.score-team .name {
-  font-family:'Space Grotesk', sans-serif; font-weight: 600; font-size: 36px;
-  letter-spacing: -0.02em;
-}
-.score-team .name-th { font-family:'Noto Sans Thai',sans-serif; color: oklch(0.7 0.01 270); font-size: 16px; margin-top: 4px;}
-.score-team .meta { font-family:'IBM Plex Mono', monospace; font-size: 11px; color: oklch(0.65 0.01 270); letter-spacing: 0.1em; margin-top: 8px; text-transform: uppercase;}
-
-.score-numbers {
-  font-family:'Space Grotesk', sans-serif;
-  font-weight: 600;
-  font-size: 180px;
-  line-height: 0.85;
-  letter-spacing: -0.05em;
-  display: flex; gap: 16px; align-items: baseline;
-  text-align: center;
-}
-.score-numbers .sep { color: oklch(0.4 0.01 270); font-weight: 400; font-size: 0.7em;}
-.score-numbers .leading { color: var(--accent);}
-
-.live-clock {
-  text-align: center;
-  margin-bottom: 32px;
-}
-.live-clock .quarter {
-  font-family:'IBM Plex Mono',monospace; font-size: 14px; letter-spacing: 0.12em; color: oklch(0.7 0.01 270); text-transform: uppercase;
-  margin-bottom: 6px;
-}
-.live-clock .time {
-  font-family:'Space Grotesk', sans-serif; font-weight: 500; font-size: 44px; letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-}
-
-.quarters-table {
-  border: 1px solid oklch(0.32 0.01 270);
-  background: oklch(0.22 0.01 270);
-  display: grid;
-  grid-template-columns: 1fr repeat(5, 80px) 100px;
-  font-family:'IBM Plex Mono',monospace; font-size: 14px;
-}
-.quarters-table .cell {
-  padding: 14px 16px;
-  border-bottom: 1px solid oklch(0.32 0.01 270);
-  text-align: right;
-}
-.quarters-table .cell.head {
-  font-size: 10px; color: oklch(0.6 0.01 270); letter-spacing: 0.12em;
-  text-transform: uppercase;
-  border-bottom: 1px solid oklch(0.32 0.01 270);
-}
-.quarters-table .cell.label { text-align: left; font-weight: 500;}
-.quarters-table .cell.team-name { font-family: 'Inter', sans-serif; text-align: left; font-weight: 500;}
-.quarters-table .cell.total { color: var(--accent); font-weight: 600; font-size: 18px;}
-.quarters-table .row:last-child .cell { border-bottom: none;}
-
-/* live game side panels */
-.live-side-grid {
-  display: grid; grid-template-columns: 2fr 1fr;
-  gap: 32px;
-  margin-top: 32px;
-}
-.panel {
-  border: 1px solid oklch(0.32 0.01 270);
-  background: oklch(0.22 0.01 270);
-}
-.panel .panel-head {
-  padding: 12px 16px;
-  border-bottom: 1px solid oklch(0.32 0.01 270);
-  font-family:'IBM Plex Mono',monospace; font-size: 10px; letter-spacing: 0.14em; color: oklch(0.7 0.01 270); text-transform: uppercase;
-  display: flex; justify-content: space-between;
-}
-.play-by-play {
-  padding: 8px 0;
-  max-height: 380px;
-  overflow-y: auto;
-}
-.play {
-  display: grid; grid-template-columns: 60px 1fr;
-  gap: 16px;
-  padding: 10px 16px;
-  font-size: 13px;
-  border-bottom: 1px solid oklch(0.28 0.01 270);
-}
-.play:last-child { border-bottom: none;}
-.play .ts { font-family:'IBM Plex Mono',monospace; font-size: 11px; color: oklch(0.65 0.01 270); letter-spacing: 0.04em;}
-.play .desc { color: oklch(0.85 0.01 270);}
-.play .desc b { color: var(--paper); font-weight: 500;}
-.play.score-event .desc::before { content:""; display: inline-block; width: 4px; height: 12px; background: var(--accent); margin-right: 8px; vertical-align: middle; transform: translateY(-1px);}
-
-.live-actions {
-  display: flex; flex-direction: column; gap: 12px;
-}
-.live-action-btn {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 16px;
-  border: 1px solid oklch(0.32 0.01 270);
-  background: oklch(0.22 0.01 270);
-  color: var(--paper);
-  border-radius: 0;
-  font-size: 13px;
-  text-align: left;
-}
-.live-action-btn .label { display: block; font-family:'IBM Plex Mono',monospace; font-size: 10px; color: oklch(0.6 0.01 270); letter-spacing: 0.12em; margin-bottom: 4px; text-transform: uppercase;}
-.live-action-btn .val { font-family:'Space Grotesk',sans-serif; font-size: 16px; font-weight: 500;}
-.live-action-btn:hover { background: oklch(0.28 0.01 270);}
-.live-action-btn .icon { color: var(--accent);}
-.live-action-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--paper);}
-.live-action-btn.primary .label { color: oklch(0.95 0.05 50);}
-.live-action-btn.primary .val { color: var(--paper);}
-.live-action-btn.primary:hover { background: var(--accent-deep);}
-
-/* ── Sample-data banner ──
-   Fixture-backed screens say so. See components/sample.tsx for which three and
-   why a banner rather than the small chip team.tsx uses beside a heading. */
-.sample-banner {
-  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px;
-  padding: 10px 14px;
-  margin-bottom: 16px;
-  border: 1px dashed var(--rule-2);
-  border-radius: 6px;
-  background: var(--paper-2);
-  color: var(--ink-2);
-  font-size: 13px;
-  line-height: 1.4;
-}
-.sample-banner strong {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--accent-deep);
-  font-weight: 600;
-}
-/* On a dark screen (the live page) the paper tokens would glow. */
-.live-page .sample-banner {
-  background: transparent;
-  border-color: oklch(0.35 0.01 270);
-  color: oklch(0.72 0.01 270);
-}
-.sample-banner.inline { margin: 8px 0 0; }
-
-/* spoiler mode banner */
+/* spoiler mode bar (pages/live.tsx) */
 .spoiler-bar {
   display: flex; align-items: center; justify-content: space-between;
   padding: 8px 16px;
   background: oklch(0.28 0.01 270);
+  color: oklch(0.85 0.01 270);
   border-bottom: 1px solid oklch(0.32 0.01 270);
-  font-family:'IBM Plex Mono',monospace; font-size: 11px; color: oklch(0.7 0.01 270); letter-spacing: 0.06em;
+  font-size: var(--type-sm);
   margin-bottom: 16px;
 }
 .spoiler-bar .toggle {
@@ -813,7 +682,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   position: relative; transition: background 0.15s;
   flex-shrink: 0;
 }
-.toggle-track.on { background: var(--accent);}
+.toggle-track.on { background: var(--brand);}
 .toggle-track::after {
   content: ""; position: absolute; left: 2px; top: 2px;
   width: 12px; height: 12px; border-radius: 50%; background: var(--paper);
@@ -829,7 +698,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 }
 .team-hero .crest {
   width: 80px; height: 80px; border-radius: 50%;
-  background: var(--accent);
+  background: var(--brand);
   position: relative;
 }
 .team-hero .crest::before, .team-hero .crest::after {
@@ -838,9 +707,18 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .team-hero .crest::before { border-top: 2px solid var(--paper); border-bottom: 2px solid var(--paper); transform: scaleX(0.6);}
 .team-hero .crest::after { border-left: 2px solid var(--paper); border-right: 2px solid var(--paper); transform: scaleY(0.6);}
 .team-hero h1 {
-  font-family:'Space Grotesk', 'Noto Sans Thai', system-ui, sans-serif; font-weight: 600; font-size: clamp(24px, 3vw, 34px); line-height: 1.15; letter-spacing: -0.025em;
+  font-family: var(--font-display); font-weight: 600; font-size: var(--type-h1); line-height: 1.15; letter-spacing: -0.025em;
 }
-.team-hero .meta { color: var(--ink-3); font-size: 14px; margin-top: 6px;}
+.team-hero .meta { color: var(--ink-3); font-size: var(--type-base); margin-top: 6px;}
+.team-hero .meta.thai { color: var(--ink-2); margin-top: 4px; }
+/* Wins and losses, beside the hero. See pages/team.tsx for what counts. */
+.team-record { text-align: right; }
+.team-record .label { font-size: var(--type-xs); color: var(--ink-3); margin-bottom: 2px; }
+.team-record .value {
+  font-family: var(--font-display); font-weight: 600; font-size: 32px; letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.team-record .value.none { color: var(--ink-3); }
 
 .roster {
   margin-top: 24px;
@@ -862,14 +740,14 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   width: 48px; height: 48px; border-radius: 50%;
   background: var(--paper-3); color: var(--ink);
   display: flex; align-items: center; justify-content: center;
-  font-family:'Space Grotesk',sans-serif; font-weight: 600; font-size: 16px;
+  font-family: var(--font-display); font-weight: 600; font-size: var(--type-base);
 }
 .player-card .num {
   position: absolute; top: 12px; right: 14px;
-  font-family:'Space Grotesk', sans-serif; font-weight: 600; font-size: 28px; letter-spacing: -0.02em; color: var(--paper-3);
+  font-family: var(--font-display); font-weight: 600; font-size: var(--type-2xl); letter-spacing: -0.02em; color: var(--paper-3);
 }
 .player-card { position: relative;}
-.player-card .name { font-weight: 500; font-size: 14px;}
+.player-card .name { font-weight: 500; font-size: var(--type-base);}
 /* The roster name is a way in to the player page, so it is a button. Styled
    back to reading as the text it replaced — a bordered control per player
    turns a squad list into a wall of buttons. */
@@ -878,8 +756,8 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   font: inherit; color: inherit; text-align: left; cursor: pointer;
 }
 .link-button:hover { text-decoration: underline;}
-.player-card .pos { font-family:'IBM Plex Mono',monospace; font-size: 10px; color: var(--ink-3); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 2px;}
-.player-card .stats { display: flex; gap: 8px; margin-top: 8px; font-family:'IBM Plex Mono',monospace; font-size: 11px; color: var(--ink-2); letter-spacing: 0.04em;}
+.player-card .pos { font-size: var(--type-sm); color: var(--ink-3); margin-top: 2px;}
+.player-card .stats { display: flex; gap: 8px; margin-top: 8px; font-size: var(--type-sm); color: var(--ink-2);}
 .player-card .stats span { display: inline-flex; gap: 3px;}
 .player-card .stats span b { color: var(--ink); font-weight: 600;}
 
@@ -892,8 +770,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 
 /* One fixture on the team page. Was an inline `gridTemplateColumns` in
    team.tsx — 350px of fixed tracks plus 1fr — which no media query could
-   reach, because an inline style always wins. Same defect as the standings
-   grid: layout belongs in the stylesheet. */
+   reach, because an inline style always wins. Layout belongs in the stylesheet. */
 .fixture-row {
   display: grid;
   grid-template-columns: 90px 1fr 80px 100px 80px;
@@ -902,12 +779,12 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   border-bottom: 1px solid var(--rule);
   align-items: center;
 }
-.fixture-row.live { background: var(--accent-soft); }
-.fixture-row .date { font-family: 'Space Grotesk', sans-serif; font-weight: 500; font-size: 14px; }
-.fixture-row .opponent { font-size: 14px; }
-.fixture-row .kind { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink-3); letter-spacing: 0.1em; text-transform: uppercase; }
-.fixture-row .result { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 16px; text-align: right; }
-.fixture-row .outcome { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; text-align: right; }
+.fixture-row.live { background: var(--brand-soft); }
+.fixture-row .date { font-family: var(--font-display); font-weight: 500; font-size: var(--type-md); }
+.fixture-row .opponent { font-size: var(--type-base); }
+.fixture-row .kind { font-size: var(--type-sm); color: var(--ink-3); }
+.fixture-row .result { font-family: var(--font-display); font-weight: 600; font-size: var(--type-base); text-align: right; font-variant-numeric: tabular-nums; }
+.fixture-row .outcome { font-size: var(--type-xs); font-weight: 500; letter-spacing: var(--tracking-caps); text-transform: uppercase; text-align: right; }
 
 /* The live page lists whole games — two names, a venue, a score, a status and
    sometimes a Watch button — in the same `.fixture-row` the team schedule uses
@@ -920,46 +797,21 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .live-list .fixture-row .live-actions { display: flex; gap: 8px; margin-top: 6px; }
 .live-list .fixture-row .live-actions:empty { display: none; }
 
-/* One finished game under "Recent results" on the event overview. The markup
-   carried these class names and the stylesheet had no rule for either, so the
-   two names and the two scores stacked as four bare lines in a bordered box. */
-.result-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0 16px;
-  align-items: center;
-  padding: 12px 18px;
-  border-bottom: 1px solid var(--rule);
-}
-.result-row:last-child { border-bottom: none; }
-.result-row .row-title { line-height: 22px; }
-.result-score {
-  font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 16px;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-3); text-align: right;
-}
-.result-score div { line-height: 22px; }
-.result-score .won { color: var(--ink); }
 .section-h h2 {
-  font-family:'Space Grotesk', sans-serif; font-weight: 600; font-size: 22px; letter-spacing: -0.02em;
+  font-family: var(--font-display); font-weight: 600; font-size: var(--type-xl); letter-spacing: -0.02em;
 }
-.section-h .more { font-size: 13px; color: var(--ink-3); font-family:'IBM Plex Mono',monospace; letter-spacing: 0.04em;}
-.section-h .more:hover { color: var(--accent);}
+.section-h .more { font-size: var(--type-sm); color: var(--ink-3);}
+.section-h .more:hover { color: var(--brand);}
 
-/* `minmax(0, …)` on every track, not a bare `fr`.
-   A grid item defaults to `min-width: auto`, which is its min-content width, so
-   a bare `1fr` track cannot shrink below the widest thing inside it — the track
-   grows past the grid instead. On the event page that made a 362px grid resolve
-   a 406.5px column, and everything in it overflowed by 31px. `minmax(0, 1fr)`
-   is the standard fix and the same defect as `min-width: 0` on a flex child. */
-/* Equal, because 2fr:1fr was the wrong way round.
-   The wide column carried ONE section — live games, empty most of the time —
-   while the narrow one carried four, including all of notification settings.
-   The narrowest column had the most to say. Settings have moved to /#/devices
-   and the rest divides evenly. */
-.dash-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px;}
+/* Convention for every grid in this file: `minmax(0, …)` on a track, not a
+   bare `fr`. A grid item defaults to `min-width: auto`, which is its
+   min-content width, so a bare `1fr` track cannot shrink below the widest
+   thing inside it — the track grows past the grid instead. On the event page
+   that made a 362px grid resolve a 406.5px column, and everything in it
+   overflowed by 31px. `minmax(0, 1fr)` is the standard fix and the same defect
+   as `min-width: 0` on a flex child. */
 .panel-list {
-  border-radius: var(--radius);
+  border-radius: var(--radius-legacy);
   border: 1px solid var(--rule);
   padding: 0;
   background: var(--paper);
@@ -968,81 +820,14 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   display: flex; justify-content: space-between; align-items: baseline;
   padding: 14px 18px;
   border-bottom: 1px solid var(--rule);
-  font-family:'IBM Plex Mono',monospace; font-size: 11px; color: var(--ink-3); letter-spacing: 0.14em; text-transform: uppercase;
+  font-size: var(--type-xs); font-weight: 500; color: var(--ink-3);
 }
-.panel-list .head .more { color: var(--ink-3); font-size: 11px; }
-
-.next-game {
-  padding: 22px 24px;
-  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  gap: 24px;
-  align-items: center;
-}
-.next-game .team .name { font-family:'Space Grotesk', sans-serif; font-weight: 600; font-size: 20px; letter-spacing: -0.01em;}
-.next-game .team.r { text-align: right;}
-.next-game .team .meta { font-family:'IBM Plex Mono',monospace; font-size: 11px; color: var(--ink-3); letter-spacing: 0.06em; margin-top: 4px;}
-.next-game .when {
-  text-align: center;
-  font-family:'Space Grotesk', sans-serif;
-}
-.next-game .when .countdown { font-weight: 600; font-size: 32px; letter-spacing: -0.02em; color: var(--accent); line-height: 1;}
-.next-game .when .label { font-family:'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink-3); letter-spacing: 0.12em; margin-top: 6px; text-transform: uppercase;}
-
-.feed-list {}
-.feed-item {
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--rule);
-  display: grid; grid-template-columns: 12px 1fr;
-  gap: 12px;
-  font-size: 13px;
-}
-.feed-item:last-child { border-bottom: none;}
-.feed-item .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-top: 5px;}
-.feed-item .dot.muted { background: var(--paper-3);}
-.feed-item .desc b { color: var(--ink); font-weight: 500;}
-.feed-item .ts { font-family:'IBM Plex Mono',monospace; font-size: 10px; color: var(--ink-3); letter-spacing: 0.06em; margin-top: 4px; text-transform: uppercase; display: block;}
-
-.standing-mini {
-  padding: 0;
-}
-.standing-row {
-  /* The full table sets --standing-cols inline (event.tsx); the compact one on
-     the overview uses this default. A variable rather than an inline
-     grid-template-columns, so the mobile block below can narrow it — an inline
-     style cannot be overridden by a media query. */
-  display: grid; grid-template-columns: 28px 1fr 36px 36px 36px 50px;
-  gap: 10px;
-  padding: 10px 18px;
-  border-bottom: 1px solid var(--rule);
-  font-size: 13px; align-items: center;
-}
-.standing-row:last-child { border-bottom: none;}
-/* The full table on the standings tab: eight columns instead of six. Declared
-   here rather than inline on the element, because an inline style — including
-   an inline custom property — beats a media query, and the mobile block below
-   has to be able to narrow this. That was the bug twice: 410px of fixed tracks
-   in a 366px container collapses `1fr` to zero, so the team name rendered one
-   character per line. */
-.standing-row.full { grid-template-columns: 40px 1fr 50px 50px 70px 70px 70px 60px; }
-.standing-row.head {
-  /* Keep headings on the same tracks as the rows, overriding .panel-list .head. */
-  display: grid;
-  font-family:'IBM Plex Mono',monospace; font-size: 10px; color: var(--ink-3); letter-spacing: 0.12em; text-transform: uppercase;
-}
-.standing-row.head > :nth-child(n+3) { text-align: right; }
-.standing-row.you { background: var(--accent-soft);}
-.standing-row .rank { font-family:'IBM Plex Mono',monospace; font-weight: 500; color: var(--ink-3);}
-.standing-row.you .rank { color: var(--accent-deep);}
-.standing-row .team { font-weight: 500;}
-.standing-row .num { font-family:'IBM Plex Mono',monospace; text-align: right; font-size: 12px;}
-.standing-row .pts { font-family:'Space Grotesk',sans-serif; font-weight: 600; text-align: right;}
+.panel-list .head .more { color: var(--ink-3); font-size: var(--type-xs); }
 
 /* ---------- Generic helpers ---------- */
-.row-flex { display: flex; align-items: center; gap: 8px; }
 .muted { color: var(--ink-3);}
-.divider { border: none; border-top: 1px solid var(--rule); margin: 24px 0;}
 .empty {
-  padding: 60px; text-align: center; color: var(--ink-3); font-size: 14px;
+  padding: 60px; text-align: center; color: var(--ink-3); font-size: var(--type-base);
   border: 1px dashed var(--rule);
 }
 
@@ -1067,8 +852,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .row-main:disabled { cursor: default; }
 .row-edit {
   flex: none; padding: 0 18px; background: transparent; border: none;
-  font-family: "IBM Plex Mono", monospace; font-size: 10px;
-  letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent);
+  font-size: var(--type-sm); font-weight: 500; color: var(--brand);
   cursor: pointer;
 }
 .row-edit:hover { background: var(--paper-2); }
@@ -1076,8 +860,8 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 /* A jersey number beside a name — monospace so two digits do not shift the
    name, which is what a column of them looks wrong without. */
 .player-jersey {
-  margin-left: 8px; font-family: "IBM Plex Mono", monospace;
-  font-size: 11px; color: var(--ink-3); font-weight: 400;
+  margin-left: 8px; font-family: var(--font-mono);
+  font-size: var(--type-xs); color: var(--ink-3); font-weight: 400;
 }
 .row-button:disabled { cursor: default; }
 .row-button:disabled:hover { background: transparent; }
@@ -1089,7 +873,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 }
 .fact-row:last-child { border-bottom: none; }
 .event-description {
-  padding: 18px; margin: 0; line-height: 1.6; font-size: 14px;
+  padding: 18px; margin: 0; line-height: 1.6; font-size: var(--type-base);
   color: var(--ink-2); max-width: 68ch;
 }
 
@@ -1097,10 +881,10 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .venue-row { padding: 14px 18px; border-bottom: 1px solid var(--rule); }
 .venue-row:last-child { border-bottom: none; }
 .venue-primary {
-  margin-left: 8px; padding: 2px 6px;
-  font-family: "IBM Plex Mono", monospace; font-size: 9px;
-  letter-spacing: 0.1em; text-transform: uppercase;
-  border: 1px solid var(--accent); color: var(--accent);
+  margin-left: 8px; padding: 1px 6px;
+  font-size: var(--type-xs); font-weight: 500;
+  letter-spacing: var(--tracking-caps); text-transform: uppercase;
+  border: 1px solid var(--brand); color: var(--brand-deep);
 }
 
 /* A coach: initials, name, and what they do. Not a button — there is no
@@ -1114,7 +898,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .coach-row .ava {
   width: 32px; height: 32px; border-radius: 50%; background: var(--paper-2);
   display: flex; align-items: center; justify-content: center;
-  font-family: "Space Grotesk", sans-serif; font-size: 11px; font-weight: 500;
+  font-family: var(--font-display); font-size: var(--type-xs); font-weight: 500;
 }
 
 /* ─── A row in a dashboard card that navigates somewhere ──────────────────
@@ -1128,13 +912,12 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .row-button:last-child { border-bottom: none; }
 .row-button:hover { background: var(--paper-2); }
 .row-title {
-  font-family: "Space Grotesk", sans-serif; font-weight: 600;
-  font-size: 14px; letter-spacing: -0.01em;
+  font-family: var(--font-display); font-weight: 600;
+  font-size: var(--type-base); letter-spacing: -0.01em;
 }
 .row-meta {
-  font-family: "IBM Plex Mono", monospace; font-size: 10px;
-  color: var(--ink-3); letter-spacing: 0.06em; margin-top: 4px;
-  text-transform: uppercase;
+  font-size: var(--type-sm);
+  color: var(--ink-3); margin-top: 4px;
 }
 
 /* An invitation: what it is on the left, what to do about it on the right. */
@@ -1165,79 +948,33 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   align-items: center; justify-content: center;
   gap: 16px; padding: 40px 24px; text-align: center;
 }
-.crash h1 { font-size: 20px; font-weight: 600; margin: 0; }
-.crash p { max-width: 42ch; color: var(--ink-3); font-size: 14px; margin: 0; line-height: 1.5; }
-
-/* ---------- Tauri-style chrome (decoration only) ---------- */
-
-/* ---------- Tweaks panel positioning override ---------- */
-.tweaks-panel { z-index: 9999;}
-
-/* ─── Hamburger button (visible only on narrow viewports) ─── */
-.menu-btn {
-  display: none;
-  width: 36px; height: 36px;
-  background: transparent; border: 1px solid var(--rule);
-  border-radius: 8px; padding: 0; cursor: pointer;
-  flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-}
-.menu-btn span {
-  display: block; width: 16px; height: 1.5px; background: var(--ink); border-radius: 2px;
-}
-.nav-backdrop {
-  display: none;
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.45);
-  z-index: 99;
-  animation: nav-backdrop-in 0.18s ease-out;
-}
-@keyframes nav-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+.crash h1 { font-size: var(--type-xl); font-weight: 600; margin: 0; }
+.crash p { max-width: 42ch; color: var(--ink-3); font-size: var(--type-base); margin: 0; line-height: 1.5; }
 
 /* ─── Tablet: ≤ 1024px ─── */
 @media (max-width: 1024px) {
-  .app { grid-template-columns: 220px 1fr; }
   :root { --page-gutter: 24px; }
-  .dash-grid { grid-template-columns: minmax(0, 1fr); gap: 24px; }
-  .live-side-grid { grid-template-columns: 1fr; }
   .roster-grid { grid-template-columns: repeat(2, 1fr); }
-  .topbar .install-btn { display: none; }
-  /* Keep the avatar and the sign-out control; the name is the expendable part. */
-  .account-meta { display: none; }
+}
+
+/* ─── Narrow desktop: the content column is too narrow for the Discover tabs
+     and the filter chips to share a row (they need ~1050px together, which
+     only fits once the viewport is past ~1300px). The filter row takes its own
+     line and scrolls horizontally when the chips are still wider than it. ─── */
+@media (min-width: 769px) and (max-width: 1280px) {
+  .discover-toolbar { flex-wrap: wrap; }
+  .filter-row { flex: 1 1 100%; margin-left: 0; min-width: 0; overflow-x: auto; }
 }
 
 /* ─── Mobile: ≤ 768px ─── */
 @media (max-width: 768px) {
-  /* Hide tauri chrome on mobile; it's a desktop affordance only. */
-  .app { height: 100vh !important; }
+  /* The sidebar's phone drawer is the registry component's Sheet (B2 step 8);
+     nothing about the shell is re-laid out here. What scales is values: the
+     page gutter, the topbar's, and the detail-page type. At 320px the topbar
+     row is menu + brand + account and 16px gutters do not fit — this is the
+     8px the topbar overflow check wants. */
+  .topbar { padding: 12px; }
 
-  /* Off-canvas sidebar drawer */
-  .app { grid-template-columns: 1fr; }
-  .sidebar {
-    display: flex;
-    position: fixed; top: 0; bottom: 0; left: 0;
-    width: min(80vw, 300px);
-    z-index: 100;
-    transform: translateX(-100%);
-    transition: transform 0.22s ease-out;
-    box-shadow: 2px 0 24px rgba(0,0,0,0.15);
-  }
-  .app.nav-open .sidebar { transform: translateX(0); }
-  .app.nav-open .nav-backdrop { display: block; }
-
-  /* Hamburger replaces the hidden sidebar at the top of the topbar */
-  .menu-btn { display: flex; }
-  .topbar {
-    flex-wrap: wrap;
-    padding: 10px 12px;
-    gap: 8px;
-  }
-  .topbar .search { order: 99; flex-basis: 100%; min-width: 0; }
-  .topbar .search .kbd { display: none; }
-  .topbar .lang-switch button,
-  .topbar .icon-btn,
-  .menu-btn { min-width: 36px; min-height: 36px; }
-
-  /* Page layout */
   :root { --page-gutter: 14px; }
   .page-header h1 { font-size: clamp(24px, 6vw, 32px); }
 
@@ -1274,27 +1011,49 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
     background: linear-gradient(to right, transparent, var(--paper) 75%);
   }
 
-  /* The live banner is five grid columns with 32px gaps — `auto 1fr auto auto
-     auto` — and had no mobile rule at all. Its children were 649px inside a
-     402px card, and because it neither clips nor scrolls that overflow
-     propagated to `.page`, which pans (its `overflow-y: auto` makes overflow-x
-     compute to `auto` too). The whole content area scrolled sideways under a
-     fixed topbar. One column here, and `min-width: 0` so a long club name wraps
-     instead of setting the width. */
-  .live-banner {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
-    padding: 16px 14px;
-  }
-  /* A one-column grid stretches its children, which turned the LIVE NOW pill
-     into a full-width bar. Only the text rows should fill. */
-  .live-banner > * { min-width: 0; justify-self: start; }
-  .live-banner .matchup { font-size: 18px; line-height: 1.25; }
-  .live-banner .matchup .vs { margin: 0 6px; }
-  .live-banner .quarter { text-align: left; }
-  .live-banner .open-btn { justify-self: start; min-height: 40px; display: inline-flex; align-items: center; }
+  .roster-grid { grid-template-columns: 1fr; }
+  .player-card { padding: 12px; }
 
-  /* Event list collapses to date + name + status */
+  /* The spoiler bar is a two-column row that does not fit: "Showing live
+     scores" and "Hide scores" each broke mid-phrase into two lines. */
+  .spoiler-bar { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .spoiler-bar .toggle { align-self: stretch; justify-content: space-between; }
+
+  /* Event hero */
+  .event-hero { padding: var(--space-4) var(--event-gutter); }
+  .event-actions { flex-wrap: wrap; }
+  .event-actions .btn { flex: 1 1 auto; min-height: 44px; }
+
+  /* Tab bars become horizontally scrollable */
+  .detail-tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; padding: 0 14px; }
+  .detail-tabs .tab { white-space: nowrap; flex-shrink: 0; min-height: 40px; }
+
+  /* A fixture is five columns of 350px on the desktop. On a phone it becomes
+     two rows: who and when on the first, the outcome on the second. */
+  .fixture-row {
+    grid-template-columns: 64px minmax(0, 1fr) auto;
+    gap: 4px 10px;
+    padding: 12px 14px;
+  }
+  .fixture-row .kind { grid-column: 2 / -1; }
+  .fixture-row .outcome { grid-column: 3; grid-row: 1; }
+  .fixture-row .result { grid-column: 3; grid-row: 2; }
+
+  /* Team hero: stack */
+  .team-hero { grid-template-columns: 1fr; gap: var(--space-4); padding: var(--space-4) var(--page-gutter); }
+  .team-hero h1 { font-size: clamp(24px, 6vw, 32px); }
+  .team-record { text-align: left; }
+
+  /* Section headings */
+  .section-h { padding: 16px 14px 8px; }
+
+}
+
+/* ─── Discover event list: the seven-column rows need ~634px, which the
+     content column only has once the viewport is past ~900px. Below that the
+     rows collapse to date + name + status (the same card layout phones get),
+     so a narrow desktop column never overflows. ─── */
+@media (max-width: 900px) {
   .event-list-header { display: none; }
   .event-row {
     grid-template-columns: 60px 1fr auto;
@@ -1313,133 +1072,51 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   .event-row > :nth-child(4),
   .event-row > :nth-child(5) { display: none; }
   .event-row > :nth-child(6) { grid-area: status; align-self: start; }
+}
 
-  /* ── Standings: fewer columns, not smaller ones ──
-     Shrinking the font was the whole of the old mobile treatment, and it did
-     nothing about the columns: the full table declares 410px of fixed tracks
-     for rank/W/L/PF/PA/±/PTS, which on a 390px phone leaves the team name
-     column with nothing. A Thai club name rendered one character per line,
-     eight lines tall.
-
-     Stacking into cards — what .admin-table does — is wrong here. A standings
-     table is read by scanning a column down, and a card per team destroys
-     exactly that. So drop the secondary stats instead and keep the shape:
-     rank, team, won, lost, points.
-
-     The selector does both tables without knowing which is which: "from the
-     fifth cell onwards, but never the last". In the eight-column table that is
-     PF, PA and ± while PTS survives; in the six-column one it is the points
-     difference, and PTS survives there too. */
-  .standing-row,
-  .standing-row.full {
-    grid-template-columns: 26px minmax(0, 1fr) 28px 28px 44px;
-    font-size: 12px;
-    padding-left: 12px;
-    padding-right: 12px;
-    gap: 6px;
+/* ─── Live banner: the desktop five-column row (`auto 1fr auto auto auto`
+     with 32px gaps) needs ~570px, which the content column only has once the
+     viewport is past ~840px. Below that — tablet and phone — keep it a
+     wrapping flex row instead: the venue + matchup text takes the room it
+     needs, while the compact actions (score, quarter, open) sit beside it and
+     drop to their own line only when the title is long. `min-width: 0` so a
+     long club name wraps instead of setting the width — the original overflow
+     fix, preserved. ─── */
+@media (max-width: 840px) {
+  .live-banner {
+    display: flex; flex-wrap: wrap; align-items: center;
+    column-gap: 20px; row-gap: 12px;
+    padding: 18px 16px;
   }
-  .standing-row > :nth-child(n+5):nth-last-child(n+2) { display: none; }
-  .standing-row .team {
-    /* Long club names wrap to two lines rather than forcing the row wider. */
-    line-height: 1.25;
-    word-break: break-word;
+  .live-banner > :nth-child(2) { flex: 1 1 240px; min-width: 0; }
+  .live-banner .score-mini { margin-left: auto; }
+  .live-banner .matchup { font-size: var(--type-lg); line-height: 1.25; }
+  .live-banner .matchup .vs { margin: 0 6px; }
+  .live-banner .quarter { text-align: left; }
+  .live-banner .open-btn { min-height: 40px; display: inline-flex; align-items: center; }
+}
+
+/* ─── Narrow phones: the wrapping row above has no room to share, so the
+     banner stacks back to a single column. Deliberately not folded into the
+     768px block — that block covers tablets too, where stacking wastes the
+     available width. The original overflow guard (`min-width: 0`, content
+     left-aligned rather than stretched) still applies here. ─── */
+@media (max-width: 520px) {
+  .live-banner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
   }
-  .roster-grid { grid-template-columns: 1fr; }
-  .player-card { padding: 12px; }
-
-  /* Live scoreboard stacks */
-  .live-scoreboard { grid-template-columns: 1fr; gap: 16px; padding: 18px 14px; }
-  .score-numbers { font-size: clamp(64px, 16vw, 96px); justify-content: center; }
-  /* Both teams, styled the same. The 3-column grid gave A left and B right,
-     which is correct side by side and incoherent stacked: `.score-team.r`
-     centred its text while `margin-left: auto` still shoved its crest to the
-     edge, so one team read centred-with-a-floating-badge and the other
-     left-aligned. Stacked, they are just two teams in a column. */
-  .score-team,
-  .score-team.r { text-align: center; }
-  .score-team .crest,
-  .score-team.r .crest { margin-left: auto; margin-right: auto; }
-  .score-team .name { font-size: 28px; }
-  .score-team .crest { width: 64px; height: 64px; margin-bottom: 10px; }
-
-  /* The spoiler bar is a two-column row that does not fit: "SHOWING LIVE
-     SCORES" and "HIDE SCORES" each broke mid-phrase into two lines. */
-  .spoiler-bar { flex-direction: column; align-items: flex-start; gap: 10px; }
-  .spoiler-bar .toggle { align-self: stretch; justify-content: space-between; }
-  .live-clock { padding: 14px; }
-  /* `1fr repeat(5, 80px) 100px` is 500px of fixed tracks, so `1fr` collapsed
-     and the table ran 633px wide inside 390. Q1–Q4 plus the total still fit
-     when the columns are sized for a phone. */
-  .quarters-table {
-    font-size: 11px;
-    grid-template-columns: minmax(0, 1fr) repeat(5, 34px) 44px;
-  }
-  .quarters-table .cell { padding: 8px 2px; }
-  .quarters-table .cell.total { font-size: 14px; }
-  .live-header { flex-direction: column; align-items: flex-start; gap: 8px; }
-
-  /* Event hero */
-  .event-hero { padding: var(--space-4) var(--event-gutter); }
-  .event-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0; }
-  .event-stats .stat-cell:nth-child(n+3) { border-top: 1px solid var(--rule); padding-top: 12px; margin-top: 6px; }
-  .stat-cell { border-right: none !important; padding: 8px 0 !important; }
-  .event-actions { flex-wrap: wrap; }
-  .event-actions .btn { flex: 1 1 auto; min-height: 44px; }
-
-  /* Tab bars become horizontally scrollable */
-  .detail-tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; padding: 0 14px; }
-  .detail-tabs .tab { white-space: nowrap; flex-shrink: 0; min-height: 40px; }
-
-  /* Bracket: switch to vertical list of rounds */
-  .bracket { flex-direction: column; gap: 16px; }
-  .bracket-round { min-width: 0; }
-
-  /* A fixture is five columns of 350px on the desktop. On a phone it becomes
-     two rows: who and when on the first, the outcome on the second. */
-  .fixture-row {
-    grid-template-columns: 64px minmax(0, 1fr) auto;
-    gap: 4px 10px;
-    padding: 12px 14px;
-  }
-  .fixture-row .kind { grid-column: 2 / -1; }
-  .fixture-row .outcome { grid-column: 3; grid-row: 1; }
-  .fixture-row .result { grid-column: 3; grid-row: 2; }
-
-  /* Two teams and a score, on a phone. `1fr auto 1fr` plus 24px gaps and 48px
-     of padding does not fit at 360, and a bare `fr` cannot shrink below its
-     content — a seed line like "SEED 3 · 1–0" set the track width. Tighter and
-     with minmax(0, …) so the names wrap instead. */
-  .next-game { padding: 16px 14px; gap: 10px; }
-  .next-game .team .name { font-size: 16px; }
-  .next-game .when .countdown { font-size: 24px; }
-
-  /* Team hero: stack */
-  .team-hero { grid-template-columns: 1fr; gap: var(--space-4); padding: var(--space-4) var(--page-gutter); }
-  .team-hero h1 { font-size: clamp(24px, 6vw, 32px); }
-
-  /* Section headings */
-  .section-h { padding: 16px 14px 8px; }
-
+  .live-banner > * { min-width: 0; justify-self: start; }
+  .live-banner .score-mini { margin-left: 0; }
 }
 
 /* ─── Touch-target safety: bump small buttons everywhere on coarse pointers ─── */
 @media (pointer: coarse) {
-  .nav-item, .tab, .chip, .icon-btn, .install-btn {
+  .tab, .chip {
     min-height: 40px;
   }
 }
-
-/* ---------- Dev account shortcuts on the SPA login ---------- */
-/* Mirrors the harness login's quick-fill row. Rendered only when the dev
-   outbox responds, so it cannot appear in production (ADR 012). */
-.dev-account-row { display: flex; flex-wrap: wrap; gap: 8px; }
-.dev-account-row .btn {
-  padding: 6px 14px; font-size: 12px;
-  border: 1px solid var(--rule); border-radius: 100px;
-  color: var(--ink-2); background: transparent;
-  font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.04em;
-}
-.dev-account-row .btn:hover { background: var(--paper-2); color: var(--ink); }
 
 /* ---------- Devices (where you're signed in) ---------- */
 .entity-row {
@@ -1447,16 +1124,16 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   padding: 14px 18px; border-bottom: 1px solid var(--rule);
 }
 .entity-row:last-child { border-bottom: none; }
-.entity-label { font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+.entity-label { font-size: var(--type-base); font-weight: 500; display: flex; align-items: center; gap: 8px; }
 .entity-meta {
-  font-family: 'IBM Plex Mono', monospace; font-size: 11px;
-  color: var(--ink-3); letter-spacing: 0.04em; margin-top: 3px;
+  font-size: var(--type-sm);
+  color: var(--ink-3); margin-top: 3px;
 }
 .device-tag {
-  font-family: 'IBM Plex Mono', monospace; font-size: 9px;
-  letter-spacing: 0.12em; text-transform: uppercase;
-  background: var(--accent-soft); color: var(--accent-deep);
-  padding: 2px 7px; border-radius: 100px;
+  font-size: var(--type-xs); font-weight: 500;
+  letter-spacing: var(--tracking-caps); text-transform: uppercase;
+  background: var(--brand-soft); color: var(--brand-deep);
+  padding: 1px 7px; border-radius: 100px;
 }
 .device-tag.warn { background: var(--rule); color: var(--ink-2); }
 
@@ -1468,45 +1145,44 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .admin { display: flex; flex-direction: column; gap: var(--space-4); }
 .admin > .panel + .panel { margin-top: 0; }
 .panel {
-  background: var(--paper); border: 1px solid var(--rule); border-radius: var(--radius); padding: var(--space-4);
+  background: var(--paper); border: 1px solid var(--rule); border-radius: var(--radius-legacy); padding: var(--space-4);
 }
 .panel + .panel { margin-top: var(--space-4); }
 .panel.dim { opacity: 0.55; }
-.panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); margin: 0 0 10px; }
+.panel h2 { font-size: var(--type-base); font-weight: 600; color: var(--ink-2); margin: 0 0 10px; }
 .panel .muted { color: var(--ink-3); }
-.panel .small { font-size: 12px; }
+.panel .small { font-size: var(--type-sm); }
 .admin-banner {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  background: var(--accent-soft); border: 1px solid var(--court); border-radius: 6px; padding: 10px 14px;
+  background: var(--brand-soft); border: 1px solid var(--court); border-radius: 6px; padding: 10px 14px;
 }
 .feedback-error, .feedback-success {
-  border-radius: 6px; padding: 8px 12px; font-size: 13px; margin-bottom: 10px;
+  border-radius: 6px; padding: 8px 12px; font-size: var(--type-md); margin-bottom: 10px;
 }
-.feedback-error { background: var(--accent-soft); color: var(--accent-deep); border: 1px solid var(--live); }
+.feedback-error { background: var(--brand-soft); color: var(--brand-deep); border: 1px solid var(--live); }
 .feedback-success { background: var(--paper-2); color: var(--good); border: 1px solid var(--good); }
 .admin-perms { display: flex; gap: 6px; flex-wrap: wrap; }
 .badge {
-  display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: 12px;
+  display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: var(--type-xs);
   background: var(--paper-2); border: 1px solid var(--rule); color: var(--ink-2);
 }
 .badge-success { background: var(--good); border-color: var(--good); color: var(--paper); }
 .badge-off { opacity: 0.3; }
 .badge-danger { background: var(--live); border-color: var(--live); color: var(--paper); }
 .badge-outline { background: transparent; }
-.admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.admin-table { width: 100%; border-collapse: collapse; font-size: var(--type-md); }
 .admin-table th {
-  text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
-  color: var(--ink-4); border-bottom: 1px solid var(--rule); padding: 6px 8px;
+  text-align: left; font-size: var(--type-xs); font-weight: 500;
+  color: var(--ink-3); border-bottom: 1px solid var(--rule); padding: 6px 8px;
 }
 .admin-table td { padding: 8px; border-bottom: 1px solid var(--rule); vertical-align: middle; }
 .admin-table button { margin-right: var(--space-1); }
 .btn.danger, .form-stack button.danger, .admin-table button.danger { color: var(--live); border-color: var(--live); }
 
-
 /* ─── Mobile data tables: ≤ 768px ───
-   Deliberately here and not in the ≤768px block above, which sits ~180 lines
-   EARLIER in this file than the `.admin-table` rules it would need to beat. A
-   media query adds no specificity, so `.admin-table td` up there and
+   Deliberately here and not in the ≤768px block above, which sits EARLIER in
+   this file than the `.admin-table` rules it would need to beat. A media
+   query adds no specificity, so `.admin-table td` up there and
    `.admin-table td` down here tie, and the later one wins — the stacking
    applied while `padding` and `border-bottom` silently did not, leaving desktop
    rules drawn across a card layout. Overrides go after what they override. */
@@ -1545,7 +1221,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   }
   /* The identity of the row, given the weight the missing header used to carry. */
   .admin-table td:first-child {
-    font-size: 15px;
+    font-size: var(--type-base);
     font-weight: 600;
     line-height: 1.25;
     color: var(--ink);
@@ -1562,7 +1238,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   .admin-table td[colspan] {
     border: none;
     background: none;
-    font-size: 13px;
+    font-size: var(--type-sm);
     font-weight: 400;
     padding: 4px 0;
   }
@@ -1579,7 +1255,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea) {
   min-height: var(--control-height); min-width: 0; max-width: 100%;
   padding: var(--space-2) var(--space-3); border: 1px solid var(--rule-2);
-  border-radius: var(--radius); background: var(--paper); line-height: 1.5;
+  border-radius: var(--radius-legacy); background: var(--paper); line-height: 1.5;
 }
 .form-stack :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { width: 100%; }
 /* Safari's native menu ignores min-height; an explicit height keeps filters
@@ -1588,32 +1264,33 @@ select { height: var(--control-height); }
 .form-stack textarea { min-height: 96px; resize: vertical; }
 .form-stack [aria-invalid="true"] { border-color: var(--live); }
 .form-stack > button { align-self: flex-start; }
-.login-code { letter-spacing: 0.4em; text-align: center; font-size: 18px; }
-:where(button, a, input, select, textarea, summary):focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 3px; }
+/* The one-time sign-in code: six digits, spaced out, in the face where every
+   digit is the same width. */
+.login-code { font-family: var(--font-mono); letter-spacing: 0.4em; text-align: center; font-size: var(--type-lg); }
+:where(button, a, input, select, textarea, summary):focus-visible { outline: 2px solid var(--brand-deep); outline-offset: 3px; }
 :where(button, input, select, textarea):disabled { opacity: 0.6; cursor: not-allowed; }
 .query-error { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-block: var(--space-4); }
 .query-error p { flex: 1 1 240px; }
 .entity-row > * { min-width: 0; }
 .entity-row > :first-child { overflow-wrap: anywhere; }
 .entity-row > .btn { flex-shrink: 0; }
-.muted { color: var(--ink-3); }
-.small { font-size: 12px; }
+.small { font-size: var(--type-sm); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
 .admin-switcher { display: flex; gap: 6px; flex-wrap: wrap; }
 .admin-switcher button {
-  font-size: 12px; padding: 4px 12px; border-radius: 100px;
+  font-size: var(--type-sm); padding: 4px 12px; border-radius: 100px;
   border: 1px solid var(--rule); background: var(--paper); cursor: pointer;
 }
-.admin-switcher button.active { background: var(--accent); color: var(--paper); border-color: var(--accent); }
+.admin-switcher button.active { background: var(--brand); color: var(--paper); border-color: var(--brand); }
 
-/* Scores in a schedule row. Tabular figures so 7–7 and 71–54 line up down the
-   column, and the same mono face the rest of the data chrome uses. */
+/* Scores in a schedule row. Tabular figures in the mono face so 7–7 and 71–54
+   line up down the column. */
 .score-cell {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 15px;
+  font-size: var(--type-base);
   color: var(--ink);
   min-width: 72px;
   text-align: right;
@@ -1621,11 +1298,11 @@ select { height: var(--control-height); }
 .score-form { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .score-form input {
   width: 56px; padding: 6px 8px; text-align: center;
-  font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
   border: 1px solid var(--rule-2); border-radius: 6px; background: var(--paper);
   color: var(--ink);
 }
-.score-form input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.score-form input:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 
 /* The seeded sign-in list. One row per person, with the relations they hold —
    see routes/dev-mail.ts for why all of them and not one per role. */
@@ -1636,21 +1313,21 @@ select { height: var(--control-height); }
   border: 1px solid var(--rule); border-radius: 8px; background: var(--paper);
 }
 .dev-account:hover { background: var(--paper-2); border-color: var(--rule-2); }
-.dev-account-who { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.dev-account-who { display: flex; align-items: center; gap: 8px; font-size: var(--type-md); }
 .dev-account-holds {
-  font-family: 'IBM Plex Mono', monospace; font-size: 10px;
-  color: var(--ink-3); letter-spacing: 0.04em; line-height: 1.5;
+  font-size: var(--type-xs);
+  color: var(--ink-3); line-height: 1.5;
 }
 
 /* The status control sits inline in a metadata line, so it carries none of a
    select's usual chrome — only the caret marks it as editable. */
 .status-select {
   border: none; background: transparent; padding: 0 2px 0 0;
-  font-family: 'IBM Plex Mono', monospace; font-size: inherit;
+  font-size: inherit;
   color: inherit; cursor: pointer;
 }
 .status-select:hover { text-decoration: underline; }
-.status-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.status-select:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
 /*
  * The live-video surfaces.
@@ -1702,27 +1379,26 @@ select { height: var(--control-height); }
 
 .moq-hint {
   padding: 0 12px 12px;
-  font-size: 12px;
+  font-size: var(--type-sm);
   color: var(--ink-3);
   background: var(--paper);
 }
 
 /* The broadcast name and raw state, small, for checking two devices against
-   each other rather than guessing which game each one picked. */
+   each other rather than guessing which game each one picked. An identifier,
+   so mono. */
 .moq-name {
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
   color: var(--ink-3);
 }
 
 /* The game, above the video: score, status, and a way back to the event. */
 .video-score { display: flex; align-items: baseline; gap: 14px; margin-top: 8px; flex-wrap: wrap; }
-.video-score .score { font-family: "Space Grotesk", sans-serif; font-weight: 600; font-size: 28px; letter-spacing: -0.02em; }
-.video-score .status { font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--live); }
+.video-score .score { font-family: var(--font-display); font-weight: 600; font-size: var(--type-2xl); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.video-score .status { font-size: var(--type-xs); font-weight: 500; letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--live); }
 .video-score .more { background: transparent; border: none; padding: 0; cursor: pointer; }
 
-/* The model's own explanation of a notification type, under its switch.
-   Indented past the checkbox so it reads as belonging to the label. */
 /* The preference, device and following lists.
    Unstyled until now, so all three rendered with browser bullets and the
    default 40px indent inside a card where nothing else has either. */
@@ -1742,23 +1418,21 @@ select { height: var(--control-height); }
   display: flex; align-items: center; gap: 8px;
   cursor: pointer;
 }
-.pref-list input[type="checkbox"] { accent-color: var(--accent); flex: none; }
+.pref-list input[type="checkbox"] { accent-color: var(--brand); flex: none; }
 /* A preference that cannot be changed yet should look like it — the switches
    are disabled until push is on, and nothing said so visually. */
 .pref-list label:has(input:disabled) { cursor: default; color: var(--ink-3); }
 .pref-list .pref-note {
   margin-left: 24px;
-  font-size: 12px;
+  font-size: var(--type-sm);
   color: var(--ink-3);
 }
 
-/* Sub-headings inside a card.
-   `.panel h2` is 13px uppercase grey; h3 had no rule at all, so every
-   sub-heading rendered at the browser default — larger and blacker than the
-   section title above it, which read as three separate cards run together. */
+/* Sub-headings inside a card. h3 had no rule at all, so every sub-heading
+   rendered at the browser default — larger and blacker than the section title
+   above it, which read as three separate cards run together. */
 .panel h3 {
-  font-size: 12px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.06em;
+  font-size: var(--type-sm); font-weight: 600;
   color: var(--ink-3);
   margin: 18px 0 6px;
   padding-top: 12px;
@@ -1777,14 +1451,14 @@ select { height: var(--control-height); }
   background: var(--paper-2);
   border: 1px solid var(--rule);
   color: var(--ink-2);
-  font-size: 13px;
+  font-size: var(--type-md);
   line-height: 1.45;
 }
 /* Blocked, denied, unsupported: the reader cannot fix these from here, so they
    read as a state rather than an error to act on. */
 .push-note.is-blocked {
-  background: var(--accent-soft);
-  border-color: var(--accent);
+  background: var(--brand-soft);
+  border-color: var(--brand);
   color: var(--ink);
 }
 
@@ -1793,8 +1467,8 @@ select { height: var(--control-height); }
    absent entirely. */
 .device-here {
   margin-left: 6px;
-  font-size: 11px;
-  color: var(--accent-deep);
+  font-size: var(--type-xs);
+  color: var(--brand-deep);
   font-weight: 600;
 }
 
@@ -1812,7 +1486,7 @@ select { height: var(--control-height); }
 .event-filters label { display: flex; align-items: center; gap: 12px; }
 .event-filters select { min-height: 44px; max-width: 100%; }
 .game-group { margin: 0 0 24px; }
-.game-group h2 { margin: 0 0 12px; font-size: 18px; }
+.game-group h2 { margin: 0 0 12px; font-size: var(--type-lg); }
 .game-summary { min-width: 0; }
 .game-summary > a { display: block; width: fit-content; }
 .game-summary .entity-label { font-weight: 600; text-decoration: none; color: var(--ink); }
@@ -1826,6 +1500,7 @@ select { height: var(--control-height); }
 .table-scroll { overflow-x: auto; }
 .competition-table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
 .competition-table th, .competition-table td { padding: 12px; border-bottom: 1px solid var(--rule); text-align: right; white-space: nowrap; }
+.competition-table th { font-size: var(--type-xs); font-weight: 500; color: var(--ink-3); }
 .competition-table th:nth-child(2), .competition-table td:nth-child(2) { text-align: left; white-space: normal; min-width: 150px; }
 .competition-table a { color: var(--ink); text-decoration: none; }
 .court-game { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--rule); }
@@ -1846,7 +1521,7 @@ select { height: var(--control-height); }
 .fixture-row:has(> .game-summary) > .result { grid-area: auto; grid-column: 2; grid-row: 1; }
 .fixture-row:has(> .game-summary) > .outcome { grid-area: auto; grid-column: 3; grid-row: 1; }
 .fixture-row > .live-actions { grid-column: 1 / -1; }
-.game-summary .entity-meta { font-size: 12px; line-height: 1.6; }
+.game-summary .entity-meta { font-size: var(--type-sm); line-height: 1.6; }
 @media (max-width: 600px) {
   .fixture-row:has(> .game-summary) > .game-summary { grid-column: 1 / -1; }
   .fixture-row:has(> .game-summary) > .result { grid-column: 2; grid-row: 2; }

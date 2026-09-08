@@ -1,126 +1,145 @@
 # Remy Sport
 
+Basketball events, teams and live scoring for Thailand.
 
-Basketball events, teams and live scoring for Thailand. A Cloudflare Worker
-(Hono, oRPC, Drizzle on D1, Better Auth) serving a React SPA, built from the
-Product Owner's model in `remy-sport-biz`.
+[Project status and plans](docs/README.md) · [Contributor instructions](AGENTS.md)
 
-Current progress and remaining work: [project status](docs/README.md).
+## Start the app
 
-## Which localhost should I open?
+After cloning, install the project's tools and set up the local environment:
 
-Run `bun run dev` and open **http://localhost:8787**. If it is already running,
-open that URL; a second `bun run dev` refuses the occupied port rather than
-silently choosing another one.
-
-**Developers and agents on the same machine share localhost. There is currently
-no separate agent server or isolated agent database in this checkout.**
-
-| Use | Command | Local URL | What is shared? |
-| --- | --- | --- | --- |
-| Interactive development | `bun run dev` | http://localhost:8787 | Live source with HMR; persistent local bindings in `.wrangler/state`. |
-| End-to-end tests | `bun run test:e2e` | http://localhost:8787 | Reuses the running dev server, or starts one. Seeds and exercises the same database and accounts. |
-| Screen capture suite | `bun run shots` | http://localhost:8787 | Uses the same server, seed and authenticated test setup as end-to-end tests. |
-| Rendering tests | `bun run test:render` (also in `bun run check`) | http://localhost:4173 while the suite runs | Separate static build in `dist/render`, with test fixtures and no Worker. This is not a second usable app backend. |
-
-Opening another tab does not isolate data. Changing only `--port` still uses
-`.wrangler/state`; it does not create an independent environment. The dev HTTPS
-tunnel also points to the same server. Source edits hot-reload everyone's dev
-preview in this checkout.
-
-For now, local end-to-end tests and screen capture are **not isolated from an
-interactive walkthrough**: their account and data changes can affect it, even
-though test sessions are cleaned up. There is no alternative localhost URL that
-provides that isolation through the current CLI. The next automation fix is
-[isolated local test runtimes](docs/README.md#remaining-work), with automatic
-startup and cleanup so developers do not have to coordinate ports and databases.
-
-## The commands
-
-Everything is a `package.json` script. `mise` only pins the tools
-(`mise install` once) and sets the environment.
-
-```
-bun run setup                     once after cloning: install, types, local database, browsers
-bun run dev                       Vite: the Worker in workerd and the SPA with HMR on localhost:8787, seeded
-bun run check                     static, model, unit/Worker/repository and rendering checks; browsers are test:e2e
-bun run test:e2e                  browser suite; -- --env staging includes temporary admin access and cleanup
-bun run deploy -- --env staging   local gate, publish, smoke, full staging browser suite and cleanup.
-bun run model                     when the Product Owner changes the model: pull it in, migrate, seed, verify
+```sh
+mise install
+bun run setup
 ```
 
-Smaller pieces, when you want one thing:
+Then start the app:
 
-```
-bun run typecheck                 tsc, one config for the Worker, the SPA, the tests and the scripts
-bun run lint                      knip; copy and import rules run in the repository tests
-bun run test                      vitest: unit, repo (the rules this repo keeps), worker (in workerd)
-bun run test:watch                the same, on every save
-bun run test:render               the no-backend browser tier
-bun run shots                     every screen as every seeded person, into screenshots/
-bun run build                     dist/client (the SPA) and dist/remy_sport (the Worker, with the wrangler.json deploy uses)
-bun run preview                   that build, running in workerd
-bun run ops tunnel -- --run       a fixed HTTPS name for the dev server, so a phone can open it
-bun run ops provision -- --env X  D1, R2, queues, migrations, secrets — once per environment, and after adding a secret
-bun run ops versions              what each environment is actually running
-bun run db                        the database — no arguments for status
-bun run ops                       operate a deployment — no arguments to list what it can do
+```sh
+bun run dev
 ```
 
-Arguments go after `--`. A command that writes to a deployment always names its
-environment or refuses.
+Open **http://localhost:8787**. If someone already started it, just open the URL.
+Only one dev server needs to run on the machine.
 
-## Environments
+## Using localhost while an agent works
 
-| | URL | Worker | Database |
-| --- | --- | --- | --- |
-| Production | https://remy.ubuntusoftware.net | `remy-sport` | `remy-sport-db` |
-| Staging | https://staging-remy.ubuntusoftware.net | `remy-sport-staging` | `remy-sport-staging-db` |
-| Dev | http://localhost:8787 · https://dev-remy.ubuntusoftware.net | `bun run dev` | `.wrangler/state` |
+**You can keep clicking around the app while an agent runs local tests.**
+Tests use a separate server and database. Your clicks do not change their data,
+and their test data does not change yours.
 
-The two dev URLs are one server. The tunnel exists because iOS Safari with
-HTTPS-Only refuses a plain `http://192.168.x.x`, so a phone needs the HTTPS name.
+| Port | Who uses it? |
+| --- | --- |
+| **8787** | You and anyone manually browsing the app. |
+| 8788 | Automated browser tests and screenshots. |
+| 4173 | Layout tests, using sample data without a backend. |
 
-## Where things are decided
+There are still three ways we can affect each other:
 
-Two files describe an environment, and nothing else does:
+- **Code edits update your page.** It may change or reload while you use it.
+- **Manual browsing shares data.** If an agent uses 8787 too, you both affect
+  the same app. Signing into the same account can also clash.
+- **Stopping the dev server interrupts everyone using it.** Agents should leave
+  it running and use the test commands below.
 
-- **`wrangler.toml`** — what it *deploys with*: name, account, routes, bindings, vars.
-- **`src/environment.ts`** — what it is *allowed to do*: the policy table, and the
-  dev origin, because dev is not a deployment.
+A second tab or a different dev port does not create a separate database.
+The automated test commands handle that separation themselves.
 
-`scripts/lib/cloudflare.ts` is the only reader of either and the only path to the
-Cloudflare API.
+## Check changes
 
-## Layout
-
-```
-src/
-  domain/   the Product Owner's model (copied verbatim by `bun run model`) and the schemas derived from it
-  db/       the drizzle tables, migrations, the seed
-  api/      the oRPC procedures — every one declares how it is authorised
-  web/      the React SPA
-tests/
-  unit/     pure logic                       vitest
-  repo/     the rules this repo keeps        vitest — each file states a rule and lists what breaks it
-  worker/   the Worker, inside workerd       vitest
-  render/   a browser, no backend            playwright
-  e2e/      a browser and a real Worker      playwright
-scripts/
-  deploy.ts  e2e.ts  model.ts  db.ts  ops.ts     the commands that are more than one line
-  lib/  deploy/  ops/                             what they call
+```sh
+bun run check
+bun run test:e2e
 ```
 
-`AGENTS.md` is short on purpose. `docs/2026-09-05-01-modern-tooling.md` is the plan that
-is making `scripts/` smaller.
+`check` checks the code, builds the app, and runs unit, repository, backend and
+layout tests. `test:e2e` tests complete user journeys against a real local backend.
+Run both before considering a change verified.
 
-Staging browser runs verify admin sign-in before testing, restore the previous
-admin test-access setting afterwards, and fail if verification or cleanup fails.
-Staging tests run serially against the shared fixtures.
-The public account picker still hides the admin. Test sessions are recorded per
-run and signed out individually. GitHub CI is not used; run the commands locally.
+The browser suite starts its own server on 8788, creates fresh test data, and
+cleans up afterwards. Keep your dev server running on 8787.
 
-Session cleanup runs at the end of local and deployed browser runs, including
-failures. The CLI prints its run directory. If a run is forcibly interrupted,
-`bun run test:e2e -- --cleanup-run <run UUID>` recovers only that run's recorded
-sessions; add `--env staging` for a staging run. Failed records remain for retry.
+For a smaller task:
+
+| Command | Purpose |
+| --- | --- |
+| `bun run typecheck` | Check TypeScript types. |
+| `bun run lint` | Check unused files and undeclared dependencies. |
+| `bun run test` | Run unit, repository and backend tests. |
+| `bun run test:watch` | Rerun those tests as files change. |
+| `bun run test:render` | Check page layouts in a browser. |
+| `bun run shots` | Capture screenshots. |
+
+Run browser tests and screenshots one at a time: both use 8788.
+Tests still read the shared source files, so code edits during a run can affect
+its results.
+
+## Deploy to staging
+
+```sh
+bun run deploy -- --env staging
+```
+
+This command checks the app, publishes it, verifies the deployment, runs staging
+browser tests, and cleans up test sessions. Staging tests manage their temporary
+admin access automatically.
+
+To test an existing staging deployment:
+
+```sh
+bun run test:e2e -- --env staging
+```
+
+Tests against a deployment use its shared data. Only local browser runs get a
+separate temporary database.
+
+| Environment | Open |
+| --- | --- |
+| Local development | http://localhost:8787 |
+| Staging | https://staging-remy.ubuntusoftware.net |
+| Production | https://remy.ubuntusoftware.net |
+
+For HTTPS access to your local app, run `bun run ops tunnel -- --run` alongside
+`bun run dev`, then open https://dev-remy.ubuntusoftware.net. This reaches the
+same local app and data, including from a phone.
+
+## Other tasks
+
+Use the commands in [package.json](package.json) for project workflows.
+Pass arguments after `--`.
+
+| Command | Purpose |
+| --- | --- |
+| `bun run model` | Pull in the Product Owner's model changes, migrate, seed and verify. |
+| `bun run build` | Build the app. |
+| `bun run preview` | Preview the build locally. |
+| `bun run db` | Show database status and available commands. |
+| `bun run ops -- --help` | List operations such as provisioning and dependency updates. |
+| `bun run ops versions` | Show which version each environment is running. |
+
+If a browser run is forcibly stopped, use the run UUID printed by the CLI:
+
+```sh
+bun run test:e2e -- --cleanup-run <run UUID>
+```
+
+This removes that local run's test storage. For a staging run, add `--env staging`
+to clean up its recorded sessions instead.
+
+## Find the code
+
+The app uses React, a Cloudflare Worker and a D1 database. Its business model
+comes from the companion `remy-sport-biz` repository.
+
+| Location | Contents |
+| --- | --- |
+| [src/web](src/web) | Pages, components and styles. |
+| [src/api](src/api) | Backend API. |
+| [src/db](src/db) | Database schema, migrations and seed data. |
+| [src/domain](src/domain) | Business model and validation schemas. |
+| [scripts/](scripts/) | Shared development and deployment automation. |
+| [tests/](tests/) | Automated checks. |
+| [docs](docs/README.md) | Project status, plans and handovers. |
+
+[wrangler.toml](wrangler.toml) defines deployment resources and settings.
+[src/environment.ts](src/environment.ts) defines behavior allowed in each environment.

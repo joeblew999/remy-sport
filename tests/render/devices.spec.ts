@@ -72,7 +72,9 @@ test.describe("Devices", () => {
   }) => {
     await seedCache(page, [signedIn, devices])
     await visit(page, "discover")
-    await page.getByTestId("topbar-devices").click()
+    // The Devices link is a menu item in the account dropdown (B2 step 8).
+    await page.getByTestId("account").click()
+    await page.getByTestId("account-devices").click()
     await expect(page.getByTestId("devices-page")).toBeVisible()
   })
 })

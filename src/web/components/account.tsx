@@ -4,6 +4,14 @@ import { m } from "../lib/i18n";
 import { useCan } from "../lib/data";
 import { useState, useEffect } from "react";
 import { watchInstallable, type PwaInstall } from "../lib/installable";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 /**
  * Who you are, and how to stop being them.
@@ -36,6 +44,13 @@ export function initialsFor(label: string): string {
  * @answers SIGN_IN_OUT, INSTALL_APP
  *
  * The other half — signing out.
+ *
+ * The five buttons that used to sit beside the name (Install, Admin, Devices,
+ * Sign out) are menu items now, inside one dropdown on the person. That is
+ * B2 step 8's answer to the mobile plan's finding that a phone topbar carried
+ * five account chores on every page and clipped Sign out for an admin: the
+ * topbar shows who you are; the menu holds what you can do about it. The test
+ * ids moved with the elements and say where they are now (`account-…`).
  */
 export function Account() {
   const { user, loading } = useSession();
@@ -73,9 +88,20 @@ export function Account() {
 
   if (!user) {
     return (
-      <a className="btn primary" data-testid="topbar-sign-in" href={routeHref(signInRoute(parseRoute(window.location.hash)))}>
+      // `nativeButton={false}` because the entry point is a link — a route,
+      // openable in a new tab like every other navigation — and Base UI's
+      // button warns when its `render` is not a real <button>.
+      <Button
+        nativeButton={false}
+        render={
+          <a
+            data-testid="topbar-sign-in"
+            href={routeHref(signInRoute(parseRoute(window.location.hash)))}
+          />
+        }
+      >
         {m.sign_in()}
-      </a>
+      </Button>
     );
   }
 
@@ -83,58 +109,78 @@ export function Account() {
   const initials = initialsFor(label);
 
   return (
-    <div className="account-slot" data-testid="topbar-account">
-      <div className="account-ava" aria-hidden="true">{initials}</div>
-      <div className="account-meta">
-        <div className="account-name" data-testid="topbar-user">{label}</div>
-        {/* The platform role, not an org role — the two are different things
-            (ADR 009), and this is the one that decides what you may do. */}
-        {user.role && <div className="account-role" data-testid="topbar-role">{user.role}</div>}
-      </div>
-      {/* These three were English literals while every other string in the
-          chrome was translated, so the topbar stayed in English on a Thai page —
-          visible in the first screenshot run. The messages already existed and
-          nothing called them. */}
-      {/**
-        * The way in to the admin console, which had none.
-        *
-        * `/#/admin` was reachable only by typing it. Nothing in the sidebar,
-        * the topbar or any page linked to it — so the account list, the role
-        * controls, approving a referee, deleting a team or a player and
-        * creating an account were all built, enforced, and findable by somebody
-        * who already knew the URL.
-        *
-        * Gated on the model's answer, not on `user.role === "admin"`. The
-        * console itself asks `useCan("MANAGE_ALL_USERS")`, and a nav entry that
-        * decided it differently is the second copy that keeps being the bug
-        * here — a link to a page the API then refuses is a 403 with extra
-        * steps.
-        */}
-      {/* Only where the element says installing is possible, and the app is not
-          already installed. It prompted on arrival until a staging run could not
-          click Sign out — see the note in main.tsx. */}
-      {installable && (
-        <button
-          className="btn"
-          data-testid="topbar-install"
-          onClick={() =>
-            (document.getElementById("pwa-install") as PwaInstall | null)?.showDialog?.(true)
-          }
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <button
+            type="button"
+            data-testid="account"
+            className="flex shrink-0 items-center gap-2 rounded-full py-1 pr-2 pl-1 text-left transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+          />
+        }
+      >
+        <span className="account-ava" aria-hidden="true">{initials}</span>
+        <span className="account-meta">
+          <span className="account-name" data-testid="account-user">{label}</span>
+          {/* The platform role, not an org role — the two are different things
+              (ADR 009), and this is the one that decides what you may do. */}
+          {user.role && <span className="account-role" data-testid="account-role">{user.role}</span>}
+        </span>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" data-testid="account-menu">
+        <DropdownMenuItem
+          render={<a data-testid="account-profile" href={routeHref({ page: "profile" })} />}
         >
-          {m.install_app()}
-        </button>
-      )}
-      {canAdmin && (
-        <a className="btn" data-testid="topbar-admin" href={routeHref({ page: "admin" })}>
-          {m.nav_admin()}
-        </a>
-      )}
-      <a className="btn" data-testid="topbar-devices" href={routeHref({ page: "devices" })}>
-        {m.devices()}
-      </a>
-      <button className="btn" data-testid="topbar-sign-out" onClick={() => signOut.mutate()}>
-        {m.sign_out()}
-      </button>
-    </div>
+          {m.nav_profile()}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          render={<a data-testid="account-devices" href={routeHref({ page: "devices" })} />}
+        >
+          {m.devices()}
+        </DropdownMenuItem>
+        {/**
+          * The way in to the admin console, which had none.
+          *
+          * `/#/admin` was reachable only by typing it. Nothing in the sidebar,
+          * the topbar or any page linked to it — so the account list, the role
+          * controls, approving a referee, deleting a team or a player and
+          * creating an account were all built, enforced, and findable by somebody
+          * who already knew the URL.
+          *
+          * Gated on the model's answer, not on `user.role === "admin"`. The
+          * console itself asks `useCan("MANAGE_ALL_USERS")`, and a nav entry that
+          * decided it differently is the second copy that keeps being the bug
+          * here — a link to a page the API then refuses is a 403 with extra
+          * steps.
+          */}
+        {canAdmin && (
+          <DropdownMenuItem
+            render={<a data-testid="account-admin" href={routeHref({ page: "admin" })} />}
+          >
+            {m.nav_admin()}
+          </DropdownMenuItem>
+        )}
+        {/* Only where the element says installing is possible, and the app is not
+            already installed. It prompted on arrival until a staging run could not
+            click Sign out — see the note in main.tsx. */}
+        {installable && (
+          <DropdownMenuItem
+            data-testid="account-install"
+            onClick={() =>
+              (document.getElementById("pwa-install") as PwaInstall | null)?.showDialog?.(true)
+            }
+          >
+            {m.install_app()}
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          data-testid="account-sign-out"
+          onClick={() => signOut.mutate()}
+        >
+          {m.sign_out()}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

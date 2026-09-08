@@ -20,24 +20,31 @@ const holdings = (can: Record<string, boolean>) =>
   entry(orpc.me.mine, undefined, { holdings: [], can })
 
 test.describe("Reaching the admin console", () => {
+  // The way in is a menu item in the dropdown on the topbar avatar (B2 step
+  // 8), and the item mounts only when the menu is open — so every assertion
+  // below opens the menu first. Asserting on a closed menu would be a count
+  // of nothing, which passes for the wrong reason.
   test("is offered to somebody the model says may manage users", async ({ page }) => {
     await seedCache(page, [sessionFor("ADMIN"), holdings({ MANAGE_ALL_USERS: true })])
     await visit(page, "discover")
 
-    await expect(page.getByTestId("topbar-admin")).toBeVisible()
+    await page.getByTestId("account").click()
+    await expect(page.getByTestId("account-admin")).toBeVisible()
   })
 
   test("is not offered to anybody else", async ({ page }) => {
     await seedCache(page, [sessionFor("COACH"), holdings({})])
     await visit(page, "discover")
 
-    await expect(page.getByTestId("topbar-admin")).toHaveCount(0)
+    await page.getByTestId("account").click()
+    await expect(page.getByTestId("account-admin")).toHaveCount(0)
   })
 
   test("and it goes to the console", async ({ page }) => {
     await seedCache(page, [sessionFor("ADMIN"), holdings({ MANAGE_ALL_USERS: true })])
     await visit(page, "discover")
-    await page.getByTestId("topbar-admin").click()
+    await page.getByTestId("account").click()
+    await page.getByTestId("account-admin").click()
 
     await expect(page).toHaveURL(/#\/admin$/)
   })

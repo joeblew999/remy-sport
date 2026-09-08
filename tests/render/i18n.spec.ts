@@ -48,7 +48,9 @@ test.describe("Localisation, rendered", () => {
   test("the switcher offers one button per released locale", async ({ page }) => {
     await seeded(page)
     await visit(page, "discover")
-    await expect(page.locator(".lang-switch button")).toHaveCount(LOCALES.length)
+    // The switcher is the ToggleGroup in the sidebar's Settings group (B2
+    // step 8); the sidebar is open at this test's desktop width.
+    await expect(page.getByTestId("lang-switch").locator("button")).toHaveCount(LOCALES.length)
   })
 
   test("switching to Thai translates the chrome AND the data together", async ({ page }) => {
@@ -56,7 +58,7 @@ test.describe("Localisation, rendered", () => {
     await visit(page, "discover")
     await expect(page.locator(".page-header h1")).toHaveText(m.discover_heading({}, { locale: "en" }))
 
-    await page.locator(".lang-switch button", { hasText: "TH" }).click()
+    await page.getByTestId("lang-th").click()
 
     // UI copy — from the compiled messages.
     await expect(page.locator(".page-header h1")).toHaveText(m.discover_heading({}, { locale: "th" }))
@@ -73,7 +75,7 @@ test.describe("Localisation, rendered", () => {
   test("the choice survives a reload", async ({ page }) => {
     await seeded(page)
     await visit(page, "discover")
-    await page.locator(".lang-switch button", { hasText: "TH" }).click()
+    await page.getByTestId("lang-th").click()
     await expect(page.locator(".page-header h1")).toHaveText(m.discover_heading({}, { locale: "th" }))
 
     await page.reload()
@@ -89,7 +91,7 @@ test.describe("Localisation, rendered", () => {
     await seeded(page)
     await visit(page, "discover")
     await expect(page.locator(".event-row").first()).toBeVisible()
-    const body = (await page.locator(".main").textContent()) ?? ""
+    const body = (await page.locator("main").textContent()) ?? ""
     // Codes that could not be mistaken for prose: BANGKOK collides with the
     // word in a headline, CHIANG_MAI cannot.
     const codes = VOCABULARY.cities.map((c) => c.code).filter((c) => c.includes("_"))

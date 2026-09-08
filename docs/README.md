@@ -2,7 +2,30 @@
 
 ## Active GUI plan
 
-[GUI consistency plan](2026-09-07-06-gui-consistency.md) records the latest GUI work.
+[Readable type, then a design system](2026-09-08-01-typography-and-design-system.md)
+is the current GUI work. Stage A is implemented and verified locally
+(2026-09-08): 16px body, nothing under 12px, monospace only where digits
+align, font tokens, 42 dead classes deleted, and ten stylesheet rules in
+`tests/repo/styles.test.ts`. Gate: 859 unit/repository/Worker checks, 319
+rendering checks, 186 screenshot checks with cleanup. Not committed. Stage B
+is decided: **shadcn**, chosen by the Product Owner on 2026-09-08 with the
+full comparison, an MCP trial and registry research recorded in the plan.
+Two stages. **B1, the tooling, is done and verified 2026-09-08**: shadcn's
+standard setup (Tailwind, the manifest with the Stone base, the MCP server
+beside Playwright, `bun run ops ui add` with a lock and a repo check so
+copied components are never hand-edited, dark tokens and the theme logic
+unmounted), no component swapped, gate 868 + 319, end-to-end 49, screenshot
+walk 186. Not committed. **B2** moves the surfaces afterwards and waits for
+the Product Owner.
+
+[The top of the page on a phone](2026-09-08-02-mobile-top-of-page.md) is the
+next GUI work, planned 2026-09-08 and not started. It moves account actions and
+settings into the drawer, makes the phone topbar one row, and compacts detail
+headers. It also records a defect: a signed-in admin's Sign out is clipped off
+a 390px screen and no check measures the topbar. Independent of the
+design-system gate.
+
+[GUI consistency plan](2026-09-07-06-gui-consistency.md) records the latest completed GUI work.
 Status: implemented and verified locally, with a desktop Devices screenshot
 limitation recorded as the next capture fix below. It aligns
 page layout, controls, forms, feedback and responsive behavior across existing
@@ -76,6 +99,8 @@ Official host setup: <https://learn.chatgpt.com/docs/extend/mcp?surface=cli>.
 
 | Priority / state | Work | Where to continue |
 | --- | --- | --- |
+| Next GUI work, planned | The phone topbar is two rows of account buttons and an admin's Sign out is clipped at 390px; detail headers fill two-thirds of the first screen. The plan moves account and settings into the drawer, makes the topbar one row, adds a topbar overflow check, and compacts headers. | [The top of the page on a phone](2026-09-08-02-mobile-top-of-page.md) |
+| Next: shadcn surfaces (B2), on the Product Owner's word | Stage A (type repair) and B1 (shadcn tooling, lock, MCP) are done and verified, uncommitted. B2 starts with the shell from blocks, which also closes the phone top-of-page plan. The alternatives considered, the MCP trial and the registry research are in the plan. | [Readable type, then a design system](2026-09-08-01-typography-and-design-system.md#stage-b--adopt-shadcn-surface-by-surface) |
 | Next capture fix | Desktop Devices screenshots intermittently stall in WebKit after data and fonts load. This reproduced in the baseline before the GUI migration; phone captures work. Context cleanup now retains a trace, and the CLI cleans up sessions/storage on failure. Do not call the whole screenshot walk verified. | [GUI consistency implementation record](2026-09-07-06-gui-consistency.md#implementation-record--2026-09-07); reproduce with `bun run shots -- --grep 'devices · ja · desktop' --trace on`. |
 | In progress: separate automation work | Finish and commit the existing local-browser isolation edits. The working-tree CLI now uses 8788 and per-run storage; GUI verification observed startup, seed, session cleanup and storage removal. Lint import-time validation was corrected during GUI work. Developer data/session preservation and broader failure handling still need their own evidence. Keep `bun run dev` as the developer entry point without manual coordination. | [GUI verification and limits](2026-09-07-06-gui-consistency.md#implementation-record--2026-09-07); `playwright.config.ts`, `src/web/vite.config.ts`, `scripts/e2e.ts`, `scripts/lib/prepare.ts`. These pre-existing isolation edits remain uncommitted separately from the GUI change. |
 | Next independent product work | Review existing behavior one domain slice at a time: exact fields, relationships, permitted/refused actions, persistence and delivery. The committed report has **1,375 items: 64 classified, 1,311 unreviewed**. Unreviewed does not mean broken or unimplemented. | [Domain register, GAP-01 and GAP-05–08](2026-09-07-01-react-domain-coverage.md#work-register-and-execution-order); [generated inventory](react-domain-coverage.md). |

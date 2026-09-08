@@ -101,8 +101,9 @@ test.describe("Refusals are translated", () => {
     await submit()
     await expect(page.getByTestId("add-fixture-error")).toHaveText("A team cannot play itself.")
 
-    // Same refusal, same code, different language.
-    await page.locator(".lang-switch button", { hasText: "TH" }).click()
+    // Same refusal, same code, different language. The switcher is the
+    // ToggleGroup in the sidebar's Settings group (B2 step 8).
+    await page.getByTestId("lang-th").click()
     await page.getByTestId("tab-games").click()
     await submit()
     await expect(page.getByTestId("add-fixture-error")).toHaveText("ทีมไม่สามารถแข่งกับตัวเองได้")

@@ -84,7 +84,9 @@ test.describe("Team page renders what the API returned", () => {
     ])
     await visit(page, "team", { id: TEAM })
     await expect(page.getByTestId("team-record")).toHaveText("—")
-    await page.getByRole("button", { name: "Spoiler mode" }).click()
+    // The spoiler switch is in the sidebar's Settings group (B2 step 8); a
+    // switch has the switch role, not button.
+    await page.getByRole("switch", { name: "Spoiler mode" }).click()
     await expect(page.locator(".fixture-row .result")).toHaveText("—")
   })
 

@@ -17,7 +17,19 @@ import { rule } from "./helpers"
 // Every .ts and .tsx in the SPA, not a list of files. The list was the first
 // version and it is the wrong shape: a NEW module manufacturing UI strings
 // would not be on it, which is exactly the case a check exists for.
-const files = sources("src/web")
+//
+// Except `components/ui/`: those files are registry copies, hash-locked by
+// scripts/lib/registry-lock.ts, so the `// check-ignore` marker this rule
+// offers cannot be written into one without breaking that lock. Their strings
+// are upstream's, taken or left whole on upgrade, and the reader-facing
+// guarantee is held elsewhere: this check over everything WE author; the plan
+// rule (B2) that the app renders its own labelled control rather than a
+// registry one that carries English, which is why the topbar trigger is ours;
+// and the render-tier i18n checks. Two sr-only strings still mount from
+// `ui/sidebar.tsx` (the mobile Sheet's "Sidebar" title and description) —
+// hardcoded upstream, not parameterisable; accepted and recorded in
+// docs/2026-09-08-01-typography-and-design-system.md, B2 step 8.
+const files = sources("src/web").filter((f) => !f.startsWith("src/web/components/ui/"))
 const problems = copyProblems(files)
 
 rule(

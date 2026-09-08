@@ -12,6 +12,12 @@
         ".playwright-mcp"
       ],
       "env": {}
+    },
+    "shadcn": {
+      "type": "stdio",
+      "command": "bun",
+      "args": ["x", "shadcn", "mcp"],
+      "env": {}
     }
   }
 }

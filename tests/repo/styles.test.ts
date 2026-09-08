@@ -1,17 +1,206 @@
-import { readFileSync } from "node:fs"
+/**
+ * The stylesheet's type rules, as tests.
+ *
+ * `src/web/styles.css` is one file with no build step, so nothing but a check
+ * stops a rule from drifting: a literal font name in one selector, an 11px
+ * label, a new metadata line set in monospace because the row above it was.
+ * That is how the file reached 61 monospace rules and 57 rules under 12px
+ * before docs/2026-09-08-01-typography-and-design-system.md. Each rule here
+ * names the drift it stops.
+ *
+ * Blocks are parsed with a regex over comment-stripped CSS: the innermost
+ * `selector { declarations }` pairs. A media query's own brace never matches,
+ * because a selector cannot contain one, so its inner rules are read as if
+ * they stood at the top level — which is what these rules want.
+ */
+
+import { readdirSync, readFileSync } from "node:fs"
+import { join } from "node:path"
 import { expect, test } from "vitest"
+import { rule } from "./helpers"
+
+const CSS_PATH = "src/web/styles.css"
+
+function stripComments(css: string): string {
+  return css.replace(/\/\*[\s\S]*?\*\//g, "")
+}
 
 function undefinedTokens(css: string): string[] {
-  const text = css.replace(/\/\*[\s\S]*?\*\//g, "")
+  const text = stripComments(css)
   const defined = new Set([...text.matchAll(/(--[\w-]+)\s*:/g)].map(match => match[1]))
   return [...new Set([...text.matchAll(/var\(\s*(--[\w-]+)\s*\)/g)]
     .map(match => match[1]!).filter(token => !defined.has(token)))]
 }
 
-test("shared CSS tokens resolve or provide a fallback", () => {
+interface Block { selector: string; body: string }
+
+function blocks(css: string): Block[] {
+  return [...stripComments(css).matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(match => ({
+    selector: match[1]!.trim().replace(/\s+/g, " "),
+    body: match[2]!,
+  }))
+}
+
+/** Every `font-family:` value that is not a token or `inherit`. */
+function literalFontFamilies(css: string): string[] {
+  return [...stripComments(css).matchAll(/font-family\s*:\s*([^;}]+)/g)]
+    .map(match => match[1]!.trim())
+    .filter(value => !/^(var\(--font-[\w-]+\)|inherit)$/.test(value))
+}
+
+/** Every pixel size under the floor, in a `font-size:` or a `--text-*` token. */
+function sizesBelow(css: string, floor: number): string[] {
+  const out: string[] = []
+  for (const match of stripComments(css).matchAll(/(font-size|--type-[\w-]+|--text-[\w-]+)\s*:\s*([^;}]+)/g)) {
+    for (const px of match[2]!.matchAll(/(\d+(?:\.\d+)?)px/g)) {
+      if (Number(px[1]) < floor) out.push(`${match[1]}: ${match[2]!.trim()}`)
+    }
+  }
+  return out
+}
+
+/** Selectors whose block contains `needle`, minus the ones allowed to. */
+function blocksUsing(css: string, needle: RegExp, allowed: readonly string[]): string[] {
+  return blocks(css).filter(b => needle.test(b.body) && !allowed.includes(b.selector)).map(b => b.selector)
+}
+
+test("the block parser reads nested media rules as top-level selectors", () => {
+  expect(blocks("a { x: 1 } @media (max-width: 1px) { .b, .c { y: 2 } }").map(b => b.selector))
+    .toEqual(["a", ".b, .c"])
+  expect(literalFontFamilies("a { font-family: 'Inter', sans-serif } b { font-family: var(--font-sans) } c { font-family: inherit }"))
+    .toEqual(["'Inter', sans-serif"])
+  expect(sizesBelow("a { font-size: 10px } :root { --type-xs: 12px; --type-tiny: 9px; --text-tiny: 9px } b { font-size: clamp(11px, 3vw, 30px) }", 12))
+    .toEqual(["font-size: 10px", "--type-tiny: 9px", "--text-tiny: 9px", "font-size: clamp(11px, 3vw, 30px)"])
   expect(undefinedTokens("a { color: var(--missing); background: var(--optional, red) }"))
     .toEqual(["--missing"])
   expect(undefinedTokens("/* --missing: red */ a { color: var(--missing) }"))
     .toEqual(["--missing"])
-  expect(undefinedTokens(readFileSync("src/web/styles.css", "utf8"))).toEqual([])
 })
+
+const css = readFileSync(CSS_PATH, "utf8")
+
+rule("shared CSS tokens resolve or provide a fallback", undefinedTokens(css),
+  `${CSS_PATH} uses tokens that nothing defines: ${undefinedTokens(css).join(", ")}`)
+
+rule("every font-family is a --font-* token", literalFontFamilies(css),
+  `${CSS_PATH} names a typeface outside the tokens:\n  ${literalFontFamilies(css).join("\n  ")}\n\n` +
+  `Use var(--font-sans), var(--font-display), var(--font-thai) or var(--font-mono). The faces are\n` +
+  `named once, at the top of the file, so that the Thai and system-ui tails cannot be forgotten.`)
+
+/* The tails are load-bearing: Thai is self-hosted and system-ui renders CJK.
+   Drop either and a declared locale becomes tofu. The mono token is exempt on
+   purpose — it is only ever used for digits. */
+const tailless = ["--font-sans", "--font-display", "--font-thai"].filter(token => {
+  const value = stripComments(css).match(new RegExp(`${token}\\s*:\\s*([^;]+)`))?.[1] ?? ""
+  return !value.includes("'Noto Sans Thai'") || !value.includes("system-ui")
+})
+rule("the text font tokens keep Noto Sans Thai and system-ui in their tails", tailless,
+  `These font tokens in ${CSS_PATH} lost 'Noto Sans Thai' or system-ui from their tail: ${tailless.join(", ")}`)
+
+const FLOOR = 12
+rule(`no text is set below ${FLOOR}px`, sizesBelow(css, FLOOR),
+  `${CSS_PATH} sets text under ${FLOOR}px:\n  ${sizesBelow(css, FLOOR).join("\n  ")}\n\n` +
+  `The floor is var(--type-xs) in our rules and text-xs in Tailwind's. If something genuinely needs to be smaller, it is decoration, not text.`)
+
+/* Where digits have to line up, and nowhere else. Metadata — venues, dates,
+   organisers, roles, labels — is set in the sans face; a line of it in mono
+   is what made the app read like a terminal. */
+const MONO_ALLOWED = [
+  ".build-stamp",        // the build hash
+  ".search .kbd",        // a keyboard shortcut
+  ".live-banner .quarter", // the game clock in the Discover banner
+  ".player-jersey",      // a jersey number beside a name
+  ".login-code",         // the six-digit sign-in code
+  ".score-cell",         // scores down a schedule column
+  ".score-form input",   // score entry
+  ".moq-name",           // the broadcast identifier, compared across devices
+]
+const monoStrays = blocksUsing(css, /var\(--font-mono\)/, MONO_ALLOWED)
+rule("the monospace face is used only where digits align", monoStrays,
+  `${CSS_PATH} sets var(--font-mono) on selectors not in the allowlist:\n  ${monoStrays.join("\n  ")}\n\n` +
+  `Mono is for numbers that have to line up (scores, clocks, codes, hashes). Metadata is sans.\n` +
+  `If this is a new column of digits, add the selector to MONO_ALLOWED in ${import.meta.url.split("/").slice(-2).join("/")} with what it aligns.`)
+
+/* Uppercase is a pill or a tag: a short status word in a box. Headings,
+   labels and table headers are sentence case. */
+const UPPERCASE_ALLOWED = [
+  ".build-env",          // the DEV / STAGING stamp
+  ".event-row .type",    // TOURNAMENT / LEAGUE / CAMP / SHOWCASE tag
+  ".event-row .status",  // LIVE NOW / FINISHED
+  ".live-banner .pill",  // LIVE NOW
+  ".fixture-row .outcome", // W / L
+  ".device-tag",         // THIS DEVICE / EXPIRED
+  ".venue-primary",      // PRIMARY venue tag
+  ".video-score .status", // LIVE on the broadcast page
+]
+const upperStrays = blocksUsing(css, /text-transform\s*:\s*uppercase/, UPPERCASE_ALLOWED)
+rule("uppercase is reserved for pills and tags", upperStrays,
+  `${CSS_PATH} sets text-transform: uppercase on selectors not in the allowlist:\n  ${upperStrays.join("\n  ")}\n\n` +
+  `Labels, headings and table headers are sentence case. A new status pill goes in UPPERCASE_ALLOWED.`)
+
+/* Every class the stylesheet styles is rendered by something. The dead half
+   of this file — the old live page, the bracket, standings rows — was found
+   by this rule in 2026-09 and deleted. Names are matched as whole words
+   anywhere in src/web, which is generous: a class that shares its name with
+   an ordinary word will pass. It still catches whole dead families. */
+const DYNAMIC_CLASSES: Record<string, string> = {
+  showcase: "`type ${kind}` on an event row; the other kinds happen to appear as words",
+  search: "the search box is gone and its styles are kept for its return — see components/topbar.tsx",
+  kbd: "the shortcut hint inside the kept .search rules",
+  dark: "shadcn's dark mode: put on <html> by the theme provider (lib/theme.ts), read by `@custom-variant dark`",
+}
+function webSource(): string {
+  const out: string[] = []
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === "paraglide" || entry.name === "fonts" || entry.name === "public") continue
+      const path = join(dir, entry.name)
+      if (entry.isDirectory()) walk(path)
+      else if (/\.(tsx?|html)$/.test(entry.name)) out.push(readFileSync(path, "utf8"))
+    }
+  }
+  walk("src/web")
+  return out.join("\n")
+}
+const source = webSource()
+const classNames = [...new Set([...stripComments(css).matchAll(/\.(-?[_a-zA-Z][\w-]*)/g)].map(m => m[1]!))]
+const dead = classNames.filter(name =>
+  !(name in DYNAMIC_CLASSES) && !new RegExp(`(^|[^\\w-])${name}([^\\w-]|$)`).test(source))
+rule("every class in the stylesheet is rendered by something", dead,
+  `${CSS_PATH} styles ${dead.length} class(es) that no file under src/web mentions:\n  ${dead.join(", ")}\n\n` +
+  `Delete the rules, or if the name is composed at runtime add it to DYNAMIC_CLASSES with where.`,
+  `styles: ${classNames.length} classes, all rendered`)
+
+/* Uppercase is a presentation decision, so it is made in CSS (the allowlist
+   above), never in the copy. Eleven English messages were written in capitals
+   — crumbs, statuses, a panel heading — and stayed that way after the
+   stylesheet stopped shouting, because the copy check reads `^[A-Z][a-z]`
+   and a word in capitals does not match it. */
+const CAPITALS_ALLOWED: Record<string, string> = {
+  col_points: "PTS, the standings column abbreviation",
+}
+const messages = JSON.parse(readFileSync("messages/en.json", "utf8")) as Record<string, string>
+const shouting = Object.entries(messages)
+  .filter(([key, value]) => !(key in CAPITALS_ALLOWED) && /^[A-Z][A-Z0-9 /&'-]{2,}$/.test(value))
+  .map(([key, value]) => `${key}: "${value}"`)
+rule("no English message is written in capitals", shouting,
+  `messages/en.json has copy in capitals:\n  ${shouting.join("\n  ")}\n\n` +
+  `Write it in sentence case. If it must render uppercase, that is a pill: add its selector to UPPERCASE_ALLOWED.`)
+
+/* Type comes from the stylesheet. An inline font is invisible to the rules
+   above and to every media query. */
+const inlineType = [...source.matchAll(/\b(fontFamily|fontSize)\s*:/g)].map(m => m[1]!)
+rule("no component sets a font inline", inlineType,
+  `${inlineType.length} inline fontFamily/fontSize style(s) under src/web. Give the element a class and set it in ${CSS_PATH}.`)
+
+/* The same two rules for Tailwind classes in JSX, now that shadcn's components
+   are written in them. `text-sm` reads the scale above and is fine; an
+   arbitrary `text-[10px]` or `font-['Comic_Sans']` is the drift the rules
+   above stop in CSS, arriving through a class instead. */
+const smallArbitrary = [...source.matchAll(/\btext-\[(\d+(?:\.\d+)?)px\]/g)]
+  .filter(m => Number(m[1]) < FLOOR).map(m => m[0])
+rule(`no Tailwind class sets text under ${FLOOR}px`, smallArbitrary,
+  `Arbitrary text sizes under ${FLOOR}px in src/web JSX:\n  ${smallArbitrary.join("\n  ")}\n\nUse text-xs (12px) or larger.`)
+const fontClass = [...source.matchAll(/\bfont-\[[^\]]+\]/g)].map(m => m[0])
+rule("no Tailwind class names a typeface", fontClass,
+  `Arbitrary font families in src/web JSX:\n  ${fontClass.join("\n  ")}\n\nUse font-sans, font-display, font-thai or font-mono, which read the tokens.`)

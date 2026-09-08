@@ -84,7 +84,7 @@ test.describe("Filtering events by province", () => {
     await page.getByTestId("province-filter").selectOption("CMI")
     await expect(page.locator(".event-row")).toHaveCount(1)
 
-    await page.locator(".lang-switch button", { hasText: "TH" }).click()
+    await page.getByTestId("lang-th").click()
     await expect(page.locator(".event-row")).toHaveCount(1)
     // And the control still agrees with the list, which is the half that made
     // the old bug hard to see.

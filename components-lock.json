@@ -1,0 +1,88 @@
+{
+  "registries": {
+    "@shadcn": "the official shadcn registry"
+  },
+  "preset": {
+    "style": "nova",
+    "baseColor": "stone",
+    "theme": "orange",
+    "font": "inter",
+    "radius": "default",
+    "iconLibrary": "lucide",
+    "menuAccent": "subtle",
+    "menuColor": "default"
+  },
+  "items": {
+    "@shadcn/button": {
+      "files": {}
+    },
+    "@shadcn/card": {
+      "files": {
+        "src/web/components/ui/card.tsx": "8ad3a18d36bda0598dc0e9aa96ea22854944d5443ee4946f1d173815e115375f"
+      }
+    },
+    "@shadcn/input": {
+      "files": {}
+    },
+    "@shadcn/badge": {
+      "files": {
+        "src/web/components/ui/badge.tsx": "d9fb280e266119c4b62a4c518e63152de27b094c68d3e5f8929d05bfb0c1bc6c"
+      }
+    },
+    "@shadcn/table": {
+      "files": {
+        "src/web/components/ui/table.tsx": "300dc171ff0e09543dce0787f43a3ceb0d168fa800eaecb98b6c5630f3c6d7e9"
+      }
+    },
+    "@shadcn/tabs": {
+      "files": {
+        "src/web/components/ui/tabs.tsx": "04c251a62bddfe55d09bf157ce150b1fc527b1fcfdbb10d51188b1e36dd3e3c0"
+      }
+    },
+    "@shadcn/avatar": {
+      "files": {
+        "src/web/components/ui/avatar.tsx": "782659d874d45f3c886a7243353f8635f6a87991988947a1e37fe9a0f3483b42"
+      }
+    },
+    "@shadcn/sheet": {
+      "files": {}
+    },
+    "@shadcn/tooltip": {
+      "files": {}
+    },
+    "@shadcn/separator": {
+      "files": {}
+    },
+    "@shadcn/skeleton": {
+      "files": {}
+    },
+    "@shadcn/dropdown-menu": {
+      "files": {
+        "src/web/components/ui/dropdown-menu.tsx": "38eb2d79c390295e7038ed4c016543afdd5441611e9692f10c85f78434752a3f"
+      }
+    },
+    "@shadcn/toggle-group": {
+      "files": {
+        "src/web/components/ui/toggle.tsx": "039be815aed401e7e652271040fad53286ffa734743381a65f84ac61cb2ea4db",
+        "src/web/components/ui/toggle-group.tsx": "ea72fb41374a94a1585e282cc77b4c90de0c50715f912286646ec24f4c092c2d"
+      }
+    },
+    "@shadcn/switch": {
+      "files": {
+        "src/web/components/ui/switch.tsx": "367ad27cfe2f4ce5648fd3941410d3c3504876ee23e4360a220f1e6cd05f5c2d"
+      }
+    },
+    "@shadcn/sidebar": {
+      "files": {
+        "src/web/hooks/use-mobile.ts": "ad0936f84f1df79d3697bfbff9c18f8ad58431c1cbaf2359c6a853b0fcc9f28b",
+        "src/web/components/ui/sidebar.tsx": "29f85b8b5997eeab0ee5efe54f853a7acfdd22a7f64f0e86cb384b2668786e71",
+        "src/web/components/ui/tooltip.tsx": "f83d5f511812573f4ac98b866d397a46fda0f27eeb0af0ea89af01969eefbc5a",
+        "src/web/components/ui/button.tsx": "313353436d0fcc8e44ab470adb614b9fd013d28626f624328ea0d66d41a6c81b",
+        "src/web/components/ui/input.tsx": "dab990dfefa0ba78854ab6602ad074270dba9d7d1262184d9bfbb62bd990903b",
+        "src/web/components/ui/separator.tsx": "8a1d9397433ccf70631104f377b0e778754582a74c93a57cf13a2f2dcba778bf",
+        "src/web/components/ui/skeleton.tsx": "4c2af7fa9c645358a0fb188779deab6f0b981733b62befc25e18aaebea1350dc",
+        "src/web/components/ui/sheet.tsx": "db422e2934b79774850defd2ea12bf2d469a77f7237bf93ce0416bde87d8a610"
+      }
+    }
+  }
+}

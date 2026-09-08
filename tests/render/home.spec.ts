@@ -155,7 +155,7 @@ test.describe("Home", () => {
     await visit(page, "home")
 
     await expect(page.getByRole("heading", { level: 1 })).toContainText("What's on the court")
-    await expect(page.locator(".sidebar").getByRole("button", { name: "Home" })).toHaveCount(0)
+    await expect(page.getByTestId("nav-home")).toHaveCount(0)
   })
 
   test("is where the sidebar starts, and Discover is a step away from it", async ({ page }) => {
@@ -166,10 +166,13 @@ test.describe("Home", () => {
       gamesOf("team_001"),
     ])
     await visit(page, "home")
-    await expect(page.locator(".sidebar").getByRole("link", { name: "Home" })).toHaveAttribute("aria-current", "page")
+    await expect(page.getByTestId("nav-home")).toHaveAttribute("aria-current", "page")
 
-    await page.locator(".sidebar").getByRole("link", { name: "Discover" }).click()
+    await page.getByTestId("nav-discover").click()
     await expect(page.getByRole("heading", { level: 1 })).toContainText("What's on the court")
-    await expect(page.locator(".sidebar").getByRole("link", { name: "Discover" })).toHaveClass(/active/)
+    // The active state is the registry sidebar's `data-active` state attribute
+    // — present and empty when active — not a class. B2 step 8 replaced the
+    // hand-rolled nav row.
+    await expect(page.getByTestId("nav-discover")).toHaveAttribute("data-active", "")
   })
 })

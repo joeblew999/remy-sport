@@ -27,11 +27,19 @@
  * that overflows without clipping. A strip that scrolls itself — the tab row,
  * the filter chips — is deliberate and passes: `overflow-x: auto` is the fix,
  * not the fault.
+ *
+ * ── The shell note, updated ──
+ *
+ * The shell is no longer `.app` as a viewport-height grid: it is the registry
+ * Sidebar's provider (`main.tsx` adds `h-svh`), and `.page` is still the only
+ * thing that scrolls. The topbar has its own check now, in
+ * "the topbar stays one row" below — the original reason this file exists.
  */
 import { test, expect } from "./fixture"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { projectEvent } from "../helpers/projections"
+import { sessionFor, VISITOR, type Role } from "../helpers/actors"
 
 /** iPhone SE, iPhone 15/16, iPhone 16 Pro, Pro Max. The narrow one matters most. */
 const WIDTHS = [360, 390, 402, 430]
@@ -166,4 +174,96 @@ test.describe("no screen overflows on a phone", () => {
     // means they can.
     expect(["clip", "hidden"]).toContain(overflowX)
   })
+})
+
+test.describe("the topbar stays one row", () => {
+  /**
+   * The mobile plan's step-1 check, and the B2 step-8 proof for the shell.
+   *
+   * The defect it exists for was found by eye, never by a check: for an admin
+   * at 390px the topbar's second row read "Install app · Admin · Devices ·
+   * Sign o" — Sign out was off the screen, and `tests/render/mobile-layout.spec.ts`
+   * measured `.page` only, so nothing saw it. The chrome that wraps is the
+   * shape of the bug; these assertions hold the shape, whatever the chrome
+   * contains.
+   *
+   * 320 and 390 are the plan's widths — the narrowest device that matters and
+   * the common one. Every role, and nobody: the visitor's topbar is the one
+   * with Sign in, an admin's is the widest, and the rest sit between.
+   */
+  const ROLES: Array<[name: string, session: unknown]> = [
+    ["visitor", VISITOR],
+    ...(["ADMIN", "ORGANIZER", "COACH", "PLAYER", "REFEREE", "SPECTATOR"] as Role[]).map(
+      (role) => [role.toLowerCase(), sessionFor(role)] as [string, unknown],
+    ),
+  ]
+
+  for (const width of [320, 390]) {
+    for (const [name, session] of ROLES) {
+      test(`${name} at ${width}px`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 844 })
+        await seedCache(page, [session as never, entry(orpc.events.list, undefined, { events: [event] })])
+        await visit(page, "discover")
+
+        // Measure styled, not merely painted: in dev the stylesheet arrives as
+        // a module, and under a full tier's parallel load a bare timeout races
+        // it — an unstyled header is a tall block, which reads as a wrap that
+        // is not there.
+        await page.waitForFunction(() => {
+          const bar = document.querySelector(".topbar")
+          return bar !== null && getComputedStyle(bar).display === "flex"
+        })
+        // And with the webfonts in, not the fallback faces — the same reason
+        // the screenshot spec waits for fonts. The row must fit either way;
+        // the brand gives, so this is belt and braces for the measurement.
+        await page.evaluate(() => document.fonts.ready)
+        await page.waitForTimeout(250)
+
+        const problems = await page.evaluate(() => {
+          const topbar = document.querySelector<HTMLElement>(".topbar")!
+          const issues: string[] = []
+          const box = topbar.getBoundingClientRect()
+          if (box.height > 64) {
+            issues.push(`topbar is ${Math.round(box.height)}px tall — it has wrapped to two rows`)
+          }
+          if (topbar.scrollWidth > topbar.clientWidth + 1) {
+            issues.push(`topbar content is ${topbar.scrollWidth}px wide in a ${topbar.clientWidth}px row`)
+          }
+          for (const el of topbar.querySelectorAll<HTMLElement>("button, a")) {
+            const r = el.getBoundingClientRect()
+            if (r.width === 0 && r.height === 0) continue
+            if (r.right > window.innerWidth + 1 || r.left < -1) {
+              const label = (el.getAttribute("aria-label") ?? el.textContent ?? el.tagName).trim()
+              issues.push(`control "${label.slice(0, 24)}" sits outside the viewport`)
+            }
+          }
+          return issues
+        })
+        expect(problems, "the topbar is one row with every control inside the viewport").toEqual([])
+      })
+    }
+  }
+})
+
+test.describe("no screen overflows on a narrow desktop", () => {
+  // The content column is the viewport minus the 220px sidebar and gutters.
+  // Below ~1300px the Discover toolbar (tabs + filter chips) no longer fits on
+  // one row, and below ~900px the seven-column event rows no longer fit. Both
+  // used to push `.page` sideways — the same panning bug the phone test
+  // catches, but in the 769–1280px band that no phone width reaches.
+  const WIDTHS = [769, 850, 900, 1000, 1100, 1200, 1280]
+
+  for (const width of WIDTHS) {
+    test(`discover fits at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await seedCache(page, [entry(orpc.events.list, undefined, { events: [event] })])
+      await visit(page, "discover")
+
+      const over = await page.evaluate(() => {
+        const p = document.querySelector(".page")!
+        return p.scrollWidth - p.clientWidth
+      })
+      expect(over, `discover overflows by ${over}px at ${width}px`).toBeLessThanOrEqual(1)
+    })
+  }
 })

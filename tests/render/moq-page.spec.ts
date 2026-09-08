@@ -179,10 +179,12 @@ test.describe("Finding a game to watch", () => {
     // cannot answer, and when it was there it guessed — sending two devices to
     // whatever each thought was the current game.
     await visit(page, "live")
-    const nav = page.locator(".sidebar .nav-item")
+    // The nav rows carry `nav-<page>` test ids since B2 step 8; the sidebar's
+    // own slots scope them to the navigation rather than the whole document.
+    const nav = page.locator('[data-slot="sidebar"] [data-testid^="nav-"]')
     await expect(nav.filter({ hasText: "Watch" })).toHaveCount(0)
     await expect(nav.filter({ hasText: "Broadcast" })).toHaveCount(0)
-    await expect(nav.filter({ hasText: "Live now" })).toBeVisible()
+    await expect(page.getByTestId("nav-live")).toBeVisible()
   })
 })
 

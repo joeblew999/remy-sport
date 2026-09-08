@@ -38,8 +38,11 @@ test("a page's answers change with the person, without a reload", async ({ page 
   }, TEAM)
   await expect(follow(page)).toBeVisible()
 
-  // Sign out where you stand. The page stays open, and asks again.
-  await page.getByTestId("topbar-sign-out").click()
+  // Sign out where you stand. The page stays open, and asks again. The
+  // account chores live in the dropdown on the topbar avatar (B2 step 8),
+  // so the menu opens first.
+  await page.getByTestId("account").click()
+  await page.getByTestId("account-sign-out").click()
   await expect(follow(page)).toHaveCount(0)
   await expect(page.getByTestId("topbar-sign-in")).toBeVisible()
 })

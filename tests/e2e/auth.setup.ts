@@ -1,6 +1,6 @@
 import { test as setup } from "@playwright/test"
 import { mkdirSync } from "node:fs"
-import { EVERY_SEEDED_ACTOR, signIn, stateFor, AUTH_STATE_DIR } from "../helpers/auth"
+import { BASE, EVERY_SEEDED_ACTOR, signIn, stateFor, AUTH_STATE_DIR } from "../helpers/auth"
 
 /**
  * Sign in once per actor and save the cookies to disk.
@@ -30,7 +30,7 @@ setup("sign in as each actor and save session state", async ({ playwright }) => 
     // cookie into the next sign-in, and Better Auth would refuse the origin
     // check on a request that already has a session (ADR 006 §9a).
     const ctx = await playwright.request.newContext({
-      baseURL: process.env.BASE_URL || "http://localhost:8787",
+      baseURL: BASE,
     })
     // `keep`: this session is the deliverable, not a side effect. The per-test
     // revoke would end it before the first spec adopted it. auth.teardown.ts

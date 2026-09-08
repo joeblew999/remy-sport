@@ -1,8 +1,10 @@
 import { StrictMode, Suspense, lazy, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 
-import { Sidebar } from "./components/sidebar";
+import { AppSidebar } from "./components/app-sidebar";
 import { Topbar } from "./components/topbar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { ThemeProvider } from "./lib/theme-provider";
 import { isNativeApp, pushState } from "./lib/push";
 import { useNativeScoreNotifications } from "./lib/data";
 import { parseRoute, useRouter, type Page } from "./lib/router";
@@ -133,8 +135,6 @@ function App() {
   const tweaks = { ...DEFAULTS, ...(window.TWEAK_DEFAULTS ?? {}) } as Required<TweakDefaults>;
   const { route, goto, setParam } = useRouter();
   const [spoiler, setSpoiler] = useState<boolean>(tweaks.spoilerMode);
-  // Mobile sidebar drawer state
-  const [navOpen, setNavOpen] = useState(false);
 
   /**
    * Score notifications in the native app.
@@ -178,8 +178,8 @@ function App() {
   const { user, loading: sessionLoading } = useSession();
 
   useEffect(() => {
-    document.documentElement.style.setProperty("--accent", tweaks.accentColor);
-    document.documentElement.style.setProperty("--accent-deep", tweaks.accentColor);
+    document.documentElement.style.setProperty("--brand", tweaks.accentColor);
+    document.documentElement.style.setProperty("--brand-deep", tweaks.accentColor);
   }, [tweaks.accentColor]);
 
   // A detail page keeps its list highlighted in the nav, and the root is
@@ -262,11 +262,20 @@ function App() {
 
   return (
     <>
-      <div className={`app ${navOpen ? "nav-open" : ""}`}>
-        <Sidebar page={sidebarPage} onNavigate={() => setNavOpen(false)}/>
-        {navOpen && <div className="nav-backdrop" onClick={() => setNavOpen(false)}/>}
-        <div className="main">
-          <Topbar spoiler={spoiler} setSpoiler={handleSpoilerSet} onMenu={() => setNavOpen(o => !o)}/>
+      {/*
+        The shell is the registry's Sidebar (B2 step 8). Under 768px it is a
+        Sheet by itself — which is what replaces `.nav-backdrop`, the
+        `navOpen` state and the old drawer outright — and on desktop it
+        collapses to icons rather than disappearing. `h-svh` and
+        `overflow-hidden` keep the scroll architecture the app already had:
+        the page scrolls inside its own container, the chrome stays put, and
+        the shell cannot pan sideways. The theme provider mounts here too,
+        with its toggle in the sidebar's Settings group.
+      */}
+      <SidebarProvider className="h-svh overflow-hidden">
+        <AppSidebar page={sidebarPage} spoiler={spoiler} onSpoilerChange={handleSpoilerSet} />
+        <SidebarInset className="overflow-hidden">
+          <Topbar />
           <PendingApprovalNotice />
           <div className="page">
             {/*
@@ -291,8 +300,8 @@ function App() {
                 12:45 today", none of which came from anywhere. The table lives
                 on the event's Standings tab. */}
           </div>
-        </div>
-      </div>
+        </SidebarInset>
+      </SidebarProvider>
       {/* Browser only — see the isNativeApp() gate on the import below.
           `manual-*` because it must not prompt on arrival; components/account.tsx
           calls showDialog() when a reader asks. */}
@@ -537,7 +546,14 @@ createRoot(document.getElementById("root")!).render(
             A render error used to unmount the tree and leave a white
             rectangle: no message, no way back, and no report. */}
         <CrashBoundary>
-          <LocalisedApp/>
+          {/* The theme choice is read before the first paint (lazy state
+              initialisers in the provider), and its toggle renders in the
+              sidebar's Settings group (B2 step 8). Outside the locale key on
+              purpose: switching language remounts the app subtree, and the
+              theme choice should survive that untouched. */}
+          <ThemeProvider>
+            <LocalisedApp/>
+          </ThemeProvider>
         </CrashBoundary>
       </LocaleProvider>
       </QueryClientProvider>
