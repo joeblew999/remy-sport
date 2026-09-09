@@ -210,3 +210,55 @@ Product Owner looking at the result and saying the two halves belong to one app.
 - **Stage 6 has not happened.** The walk has not been re-shot in three
   languages, light and dark, phone and desktop, and the Product Owner has not
   compared before and after. Until they have, this is not accepted.
+
+## What a full port actually means — shadcn's own page, fetched 2026-09-09
+
+The Product Owner, twice: it still looks the same, and this is not a full port.
+Both are right, and guessing stopped here. `dashboard-01` for our exact preset
+was fetched from `https://ui.shadcn.com/r/styles/base-nova/dashboard-01.json`
+and read. It is shadcn's own answer for a page beside a sidebar, and it differs
+from ours in **architecture, not in sizes**:
+
+| | shadcn's block | Remy today |
+| --- | --- | --- |
+| Page title | `<h1 class="text-base font-medium">` **inside the top bar**, beside the sidebar trigger and a separator | `text-2xl/3xl font-semibold` in a bordered `PageHeader` band below the bar |
+| Sidebar | `<AppSidebar variant="inset" />` — floating, rounded, shadowed | the default variant, flush |
+| Header height | `--header-height` set on `SidebarProvider`, `h-(--header-height)` on the bar | our own topbar height |
+| Content width | full width, gutters `px-4 lg:px-6` | `max-w-7xl mx-auto`, gutters `px-4 sm:px-8` |
+| Responsiveness | container queries — `@container/main`, `@xl/main:grid-cols-2` | viewport breakpoints — `sm:`, `md:` |
+| Content shape | `Card` grids, `CardDescription` above `CardTitle` | divided rows in a bordered box (`RowGroup`) |
+
+So the components are the registry's and the **page architecture is ours**. That
+is the honest answer to "is it fully ported": no, and no amount of adjusting our
+own sizes closes it, because the difference is where the title lives and what a
+list is — not how big the text is.
+
+### The decision this needs
+
+Adopting the block's architecture is a change to the product's information
+architecture, not a restyle:
+
+- The page title moves into the top bar at `text-base`. Breadcrumbs, subtitles,
+  crests and per-page action rows — which `PageHeader` carries today on 13
+  screens — have nowhere to go in that bar and would need re-homing.
+- Lists become `Card` grids. A 20-row schedule read one-handed at courtside is
+  the case `RowGroup` exists for; cards are taller per row.
+
+That is why it has not been done unilaterally. It is worth doing — it is the
+only way the preset decides the look instead of us — but it is the Product
+Owner's call, and it is a bigger piece of work than everything above combined.
+
+### Checks that encoded old decisions
+
+The Product Owner: *a ton of the checks you do are based on old decisions too.*
+True, and one has been fixed: the render tier asserted controls are ≥44px while
+running Desktop Safari, which pinned a touch rule to a mouse and actively held
+the preset's density out of the app. It now asserts the registry's floor on a
+mouse and 44px in a `hasTouch` context.
+
+Still to re-read in that light, none of them yet checked:
+`MONO_ALLOWED` and `UPPERCASE_ALLOWED` in `styles.test.ts` (written for the
+pre-shadcn stylesheet), the mobile-layout specs' pinned viewport expectations,
+and the three JSX rules added today — which enforce **our** `RowGroup`, `Muted`
+and heading ladder, and would need revisiting if the block's architecture is
+adopted.
