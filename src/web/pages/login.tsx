@@ -3,7 +3,7 @@ import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { useDevAccounts, useRequestCode, useVerifyCode, codeFromOutbox } from "../lib/auth";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
-import { PageHeader, PageInner, Row, RowGroup, SectionHeading } from "../components/page";
+import { Muted, PageHeader, PageInner, Row, RowGroup, SectionHeading } from "../components/page";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -135,9 +135,9 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
       ) : (
         <form onSubmit={submitCode} aria-busy={busy}>
           <FieldGroup className="max-w-[420px]">
-            <p className="text-sm text-muted-foreground">
+            <Muted>
               {m.code_sent_to({ email })}
-            </p>
+            </Muted>
             <Field>
               <FieldLabel htmlFor="spa-otp">{m.six_digit_code()}</FieldLabel>
               {/* The registry's one-time-code field: six slots, digits only, and
@@ -191,7 +191,7 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
       {devAccounts.data?.accounts.length ? (
         <section data-testid="spa-dev-accounts">
           <SectionHeading title={m.dev_accounts()} className="mt-2">
-            <span className="text-sm text-muted-foreground">{devAccounts.data?.code ? m.demo_accounts_note() : m.local_only()}</span>
+            <Muted as="span">{devAccounts.data?.code ? m.demo_accounts_note() : m.local_only()}</Muted>
           </SectionHeading>
           {/* Every seeded person, not one per role. The differences *within* a
               role are the point: two coaches run different schools, two referees

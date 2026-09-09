@@ -11,7 +11,7 @@ import { api, orpc } from "../lib/orpc";
 import { useRoster, useTeam, useTeamGames } from "../lib/data";
 import { routeHref, type Route } from "../lib/router";
 import { m } from "../lib/i18n";
-import { PageHeader, PageInner, Row, RowGroup, SectionHeading } from "../components/page";
+import { Muted, PageHeader, PageInner, Row, RowGroup, SectionHeading } from "../components/page";
 import { EmptyState, Loading } from "../components/states";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -88,7 +88,7 @@ export function TeamPage({ id, goto: _goto, query, spoiler = false }: { id: stri
         // standings question, and it is answered on the event page.
         extra={
           <div className="text-right">
-            <div className="text-xs text-muted-foreground">{m.record_all_events()}</div>
+            <Muted as="div" className="text-xs">{m.record_all_events()}</Muted>
             <div data-testid="team-record" className={cn("text-3xl font-semibold tabular-nums", !(wins + losses) && "text-muted-foreground")}>
               {!spoiler && wins + losses ? `${wins}–${losses}` : "—"}
             </div>

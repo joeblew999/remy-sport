@@ -51,6 +51,7 @@ import {
 import { formErrors } from "../lib/form-errors"
 import "@moq/watch/element"
 import "@moq/publish/element"
+import { Muted } from "./page"
 
 /** The relay, from the server. Watchers get a subscribe-only token. */
 function useRelay(role: "watch" | "publish", gameId: string) {
@@ -128,7 +129,8 @@ function NoRelay() {
 
 /** The registry has no live-video surface; this is the app's, on its tokens. */
 const SURFACE = "moq-surface overflow-hidden rounded-xl border bg-foreground"
-const HINT = "bg-background px-3 pb-3 text-sm text-muted-foreground"
+/** The caption band under the video surface: `Muted`, plus its own backing. */
+const HINT = "bg-background px-3 pb-3"
 
 /**
  * Settings that cannot be attributes, plus session reporting.
@@ -241,13 +243,13 @@ export function GameVideo({ gameId }: { gameId: string }) {
             subscribes successfully and paints nothing. */}
         <canvas data-testid="moq-canvas" />
       </moq-watch>
-      <div className={`${HINT} pt-3`} data-testid="moq-status">
+      <Muted as="div" className={`${HINT} pt-3`} data-testid="moq-status">
         {game && !game.isBroadcasting ? m.video_status_nobody_live() : statusLine(status)}
         {/* The broadcast being watched, so two devices can be checked against
             each other rather than guessed at. */}
         <span className="text-xs tabular-nums"> · {broadcastName(gameId)}</span>
         <span className="text-xs tabular-nums"> · {status.connection}/{status.broadcast}</span>
-      </div>
+      </Muted>
     </div>
   )
 }
@@ -400,9 +402,9 @@ function Publisher({ gameId, config }: { gameId: string; config: NonNullable<Ret
         )}
       </div>
 
-      <div className={HINT}>
+      <Muted as="div" className={HINT}>
         {source === null ? m.video_broadcast_hint() : m.video_broadcasting()}
-      </div>
+      </Muted>
     </div>
   )
 }

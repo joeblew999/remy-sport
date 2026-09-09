@@ -255,3 +255,14 @@ const looseHeadings = authored
 rule("headings take their size from the page frame", looseHeadings,
   `Hand-sized headings in src/web JSX:\n  ${looseHeadings.join("\n  ")}\n\n` +
   `Use PageHeader, SectionHeading or SubHeading from ${FRAME}, which hold the ladder.`)
+
+/* A secondary line is `Muted` (or the registry's own ItemDescription /
+   CardDescription). Written by hand it was the same role at two sizes —
+   `text-sm text-muted-foreground` 28 times and `text-xs` 4 more. */
+const looseCaptions = authored
+  .filter(f => f.path !== FRAME && !(f.path in HEADINGS_ALLOWED))
+  .flatMap(f => [...stripTsxComments(f.text).matchAll(/\btext-(?:xs|sm) text-muted-foreground\b/g)]
+    .map(() => f.path))
+rule("a muted caption is Muted, not a size and a colour", [...new Set(looseCaptions)],
+  `Hand-styled muted captions in src/web JSX:\n  ${[...new Set(looseCaptions)].join("\n  ")}\n\n` +
+  `Use Muted from ${FRAME}, or ItemDescription/CardDescription inside a Row or Card.`)

@@ -1,6 +1,6 @@
 import { QueryError, isNotFound } from "../components/query-error";
 import { NameTranslations, namesFrom } from "../components/name-translations";
-import { PageHeader, PageInner, Row, SectionHeading, SubHeading } from "../components/page";
+import { Muted, PageHeader, PageInner, Row, SectionHeading, SubHeading } from "../components/page";
 import { EmptyState, Loading } from "../components/states";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -340,7 +340,7 @@ function OrgMembers({ id }: { id: string }) {
                 <TableRow key={mem.userId} data-testid={`member-row-${mem.email}`}>
                   <TableCell className="whitespace-normal">
                     {mem.name || mem.email}
-                    <div className="text-sm text-muted-foreground">{mem.email}</div>
+                    <Muted as="div">{mem.email}</Muted>
                   </TableCell>
                   <TableCell>
                     {/* The model's name for the role, in the reader's

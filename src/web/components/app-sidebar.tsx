@@ -24,6 +24,7 @@ import { useLocale, type Locale } from "../lib/locale";
 import { useTheme } from "../lib/theme-provider";
 import { m } from "../lib/i18n";
 import { routeHref, type Page } from "../lib/router";
+import { Muted } from "./page"
 
 /**
  * The shell's navigation, on the registry's Sidebar (B2 step 8).
@@ -124,7 +125,7 @@ function SettingsGroup({ spoiler, onSpoilerChange }: {
         <div className="flex flex-col gap-3 px-2 py-1">
           <ThemeRow />
           <div className="flex items-center justify-between gap-2">
-            <span className="text-sm text-muted-foreground">{m.language()}</span>
+            <Muted as="span">{m.language()}</Muted>
             <ToggleGroup
               variant="outline"
               size="sm"
@@ -181,7 +182,7 @@ function InstallRow() {
   if (typeof window !== "undefined" && window.matchMedia("(display-mode: standalone)").matches) return null;
   return (
     <div className="flex items-center justify-between gap-2">
-      <span className="text-sm text-muted-foreground">{m.install_app()}</span>
+      <Muted as="span">{m.install_app()}</Muted>
       <Button
         variant="outline"
         size="sm"
@@ -205,7 +206,7 @@ function ThemeRow() {
   const label = theme === "system" ? m.theme_system() : theme === "dark" ? m.theme_dark() : m.theme_light();
   return (
     <div className="flex items-center justify-between gap-2">
-      <span className="text-sm text-muted-foreground">{m.theme()}</span>
+      <Muted as="span">{m.theme()}</Muted>
       <DropdownMenu>
         <DropdownMenuTrigger
           render={<Button variant="outline" size="sm" data-testid="theme-switch" aria-label={label} />}

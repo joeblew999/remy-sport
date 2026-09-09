@@ -9,7 +9,7 @@ import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { SubHeading } from "./page"
+import { Muted, SubHeading } from "./page"
 
 /** @answers ENTER_SCORES
  * Mounted inside the game's action gate, including while a line is being edited.
@@ -36,7 +36,7 @@ function Lines({ gameId }: { gameId: string }) {
     </Alert>
   );
   return <section className="flex min-w-0 basis-full flex-col gap-4" data-testid={`box-score-lines-${gameId}`}>
-    <p className="text-sm text-muted-foreground">{m.game_box_score_hint()}</p>
+    <Muted>{m.game_box_score_hint()}</Muted>
     {!q.data?.players.length && <p>{m.game_box_score_empty()}</p>}
     {q.data?.players.map((line) => <PlayerLine key={line.playerId} line={line} />)}
   </section>;

@@ -30,6 +30,7 @@ import { useEffect, useState } from "react";
 import { m } from "../lib/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Muted } from "./page"
 
 interface Stamp {
   environment?: string;
@@ -156,7 +157,7 @@ export function BuildStamp() {
   // The environment is shown only off production, where it is the whole
   // point; the hash is a hash, so it keeps its digits aligned.
   return (
-    <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground" data-testid="build-stamp">
+    <Muted as="div" className="text-xs flex flex-wrap items-center gap-1.5" data-testid="build-stamp">
       {env && env !== "production" && <Badge>{env}</Badge>}
       <span className="tabular-nums">{serverCommit}</span>
       {stale && (
@@ -166,6 +167,6 @@ export function BuildStamp() {
           {m.build_update_available()}
         </Button>
       )}
-    </div>
+    </Muted>
   );
 }

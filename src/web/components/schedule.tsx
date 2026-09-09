@@ -44,7 +44,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { Input } from "@/components/ui/input";
 import { ItemActions, ItemContent } from "@/components/ui/item";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
-import { Row, RowGroup, SectionHeading } from "./page"
+import { Muted, Row, RowGroup, SectionHeading } from "./page"
 
 /** Fixture/result changes also alter event progress, standings and team records. */
 function refreshGameViews(qc: QueryClient) {
@@ -192,7 +192,7 @@ export function GameRow({
     <Row className="flex-wrap items-start" data-testid={`game-${game.id}`}>
       <ItemContent className="basis-full sm:basis-auto">
         <GameSummary game={game} details={details} showStatus={false} />
-        <div className="text-sm text-muted-foreground">
+        <Muted as="div">
           <Can of={game} action="CONFIRM_MATCH_STATUS" fallback={
             <span
               data-testid={`game-status-${game.id}`}
@@ -218,7 +218,7 @@ export function GameRow({
               </span>
             </>
           )}
-        </div>
+        </Muted>
       </ItemContent>
 
       <ItemActions className="ml-auto flex-wrap justify-end">
@@ -695,9 +695,9 @@ export function AddFixture({ eventId, can, timezone }: { eventId: string; can: E
             {generate.isPending ? m.org_saving() : m.generate_fixtures()}
           </Button>
           {generate.data && (
-            <p className="text-sm text-muted-foreground" data-testid="generate-result">
+            <Muted data-testid="generate-result">
               {m.generate_result({ created: generate.data.created, skipped: generate.data.skipped })}
-            </p>
+            </Muted>
           )}
           {genErr.form && (
             <Alert variant="destructive" data-testid="generate-error">

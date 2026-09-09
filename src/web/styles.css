@@ -191,14 +191,27 @@
    overflow check holds it there — a 44px control in it wraps the row, so
    chrome keeps the registry's compact size. */
 :root { --control-height: 44px; }
-[data-slot="button"],
-[data-slot="input"],
-[data-slot="textarea"],
-[data-slot="native-select"],
-[data-slot="tabs-trigger"] {
-  min-height: var(--control-height);
+/* Where a finger is the pointer, and only there.
+   This was unconditional until 2026-09-09, so a desktop with a mouse got 44px
+   controls too — the registry sizes them 32-36px, so every button, input,
+   select and tab in the app was 20-37% taller than the preset draws them. That
+   is a touch requirement applied to every pointer, and it was most of why the
+   theme did not read on a desktop: the sidebar is the registry's own density
+   and the content was not.
+   `pointer: coarse` is the actual question being asked — is the thing pointing
+   at this a finger — so a phone, a tablet and a touchscreen laptop all keep the
+   courtside size, and a mouse gets the preset.
+   docs/2026-09-09-07-main-content-on-the-registry.md. */
+@media (pointer: coarse) {
+  [data-slot="button"],
+  [data-slot="input"],
+  [data-slot="textarea"],
+  [data-slot="native-select"],
+  [data-slot="tabs-trigger"] {
+    min-height: var(--control-height);
+  }
+  .topbar :where(button, a, input, select, textarea) { min-height: 0; }
 }
-.topbar :where(button, a, input, select, textarea) { min-height: 0; }
 
 /* 2. The live-video surface (components/moq-video.tsx). A custom element is
    `display: inline` with no intrinsic size, so the player and the camera

@@ -10,7 +10,7 @@ import { useLocale } from "../lib/locale";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "../components/button-link";
 import { routeHref } from "../lib/router";
-import { PageHeader, PageInner, Row, SectionHeading } from "../components/page";
+import { Muted, PageHeader, PageInner, Row, SectionHeading } from "../components/page";
 import { EmptyState, Loading } from "../components/states";
 import { ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
 
@@ -139,9 +139,9 @@ export function PlayerPage({ id }: { id?: string }) {
         {stats.data && stats.data.recorded > 0 && (
           <section>
             <SectionHeading title={m.player_stats()} className="mt-0">
-              <span className="text-sm text-muted-foreground" data-testid="player-stats-games">
+              <Muted as="span" data-testid="player-stats-games">
                 {m.player_stats_games({ n: stats.data.recorded })}
-              </span>
+              </Muted>
             </SectionHeading>
             <ItemGroup className={list} data-testid="player-stats">
               {([

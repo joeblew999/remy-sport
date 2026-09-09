@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import { Account } from "./account";
 import { m } from "../lib/i18n";
+import { Muted } from "./page"
 
 /**
  * The topbar is identity, the sidebar is navigation, account and settings.
@@ -45,7 +46,7 @@ function Brand() {
       <span className="size-7 shrink-0 rounded-full bg-primary" aria-hidden="true" />
       <span className="min-w-0 leading-tight">
         <span className="block truncate text-base font-semibold tracking-tight">Remy Sport</span>
-        <span className="block truncate font-thai text-xs text-muted-foreground">เรมีสปอร์ต</span>
+        <Muted as="span" className="text-xs block truncate font-thai">เรมีสปอร์ต</Muted>
       </span>
     </div>
   );

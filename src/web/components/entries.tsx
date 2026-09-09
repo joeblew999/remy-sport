@@ -26,6 +26,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Muted } from "./page"
 
 /**
  * @answers REGISTER_TEAM_FOR_EVENT
@@ -72,9 +73,9 @@ export function Entries({ eventId, divisionId }: { eventId: string; divisionId?:
                         looking at a full event could not tell who was first —
                         the question behind every waiting list. */}
                     {r.entered && (
-                      <div className="text-sm text-muted-foreground" data-testid={`entered-${r.teamId}`}>
+                      <Muted as="div" data-testid={`entered-${r.teamId}`}>
                         {m.registered_on({ date: r.entered })}
-                      </div>
+                      </Muted>
                     )}
                   </TableCell>
                   <TableCell>

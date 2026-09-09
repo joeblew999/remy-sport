@@ -13,6 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Muted } from "./page";
 
 /**
  * Who you are, and how to stop being them.
@@ -124,7 +125,7 @@ export function Account() {
           <span className="max-w-[min(160px,24vw)] truncate text-sm font-medium" data-testid="account-user">{label}</span>
           {/* The platform role, not an org role — the two are different things
               (ADR 009), and this is the one that decides what you may do. */}
-          {user.role && <span className="text-xs text-muted-foreground" data-testid="account-role">{user.role}</span>}
+          {user.role && <Muted as="span" className="text-xs" data-testid="account-role">{user.role}</Muted>}
         </span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" data-testid="account-menu">

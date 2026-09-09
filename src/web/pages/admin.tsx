@@ -32,7 +32,7 @@ import { useSession } from "../lib/session";
 import { useCan, useTeams } from "../lib/data";
 import { STORED_ROLE } from "../../domain/vocabularies";
 import type { Route } from "../lib/router";
-import { PageHeader, PageInner, Row } from "../components/page";
+import { Muted, PageHeader, PageInner, Row } from "../components/page";
 import { EmptyState, Loading } from "../components/states";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import {
@@ -338,7 +338,7 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
                 <TableRow key={a.id} data-testid={`account-row-${a.email}`}>
                   <TableCell className="whitespace-normal">
                     {a.name || a.email}
-                    <div className="text-sm text-muted-foreground">{a.email}</div>
+                    <Muted as="div">{a.email}</Muted>
                   </TableCell>
                   <TableCell>
                     <NativeSelect
@@ -378,7 +378,7 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
                   </TableCell>
                   <TableCell className="text-right">
                     {a.id === user.id ? (
-                      <span className="text-sm text-muted-foreground">{m.you()}</span>
+                      <Muted as="span">{m.you()}</Muted>
                     ) : (
                       <div className="flex flex-wrap justify-end gap-1.5">
                         <Button

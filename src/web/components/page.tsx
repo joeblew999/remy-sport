@@ -201,6 +201,28 @@ export function SectionHeading({
 }
 
 /**
+ * A secondary line: the description scale, muted.
+ *
+ * `text-sm text-muted-foreground` was written 28 times and `text-xs
+ * text-muted-foreground` 4 more — the same role at two sizes, which is the
+ * drift this ends. The size is `ItemDescription`'s, so a caption beside a list
+ * reads as part of it.
+ *
+ * `as` because the callers are 14 paragraphs, 11 spans and 6 divs, and a
+ * caption inside a sentence must not become a block. Inside a `Row` or a
+ * `Card`, prefer `ItemDescription` or `CardDescription`: they are the
+ * registry's own and carry the same scale.
+ */
+export function Muted<T extends "p" | "span" | "div" = "p">({
+  as,
+  className,
+  ...props
+}: { as?: T } & ComponentProps<T>) {
+  const Tag = (as ?? "p") as "p";
+  return <Tag className={cn("text-sm text-muted-foreground", className)} {...(props as ComponentProps<"p">)} />;
+}
+
+/**
  * A heading inside a panel or a section: `CardTitle`'s scale, as an `h3`.
  *
  * The same three words were written seven times at three different sizes —

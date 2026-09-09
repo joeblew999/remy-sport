@@ -39,7 +39,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { ItemActions, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { Row, RowGroup, SubHeading } from "./page"
+import { Muted, Row, RowGroup, SubHeading } from "./page"
 
 /**
  * The types worth offering, not all fourteen.
@@ -186,7 +186,7 @@ export function NotificationSettings() {
           {state.status === "native-denied" ? (
             <Note blocked data-testid="push-native-denied">{m.push_native_denied()}</Note>
           ) : state.status === "native" ? (
-            <p className="text-sm text-muted-foreground" data-testid="push-native-on">{m.push_native_on()}</p>
+            <Muted data-testid="push-native-on">{m.push_native_on()}</Muted>
           ) : (
             <Button
               type="button"
@@ -206,12 +206,12 @@ export function NotificationSettings() {
           )}
           {/* Shown in every native state, including denied: it is the answer to
               "why did nothing arrive overnight". */}
-          <p className="text-sm text-muted-foreground" data-testid="push-native-limit">{m.push_native_limit()}</p>
+          <Muted data-testid="push-native-limit">{m.push_native_limit()}</Muted>
         </div>
       ) : state === null ? (
         // Distinct from `unknown` on purpose: a slow network reads as waiting,
         // a failed one reads as failed.
-        <p className="text-sm text-muted-foreground" data-testid="push-checking">{m.push_checking()}</p>
+        <Muted data-testid="push-checking">{m.push_checking()}</Muted>
       ) : state.status === "unknown" ? (
         <Alert data-testid="push-unknown">
           <AlertDescription>{m.push_unknown()}</AlertDescription>
@@ -344,13 +344,13 @@ export function NotificationSettings() {
             sign-in has registered it, every email switch below stays off and
             this sentence says why. */}
         {data && (
-          <p className="text-sm text-muted-foreground" data-testid="email-state">
+          <Muted data-testid="email-state">
             {!data.email
               ? m.email_no_address()
               : !data.email.verified
                 ? m.email_unverified()
                 : m.email_goes_to({ address: data.email.address })}
-          </p>
+          </Muted>
         )}
         <RowGroup>
           {OFFERED.map((code) => {

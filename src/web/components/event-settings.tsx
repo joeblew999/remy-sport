@@ -42,6 +42,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Textarea } from "@/components/ui/textarea"
+import { Muted } from "./page"
 
 /**
  * @answers EDIT_EVENT, INVITE_CO_ORGANIZER
@@ -187,7 +188,7 @@ export function EventSettings({ event }: { event: Event }) {
               {err.field("endDate") && <FieldError id="event-end-issue">{err.field("endDate")}</FieldError>}
             </Field>
 
-            <p className="text-sm text-muted-foreground">{m.event_dates_hint()}</p>
+            <Muted>{m.event_dates_hint()}</Muted>
 
             <Button type="submit" data-testid="event-save" disabled={save.isPending} className="w-fit">
               {save.isPending ? m.event_saving() : m.event_save()}

@@ -2,7 +2,7 @@ import { useSession } from "../lib/session";
 import { parseRoute, signInRoute, routeHref } from "../lib/router";
 import { m } from "../lib/i18n";
 import { NotificationSettings } from "../components/notification-settings";
-import { PageHeader, PageInner } from "../components/page";
+import { Muted, PageHeader, PageInner } from "../components/page";
 import { EmptyState, Loading } from "../components/states";
 import { ButtonLink } from "../components/button-link";
 
@@ -51,12 +51,12 @@ export function NotificationsPage() {
             subscription per browser; the other is where the account is signed
             in, a session. While they shared a page a reader could see the
             difference; apart, the page has to name it. */}
-        <p className="text-sm text-muted-foreground" data-testid="notifications-sessions-link">
+        <Muted data-testid="notifications-sessions-link">
           {m.notifications_not_sessions()}{" "}
           <a className="underline underline-offset-4" href={routeHref({ page: "devices" })} data-testid="to-devices">
             {m.signed_in_devices()}
           </a>
-        </p>
+        </Muted>
       </PageInner>
     </div>
   );

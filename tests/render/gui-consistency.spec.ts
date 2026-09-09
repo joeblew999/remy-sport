@@ -70,8 +70,13 @@ test("management fields and Save use full size controls and associated errors", 
   const settings = page.getByTestId("event-settings")
   const save = page.getByTestId("event-save")
   await expect(settings).toBeVisible()
+  // The registry's own size, because this tier runs Desktop Safari — a mouse.
+  // The 44px courtside height is a touch rule now (`pointer: coarse` in
+  // styles.css), and asserting it here is what kept it applied to every
+  // pointer: the app drew 44px controls on a desktop while the sidebar beside
+  // them was the preset's 32-36px. The touch size has its own test below.
   for (const control of [settings.locator("select").first(), save]) {
-    expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44)
+    expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(32)
   }
   const colours = await save.evaluate(el => {
     const style = getComputedStyle(el)
@@ -132,6 +137,8 @@ for (const width of [320, 390, 1440]) {
       const listBox = await list.boundingBox()
       expect(Math.abs(titleBox!.x - listBox!.x)).toBeLessThan(2)
       expect(await page.getByTestId("page").evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThan(2)
+      // A row, not a control: its height comes from its two lines of content,
+      // so it clears a thumb on any pointer without the touch rule.
       const link = page.getByTestId("team-row-team_001").getByRole("link")
       expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44)
       await visit(page, "login")
@@ -143,3 +150,27 @@ for (const width of [320, 390, 1440]) {
     })
   }
 }
+
+/**
+ * The courtside size, where a finger is the pointer.
+ *
+ * This is the other half of the rule above. `--control-height` is 44px and
+ * `styles.css` applies it under `@media (pointer: coarse)`, so a phone, a
+ * tablet and a touchscreen laptop get a target a thumb can hit in gloves while
+ * a mouse gets the registry's density. Before 2026-09-09 the rule had no media
+ * query and the desktop paid for the phone.
+ */
+test.describe("On a touch screen", () => {
+  test.use({ hasTouch: true })
+
+  test("controls are the courtside size, not the registry's desktop size", async ({ page }) => {
+    await seedCache(page, [entry(orpc.events.get, { id: "evt_002" }, projectEvent("evt_002", ["OWNER"]))])
+    await visit(page, "event", { id: "evt_002", query: { tab: "manage" } })
+    const save = page.getByTestId("event-save")
+    await expect(save).toBeVisible()
+    expect(
+      (await save.boundingBox())!.height,
+      "a thumb in gloves needs 44px; a mouse does not",
+    ).toBeGreaterThanOrEqual(44)
+  })
+})

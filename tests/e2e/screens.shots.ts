@@ -178,10 +178,20 @@ for (const screen of SCREENS) {
         // The data arrives over the network, so there is a real moment where the
         // page says "Loading…". Waiting for the network to settle is what stops
         // that being what gets captured.
-        if (screen.name === "devices") {
-          // Wait for the actual rows; this surface also starts asynchronous
-          // push-capability checks that are independent of its device list.
-          await page.getByTestId("devices-list").waitFor({ state: "visible" })
+        if (screen.name === "devices" || screen.name === "notifications") {
+          /**
+           * Wait for the surface itself, not for the network to go quiet.
+           *
+           * Notifications keeps asking the browser what it can do — push state,
+           * this device's subscription id — so `networkidle` never arrives and
+           * the capture times out at thirty seconds. That was the reason for
+           * the devices exception, and the settings moved to their own page on
+           * 2026-09-09 while this wait stayed behind, so all three
+           * `notifications` captures failed the first time the walk ran after
+           * the split.
+           */
+          const anchor = screen.name === "devices" ? "devices-list" : "notification-settings"
+          await page.getByTestId(anchor).waitFor({ state: "visible" })
           await page.evaluate(() => document.fonts.ready)
         } else {
           await page.waitForLoadState("networkidle")

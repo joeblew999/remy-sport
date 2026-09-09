@@ -10,7 +10,7 @@ import { downloadICS } from "../lib/calendar";
 import { FollowButton } from "../components/follow";
 import { Schedule, AddFixture } from "../components/schedule";
 import { Entries } from "../components/entries";
-import { PageHeader, PageInner, Row, RowGroup, SectionHeading } from "../components/page";
+import { Muted, PageHeader, PageInner, Row, RowGroup, SectionHeading } from "../components/page";
 import { EmptyState, Loading } from "../components/states";
 import { StatusBadge } from "../components/status-badge";
 import { useEntries, useEvent, useGames, useStandings } from "../lib/data";
@@ -96,7 +96,7 @@ export function EventPage({ id, goto, spoiler, query = {}, setParam }: {
           <NativeSelectOption value="">{m.all_divisions()}</NativeSelectOption>
           {entries.data?.divisions.map(d => <NativeSelectOption key={d.id} value={d.id}>{d.division}</NativeSelectOption>)}
         </NativeSelect>
-        {divisionInvalid && <span role="status" className="text-sm text-muted-foreground">{m.invalid_division()}</span>}
+        {divisionInvalid && <Muted as="span" role="status">{m.invalid_division()}</Muted>}
       </PageInner>
     )}
     {tab === "games" && <PageInner className="flex flex-col gap-4">
@@ -156,7 +156,7 @@ export function StandingsTable({ eventId, divisionId, spoiler = false }: { event
         </TableRow>)}</TableBody>
       </Table>
     </section>)}
-    <p className="text-sm text-muted-foreground">{m.rank_movement_note()}</p>
+    <Muted>{m.rank_movement_note()}</Muted>
   </div>;
 }
 

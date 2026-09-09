@@ -5,7 +5,7 @@ import { toDevices, formatWhen, type RawSession } from "../lib/devices";
 import { parseRoute, signInRoute, routeHref } from "../lib/router";
 import { m } from "../lib/i18n";
 import { useLocale } from "../lib/locale";
-import { PageHeader, PageInner, Row, RowGroup } from "../components/page";
+import { Muted, PageHeader, PageInner, Row, RowGroup } from "../components/page";
 import { EmptyState, Loading } from "../components/states";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -106,9 +106,9 @@ export function DevicesPage() {
                   </ItemContent>
                   <ItemActions>
                     {d.current ? (
-                      <span className="text-sm text-muted-foreground">
+                      <Muted as="span">
                         {m.signed_in_when({ when: formatWhen(locale, d.createdAt) })}
-                      </span>
+                      </Muted>
                     ) : (
                       <Button
                         variant="outline"
@@ -146,12 +146,12 @@ export function DevicesPage() {
             revocable. There: where a notification is delivered — a
             subscription, per browser. They genuinely diverge; a Mac has held a
             push subscription for an account it was signed out of. */}
-        <p className="text-sm text-muted-foreground" data-testid="devices-notifications-link">
+        <Muted data-testid="devices-notifications-link">
           {m.sessions_not_notifications()}{" "}
           <a className="underline underline-offset-4" href={routeHref({ page: "notifications" })} data-testid="to-notifications">
             {m.push_devices()}
           </a>
-        </p>
+        </Muted>
       </PageInner>
     </div>
   );
