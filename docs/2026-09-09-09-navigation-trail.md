@@ -61,11 +61,19 @@ trail, and a step back that cannot be taken.
 tier. The trail was walked by hand on a team page — in Thai, in dark — where it
 reads `ทีม › ทีมบาสเกตบอลอัสสัมชัญ U16 ชาย` with the first step linked.
 
+## Deepened, 2026-09-09
+
+A player's trail said `Teams › them`, skipping the team they belong to — which
+the page has held all along to fetch its fixtures. It is `Teams › their team ›
+them` now, both ancestors linked. That is the hierarchy taken from data the page
+already had, not from where the reader happened to come from.
+
 ## Not done
 
-- **Where a crumb goes back to is fixed, not remembered.** A team reached from a
+- **Where a crumb goes back to is a place, not a memory.** A team reached from a
   schedule goes back to Teams, not to that schedule. That is the ordinary
-  breadcrumb contract — a place in a hierarchy, not history — and the browser's
-  Back button is what returns you to where you came from. If the Product Owner
-  wants the trail to follow the route taken, that is a different feature.
+  breadcrumb contract — a position in a hierarchy — and the browser's Back
+  button is what returns you to where you came from. Making the trail follow the
+  route taken would mean carrying the route in the URL, which is a different
+  feature and a larger one: it changes what a shared link means.
 - The sidebar's own highlighted entry is not derived from the trail.
