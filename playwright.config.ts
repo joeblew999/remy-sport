@@ -129,7 +129,25 @@ export default defineConfig({
       command: "bun run db migrate-local --test-run && bun run dev --mode e2e",
       url: `${LOCAL_BROWSER_ORIGIN}/api/health`,
       reuseExistingServer: false,
-      timeout: 60_000,
+      /**
+       * 60s was enough at three languages and is not at twenty-seven.
+       *
+       * This budget covers a migration, a seed and a cold Vite start, and the
+       * seed is what grew: every vocabulary row carries a `names` object with
+       * one entry per locale, so the generated SQL is now 866 statements and
+       * ~500KB. Nothing here got slower per statement; there is simply nine
+       * times as much of it as when the number was written.
+       *
+       * Raised rather than tuned, because this is a readiness budget for a
+       * cold dev server and not an assertion about how fast the product is. A
+       * test that fails at 61 seconds is asserting a latency nobody chose.
+       *
+       * The growth itself is real and is owned elsewhere: the N×N `names`
+       * matrix is what docs/2026-09-09-16-pretranslated-reference-data.md
+       * retires, and /api/reference has grown the same way — 245KB at twenty
+       * locales, all of them sent to every reader to render one.
+       */
+      timeout: 180_000,
     },
   }),
 })
