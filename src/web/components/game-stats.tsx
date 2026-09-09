@@ -43,6 +43,17 @@ function Lines({ gameId }: { gameId: string }) {
 function PlayerLine({ line }: { line: Line }) {
   const { name } = useLocale();
   const qc = useQueryClient();
+  /**
+   * What the inputs open with, taken once.
+   *
+   * A save refetches the line, and the form stays mounted to say "saved", so
+   * `line` moves underneath it. An uncontrolled input keeps what was typed
+   * whatever its default does, so handing Base UI the refetched value as a
+   * new default changed nothing on screen and logged a warning on every save
+   * ("changing the default value state of an uncontrolled FieldControl").
+   * The box-score e2e test showed it, alone, on 2026-09-09.
+   */
+  const [initial] = useState(line);
   const save = useMutation({
     mutationFn: (input: Parameters<typeof api.games.setPlayerStats>[0]) => api.games.setPlayerStats(input),
     onSuccess: async () => {
@@ -71,7 +82,7 @@ function PlayerLine({ line }: { line: Line }) {
           {/* The id carries the player: several lines can be open at once, and
               a duplicated id would associate every label with the first. */}
           <FieldLabel htmlFor={`${line.playerId}-${field}`}>{label}</FieldLabel>
-          <Input id={`${line.playerId}-${field}`} name={field} type="number" min="0" step="1" defaultValue={line[field] ?? ""} disabled={save.isPending} />
+          <Input id={`${line.playerId}-${field}`} name={field} type="number" min="0" step="1" defaultValue={initial[field] ?? ""} disabled={save.isPending} />
         </Field>
       ))}
       <Button type="submit" disabled={save.isPending} className="w-fit">{save.isPending ? m.org_saving() : m.org_save()}</Button>
