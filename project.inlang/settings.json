@@ -21,7 +21,8 @@
     "uk",
     "hi",
     "ar",
-    "ms"
+    "ms",
+    "bn"
   ],
   "modules": [
     "https://cdn.jsdelivr.net/npm/@inlang/plugin-message-format@latest/dist/index.js"

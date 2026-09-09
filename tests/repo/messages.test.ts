@@ -225,7 +225,19 @@ const BLOCKS: [string, RegExp][] = [
   ["Cyrillic", /[Ѐ-ӿԀ-ԯ]/u],
   ["Greek", /[Ͱ-Ͽ]/u],
   ["Arabic", /[؀-ۿ]/u],
-  ["Devanagari", /[ऀ-ॿ]/u],
+  /**
+   * U+0964 and U+0965 are cut out of Devanagari deliberately.
+   *
+   * The danda `।` and double danda `॥` live in the Devanagari block because
+   * that is where Unicode put them, but they are **shared Indic punctuation**:
+   * Bengali, Punjabi, Odia and Gujarati all end a sentence with the same mark.
+   * Treating the block as the script flagged 192 perfectly correct Bengali
+   * strings and would have pushed the copy towards a full stop it does not use.
+   *
+   * A block is not a script. This is the only place the two come apart in the
+   * languages shipped so far; the rest of the ranges are safe as written.
+   */
+  ["Devanagari", /[ऀ-ॣ०-ॿ]/u],
   ["Hiragana", /[぀-ゟ]/u],
   ["Katakana", /[゠-ヿ]/u],
   ["Hangul", /[가-힯ᄀ-ᇿ]/u],
@@ -252,6 +264,7 @@ const WRITES_IN: Record<string, string[]> = {
   el: ["Greek"],
   hi: ["Devanagari"],
   ar: ["Arabic"],
+  bn: ["Bengali"],
 }
 
 /** Every translated string the product ships, as (locale, where, text). */
