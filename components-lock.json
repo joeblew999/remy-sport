@@ -14,7 +14,9 @@
   },
   "items": {
     "@shadcn/button": {
-      "files": {}
+      "files": {
+        "src/web/components/ui/button.tsx": "313353436d0fcc8e44ab470adb614b9fd013d28626f624328ea0d66d41a6c81b"
+      }
     },
     "@shadcn/card": {
       "files": {
@@ -22,7 +24,9 @@
       }
     },
     "@shadcn/input": {
-      "files": {}
+      "files": {
+        "src/web/components/ui/input.tsx": "dab990dfefa0ba78854ab6602ad074270dba9d7d1262184d9bfbb62bd990903b"
+      }
     },
     "@shadcn/badge": {
       "files": {
@@ -77,7 +81,6 @@
         "src/web/hooks/use-mobile.ts": "ad0936f84f1df79d3697bfbff9c18f8ad58431c1cbaf2359c6a853b0fcc9f28b",
         "src/web/components/ui/sidebar.tsx": "29f85b8b5997eeab0ee5efe54f853a7acfdd22a7f64f0e86cb384b2668786e71",
         "src/web/components/ui/tooltip.tsx": "f83d5f511812573f4ac98b866d397a46fda0f27eeb0af0ea89af01969eefbc5a",
-        "src/web/components/ui/input.tsx": "dab990dfefa0ba78854ab6602ad074270dba9d7d1262184d9bfbb62bd990903b",
         "src/web/components/ui/skeleton.tsx": "4c2af7fa9c645358a0fb188779deab6f0b981733b62befc25e18aaebea1350dc",
         "src/web/components/ui/sheet.tsx": "db422e2934b79774850defd2ea12bf2d469a77f7237bf93ce0416bde87d8a610"
       }
@@ -156,8 +159,7 @@
     },
     "@shadcn/dialog": {
       "files": {
-        "src/web/components/ui/dialog.tsx": "8081cc14ab4d744b75925706523192f60cc75863e05cb986aaf6a08677c83304",
-        "src/web/components/ui/button.tsx": "313353436d0fcc8e44ab470adb614b9fd013d28626f624328ea0d66d41a6c81b"
+        "src/web/components/ui/dialog.tsx": "8081cc14ab4d744b75925706523192f60cc75863e05cb986aaf6a08677c83304"
       }
     }
   }
