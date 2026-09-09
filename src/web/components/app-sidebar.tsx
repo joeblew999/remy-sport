@@ -147,7 +147,7 @@ function SettingsGroup({ spoiler, onSpoilerChange }: {
               theirs. Not NativeSelect, whose options the operating system draws,
               so the stylesheet's font tail cannot reach them and an endonym is
               exactly where tofu appears.
-              docs/2026-09-09-15-language-picker-at-fifteen.md.
+              docs/done/2026-09-09-15-language-picker-at-fifteen.md.
             */}
             <Select
               value={locale ?? ""}

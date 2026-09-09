@@ -155,7 +155,7 @@ export async function visit(page: Page, surface: Surface, opts: OpenOptions = {}
  * Same lesson as the surface map above: the tests were coupled to the control,
  * so changing the control was a change to the tests. One helper, and the next
  * change to the picker is one edit here.
- * docs/2026-09-09-15-language-picker-at-fifteen.md.
+ * docs/done/2026-09-09-15-language-picker-at-fifteen.md.
  */
 export async function switchLanguage(page: Page, locale: string): Promise<void> {
   await page.getByTestId("lang-switch").click()

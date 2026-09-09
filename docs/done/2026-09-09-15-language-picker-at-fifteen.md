@@ -1,7 +1,10 @@
 # Plan — the language picker, at ten to fifteen languages
 
-Status: **done 2026-09-09.** All five steps built; eleven of the thirteen
+Archive: completed (2026-09-09). All five steps built; thirteen of the fifteen
 languages on this page released, the remaining two named as blocked below.
+Current work is in the [documentation index](../README.md) — the reference-data
+plan there retires this plan's N×N `names` matrix and is where places, countries
+and language names go next.
 
 ## What shipped
 
@@ -28,6 +31,10 @@ defect rather than in anticipation:
   Vietnamese reader, which is the exact failure the font pipeline exists to
   prevent, arriving through the copy instead.
 - **The RTL blocker**, step 5, which is what stands between this page and Arabic.
+
+Everything below this line is the plan as proposed, left as written.
+
+---
 
 The Product Owner: many more languages are coming, ten to fifteen, and the
 picker has to be thought about first.

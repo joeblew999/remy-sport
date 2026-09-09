@@ -20,7 +20,7 @@
  * spoken, adjusted for a product in Thailand and ordered by what each costs.
  * Eleven of the fifteen are free: `latin` and `latin-ext` are downloaded
  * unconditionally so a Latin-script language adds no bytes, and CJK is drawn by
- * the reader's own system font. docs/2026-09-09-15-language-picker-at-fifteen.md.
+ * the reader's own system font. docs/done/2026-09-09-15-language-picker-at-fifteen.md.
  */
 export const ALL_LOCALES = ["th", "en", "ja", "zh", "es", "pt", "id", "fr", "tl", "vi", "ko", "de", "ru"] as const
 
@@ -605,7 +605,7 @@ export type InviteStatusCode = (typeof INVITE_STATUS_CODES)[number]
  * actually looked at the layout. Declaring the field on rows that do not need
  * it is the price of the language that does needing to state it.
  *
- * docs/2026-09-09-15-language-picker-at-fifteen.md.
+ * docs/done/2026-09-09-15-language-picker-at-fifteen.md.
  */
 export const LOCALE = [
   { code: "th", status: "released", direction: "ltr", endonym: "ไทย", names: {"th":"ไทย","en":"Thai","ja":"タイ語", "es":"Thai", "pt":"Thai", "fr":"Thai", "de":"Thai", "id":"Thai", "tl":"Thai", "vi":"Thai", "ko":"Thai", "ru":"Thai", "zh":"Thai"} },

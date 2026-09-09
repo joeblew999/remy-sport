@@ -13,7 +13,7 @@ import { visit } from "../helpers/surfaces"
  * These hold the two things that decide whether it survives the growth: the
  * options are named in their own language, and the row does not grow with the
  * list. The second is the one that could not be caught by looking, because
- * today there are three. docs/2026-09-09-15-language-picker-at-fifteen.md.
+ * today there are three. docs/done/2026-09-09-15-language-picker-at-fifteen.md.
  */
 test.describe("The language picker", () => {
   test("names each language in its own words, not by code", async ({ page }) => {

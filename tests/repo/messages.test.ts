@@ -145,7 +145,7 @@ rule(
  * So a language added without one would fall back to its two-letter code in the
  * one control whose whole job is to be readable by somebody who is lost. This
  * is the check that stops that arriving with the tenth language rather than the
- * fourth. docs/2026-09-09-15-language-picker-at-fifteen.md.
+ * fourth. docs/done/2026-09-09-15-language-picker-at-fifteen.md.
  */
 const nameless = LOCALE.filter((l) => !("endonym" in l) || !String((l as { endonym?: string }).endonym ?? "").trim())
   .map((l) => l.code)
@@ -175,7 +175,7 @@ rule(
  * So the model declares `direction`, and releasing an "rtl" locale requires the
  * registry's `direction` item to be installed — the item that makes the
  * primitives direction-aware, and the moment somebody has to look at the layout.
- * docs/2026-09-09-15-language-picker-at-fifteen.md, step 5.
+ * docs/done/2026-09-09-15-language-picker-at-fifteen.md, step 5.
  */
 const RTL_ITEM = "@shadcn/direction"
 const lock = JSON.parse(readFileSync(resolve(ROOT, "components-lock.json"), "utf8")) as {
