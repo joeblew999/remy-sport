@@ -4,6 +4,10 @@ import { SEED_ENTITIES, SEED_RELATIONSHIPS } from "../../src/domain/model/entiti
 import { ORIGIN, actorFor, api, post, signIn } from "./helpers"
 import { isRefusedStatus } from "../../src/auth.config"
 import { DEMO_SIGN_IN_CODE } from "../../src/environment"
+import { ALL_LOCALES } from "../../src/domain/vocabularies"
+
+/** Icelandic: not in the fifteen, and not plausibly next. */
+const UNOFFERED = "is"
 
 /**
  * Everything that writes, and everything that decides who may.
@@ -904,9 +908,20 @@ describe("The sign-in email speaks the reader's language", () => {
     await send(to, "en-GB")
     expect((await outbox(to))[0]!.subject).toMatch(/is your Remy Sport code$/)
 
-    const other = fresh("fr")
-    await send(other, "fr-FR,fr;q=0.9")
-    // Not nothing, and not French: the base locale.
+    /**
+     * A language the product genuinely does not offer, asserted from the model
+     * rather than assumed.
+     *
+     * This said `fr` until French shipped on 2026-09-09, at which point the
+     * test was still green in name and testing nothing: it claimed to cover an
+     * unoffered language while naming an offered one. Reading ALL_LOCALES means
+     * the day Icelandic is added, this fails loudly instead of quietly passing
+     * for the wrong reason.
+     */
+    expect(ALL_LOCALES, "pick a language the product does not offer").not.toContain(UNOFFERED)
+    const other = fresh(UNOFFERED)
+    await send(other, `${UNOFFERED}-IS,${UNOFFERED};q=0.9`)
+    // Not nothing, and not Icelandic: the base locale.
     expect((await outbox(other))[0]!.subject).toMatch(/is your Remy Sport code$/)
   })
 
