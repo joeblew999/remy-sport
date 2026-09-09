@@ -2,8 +2,8 @@ import { QueryError, isNotFound } from "../components/query-error";
 import { GameSummary } from "../components/game-summary";
 import { NewPlayer } from "../components/new-player";
 import { NameTranslations, namesFrom } from "../components/name-translations";
-import { Can, PlatformCan } from "../components/can";
-import { useEffect, useState } from "react";
+import { Can, PlatformCan, canAny } from "../components/can";
+import { useState } from "react";
 import { FollowButton } from "../components/follow";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useInitial } from "../lib/initial";
@@ -18,7 +18,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
-import { ButtonLink } from "../components/button-link";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -45,22 +45,19 @@ const initials = (label: string) => label.split(" ").filter(Boolean).slice(0, 2)
  * `me.mine`; `#/team` with no id renders the directory. This page used to
  * guess at "your team" from a list when it had no id, and guessed wrong.
  */
-export function TeamPage({ id, goto: _goto, query, spoiler = false }: { id: string; goto: (r: Route) => void; query?: Record<string, string>; spoiler?: boolean }) {
+export function TeamPage({ id, goto: _goto, setParam, query, spoiler = false }: { id: string; goto: (r: Route) => void; setParam: (key: string, value: string | null) => void; query?: Record<string, string>; spoiler?: boolean }) {
   const teamQuery = useTeam(id);
   const { data: t, isPending: teamLoading } = teamQuery;
-  const { data: roster } = useRoster(id);
+  const rosterQuery = useRoster(id);
+  const { data: roster } = rosterQuery;
   const { label } = useLocale();
   const { user } = useSession();
-  const { data: teamGames, isPending: gamesLoading } = useTeamGames(id);
+  const gamesQuery = useTeamGames(id);
+  const { data: teamGames, isPending: gamesLoading } = gamesQuery;
   const games = teamGames?.games ?? [];
   const wins = games.filter((g) => g.won === true).length;
   const losses = games.filter((g) => g.won === false).length;
 
-  useEffect(() => {
-    const section = query?.section === "roster" ? "roster" : query?.section === "schedule" ? "team-schedule" : undefined;
-    if (!section || teamLoading) return;
-    document.getElementById(section)?.scrollIntoView({ block: "start" });
-  }, [id, query?.section, teamLoading, roster, teamGames]);
 
   if (teamQuery.error && !t && !isNotFound(teamQuery.error)) return <PageInner><QueryError error={teamQuery.error} retry={teamQuery.refetch} pending={teamQuery.isFetching} /></PageInner>;
   if (teamLoading) return <PageInner><Loading>{m.loading_team()}</Loading></PageInner>;
@@ -74,6 +71,10 @@ export function TeamPage({ id, goto: _goto, query, spoiler = false }: { id: stri
       </PageInner>
     );
   }
+  const canManage = canAny(t, "EDIT_TEAM_PROFILE", "MANAGE_ROSTER");
+  // Old shared section links select the corresponding panel, without scrolling.
+  const requested = query?.tab ?? query?.section;
+  const tab = requested === "schedule" || (requested === "manage" && canManage) ? requested : "roster";
   return (
     <>
       <PageHeader
@@ -102,111 +103,132 @@ export function TeamPage({ id, goto: _goto, query, spoiler = false }: { id: stri
         <div className="mt-4 overflow-x-auto">
           <ButtonGroup>
             {t.id && <FollowButton objectTypeCode="TEAM" objectId={t.id} />}
-            <ButtonLink variant="outline" href={routeHref({ page: "team", id, query: { section: "roster" } })}>{m.roster()}</ButtonLink>
-            <ButtonLink variant="outline" href={routeHref({ page: "team", id, query: { section: "schedule" } })}>{m.schedule()}</ButtonLink>
           </ButtonGroup>
         </div>
       </PageHeader>
 
-      <PageInner className="flex flex-col gap-6">
-        {/* Real players now — `player` and `playerTeam`, current spells only.
-            No per-game averages: the fixture this replaced showed points,
-            assists and rebounds per person and there is no stats table, so they
-            are absent rather than invented a second time. */}
-        <section>
-          <SectionHeading title={m.roster()} id="roster" data-testid="roster-heading" className="mt-0" />
-          {roster?.players.length ? (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" data-testid="roster">
-              {roster.players.map(p => (
-                <Item size="sm" key={p.playerId} variant="outline" className="items-start" data-testid={`player-${p.playerId}`}>
-                  <ItemMedia><Avatar size="lg" aria-hidden="true"><AvatarFallback>{initials(p.name)}</AvatarFallback></Avatar></ItemMedia>
-                  <ItemContent>
-                    {/* The way in to the player page. The roster was the only place
-                        a player appeared and there was nowhere to go from it —
-                        which is why FOLLOW_PLAYER had a button nothing rendered. */}
-                    <ItemTitle>
-                      <a className="hover:underline" data-testid={`open-player-${p.playerId}`} href={routeHref({ page: "player", id: p.playerId })}>{p.name}</a>
-                    </ItemTitle>
-                    <ItemDescription>
-                      {p.position}
-                      {p.since && <> · {m.roster_since({ date: p.since })}</>}
-                    </ItemDescription>
-                  </ItemContent>
-                  <span className="text-2xl font-semibold tabular-nums text-muted-foreground/60" aria-hidden="true">{p.jerseyNumber}</span>
-                </Item>
-              ))}
-            </div>
-          ) : (
-            <EmptyState data-testid="roster-empty">{m.roster_empty()}</EmptyState>
-          )}
-        </section>
+      <Tabs key={id} value={tab} onValueChange={next => setParam("tab", String(next))} className="gap-0">
+        <TabsList variant="line" aria-label={m.nav_teams()} className="sticky top-0 z-10 h-auto w-full justify-start overflow-x-auto rounded-none border-b bg-background px-4 sm:px-8">
+          <TabsTrigger value="roster" data-testid="tab-roster" className="flex-none">{m.roster()}</TabsTrigger>
+          <TabsTrigger value="schedule" data-testid="tab-schedule" className="flex-none">{m.schedule()}</TabsTrigger>
+          {canManage && <TabsTrigger value="manage" data-testid="tab-manage" className="flex-none">{m.event_manage()}</TabsTrigger>}
+        </TabsList>
+        <TabsContent value="roster">
+          <PageInner className="flex flex-col gap-6">
+            {rosterQuery.isPending && <Loading />}
+            {rosterQuery.error && <QueryError error={rosterQuery.error} retry={rosterQuery.refetch} pending={rosterQuery.isFetching} />}
+            {roster && <>
+              {/* Real players now — `player` and `playerTeam`, current spells only.
+                  No per-game averages: the fixture this replaced showed points,
+                  assists and rebounds per person and there is no stats table, so they
+                  are absent rather than invented a second time. */}
+              <section>
+                {roster?.players.length ? (
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" data-testid="roster">
+                    {roster.players.map(p => (
+                      <Item size="sm" key={p.playerId} variant="outline" className="items-start" data-testid={`player-${p.playerId}`}>
+                        <ItemMedia><Avatar size="lg" aria-hidden="true"><AvatarFallback>{initials(p.name)}</AvatarFallback></Avatar></ItemMedia>
+                        <ItemContent>
+                          {/* The way in to the player page. The roster was the only place
+                              a player appeared and there was nowhere to go from it —
+                              which is why FOLLOW_PLAYER had a button nothing rendered. */}
+                          <ItemTitle>
+                            <a className="hover:underline" data-testid={`open-player-${p.playerId}`} href={routeHref({ page: "player", id: p.playerId })}>{p.name}</a>
+                          </ItemTitle>
+                          <ItemDescription>
+                            {p.position}
+                            {p.since && <> · {m.roster_since({ date: p.since })}</>}
+                          </ItemDescription>
+                        </ItemContent>
+                        <span className="text-2xl font-semibold tabular-nums text-muted-foreground/60" aria-hidden="true">{p.jerseyNumber}</span>
+                      </Item>
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState data-testid="roster-empty">{m.roster_empty()}</EmptyState>
+                )}
+              </section>
 
-        {/* Who runs the team. `team_coaches` carried this from the day the
-            fixtures were written and the page never said — a squad with no
-            staff reads as a team nobody coaches. */}
-        <section>
-          <SectionHeading title={m.coaching_staff()} className="mt-0" />
-          <ItemGroup data-testid="coaching-staff">
-            {!user && <EmptyState className="border-0" data-testid="coaches-signin">{m.coaching_staff_signin()}</EmptyState>}
-            {user && (roster?.coaches.length ?? 0) === 0 && <EmptyState className="border-0" data-testid="coaches-empty">{m.coaching_staff_none()}</EmptyState>}
-            {(roster?.coaches ?? []).map((c) => (
-              <Item variant="outline" size="sm" key={c.userId} data-testid={`coach-${c.userId}`}>
-                <ItemMedia><Avatar aria-hidden="true"><AvatarFallback>{initials(c.name)}</AvatarFallback></Avatar></ItemMedia>
-                <ItemContent>
-                  <ItemTitle>{c.name}</ItemTitle>
-                  {/* From the reference vocabulary, in the reader's language — not
-                      a map of role codes written out here. */}
-                  <ItemDescription>{label("coachRoles", c.coachRoleCode)}</ItemDescription>
-                </ItemContent>
-              </Item>
-            ))}
-          </ItemGroup>
-        </section>
+              {/* Who runs the team. `team_coaches` carried this from the day the
+                  fixtures were written and the page never said — a squad with no
+                  staff reads as a team nobody coaches. */}
+              <section>
+                <SectionHeading title={m.coaching_staff()} className="mt-0" />
+                <ItemGroup data-testid="coaching-staff">
+                  {!user && <EmptyState className="border-0" data-testid="coaches-signin">{m.coaching_staff_signin()}</EmptyState>}
+                  {user && (roster?.coaches.length ?? 0) === 0 && <EmptyState className="border-0" data-testid="coaches-empty">{m.coaching_staff_none()}</EmptyState>}
+                  {(roster?.coaches ?? []).map((c) => (
+                    <Item variant="outline" size="sm" key={c.userId} data-testid={`coach-${c.userId}`}>
+                      <ItemMedia><Avatar aria-hidden="true"><AvatarFallback>{initials(c.name)}</AvatarFallback></Avatar></ItemMedia>
+                      <ItemContent>
+                        <ItemTitle>{c.name}</ItemTitle>
+                        {/* From the reference vocabulary, in the reader's language — not
+                            a map of role codes written out here. */}
+                        <ItemDescription>{label("coachRoles", c.coachRoleCode)}</ItemDescription>
+                      </ItemContent>
+                    </Item>
+                  ))}
+                </ItemGroup>
+              </section>
 
-        {/* `teams.update` was enforced by EDIT_TEAM_PROFILE and unreachable, so
-            a team named wrong when it was created stayed named wrong. */}
-        <Can of={t} action="EDIT_TEAM_PROFILE"><TeamSettings key={t.id} team={t}/></Can>
+            </>}
+          </PageInner>
+        </TabsContent>
+        {canManage && <TabsContent value="manage" keepMounted>
+          <PageInner className="flex flex-col gap-6">
+            {/* `teams.update` was enforced by EDIT_TEAM_PROFILE and unreachable, so
+                a team named wrong when it was created stayed named wrong. */}
+            <Can of={t} action="EDIT_TEAM_PROFILE"><TeamSettings key={t.id} team={t}/></Can>
 
-        {/* Only for someone the server says may manage this squad — a head or
-            assistant coach, or the team's manager. MANAGE_ROSTER, asked per
-            team, not worked out from the viewer's role. */}
-        {id && roster && <Can of={t} action="MANAGE_ROSTER"><ManageRoster teamId={id} roster={roster}/></Can>}
-
-        <section>
-          <SectionHeading title={m.schedule()} id="team-schedule" className="mt-0" />
-          <ItemGroup>
-            {gamesLoading && <Loading className="border-0" />}
-            {!gamesLoading && games.length === 0 && <EmptyState className="border-0">{m.no_games_yet()}</EmptyState>}
-            {games.map((g) => (
-              <Item variant="outline" size="sm" className={cn("flex-wrap", g.live && "bg-destructive/5")} key={g.id} data-testid="team-fixture">
-                <ItemContent className="basis-full sm:basis-auto">
-                  <GameSummary game={g} showEvent/>
-                </ItemContent>
-                <ItemContent className="ml-auto flex-none items-end text-right">
-                  {/* Both or neither. A played game has two scores; anything else
-                      is a fixture, and "61–" is not a result. */}
-                  <span className="text-base font-semibold tabular-nums" data-testid="fixture-result">
-                    {!spoiler && g.us !== null && g.them !== null
-                      ? `${g.us}–${g.them}`
-                      : <span className="text-muted-foreground">—</span>}
-                  </span>
-                  {/* The status the server stored, except where the result says
-                      more than "finished" does. */}
-                  <Badge data-testid="fixture-outcome" variant={g.live ? "destructive" : g.won === true ? "default" : "outline"}>
-                    {spoiler ? g.statusLabel : g.live
-                      ? m.status_live()
-                      : g.won === true
-                        ? m.col_won()
-                        : g.won === false
-                          ? m.col_lost()
-                          : g.statusLabel}
-                  </Badge>
-                </ItemContent>
-              </Item>
-            ))}
-          </ItemGroup>
-        </section>
-      </PageInner>
+            {/* Only for someone the server says may manage this squad — a head or
+                assistant coach, or the team's manager. MANAGE_ROSTER, asked per
+                team, not worked out from the viewer's role. */}
+            <Can of={t} action="MANAGE_ROSTER">
+              {roster && <ManageRoster teamId={id} roster={roster}/>}
+              {rosterQuery.isPending && <Loading />}
+              {rosterQuery.error && <QueryError error={rosterQuery.error} retry={rosterQuery.refetch} pending={rosterQuery.isFetching} />}
+            </Can>
+          </PageInner>
+        </TabsContent>}
+        <TabsContent value="schedule">
+          <PageInner>
+            <section>
+              <ItemGroup>
+                {gamesLoading && <Loading className="border-0" />}
+                {gamesQuery.error && <QueryError error={gamesQuery.error} retry={gamesQuery.refetch} pending={gamesQuery.isFetching} />}
+                {!gamesLoading && !gamesQuery.error && games.length === 0 && <EmptyState className="border-0">{m.no_games_yet()}</EmptyState>}
+                {games.map((g) => (
+                  <Item variant="outline" size="sm" className={cn("flex-wrap", g.live && "bg-destructive/5")} key={g.id} data-testid="team-fixture">
+                    <ItemContent className="basis-full sm:basis-auto">
+                      <GameSummary game={g} showEvent/>
+                    </ItemContent>
+                    <ItemContent className="ml-auto flex-none items-end text-right">
+                      {/* Both or neither. A played game has two scores; anything else
+                          is a fixture, and "61–" is not a result. */}
+                      <span className="text-base font-semibold tabular-nums" data-testid="fixture-result">
+                        {!spoiler && g.us !== null && g.them !== null
+                          ? `${g.us}–${g.them}`
+                          : <span className="text-muted-foreground">—</span>}
+                      </span>
+                      {/* The status the server stored, except where the result says
+                          more than "finished" does. */}
+                      <Badge data-testid="fixture-outcome" variant={g.live ? "destructive" : g.won === true ? "default" : "outline"}>
+                        {spoiler ? g.statusLabel : g.live
+                          ? m.status_live()
+                          : g.won === true
+                            ? m.col_won()
+                            : g.won === false
+                              ? m.col_lost()
+                              : g.statusLabel}
+                      </Badge>
+                    </ItemContent>
+                  </Item>
+                ))}
+              </ItemGroup>
+            </section>
+          </PageInner>
+        </TabsContent>
+      </Tabs>
     </>
   );
 }

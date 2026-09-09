@@ -1,6 +1,8 @@
 # Plan — MoQ watching and broadcasting on shadcn
 
-Status: proposed 2026-09-09. Planning requested; no application changes made.
+Status: implementation started 2026-09-09 at the user’s request.
+Next: typed media adapters, then shared registry frame/controls and real-media
+verification through the repository CLI.
 This document owns the MoQ UI work. The [main-content plan](2026-09-09-07-main-content-on-the-registry.md)
 owns the shared page architecture; the [relay record](2026-09-07-02-relay-capabilities.md)
 continues to own transport and credential isolation.

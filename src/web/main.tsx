@@ -225,7 +225,7 @@ function App() {
     game: () => <GamePage id={route.id} goto={goto} spoiler={spoiler}/>,
     live: () => <LivePage spoiler={spoiler} setSpoiler={handleSpoilerSet}/>,
     // No id: the directory, which already puts yours on top.
-    team: () => route.id ? <TeamPage id={route.id} goto={goto} query={route.query} spoiler={spoiler}/> : <TeamsPage/>,
+    team: () => route.id ? <TeamPage id={route.id} goto={goto} setParam={setParam} query={route.query} spoiler={spoiler}/> : <TeamsPage/>,
     profile: () => <ProfilePage goto={goto}/>,
     login: () => <LoginPage goto={goto} next={route.query?.next?.startsWith("#/") ? parseRoute(route.query.next) : undefined}/>,
     devices: () => <DevicesPage/>,

@@ -13,7 +13,7 @@ import { ACTION, GRANTS } from "../../src/domain/vocabularies"
  * seeded person times every object times every screen — too many to walk,
  * and walking is how the 2026-09-06 GUI walk found a visitor offered "Manage
  * squad": by pressing Sign out on the right page by luck. This is the same
- * question asked properly. See docs/2026-09-06-02-who-sees-what.md.
+ * question asked properly. See docs/done/2026-09-06-02-who-sees-what.md.
  *
  * ## Relations, not people
  *
@@ -114,6 +114,9 @@ async function open(page: Parameters<typeof seedCache>[0], held: Held) {
   ])
   await visit(page, "team", { id: TEAM })
   await expect(page.getByTestId("team-name")).toBeVisible()
+  const manage = projectTeam(TEAM, held).can;
+  if (manage.EDIT_TEAM_PROFILE || manage.MANAGE_ROSTER) await page.getByTestId("tab-manage").click()
+  else await expect(page.getByTestId("tab-manage")).toHaveCount(0)
   const offered = await page.locator("[data-action]").evaluateAll((els) =>
     els.map((el) => el.getAttribute("data-action")!),
   )

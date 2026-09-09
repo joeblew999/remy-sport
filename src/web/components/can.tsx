@@ -1,6 +1,14 @@
 import type { ReactNode } from "react";
 import { useCan } from "../lib/data";
 
+/** A navigation group is available when at least one of its actions is granted. */
+export function canAny<C extends Record<string, boolean>>(
+  of: { can: C } | null | undefined,
+  ...actions: (keyof NoInfer<C> & string)[]
+): boolean {
+  return actions.some(action => of?.can[action] === true);
+}
+
 /**
  * Render an action only when its resource's current server answer permits it.
  * The form belongs inside this gate too: permission can change while it is open.

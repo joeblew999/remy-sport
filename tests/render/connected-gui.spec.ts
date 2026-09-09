@@ -50,9 +50,10 @@ test("game to team to roster to player and back never hits a dead route", async 
   await visit(page, "game", { id: game.id })
   // Prefix, not exact: the link carries the trail it was clicked from.
   await page.getByTestId("game-team-links").locator(`a[href^="#/team/${teamId}"]`).click()
-  await page.getByRole("link", { name: "Roster", exact: true }).click()
-  // `section` jumps within the page and the trail rides along with it.
-  await expect(page).toHaveURL(new RegExp(`#/team/${teamId}\\?section=roster`))
+  await page.getByTestId("tab-schedule").click()
+  await page.getByTestId("tab-roster").click()
+  // Tab changes preserve the trail back to the game.
+  await expect(page).toHaveURL(new RegExp(`#/team/${teamId}\\?.*tab=roster`))
   await expect(page.getByTestId("team-name")).toBeAttached()
   await page.getByTestId(`open-player-${player.playerId}`).click()
   // Three steps deep by now — game, team, player — and each one is recorded,

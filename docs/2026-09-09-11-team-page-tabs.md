@@ -1,11 +1,8 @@
 # Plan — team page sections as tabs
 
-Status: implemented 2026-09-09; verification in progress.
-
-Roster/Schedule/Manage panels, URL aliases, shared permission checks and query
-error handling are implemented. The team and permission rendering checks pass
-(27 tests). Full verification found unrelated notification-style failure and
-two Worker test timeouts; browser/visual checks are in progress.
+Status: implemented 2026-09-09; targeted checks and captures pass. The whole
+repository gate has unrelated failures, recorded below, so full acceptance
+remains open and this plan stays outside done/.
 
 ## Problem and evidence
 
@@ -115,3 +112,26 @@ part of this plan.
 Evidence collected: package scripts and operations CLI help, live signed-out
 page snapshot, team/event/router source and existing rendering/browser tests.
 Authenticated and responsive acceptance above remains implementation work.
+
+## Implementation evidence — 2026-09-09
+
+- Roster, Schedule and permission-controlled Manage use registry tab panels.
+  Existing section links remain aliases; tab changes keep the navigation trail.
+  Manage retains form edits while hidden, and roster/schedule query failures
+  offer retry without claiming the data is empty.
+- `bun run test:render -- tests/render/team.spec.ts tests/render/who-sees-what.spec.ts tests/render/connected-gui.spec.ts`: 32 passed, including retry, keyboard selection, history, legacy URLs, form retention and the model-derived permission matrix.
+- `bun run test:e2e -- --grep 'game → team'`: 4 passed including setup and verified
+  session cleanup; isolated storage removed. Exact URL selectors were updated
+  for the breadcrumb query added by the preceding navigation work.
+- `bun run shots -- --grep '(roster|team-schedule|team-manage)(-dark)? ·'`: 39 passed
+  including setup/cleanup, producing 36 captures (three tabs, three languages,
+  two themes, phone/desktop). Inspected six representative captures spanning
+  all tabs, languages, themes and sizes; no clipping or duplicate section
+  shortcuts. Full visual review of every capture is not claimed.
+- Typecheck, lint, build and model checks passed. The full gate then reported
+  the notification style violation and two Worker timeouts. Full rendering had
+  eight notification/email failures and one obsolete team-link expectation;
+  that team expectation is fixed and passes in the targeted run. Full browser
+  verification also hit an organisation unknown-email assertion. These remain
+  in the [automation record](2026-09-07-04-staging-verification.md); no whole-gate
+  pass is claimed. Notification/translation edits were preserved.

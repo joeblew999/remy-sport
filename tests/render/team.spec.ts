@@ -89,6 +89,7 @@ test.describe("Team page renders what the API returned", () => {
     // The spoiler switch is in the sidebar's Settings group (B2 step 8); a
     // switch has the switch role, not button.
     await page.getByRole("switch", { name: "Spoiler mode" }).click()
+    await page.getByTestId("tab-schedule").click()
     await expect(page.getByTestId("fixture-result")).toHaveText("—")
   })
 
@@ -130,7 +131,7 @@ test.describe("Team page, the rest", () => {
     // No per-game averages: there is no stats table, so the numbers the old
     // fixture showed are absent rather than invented again.
     await expect(page.getByTestId("roster")).not.toContainText("PPG")
-    await expect(page.getByTestId("roster-heading")).not.toContainText("SAMPLE DATA")
+    await expect(page.getByRole("tabpanel", { name: "Roster", exact: true })).not.toContainText("SAMPLE DATA")
   })
 
   test("an empty roster says so rather than rendering nothing", async ({ page }) => {
@@ -171,6 +172,7 @@ test.describe("Team page, the rest", () => {
     ])
     await visit(page, "team", { id: "team_002" })
 
+    await page.getByTestId("tab-schedule").click()
     const schedule = page.getByTestId("team-fixture")
     await expect(schedule).toHaveCount(2)
 
@@ -199,6 +201,7 @@ test.describe("Team page, the rest", () => {
     ])
     await visit(page, "team", { id: "team_002" })
     await expect(page.getByTestId("team-fixture")).toHaveCount(0)
+    await page.getByTestId("tab-schedule").click()
     await expect(page.getByText("No games scheduled yet.")).toBeVisible()
   })
 })
@@ -227,6 +230,7 @@ test.describe("Squad management", () => {
       entry(orpc.teams.roster, { teamId: TEAM }, data),
     ])
     await visit(page, "team", { id: "team_002" })
+    if (as?.length) await page.getByTestId("tab-manage").click()
   }
 
   test("a reader who may not manage sees no controls at all", async ({ page }) => {
@@ -350,6 +354,7 @@ test.describe("A team's details", () => {
     ])
     await visit(page, "team", { id: "team_002" })
 
+    await page.getByTestId("tab-manage").click()
     await expect(page.getByTestId("team-settings")).toBeVisible()
     await expect(page.getByTestId("team-name-input")).toHaveValue("Triam Udom U18 Girls")
     await expect(page.getByTestId("team-age-input")).toHaveValue("U18")
@@ -377,7 +382,12 @@ test.describe("A team's details", () => {
     })
 
     await visit(page, "team", { id: "team_002" })
+    await page.getByTestId("tab-manage").click()
     await page.getByTestId("team-name-input").fill("Triam Udom Girls")
+    await page.getByTestId("tab-roster").click()
+    await expect(page.getByTestId("team-name-input")).toBeHidden()
+    await page.getByTestId("tab-manage").click()
+    await expect(page.getByTestId("team-name-input")).toHaveValue("Triam Udom Girls")
     await page.getByTestId("team-save").click()
 
     await expect.poll(() => sent, { message: "save must reach the server" }).not.toBe("")
@@ -386,26 +396,64 @@ test.describe("A team's details", () => {
   })
 })
 
-test.describe("The team hero's buttons", () => {
-  test("go somewhere, rather than being decoration", async ({ page }) => {
-    // Three of them were `<button className="btn">` with no onClick, sitting
-    // beside a Follow button that worked. A dead control is worse than no
-    // control: pressing it and getting nothing reads as the app being broken.
-    // Stats was deleted outright — the model has no per-player statistics.
+test.describe("Team tabs", () => {
+  test("shows one labelled panel and supports keyboard selection and history", async ({ page }) => {
     await seedCache(page, [
       entry(orpc.teams.get, { id: TEAM }, team(TEAM)),
       entry(orpc.teams.roster, { teamId: TEAM }, projectRoster(TEAM)),
+      entry(orpc.games.list, { teamId: TEAM }, { viewerTimezone: null, games: [] }),
     ])
-    await visit(page, "team", { id: "team_002" })
-
-    await expect(page.getByRole("link", { name: "Roster" }))
-      .toHaveAttribute("href", expect.stringContaining("#/team/team_002?section=roster"))
-    await expect(page.getByRole("link", { name: "Schedule" })).toHaveAttribute(
-      "href",
-      "#/team/team_002?section=schedule",
-    )
-    await expect(page.getByRole("button", { name: "Stats" })).toHaveCount(0)
+    await visit(page, "team", { id: TEAM })
+    await expect(page.getByRole("tabpanel")).toHaveCount(1)
+    await expect(page.getByRole("tab", { name: "Roster", selected: true })).toBeVisible()
+    await expect(page.getByTestId("team-hero").getByRole("link", { name: /Roster|Schedule/ })).toHaveCount(0)
+    await expect(page.getByTestId("tab-manage")).toHaveCount(0)
+    await page.getByTestId("tab-roster").focus()
+    await page.keyboard.press("ArrowRight")
+    await page.keyboard.press("Enter")
+    await expect(page.getByRole("tabpanel", { name: "Schedule", exact: true })).toBeVisible()
+    await expect(page.getByTestId("roster")).toBeHidden()
+    await expect(page).toHaveURL(/tab=schedule/)
+    await page.reload()
+    await expect(page.getByRole("tab", { name: "Schedule", selected: true })).toBeVisible()
+    await page.goBack()
+    await expect(page.getByRole("tab", { name: "Roster", selected: true })).toBeVisible()
+    await page.goForward()
+    await expect(page.getByRole("tab", { name: "Schedule", selected: true })).toBeVisible()
   })
+
+  test("a failed roster can be retried without claiming the squad is empty", async ({ page }) => {
+    await seedCache(page, [entry(orpc.teams.get, { id: TEAM }, team(TEAM))])
+    await visit(page, "team", { id: TEAM })
+    const panel = page.getByRole("tabpanel", { name: "Roster", exact: true })
+    await expect(panel.getByRole("button", { name: "Try again" })).toBeVisible()
+    await expect(page.getByTestId("roster-empty")).toHaveCount(0)
+    await page.route("**/rpc/teams/roster**", route => route.fulfill({
+      contentType: "application/json", body: JSON.stringify({ json: projectRoster(TEAM) }),
+    }))
+    await panel.getByRole("button", { name: "Try again" }).click()
+    await expect(page.getByTestId("roster")).toBeVisible()
+    await expect(panel.getByRole("button", { name: "Try again" })).toHaveCount(0)
+  })
+
+  for (const [query, selected] of [
+    ["section=roster", "Roster"], ["section=schedule", "Schedule"],
+    ["tab=manage", "Roster"], ["tab=unknown", "Roster"],
+    ["tab=roster&section=schedule", "Roster"],
+  ]) {
+    test(`deep link ${query} selects ${selected}`, async ({ page }) => {
+      await seedCache(page, [
+        entry(orpc.teams.get, { id: TEAM }, team(TEAM)),
+        entry(orpc.teams.roster, { teamId: TEAM }, projectRoster(TEAM)),
+        entry(orpc.games.list, { teamId: TEAM }, { viewerTimezone: null, games: [] }),
+      ])
+      await visit(page, "team", { id: TEAM, query: Object.fromEntries(new URLSearchParams(query)) })
+      await expect(page.getByRole("tab", { name: selected, selected: true, exact: true })).toBeVisible()
+      await expect(page.getByRole("tabpanel", { name: selected, exact: true })).toBeVisible()
+      await expect(page.getByTestId("team-settings")).toHaveCount(0)
+      await expect(page.getByTestId("manage-roster")).toHaveCount(0)
+    })
+  }
 })
 
 test.describe("Coaching staff", () => {

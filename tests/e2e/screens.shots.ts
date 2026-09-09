@@ -66,7 +66,9 @@ const SCREENS: { name: string; path: string; as: string | null; open?: string }[
   // never sees.
   { name: "entries", path: "/#/event/evt_004", as: COACH, open: "teams" },
   // The coach's own team page, where the squad is editable.
-  { name: "roster", path: "/#/team/team_001", as: COACH },
+  { name: "roster", path: "/#/team/team_001", as: COACH, open: "roster" },
+  { name: "team-schedule", path: "/#/team/team_006", as: null, open: "schedule" },
+  { name: "team-manage", path: "/#/team/team_001", as: COACH, open: "manage" },
   // `live` has its own sidebar entry and was in neither this list nor any test.
   // A screen nobody photographs is a screen nobody looks at. (The bracket tab
   // that used to sit beside it was deleted with the invented data behind it.)
@@ -103,7 +105,7 @@ for (const [role, email] of Object.entries(ACTORS)) {
  * the whole mechanism. Declared after `YOURS`, because `home-coach` is one of
  * the generated lines and the lookup needs it to exist first.
  */
-const DARK_SLICE = ["discover", "places", "game", "home-coach", "admin", "login"]
+const DARK_SLICE = ["discover", "places", "game", "home-coach", "admin", "login", "roster", "team-schedule", "team-manage"]
 for (const name of DARK_SLICE) {
   const base = SCREENS.find((s) => s.name === name)!
   SCREENS.push({ ...base, name: `${name}-dark` })
