@@ -1,28 +1,19 @@
 # Project status — start here
 
-## Open plan: the sign-in code and the email channel
-
-[The sign-in code and the email channel](2026-09-09-01-sign-in-code-and-email-channel.md)
-is proposed 2026-09-09, nothing implemented. It replaces an external four-phase
-proposal whose first three phases already exist here: shadcn's `InputOTP`,
-Better Auth's `emailOTP` with localized copy, the EMAIL transport, unsubscribe
-headers and the bulk/transactional sender split are all committed. What is
-actually left is that **the email channel reaches nobody** — nothing writes a
-real user's address into `userNotificationChannel` as EMAIL, and the settings
-screen is push-only — plus sign-in code auto-submit and three outstanding device
-checks. It also records two dangling references found while checking
-(`docs/dev/email-deliverability.md` <!-- docs-check-ignore --> and
-`bun run check:notifications`, neither of which exists) and one incorrect
-deliverability claim in `src/mail/mailer.ts`.
-Magic link is recommended against, with the reason. React Email is **not**: on
-2026-09-09 the Product Owner asked whether it would give a single source of
-truth, and it would, under one condition — no literal copy in templates, checked
-under `tests/repo/`. The plan records the design that must hold either way and
-what the library costs in the Worker bundle; the tool choice is the Product
-Owner's.
-
 ## Open plans
 
+- [The sign-in code, filled in by the phone](2026-09-09-01-sign-in-code-autofill.md)
+  is proposed 2026-09-09, nothing implemented. The Product Owner's question —
+  how ChatGPT signs you in from an emailed code without opening the mail app —
+  is answered there: the phone's autofill does it, the field and the mail
+  already qualify, and what is missing is focus, submit on the sixth digit,
+  and a phone to watch it on.
+- [The email channel, on React Email](2026-09-09-02-email-channel-on-react-email.md)
+  is proposed 2026-09-09, nothing implemented. The transport, the copy and the
+  unsubscribe headers exist and reach nobody: no code path writes a real
+  person's EMAIL channel row, and the API and the settings screen are
+  push-only. Decided by the Product Owner: React Email in the Worker under a
+  no-literal-copy rule with a repo check, opt-in, and no magic link.
 - [A distinct install name per environment](2026-09-08-05-pwa-install-name-per-environment.md)
   is implemented, verified locally and committed on 2026-09-09:
   `remy-localhost`, `remy-staging`, the plain name in production, from one
@@ -133,7 +124,7 @@ Official host setup: <https://learn.chatgpt.com/docs/extend/mcp?surface=cli>.
 | Priority / state | Work | Where to continue |
 | --- | --- | --- |
 | Next | Deploy main to staging: it is ahead of the deployed `e9ce101` by the Bun-pin guard, the box score fix (`5f1d2ca`) and the taken-over install name, and a staging test run refuses until they match. Then the phone checks that only a device can give: the two install labels. Then the product roadmap below, starting with listing moderation. | [Convert the GUI to shadcn — log](2026-09-08-01-typography-and-design-system.md#log); [install name](2026-09-08-05-pwa-install-name-per-environment.md) |
-| Found 2026-09-09, not fixed | <!-- docs-check-ignore --> Two comments name things that do not exist: `docs/dev/email-deliverability.md` (cited at `src/mail/mailer.ts:44` and `scripts/ops/provision.ts:571`) and `bun run check:notifications` (cited in `src/web/components/notification-settings.tsx`). The second is a named guard against offered-type drift that is not actually running. `src/mail/mailer.ts` also claims the bulk subdomain earns its own DKIM reputation; `scripts/ops/provision.ts:566` records that sending is enabled per zone today, so it does not. | [The sign-in code and the email channel — steps](2026-09-09-01-sign-in-code-and-email-channel.md#steps) |
+| Found 2026-09-09, not fixed | <!-- docs-check-ignore --> Three comments are wrong. `docs/dev/email-deliverability.md` was never written and is cited by `src/mail/mailer.ts:44`, `scripts/ops/provision.ts:571` and `wrangler.toml:315`. `bun run check:notifications`, cited in `src/web/components/notification-settings.tsx`, is a stale name for `tests/repo/notifications.test.ts`, which exists and runs in the gate. `src/mail/mailer.ts` claims the bulk subdomain earns its own DKIM reputation; `scripts/ops/provision.ts:566` records that sending is enabled per zone today, so it does not. | [The email channel, on React Email — steps](2026-09-09-02-email-channel-on-react-email.md#steps) |
 | Next capture fix | Desktop Devices screenshots intermittently stall in WebKit after data and fonts load. This reproduced in the baseline before the GUI migration; phone captures work. Context cleanup now retains a trace, and the CLI cleans up sessions/storage on failure. Do not call the whole screenshot walk verified. | [GUI consistency implementation record](2026-09-07-06-gui-consistency.md#implementation-record--2026-09-07); reproduce with `bun run shots -- --grep 'devices · ja · desktop' --trace on`. |
 | Local test isolation | Committed with the GUI conversion: the e2e tier runs on 8788 with per-run storage, cleans up sessions and storage on failure, and refuses a staging run from a tree that differs from the deployment. Developer data and session preservation across restarts, and broader failure handling, still need their own evidence. `bun run dev` stays the developer entry point. | `playwright.config.ts`, `scripts/e2e.ts`, `scripts/lib/local-browser.ts`, `scripts/lib/deployed-source.ts` |
 | Next independent product work | Review existing behavior one domain slice at a time: exact fields, relationships, permitted/refused actions, persistence and delivery. The committed report has **1,375 items: 64 classified, 1,311 unreviewed**. Unreviewed does not mean broken or unimplemented. | [Domain register, GAP-01 and GAP-05–08](2026-09-07-01-react-domain-coverage.md#work-register-and-execution-order); [generated inventory](react-domain-coverage.md). |
