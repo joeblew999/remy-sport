@@ -11,7 +11,7 @@
  * file; the label is passed in as a message here, which is the rule for every
  * registry component that carries a word of its own.
  */
-import { Fragment, type ComponentProps, type ReactNode } from "react";
+import { Fragment, createContext, useContext, useEffect, useState, type ComponentProps, type ReactNode } from "react";
 import { ChevronRightIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Item, ItemContent, ItemGroup, ItemTitle } from "@/components/ui/item";
@@ -24,6 +24,37 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { m } from "../lib/i18n";
+
+/**
+ * The page's name, so the site header can render it.
+ *
+ * shadcn's `dashboard-01` puts the page title in the header bar beside the
+ * sidebar trigger — `<h1 class="text-base font-medium">` — not in a band of its
+ * own below it. Adopting that shell (the Product Owner, 2026-09-09) means the
+ * title has to travel from the page, which renders inside the bar, up to the
+ * header, which renders outside it. Hence a context rather than a prop: no page
+ * changes, and `PageHeader` keeps the API thirteen screens already call.
+ *
+ * The title is a `ReactNode` because two pages compose one (a crest beside a
+ * name). Cleared on unmount so a route with no `PageHeader` does not inherit
+ * the last page's name.
+ */
+const PageTitle = createContext<((title: ReactNode) => void) | null>(null);
+const PageTitleValue = createContext<ReactNode>(null);
+
+export function PageTitleProvider({ children }: { children: ReactNode }) {
+  const [title, setTitle] = useState<ReactNode>(null);
+  return (
+    <PageTitle.Provider value={setTitle}>
+      <PageTitleValue.Provider value={title}>{children}</PageTitleValue.Provider>
+    </PageTitle.Provider>
+  );
+}
+
+/** What the current page calls itself. Rendered by the site header. */
+export function usePageTitle(): ReactNode {
+  return useContext(PageTitleValue);
+}
 
 export interface Crumb {
   label: ReactNode;
@@ -85,35 +116,68 @@ export function PageHeader({
   sub?: ReactNode;
   subLang?: "th";
 } & Omit<ComponentProps<"header">, "title">) {
+  /**
+   * The name goes to the site header, not into an `h1` here.
+   *
+   * That is the shell shadcn's own block draws, adopted 2026-09-09. What stays
+   * is everything the bar has no room for and this app genuinely uses: the
+   * crumbs, the one-line description, a crest to the left, a record to the
+   * right, and the page's action row.
+   */
+  const setTitle = useContext(PageTitle);
+  useEffect(() => {
+    setTitle?.(title);
+    return () => setTitle?.(null);
+  }, [setTitle, title]);
+
+  // Nothing left to draw once the name went to the bar: no band, no border.
+  if (!crumbs && !aside && !media && !extra && !sub && !children) return null;
   return (
-    <header className={cn("border-b px-4 py-5 sm:px-8 sm:py-6", className)} {...props}>
-      <div className="mx-auto w-full max-w-7xl">
-        {(crumbs || aside) && (
-          <div className="mb-3 flex flex-wrap items-center gap-3">
-            {crumbs && <Crumbs items={crumbs} />}
-            {aside}
-          </div>
-        )}
-        <div className="flex flex-wrap items-start gap-4">
-          {media}
-          <div className="min-w-0 flex-1">
-            <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
-            {sub && (
-              <p className={cn("mt-1.5 text-muted-foreground", subLang === "th" && "font-thai")}>{sub}</p>
-            )}
-            {children}
-          </div>
-          {extra}
+    <header className={cn("border-b px-4 py-4 lg:px-6", className)} {...props}>
+      {(crumbs || aside) && (
+        <div className="flex flex-wrap items-center gap-3">
+          {crumbs && <Crumbs items={crumbs} />}
+          {aside}
         </div>
+      )}
+      <div className={cn("flex flex-wrap items-start gap-4", (crumbs || aside) && "mt-2")}>
+        {media}
+        {/*
+          The name is in the bar and only there.
+
+          It was rendered here as well for a moment, so a team page would still
+          name its subject beside the crest. That is wrong for a mechanical
+          reason worth writing down: pages pass a *node* as the title —
+          `<span data-testid="team-name">` — so drawing it twice puts the same
+          test id in the document twice, and every strict-mode locator in the
+          render tier resolves to two elements. 217 checks failed on it at once.
+
+          A page that needs its subject named in the content should say so with
+          its own element, not by having the frame print the title again.
+        */}
+        <div className="min-w-0 flex-1" data-testid="page-intro">
+          {sub && (
+            <p className={cn("text-muted-foreground", subLang === "th" && "font-thai")}>{sub}</p>
+          )}
+          {children}
+        </div>
+        {extra}
       </div>
     </header>
   );
 }
 
-/** The content column: one width, one gutter, at every size. */
+/**
+ * The content column: the block's gutters, and its container.
+ *
+ * `px-4 lg:px-6` and full width are `dashboard-01`'s, replacing our
+ * `max-w-7xl` with `sm:px-8`. `@container/main` is the block's too: it sizes
+ * content against the pane it is in rather than the window, which is what makes
+ * a layout behave the same whether the sidebar is open or collapsed.
+ */
 export function PageInner({ className, ...props }: ComponentProps<"div">) {
   return (
-    <div className={cn("mx-auto w-full max-w-7xl px-4 py-6 pb-16 sm:px-8", className)} {...props} />
+    <div className={cn("@container/main w-full px-4 py-4 pb-16 lg:px-6", className)} {...props} />
   );
 }
 

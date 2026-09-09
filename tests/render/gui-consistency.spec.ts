@@ -130,7 +130,11 @@ for (const width of [320, 390, 1440]) {
       await page.addInitScript(l => localStorage.setItem("remy.locale", l), locale)
       await seedCache(page, [entry(orpc.teams.list, undefined, { teams: projectTeams() })])
       await visit(page, "teams")
-      const title = page.getByTestId("page").getByRole("heading", { level: 1 })
+      // The `h1` lives in the site header now, outside #page — that is the
+      // block's shell (docs/2026-09-09-07). What has to line up with the list
+      // is the hero's content column, which is what the reader sees as the
+      // page's left edge.
+      const title = page.getByTestId("page-intro").first()
       const list = page.getByTestId("teams-list")
       await expect(list).toBeVisible()
       const titleBox = await title.boundingBox()
@@ -143,7 +147,7 @@ for (const width of [320, 390, 1440]) {
       expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44)
       await visit(page, "login")
       await expect(page.getByTestId("spa-email-input")).toBeVisible()
-      const heading = await page.getByTestId("page").getByRole("heading", { level: 1 }).boundingBox()
+      const heading = await page.getByTestId("page-intro").first().boundingBox()
       const form = await page.getByTestId("page").locator("form").boundingBox()
       expect(Math.abs(heading!.x - form!.x)).toBeLessThan(2)
       expect(await page.getByTestId("page").evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThan(2)

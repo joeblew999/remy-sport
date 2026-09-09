@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import { Account } from "./account";
 import { m } from "../lib/i18n";
-import { Muted } from "./page"
+import { Separator } from "@/components/ui/separator";
+import { Muted, usePageTitle } from "./page"
 
 /**
  * The topbar is identity, the sidebar is navigation, account and settings.
@@ -52,10 +53,26 @@ function Brand() {
   );
 }
 
+/**
+ * The site header, in `dashboard-01`'s shape.
+ *
+ * The block draws: trigger, a vertical separator, then the page's name as
+ * `<h1 class="text-base font-medium">`. That is adopted here — the title used
+ * to be a `text-2xl/3xl` band of its own below this bar, which is the single
+ * biggest way the app's page architecture differed from the preset's.
+ *
+ * Two things stay ours and say why. The trigger is our own button, because the
+ * registry's `SidebarTrigger` carries a hardcoded English screen-reader label
+ * and the rule is never to mount a registry component that ships a word. And
+ * the height is 56px through the block's own `--header-height` variable rather
+ * than the block's 48px: 56 is the mobile plan's number, a phone decision with
+ * a check behind it. The mechanism is the block's; only the value is ours.
+ */
 export function Topbar() {
   const { toggleSidebar } = useSidebar();
+  const title = usePageTitle();
   return (
-    <header className="topbar flex h-14 shrink-0 items-center gap-2 border-b bg-background px-3 sm:px-4">
+    <header className="topbar flex h-(--header-height) shrink-0 items-center gap-2 border-b bg-background px-3 lg:px-4">
       <Button
         variant="ghost"
         size="icon"
@@ -66,6 +83,17 @@ export function Topbar() {
         <PanelLeftIcon />
       </Button>
       <Brand />
+      {title && (
+        <>
+          <Separator orientation="vertical" className="mx-1 h-4 shrink-0 data-vertical:self-auto" />
+          {/* The page's one `h1`, where the block puts it. `min-w-0` and the
+              truncate keep a long event name from pushing the account off a
+              320px row — the thing the whole bar is measured against. */}
+          <h1 className="min-w-0 truncate font-heading text-base font-medium" data-testid="page-title">
+            {title}
+          </h1>
+        </>
+      )}
       <div className="flex-1" />
       <Account />
     </header>

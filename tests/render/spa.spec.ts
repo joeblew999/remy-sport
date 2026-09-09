@@ -80,7 +80,8 @@ test.describe("Event view models are derived, not stored", () => {
   test("an event deep-link renders that event", async ({ page }) => {
     await seedCache(page, [entry(orpc.events.get, { id: LEAGUE }, EVENT)])
     await visit(page, "event", { id: "evt_002" })
-    await expect(page.getByTestId("event-hero")).toContainText("Bangkok Schools Basketball League 2026")
+    // The event names itself in the site header now, not in its hero band.
+    await expect(page.getByTestId("page-title")).toContainText("Bangkok Schools Basketball League 2026")
   })
 
 })

@@ -45,6 +45,7 @@ import { Input } from "@/components/ui/input";
 import { ItemActions, ItemContent } from "@/components/ui/item";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Muted, Row, RowGroup, SectionHeading } from "./page"
+import { Label } from "@/components/ui/label";
 
 /** Fixture/result changes also alter event progress, standings and team records. */
 function refreshGameViews(qc: QueryClient) {
@@ -383,7 +384,7 @@ function ManageFixture({ game }: { game: Game }) {
         if (local) move.mutate(fromLocalInput(local, game.timezone));
       }}
     >
-      <label className="sr-only" htmlFor={`starts-${game.id}`}>{m.fixture_when()}</label>
+      <Label className="sr-only" htmlFor={`starts-${game.id}`}>{m.fixture_when()}</Label>
       <Input
         id={`starts-${game.id}`}
         name="startsAt"
@@ -440,7 +441,7 @@ function AssignVenue({ game, eventId }: { game: Game; eventId: string | undefine
 
   return (
     <>
-      <label className="sr-only" htmlFor={`venue-${game.id}`}>{m.assign_venue()}</label>
+      <Label className="sr-only" htmlFor={`venue-${game.id}`}>{m.assign_venue()}</Label>
       <NativeSelect
         id={`venue-${game.id}`}
         size="sm"
@@ -486,7 +487,7 @@ function GameStatus({ game }: { game: Game }) {
 
   return (
     <>
-    <label className="sr-only" htmlFor={`status-${game.id}`}>{game.homeTeam} {m.versus()} {game.awayTeam}</label>
+    <Label className="sr-only" htmlFor={`status-${game.id}`}>{game.homeTeam} {m.versus()} {game.awayTeam}</Label>
     <NativeSelect
       id={`status-${game.id}`}
       size="sm"

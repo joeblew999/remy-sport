@@ -1,11 +1,11 @@
 import { useEntries, useEvent, useGame } from "../lib/data";
 import { routeHref, type Route } from "../lib/router";
 import { GameRow } from "../components/schedule";
-import { PageHeader, PageInner, type Crumb } from "../components/page";
+import { PageHeader, PageInner, RowGroup, type Crumb } from "../components/page";
 import { EmptyState, Loading } from "../components/states";
 import { m } from "../lib/i18n";
 import { QueryError, isNotFound } from "../components/query-error";
-import { ItemGroup } from "@/components/ui/item";
+;
 
 /** @answers VIEW_GAME_RESULTS, VIEW_MATCH_STATUS */
 export function GamePage({ id, goto, spoiler }: { id?: string; goto: (route: Route) => void; spoiler: boolean }) {
@@ -30,7 +30,7 @@ export function GamePage({ id, goto, spoiler }: { id?: string; goto: (route: Rou
       <QueryError error={event.error} retry={event.refetch} pending={event.isFetching} />
       <QueryError error={entries.error} retry={entries.refetch} pending={entries.isFetching} />
       {event.data
-        ? <ItemGroup className="overflow-hidden rounded-xl border"><GameRow game={g} eventId={g.eventId} can={event.data.can} spoiler={spoiler} goto={goto} viewerZone={null} details /></ItemGroup>
+        ? <RowGroup><GameRow game={g} eventId={g.eventId} can={event.data.can} spoiler={spoiler} goto={goto} viewerZone={null} details /></RowGroup>
         : event.isPending ? <p role="status">{m.loading()}</p> : null}
     </PageInner>
   </div>;

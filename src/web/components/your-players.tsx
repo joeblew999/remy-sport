@@ -83,6 +83,16 @@ export function YourPlayers({ goto }: { goto: (r: Route) => void }) {
            * reader is told about a button that contains a button.
            */
           <Row className="p-0" key={p.playerId} data-testid={`your-player-${p.playerId}`}>
+            {/*
+              The one raw control left in the app, and why it stays one.
+
+              `Item` gives a row its padding and hover, but its hover rule is
+              `[a]:hover:bg-muted` — descendant anchors only. This cannot be an
+              anchor: a child with no team has nowhere to go, and the row says
+              so by being disabled, which is a thing only a button can be. So
+              the row is `p-0` and this supplies the padding and hover the
+              registry would have supplied to a link.
+            */}
             <button
               type="button"
               className="flex min-w-0 flex-1 items-center gap-2.5 px-4 py-3 text-left outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-default disabled:hover:bg-transparent"

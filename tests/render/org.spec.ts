@@ -71,7 +71,8 @@ test.describe("An organisation page", () => {
     await seedCache(page, [signedIn, entry(orpc.orgs.get, { id: SCHOOL }, ORG)])
     await visit(page, "org", { id: SCHOOL })
 
-    await expect(page.getByTestId("org-page")).toContainText("Assumption College")
+    // The org names itself in the site header now, not in its hero band.
+    await expect(page.getByTestId("page-title")).toContainText("Assumption College")
     await expect(page.getByTestId("org-name-input")).toHaveValue("Assumption College")
   })
 

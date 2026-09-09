@@ -19,12 +19,14 @@ import { CompassIcon, DownloadIcon, HomeIcon, MoonIcon, RadioIcon, SchoolIcon, S
 import { BuildStamp } from "./build-stamp";
 import { isNativeApp } from "../lib/push";
 import type { PwaInstall } from "../lib/installable";
+import type { ComponentProps } from "react";
 import { useSession } from "../lib/session";
 import { useLocale, type Locale } from "../lib/locale";
 import { useTheme } from "../lib/theme-provider";
 import { m } from "../lib/i18n";
 import { routeHref, type Page } from "../lib/router";
 import { Muted } from "./page"
+import { Label } from "@/components/ui/label";
 
 /**
  * The shell's navigation, on the registry's Sidebar (B2 step 8).
@@ -149,7 +151,7 @@ function SettingsGroup({ spoiler, onSpoilerChange }: {
               ))}
             </ToggleGroup>
           </div>
-          <label className="flex items-center justify-between gap-2 text-sm">
+          <Label className="flex items-center justify-between gap-2 text-sm">
             <span>{m.spoiler_mode()}</span>
             <Switch
               size="sm"
@@ -158,7 +160,7 @@ function SettingsGroup({ spoiler, onSpoilerChange }: {
               aria-label={m.spoiler_mode()}
               onCheckedChange={(checked) => onSpoilerChange(checked === true)}
             />
-          </label>
+          </Label>
           <InstallRow />
         </div>
       </SidebarGroupContent>
@@ -230,10 +232,12 @@ function ThemeRow() {
   );
 }
 
-export function AppSidebar({ page, spoiler, onSpoilerChange }: {
+export function AppSidebar({ page, spoiler, onSpoilerChange, variant }: {
   page: Page;
   spoiler: boolean;
   onSpoilerChange: (spoiler: boolean) => void;
+  /** `inset` is the block's: a floating, rounded, shadowed panel. */
+  variant?: ComponentProps<typeof Sidebar>["variant"];
 }) {
   const { user } = useSession();
   const { isMobile, openMobile, setOpenMobile } = useSidebar();
@@ -295,5 +299,5 @@ export function AppSidebar({ page, spoiler, onSpoilerChange }: {
     );
   }
 
-  return <Sidebar collapsible="icon">{content}</Sidebar>;
+  return <Sidebar collapsible="icon" variant={variant}>{content}</Sidebar>;
 }

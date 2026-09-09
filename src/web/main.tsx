@@ -14,7 +14,7 @@ import { LocaleProvider, useLocale, type Locale } from "./lib/locale";
 import { useSession } from "./lib/session";
 import { m } from "./lib/i18n";
 import { CrashBoundary } from "./components/crash";
-import { PageInner } from "./components/page";
+import { PageInner, PageTitleProvider } from "./components/page";
 import { EmptyState, Loading } from "./components/states";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { watchForClientErrors } from "./lib/report";
@@ -273,8 +273,15 @@ function App() {
         the shell cannot pan sideways. The theme provider mounts here too,
         with its toggle in the sidebar's Settings group.
       */}
-      <SidebarProvider className="h-svh overflow-hidden">
-        <AppSidebar page={sidebarPage} spoiler={spoiler} onSpoilerChange={handleSpoilerSet} />
+      <PageTitleProvider>
+      <SidebarProvider
+        className="h-svh overflow-hidden"
+        /* The block's own variables. `--header-height` is 56px rather than its
+           48px: 56 is the mobile plan's number, held by the topbar overflow
+           check. The mechanism is shadcn's; only the value is ours. */
+        style={{ "--sidebar-width": "calc(var(--spacing) * 72)", "--header-height": "3.5rem" } as React.CSSProperties}
+      >
+        <AppSidebar variant="inset" page={sidebarPage} spoiler={spoiler} onSpoilerChange={handleSpoilerSet} />
         <SidebarInset className="overflow-hidden">
           <Topbar />
           <PendingApprovalNotice />
@@ -316,6 +323,7 @@ function App() {
           </div>
         </SidebarInset>
       </SidebarProvider>
+      </PageTitleProvider>
       {/* Browser only — see the isNativeApp() gate on the import below.
           `manual-*` because it must not prompt on arrival; components/account.tsx
           calls showDialog() when a reader asks. */}
