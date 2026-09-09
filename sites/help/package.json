@@ -1,0 +1,26 @@
+{
+  "name": "remy-help-proof",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "fumapress build",
+    "preview": "wrangler dev --local --config wrangler.jsonc",
+    "package": "wrangler deploy --dry-run --config wrangler.jsonc --outdir .proof/deploy"
+  },
+  "dependencies": {
+    "@base-ui/react": "1.8.0",
+    "fumadocs-core": "16.15.7",
+    "fumadocs-mdx": "15.4.0",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@16.15.7",
+    "fumapress": "1.2.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "@types/react": "19.2.18",
+    "tailwindcss": "4.3.3",
+    "vite": "8.2.2",
+    "wrangler": "4.129.0"
+  }
+}

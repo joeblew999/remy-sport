@@ -31,6 +31,11 @@ interface Op {
 }
 
 const OPS: Record<string, Op> = {
+  docs: {
+    group: "maintenance",
+    cmd: (rest) => ["bun", "scripts/ops/docs.ts", ...rest],
+    help: "docs [check|preview|clean]       isolated public-help proof; no deployment",
+  },
   remote: {
     group: "setup",
     cmd: (rest) => ["bun", "scripts/ops/remote.ts", ...rest],
@@ -238,13 +243,14 @@ bun run ops <operation>
 }
 
 // Help must work on a fresh checkout, without installation or network access.
-// Remote and tunnel commands validate arguments and own preparation. Their
+// Remote, tunnel and docs commands validate arguments and own preparation. Their
 // status/help paths must also work without dependencies, credentials or writes.
-if (name === "remote" || name === "tunnel") {
+if (name === "remote" || name === "tunnel" || name === "docs") {
   // Run the supervisor in this process. An extra synchronous dispatcher parent
   // would leave it alive if somebody killed only the command they launched.
   process.argv.splice(2, 1)
-  if (name === "remote") process.exitCode = await (await import("./ops/remote.ts")).runRemote(rest)
+  if (name === "docs") process.exitCode = await (await import("./ops/docs.ts")).runDocs(rest)
+  else if (name === "remote") process.exitCode = await (await import("./ops/remote.ts")).runRemote(rest)
   else await import("./ops/tunnel.ts")
   process.exit(process.exitCode ?? 0)
 }

@@ -6,7 +6,7 @@
 
 ## Open plans
 
-- [Public Remy Sport help](2026-09-09-04-blume-public-help.md): Fumapress is now the first candidate after [local source review](2026-09-09-05-fumapress-source-review.md); Blume is the alternative. Proposed static `/help/`, one release workflow, and route, cache and retrieval checks. Implementation has not started.
+- [Public Remy Sport help](2026-09-09-04-blume-public-help.md): isolated Fumapress package implemented and verified locally. Separate dependencies/build/Worker; no app asset merging. App build, typecheck and lint pass; two existing email-related repo checks remain failing. Use `bun run ops docs check`.
 - [The sign-in code, filled in by the phone](2026-09-09-01-sign-in-code-autofill.md)
   is implemented 2026-09-09. The Product Owner's question — how ChatGPT signs
   you in from an emailed code without opening the mail app — is answered

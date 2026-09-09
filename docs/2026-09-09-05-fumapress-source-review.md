@@ -1,5 +1,10 @@
 # Fumapress source review for Remy Sport
 
+This file records the earlier source inspections. The subsequent implemented
+isolation proof and current status are in the
+[public help plan](2026-09-09-04-blume-public-help.md); its results supersede the
+"not installed/built" limits below for the small Fumapress proof only.
+
 Reviewed 2026-09-09. Recommendation: evaluate Fumapress first for public help;
 Blume becomes the alternative. The shared dependencies are substantially closer
 than the earlier documentation-only comparison established. Integration remains
