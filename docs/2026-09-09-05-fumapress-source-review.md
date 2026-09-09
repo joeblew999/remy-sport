@@ -111,3 +111,62 @@ Check dependency resolution and the Sharp mismatch before expanding content.
 The route, offline-cache, notification-tab, staging-noindex and retrieval checks
 in that plan apply equally to Fumapress. Retain Blume as the alternative if the
 proof needs substantial framework patches. No final adoption or deployment yet.
+
+## Fumadocs Editor: local source review, 2026-09-09
+
+User supplied the editor's dev branch after the framework comparison. Cloned to
+`/private/tmp/remy-fumadocs-editor-review-20260909` at commit
+`3976d98d01730febef1c78767d370c7826f898b8` using
+`git clone --depth 1 --branch dev https://github.com/fuma-nama/fumadocs-editor.git /private/tmp/remy-fumadocs-editor-review-20260909`.
+Source inspected only; no dependency installation, build, runtime or round-trip
+tests were run. No AGENTS.md was found in this checkout. Its root README lists
+pnpm install/dev/test/build; root pins pnpm 11.5.3 and Node >=24.
+
+This complements Fumapress by supplying visual MDX authoring. Its own docs app
+uses Fumapress ^1.2.0, React ^19.2.8, Vite ^8.2.2, Tailwind ^4.3.3 and the
+Fumadocs Base UI variant. That is direct ecosystem integration, not just similar
+package names. The editor itself uses React 19 and Base UI ^1.6.0, but also adds
+TipTap/ProseMirror and StyleX; it is not purely our Tailwind component stack.
+[Docs manifest](https://github.com/fuma-nama/fumadocs-editor/blob/3976d98d01730febef1c78767d370c7826f898b8/apps/docs/package.json),
+[editor manifest](https://github.com/fuma-nama/fumadocs-editor/blob/3976d98d01730febef1c78767d370c7826f898b8/packages/ui/package.json).
+
+Three packages have distinct jobs:
+
+- Core parses/serializes MDX and provides synchronization and collaboration tools.
+- UI supplies the React visual editor (manifest version 0.2.0).
+- Studio provides a browser interface for editing a local directory (0.1.2).
+  It autosaves files; this is separate from committing or publishing them.
+
+Upstream calls the project experimental with breaking changes expected before
+v1. The UI claims byte-preserving serialization for untouched blocks. Its
+documented limits include verbatim-only handling of some tabs and footnotes,
+disabled raw MDX editing during collaboration, and loss of edits typed while
+the collaboration server was down when it restarts. These are upstream-reported
+limits, not failures reproduced in this review.
+[README](https://github.com/fuma-nama/fumadocs-editor/blob/3976d98d01730febef1c78767d370c7826f898b8/README.md),
+[known limits](https://github.com/fuma-nama/fumadocs-editor/blob/3976d98d01730febef1c78767d370c7826f898b8/apps/docs/content/limits.mdx).
+
+The provided sync server uses Node filesystem APIs, chokidar and ws. It assumes
+a writable content directory and is not a ready-made Cloudflare content store.
+The UI supports custom save/transport integrations, but hosted use would require
+an explicit persistence, revision and publishing design. Its authentication hook
+defaults to allowing writes when absent; local dev defaults must not be exposed
+through Remy's remote tunnel without an access policy. Existing Better Auth
+sessions are not automatically wired into this editor.
+[Sync implementation](https://github.com/fuma-nama/fumadocs-editor/blob/3976d98d01730febef1c78767d370c7826f898b8/packages/core/src/sync/node.ts),
+[sync documentation](https://github.com/fuma-nama/fumadocs-editor/blob/3976d98d01730febef1c78767d370c7826f898b8/apps/docs/content/sync.mdx).
+
+Recommendation: optional local authoring proof after the static Fumapress proof.
+Keep the editor out of public help and the main app bundle. Scope its root
+explicitly to public content: Studio otherwise falls back through content/docs,
+content, then the current directory. Integrate through shared automation with
+automatic startup/cleanup; do not require manual coordination with preview.
+Prove save/reopen, frontmatter, links, images, unknown MDX, untouched-block
+preservation, external-edit conflicts and process restart before regular use.
+The editor sync guide warns of watcher reloads when mirrored files are imported;
+test editor/preview isolation rather than ignoring the public-content watcher
+globally and accidentally disabling Fumapress rebuilds.
+
+Use ordinary editing first. Collaboration and hosted CMS use remain separate
+decisions. Saved content must still pass the same repository review, content
+validation and release workflow; autosave must never mean automatic publication.
