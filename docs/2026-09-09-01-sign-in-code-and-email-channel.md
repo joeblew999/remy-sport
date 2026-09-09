@@ -15,7 +15,7 @@ the file it was read from.
 | --- | --- |
 | "Swap the sign-in input for shadcn InputOTP with `autoComplete="one-time-code"`, `inputMode="numeric"`, `pattern={REGEXP_ONLY_DIGITS}`" | Already done. `src/web/pages/login.tsx:130` renders the registry's `InputOTP` with `pattern={REGEXP_ONLY_DIGITS}`; the component is `src/web/components/ui/input-otp.tsx`, installed through shadcn and recorded in `components-lock.json`. `input-otp` supplies `autocomplete="one-time-code"` itself. |
 | "Update Better Auth's `emailOTP` plugin `sendVerificationOTP`" | Already wired. `src/auth.config.ts:262` registers `emailOTP`; `src/auth.ts:274` implements `sendVerificationOTP`, picks the locale from the requesting browser's `Accept-Language`, and sends a per-purpose subject and body through Paraglide messages. |
-| "Add React Email with an `emails/` folder … bilingual via your existing Paraglide messages" | Not there, and see [Not recommended](#not-recommended) below. Copy already lives in Paraglide (`messages/`, `project.inlang`); a second template system would put email copy in two places. |
+| "Add React Email with an `emails/` folder … bilingual via your existing Paraglide messages" | Not there. Worth doing under one condition — see [HTML email and one source of truth](#html-email-and-one-source-of-truth). Note the app is **trilingual**, not bilingual: `messages/en.json`, `messages/ja.json`, `messages/th.json`. |
 | "One `renderEmail(template, props, locale)` helper … auth emails and queue notifications both call it" | The reuse point already exists and is a different, better shape: `src/api/transports.ts` takes **a renderer per channel**, so a caller who has not written email copy cannot accidentally send push copy in an email. The file's header comment explains why one shared renderer was rejected. |
 | "Wire the EMAIL channel consumer on the notification queue … with List-Unsubscribe headers" | Already done. `src/api/transports.ts` has the EMAIL transport; `src/api/unsubscribe.ts` supplies `unsubscribeHeaders`/`unsubscribeUrl`; `src/api/notify-queue.ts:251` and `:357` render EMAIL subjects and bodies for game and event notifications, in the reader's locale. |
 | "Onboard a bulk sending subdomain … keep auth emails on the apex" | Already designed and implemented. `src/mail/mailer.ts` splits `transactional` from `bulk` (`DEFAULT_FROM` = `noreply@remy.ubuntusoftware.net`, `DEFAULT_BULK_FROM` = `notifications@notify.remy.ubuntusoftware.net`), defaults to transactional so a forgetful caller gets the safer identity, and `senderFor()` is what goes on the wire. |
@@ -126,9 +126,14 @@ still states the stronger claim and should be corrected to match.
 
 ## Not recommended
 
-Two things the proposal asked for would undo decisions this repo already made on
-purpose. Neither is refused — both are the Product Owner's call. They are here
-so the choice is made with the reason in front of it, rather than by accident.
+One thing the proposal asked for would undo a decision this repo already made on
+purpose. It is not refused — it is the Product Owner's call. It is here so the
+choice is made with the reason in front of it, rather than by accident.
+
+React Email was in this section until 2026-09-09, when the Product Owner asked
+whether it would give a single source of truth. It would, under one condition,
+and the argument against it was aimed at the wrong risk. It has its own section
+below.
 
 ### A magic link in the sign-in email
 
@@ -156,26 +161,81 @@ way.
 **If the answer is yes anyway**, it should be decided as "we accept that a
 forwarded email signs somebody in", not slipped in beside an ergonomics fix.
 
-### React Email
+## HTML email and one source of truth
 
-React Email is a library for writing emails as React components in an `emails/`
-folder.
+The Product Owner asked on 2026-09-09 whether React Email would give a single
+source of truth. The short answer is yes, under one condition — and the earlier
+"not recommended" here was arguing against a failure mode, not against the
+library. This section records the real choice.
 
-**Why not.** Every word this app emails already lives in one place: the
-Paraglide messages in `messages/`, English and Thai side by side, reviewed
-together and asserted by tests. React templates would hold wording too, so the
-same sentence exists twice, in two languages, and the two drift apart — the
-usual result being an English line in a Thai email.
+### What one source of truth means today
 
-What the library buys is nicely formatted HTML mail. Nothing has asked for that,
-and today every email the app sends is plain text: `html` exists as an optional
-field and no renderer ever sets it (§3). It also adds a dependency tree to a
-repo that has [fewer dependencies](2026-09-05-03-fewer-dependencies.md) behind
-it.
+Each email is exactly **one** Paraglide message holding the whole body, with
+its paragraph breaks in the string, in three locales — `messages/en.json`,
+`messages/ja.json`, `messages/th.json`. For example `email_otp_body`:
 
-**If branded HTML is wanted**, the smaller answer is one function that wraps the
-existing translated strings in HTML — same copy, one place, no new template
-system.
+```
+Your code is {otp}.\n\nUse it to {purpose}. It expires in 10 minutes.\n\n…
+```
+
+So for **plain text** the app already has one source per email: the message.
+Copy and layout are the same object. Nothing is duplicated and nothing can
+drift.
+
+### Why HTML forces the question
+
+The moment an email needs an HTML part, that arrangement stops working, and
+there are only two ways forward:
+
+1. **A second message per email holding the HTML** — `email_game_html` beside
+   `email_game_text`. The same sentence, written twice, in three languages, kept
+   in step by hand. This is the option that is not a single source of truth, and
+   it is the one a repo reaches for by accident because it needs no new
+   machinery.
+2. **One template per email that composes translated fragments into both the
+   text part and the HTML part.** The words come from Paraglide once; the
+   template decides order, structure and markup. One source, two renderings.
+
+Option 2 is the single source of truth, and it is worth having whichever tool
+builds it.
+
+### React Email is one way to build option 2
+
+It is a library for writing emails as React components, with primitives for the
+things that make HTML mail miserable — client quirks, table layout, dark mode —
+and a local preview server, which is a real benefit: Remy can read the copy
+without a deploy.
+
+**The condition.** Not one literal sentence inside a template. Every word comes
+from a Paraglide message; templates hold structure only. Without that rule
+enforced, option 2 quietly becomes option 1 with extra steps. This is exactly
+the kind of thing `tests/repo/` exists for: a check that fails on a bare quoted
+sentence in the templates folder. The rule must be mechanised on the same day
+the folder is created, not after it has eroded.
+
+**The cost, named honestly.** React Email renders through `react-dom/server`, so
+React moves into the **Worker** bundle. Today `react` and `react-dom` are
+devDependencies: the SPA is built ahead of time and the Worker never runs React.
+The repo already carries bundle-size warnings as recorded debt, and there is a
+[fewer dependencies](2026-09-05-03-fewer-dependencies.md) plan behind it. Two
+ways to pay it:
+
+- Accept the Worker bundle growth, and measure it before and after.
+- Render the templates to HTML **at build time**, one file per template per
+  locale, so the Worker only interpolates values. Keeps the Worker small; more
+  machinery, and the preview server stops matching what ships unless the build
+  is the thing being previewed.
+
+### The recommendation, and whose call it is
+
+With five emails and three locales, one composer module — a function per email
+returning `{ subject, text, html }` from Paraglide strings — reaches the same
+single source of truth with no dependency and no bundle question. React Email
+earns its place when the HTML becomes real work, and the preview server is the
+strongest argument for it.
+
+Either way **option 2 is the design**; the library is an implementation detail
+of it. The Product Owner chooses the tool. What must not happen is option 1.
 
 ## Steps
 
@@ -200,12 +260,22 @@ Ordered so each one is provable on its own. Nothing here is started.
 - [ ] **Add the EMAIL switch to the settings screen.** Per channel, per type,
       in `notification-settings.tsx`, using the registry's `Switch` — disabled
       with its own sentence when the address is unverified, in the same style as
-      the existing per-state push sentences. Proof: rendering tests in EN/TH,
-      light and dark.
+      the existing per-state push sentences. Proof: rendering tests in each
+      released locale, light and dark.
 - [ ] **Prove an unsubscribe round-trip.** A bulk notification carries
       `List-Unsubscribe` and the transactional sign-in mail carries none —
       asserted against the outbox, which records `from` and `headers` exactly so
       this assertion is about what ships (`src/mail/mailer.ts:130-146`).
+- [ ] **If HTML email is wanted: one composer per email, and a check that keeps
+      it a single source.** A function per email returning
+      `{ subject, text, html }`, every word from Paraglide, replacing the
+      per-call-site assembly in `src/auth.ts` and `src/api/notify-queue.ts`.
+      Whether that is React Email or a plain module is the Product Owner's
+      choice — see [HTML email and one source of truth](#html-email-and-one-source-of-truth).
+      **On the same day**, a check under `tests/repo/` that fails on a literal
+      sentence inside a template, and a before/after Worker bundle measurement
+      if React Email is chosen. Without the check this step becomes the
+      duplication it exists to prevent.
 - [ ] **Auto-submit and focus the code field.** `onComplete` submits;
       `autoFocus` on entering the code step. Proof: an end-to-end check that
       types six digits and lands signed in without pressing a button.
