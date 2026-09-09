@@ -1,5 +1,9 @@
 # Project status — start here
 
+## Reference reviews
+
+- [oRPC's Blume documentation and LLM retrieval](2026-09-09-03-orpc-blume-review.md): cloned, built and tested locally; findings and reproduction commands. No adoption change.
+
 ## Open plans
 
 - [The sign-in code, filled in by the phone](2026-09-09-01-sign-in-code-autofill.md)
