@@ -250,6 +250,7 @@ const WRITES_IN: Record<string, string[]> = {
   ru: ["Cyrillic"],
   uk: ["Cyrillic"],
   el: ["Greek"],
+  hi: ["Devanagari"],
 }
 
 /** Every translated string the product ships, as (locale, where, text). */
