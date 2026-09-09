@@ -63,7 +63,7 @@ export function Invitations({ onAccepted }: { onAccepted?: () => void }) {
       <SectionHeading title={m.invitations()} className="mt-0" />
       <ItemGroup data-testid="invitations">
         {invitations.map((invite) => (
-          <Item key={invite.eventId} data-testid={`invite-${invite.eventId}`}>
+          <Item variant="outline" size="sm" key={invite.eventId} data-testid={`invite-${invite.eventId}`}>
             <ItemContent>
               <ItemTitle>{name(invite.names, invite.name)}</ItemTitle>
               <ItemDescription>{m.invitation_co_organize()} · <time dateTime={invite.addedAt}>{new Date(invite.addedAt).toLocaleDateString(locale)}</time></ItemDescription>

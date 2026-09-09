@@ -82,7 +82,7 @@ export function YourPlayers({ goto }: { goto: (r: Route) => void }) {
            * the outer button and an inner one is unreachable, while a screen
            * reader is told about a button that contains a button.
            */
-          <Item className="p-0" key={p.playerId} data-testid={`your-player-${p.playerId}`}>
+          <Item variant="outline" size="sm" className="p-0" key={p.playerId} data-testid={`your-player-${p.playerId}`}>
             {/*
               The one raw control left in the app, and why it stays one.
 

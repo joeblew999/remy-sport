@@ -70,12 +70,19 @@ export function PlayerPage({ id }: { id?: string }) {
   if (!player.data) return <PageInner><EmptyState data-testid="player-not-found">{m.player_not_found()}</EmptyState></PageInner>;
 
   const p = player.data;
-  const list = "gap-0 divide-y overflow-hidden rounded-xl border";
 
   return (
     <div data-testid="player-page">
       <PageHeader
-        crumbs={[{ label: m.nav_teams(), href: routeHref({ page: "teams" }) }]}
+        // Teams › their team › them. The middle step was missing, so a player
+        // page skipped the level it actually belongs to; the page has held the
+        // team all along to fetch its fixtures.
+        crumbs={[
+          { label: m.nav_teams(), href: routeHref({ page: "teams" }) },
+          ...(p.teamId && p.teamNames
+            ? [{ label: name(p.teamNames), href: routeHref({ page: "team", id: p.teamId }) }]
+            : []),
+        ]}
         title={<span data-testid="player-name">{name(p.names)}</span>}
         sub={<span data-testid="player-meta">{[`#${p.jerseyNumber}`, label("positions", p.positionCode)].join(" · ")}</span>}
       >
@@ -96,8 +103,8 @@ export function PlayerPage({ id }: { id?: string }) {
         <section>
           <SectionHeading title={m.player_team()} className="mt-0" />
           {p.teamId && p.teamNames ? (
-            <ItemGroup className={list}>
-              <Item  data-testid={`player-team-${p.teamId}`}>
+            <ItemGroup>
+              <Item variant="outline" size="sm"  data-testid={`player-team-${p.teamId}`}>
                 <ItemContent><ItemTitle>{name(p.teamNames)}</ItemTitle></ItemContent>
                 <ItemActions>
                   <ButtonLink variant="outline" href={routeHref({ page: "team", id: p.teamId! })}>{m.team_open()}</ButtonLink>
@@ -117,9 +124,9 @@ export function PlayerPage({ id }: { id?: string }) {
         {p.past.length > 0 && (
           <section>
             <SectionHeading title={m.player_past_teams()} className="mt-0" />
-            <ItemGroup className={list} data-testid="player-past">
+            <ItemGroup data-testid="player-past">
               {p.past.map((spell) => (
-                <Item key={`${spell.teamId}-${spell.toDate}`} data-testid={`player-past-${spell.teamId}`}>
+                <Item variant="outline" size="sm" key={`${spell.teamId}-${spell.toDate}`} data-testid={`player-past-${spell.teamId}`}>
                   <ItemContent>
                     <ItemTitle>{name(spell.teamNames)}</ItemTitle>
                     <ItemDescription>{m.player_spell_dates({ from: spell.fromDate, to: spell.toDate })}</ItemDescription>
@@ -143,14 +150,14 @@ export function PlayerPage({ id }: { id?: string }) {
                 {m.player_stats_games({ n: stats.data.recorded })}
               </Muted>
             </SectionHeading>
-            <ItemGroup className={list} data-testid="player-stats">
+            <ItemGroup data-testid="player-stats">
               {([
                 ["points", m.stat_points()],
                 ["rebounds", m.stat_rebounds()],
                 ["assists", m.stat_assists()],
                 ["fouls", m.stat_fouls()],
               ] as const).map(([key, heading]) => (
-                <Item key={key} data-testid={`stat-${key}`}>
+                <Item variant="outline" size="sm" key={key} data-testid={`stat-${key}`}>
                   <ItemContent><ItemTitle>{heading}</ItemTitle></ItemContent>
                   <ItemDescription className="tabular-nums">
                     {stats.data!.totals[key]}
@@ -167,9 +174,9 @@ export function PlayerPage({ id }: { id?: string }) {
         <section>
           <SectionHeading title={m.player_fixtures()} className="mt-0" />
           {games.data?.games.length ? (
-            <ItemGroup className={list} data-testid="player-games">
+            <ItemGroup data-testid="player-games">
               {games.data.games.slice(0, 10).map((g) => (
-                <Item key={g.id} data-testid={`player-game-${g.id}`}>
+                <Item variant="outline" size="sm" key={g.id} data-testid={`player-game-${g.id}`}>
                   <ItemContent><GameSummary game={g} showEvent/></ItemContent>
                 </Item>
               ))}

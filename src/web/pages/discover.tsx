@@ -198,7 +198,7 @@ export function DiscoverPage({ goto, spoiler, query, setParam }: DiscoverProps) 
 
         <ItemGroup data-testid="event-list">
           {events.map(e => (
-            <Item className="py-4 sm:px-5" key={e.id} data-testid="event-row" render={<a href={routeHref({ page: "event", id: e.id })} />}>
+            <Item variant="outline" size="sm" className="py-4 sm:px-5" key={e.id} data-testid="event-row" render={<a href={routeHref({ page: "event", id: e.id })} />}>
               <ItemMedia className="w-12 flex-col items-start self-start">
                 <span className="text-2xl leading-none font-semibold tabular-nums" data-testid="event-day">
                   {e.day ? String(e.day).padStart(2, "0") : "--"}
@@ -261,7 +261,7 @@ function LiveBanner({ goto: _goto, spoiler }: { goto: (r: Route) => void; spoile
 
   return (
     <PageInner className="py-0 pb-0">
-      <Item variant="muted" className="flex-wrap gap-4 px-4 py-4" data-testid="live-banner">
+      <Item size="sm" variant="muted" className="flex-wrap gap-4 px-4 py-4" data-testid="live-banner">
         <ItemContent className="basis-full sm:basis-auto">
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status="live">

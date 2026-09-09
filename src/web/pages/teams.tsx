@@ -53,7 +53,7 @@ export function TeamsPage() {
             <SectionHeading title={m.your_teams()} className="mt-0" />
             <ItemGroup data-testid="your-teams">
               {yours.map((t) => (
-                <Item key={t.id} data-testid={`your-team-${t.id}`}>
+                <Item variant="outline" size="sm" key={t.id} data-testid={`your-team-${t.id}`}>
                   <ItemContent>
                     <ItemTitle>{t.name}</ItemTitle>
                     {/* Why this row is above the fold, in the model's own word for
@@ -81,7 +81,7 @@ export function TeamsPage() {
         ) : teams.data?.length ? (
           <ItemGroup data-testid="teams-list">
             {teams.data.map((t) => (
-              <Item key={t.id} data-testid={`team-row-${t.id}`}>
+              <Item variant="outline" size="sm" key={t.id} data-testid={`team-row-${t.id}`}>
                 <ItemContent>
                   <ItemTitle>{t.name}</ItemTitle>
                   {/* Age group and gender in the reader's language — `toTeam` has

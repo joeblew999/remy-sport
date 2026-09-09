@@ -187,7 +187,7 @@ export function PageInner({ className, ...props }: ComponentProps<"div">) {
 /** A row that opens something: the registry's Item as a link, with a chevron. */
 export function LinkRow({ href, title, children, ...props }: { href: string; title: ReactNode; children?: ReactNode; "data-testid"?: string }) {
   return (
-    <Item render={<a href={href} />} {...props}>
+    <Item variant="outline" size="sm" render={<a href={href} />} {...props}>
       <ItemContent>
         <ItemTitle>{title}</ItemTitle>
         {children}

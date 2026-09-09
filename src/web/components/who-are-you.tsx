@@ -72,7 +72,7 @@ export function WhoAreYou() {
         <Alert><AlertDescription>{m.whoareyou_sub()}</AlertDescription></Alert>
         <ItemGroup>
           {OFFERED.map((code) => (
-            <Item
+            <Item variant="outline" size="sm"
               key={code}
               className="text-left hover:bg-muted disabled:opacity-50"
               render={<button type="button" disabled={choose.isPending} />}

@@ -50,7 +50,6 @@ import { formErrors } from "../lib/form-errors";
 import { m } from "../lib/i18n";
 import { useLocale } from "../lib/locale";
 
-const LIST = "gap-0 divide-y overflow-hidden rounded-xl border";
 
 /**
  * @answers VIEW_ORG, EDIT_ORG_PROFILE, INVITE_ORG_MEMBER, REMOVE_ORG_MEMBER, CREATE_TEAM
@@ -84,9 +83,9 @@ export function OrgsPage() {
         {yours.length > 0 && (
           <section>
             <SectionHeading title={m.your_orgs()} className="mt-0" />
-            <ItemGroup className={LIST} data-testid="your-orgs">
+            <ItemGroup data-testid="your-orgs">
               {yours.map((o) => (
-                <Item key={o.id} data-testid={`your-org-${o.id}`}>
+                <Item variant="outline" size="sm" key={o.id} data-testid={`your-org-${o.id}`}>
                   <ItemContent>
                     <ItemTitle>{o.name}</ItemTitle>
                     <ItemDescription>
@@ -106,9 +105,9 @@ export function OrgsPage() {
         {orgs.isPending ? (
           <Loading>{m.loading_orgs()}</Loading>
         ) : orgs.data?.length ? (
-          <ItemGroup className={LIST} data-testid="orgs-list">
+          <ItemGroup data-testid="orgs-list">
             {orgs.data.map((o) => (
-              <Item key={o.id} data-testid={`org-${o.id}`}>
+              <Item variant="outline" size="sm" key={o.id} data-testid={`org-${o.id}`}>
                 <ItemContent>
                   <ItemTitle>{o.name}</ItemTitle>
                   {/* What kind of organisation, in the reader's language — not
@@ -489,9 +488,9 @@ function OrgTeams({
       {isPending && <Loading />}
       {!isPending && mine.length === 0 && <EmptyState data-testid="org-no-teams">{m.org_no_teams()}</EmptyState>}
       {mine.length > 0 && (
-        <ItemGroup className={LIST}>
+        <ItemGroup>
           {mine.map((t) => (
-            <Item key={t.id} data-testid={`org-team-${t.id}`} render={<a href={routeHref({ page: "team", id: t.id })} />}>
+            <Item variant="outline" size="sm" key={t.id} data-testid={`org-team-${t.id}`} render={<a href={routeHref({ page: "team", id: t.id })} />}>
               <ItemContent>
                 <ItemTitle>{t.name}</ItemTitle>
                 <ItemDescription>{t.ageGroupLabel} · {t.genderLabel}</ItemDescription>

@@ -190,7 +190,7 @@ export function GameRow({
   const played = game.homeScore !== null && game.awayScore !== null;
 
   return (
-    <Item className="flex-wrap items-start" data-testid={`game-${game.id}`}>
+    <Item variant="outline" size="sm" className="flex-wrap items-start" data-testid={`game-${game.id}`}>
       <ItemContent className="basis-full sm:basis-auto">
         <GameSummary game={game} details={details} showStatus={false} />
         <Muted as="div">

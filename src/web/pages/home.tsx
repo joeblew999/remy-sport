@@ -15,7 +15,6 @@ import type { Team } from "../data";
 import { m } from "../lib/i18n";
 import { ItemDescription, ItemGroup } from "@/components/ui/item";
 
-const LIST = "gap-0 divide-y overflow-hidden rounded-xl border";
 
 /**
  * Home: what you are connected to, and what is next.
@@ -94,7 +93,7 @@ export function HomePage({ goto }: { goto: (r: Route) => void }) {
             {(teamHeld.length > 0 || can?.CREATE_TEAM) && (
               <section>
                 <SectionHeading title={m.your_teams()} className="mt-0" />
-                <ItemGroup className={LIST} data-testid="home-teams">
+                <ItemGroup data-testid="home-teams">
                   {teamRows.map((t) => (
                     <TeamRow key={t.id} team={t} relations={relationsOn("TEAM", t.id)} />
                   ))}
@@ -117,7 +116,7 @@ export function HomePage({ goto }: { goto: (r: Route) => void }) {
             {(eventHeld.length > 0 || can?.CREATE_EVENT) && (
               <section>
                 <SectionHeading title={m.your_events()} className="mt-0" />
-                <ItemGroup className={LIST} data-testid="home-events">
+                <ItemGroup data-testid="home-events">
                   {organising.map((e) => (
                     <LinkRow key={e.id} data-testid={`home-event-${e.id}`} href={routeHref({ page: "event", id: e.id })} title={e.title}>
                       <ItemDescription>{[e.statusLabel, e.division, label("relations", e.relation)].join(" · ")}</ItemDescription>
@@ -135,7 +134,7 @@ export function HomePage({ goto }: { goto: (r: Route) => void }) {
             {orgHeld.length > 0 && (
               <section>
                 <SectionHeading title={m.your_orgs()} className="mt-0" />
-                <ItemGroup className={LIST} data-testid="home-orgs">
+                <ItemGroup data-testid="home-orgs">
                   {orgRows.map((o) => (
                     <LinkRow key={o.id} data-testid={`home-org-${o.id}`} href={routeHref({ page: "org", id: o.id })} title={o.name}>
                       <ItemDescription>{[o.city, relationsOn("ORG", o.id)].filter(Boolean).join(" · ")}</ItemDescription>
@@ -156,7 +155,7 @@ export function HomePage({ goto }: { goto: (r: Route) => void }) {
             {can?.MANAGE_ALL_USERS && (
               <section>
                 <SectionHeading title={m.nav_admin()} className="mt-0" />
-                <ItemGroup className={LIST} data-testid="home-admin">
+                <ItemGroup data-testid="home-admin">
                   <LinkRow data-testid="home-admin-console" href={routeHref({ page: "admin" })} title={m.home_admin()} />
                 </ItemGroup>
               </section>

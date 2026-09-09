@@ -94,7 +94,7 @@ export function EventSessions({ eventId, can, timezone }: { eventId: string; can
           <EmptyState className="border-0" data-testid="sessions-none">{m.event_sessions_none()}</EmptyState>
         )}
         {sessions.map((s) => (
-          <Item className="flex-wrap" key={s.id} data-testid={`session-${s.id}`}>
+          <Item variant="outline" size="sm" className="flex-wrap" key={s.id} data-testid={`session-${s.id}`}>
             <ItemContent>
               <ItemTitle>{name(s.names)}</ItemTitle>
               <ItemDescription>
@@ -229,7 +229,7 @@ function Register({
         <EmptyState className="border-0" data-testid="register-empty">{m.event_session_register_none()}</EmptyState>
       )}
       {players.map((p) => (
-        <Item key={p.playerId} data-testid={`attendee-${p.playerId}`}>
+        <Item variant="outline" size="sm" key={p.playerId} data-testid={`attendee-${p.playerId}`}>
           <Checkbox
             id={`attended-${p.playerId}`}
             checked={p.attended}

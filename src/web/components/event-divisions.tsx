@@ -86,7 +86,7 @@ export function EventDivisions({ eventId, can }: { eventId: string; can: Event["
         <legend className="sr-only">{m.event_divisions()}</legend>
         <ItemGroup>
         {divisions.map((d) => (
-          <Item className="px-0" key={d.id} data-testid={`division-${d.id}`}>
+          <Item variant="outline" size="sm" className="px-0" key={d.id} data-testid={`division-${d.id}`}>
             <Checkbox
               id={`division-check-${d.id}`}
               name="division"

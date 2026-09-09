@@ -310,7 +310,7 @@ export function NotificationSettings() {
         {devices?.devices.length ? (
           <ItemGroup data-testid="device-list">
             {devices.devices.map((d, i) => (
-              <Item key={d.id || `${d.label}-${i}`} size="sm" data-testid={`device-${i}`}>
+              <Item variant="outline" key={d.id || `${d.label}-${i}`} size="sm" data-testid={`device-${i}`}>
                 <ItemContent>
                   <ItemTitle>
                     {d.label}
@@ -357,7 +357,7 @@ export function NotificationSettings() {
             const muted = data?.muted.includes(code) ?? false
             const emailOn = data?.emailOn.includes(code) ?? false
             return (
-              <Item className="items-start" key={code}>
+              <Item variant="outline" size="sm" className="items-start" key={code}>
                 <Checkbox
                   id={`pref-${code}`}
                   className="mt-0.5"

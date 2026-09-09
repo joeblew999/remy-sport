@@ -222,10 +222,22 @@ const authored = files.filter(f => !f.path.startsWith("src/web/components/ui/"))
    They were wrapped in a `RowGroup`/`Row` of ours that flattened the radius and
    divided the rows, which was itself an improvement on the same five classes
    copied twenty-two times — and still not the preset. The wrapper is gone. */
+/* Anywhere in the file, not just on the tag: four pages hoisted the same five
+   classes into a `const LIST` and a `const row`, which a tag-shaped rule walked
+   straight past. A list style is a list style wherever it is written down. */
 const inlineRows = authored
   .filter(f => f.path !== FRAME)
-  .flatMap(f => [...stripTsxComments(f.text).matchAll(/<Item(?:Group)?\b[^>]*?\b(divide-y|rounded-none)\b/g)]
-    .map(m => `${f.path}: <Item${m[0].includes("Group") ? "Group" : ""}> with ${m[1]}`))
+  .flatMap(f => [
+    // Dividers are list styling wherever they are written — including hoisted
+    // into a `const LIST`, which is how four pages kept theirs past a
+    // tag-shaped rule.
+    ...[...stripTsxComments(f.text).matchAll(/\bdivide-y\b/g)].map(() => `${f.path}: divide-y`),
+    // `rounded-none` only where it flattens a row. A full-bleed Alert and a
+    // line-variant TabsList use it legitimately, and squeezing those into this
+    // rule would teach people to add exemptions rather than fix lists.
+    ...[...stripTsxComments(f.text).matchAll(/<Item(?:Group)?\b[^>]*?\brounded-none\b/g)]
+      .map(() => `${f.path}: rounded-none on a row`),
+  ])
 rule("a list is the registry's ItemGroup, not a box with dividers", inlineRows,
   `Inline list styling in src/web JSX:\n  ${inlineRows.join("\n  ")}\n\n` +
   `Use ItemGroup and Item as the registry ships them. They already carry the gap,\n` +

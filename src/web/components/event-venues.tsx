@@ -44,7 +44,7 @@ export function EventVenues({ eventId, venueId }: { eventId: string; venueId?: s
         <EmptyState className="border-0" data-testid="event-venues-empty">{m.event_venues_none()}</EmptyState>
       )}
       {rows.map(({ link, venue }) => (
-        <Item id={`venue-${venue.id}`} key={venue.id} data-testid={`venue-${venue.id}`}>
+        <Item variant="outline" size="sm" id={`venue-${venue.id}`} key={venue.id} data-testid={`venue-${venue.id}`}>
           <ItemContent>
             <ItemTitle>
               <a className="hover:underline" href={routeHref({ page: "event", id: eventId, query: { tab: "places", court: venue.id } })}>{name(venue.names as Record<string, string>, venue.id)}</a>

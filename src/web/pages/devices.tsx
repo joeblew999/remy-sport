@@ -83,7 +83,7 @@ export function DevicesPage() {
           <section className="flex flex-col gap-4">
             <ItemGroup data-testid="devices-list">
               {devices.map((d) => (
-                <Item key={d.id} data-testid={`device-${d.id}`}>
+                <Item variant="outline" size="sm" key={d.id} data-testid={`device-${d.id}`}>
                   <ItemContent>
                     <ItemTitle>
                       {d.label}

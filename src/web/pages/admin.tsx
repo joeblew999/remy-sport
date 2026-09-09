@@ -70,7 +70,6 @@ const ROLE_CODE = Object.fromEntries(
   Object.entries(STORED_ROLE).map(([code, stored]) => [stored, code]),
 ) as Record<string, string>;
 
-const LIST = "gap-0 divide-y overflow-hidden rounded-xl border";
 
 /**
  * A delete that asks first, as the registry's AlertDialog in the reader's
@@ -615,9 +614,9 @@ function DeletePlayers() {
       <CardContent>
       {players.length === 0 && <EmptyState data-testid="admin-no-players">{m.admin_no_players()}</EmptyState>}
       {players.length > 0 && (
-        <ItemGroup className={LIST}>
+        <ItemGroup>
           {players.map((p) => (
-            <Item key={p.id} data-testid={`admin-player-${p.id}`}>
+            <Item variant="outline" size="sm" key={p.id} data-testid={`admin-player-${p.id}`}>
               <ItemContent>
                 <ItemTitle>{name(p.names)}</ItemTitle>
                 {/* The code is the model's, not a reader's — `label` is how every
@@ -665,9 +664,9 @@ function DeleteTeams() {
       <CardContent>
       {teams.length === 0 && <EmptyState data-testid="admin-no-teams">{m.admin_no_teams()}</EmptyState>}
       {teams.length > 0 && (
-        <ItemGroup className={LIST}>
+        <ItemGroup>
           {teams.map((t) => (
-            <Item key={t.id} data-testid={`admin-team-${t.id}`}>
+            <Item variant="outline" size="sm" key={t.id} data-testid={`admin-team-${t.id}`}>
               <ItemContent>
                 <ItemTitle>{t.name}</ItemTitle>
                 <ItemDescription>{[t.orgName, t.ageGroupLabel, t.genderLabel].filter(Boolean).join(" · ")}</ItemDescription>

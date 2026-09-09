@@ -55,7 +55,7 @@ export function LivePage({ spoiler, setSpoiler }: LiveProps) {
         {/* The in-context spoiler control. The setting itself lives in the
             sidebar's Settings group; this is the same switch where the scores
             are. */}
-        <Item variant="muted" data-testid="spoiler-bar">
+        <Item size="sm" variant="muted" data-testid="spoiler-bar">
           <ItemMedia variant="icon">{spoiler ? <EyeOffIcon /> : <EyeIcon />}</ItemMedia>
           <ItemContent>
             <ItemTitle>{spoiler ? m.spoiler_on() : m.spoiler_off()}</ItemTitle>
@@ -79,7 +79,7 @@ export function LivePage({ spoiler, setSpoiler }: LiveProps) {
         {games.length > 0 && (
           <ItemGroup data-testid="live-list">
             {games.map((g) => (
-              <Item className="flex-wrap" key={g.id} data-testid={`live-${g.id}`}>
+              <Item variant="outline" size="sm" className="flex-wrap" key={g.id} data-testid={`live-${g.id}`}>
                 <ItemContent className="basis-full sm:basis-auto" data-testid="live-game">
                   <GameSummary game={g} showEvent/>
                 </ItemContent>

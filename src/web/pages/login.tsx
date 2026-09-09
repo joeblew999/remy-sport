@@ -202,7 +202,7 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
               here is the same answer the API will give when you act as them. */}
           <ItemGroup>
             {devAccounts.data.accounts.map((account) => (
-              <Item
+              <Item variant="outline" size="sm"
                 key={account.email}
                 className="text-left hover:bg-muted"
                 render={<button type="button" />}

@@ -220,11 +220,11 @@ function EventRules({ event }: { event: Event }) {
       <Card data-testid="event-rules">
         <CardContent>
           <ItemGroup>
-            <Item className="px-0">
+            <Item variant="outline" size="sm" className="px-0">
               <ItemContent><ItemDescription>{m.event_format()}</ItemDescription></ItemContent>
               <span data-testid="event-format">{label("eventFormats", event.formatCode)}</span>
             </Item>
-            <Item className="px-0">
+            <Item variant="outline" size="sm" className="px-0">
               <ItemContent><ItemDescription>{m.event_fiba()}</ItemDescription></ItemContent>
               {/* A certified event is a fact worth stating and an uncertified one
                   is not an absence — most school tournaments are not certified and

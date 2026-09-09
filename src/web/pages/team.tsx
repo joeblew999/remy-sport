@@ -118,7 +118,7 @@ export function TeamPage({ id, goto: _goto, query, spoiler = false }: { id: stri
           {roster?.players.length ? (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" data-testid="roster">
               {roster.players.map(p => (
-                <Item key={p.playerId} variant="outline" className="items-start" data-testid={`player-${p.playerId}`}>
+                <Item size="sm" key={p.playerId} variant="outline" className="items-start" data-testid={`player-${p.playerId}`}>
                   <ItemMedia><Avatar size="lg" aria-hidden="true"><AvatarFallback>{initials(p.name)}</AvatarFallback></Avatar></ItemMedia>
                   <ItemContent>
                     {/* The way in to the player page. The roster was the only place
@@ -150,7 +150,7 @@ export function TeamPage({ id, goto: _goto, query, spoiler = false }: { id: stri
             {!user && <EmptyState className="border-0" data-testid="coaches-signin">{m.coaching_staff_signin()}</EmptyState>}
             {user && (roster?.coaches.length ?? 0) === 0 && <EmptyState className="border-0" data-testid="coaches-empty">{m.coaching_staff_none()}</EmptyState>}
             {(roster?.coaches ?? []).map((c) => (
-              <Item key={c.userId} data-testid={`coach-${c.userId}`}>
+              <Item variant="outline" size="sm" key={c.userId} data-testid={`coach-${c.userId}`}>
                 <ItemMedia><Avatar aria-hidden="true"><AvatarFallback>{initials(c.name)}</AvatarFallback></Avatar></ItemMedia>
                 <ItemContent>
                   <ItemTitle>{c.name}</ItemTitle>
@@ -178,7 +178,7 @@ export function TeamPage({ id, goto: _goto, query, spoiler = false }: { id: stri
             {gamesLoading && <Loading className="border-0" />}
             {!gamesLoading && games.length === 0 && <EmptyState className="border-0">{m.no_games_yet()}</EmptyState>}
             {games.map((g) => (
-              <Item className={cn("flex-wrap", g.live && "bg-destructive/5")} key={g.id} data-testid="team-fixture">
+              <Item variant="outline" size="sm" className={cn("flex-wrap", g.live && "bg-destructive/5")} key={g.id} data-testid="team-fixture">
                 <ItemContent className="basis-full sm:basis-auto">
                   <GameSummary game={g} showEvent/>
                 </ItemContent>

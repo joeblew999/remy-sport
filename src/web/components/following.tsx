@@ -30,7 +30,7 @@ export function Following() {
       <ItemGroup data-testid="following-list">
         {data?.following.length ? (
           data.following.map((f) => (
-            <Item key={`${f.objectTypeCode}:${f.objectId}`} data-testid="following-entry">
+            <Item variant="outline" size="sm" key={`${f.objectTypeCode}:${f.objectId}`} data-testid="following-entry">
               <ItemContent>
                 {/* The thing's own name, in the reader's language — "Assumption
                     College U16 Boys", not "Team". A list of type labels reads as

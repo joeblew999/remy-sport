@@ -7,6 +7,7 @@ import { EmptyState, Loading } from "./states";
 import { m } from "../lib/i18n";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Muted, SubHeading } from "./page"
+import { Item, ItemActions, ItemContent, ItemGroup } from "@/components/ui/item";
 
 /** @answers VIEW_COURT_STATUS_BOARD, VIEW_COURT_ASSIGNMENTS, VIEW_MATCH_STATUS
  * The model assigns games to venues, not numbered courts. Show all live games
@@ -32,13 +33,26 @@ export function CourtBoard({ eventId, spoiler = false, courtId }: { eventId?: st
       const next = assigned.find(g => g.statusCode === "SCHEDULED");
       return <Card id={`court-${venueId}`} key={venueId} data-testid={`court-${venueId}`}>
         <CardHeader><CardTitle><a className="hover:underline" href={routeHref({ page: "event", id: eventId, query: { tab: "places", venue: venueId } })}>{title}</a></CardTitle></CardHeader>
-        <CardContent className="divide-y">
-          {live.length > 1 && <Muted className="pb-3" role="status">{m.venue_multiple_live()}</Muted>}
-          {live.map(g => <div className="flex flex-wrap items-start justify-between gap-3 py-3 first:pt-0 last:pb-0" key={g.id} data-testid={`court-${venueId}-live`}>
-            <GameSummary game={g}/><span className="font-semibold tabular-nums">{spoiler ? m.spoiler_hidden() : `${g.homeScore ?? "—"} – ${g.awayScore ?? "—"}`}</span>
-          </div>)}
-          {next && <div className="flex flex-wrap items-start justify-between gap-3 py-3 first:pt-0 last:pb-0" data-testid={`court-${venueId}-next`}><Muted as="span">{m.court_next()}</Muted><GameSummary game={next}/></div>}
-          {!live.length && !next && <Muted data-testid={`court-${venueId}-free`}>{m.court_free()}</Muted>}
+        <CardContent>
+          {/* A list of what is on this court, so it is the registry's list —
+              it was a divided CardContent with hand-laid rows, the same habit
+              four pages had hoisted into a `const LIST`. */}
+          <ItemGroup>
+            {live.length > 1 && <Muted role="status">{m.venue_multiple_live()}</Muted>}
+            {live.map(g => (
+              <Item variant="outline" size="sm" key={g.id} data-testid={`court-${venueId}-live`}>
+                <ItemContent><GameSummary game={g}/></ItemContent>
+                <ItemActions><span className="font-semibold tabular-nums">{spoiler ? m.spoiler_hidden() : `${g.homeScore ?? "—"} – ${g.awayScore ?? "—"}`}</span></ItemActions>
+              </Item>
+            ))}
+            {next && (
+              <Item variant="outline" size="sm" data-testid={`court-${venueId}-next`}>
+                <ItemContent><GameSummary game={next}/></ItemContent>
+                <ItemActions><Muted as="span">{m.court_next()}</Muted></ItemActions>
+              </Item>
+            )}
+            {!live.length && !next && <Muted data-testid={`court-${venueId}-free`}>{m.court_free()}</Muted>}
+          </ItemGroup>
         </CardContent>
       </Card>;
     })}

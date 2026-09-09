@@ -86,7 +86,7 @@ export function EventPlayers({ eventId }: { eventId: string }) {
         {players.map((p) => {
           const entered = enteredHere.has(p.playerId)
           return (
-            <Item key={p.playerId} data-testid={`entry-${p.playerId}`}>
+            <Item variant="outline" size="sm" key={p.playerId} data-testid={`entry-${p.playerId}`}>
               <ItemContent>
                 <ItemTitle>{name(p.names)}</ItemTitle>
                 <ItemDescription>
