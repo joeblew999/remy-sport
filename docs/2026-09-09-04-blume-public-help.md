@@ -24,6 +24,46 @@ Measure Gemini discovery separately from whether a supplied URL can be read.
 
 ## Evidence and limits
 
+### Fumadocs comparison requested 2026-09-09
+
+This comparison is based on the current upstream repository and documentation;
+Fumadocs and Fumapress have not been cloned, built or benchmarked locally here.
+Blume remains the first candidate, not a final adoption decision.
+
+| Decision | Blume | Fumadocs |
+| --- | --- | --- |
+| Plain public help | Static site generation and discovery artifacts are packaged together. | A composable content, UI and framework stack; offers a maintained default theme, so custom UI is optional. |
+| React customization | Prefer its standard theme for this plan. | Stronger fit when React components and customized documentation layouts are a real requirement. |
+| LLM access | Generated LLM indexes and Markdown; runtime features are optional. | Official helpers and recipes for processed Markdown, LLM indexes, per-page routes and content negotiation; the application wires these together. |
+| Static deployment | Documented default output. | Supported through the chosen framework, with static search and prerendering configuration. |
+| Remy compatibility | Separate content build still needs the shared automation and route checks above. | React overlap is useful, but does not prove compatibility with Remy's Hono Worker and hash-routed Vite SPA. Keep the content build isolated until demonstrated. |
+
+Fumadocs is not Next.js-only: its repository lists Next.js, Astro with React,
+TanStack Start, Waku and React Router. A Next.js server deployment on Cloudflare
+has an OpenNext path; that extra runtime is unnecessary for the static help
+requirement. Static export is also supported. There is no measured Gemini
+discovery advantage for either candidate in this review.
+[Supported frameworks](https://github.com/fuma-nama/fumadocs),
+[static deployment](https://www.fumadocs.dev/docs/deploying/static),
+[deployment notes](https://www.fumadocs.dev/docs/deploying),
+[LLM integration](https://www.fumadocs.dev/docs/integrations/llms),
+[maintained UI theme](https://www.fumadocs.dev/docs/ui).
+
+The closer packaged alternative is **Fumapress**, linked by Fumadocs itself.
+It manages routing on top of Fumadocs/Waku and offers plugins for LLM output,
+sitemaps, link validation and MCP. This weakens any blanket claim that choosing
+the Fumadocs ecosystem necessarily means writing all integration code ourselves.
+Its subpath output and compatibility with the existing build still need proof.
+[Fumapress introduction](https://press.fumadocs.dev/docs),
+[plugin overview](https://press.fumadocs.dev/).
+
+Decision rule: prefer Blume for the first small static proof; choose Fumadocs
+when required React customization justifies owning its framework integration.
+If Blume needs custom patches or its build integration is troublesome, compare
+Fumapress on the same three pages and acceptance checks before committing to
+Blume-specific content. Keep initial content in portable Markdown. Do not
+migrate Remy's application framework merely to obtain documentation tooling.
+
 The [oRPC review](2026-09-09-03-orpc-blume-review.md) records a successful local
 build and retrieval tests, plus shortcomings in code search and version context.
 Its checkout is `/private/tmp/remy-orpc-review-20260909`; that is reference
