@@ -1,3 +1,4 @@
+import { networkFetch as fetch } from './network.mjs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { contract, operations, declarations, callApplication, apiOrigin } from './application.mjs';

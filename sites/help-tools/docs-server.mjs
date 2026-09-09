@@ -33,4 +33,3 @@ export async function createDocsServer(read, application, cacheMs = 0) {
   if (application) registerApplication(server, application, cacheMs);
   return server;
 }
-

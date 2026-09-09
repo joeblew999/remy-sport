@@ -3,7 +3,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } fr
 import { join, resolve } from 'node:path'
 import { execFileSync, spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { accountId, originOf, resolveTarget, wrangler } from '../lib/cloudflare'
+import { accountId, originOf, resolveTarget, workerName, wrangler } from '../lib/cloudflare'
 
 const root = resolve(import.meta.dirname, '../..')
 const help = join(root, 'sites/help')
@@ -13,6 +13,14 @@ export interface HelpTarget { environment: string; name: string; origin: string;
 export function helpTarget(environment: string): HelpTarget {
   if (!['dev', 'staging', 'production'].includes(environment)) throw new Error('Unknown help environment')
   const remote = environment === 'dev' ? null : JSON.parse(readFileSync(join(help, 'deployment.json'), 'utf8'))[environment]
+  if (remote) {
+    const peers = JSON.parse(readFileSync(join(help, 'deployment.json'), 'utf8'))
+    if (peers.staging.name === peers.production.name || peers.staging.host === peers.production.host) throw new Error('Help environments must have distinct Workers and hosts')
+    for (const name of ['staging', 'production']) {
+      const app = resolveTarget(['--env', name])
+      if (remote.name === workerName(app) || `https://${remote.host}` === originOf(app)) throw new Error('Help deployment collides with an application Worker or hostname')
+    }
+  }
   const appOrigin = environment === 'dev' ? 'http://127.0.0.1:8787' : originOf(resolveTarget(['--env', environment]))
   return { environment, name: remote?.name ?? 'remy-help-local', origin: remote ? `https://${remote.host}` : 'https://help.remy.invalid', appOrigin, buildId: new Date().toISOString(), commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim() }
 }
@@ -25,12 +33,10 @@ export function validateHelpConfig(config: any, target: HelpTarget) {
   if (config.routes?.[0]?.pattern !== new URL(target.origin).hostname || config.workers_dev !== false || config.preview_urls !== false) throw new Error('Unexpected help route or public alias')
   for (const key of ['d1_databases', 'r2_buckets', 'queues', 'services', 'kv_namespaces', 'durable_objects']) if (config[key]) throw new Error(`Help cannot have application bindings: ${key}`)
 }
-async function status(target: HelpTarget) {
-  const response = await fetch(`${target.origin}/health`, { signal: AbortSignal.timeout(15000) })
-  if (!response.ok) throw new Error(`Help status ${response.status} at ${target.origin}`)
-  const served = await response.json() as HelpTarget
+async function status(target: HelpTarget, verbose = true) {
+  const served = JSON.parse(execFileSync('node', [join(tools, 'status.mjs'), target.origin], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], timeout: 30000 })) as HelpTarget
   if (served.environment !== target.environment || served.appOrigin !== target.appOrigin || served.origin !== target.origin) throw new Error('Served help is wired to the wrong environment')
-  console.log(JSON.stringify(served, null, 2))
+  if (verbose) console.log(JSON.stringify(served, null, 2))
   return served
 }
 export async function releaseHelp(action: string, environment: string, run: Run, env: NodeJS.ProcessEnv) {
@@ -40,8 +46,13 @@ export async function releaseHelp(action: string, environment: string, run: Run,
   mkdirSync(dir, { recursive: true })
   const configPath = join(dir, 'wrangler.json')
   if (action === 'status') {
-    await status(target)
+    try { await status(target) } catch (error) {
+      const dns = await fetch(`https://dns.google/resolve?name=${new URL(target.origin).hostname}&type=A`, { signal: AbortSignal.timeout(10000) }).then(r => r.json()).catch(() => null)
+      console.error('Public DNS diagnostic:', JSON.stringify(dns))
+      throw error
+    }
     await run(['node', 'discover.mjs', target.appOrigin], tools)
+    await run(['node', 'worker-check.mjs', target.origin, environment], tools)
     return
   }
   if (action === 'rollback') {
@@ -52,6 +63,14 @@ export async function releaseHelp(action: string, environment: string, run: Run,
     await run(['node', 'discover.mjs', target.appOrigin], tools)
     const result = wrangler(['rollback', previous.versionId, '--name', target.name, '--yes'], undefined, { inherit: true, resolvedConfig: true })
     if (result.code) throw new Error('Help rollback failed')
+    let restored = false
+    for (let n = 0; n < 60; n++) {
+      const served = await status(target, false)
+      restored = served.buildId === previous.target.buildId && served.versionId === previous.versionId
+      if (restored) break
+      await new Promise(r => setTimeout(r, 2000))
+    }
+    if (!restored) throw new Error('Rollback did not restore the recorded help build')
     await run(['node', 'worker-check.mjs', target.origin, environment], tools)
     return
   }
@@ -113,7 +132,7 @@ export async function releaseHelp(action: string, environment: string, run: Run,
     if (published.code) throw new Error('Help publish failed')
     let current = false
     for (let n = 0; n < 60; n++) {
-      try { current = (await status(target)).buildId === target.buildId } catch {}
+      try { current = (await status(target, false)).buildId === target.buildId } catch {}
       if (current) break
       await new Promise(r => setTimeout(r, 2000))
     }

@@ -144,3 +144,10 @@ retrieves public URLs and executes a model-requested application read. The key
 is passed only to that test process, never built into help or sent to Cloudflare.
 A missing key is a missing test, not a passing result. Google indexing still
 requires Search Console verification and observed indexing evidence.
+
+For a newly created hostname, release probes first use ordinary HTTPS. If the
+OS resolver returns NXDOMAIN but Google's public DNS resolves the name, the
+shared probe logs that discrepancy and retries HTTPS using the public answer.
+TLS still verifies the original hostname. It never edits system DNS, follows a
+proxy override or disables certificate validation. This handles stale negative
+DNS caches without making developers coordinate resolver changes manually.

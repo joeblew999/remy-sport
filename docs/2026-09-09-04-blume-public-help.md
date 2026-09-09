@@ -445,3 +445,13 @@ A release checks app-reported environment and its deployed schema, builds its
 own artifact, records app version/contract digest, tests locally, then publishes
 only help and verifies its build ID. Actual external deployment, rollback and
 Gemini evidence will be added below; they are not implied by local tests.
+
+Staging first published as Worker version
+89a80512-804e-443f-92d8-04b247c1b6b4. Its initial CLI verification timed out on
+local OS NXDOMAIN, although public DNS and Chrome served the new hostname.
+Browser HTTPS checks confirmed the staging identity, noindex and an actual
+proxy GET returning four staging events. The shared probe now logs and handles
+this specific negative-cache mismatch using public DNS with normal original-host
+TLS verification; no hostfile/environment overrides or certificate bypasses.
+Shared status subsequently verified the deployed identity and application reads.
+The original timed-out deployment is not retroactively described as a passing run.

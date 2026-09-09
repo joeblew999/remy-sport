@@ -1,3 +1,4 @@
+import { networkFetch as fetch } from './network.mjs';
 import assert from 'node:assert/strict';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
@@ -25,10 +26,15 @@ assert.equal((await fetch(base + '/mcp', { method: 'POST', body: '{' })).status,
 assert.equal((await fetch(base + '/mcp', { method: 'POST', body: 'x'.repeat(65537) })).status, 413);
 const client = new Client({ name: 'remy-worker-proof', version: '1.0.0' });
 try {
-  await client.connect(new StreamableHTTPClientTransport(new URL(base + '/mcp')));
+  await client.connect(new StreamableHTTPClientTransport(new URL(base + '/mcp'), { fetch }));
   const tools = await client.listTools();
   assert.equal(tools.tools.length, 8);
   assert(tools.tools.every(tool => tool.annotations.readOnlyHint));
+  for (const [locale, query] of [['en', 'email'], ['th', 'อีเมล'], ['ja', 'メール']]) {
+    const search = await client.callTool({ name: 'search_docs', arguments: { query, locale } });
+    assert(!search.isError, JSON.stringify(search));
+    assert(JSON.parse(search.content[0].text).some(page => page.url === `/${locale}/sign-in`));
+  }
   const guide = await client.callTool({ name: 'read_guide', arguments: { path: '/en/sign-in' } });
   assert(!guide.isError, JSON.stringify(guide));
   assert(guide.content[0].text.includes('Source: ' + health.origin));

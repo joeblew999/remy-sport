@@ -1,3 +1,4 @@
+import { networkFetch as fetch } from './network.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 const origin = process.argv[2];
