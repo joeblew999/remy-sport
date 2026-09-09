@@ -142,3 +142,22 @@ export async function visit(page: Page, surface: Surface, opts: OpenOptions = {}
   if (previous.startsWith("http") && previous.split("#")[0] === page.url().split("#")[0] && previous !== page.url()) await page.reload()
   return url
 }
+
+/**
+ * Switch the interface language, however the control currently works.
+ *
+ * Five specs pressed `lang-th` directly, which was right while the switcher was
+ * a `ToggleGroup` of always-visible buttons. It became the registry's `Select`
+ * when the Product Owner said ten to fifteen languages were coming — the item
+ * only exists while the menu is open — and five specs broke at once for a
+ * reason that had nothing to do with what any of them was testing.
+ *
+ * Same lesson as the surface map above: the tests were coupled to the control,
+ * so changing the control was a change to the tests. One helper, and the next
+ * change to the picker is one edit here.
+ * docs/2026-09-09-15-language-picker-at-fifteen.md.
+ */
+export async function switchLanguage(page: Page, locale: string): Promise<void> {
+  await page.getByTestId("lang-switch").click()
+  await page.getByTestId(`lang-${locale}`).click()
+}

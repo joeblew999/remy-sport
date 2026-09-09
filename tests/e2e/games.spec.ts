@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test"
 import { stateFor, actor, COACH } from "../helpers/auth"
+import { switchLanguage } from "../helpers/surfaces"
 
 /**
  * Entering a score through the browser, against a real Worker.
@@ -103,7 +104,7 @@ test.describe("Refusals are translated", () => {
 
     // Same refusal, same code, different language. The switcher is the
     // ToggleGroup in the sidebar's Settings group (B2 step 8).
-    await page.getByTestId("lang-th").click()
+    await switchLanguage(page, "th")
     await page.getByTestId("tab-games").click()
     await submit()
     await expect(page.getByTestId("add-fixture-error")).toHaveText("ทีมไม่สามารถแข่งกับตัวเองได้")

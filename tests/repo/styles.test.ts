@@ -152,6 +152,50 @@ rule("every class in the stylesheet is rendered by something", dead,
   `Delete the rules, or if the name is composed at runtime add it to DYNAMIC_CLASSES with where.`,
   `styles: ${classNames.length} classes, all rendered`)
 
+/* And every one of them says why it is not a component.
+
+   The rule above asks whether a class is used. This asks the harder question:
+   whether it should exist. The stylesheet's own header says "anything else
+   that arrives here is a component that should have been installed instead" —
+   which was a comment, and a comment does not stop the fourth rule landing on
+   a quiet afternoon. The dead half of this file that the rule above deleted in
+   2026-09 got in one class at a time, each defensible on its own.
+
+   A name here is a claim that the registry cannot carry this, and the sentence
+   beside it is the claim. Three today. Adding a fourth should feel like being
+   asked a question, because it is one: `bun run ops ui add <item>` is almost
+   always the other answer. */
+const OURS: Record<string, string> = {
+  dark: "shadcn's own dark mode class, put on <html> by the theme provider — not ours to remove",
+  topbar:
+    "the 56px chrome row's exemption from the 44px touch floor. A registry component cannot " +
+    "carry it: the rule has to reach the registry's own controls INSIDE the row, from outside them",
+  "moq-media":
+    "the picture area. Native video and <moq-watch> have no intrinsic size before the first " +
+    "frame, so 16:9 and a black ground are reserved here. This is the sport-media exception, " +
+    "and the only place in the app a colour is written as a literal",
+}
+/* Selectors only, and with quoted strings removed.
+
+   `classNames` above reads every `.name` anywhere in the file, which includes
+   the `.css` of `@import "shadcn/tailwind.css"`. That is harmless to the rule
+   above — "css" appears in src/web, so it is never reported dead — and would be
+   a permanent false positive here. Quoted text is dropped rather than the
+   `@import` line, because the same is true of `[data-slot="a.b"]`: a class name
+   is never inside a string. */
+const ourClasses = [...new Set(
+  blocks(css).flatMap(b =>
+    [...b.selector.replace(/"[^"]*"|'[^']*'/g, "").matchAll(/\.(-?[_a-zA-Z][\w-]*)/g)].map(m => m[1]!),
+  ),
+)]
+const unexplained = ourClasses.filter(name => !(name in OURS))
+rule("every class of our own says why it is not a component", unexplained,
+  `${CSS_PATH} has ${unexplained.length} class(es) with no entry in OURS:\n  ${unexplained.join(", ")}\n\n` +
+  `Install the registry item instead — \`bun run ops ui add <item>\` — or, if the registry genuinely\n` +
+  `cannot carry it, add the name to OURS in this file with the sentence saying why. The list is the\n` +
+  `record of every deliberate exception, and it is meant to stay short.`,
+  `styles: ${Object.keys(OURS).length} rule(s) of our own, each with its reason`)
+
 /* Uppercase is a presentation decision, so it is made in CSS (the allowlist
    above), never in the copy. Eleven English messages were written in capitals
    — crumbs, statuses, a panel heading — and stayed that way after the

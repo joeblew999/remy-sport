@@ -567,10 +567,26 @@ export const INVITE_STATUS_CODES = INVITE_STATUS.map((t) => t.code) as unknown a
 ]
 export type InviteStatusCode = (typeof INVITE_STATUS_CODES)[number]
 
+/**
+ * The languages, each named in its own.
+ *
+ * `endonym` is what the picker shows, and it is the field that scales: one
+ * string per language, written once. `names` is the older N×N shape — every
+ * language named in every other — which is nine strings at three languages and
+ * two hundred and twenty-five at fifteen, with every addition editing all the
+ * existing entries. It stays for prose that genuinely needs "translated into
+ * Japanese" in a sentence and is not extended for new languages.
+ *
+ * A picker naming languages in their own is also simply correct: somebody who
+ * cannot read the current interface has to be able to find theirs, and nobody
+ * looking for Japanese scans for "ญี่ปุ่น".
+ *
+ * docs/2026-09-09-15-language-picker-at-fifteen.md.
+ */
 export const LOCALE = [
-  { code: "th", status: "released", names: {"th":"ไทย","en":"Thai","ja":"タイ語"} },
-  { code: "en", status: "released", names: {"th":"อังกฤษ","en":"English","ja":"英語"} },
-  { code: "ja", status: "released", names: {"th":"ญี่ปุ่น","en":"Japanese","ja":"日本語"} },
+  { code: "th", status: "released", endonym: "ไทย", names: {"th":"ไทย","en":"Thai","ja":"タイ語"} },
+  { code: "en", status: "released", endonym: "English", names: {"th":"อังกฤษ","en":"English","ja":"英語"} },
+  { code: "ja", status: "released", endonym: "日本語", names: {"th":"ญี่ปุ่น","en":"Japanese","ja":"日本語"} },
 ] as const
 
 export const LOCALE_CODES = LOCALE.map((t) => t.code) as unknown as [

@@ -42,6 +42,7 @@ import { ButtonLink } from "./button-link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { DateField } from "./date-field";
 import { Item, ItemActions, ItemContent, ItemGroup } from "@/components/ui/item";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Muted, SectionHeading } from "./page"
@@ -385,14 +386,20 @@ function ManageFixture({ game }: { game: Game }) {
       }}
     >
       <Label className="sr-only" htmlFor={`starts-${game.id}`}>{m.fixture_when()}</Label>
-      <Input
-        id={`starts-${game.id}`}
-        name="startsAt"
-        type="datetime-local"
-        data-testid={`fixture-when-${game.id}`}
-        defaultValue={toLocalInput(game.startsAt, game.timezone)}
-        required
-      />
+      {/* Column, because this row is `flex items-center` and the read back
+          belongs under its own control rather than beside the Save button.
+          Rescheduling is the field where 05/09 against 09/05 moves a fixture by
+          four months, so it is the last one that should stay ambiguous. */}
+      <div className="flex flex-col gap-1">
+        <DateField
+          id={`starts-${game.id}`}
+          name="startsAt"
+          withTime
+          data-testid={`fixture-when-${game.id}`}
+          defaultValue={toLocalInput(game.startsAt, game.timezone)}
+          required
+        />
+      </div>
       <Button type="submit" data-testid={`save-fixture-${game.id}`} disabled={move.isPending}>
         {move.isPending ? m.event_saving() : m.event_save()}
       </Button>
@@ -690,7 +697,7 @@ export function AddFixture({ eventId, can, timezone }: { eventId: string; can: E
         <FieldGroup className="max-w-[420px]">
           <Field>
             <FieldLabel htmlFor="gen-start">{m.first_matchday()}</FieldLabel>
-            <Input id="gen-start" name="startDate" type="date" required data-testid="generate-start" />
+            <DateField id="gen-start" name="startDate" required data-testid="generate-start" />
           </Field>
           <Button type="submit" data-testid="generate-submit" disabled={generate.isPending} className="w-fit">
             {generate.isPending ? m.org_saving() : m.generate_fixtures()}
@@ -745,7 +752,7 @@ export function AddFixture({ eventId, can, timezone }: { eventId: string; can: E
           </Field>
           <Field data-invalid={!!addErr.field("startsAt") || undefined}>
             <FieldLabel htmlFor="fixture-starts">{m.fixture_when()} {timezone}</FieldLabel>
-            <Input id="fixture-starts" name="startsAt" type="datetime-local" required data-testid="fixture-starts" />
+            <DateField id="fixture-starts" name="startsAt" withTime required data-testid="fixture-starts" />
             {addErr.field("startsAt") && (
               <FieldError data-testid="fixture-starts-issue">
                 {addErr.field("startsAt")}

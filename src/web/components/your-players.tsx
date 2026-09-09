@@ -39,6 +39,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { DateField } from "./date-field"
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 
@@ -208,8 +209,10 @@ function AddPlayer({ onDone }: { onDone: () => void }) {
         <Field>
           <FieldLabel htmlFor="add-dob">{m.player_dob()}</FieldLabel>
           {/* A real date input: the API wants YYYY-MM-DD and a free-text box is how
-              "18/04/2012" reaches it and comes back a 400 the parent cannot read. */}
-          <Input id="add-dob" name="dob" type="date" required data-testid="add-player-dob" />
+              "18/04/2012" reaches it and comes back a 400 the parent cannot read.
+              The read back underneath is in the parent's language, because the
+              native picker is in the browser's. */}
+          <DateField id="add-dob" name="dob" required data-testid="add-player-dob" />
         </Field>
 
         <Field>

@@ -30,7 +30,7 @@
 
 import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
-import { ALL_LOCALES, LOCALES } from "../../src/domain/vocabularies"
+import { ALL_LOCALES, LOCALE, LOCALES } from "../../src/domain/vocabularies"
 import { ERRORS } from "../../src/api/errors"
 import { rule } from "./helpers"
 
@@ -130,4 +130,30 @@ rule(
     problems.map((p) => `  ${p}`).join("\n") +
     `\n\nA missing translation does not fail the paraglide build — it silently\n` +
     `renders English. That is why this check exists.`,
+)
+
+/**
+ * Every declared language names itself.
+ *
+ * The picker shows `endonym` — the language in its own words — because somebody
+ * who cannot read the current interface still has to find theirs, and because
+ * the older `names` shape is N×N: nine strings at three languages, two hundred
+ * and twenty-five at fifteen, with every addition editing all the existing
+ * entries.
+ *
+ * So a language added without one would fall back to its two-letter code in the
+ * one control whose whole job is to be readable by somebody who is lost. This
+ * is the check that stops that arriving with the tenth language rather than the
+ * fourth. docs/2026-09-09-15-language-picker-at-fifteen.md.
+ */
+const nameless = LOCALE.filter((l) => !("endonym" in l) || !String((l as { endonym?: string }).endonym ?? "").trim())
+  .map((l) => l.code)
+rule(
+  "every declared language names itself in its own words",
+  nameless,
+  `check-messages: ${nameless.length} locale(s) with no endonym: ${nameless.join(", ")}\n\n` +
+    `Add it to LOCALE in the model — the language's own name for itself, written once.\n` +
+    `Without it the picker falls back to the two-letter code, which is what it is\n` +
+    `there to replace.`,
+  `check-messages: ${LOCALE.length} declared locale(s), each naming itself`,
 )

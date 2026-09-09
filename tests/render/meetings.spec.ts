@@ -45,7 +45,7 @@ const asked = {
   title: "Coaches catch-up",
   createdBy: "usr_org_002",
   createdByName: niran.name,
-  startsAt: null,
+  startsAt: null as string | null,
   myStatusCode: "INVITED" as const,
   participants: [
     { userId: "usr_org_002", name: niran.name, statusCode: "ACCEPTED" as const },
@@ -71,6 +71,53 @@ test.describe("The list", () => {
     await expect(page.getByTestId("meeting-yours")).toContainText(yours.title)
     await expect(page.getByTestId(`accept-${asked.id}`)).toBeVisible()
     await expect(page.getByTestId(`decline-${asked.id}`)).toBeVisible()
+  })
+
+  /**
+   * The instant, rendered — asserted by its properties rather than its exact
+   * characters.
+   *
+   * The first version compared against `formatTimeOn("en", …)` called here, and
+   * failed: this process is Node and the page is WebKit, and their ICU builds
+   * write the same instant as "Oct 3 at 02:30 PM" and "Oct 3, 02:30 PM". That
+   * is a difference between two correct renderings, so pinning either one makes
+   * the test a report on which JavaScript engine ran it.
+   */
+  const TIMED = "2026-10-03T07:30:00.000Z"
+
+  test("says when a meeting is, as a time and not as an ISO string", async ({ page }) => {
+    await seed(page, [{ ...yours, startsAt: TIMED }])
+    await visit(page, "meetings")
+
+    const row = page.getByTestId(`meeting-${yours.id}`)
+    await expect(row).toContainText(/\d{1,2}:\d{2}/)
+    await expect(row, "the row must not show the wire format").not.toContainText(TIMED)
+  })
+
+  test("renders that same instant differently for a Thai reader", async ({ page }) => {
+    await seed(page, [{ ...yours, startsAt: TIMED }])
+    await visit(page, "meetings")
+    const english = await page.getByTestId(`meeting-${yours.id}`).innerText()
+
+    await page.addInitScript(() => localStorage.setItem("remy.locale", "th"))
+    await seed(page, [{ ...yours, startsAt: TIMED }])
+    await visit(page, "meetings")
+    const thai = await page.getByTestId(`meeting-${yours.id}`).innerText()
+
+    // The claim is that the time goes through the reader's locale like every
+    // other date on the site, and this is the shortest thing that can only be
+    // true if it does.
+    expect(thai).not.toBe(english)
+  })
+
+  test("says nothing about time when there is none, because that means now", async ({ page }) => {
+    await seed(page, [yours])
+    await visit(page, "meetings")
+
+    const row = page.getByTestId(`meeting-${yours.id}`)
+    await expect(row).toContainText(m.meeting_from({ name: niran.name }, { locale: "en" }))
+    // Not "—", not "no time set". The absence already says it.
+    await expect(row).not.toContainText("·  ·")
   })
 })
 
@@ -107,7 +154,9 @@ test.describe("Starting one", () => {
 
     await form.getByTestId("meeting-people-search").fill("zzzz")
     await expect(page.getByTestId("meeting-people-none")).toBeVisible()
-    await expect(page.getByTestId("meeting-people-none")).toHaveText(m.meeting_no_match({}, { locale: "en" }))
+    // The picker's own sentence, not the meeting's: the control is shared now,
+    // and the reason nobody matched is the same wherever it is used.
+    await expect(page.getByTestId("meeting-people-none")).toHaveText(m.people_no_match({}, { locale: "en" }))
   })
 
   test("keeps who you chose while you carry on searching", async ({ page }) => {
@@ -123,6 +172,36 @@ test.describe("Starting one", () => {
     // filtered.
     await search.fill("Somchai")
     await expect(page.getByTestId(`chosen-${niran.id}`)).toBeVisible()
+  })
+
+  test("asks when, and treats an empty answer as now", async ({ page }) => {
+    const form = await openDialog(page)
+
+    // Nullable, and null means now. A required time would be the field nobody
+    // wants to fill in for "let us talk", which is why this feature exists.
+    await expect(form.getByTestId("meeting-when")).toBeVisible()
+    await expect(form).toContainText(m.meeting_when_hint({}, { locale: "en" }))
+    await form.getByTestId("meeting-title").fill("Squad selection")
+    await page.getByTestId(`pick-${niran.id}`).click()
+    await expect(page.getByTestId("meeting-send"), "no time is a valid meeting").toBeEnabled()
+  })
+
+  test("sends the chosen time as an instant, not as somebody's wall clock", async ({ page }) => {
+    const form = await openDialog(page)
+    await form.getByTestId("meeting-title").fill("Squad selection")
+    await page.getByTestId(`pick-${niran.id}`).click()
+    await form.getByTestId("meeting-when").fill("2026-10-03T14:30")
+
+    // Read back in the reader's language, because the native control renders in
+    // the browser's — the whole point of DateField.
+    await expect(page.getByTestId("meeting-when-read-back")).toContainText("2026")
+
+    const posted = page.waitForRequest((r) => r.url().includes("/rpc/") && r.method() === "POST")
+    await page.getByTestId("meeting-send").click()
+    const body = (await posted).postData() ?? ""
+    // A UTC instant. Sending "2026-10-03T14:30" raw would be half past two in
+    // whichever timezone the server happened to read it in.
+    expect(body, body).toMatch(/"startsAt":"2026-10-03T\d{2}:\d{2}:\d{2}(\.\d+)?Z"/)
   })
 
   test("sends the people you chose, and cannot be sent empty", async ({ page }) => {

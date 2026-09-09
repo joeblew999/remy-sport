@@ -2,7 +2,9 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, orpc } from "../lib/orpc";
 import { m } from "../lib/i18n";
+import { formatTimeOn, fromLocalInput } from "../lib/dates";
 import { useSession } from "../lib/session";
+import { useLocale } from "../lib/locale";
 import { parseRoute, signInRoute, routeHref } from "../lib/router";
 import { PageHeader, PageInner, SectionHeading, Muted } from "../components/page";
 import { EmptyState, Loading } from "../components/states";
@@ -19,10 +21,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
 import { PeoplePicker, type Person } from "../components/people-picker";
+import { DateField } from "../components/date-field";
 
 /**
  * @answers CREATE_MEETING, RESPOND_TO_MEETING_INVITE
@@ -37,8 +40,26 @@ import { PeoplePicker, type Person } from "../components/people-picker";
  *
  * docs/2026-09-09-13-meetings.md.
  */
+/**
+ * When a meeting is, on the reader's own clock and in their language.
+ *
+ * The instant is UTC and the zone is the browser's, because a meeting has no
+ * venue to take one from — unlike a fixture, where the court's zone is the only
+ * correct answer and `lib/dates.ts` refuses to guess.
+ */
+function formatMeetingWhen(locale: string, startsAt: string): string {
+  const at = new Date(startsAt);
+  if (Number.isNaN(at.getTime())) return "";
+  // `formatTimeOn`, not a day and a clock composed here: the day has to come
+  // from the same instant in the same zone as the time. Slicing the ISO string
+  // for the date reads it in UTC, so a 23:00Z meeting rendered "10 Sep · 06:00"
+  // in Bangkok — the right clock on the wrong day.
+  return formatTimeOn(locale, at, null);
+}
+
 export function MeetingsPage() {
   const { user, loading } = useSession();
+  const { locale } = useLocale();
   const qc = useQueryClient();
   const q = useQuery({ ...orpc.meetings.mine.queryOptions(), enabled: Boolean(user) });
 
@@ -69,9 +90,15 @@ export function MeetingsPage() {
         <ItemTitle>{mt.title}</ItemTitle>
         <ItemDescription>
           {[
+            // When it is, first: an invitation you cannot answer without
+            // knowing the time is not an invitation. Null means now, and "now"
+            // is what the absence of a time already says, so nothing is shown.
+            mt.startsAt ? formatMeetingWhen(locale, mt.startsAt) : null,
             m.meeting_from({ name: mt.createdByName }),
             m.meeting_people_count({ count: mt.participants.length }),
-          ].join(" · ")}
+          ]
+            .filter(Boolean)
+            .join(" · ")}
         </ItemDescription>
       </ItemContent>
       <ItemActions>
@@ -160,14 +187,30 @@ function NewMeeting({ onCreated }: { onCreated: () => void }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [picked, setPicked] = useState<Person[]>([]);
+  /**
+   * Wall clock on the reader's own screen, sent as a UTC instant.
+   *
+   * Empty stays empty: `startsAt` is nullable and null means *now*, which is the
+   * common case — "let us talk" is why this feature exists, and a required time
+   * would be a field nobody wants to fill in. The optional one is for the other
+   * case, which is a meeting arranged across three time zones and two calendars.
+   */
+  const [startsAt, setStartsAt] = useState("");
   const people = useQuery({ ...orpc.people.list.queryOptions(), enabled: open });
 
   const create = useMutation({
-    mutationFn: () => api.meetings.create({ title, userIds: picked.map((p) => p.id) }),
+    mutationFn: () =>
+      api.meetings.create({
+        title,
+        userIds: picked.map((p) => p.id),
+        // The browser's zone, because a meeting has no venue to take one from.
+        ...(startsAt ? { startsAt: fromLocalInput(startsAt, null) } : {}),
+      }),
     onSuccess: () => {
       setOpen(false);
       setTitle("");
       setPicked([]);
+      setStartsAt("");
       onCreated();
     },
   });
@@ -188,6 +231,17 @@ function NewMeeting({ onCreated }: { onCreated: () => void }) {
               onChange={(e) => setTitle(e.target.value)}
               data-testid="meeting-title"
             />
+          </Field>
+          <Field orientation="vertical">
+            <FieldLabel htmlFor="meeting-when">{m.meeting_when_label()}</FieldLabel>
+            <DateField
+              id="meeting-when"
+              withTime
+              value={startsAt}
+              onChange={(e) => setStartsAt(e.target.value)}
+              data-testid="meeting-when"
+            />
+            <FieldDescription>{m.meeting_when_hint()}</FieldDescription>
           </Field>
           <Field orientation="vertical">
             <FieldLabel htmlFor="meeting-people-search">{m.meeting_people_label()}</FieldLabel>

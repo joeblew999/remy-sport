@@ -1,5 +1,5 @@
 import { test, expect } from "./fixture"
-import { visit } from "../helpers/surfaces"
+import { switchLanguage, visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { apiReference } from "../helpers/api-fixtures"
 import { VOCABULARY as REF } from "../../src/domain/vocabularies"
@@ -84,7 +84,7 @@ test.describe("Filtering events by province", () => {
     await page.getByTestId("province-filter").selectOption("CMI")
     await expect(page.getByTestId("event-row")).toHaveCount(1)
 
-    await page.getByTestId("lang-th").click()
+    await switchLanguage(page, "th")
     await expect(page.getByTestId("event-row")).toHaveCount(1)
     // And the control still agrees with the list, which is the half that made
     // the old bug hard to see.

@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { DateField } from "./date-field";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 
 /** @answers CREATE_PLAYER
@@ -89,8 +90,10 @@ export function NewPlayer({ teamId, onCreated }: { teamId?: string; onCreated: (
           <FieldLabel htmlFor="new-player-dob">{m.player_dob()}</FieldLabel>
           {/* A real date control, for the same reason the guardian form uses one:
               the API wants YYYY-MM-DD, and a text box is how "18/04/2012" reaches
-              it and comes back a 400 nobody can read. */}
-          <Input id="new-player-dob" name="dob" type="date" required data-testid="new-player-dob" />
+              it and comes back a 400 nobody can read. `DateField` adds the read
+              back in the reader's own language — a birthday is the field where
+              05/09 versus 09/05 is four months of a child's age. */}
+          <DateField id="new-player-dob" name="dob" required data-testid="new-player-dob" />
         </Field>
 
         <Field>

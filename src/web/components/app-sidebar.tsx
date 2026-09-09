@@ -11,7 +11,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Switch } from "@/components/ui/switch";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import type { PwaInstall } from "../lib/installable";
 import type { ComponentProps } from "react";
 import { useSession } from "../lib/session";
 import { useLocale, type Locale } from "../lib/locale";
+import { LOCALE } from "../../domain/vocabularies";
 import { useTheme } from "../lib/theme-provider";
 import { m } from "../lib/i18n";
 import { routeHref, type Page } from "../lib/router";
@@ -56,6 +57,10 @@ import { Label } from "@/components/ui/label";
  * per render — a message is a call, not a constant, and module scope is how
  * the old sidebar froze into English on a Thai page.
  */
+
+/** A language in its own name, from the model. Falls back to the code so a
+ *  language declared without one is visible rather than blank. */
+const endonymOf = (code: string) => LOCALE.find((l) => l.code === code)?.endonym ?? code.toUpperCase();
 
 interface NavItem {
   id: Page;
@@ -131,28 +136,42 @@ function SettingsGroup({ spoiler, onSpoilerChange }: {
           <ThemeRow />
           <div className="flex items-center justify-between gap-2">
             <Muted as="span">{m.language()}</Muted>
-            <ToggleGroup
-              variant="outline"
-              size="sm"
-              spacing={0}
-              value={locale ? [locale] : []}
-              data-testid="lang-switch"
-              aria-label={m.language()}
-              onValueChange={(groupValue: unknown[]) => {
-                // Base UI hands back the whole group's values; with one
-                // toggle allowed, the last of them is the choice. Empty
-                // means the pressed language was pressed again — a language
-                // is not a toggle you can switch off, so it stays.
-                const next = groupValue.at(-1);
-                if (typeof next === "string") setLocale(next as Locale);
+            {/*
+              The registry's Select, because this row has to survive fifteen
+              languages and a ToggleGroup of two-letter codes does not: PT beside
+              PL, FA beside FI, wrapping over four lines, and the name a reader
+              actually scans for never shown at all.
+
+              Each language is named in its own — `endonym` on the model — so
+              somebody who cannot read the current interface can still find
+              theirs. Not NativeSelect, whose options the operating system draws,
+              so the stylesheet's font tail cannot reach them and an endonym is
+              exactly where tofu appears.
+              docs/2026-09-09-15-language-picker-at-fifteen.md.
+            */}
+            <Select
+              value={locale ?? ""}
+              onValueChange={(next: unknown) => {
+                // A language is not a toggle you can switch off; an empty
+                // choice means the open menu was dismissed, and it stays.
+                if (typeof next === "string" && next) setLocale(next as Locale);
               }}
             >
-              {available.map((code) => (
-                <ToggleGroupItem key={code} value={code} data-testid={`lang-${code}`}>
-                  {code.toUpperCase()}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
+              <SelectTrigger size="sm" className="w-auto min-w-28" data-testid="lang-switch" aria-label={m.language()}>
+                {/* Base UI renders the raw value unless told otherwise, so the
+                    trigger said "en" while the list said "English". The trigger
+                    is the one place a reader who cannot read the interface looks
+                    to see what it is set to, so it says the endonym too. */}
+                <SelectValue>{(code: unknown) => endonymOf(String(code))}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {available.map((code) => (
+                  <SelectItem key={code} value={code} data-testid={`lang-${code}`}>
+                    {endonymOf(code)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <Label className="flex items-center justify-between gap-2 text-sm">
             <span>{m.spoiler_mode()}</span>

@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { DateField } from "./date-field"
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item"
 import { Label } from "@/components/ui/label"
 
@@ -156,12 +157,12 @@ export function EventSessions({ eventId, can, timezone }: { eventId: string; can
 
             <Field>
               <FieldLabel htmlFor="session-start">{m.event_session_starts()}</FieldLabel>
-              <Input id="session-start" name="startsAt" type="datetime-local" required data-testid="session-start" />
+              <DateField id="session-start" name="startsAt" withTime required data-testid="session-start" />
             </Field>
 
             <Field>
               <FieldLabel htmlFor="session-end">{m.event_session_ends()}</FieldLabel>
-              <Input id="session-end" name="endsAt" type="datetime-local" required data-testid="session-end" />
+              <DateField id="session-end" name="endsAt" withTime required data-testid="session-end" />
             </Field>
 
             <Button type="submit" data-testid="session-save" disabled={addSession.isPending} className="w-fit">

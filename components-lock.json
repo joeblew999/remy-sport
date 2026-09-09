@@ -164,6 +164,11 @@
         "src/web/components/ui/input.tsx": "dab990dfefa0ba78854ab6602ad074270dba9d7d1262184d9bfbb62bd990903b",
         "src/web/components/ui/textarea.tsx": "82601c91ffc6c727d924162c78d7cb853114bcced4e2eb922a68ca12d4239c0f"
       }
+    },
+    "@shadcn/select": {
+      "files": {
+        "src/web/components/ui/select.tsx": "d3c275e0212325c0bba459800fb155839783d33d5c91d363b5b974973aa7e9e0"
+      }
     }
   }
 }

@@ -1,5 +1,5 @@
 import { test, expect } from "./fixture"
-import { visit } from "../helpers/surfaces"
+import { switchLanguage, visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { m } from "../../src/web/lib/i18n"
 import { VOCABULARY, LOCALES } from "../../src/domain/vocabularies"
@@ -50,7 +50,11 @@ test.describe("Localisation, rendered", () => {
     await visit(page, "discover")
     // The switcher is the ToggleGroup in the sidebar's Settings group (B2
     // step 8); the sidebar is open at this test's desktop width.
-    await expect(page.getByTestId("lang-switch").locator("button")).toHaveCount(LOCALES.length)
+    // The options live in the menu now, not in the row — a closed Select is one
+    // control whatever the list holds, which is the point of the change.
+    await page.getByTestId("lang-switch").click()
+    await expect(page.getByRole("option")).toHaveCount(LOCALES.length)
+    await page.keyboard.press("Escape")
   })
 
   test("switching to Thai translates the chrome AND the data together", async ({ page }) => {
@@ -58,7 +62,7 @@ test.describe("Localisation, rendered", () => {
     await visit(page, "discover")
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(m.discover_heading({}, { locale: "en" }))
 
-    await page.getByTestId("lang-th").click()
+    await switchLanguage(page, "th")
 
     // UI copy — from the compiled messages.
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(m.discover_heading({}, { locale: "th" }))
@@ -75,7 +79,7 @@ test.describe("Localisation, rendered", () => {
   test("the choice survives a reload", async ({ page }) => {
     await seeded(page)
     await visit(page, "discover")
-    await page.getByTestId("lang-th").click()
+    await switchLanguage(page, "th")
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(m.discover_heading({}, { locale: "th" }))
 
     await page.reload()
@@ -135,7 +139,7 @@ test.describe("the document's language attribute", () => {
     await visit(page, "discover")
     await expect(page.locator("html")).toHaveAttribute("lang", "en")
 
-    await page.getByRole("button", { name: "TH", exact: true }).click()
+    await switchLanguage(page, "th")
     await expect(page.locator("html")).toHaveAttribute("lang", "th")
   })
 })

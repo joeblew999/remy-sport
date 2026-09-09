@@ -39,6 +39,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { DateField } from "./date-field"
 import { Label } from "@/components/ui/label"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { Textarea } from "@/components/ui/textarea"
@@ -158,12 +159,11 @@ export function EventSettings({ event }: { event: Event }) {
 
             <Field data-invalid={!!err.field("startDate") || undefined}>
               <FieldLabel htmlFor="event-start">{m.event_start_label()}</FieldLabel>
-              <Input
+              <DateField
                 id="event-start"
                 aria-invalid={!!err.field("startDate")}
                 aria-describedby={err.field("startDate") ? "event-start-issue" : undefined}
                 name="startDate"
-                type="date"
                 data-testid="event-start-input"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
@@ -175,12 +175,11 @@ export function EventSettings({ event }: { event: Event }) {
 
             <Field data-invalid={!!err.field("endDate") || undefined}>
               <FieldLabel htmlFor="event-end">{m.event_end_label()}</FieldLabel>
-              <Input
+              <DateField
                 id="event-end"
                 aria-invalid={!!err.field("endDate")}
                 aria-describedby={err.field("endDate") ? "event-end-issue" : undefined}
                 name="endDate"
-                type="date"
                 data-testid="event-end-input"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}

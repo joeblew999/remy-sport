@@ -1,5 +1,5 @@
 import { test, expect } from "./fixture"
-import { visit } from "../helpers/surfaces"
+import { switchLanguage, visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { projectEvent, projectEntries, projectGamesIn, projectTeam, projectRoster, projectPlayer } from "../helpers/projections"
 
@@ -34,7 +34,7 @@ test("division survives tabs, reload and language change; each game opens the ri
   await expect(page.getByTestId("event-division")).toHaveValue(division)
   await page.reload()
   await expect(page.getByTestId("tab-standings")).toHaveAttribute("aria-current", "page")
-  await page.getByRole("button", { name: "TH", exact: true }).click()
+  await switchLanguage(page, "th")
   await expect(page.getByTestId("event-division")).toHaveValue(division)
   await expect(page.getByTestId("tab-standings")).toHaveAttribute("aria-current", "page")
   await page.getByTestId("tab-games").click()
