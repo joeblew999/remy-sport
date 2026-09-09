@@ -1,6 +1,11 @@
 # Plan — team page sections as tabs
 
-Status: proposed 2026-09-09; planning only, no application changes.
+Status: implemented 2026-09-09; verification in progress.
+
+Roster/Schedule/Manage panels, URL aliases, shared permission checks and query
+error handling are implemented. The team and permission rendering checks pass
+(27 tests). Full verification found unrelated notification-style failure and
+two Worker test timeouts; browser/visual checks are in progress.
 
 ## Problem and evidence
 

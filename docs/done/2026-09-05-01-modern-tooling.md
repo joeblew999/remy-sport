@@ -1,9 +1,13 @@
 # Plan — modern tools do what `scripts/` does by hand
 
+Archive: completed (2026-09-09). Tooling migration; wider CLI redesign was stopped.
+
+Current work: [project index](../README.md). Original evidence follows.
+
 Reconciled 2026-09-07. Completed tooling migration history. The commands, counts and timings below
 are dated checkpoints; use the root README for current commands. Staging
 deploy now also runs remote browser verification. Wider CLI redesign is stopped.
-See [current status](README.md).
+See [current status](../README.md).
 
 ## Why
 

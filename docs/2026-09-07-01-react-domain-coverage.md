@@ -9,7 +9,7 @@ relay scope enforcement and five accepted model actions remain open.
 
 - Existing staging browser coverage passed twice: 42 passes, four development-only
   skips, retries disabled, including admin impersonation and checked cleanup.
-  Last verified application is `e1fa4dc`; see [the rollout record](2026-09-07-03-staging-broadcast.md).
+  Last verified application is `e1fa4dc`; see [the rollout record](done/2026-09-07-03-staging-broadcast.md).
 - Basic local/staging broadcasting works. Optional local scoped-relay protocol
   checks passed, but staging still uses shared Cloudflare credentials. There is
   no remaining dashboard/token setup blocker for ordinary broadcasting.

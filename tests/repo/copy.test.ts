@@ -28,7 +28,7 @@ import { rule } from "./helpers"
 // and the render-tier i18n checks. Two sr-only strings still mount from
 // `ui/sidebar.tsx` (the mobile Sheet's "Sidebar" title and description) —
 // hardcoded upstream, not parameterisable; accepted and recorded in
-// docs/2026-09-08-01-typography-and-design-system.md, B2 step 8.
+// docs/done/2026-09-08-01-typography-and-design-system.md, B2 step 8.
 const files = sources("src/web").filter((f) => !f.startsWith("src/web/components/ui/"))
 const problems = copyProblems(files)
 

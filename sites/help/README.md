@@ -103,7 +103,7 @@ reserved canonical origin. Published production help is indexable. Thai/Japanese
 LLM checks verify output; they do not prove Google indexing or Gemini discovery.
 
 [Plan and verification record](../../docs/2026-09-09-04-blume-public-help.md) ·
-[Upstream bugs and fixes](../../docs/2026-09-09-05-fumapress-source-review.md)
+[Upstream bugs and fixes](../../docs/done/2026-09-09-05-fumapress-source-review.md)
 
 ## Cloudflare environments
 

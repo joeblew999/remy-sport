@@ -1,5 +1,9 @@
 # oRPC Blume documentation review
 
+Archive: completed (2026-09-09). Runtime review delivered; no adoption claimed.
+
+Current work: [project index](../README.md). Original evidence follows.
+
 Status: runtime review completed, 2026-09-09. User requested cloning oRPC
 and running its content app to assess LLM retrieval and product discovery.
 No Remy Sport application changes are part of this review.

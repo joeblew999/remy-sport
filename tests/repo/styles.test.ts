@@ -5,7 +5,7 @@
  * stops a rule from drifting: a literal font name in one selector, an 11px
  * label, a new metadata line set in monospace because the row above it was.
  * That is how the file reached 61 monospace rules and 57 rules under 12px
- * before docs/2026-09-08-01-typography-and-design-system.md. Each rule here
+ * before docs/done/2026-09-08-01-typography-and-design-system.md. Each rule here
  * names the drift it stops.
  *
  * Blocks are parsed with a regex over comment-stripped CSS: the innermost

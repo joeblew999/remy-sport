@@ -1,12 +1,16 @@
 # Plan — who sees what, generated and checked
 
+Archive: superseded (2026-09-09). The team matrix landed; remaining whole-app coverage belongs to GAP-06–08 in ../2026-09-07-01-react-domain-coverage.md.
+
+Current work: [project index](../README.md). Original evidence follows.
+
 Reconciled 2026-09-07: **partially implemented**. Shared action gates and
 `tests/render/who-sees-what.spec.ts` exist; the matrix covers the team page.
 A generated whole-app permission table and exhaustive identity/state coverage
 are not complete. The proposal below describes the original target, not
 verified behavior. Its steps are historical scope, not a second backlog;
-continue through GAP-06–08 in the [domain register](2026-09-07-01-react-domain-coverage.md).
-See [current status](README.md).
+continue through GAP-06–08 in the [domain register](../2026-09-07-01-react-domain-coverage.md).
+See [current status](../README.md).
 
 ## Why
 

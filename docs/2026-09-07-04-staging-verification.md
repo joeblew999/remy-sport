@@ -51,3 +51,19 @@ mise pins tools/environment. Commander was proposed but not adopted or installed
 The earlier mise task migration proposal was withdrawn. GitHub CI and Dependabot
 were removed. Native builds and model/dependency maintenance remain real work;
 no command renaming or deletion is authorized by this reconciliation.
+
+## Verification findings — 2026-09-09 team-tabs run
+
+The full local check hit two 5-second Worker timeouts in `tests/worker/me.test.ts`
+and `tests/worker/projection-equivalence.test.ts`, plus the current notification
+style violation. Rendering was also running on this machine; these timeouts
+need a serial recheck before being called application defects. The full browser
+suite reported an organisation unknown-email assertion failure in
+`tests/e2e/orgs.spec.ts`; the team navigation failure was a stale exact-href
+selector after the trail began adding query parameters, corrected in the team
+work. No whole-gate pass is claimed.
+
+The browser CLI also interprets a positional spec path as another project after
+its final `--project authz` argument. A focused run via the supported `--grep`
+option works; positional forwarding needs a CLI fix and regression test before
+claiming all Playwright options are passed through.

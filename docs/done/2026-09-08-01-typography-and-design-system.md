@@ -1,5 +1,9 @@
 # Plan — convert the GUI to shadcn
 
+Archive: superseded (2026-09-09). The initial conversion landed; composition and visual acceptance continue in ../2026-09-09-07-main-content-on-the-registry.md. Archiving does not assert the full port was complete.
+
+Current work: [project index](../README.md). Original evidence follows.
+
 Status, 2026-09-09: the whole GUI is on shadcn, and the gate is green. Done
 and committed: Stage A (readable type), B1 (the tooling), B2 step 8 (the
 shell, `d2ae514`), step 9 (the forms, `b97f92f`), steps 10 to 13 (every

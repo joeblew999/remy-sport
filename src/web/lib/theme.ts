@@ -7,7 +7,7 @@
  * locale choice. What is here is the arithmetic: which of the three the
  * reader chose, what that resolves to right now, and what to put on the root.
  * The React provider and the switch that call it arrive with the shell
- * (docs/2026-09-08-01-typography-and-design-system.md, B2 step 8); until
+ * (docs/done/2026-09-08-01-typography-and-design-system.md, B2 step 8); until
  * then nothing mounts them and the app stays light. Kept free of the DOM so
  * the unit tier can pin it.
  */

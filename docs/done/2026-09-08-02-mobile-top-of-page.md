@@ -1,5 +1,9 @@
 # Plan — the top of the page on a phone
 
+Archive: completed (2026-09-09). Delivered through the GUI conversion; subsequent shell changes belong to the active main-content plan.
+
+Current work: [project index](../README.md). Original evidence follows.
+
 Status: planned 2026-09-08; steps 1 to 4 **absorbed into B2 step 8** of
 [readable type, then a design system](2026-09-08-01-typography-and-design-system.md)
 the same day, with two changes of mechanics the Product Owner's step 8 chose:

@@ -1,10 +1,14 @@
 # Staging broadcasting rollout
 
+Archive: completed (2026-09-09). The requested staging verification finished. Ongoing isolation limits remain in ../2026-09-07-04-staging-verification.md.
+
+Current work: [project index](../README.md). Original evidence follows.
+
 Current result (2026-09-07): staging application `e1fa4dc` was verified by
 **two full browser runs, each 42 passed, four development-only skips and zero
 retries**. Temporary admin access was restored and verified disabled after
 each run. See [final evidence](#final-result-two-consecutive-complete-passes)
-and [current project status](README.md).
+and [current project status](../README.md).
 
 The checkpoints below preserve the rollout history. Earlier failures,
 missing access and pending commits are superseded where later results say so.

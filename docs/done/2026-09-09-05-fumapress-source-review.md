@@ -1,8 +1,12 @@
 # Fumapress source review for Remy Sport
 
+Archive: superseded (2026-09-09). Source review delivered; integration and external discovery continue in ../2026-09-09-04-blume-public-help.md.
+
+Current work: [project index](../README.md). Original evidence follows.
+
 This file records the earlier source inspections. The subsequent implemented
 isolation proof and current status are in the
-[public help plan](2026-09-09-04-blume-public-help.md); its results supersede the
+[public help plan](../2026-09-09-04-blume-public-help.md); its results supersede the
 "not installed/built" limits below for the small Fumapress proof only.
 
 Reviewed 2026-09-09. Recommendation: evaluate Fumapress first for public help;
@@ -109,7 +113,7 @@ enables MCP and includes sponsor/CMS packages, so do not copy that app wholesale
 
 ## Next step
 
-Run the [public help integration proof](2026-09-09-04-blume-public-help.md) with
+Run the [public help integration proof](../2026-09-09-04-blume-public-help.md) with
 Fumapress first: three portable Markdown pages, existing Bun/mise automation,
 isolated content build, `/help/`, static output and one release artifact.
 Check dependency resolution and the Sharp mismatch before expanding content.
@@ -223,7 +227,7 @@ Keep the observed published version distinct from the earlier dev-branch review.
 Environment: macOS arm64; Node 26.8.1; Bun 1.4.0; Fumapress 1.2.0;
 Waku 1.0.0-rc.0; Vite 8.2.2; React 19.2.8; Fumadocs Core 16.15.7;
 Fumadocs MDX 15.4.0; Wrangler 4.129.0. The exact dependency resolution is in
-[the isolated lockfile](../sites/help/bun.lock).
+[the isolated lockfile](../../sites/help/bun.lock).
 
 ### FUMA-001 — Markdown handler mutates reusable route parameters
 
@@ -236,7 +240,7 @@ Reproduction in this repository:
 
 1. Use the isolated package at commit `c06aeba`, with its committed lockfile.
 2. Temporarily remove only the `remy-preserve-route-params` plugin from
-   [press.config.tsx](../sites/help/press.config.tsx). Keep the LLM plugin,
+   [press.config.tsx](../../sites/help/press.config.tsx). Keep the LLM plugin,
    static mode, root content page and internal link checker enabled.
 3. Run `bun run ops docs dev` from the repository root. Its readiness check
    fetches the root Markdown twice; the unfixed handler can fail this check.

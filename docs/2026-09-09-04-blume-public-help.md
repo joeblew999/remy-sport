@@ -122,7 +122,7 @@ manual reload. The marker is not part of the committed content.
 ### Known limits and tracked upstream issues
 
 Reproduction steps, local fixes and upstream submission/removal status are kept
-in the [upstream bug register](2026-09-09-05-fumapress-source-review.md#upstream-bug-and-workaround-register).
+in the [upstream bug register](done/2026-09-09-05-fumapress-source-review.md#upstream-bug-and-workaround-register).
 
 - This remains a local noindex site with a reserved canonical hostname. The
   audit proves document output, not Google indexing or Gemini recommendations.
@@ -173,7 +173,7 @@ For each stage, record commands, results, limitations and relevant commits here.
 A broken required check keeps that stage open. Every framework workaround gets
 an upstream record. Finish with the GUI running and a reproducible README.
 
-References: [Fumapress/editor source review](2026-09-09-05-fumapress-source-review.md)
+References: [Fumapress/editor source review](done/2026-09-09-05-fumapress-source-review.md)
 and [oRPC/Blume measurements](2026-09-09-03-orpc-blume-review.md).
 
 ### Expansion evidence before editor work

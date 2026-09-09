@@ -1,8 +1,12 @@
 # Plan — fewer dependencies
 
+Archive: completed (2026-09-09). Dependency cleanup verified September 6.
+
+Current work: [project index](../README.md). Original evidence follows.
+
 Reconciled 2026-09-07. Completed dependency cleanup history. Package counts and measurements below
 are dated results, not a current dependency inventory.
-See [current status](README.md).
+See [current status](../README.md).
 
 ## Why
 

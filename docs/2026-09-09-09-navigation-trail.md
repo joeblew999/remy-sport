@@ -1,6 +1,9 @@
 # Plan — one navigation trail, on every screen
 
-Status: implemented 2026-09-09, `18494d2`.
+Status: implemented 2026-09-09, initially `18494d2`, with actual-route history
+added in `5d0c57f`. Reconciliation remains open: the “Not done” paragraph below
+predates that later commit. Check current behavior before continuing; the
+sidebar highlight and installed-app Back acceptance remain separate concerns.
 
 The Product Owner: an organisation can be drilled into and backed out of, and
 the other entry points cannot — decide it and make it consistent.

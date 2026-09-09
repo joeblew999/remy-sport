@@ -179,7 +179,7 @@ const OPS: Record<string, Op> = {
      * Why the three Tauri packages stay: `@tauri-apps/cli`, run here, and the
      * notification and log plugins the SPA loads only inside the shell. The
      * Product Owner's decision of 2026-09-06, recorded in
-     * docs/2026-09-05-03-fewer-dependencies.md: desktop and iPhone apps ship
+     * docs/done/2026-09-05-03-fewer-dependencies.md: desktop and iPhone apps ship
      * this year. They cost three packages, a Rust toolchain, and ruby plus
      * cocoapods in mise.toml, and nothing in the gate tests them. Revisit if
      * the year passes without a shipped app.

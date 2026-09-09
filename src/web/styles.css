@@ -12,7 +12,7 @@
    and never edited by hand. Everything the app renders is a registry component
    or a Tailwind utility on one. The rules of our own that remain are the three
    at the bottom, and each says why it cannot be a component. The plan behind
-   this is docs/2026-09-08-01-typography-and-design-system.md, and
+   this is docs/done/2026-09-08-01-typography-and-design-system.md, and
    tests/repo/styles.test.ts holds the line. */
 
 /* Dark is a class on the root — `.dark` — set by lib/theme-provider.tsx. */

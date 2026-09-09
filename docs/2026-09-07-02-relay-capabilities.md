@@ -5,7 +5,7 @@ is configured and has recorded delivery/stop/restart evidence. The user also
 confirmed a local physical-camera walkthrough. Optional local scoped-adapter
 checks passed. Staging still uses shared Cloudflare credentials: per-game
 credential enforcement is open. See [project status](README.md) and the
-[rollout record](2026-09-07-03-staging-broadcast.md) for the latest deployment.
+[rollout record](done/2026-09-07-03-staging-broadcast.md) for the latest deployment.
 No new relay probe was run for this documentation reconciliation.
 
 ## Current work

@@ -1,9 +1,13 @@
 # Connected GUI plan
 
+Archive: completed (2026-09-09). Connected GUI foundation verified locally; exhaustive coverage remains in the active domain register.
+
+Current work: [project index](../README.md). Original evidence follows.
+
 Status: implemented and verified locally, 2026-09-07.
 The user approved this plan with “GO”. Existing event/header/CSS edits
 belong to the earlier layout pass and are preserved. This document owns the
-navigation and information-architecture work; the [domain register](2026-09-07-01-react-domain-coverage.md)
+navigation and information-architecture work; the [domain register](../2026-09-07-01-react-domain-coverage.md)
 still owns GAP-05–08 coverage and permission acceptance.
 
 ## Outcome

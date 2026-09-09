@@ -1,6 +1,11 @@
 # Plan — the notifications page, with two channels on it
 
-Status: **proposed 2026-09-09, nothing implemented.** Two decisions taken by the
+Status: implementation changes present 2026-09-09; verification and checklist
+reconciliation remain open. The working tree contains notification-settings and
+translation changes; the style gate currently reports a muted-caption violation.
+The proposal below is not a claim that those changes are accepted.
+
+Two decisions taken by the
 Product Owner the same day and recorded below; the rest is theirs to approve.
 
 The Product Owner's report: *"we have push notifications and email notifications

@@ -4,7 +4,7 @@ import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 // Tailwind, because shadcn's components are written in it. It processes the
 // stylesheet index.html links (src/web/styles.css) and nothing else changes;
-// see docs/2026-09-08-01-typography-and-design-system.md, Stage B1.
+// see docs/done/2026-09-08-01-typography-and-design-system.md, Stage B1.
 import tailwindcss from "@tailwindcss/vite";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";

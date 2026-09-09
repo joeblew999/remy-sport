@@ -1,6 +1,9 @@
 # Plan — main content on the registry, like the sidebar already is
 
-Status: proposed 2026-09-09, nothing implemented.
+Status: partially implemented 2026-09-09; visual acceptance and remaining
+registry/check reconciliation are open. The implementation log below supersedes
+the original proposal. The earlier GUI-conversion plan is archived; this plan
+owns its unfinished composition work.
 
 The Product Owner: the sidebar — *"shadcn/sidebar, which is the drawer"* — has
 great fonts and look, and all our main content has a shitty font and look.
