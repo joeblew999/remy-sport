@@ -58,7 +58,8 @@ export default defineConfig({
   meta: {
     root: () => <>
       <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-      <meta name="robots" content="noindex" />
+      {site.environment !== "production" && <meta name="robots" content="noindex" />}
+      <link rel="service-desc" type="application/json" href={`${site.origin}/application-openapi.json`} />
       <meta property="og:site_name" content={site.name} />
     </>,
     page(page) {
@@ -100,7 +101,7 @@ export default defineConfig({
         handler: async (request, context) => {
           if (route.path === "/llms.txt") {
             const pages = (await this.getLoader()).getPages();
-            return new Response(`# Remy Sport Help\n\nReviewed: ${site.reviewedAt}. Local preview; Thai/Japanese translations await human review.\n\n${languages.map(lang => `## ${lang}\n\n${pages.filter(page => page.locale === lang).map(page => `- [${page.data.title}](${page.url}): ${page.data.description}`).join("\n")}`).join("\n\n")}`, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+            return new Response(`# Remy Sport Help\n\nReviewed: ${site.reviewedAt}. Environment: ${site.environment}; Thai/Japanese translations await human review.\n\nApplication API: ${site.origin}/application-openapi.json\nGemini function declarations: ${site.origin}/gemini-tools.json\nMCP endpoint: ${site.origin}/mcp\n\n${languages.map(lang => `## ${lang}\n\n${pages.filter(page => page.locale === lang).map(page => `- [${page.data.title}](${page.url}): ${page.data.description}`).join("\n")}`).join("\n\n")}`, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
           }
           return route.handler(request, { params: structuredClone(context.params) });
         },
@@ -114,7 +115,7 @@ export default defineConfig({
       // processed source without inventing a separate agent-only product manual.
       for (const adapter of this.adapters) {
         const text = await adapter["core:get-text"]?.call(this, page);
-        if (text !== undefined) return `# ${page.data.title}\n\nSource: ${new URL(page.url, site.origin).href}\nProduct: Remy Sport\nReviewed: ${site.reviewedAt}\nStatus: local documentation preview; not a published release.\n\n${page.data.description}\n\n${text}`;
+        if (text !== undefined) return `# ${page.data.title}\n\nSource: ${new URL(page.url, site.origin).href}\nProduct: Remy Sport\nReviewed: ${site.reviewedAt}\nEnvironment: ${site.environment}; current application data requires the API.\n\n${page.data.description}\n\n${text}`;
       }
       throw new Error(`Missing Markdown representation: ${page.url}`);
     },
@@ -122,7 +123,7 @@ export default defineConfig({
   {
     name: "remy-public-catalogue",
     async createPages({ createApiIsomorphic, createPage }) {
-      createPage({ path: "/", render: "static", component: () => <main className="mx-auto max-w-3xl p-12"><h1 className="text-4xl font-bold">Remy Sport Help</h1><p className="my-6">Choose your language / เลือกภาษา / 言語を選択</p><nav className="flex gap-8"><a href="/en">English</a><a href="/th">ไทย</a><a href="/ja">日本語</a></nav></main> });
+      createPage({ path: "/", render: "static", component: () => <main className="mx-auto max-w-3xl p-12"><h1 className="text-4xl font-bold">Remy Sport Help</h1><p className="my-6">Choose your language / เลือกภาษา / 言語を選択</p><p><a href={`${site.origin}/application-openapi.json`}>Application API</a> · <a href={`${site.origin}/gemini-tools.json`}>Gemini tools</a> · <a href={`${site.origin}/mcp`}>MCP endpoint</a></p><nav className="flex gap-8"><a href="/en">English</a><a href="/th">ไทย</a><a href="/ja">日本語</a></nav></main> });
       createApiIsomorphic({ path: "/openapi.json", render: "static", handler: async () => Response.json(schema) });
       createApiIsomorphic({ path: "/help-index.json", render: "static", handler: async () => Response.json({ product: site.name, reviewedAt: site.reviewedAt, pages: (await this.getLoader()).getPages().map(page => ({ url: page.url, markdown: `${page.url}.md`, locale: page.locale, title: page.data.title, description: page.data.description })) }) });
     },

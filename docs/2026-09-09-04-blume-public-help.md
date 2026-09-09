@@ -414,3 +414,34 @@ Cloudflare references:
 [Worker environments](https://developers.cloudflare.com/workers/wrangler/environments/),
 [static asset routing](https://developers.cloudflare.com/workers/static-assets/binding/),
 [remote MCP on Workers](https://developers.cloudflare.com/agents/model-context-protocol/guides/remote-mcp-server/).
+
+### Implementation underway after approval
+
+The user approved implementing and deploying the proposal. Static help and the
+Fetch-based SDK MCP handler now run together under workerd. Staging local checks
+passed all 39 pages plus MCP documentation and six actual staging application
+reads. Root typecheck/lint and five focused repo tests passed. Environment tests
+reject mixed staging/production targets and application bindings. The editor
+remains excluded from deployment; root app files/dependencies are not changed.
+
+Correction to the earlier public-API blocker: source review of deployed commit
+f936324 showed its schema lives at /openapi.json with /api-prefixed paths. The
+bridge now supports that specific legacy shape after a 404 at /api/openapi.json,
+and six production public reads passed. **An application redeployment is not
+required for these reads.** Earlier conclusions requiring an app release are
+superseded by this measured compatibility result.
+
+Workerd exposed two integration differences that the Node proof could not:
+Wrangler's local upstream URL uses the configured hostname with HTTP, and
+Cloudflare rejects fetch redirect:error. Host validation now compares the exact
+configured hostname; manual redirect mode checks non-success statuses and never
+follows redirects. These are our adapter fixes, not asserted upstream defects.
+The response/request readers enforce byte limits while streaming. Cloudflare's
+rate limiter caps MCP/proxy requests; public API contract caching is bounded to
+15 seconds, without caching application data or credentials.
+
+The CLI provides explicit check/deploy/status/rollback/gemini environment actions.
+A release checks app-reported environment and its deployed schema, builds its
+own artifact, records app version/contract digest, tests locally, then publishes
+only help and verifies its build ID. Actual external deployment, rollback and
+Gemini evidence will be added below; they are not implied by local tests.

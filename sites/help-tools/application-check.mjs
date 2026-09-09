@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { textWithin } from './limits.mjs';
+await assert.rejects(textWithin(new Response('abcdef').body, 3), /exceeds/);
+assert.equal(await textWithin(new Response('あ').body, 3), 'あ');
 import { createServer } from 'node:http';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
@@ -6,10 +9,12 @@ import { operations, apiOrigin, callApplication, declarations } from './applicat
 import { startServer } from './server.mjs';
 const requests = [];
 let protectedRead = false;
+let legacy = false;
 const app = createServer((req, res) => {
   requests.push({ method: req.method, path: req.url, cookie: req.headers.cookie, authorization: req.headers.authorization });
   res.setHeader('Content-Type', 'application/json');
-  if (req.url === '/api/openapi.json') return res.end(JSON.stringify({ openapi: '3.1.0', paths: Object.fromEntries(operations.map(operation => [operation.path, { get: { security: protectedRead ? [{ Session: [] }] : [] } }])) }));
+  if (legacy && req.url === '/api/openapi.json') { res.statusCode = 404; return res.end('{}'); }
+  if (req.url === '/api/openapi.json' || req.url === '/openapi.json') return res.end(JSON.stringify({ openapi: '3.1.0', paths: Object.fromEntries(operations.map(operation => [legacy ? '/api' + operation.path : operation.path, { get: { security: protectedRead ? [{ Session: [] }] : [] } }])) }));
   res.end(JSON.stringify({ id: 'evt_1', events: [{ id: 'evt_1' }], games: [], teams: [] }));
 });
 await new Promise(resolve => app.listen(0, '127.0.0.1', resolve));
@@ -28,6 +33,9 @@ try {
   await assert.rejects(callApplication(origin, 'list_events'), /requires authentication/);
   assert.equal(requests.length, before + 1); // schema only; no protected data request
   protectedRead = false;
+  legacy = true;
+  assert((await callApplication(origin, 'list_events')).data.events.length);
+  legacy = false;
   mcp = await startServer({ source: process.argv[2], application: origin, port: 0 });
   client = new Client({ name: 'remy-application-check', version: '1.0.0' });
   await client.connect(new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${mcp.address().port}/mcp`)));

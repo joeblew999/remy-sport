@@ -1,7 +1,8 @@
 # Read-only help tools
 
 Independent package: never import app source or share dependencies with root/help.
-Read generated documentation over the loopback help HTTP server. Public app reads
+The Worker reads generated documentation through its own static asset binding;
+local Vite uses the exact loopback asset origin. Public app reads
 use the explicit allowlist and verify the generated OpenAPI contract. No private
 app APIs, credentials, filesystem writes or model-provider calls. Keep protocol
 checks under the shared `bun run ops docs check` workflow. The plan and upstream

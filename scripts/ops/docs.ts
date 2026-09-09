@@ -6,6 +6,8 @@ import { join, relative, resolve } from "node:path"
 import { spawn, execFileSync } from "node:child_process"
 import { createServer } from "node:net"
 import { once } from "node:events"
+import { fnoxGet } from "../lib/cloudflare"
+import { helpTarget, writeHelpTarget, releaseHelp } from "./docs-release"
 import { assertPinnedBun } from "../lib/bun-pin"
 
 const root = resolve(import.meta.dirname, "../..")
@@ -43,8 +45,8 @@ function childEnv(): NodeJS.ProcessEnv {
   return { ...env, CI: "1", NO_COLOR: "1", WRANGLER_SEND_METRICS: "false", WRANGLER_LOG_PATH: join(site, ".proof/wrangler"), WRANGLER_CACHE_DIR: join(site, ".proof/cache") } as unknown as NodeJS.ProcessEnv
 }
 
-async function command(args: string[], cwd = site) {
-  const child = spawn(args[0]!, args.slice(1), { cwd, env: childEnv(), stdio: "inherit", detached: true })
+async function command(args: string[], cwd = site, explicitEnv: Record<string, string> = {}) {
+  const child = spawn(args[0]!, args.slice(1), { cwd, env: { ...childEnv(), ...explicitEnv }, stdio: "inherit", detached: true })
   const stop = () => { if (child.pid) { try { process.kill(-child.pid, "SIGKILL") } catch { /* already exited */ } } }
   const timer = setTimeout(stop, 300_000)
   process.once("SIGINT", stop)
@@ -97,10 +99,36 @@ async function freePort(preferred = 0) {
   return address.port
 }
 
+async function ensureLocalApp() {
+  const ready = async () => {
+    try {
+      const response = await fetch("http://127.0.0.1:8787/api/health", { signal: AbortSignal.timeout(1000) })
+      if (!response.ok) return false
+      const health = await response.json() as { environment?: string }
+      if (health.environment !== "dev") throw new Error("docs: local app is not the dev environment")
+      return true
+    } catch (error) {
+      if ((error as Error).message.includes("not the dev")) throw error
+      return false
+    }
+  }
+  if (await ready()) return undefined
+  await freePort(8787) // refuse to replace an unrelated listener
+  console.log("docs: starting the app with its documented bun run dev command")
+  const child = spawn(process.execPath, ["run", "dev"], { cwd: root, env: process.env, stdio: "inherit", detached: true })
+  for (let n = 0; n < 100; n++) {
+    if (child.exitCode !== null) throw new Error("docs: app dev command exited")
+    if (await ready()) return child
+    await new Promise(r => setTimeout(r, 300))
+  }
+  if (child.pid) process.kill(-child.pid, "SIGTERM")
+  throw new Error("docs: app did not become ready")
+}
+
 // Recover our exact local development process even if its terminal was closed.
 // Never stop the main app or a different process using the same port.
 async function stopDev() {
-  const expected = [`node ${join(site, "node_modules/fumapress/cli.js")} dev --port 8791 --host 127.0.0.1`, `node ${join(toolSite, "server.mjs")} http://127.0.0.1:8791 8792`, `node ${join(editorSite, "node_modules/@fumadocs-editor/studio/dist/cli.js")} --config fumadocs-studio.config.ts --no-open`]
+  const expected = [`node ${join(site, "node_modules/wrangler/bin/wrangler.js")} dev --local --config ${join(toolSite, ".proof/dev-wrangler.json")} --port 8792 --ip 127.0.0.1`, `node ${join(site, "node_modules/fumapress/cli.js")} dev --port 8791 --host 127.0.0.1`, `node ${join(toolSite, "server.mjs")} http://127.0.0.1:8791 8792`, `node ${join(editorSite, "node_modules/@fumadocs-editor/studio/dist/cli.js")} --config fumadocs-studio.config.ts --no-open`]
   const lines = execFileSync("ps", ["-ax", "-o", "pid=,command="], { encoding: "utf8" }).split("\n")
   for (const line of lines) {
     const match = line.trim().match(/^(\d+)\s+(.+)$/)
@@ -144,7 +172,15 @@ async function preview(interactive: boolean, live = false, author = false) {
     if (!ready) throw new Error("docs: preview did not become ready")
     if (interactive) {
       await freePort(8792)
-      companion = spawn("node", [join(toolSite, "server.mjs"), url, "8792"], { cwd: toolSite, env: childEnv(), stdio: "inherit" })
+      if (live) {
+        const config = join(toolSite, ".proof/dev-wrangler.json")
+        mkdirSync(join(toolSite, ".proof"), { recursive: true })
+        const target = helpTarget("dev")
+        writeFileSync(config, JSON.stringify({ name: "remy-help-local", main: join(toolSite, "worker.mjs"), compatibility_date: "2026-09-09", compatibility_flags: ["nodejs_compat"], workers_dev: false, vars: { ENVIRONMENT: "dev", HELP_ORIGIN: target.origin, APP_ORIGIN: target.appOrigin, VITE_ORIGIN: url } }))
+        companion = spawn("node", [join(site, "node_modules/wrangler/bin/wrangler.js"), "dev", "--local", "--config", config, "--port", "8792", "--ip", "127.0.0.1"], { cwd: toolSite, env: childEnv(), stdio: "inherit" })
+      } else {
+        companion = spawn("node", [join(toolSite, "server.mjs"), url, "8792"], { cwd: toolSite, env: childEnv(), stdio: "inherit" })
+      }
       let toolsReady = false
       for (let attempt = 0; attempt < 50; attempt++) {
         if (companion.exitCode !== null) throw new Error("docs: tools server exited")
@@ -206,18 +242,37 @@ async function preview(interactive: boolean, live = false, author = false) {
 
 export async function runDocs(args: string[]): Promise<number> {
   const action = args[0] ?? "check"
+  const environmentAt = args.indexOf("--env")
+  const environment = environmentAt >= 0 ? args[environmentAt + 1] : undefined
+  const remote = ["deploy", "status", "rollback", "gemini"].includes(action) || (action === "check" && environmentAt >= 0)
+  if (remote && (args.length !== 3 || environmentAt !== 1 || !["staging", "production"].includes(environment ?? ""))) throw new Error("docs remote actions require --env staging|production")
   if (action === "--help") {
-    console.log("bun run ops docs [dev|author|stop|check|preview|lock|clean|discover]\nauthor starts Studio alongside help and MCP; dev installs and starts Vite live updates at http://127.0.0.1:8791; check installs the independent locked packages, builds and verifies locally; preview keeps the verified site open; stop stops help development, MCP and Studio; clean removes only the three help packages’ generated files. lock updates their independent lockfiles after manifest edits. No deployment command.\ndiscover [app-origin] [public-help-origin] verifies the live public API and optional public crawlability without starting or stopping servers.")
+    console.log("bun run ops docs [dev|author|stop|check|preview|lock|clean|discover]\nauthor starts Studio alongside help and MCP; dev installs and starts Vite live updates at http://127.0.0.1:8791; check installs the independent locked packages, builds and verifies locally; preview keeps the verified site open; stop stops help development, MCP and Studio; clean removes only the three help packages’ generated files. lock updates their independent lockfiles after manifest edits. Remote: docs check|deploy|status|rollback|gemini --env staging|production. Help-only; never deploys the app.\ndiscover [app-origin] [public-help-origin] verifies the live public API and optional public crawlability without starting or stopping servers.")
     return 0
   }
-  if ((args.length > 1 && action !== "discover") || !["dev", "author", "stop", "check", "preview", "lock", "clean", "discover"].includes(action)) throw new Error("docs: expected dev, author, stop, check, preview, lock or clean")
+  if (!remote && ((args.length > 1 && action !== "discover") || !["dev", "author", "stop", "check", "preview", "lock", "clean", "discover"].includes(action))) throw new Error("docs: expected dev, author, stop, check, preview, lock or clean")
   if (assertPinnedBun()) return 1
   for (const dir of [site, toolSite, editorSite]) {
     if (realpathSync(dir) !== dir) throw new Error("docs: package directory must not be a symlink")
   }
   if (JSON.parse(readFileSync(join(root, "package.json"), "utf8")).workspaces) throw new Error("docs: recheck isolation before introducing a root workspace")
+  // App startup is an explicit use of its own workflow. Fingerprint the docs
+  // operation after startup, including generated app files.
+  const ownedApp = ["dev", "author"].includes(action) ? await ensureLocalApp() : undefined
   const before = appSnapshot()
   try {
+    if (action === "gemini") {
+      const key = process.env.GEMINI_API_KEY || fnoxGet("GEMINI_API_KEY")
+      if (!key) throw new Error("docs: real Gemini verification needs GEMINI_API_KEY in the environment or the existing fnox keychain; no model test was run")
+      await command(["node", "gemini-check.mjs", helpTarget(environment!).origin], toolSite, { GEMINI_API_KEY: key })
+      return 0
+    }
+    if (remote && ["status", "rollback"].includes(action)) {
+      await command([process.execPath, "install", "--frozen-lockfile"], toolSite)
+      checkAuxInstall(toolSite)
+      await releaseHelp(action, environment!, command, childEnv())
+      return 0
+    }
     if (action === "discover") {
       if (args.length > 3) throw new Error("docs discover [app-origin] [public-help-origin]")
       await command([process.execPath, "install", "--frozen-lockfile"], toolSite)
@@ -226,6 +281,7 @@ export async function runDocs(args: string[]): Promise<number> {
       return 0
     }
     await stopDev()
+    writeHelpTarget(helpTarget("dev"))
     if (action === "stop") return 0
     if (action === "clean") {
       for (const dir of [site, toolSite, editorSite]) {
@@ -250,6 +306,10 @@ export async function runDocs(args: string[]): Promise<number> {
     await command([process.execPath, "install", "--frozen-lockfile"], toolSite)
     checkAuxInstall(toolSite)
     await command(["node", "scripts/fonts.mjs"])
+    if (remote) {
+      await releaseHelp(action, environment!, command, childEnv())
+      return 0
+    }
     if (action === "dev" || action === "author") {
       if (action === "author") {
         await command([process.execPath, "install", "--frozen-lockfile"], editorSite)
@@ -265,6 +325,7 @@ export async function runDocs(args: string[]): Promise<number> {
     writeFileSync(join(site, ".proof/result.json"), JSON.stringify({ checkedAt: new Date().toISOString(), appFiles: Object.keys(before).length, staticChecks: "passed" }, null, 2))
     return 0
   } finally {
+    if (ownedApp?.pid) { try { process.kill(-ownedApp.pid, "SIGTERM") } catch {} }
     const changes = changedPaths(before, appSnapshot())
     if (changes.length) {
       rmSync(join(site, ".proof/result.json"), { force: true })

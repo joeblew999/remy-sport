@@ -432,14 +432,18 @@ export interface Ran {
 export function wrangler(
   args: string[],
   target?: Target,
-  opts: { stdin?: string; inherit?: boolean } = {},
+  opts: { stdin?: string; inherit?: boolean; resolvedConfig?: boolean } = {},
 ): Ran {
   const full = ["x", "wrangler", ...args, ...(target?.flag ? ["--env", target.flag] : [])]
   const out = opts.inherit ? "inherit" : "pipe"
+  const env = credentialEnv()
+  // A generated component config is already resolved; ambient selection must
+  // not append another environment or point it at a different Worker.
+  if (opts.resolvedConfig) delete env.CLOUDFLARE_ENV
   const proc = spawnSync("bun", full, {
     input: opts.stdin,
     stdio: [opts.stdin === undefined ? "ignore" : "pipe", out, out],
-    env: credentialEnv(),
+    env,
     // Node caps a captured stream at 1 MiB and kills the child past it. A
     // `d1 execute --json` over a seeded table is bigger than that.
     maxBuffer: 256 * 1024 * 1024,

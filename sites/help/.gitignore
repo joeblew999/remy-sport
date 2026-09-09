@@ -1,3 +1,4 @@
 .proof/
 .source/
 .vite/
+deployment.generated.json

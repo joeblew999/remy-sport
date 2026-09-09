@@ -1,0 +1,4 @@
+{
+  "staging": { "name": "remy-help-staging", "host": "staging-help.remy.ubuntusoftware.net" },
+  "production": { "name": "remy-help", "host": "help.remy.ubuntusoftware.net" }
+}

@@ -17,7 +17,7 @@ async function get(path, type) {
   const response = await fetch(base + path, { signal: AbortSignal.timeout(8000) });
   assert.equal(response.status, 200, `${path}: HTTP status`);
   assert(response.headers.get("content-type")?.includes(type), `${path}: content type ${type}`);
-  assert(response.headers.get("x-robots-tag")?.includes("noindex"), `${path}: preview noindex`);
+  assert.equal(response.headers.get("x-robots-tag")?.includes("noindex") ?? false, site.environment !== "production", `${path}: environment index policy`);
   return response;
 }
 
@@ -88,7 +88,7 @@ const search = await (await get("/api/search", "application/json")).json();
 assert.equal(search.type, "i18n", "locale-aware static search index");
 assert.deepEqual(Object.keys(search.raw).sort(), ["en", "ja", "th"]);
 assert(paths.every((path) => JSON.stringify(search).includes(path)), "every guide appears in search data");
-for (const path of ["/not-a-page", "/api/auth/session", "/rpc", "/mcp", "/AGENTS.md"]) {
+for (const path of ["/not-a-page", "/api/auth/session", "/rpc", ...(process.argv.includes("--worker") ? [] : ["/mcp"]), "/AGENTS.md"]) {
   assert.equal((await fetch(base + path, { signal: AbortSignal.timeout(8000) })).status, 404, `${path}: no app/private/runtime endpoint`);
 }
 await get("/favicon.svg", "image/svg+xml");

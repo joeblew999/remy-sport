@@ -1,0 +1,34 @@
+import assert from 'node:assert/strict';
+import { mkdir, writeFile } from 'node:fs/promises';
+const origin = process.argv[2];
+const key = process.env.GEMINI_API_KEY;
+if (!key) throw new Error('GEMINI_API_KEY is required for a real model test');
+const google = 'https://generativelanguage.googleapis.com/v1beta';
+async function api(path, body) {
+  const response = await fetch(google + path, { method: body ? 'POST' : 'GET', headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(60000) });
+  if (!response.ok) throw new Error(`Gemini API returned ${response.status}`);
+  return response.json();
+}
+const models = (await api('/models')).models;
+const compatible = models.filter(model => model.supportedGenerationMethods?.includes('generateContent') && /gemini.*flash/.test(model.name) && !/preview|exp|image|lite|tts/.test(model.name));
+const model = compatible.find(model => model.name === 'models/gemini-2.5-flash') ?? compatible[0];
+if (!model) throw new Error('No compatible stable Gemini Flash model available');
+const configuration = { maxOutputTokens: 1024 };
+const retrieved = await api(`/${model.name}:generateContent`, { contents: [{ role: 'user', parts: [{ text: `Read ${origin}/en and ${origin}/application-openapi.json. Identify the product and one supported public API operation using these URLs.` }] }], tools: [{ url_context: {} }], generationConfig: configuration });
+const metadata = retrieved.candidates?.[0]?.urlContextMetadata;
+assert(metadata?.urlMetadata?.some(item => item.urlRetrievalStatus === 'URL_RETRIEVAL_STATUS_SUCCESS'), 'Gemini did not establish successful public URL retrieval');
+const declaration = (await (await fetch(origin + '/gemini-tools.json')).json()).functionDeclarations.find(tool => tool.name === 'list_events');
+const prompt = { role: 'user', parts: [{ text: 'Use list_events to read Remy Sport events now. Do not invent event data.' }] };
+const first = await api(`/${model.name}:generateContent`, { contents: [prompt], tools: [{ functionDeclarations: [declaration] }], generationConfig: configuration });
+const content = first.candidates?.[0]?.content;
+const call = content?.parts?.find(part => part.functionCall)?.functionCall;
+assert.equal(call?.name, 'list_events', 'Gemini must request a real supported operation');
+assert(!Object.keys(call.args ?? {}).length, 'Unexpected arguments');
+const result = await (await fetch(origin + '/api/events')).json();
+assert(Array.isArray(result.data?.events), 'Public tool execution did not return events');
+const final = await api(`/${model.name}:generateContent`, { contents: [prompt, content, { role: 'user', parts: [{ functionResponse: { name: call.name, response: result } }] }], tools: [{ functionDeclarations: [declaration] }], generationConfig: configuration });
+const answer = final.candidates?.[0]?.content?.parts?.filter(part => part.text).map(part => part.text).join('\n');
+assert(answer, 'Gemini did not produce an answer after tool execution');
+await mkdir('.proof', { recursive: true });
+await writeFile('.proof/gemini.json', JSON.stringify({ checkedAt: new Date().toISOString(), origin, model: model.name, urlContextMetadata: metadata, toolCall: call, toolSource: result.source, eventCount: result.data.events.length, answer }, null, 2));
+console.log(`docs Gemini: ${model.name} retrieved public URLs and completed an application function call; evidence in .proof/gemini.json`);

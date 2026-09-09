@@ -391,3 +391,14 @@ failure after its supervisor stopped it. Recovery now tolerates that normal race
 while surfacing other errors. This is our process-management fix. Node 26 emits
 an upstream localStorage experimental warning at Studio startup; it does not
 prevent the verified workflow, and no hidden Node flags suppress it.
+
+### Cloudflare adapter verification
+
+The isolated public Worker uses SDK 1.30.0's Web Standard Streamable HTTP
+transport in finite JSON/stateless mode. The local workerd protocol test passed;
+there was no need to install a second MCP framework. Two adapter issues were
+fixed locally: compare configured hostnames across Wrangler's local HTTP URLs,
+and use fetch manual redirects with explicit status rejection because workerd
+does not implement redirect:error. Neither issue is reported as a Fuma bug.
+The shared Wrangler helper can explicitly clear ambient environment selection
+for already-resolved component configs, preventing environment suffix drift.

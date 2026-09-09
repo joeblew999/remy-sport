@@ -104,3 +104,43 @@ LLM checks verify output; they do not prove Google indexing or Gemini discovery.
 
 [Plan and verification record](../../docs/2026-09-09-04-blume-public-help.md) ·
 [Upstream bugs and fixes](../../docs/2026-09-09-05-fumapress-source-review.md)
+
+## Cloudflare environments
+
+The app retains its own Worker. Help and read-only MCP share an independent
+help Worker per environment; Studio is never deployed. The dev command uses
+Vite at 8791 and the Cloudflare Worker transport at 8792. It attaches to the
+existing local app or starts the app's documented dev command automatically.
+It stops only an app process it started itself.
+
+```sh
+bun run ops docs check --env staging
+bun run ops docs deploy --env staging
+bun run ops docs deploy --env production
+bun run ops docs status --env production
+bun run ops docs rollback --env production
+bun run ops docs gemini --env production
+```
+
+Remote commands require the environment explicitly. Check builds and tests
+without publishing. Deploy runs those gates first, publishes only help, and
+checks the served build. Rollback requires a recorded previous help version
+and verifies the current API; it never rolls back the app or database. Local
+release artifacts and recovery records are under help-tools/.proof by environment.
+Clean removes those local records; remote versions remain in Cloudflare.
+
+Hostnames are configured in deployment.json. The CLI derives each app origin
+from the existing app Wrangler configuration. Staging is noindex; production
+is indexable with its own canonical URLs and sitemap. Both expose /mcp,
+/application-openapi.json, /gemini-tools.json and six allowlisted /api reads.
+The Worker rejects mismatched bindings, arbitrary proxy paths and writes.
+A short contract cache expires after 15 seconds; live application data is not
+cached by the proxy. The existing app's legacy /openapi.json schema is supported
+without an app upgrade.
+
+Gemini verification needs GEMINI_API_KEY in the invoking environment or the
+existing fnox keychain. It uses a currently available stable Flash model,
+retrieves public URLs and executes a model-requested application read. The key
+is passed only to that test process, never built into help or sent to Cloudflare.
+A missing key is a missing test, not a passing result. Google indexing still
+requires Search Console verification and observed indexing evidence.
