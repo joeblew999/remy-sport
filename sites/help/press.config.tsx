@@ -56,6 +56,8 @@ export default defineConfig({
       fns.createApiIsomorphic = (route) => create({
         ...route,
         // Fumapress 1.2.0 mutates Markdown slugs; Waku reuses them.
+        // FUMA-001: ../../docs/2026-09-09-05-fumapress-source-review.md
+        // Remove only after verifying an upstream release fixes repeated requests.
         handler: (request, context) => route.handler(request, { params: structuredClone(context.params) }),
       });
       return fns;

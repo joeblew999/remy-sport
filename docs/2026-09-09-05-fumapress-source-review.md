@@ -211,3 +211,110 @@ content administrators and validate the allowed syntax/components before the
 build. Hosted access must be enforced on reads, writes, uploads and publishing.
 The local-first recommendation remains the smallest proof; hosted editing is a
 feasible follow-on, not blocked by an inability to serve the React editor.
+
+## Upstream bug and workaround register
+
+Recorded 2026-09-09 from the implemented proof, commit `c06aeba`. These are
+issue-ready local records, **not submitted upstream**. No issue/PR URL exists yet;
+current upstream issue status has not been checked. Check for an existing issue
+and reproduce on an upstream candidate version before filing or proposing a PR.
+Keep the observed published version distinct from the earlier dev-branch review.
+
+Environment: macOS arm64; Node 26.8.1; Bun 1.4.0; Fumapress 1.2.0;
+Waku 1.0.0-rc.0; Vite 8.2.2; React 19.2.8; Fumadocs Core 16.15.7;
+Fumadocs MDX 15.4.0; Wrangler 4.129.0. The exact dependency resolution is in
+[the isolated lockfile](../sites/help/bun.lock).
+
+### FUMA-001 — Markdown handler mutates reusable route parameters
+
+**Target:** Fumapress LLM plugin. **Status:** reproduced; local workaround verified;
+upstream fix not submitted. User impact: a second fetch of the home Markdown
+can return 404, breaking repeated Copy Markdown requests and build link checking.
+Static generation can emit a valid file even though subsequent handler calls fail.
+
+Reproduction in this repository:
+
+1. Use the isolated package at commit `c06aeba`, with its committed lockfile.
+2. Temporarily remove only the `remy-preserve-route-params` plugin from
+   [press.config.tsx](../sites/help/press.config.tsx). Keep the LLM plugin,
+   static mode, root content page and internal link checker enabled.
+3. Run `bun run ops docs dev` from the repository root. Its readiness check
+   fetches the root Markdown twice; the unfixed handler can fail this check.
+   In an upstream minimal app, request `/index.md` twice sequentially from
+   the same running Fumapress dev server.
+4. Expect both requests to return 200 and the same Markdown. Before the fix,
+   a later request returned 404. Restore the plugin after reproducing.
+
+Cause found in the installed Fumapress 1.2.0 package, LLM plugin static handler:
+`const slugs = params.slugs` aliases the route array. The root case calls
+`slugs.pop()`, changing the stored array from `["index.md"]` to `[]`; a later
+call takes the empty-slugs not-found branch. Other paths also mutate their last
+segment and the locale case shifts the array. The source location is
+[packages/core/src/plugins/llms.txt.ts](https://github.com/fuma-nama/fumapress/blob/8bb4f58599b2b1c0330338c13f4a45acc5ad2366/packages/core/src/plugins/llms.txt.ts) in upstream; inspect the published package
+when comparing because the dev branch is not necessarily the published artifact.
+
+Proposed narrow upstream change (not an upstream-tested patch):
+
+```diff
+- const slugs = params.slugs;
++ const slugs = [...params.slugs];
+```
+
+Regression test to add upstream: invoke the static Markdown handler twice with
+the **same context object**, verify identical successful bodies, and assert the
+original params remain unchanged. Cover root, a nested page and locale-prefixed
+pages. Those extra nested/locale cases have not been independently tested here.
+
+Local fix: the `remy-preserve-route-params` plugin clones API params at the
+supported route-registration hook before delegating to the original handler.
+This is broader than the proposed upstream one-line change, but avoids modifying
+installed packages. Verification: dev startup checks two root requests; Chrome
+then made three more sequential requests, all 200 with the correct Markdown.
+The full static/workerd audit and internal link validation passed, with no
+root-Markdown exemption remaining. App/dependency fingerprints stayed unchanged.
+
+Removal criterion: upgrade the isolated lockfile to a release with the upstream
+fix, remove our cloning plugin, then pass repeated dev requests and the full
+`bun run ops docs check` workflow. Record the release and issue/PR URL here.
+
+### FUMA-002 — Generated CSS preload uses an invalid resource type
+
+**Target:** Fumapress/Waku HTML generation, ownership not yet localized.
+**Status:** observed in production output; not fixed locally; not submitted.
+
+Reproduction: run `bun run ops docs preview` and open the displayed local URL
+in Chrome. Inspect the generated head and browser console. The generated root
+HTML at the recorded commit contains (asset hash is build-specific):
+
+```html
+<link rel="preload" href="/assets/app-D76euBG1.css" as="stylesheet"/>
+```
+
+Chrome reports: `<link rel=preload> must have a valid as value`.
+Expected: CSS preload uses `as="style"`, while the actual CSS application uses
+`rel="stylesheet"`. Observed impact is an invalid preload/browser warning;
+the separate stylesheet loads and desktop/mobile layout renders correctly.
+No measured performance regression or missing styling is claimed.
+
+Next upstream work: locate the renderer producing this tag, reproduce without
+our custom metadata plugin, and add a generated-head regression check before
+changing it. Route the issue to Waku if its renderer owns the tag. We have not
+patched generated HTML or dependency code to hide the warning.
+
+Removal criterion: a verified dependency release generates a valid CSS preload
+and a production-browser check no longer reports this warning. Preserve the
+issue/PR and release references here when available.
+
+### Integration fixes — do not misreport these as upstream defects
+
+| Finding | Our fix and evidence | Upstream relevance |
+| --- | --- | --- |
+| Our Vite isolation guard treated `/api/search` as a filesystem dependency and returned 500 | Allow only that exact HTTP route probe; browser search returned results and navigated correctly | Local guard bug; no established upstream defect |
+| Extensionless static search output lacked a JSON response type in our Cloudflare setup | Explicit `/api/search` Content-Type in the help package’s headers; HTTP audit requires JSON | Candidate deployment-documentation improvement; adapter ownership/default expectations need confirmation |
+| Vite config server headers did not reach Fumapress’s outer dev server | Set local noindex/nosniff headers in our configureServer middleware; dev readiness checks noindex | CLI composition behavior; not yet established as a broken supported configuration contract |
+| A terminated CLI left its detached development child running | Keep live server in the process group and add exact-command recovery through `bun run ops docs stop`; stop/restart verified | Our process-management bug, not Fumapress |
+
+For future fixes, add the package/version, reproduction, expected/actual result,
+local change, regression evidence, upstream submission status and removal condition
+here before treating the workaround as finished. Link code workarounds back to
+this register. Do not describe an unsubmitted local record as an upstream report.

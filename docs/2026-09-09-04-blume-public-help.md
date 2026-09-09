@@ -116,6 +116,9 @@ manual reload. The marker is not part of the committed content.
 
 ### Known limits and tracked upstream issues
 
+Reproduction steps, local fixes and upstream submission/removal status are kept
+in the [upstream bug register](2026-09-09-05-fumapress-source-review.md#upstream-bug-and-workaround-register).
+
 - This remains a local noindex site with a reserved canonical hostname. The
   audit proves document output, not Google indexing or Gemini recommendations.
   A public domain, crawlable deployment and subsequent search-console evidence
