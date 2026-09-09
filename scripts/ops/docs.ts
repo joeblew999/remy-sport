@@ -3,7 +3,7 @@ import { createHash } from "node:crypto"
 import { createRequire } from "node:module"
 import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { join, relative, resolve } from "node:path"
-import { spawn } from "node:child_process"
+import { spawn, execFileSync } from "node:child_process"
 import { createServer } from "node:net"
 import { once } from "node:events"
 import { assertPinnedBun } from "../lib/bun-pin"
@@ -72,9 +72,9 @@ function checkInstall() {
   }
 }
 
-async function freePort() {
+async function freePort(preferred = 0) {
   const server = createServer()
-  server.listen(0, "127.0.0.1")
+  server.listen(preferred, "127.0.0.1")
   await once(server, "listening")
   const address = server.address()
   if (!address || typeof address === "string") throw new Error("docs: no preview port")
@@ -82,13 +82,34 @@ async function freePort() {
   return address.port
 }
 
-async function preview(interactive: boolean) {
-  const port = await freePort()
+// Recover our exact local development process even if its terminal was closed.
+// Never stop the main app or a different process using the same port.
+async function stopDev() {
+  const expected = `node ${join(site, "node_modules/fumapress/cli.js")} dev --port 8791 --host 127.0.0.1`
+  const lines = execFileSync("ps", ["-ax", "-o", "pid=,command="], { encoding: "utf8" }).split("\n")
+  for (const line of lines) {
+    const match = line.trim().match(/^(\d+)\s+(.+)$/)
+    if (!match || match[2] !== expected) continue
+    const pid = Number(match[1])
+    process.kill(pid, "SIGTERM")
+    for (let attempt = 0; attempt < 50; attempt++) {
+      try { process.kill(pid, 0) } catch { break }
+      await new Promise((r) => setTimeout(r, 100))
+    }
+    console.log("docs: stopped previous help development server")
+  }
+}
+
+async function preview(interactive: boolean, live = false) {
+  const port = await freePort(interactive ? 8791 : 0)
   const url = `http://127.0.0.1:${port}`
   // Launch the local binary directly so normal cleanup is not reported as a
   // failed package script (Bun prints exit 143 when its preview child is stopped).
-  const child = spawn("node", [join(site, "node_modules/wrangler/bin/wrangler.js"), "dev", "--local", "--config", "wrangler.jsonc", "--port", String(port), "--ip", "127.0.0.1"], { cwd: site, env: childEnv(), stdio: "inherit", detached: true })
-  const stop = () => { if (child.pid) { try { process.kill(-child.pid, "SIGTERM") } catch { /* already exited */ } } }
+  const serverArgs = live
+    ? [join(site, "node_modules/fumapress/cli.js"), "dev", "--port", String(port), "--host", "127.0.0.1"]
+    : [join(site, "node_modules/wrangler/bin/wrangler.js"), "dev", "--local", "--config", "wrangler.jsonc", "--port", String(port), "--ip", "127.0.0.1"]
+  const child = spawn("node", serverArgs, { cwd: site, env: childEnv(), stdio: "inherit", detached: !live })
+  const stop = () => { if (child.pid) { try { if (live) child.kill("SIGTERM"); else process.kill(-child.pid, "SIGTERM") } catch { /* already exited */ } } }
   const onSignal = () => stop()
   process.once("SIGINT", onSignal)
   process.once("SIGTERM", onSignal)
@@ -101,6 +122,18 @@ async function preview(interactive: boolean) {
       await new Promise((r) => setTimeout(r, 200))
     }
     if (!ready) throw new Error("docs: preview did not become ready")
+    if (live) {
+      const response = await fetch(url)
+      if (!response.headers.get("x-robots-tag")?.includes("noindex")) throw new Error("docs: dev missing noindex")
+      for (const path of ["/index.md", "/index.md", "/sign-in.md", "/api/search"]) {
+        const result = await fetch(url + path, { signal: AbortSignal.timeout(5000) })
+        if (!result.ok) throw new Error(`docs: live endpoint failed ${path}: ${result.status}`)
+      }
+      console.log(`docs: live development ready at ${url}; edits update through Vite; Ctrl-C stops it`)
+      await once(child, "exit")
+      return
+    }
+    await command([process.execPath, "run", "audit", url])
     for (const [path, expected] of [["/", "Remy Sport help"], ["/sign-in", "Signing in"], ["/following-a-game", "Following a game"], ["/sign-in.md", "Signing in"], ["/llms.txt", "sign-in"], ["/sitemap.xml", "help.remy.invalid"], ["/api/search", "sign-in"]]) {
       const response = await fetch(url + path, { signal: AbortSignal.timeout(5000) })
       const body = await response.text()
@@ -124,15 +157,17 @@ async function preview(interactive: boolean) {
 export async function runDocs(args: string[]): Promise<number> {
   const action = args[0] ?? "check"
   if (action === "--help") {
-    console.log("bun run ops docs [check|preview|clean]\ncheck installs the independent locked package, builds and verifies locally; preview keeps the verified site open; clean removes only its generated files. No deployment command.")
+    console.log("bun run ops docs [dev|stop|check|preview|clean]\ndev installs and starts Vite live updates at http://127.0.0.1:8791; check installs the independent locked package, builds and verifies locally; preview keeps the verified site open; stop stops this package’s dev server; clean removes only its generated files. No deployment command.")
     return 0
   }
-  if (args.length > 1 || !["check", "preview", "clean"].includes(action)) throw new Error("docs: expected check, preview or clean")
+  if (args.length > 1 || !["dev", "stop", "check", "preview", "clean"].includes(action)) throw new Error("docs: expected dev, stop, check, preview or clean")
   if (assertPinnedBun()) return 1
   if (realpathSync(site) !== site) throw new Error("docs: package directory must not be a symlink")
   if (JSON.parse(readFileSync(join(root, "package.json"), "utf8")).workspaces) throw new Error("docs: recheck isolation before introducing a root workspace")
   const before = appSnapshot()
   try {
+    await stopDev()
+    if (action === "stop") return 0
     if (action === "clean") {
       for (const name of ["node_modules", "dist", ".source", ".vite", ".proof", ".wrangler"]) rmSync(join(site, name), { recursive: true, force: true })
       return 0
@@ -142,6 +177,10 @@ export async function runDocs(args: string[]): Promise<number> {
     if (!existsSync(join(site, "bun.lock"))) throw new Error("docs: committed sites/help/bun.lock is missing; refusing an unlocked install")
     await command([process.execPath, "install", "--frozen-lockfile"])
     checkInstall()
+    if (action === "dev") {
+      await preview(true, true)
+      return 0
+    }
     rmSync(join(site, "dist"), { recursive: true, force: true })
     await command([process.execPath, "run", "build"])
     await command([process.execPath, "run", "package"])

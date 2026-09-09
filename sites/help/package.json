@@ -3,7 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "fumapress dev --host 127.0.0.1 --port 8791",
     "build": "fumapress build",
+    "audit": "bun scripts/audit.mjs",
     "preview": "wrangler dev --local --config wrangler.jsonc",
     "package": "wrangler deploy --dry-run --config wrangler.jsonc --outdir .proof/deploy"
   },

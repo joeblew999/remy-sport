@@ -1,0 +1,5 @@
+{
+  "title": "Remy Sport Help",
+  "description": "Public user guides for Remy Sport. Local preview reviewed 2026-09-09. Read /for-assistants for Markdown access and the limits of these guides.",
+  "pages": ["index", "sign-in", "following-a-game", "notifications", "install", "for-assistants"]
+}

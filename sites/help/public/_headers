@@ -1,5 +1,9 @@
 /*
   X-Robots-Tag: noindex
+  X-Content-Type-Options: nosniff
+
+/api/search
+  Content-Type: application/json; charset=utf-8
 
 /*.md
   Content-Type: text/markdown; charset=utf-8

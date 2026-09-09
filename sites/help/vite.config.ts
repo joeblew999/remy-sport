@@ -12,8 +12,18 @@ const loaded = new Set<string>();
 const boundary: Plugin = {
   name: "remy-help-package-boundary",
   enforce: "pre",
+  configureServer(server) {
+    server.middlewares.use((_req, res, next) => {
+      res.setHeader("X-Robots-Tag", "noindex");
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      next();
+    });
+  },
   load(id) {
     const file = id.split("?")[0];
+    // Waku probes this HTTP endpoint as a module in development before routing
+    // it to Fumapress. It is a URL, not an app filesystem dependency.
+    if (file === "/api/search") return;
     if (!file || !isAbsolute(file) || file.startsWith("/@")) return;
     const rel = relative(root, file);
     if (rel.startsWith("../") || isAbsolute(rel)) throw new Error(`Help build escaped its package: ${file}`);
