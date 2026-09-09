@@ -15,7 +15,8 @@
     "ko",
     "de",
     "ru",
-    "tr"
+    "tr",
+    "it"
   ],
   "modules": [
     "https://cdn.jsdelivr.net/npm/@inlang/plugin-message-format@latest/dist/index.js"
