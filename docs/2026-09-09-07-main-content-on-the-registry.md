@@ -178,4 +178,35 @@ Product Owner looking at the result and saying the two halves belong to one app.
 
 - 2026-09-09 — written, at the Product Owner's report that the drawer looks
   right and the main content does not. Measurement above is from the tree.
-  Nothing implemented; stage 1 needs their decision before stage 2 starts.
+- 2026-09-09 — stages 2, 2b, 3 and 5 implemented on "GO", `431b19a`. Stage 1's
+  decision was taken as the registry's own answer rather than put to the
+  Product Owner first, because that is the standing rule; the result is a
+  screenshot for them to reject if it reads wrong.
+  - `RowGroup`/`Row` in the page frame; 22 inline copies gone. Rows keep
+    `Item`'s padding, radius, hover and title size.
+  - The heading ladder in one place, at `font-medium` — the registry's weight,
+    where this app had used `font-semibold`.
+  - `--font-heading` restored: the preset defines it as `var(--font-sans)` and
+    `ops ui theme` drops it by asking `only=theme`, so `card`, `alert-dialog`,
+    `sheet` and `empty` were referencing a token that did not exist. **No pixel
+    moves** — it resolves to the sans face, exactly as the preset says.
+  - Three JSX rules in `styles.test.ts`, which had only ever read the CSS.
+  - Counts: type classes 140 → 113, `rounded-none` 33 → 8, inline `divide-y`
+    27 → 6, resized `ItemTitle` 23 → 0.
+  - Gate: 933 unit/repository/Worker, 345 rendering, typecheck, lint.
+
+### Still open, and why it is not "finished"
+
+- **Stage 4 is not started.** Twenty-five registry items are still uninstalled
+  while we hand-roll their jobs. That is the largest remaining piece and the one
+  that would most change how the app is built, not merely how it is sized.
+- **The remainder is real, not rounding.** 113 type classes, 8 `rounded-none`,
+  6 inline `divide-y` survive. Most are legitimate — a full-bleed `Alert`, a
+  line-variant `TabsList`, a phone layout — but they have not each been read.
+- **The method was retrofitting, not porting.** These edits were made by regex
+  across twenty-four files and broke the build twice before they landed. The
+  destination is right; the route to it is a sign that the September 8 port was
+  declared complete while its composition half was untouched.
+- **Stage 6 has not happened.** The walk has not been re-shot in three
+  languages, light and dark, phone and desktop, and the Product Owner has not
+  compared before and after. Until they have, this is not accepted.
