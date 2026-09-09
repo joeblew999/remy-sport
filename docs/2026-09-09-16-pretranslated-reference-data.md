@@ -651,6 +651,67 @@ previous section's open question:
   1,200 cities — roughly 200 KB. Enough to develop and test the cascade against;
   no reason for a test suite to hold the world.
 
+## Adding a language must be cheap — because it keeps happening
+
+The Product Owner, 2026-09-09: *"make sure we can redo the ETL for new languages.
+We are adding them every now and then!! The provenance is highly useful."*
+
+This is not hypothetical. Polish, Ukrainian, Hindi, Korean and Russian were
+released **while this plan was being written**. A pipeline where a fourteenth
+language means re-downloading 1.2 GB and rebuilding the world is a pipeline that
+will be run once and then avoided.
+
+### The rule: stage once, extract per language
+
+Split the ETL in two, and the cost of a new language nearly vanishes:
+
+**Stage** — fetch each source into R2, unchanged, with the date it was fetched.
+Nothing here knows what languages exist.
+
+**Extract** — a pure function of *(staged sources, the locale list)*. Adding a
+language re-runs this over data already in R2. No download, no re-fetch.
+
+That works because of how the sources are actually shaped:
+
+| Source | What a new language costs |
+| --- | --- |
+| **CLDR** | Nothing. `Intl.DisplayNames` in the new locale — no network at all |
+| **GeoNames** | Nothing. `alternateNames` carries *every* language in one file; the new one's names are already in R2, just never extracted |
+| **dr5hn** | Nothing. Its nineteen languages are already staged; the answer is simply whether the new locale is among them |
+| **Wikidata** | One label pass per new locale. The only source needing network, and it is the cheap kind of query |
+
+So a fourteenth language is **minutes over staged data**, not a rebuild. The 1.2 GB
+is fetched when a *source* changes, which is a different and rarer event than a
+language being added.
+
+### The locale list is an input, never a constant
+
+The ETL reads the model's declared locales the way
+[`scripts/ops/refdata.ts`](../scripts/ops/refdata.ts) already does — so declaring a
+language in the model is the whole act, and the pipeline widens by itself. A list
+typed into the ETL is a list that goes stale the first time somebody adds a
+language without knowing the ETL exists.
+
+### What provenance buys, beyond attribution
+
+The PO is right that it is the useful part, and its value is larger than the
+licence audit it was introduced for:
+
+- **A re-run adds rather than disturbs.** Names are keyed by (place, locale,
+  source). A pass for Polish cannot touch a Thai name, so re-running is safe
+  rather than something to be nervous about.
+- **Precedence becomes a rule instead of an accident** — `translated` beats
+  `transliterated` beats `romanised`. A real Polish name appearing upstream next
+  year replaces a generated one without anybody deciding.
+- **A language's coverage is a number before it is a complaint.** Declaring a
+  language should print what places data it will actually have — the way
+  `ops fonts` refuses a locale it has no font mapping for. Places coverage is
+  never 100%, so this reports rather than refuses; but "Polish: countries 100%,
+  subdivisions 100%, cities over 100k 71%" is worth knowing on the day the
+  language is declared rather than after somebody ships it.
+- **Staleness is visible per source.** `fetched_at` on the staged object says
+  whether a gap is genuinely absent upstream or just not fetched since March.
+
 ## The decisions
 
 | Question | Decision |
@@ -662,6 +723,8 @@ previous section's open question:
 | Licences | CLDR is Unicode (free). GeoNames is CC BY 4.0 (a credit). dr5hn is ODbL-1.0, share-alike — **accepted**. Discharged by the service's repo carrying the derived database and the credits under ODbL. |
 | Licence files | **This repo: MIT.** **Places repo: code MIT, data ODbL-1.0, stated separately.** Chosen by the PO 2026-09-09 as "whatever works". MIT here lets anyone run this commercially — a business call, flagged, and irreversible once pushed. |
 | Transliteration | **Deferred, and the schema must not foreclose it.** Provenance carries a `kind` per name and names are addable per (place, locale) without an ETL rerun, so filling `th`/`zh`/`ko` below 100k later is a job rather than a rewrite. |
+| Adding a language | **Stage once, extract per language.** Extraction is a pure function of the staged sources and the model's locale list, so a new language costs minutes over R2 — no re-download. Only Wikidata needs network, one label pass. |
+| Names are keyed by | **(place, locale, source)** — which is what makes a re-run additive, precedence a rule rather than a judgement, and a language's coverage a number on the day it is declared. |
 | How the data reaches us | **A public Worker of our own**, by service binding; not a committed artefact. It also serves anyone else over HTTP with an OpenAPI document. |
 | Repo licensing | **Data ODbL, code MIT**, stated separately. Publishing the ETL without the derived rows would not satisfy share-alike. |
 | `venue.city_id` | An id plus **a snapshot of the names on our row**. No foreign key exists across a service boundary, and the snapshot is what makes an old fixture keep the name it was played under. |
@@ -717,6 +780,13 @@ previous section's open question:
       read as a stream into NDJSON in R2, never `JSON.parse` of a whole file. It is
       the same code whether it runs in CI or in a Workflow, and retrofitting it
       later means rewriting the ETL rather than moving it.
+- [ ] **8c · Split staging from extraction, so a new language is minutes.**
+      `refdata stage` fetches sources into R2 with a `fetched_at`; `refdata extract`
+      is a pure function of *(staged sources, the model's locale list)* and needs no
+      network except one Wikidata label pass. Five languages were released during
+      the writing of this plan; an ETL that costs 1.2 GB per language is one that
+      gets avoided. Prove it by adding a fourteenth locale and re-running extract
+      alone.
 - [ ] **9 · Subdivisions, merged and provenanced.** dr5hn for the eight it covers,
       GeoNames for `th`/`vi`/`id`, `native` for the endonym, English as the pivot.
       Each name records which source and licence it came from — that record is what
