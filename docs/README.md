@@ -6,6 +6,10 @@
 
 ## Open plans
 
+- [Team page sections as tabs](2026-09-09-11-team-page-tabs.md):
+  proposed 2026-09-09; planning only. Replace the duplicate-looking header jump
+  links and stacked content with Roster, Schedule and permission-controlled
+  Manage tabs, following the event page pattern and preserving old section URLs.
 - [Back navigation in the installed app](2026-09-09-10-installed-app-back-navigation.md):
   proposed 2026-09-09; planning only. Shared shadcn Back control, safe app
   history and named fallbacks for fresh deep links, with automated and actual
@@ -94,7 +98,21 @@
 ## GUI
 
 [Convert the GUI to shadcn](2026-09-08-01-typography-and-design-system.md)
-is complete, under the Product Owner's rule of 2026-09-08: no
+was recorded here as **complete on 2026-09-08, and it was not**. Read that as a
+warning before trusting a "complete" in this file. What it did was real: the
+stylesheet moved onto the preset and elements became registry components. What
+it never did was the other half — the composition. The bespoke layer did not
+go away, it moved from CSS into JSX, where the guard that was meant to catch it
+did not look, so the file stayed green while 140 hand-picked type classes and
+100 overrides of registry components accumulated. Three things it missed were
+still in the tree a month later: `--font-heading`, which the preset defines and
+`ops ui theme` drops; `--control-height: 44px` applied to every pointer, making
+every control 20-37% taller than the preset draws it; and the page architecture,
+which was ours throughout. The Product Owner found all three by looking at the
+screen. See [main content on the registry](2026-09-09-07-main-content-on-the-registry.md)
+for what was actually done about it on 2026-09-09.
+
+What that plan did deliver, under the Product Owner's rule of 2026-09-08: no
 reinvented wheels, and their theme, not ours. Done and committed: Stage A,
 B1 (shadcn's setup, the lock, the MCP server), the shell, the forms, and on
 the same day every list, table, card, page frame, dialog and input, with our
