@@ -52,6 +52,42 @@ system used as shipped. The content is an assembly of general-purpose parts,
 each given a size at the call site. That is why one reads as designed and the
 other reads as assembled, and it is what the Product Owner is seeing.
 
+### `Item` is already as designed as the sidebar, and we override it
+
+Read from the installed `components/ui/item.tsx` on 2026-09-09. It is not a
+bare row: it ships a full size system, the same kind of thing the sidebar ships.
+
+- `Item` — `rounded-lg border text-sm`, `gap-2.5 px-3 py-2.5`, with `sm` and
+  `xs` sizes and `[a]:hover:bg-muted`
+- `ItemGroup` — `gap-4`, tightening to `gap-2.5`/`gap-2` when its items are
+  smaller, automatically
+- `ItemTitle` — `text-sm leading-snug font-medium`
+- `ItemDescription` — `text-sm leading-normal text-muted-foreground`, dropping
+  to `text-xs` inside an `xs` item
+- `ItemMedia` — `size-10`, to `size-8`, to `size-6`, by the item's size
+
+We do not use any of it. **We work against it**, in two repeated ways:
+
+| What we do | Times | What it means |
+| --- | --- | --- |
+| `rounded-none` on an `Item` | 33 | flattening the registry's `rounded-lg` |
+| `text-base` on an `ItemTitle` | 23 | overruling the registry's `text-sm font-medium` |
+| `divide-y` list built inline | 27, across 23 files | a pattern the registry does not ship |
+
+That is the finding that matters most, and it is good news for the work. Those
+83 overrides are not 83 decisions. They are **two**:
+
+1. **A divided list inside one bordered box** is a real pattern the registry has
+   no variant for — `ItemGroup` ships spaced cards. We have therefore written it
+   by hand 27 times, in 23 files, each copy free to differ. It should be one
+   variant on `ItemGroup`, written once.
+2. **The row title size.** The registry says `text-sm font-medium`; we say
+   `text-base`, 23 times. That is one decision about the content scale, taken
+   23 times without ever being taken once.
+
+So stage 2 is not an audit of a hundred call sites. It is two changes in two
+component files, and then deleting the copies.
+
 ## Why the existing check did not catch it
 
 `tests/repo/styles.test.ts` holds the line in `src/web/styles.css` — no literal
@@ -101,8 +137,9 @@ Ordered so each is provable on its own and none needs the next.
 
 | Order | Deliverable | Acceptance |
 | --- | --- | --- |
-| 1 | **Agree the content scale by reading the registry's.** Write down what `Item`, `Card`, `Table` and the sidebar primitives already use for title, description, label and row density, and what our pages use instead. One table, no code. | The Product Owner can see the two scales side by side and say which is right |
-| 2 | **Take the size decisions out of the call sites.** Every one of the 100 overrides is either deleted (the registry's own size was fine) or moved into a component file as a named variant. `Item`/`ItemTitle`/`ItemGroup` first: 67 of the 100. | No `className` on a registry component sets `text-*`, `font-*`, padding, radius or gap; the render tier stays green |
+| 1 | **Two decisions, on one screen.** Show the Product Owner the registry's row against ours — `text-sm` title in a `rounded-lg` bordered row against our `text-base` title in a flat divided list — in both languages, light and dark. Nothing else in stage 1. | They pick the row. Everything below follows from it, and nothing below starts without it |
+| 2 | **Write the two decisions once.** A divided-list variant on `ItemGroup` (replacing 27 inline copies across 23 files) and the chosen title size on `ItemTitle` (replacing 23). Then delete the copies: 83 of the 100 overrides go without a per-site judgement. | No `rounded-none`, `divide-y` or `text-base` on a registry component outside `components/ui/`; the render tier stays green |
+| 2b | **The remaining 17.** `TableCell`, `CardContent` and the stragglers, each read on its own — this is the part that is genuinely one-at-a-time. | Same rule, or a comment beside it saying why it is exempt |
 | 3 | **Put the page frame on that scale.** `page.tsx` stops inventing `text-2xl`/`text-xl`/`text-base` and takes its sizes from the same place the drawer does. | The page title, section heading and row title are one scale with the sidebar, in a screenshot the Product Owner accepts |
 | 4 | **Install what we hand-rolled.** Replace our own versions with the registry item wherever one exists, chosen from the uninstalled list above by what pages actually do. | Each replacement is one commit naming the item and the code it deleted |
 | 5 | **Close the guard's blind spot.** Extend the repo check from `styles.css` to the JSX: an ad-hoc type class outside `components/ui/` fails, with an allowlist that must name a reason. | The check fails on a reintroduced `text-2xl` in a page, and passes on the tree once stage 2 and 3 land |
@@ -123,6 +160,12 @@ Ordered so each is provable on its own and none needs the next.
 - **This is a look change, so it needs the Product Owner's eye, not a green
   gate.** Stage 6 is the acceptance, and stages 1 and 3 need a decision from
   them before the work continues past each.
+- **The page header is the one place with no registry answer.** shadcn ships no
+  page-header item, so the `h1` and `h2` sizes in stage 3 are a choice, not a
+  copy. It is a small choice — two sizes — and it should be pinned to the row
+  scale agreed in stage 1 rather than picked freely. Everything else in this
+  plan is deletion or a variant written once; this is the only design decision,
+  and it should be called one when it is made.
 
 ## Done when
 
