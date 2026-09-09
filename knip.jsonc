@@ -46,6 +46,8 @@
     // them as dead files — it flagged auth.teardown.ts the moment it was added.
     "tests/**/*.teardown.ts",
     "tests/**/*.shots.ts",
+    // The opt-in media project is selected by Playwright's testMatch too.
+    "tests/**/*.media.ts",
     // shadcn components are catalogue items, copied in by `bun run ops ui add`
     // and sometimes ahead of the surface that will use them. An entry, so what
     // they import (the class helper, the primitives) counts as live, while
