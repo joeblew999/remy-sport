@@ -24,7 +24,9 @@
     "ms",
     "bn",
     "zh-TW",
-    "zh-HK"
+    "zh-HK",
+    "ur",
+    "fa"
   ],
   "modules": [
     "https://cdn.jsdelivr.net/npm/@inlang/plugin-message-format@latest/dist/index.js"

@@ -264,6 +264,8 @@ const WRITES_IN: Record<string, string[]> = {
   el: ["Greek"],
   hi: ["Devanagari"],
   ar: ["Arabic"],
+  ur: ["Arabic"],
+  fa: ["Arabic"],
   bn: ["Bengali"],
   "zh-TW": ["Han"],
   "zh-HK": ["Han"],
