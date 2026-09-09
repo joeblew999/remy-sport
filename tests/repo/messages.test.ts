@@ -160,6 +160,45 @@ rule(
 )
 
 /**
+ * No right-to-left language ships before the layout can handle one.
+ *
+ * All thirteen released locales read left to right, so nothing in this app has
+ * ever been asked to mirror — and every sidebar, drawer, breadcrumb and chevron
+ * quietly assumes a direction. Arabic is on the plan's own list; Hebrew, Farsi
+ * and Urdu are the same shape.
+ *
+ * This is not a font problem, which is what makes it worth a check of its own:
+ * `ops fonts` would happily fetch an Arabic subset and the text would render
+ * perfectly, in the wrong place, beside controls pointing the wrong way. Nothing
+ * would fail. The reader would just get a page that looks broken.
+ *
+ * So the model declares `direction`, and releasing an "rtl" locale requires the
+ * registry's `direction` item to be installed — the item that makes the
+ * primitives direction-aware, and the moment somebody has to look at the layout.
+ * docs/2026-09-09-15-language-picker-at-fifteen.md, step 5.
+ */
+const RTL_ITEM = "@shadcn/direction"
+const lock = JSON.parse(readFileSync(resolve(ROOT, "components-lock.json"), "utf8")) as {
+  items?: Record<string, unknown>
+}
+const rtlReady = RTL_ITEM in (lock.items ?? {})
+const rtlReleased = LOCALE.filter(
+  (l) => (l as { direction?: string }).direction === "rtl" && l.status === "released",
+).map((l) => l.code)
+const blocked = rtlReady ? [] : rtlReleased
+rule(
+  "no right-to-left language is released before the layout can handle one",
+  blocked,
+  `check-messages: ${blocked.length} right-to-left locale(s) released with no direction support: ${blocked.join(", ")}\n\n` +
+    `Run \`bun run ops ui add direction\` and check the layout before releasing one.\n` +
+    `The text will render either way — it is the sidebar, breadcrumbs and chevrons\n` +
+    `that will be pointing the wrong way, and nothing else would fail.`,
+  rtlReady
+    ? `check-messages: direction installed, right-to-left locales may be released`
+    : `check-messages: no right-to-left locale released (direction not installed yet)`,
+)
+
+/**
  * No language contains a character from a script it does not use.
  *
  * Written after shipping `Mùa giải定 kỳ` in Vietnamese. One CJK character in the
@@ -212,8 +251,12 @@ function* translations(): Generator<[string, string, string]> {
   }
   for (const [name, entries] of Object.entries(vocabularies)) {
     if (!Array.isArray(entries)) continue
-    for (const entry of entries as Record<string, unknown>[]) {
-      if (!entry || typeof entry !== "object") continue
+    // `vocabularies` exports rows *and* the derived code arrays — PROVINCE_CODES
+    // is a `string[]`, which is why this cannot claim to be an array of objects.
+    // The guard below is what makes it one; the type has to admit that first.
+    for (const row of entries as readonly unknown[]) {
+      if (!row || typeof row !== "object") continue
+      const entry = row as Record<string, unknown>
       for (const field of ["names", "descriptions"] as const) {
         const byLocale = entry[field]
         if (!byLocale || typeof byLocale !== "object") continue

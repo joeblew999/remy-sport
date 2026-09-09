@@ -596,22 +596,31 @@ export type InviteStatusCode = (typeof INVITE_STATUS_CODES)[number]
  * cannot read the current interface has to be able to find theirs, and nobody
  * looking for Japanese scans for "ญี่ปุ่น".
  *
+ * `direction` is declared on every row and is "ltr" for all thirteen. It exists
+ * so that the fourteenth cannot quietly be Arabic, Hebrew, Farsi or Urdu:
+ * right-to-left is not a font problem or a picker problem but a whole-layout
+ * one — every sidebar, drawer, breadcrumb and chevron in this app assumes a
+ * direction. A locale marked "rtl" is refused release until the registry's
+ * `direction` item is installed, which is the point at which somebody has
+ * actually looked at the layout. Declaring the field on rows that do not need
+ * it is the price of the language that does needing to state it.
+ *
  * docs/2026-09-09-15-language-picker-at-fifteen.md.
  */
 export const LOCALE = [
-  { code: "th", status: "released", endonym: "ไทย", names: {"th":"ไทย","en":"Thai","ja":"タイ語", "es":"Thai", "pt":"Thai", "fr":"Thai", "de":"Thai", "id":"Thai", "tl":"Thai", "vi":"Thai", "ko":"Thai", "ru":"Thai", "zh":"Thai"} },
-  { code: "en", status: "released", endonym: "English", names: {"th":"อังกฤษ","en":"English","ja":"英語", "es":"English", "pt":"English", "fr":"English", "de":"English", "id":"English", "tl":"English", "vi":"English", "ko":"English", "ru":"English", "zh":"English"} },
-  { code: "ja", status: "released", endonym: "日本語", names: {"th":"ญี่ปุ่น","en":"Japanese","ja":"日本語", "es":"Japanese", "pt":"Japanese", "fr":"Japanese", "de":"Japanese", "id":"Japanese", "tl":"Japanese", "vi":"Japanese", "ko":"Japanese", "ru":"Japanese", "zh":"Japanese"} },
-  { code: "zh", status: "released", endonym: "简体中文", names: {"th":"จีน","en":"Chinese","ja":"中国語", "es":"Chinese", "pt":"Chinese", "fr":"Chinese", "de":"Chinese", "id":"Chinese", "tl":"Chinese", "vi":"Chinese", "ko":"Chinese", "ru":"Chinese", "zh":"Chinese"} },
-  { code: "es", status: "released", endonym: "Español", names: {"th":"สเปน","en":"Spanish","ja":"スペイン語", "es":"Spanish", "pt":"Spanish", "fr":"Spanish", "de":"Spanish", "id":"Spanish", "tl":"Spanish", "vi":"Spanish", "ko":"Spanish", "ru":"Spanish", "zh":"Spanish"} },
-  { code: "pt", status: "released", endonym: "Português", names: {"th":"โปรตุเกส","en":"Portuguese","ja":"ポルトガル語", "es":"Portuguese", "pt":"Portuguese", "fr":"Portuguese", "de":"Portuguese", "id":"Portuguese", "tl":"Portuguese", "vi":"Portuguese", "ko":"Portuguese", "ru":"Portuguese", "zh":"Portuguese"} },
-  { code: "id", status: "released", endonym: "Bahasa Indonesia", names: {"th":"อินโดนีเซีย","en":"Indonesian","ja":"インドネシア語", "es":"Indonesian", "pt":"Indonesian", "fr":"Indonesian", "de":"Indonesian", "id":"Indonesian", "tl":"Indonesian", "vi":"Indonesian", "ko":"Indonesian", "ru":"Indonesian", "zh":"Indonesian"} },
-  { code: "fr", status: "released", endonym: "Français", names: {"th":"ฝรั่งเศส","en":"French","ja":"フランス語", "es":"French", "pt":"French", "fr":"French", "de":"French", "id":"French", "tl":"French", "vi":"French", "ko":"French", "ru":"French", "zh":"French"} },
-  { code: "tl", status: "released", endonym: "Filipino", names: {"th":"ฟิลิปปินส์","en":"Filipino","ja":"フィリピン語", "es":"Filipino", "pt":"Filipino", "fr":"Filipino", "de":"Filipino", "id":"Filipino", "tl":"Filipino", "vi":"Filipino", "ko":"Filipino", "ru":"Filipino", "zh":"Filipino"} },
-  { code: "vi", status: "released", endonym: "Tiếng Việt", names: {"th":"เวียดนาม","en":"Vietnamese","ja":"ベトナム語", "es":"Vietnamese", "pt":"Vietnamese", "fr":"Vietnamese", "de":"Vietnamese", "id":"Vietnamese", "tl":"Vietnamese", "vi":"Vietnamese", "ko":"Vietnamese", "ru":"Vietnamese", "zh":"Vietnamese"} },
-  { code: "ko", status: "released", endonym: "한국어", names: {"th":"เกาหลี","en":"Korean","ja":"韓国語", "es":"Korean", "pt":"Korean", "fr":"Korean", "de":"Korean", "id":"Korean", "tl":"Korean", "vi":"Korean", "ko":"Korean", "ru":"Korean", "zh":"Korean"} },
-  { code: "de", status: "released", endonym: "Deutsch", names: {"th":"เยอรมัน","en":"German","ja":"ドイツ語", "es":"German", "pt":"German", "fr":"German", "de":"German", "id":"German", "tl":"German", "vi":"German", "ko":"German", "ru":"German", "zh":"German"} },
-  { code: "ru", status: "released", endonym: "Русский", names: {"th":"รัสเซีย","en":"Russian","ja":"ロシア語", "es":"Russian", "pt":"Russian", "fr":"Russian", "de":"Russian", "id":"Russian", "tl":"Russian", "vi":"Russian", "ko":"Russian", "ru":"Russian", "zh":"Russian"} },
+  { code: "th", status: "released", direction: "ltr", endonym: "ไทย", names: {"th":"ไทย","en":"Thai","ja":"タイ語", "es":"Thai", "pt":"Thai", "fr":"Thai", "de":"Thai", "id":"Thai", "tl":"Thai", "vi":"Thai", "ko":"Thai", "ru":"Thai", "zh":"Thai"} },
+  { code: "en", status: "released", direction: "ltr", endonym: "English", names: {"th":"อังกฤษ","en":"English","ja":"英語", "es":"English", "pt":"English", "fr":"English", "de":"English", "id":"English", "tl":"English", "vi":"English", "ko":"English", "ru":"English", "zh":"English"} },
+  { code: "ja", status: "released", direction: "ltr", endonym: "日本語", names: {"th":"ญี่ปุ่น","en":"Japanese","ja":"日本語", "es":"Japanese", "pt":"Japanese", "fr":"Japanese", "de":"Japanese", "id":"Japanese", "tl":"Japanese", "vi":"Japanese", "ko":"Japanese", "ru":"Japanese", "zh":"Japanese"} },
+  { code: "zh", status: "released", direction: "ltr", endonym: "简体中文", names: {"th":"จีน","en":"Chinese","ja":"中国語", "es":"Chinese", "pt":"Chinese", "fr":"Chinese", "de":"Chinese", "id":"Chinese", "tl":"Chinese", "vi":"Chinese", "ko":"Chinese", "ru":"Chinese", "zh":"Chinese"} },
+  { code: "es", status: "released", direction: "ltr", endonym: "Español", names: {"th":"สเปน","en":"Spanish","ja":"スペイン語", "es":"Spanish", "pt":"Spanish", "fr":"Spanish", "de":"Spanish", "id":"Spanish", "tl":"Spanish", "vi":"Spanish", "ko":"Spanish", "ru":"Spanish", "zh":"Spanish"} },
+  { code: "pt", status: "released", direction: "ltr", endonym: "Português", names: {"th":"โปรตุเกส","en":"Portuguese","ja":"ポルトガル語", "es":"Portuguese", "pt":"Portuguese", "fr":"Portuguese", "de":"Portuguese", "id":"Portuguese", "tl":"Portuguese", "vi":"Portuguese", "ko":"Portuguese", "ru":"Portuguese", "zh":"Portuguese"} },
+  { code: "id", status: "released", direction: "ltr", endonym: "Bahasa Indonesia", names: {"th":"อินโดนีเซีย","en":"Indonesian","ja":"インドネシア語", "es":"Indonesian", "pt":"Indonesian", "fr":"Indonesian", "de":"Indonesian", "id":"Indonesian", "tl":"Indonesian", "vi":"Indonesian", "ko":"Indonesian", "ru":"Indonesian", "zh":"Indonesian"} },
+  { code: "fr", status: "released", direction: "ltr", endonym: "Français", names: {"th":"ฝรั่งเศส","en":"French","ja":"フランス語", "es":"French", "pt":"French", "fr":"French", "de":"French", "id":"French", "tl":"French", "vi":"French", "ko":"French", "ru":"French", "zh":"French"} },
+  { code: "tl", status: "released", direction: "ltr", endonym: "Filipino", names: {"th":"ฟิลิปปินส์","en":"Filipino","ja":"フィリピン語", "es":"Filipino", "pt":"Filipino", "fr":"Filipino", "de":"Filipino", "id":"Filipino", "tl":"Filipino", "vi":"Filipino", "ko":"Filipino", "ru":"Filipino", "zh":"Filipino"} },
+  { code: "vi", status: "released", direction: "ltr", endonym: "Tiếng Việt", names: {"th":"เวียดนาม","en":"Vietnamese","ja":"ベトナム語", "es":"Vietnamese", "pt":"Vietnamese", "fr":"Vietnamese", "de":"Vietnamese", "id":"Vietnamese", "tl":"Vietnamese", "vi":"Vietnamese", "ko":"Vietnamese", "ru":"Vietnamese", "zh":"Vietnamese"} },
+  { code: "ko", status: "released", direction: "ltr", endonym: "한국어", names: {"th":"เกาหลี","en":"Korean","ja":"韓国語", "es":"Korean", "pt":"Korean", "fr":"Korean", "de":"Korean", "id":"Korean", "tl":"Korean", "vi":"Korean", "ko":"Korean", "ru":"Korean", "zh":"Korean"} },
+  { code: "de", status: "released", direction: "ltr", endonym: "Deutsch", names: {"th":"เยอรมัน","en":"German","ja":"ドイツ語", "es":"German", "pt":"German", "fr":"German", "de":"German", "id":"German", "tl":"German", "vi":"German", "ko":"German", "ru":"German", "zh":"German"} },
+  { code: "ru", status: "released", direction: "ltr", endonym: "Русский", names: {"th":"รัสเซีย","en":"Russian","ja":"ロシア語", "es":"Russian", "pt":"Russian", "fr":"Russian", "de":"Russian", "id":"Russian", "tl":"Russian", "vi":"Russian", "ko":"Russian", "ru":"Russian", "zh":"Russian"} },
 ] as const
 
 export const LOCALE_CODES = LOCALE.map((t) => t.code) as unknown as [

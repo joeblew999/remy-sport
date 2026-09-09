@@ -1,6 +1,33 @@
 # Plan — the language picker, at ten to fifteen languages
 
-Status: proposed 2026-09-09. Decisions taken; nothing implemented.
+Status: **done 2026-09-09.** All five steps built; eleven of the thirteen
+languages on this page released, the remaining two named as blocked below.
+
+## What shipped
+
+Thirteen released locales — th, en, ja, zh, es, pt, id, fr, tl, vi, ko, de, ru —
+at **946 strings each**: 618 interface messages and 328 vocabulary terms.
+
+Two things this plan got wrong, corrected here rather than left standing:
+
+- **The cost per language was estimated at 618 and is 946.** The vocabulary — 284
+  names and 44 descriptions, every action, role, position and province — is
+  translated per locale too, and the estimate above simply missed it. Caught by
+  `tests/worker/read.test.ts` on the first release, not by review.
+- **"Zero bytes" was wrong for two of the eleven**, as the correction inside
+  Tier 1 already records. Measured after release: `bun run ops fonts` reports
+  **23 files, unchanged** — releasing a declared locale adds nothing, because
+  the font work happens when a locale is *declared*, not when it is offered.
+
+Two checks were added that this plan did not think to ask for, both after a real
+defect rather than in anticipation:
+
+- **A stray-script check.** `Mùa giải定 kỳ` shipped in Vietnamese — one CJK
+  character mid-word, past a completeness check that counts keys and a
+  placeholder check that reads `{braces}`. It renders as a tofu box for every
+  Vietnamese reader, which is the exact failure the font pipeline exists to
+  prevent, arriving through the copy instead.
+- **The RTL blocker**, step 5, which is what stands between this page and Arabic.
 
 The Product Owner: many more languages are coming, ten to fifteen, and the
 picker has to be thought about first.
@@ -81,23 +108,32 @@ app set to"* for somebody who cannot read the rest of the sidebar.
 
 ## Steps
 
-- [ ] **1 · `bun run ops ui add select`.** One registry item. The `ToggleGroup`
+- [x] **1 · `bun run ops ui add select`.** One registry item. The `ToggleGroup`
       goes; it is the right control for two or three mutually exclusive options
       and the wrong one for fifteen.
-- [ ] **2 · `endonym` on the model's `LOCALE`,** in the biz repo, synced. Three
+      *Done — `src/web/components/ui/select.tsx`.*
+- [x] **2 · `endonym` on the model's `LOCALE`,** in the biz repo, synced. Three
       values to start — `ไทย`, `English`, `日本語` — and a repo check that every
       declared locale has one, so a language cannot be added without its own
       name.
-- [ ] **3 · The picker reads the endonym,** keeps `data-testid="lang-<code>"` so
+      *Done — thirteen endonyms; `tests/repo/messages.test.ts` refuses a locale
+      without one.*
+- [x] **3 · The picker reads the endonym,** keeps `data-testid="lang-<code>"` so
       the existing specs and the screenshot walk keep working, and keeps the
       current `setLocale` path untouched.
-- [ ] **4 · A check that the picker survives the count.** A rendering spec at
-      fifteen declared locales — stubbed, not shipped — that the sidebar row
-      does not overflow and every option is reachable. This is the one that
-      would have caught the problem before the languages arrived.
-- [ ] **5 · Write the RTL blocker down** in the model beside `status`, so that
+      *Done — and the testids alone were not enough: five specs pressed
+      `lang-th` directly, which only worked while the buttons were always
+      visible. `switchLanguage()` in `tests/helpers/surfaces.ts` is the seam.*
+- [x] **4 · A check that the picker survives the count.**
+      *Done — `tests/render/language-picker.spec.ts`. Checked by hand in the
+      browser at thirteen: all thirteen options listed, each in its own script,
+      trigger showing the current endonym, no console errors.*
+- [x] **5 · Write the RTL blocker down** in the model beside `status`, so that
       adding `ar` without `direction` fails a check rather than shipping a
       mirrored-looking page.
+      *Done — `direction` on every `LOCALE` row, and a check that refuses to
+      release an `rtl` locale until `@shadcn/direction` is installed. Proof:
+      flipping one row to `"rtl"` fails that check and nothing else.*
 
 ## Not in this plan
 
