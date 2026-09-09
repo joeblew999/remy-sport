@@ -2,6 +2,7 @@ import { useSession } from "../lib/session";
 import { parseRoute, signInRoute, routeHref } from "../lib/router";
 import { m } from "../lib/i18n";
 import { NotificationSettings } from "../components/notification-settings";
+import { Following } from "../components/following";
 import { Muted, PageHeader, PageInner } from "../components/page";
 import { EmptyState, Loading } from "../components/states";
 import { ButtonLink } from "../components/button-link";
@@ -44,6 +45,17 @@ export function NotificationsPage() {
     <div data-testid="notifications-page">
       <PageHeader title={m.notifications()} sub={m.notifications_intro()} />
       <PageInner className="flex flex-col gap-6">
+        {/*
+          What this page is about, first.
+
+          `notifications.following` — the teams, events and players this reader
+          follows, names already resolved — was fetched by the settings panel
+          and thrown away; the list only ever rendered on Home. So the page
+          offered a full set of switches without ever saying that nothing below
+          fires unless you follow something. It is the same component Home uses,
+          not a second copy.
+        */}
+        <Following />
         <NotificationSettings />
         {/* What adjacency used to do, said out loud instead.
             These two pages each hold a list of devices and they are not the

@@ -35,9 +35,9 @@ import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item"
-import { Label } from "@/components/ui/label"
+import { NOTIFICATION_CATEGORY, NOTIFICATION_TYPE } from "../../domain/vocabularies"
+import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field"
 import { Switch } from "@/components/ui/switch"
 import { Muted, SubHeading } from "./page"
 
@@ -58,6 +58,31 @@ const OFFERED = [
   "EVENT_REMINDER",
   "ROSTER_CHANGE",
 ] as const
+
+/**
+ * Which channels each type is offered on, because a renderer exists for it.
+ *
+ * `ROSTER_CHANGE` has no EMAIL renderer — src/api/registrations.ts says so
+ * deliberately, and the Product Owner's decision of 2026-09-09 was to stop
+ * offering the cell rather than write the copy. Offering it wrote a preference
+ * row nothing would ever read: a control that does nothing, which is precisely
+ * what tests/repo/notifications.test.ts exists to prevent, one dimension along.
+ * That check now compares (type, channel) pairs, so this table cannot drift
+ * from what the Worker can actually send.
+ */
+const CHANNELS_FOR: Record<(typeof OFFERED)[number], readonly ("PUSH" | "EMAIL")[]> = {
+  MATCH_START: ["PUSH", "EMAIL"],
+  SCORE_UPDATE: ["PUSH", "EMAIL"],
+  MATCH_END: ["PUSH", "EMAIL"],
+  EVENT_REMINDER: ["PUSH", "EMAIL"],
+  ROSTER_CHANGE: ["PUSH"],
+}
+
+/** The offered types under the model's own categories, in the model's order. */
+const GROUPS = NOTIFICATION_CATEGORY.map((category) => ({
+  code: category.code,
+  types: OFFERED.filter((t) => NOTIFICATION_TYPE.find((n) => n.code === t)?.categoryCode === category.code),
+})).filter((g) => g.types.length > 0)
 
 /** A note the reader cannot act on from here: a state, not an error to fix. */
 function Note({ blocked, children, ...props }: { blocked?: boolean; children: React.ReactNode; "data-testid"?: string }) {
@@ -137,6 +162,18 @@ export function NotificationSettings() {
 
   const { data } = useQuery(orpc.notifications.following.queryOptions())
   const { data: devices } = useQuery(orpc.notifications.devices.queryOptions())
+  /**
+   * Can push reach this *account* at all — not this browser.
+   *
+   * `userNotificationPreference` is keyed on the user and `audienceFor` reads it
+   * for every device they have, so the preference list is an account fact. It
+   * used to be gated on `state.status === "on"`, which is this browser's own
+   * subscription, and that froze the whole list on a laptop for a reader whose
+   * phone was registered — and permanently inside the native app, where the
+   * status is `native` and never `on`. `state` still governs this device's own
+   * controls, which is the only thing it actually knows about.
+   */
+  const pushReachable = (devices?.devices ?? []).some((d) => d.enabled)
 
   const mute = useMutation({
     mutationFn: (args: { notificationTypeCode: (typeof OFFERED)[number]; isEnabled: boolean; channelCode?: "PUSH" | "EMAIL" }) =>
@@ -306,7 +343,7 @@ export function NotificationSettings() {
           the Dock has its own subscription and a reader inside the installed
           app saw "Safari on Mac" and read it as themselves. */}
       <section className="flex flex-col gap-2">
-        <SubHeading>{m.push_devices()}</SubHeading>
+        <SubHeading>{m.notifications_where()}</SubHeading>
         {devices?.devices.length ? (
           <ItemGroup data-testid="device-list">
             {devices.devices.map((d, i) => (
@@ -328,6 +365,33 @@ export function NotificationSettings() {
         ) : (
           <Note data-testid="devices-empty">{m.devices_none()}</Note>
         )}
+        {/*
+          Email, as the row it is.
+
+          It was one grey sentence filed under *What to hear about*, which is a
+          different question — that section asks what, this one asks where. The
+          address is a delivery destination exactly as a browser is, so it sits
+          with them and keeps its three states as a row rather than a caption.
+        */}
+        <ItemGroup data-testid="email-channel-row">
+          <Item variant="outline" size="sm">
+            <ItemContent>
+              <ItemTitle>{label("notificationChannels", "EMAIL")}</ItemTitle>
+              <ItemDescription>
+                {!data?.email
+                  ? m.email_row_none()
+                  : data.email.verified
+                    ? m.email_goes_to({ address: data.email.address })
+                    : m.email_unverified()}
+              </ItemDescription>
+            </ItemContent>
+            {data?.email?.verified && (
+              <ItemActions>
+                <Badge variant="secondary" data-testid="email-verified">{m.verified()}</Badge>
+              </ItemActions>
+            )}
+          </Item>
+        </ItemGroup>
         {/* This browser holds a subscription the server has no row for: a
             pruned device shows a Disable button and a working-looking test
             button forever, and nothing can ever reach it. This is the only
@@ -337,70 +401,106 @@ export function NotificationSettings() {
         )}
       </section>
 
-      <section className="flex flex-col gap-2">
+      {/*
+        One matrix: the types as rows, the two channels as columns.
+
+        It was a checkbox that started ticked beside a switch that started off —
+        the same question, asked twice, with two controls pointing two ways.
+        The server's asymmetry is real and right (`wantsChannel` in api/push.ts:
+        push is opt-out, email opt-in) but it is the server's, and a control
+        that shows the reader's actual state says it either way. So both cells
+        are the same control, and the channel is named once at the head of its
+        column from the model's own vocabulary rather than on every row.
+
+        Grouped by the model's categories, which it has carried all along.
+        docs/2026-09-09-08-notifications-page-two-channels.md.
+      */}
+      <section className="flex flex-col gap-3">
         <SubHeading>{m.what_to_hear_about()}</SubHeading>
-        {/* Where email goes, and whether it may. The address is the one the
-            sign-in code proved (src/api/email-channel.ts); until a verified
-            sign-in has registered it, every email switch below stays off and
-            this sentence says why. */}
-        {data && (
+
+        {/* The column heads, and the one place a disabled column says why. */}
+        <div className="grid grid-cols-[1fr_5rem_5rem] items-end gap-2 border-b pb-2">
+          <span />
+          <Muted as="span" className="text-center text-xs font-medium" data-testid="col-push">
+            {label("notificationChannels", "PUSH")}
+          </Muted>
+          <Muted as="span" className="text-center text-xs font-medium" data-testid="col-email">
+            {label("notificationChannels", "EMAIL")}
+          </Muted>
+        </div>
+        {!pushReachable && (
+          <Muted data-testid="push-column-off">{m.push_no_devices_note()}</Muted>
+        )}
+        {data && !data.email?.verified && (
           <Muted data-testid="email-state">
-            {!data.email
-              ? m.email_no_address()
-              : !data.email.verified
-                ? m.email_unverified()
-                : m.email_goes_to({ address: data.email.address })}
+            {!data.email ? m.email_no_address() : m.email_unverified()}
           </Muted>
         )}
-        <ItemGroup>
-          {OFFERED.map((code) => {
-            const muted = data?.muted.includes(code) ?? false
-            const emailOn = data?.emailOn.includes(code) ?? false
-            return (
-              <Item variant="outline" size="sm" className="items-start" key={code}>
-                <Checkbox
-                  id={`pref-${code}`}
-                  className="mt-0.5"
-                  checked={!muted}
-                  // Off until push is on: a switch that changes a stored
-                  // preference nothing will read is a lie about what it does.
-                  disabled={state?.status !== "on" || mute.isPending}
-                  onCheckedChange={(checked) =>
-                    mute.mutate({ notificationTypeCode: code, isEnabled: checked === true })
-                  }
-                  data-testid={`pref-${code}`}
-                />
-                <ItemContent>
-                  {/* The model's own name for the type, in the reader's language,
-                      and the model's own explanation of what it sends. */}
-                  <Label htmlFor={`pref-${code}`} className="font-normal">{label("notificationTypes", code)}</Label>
-                  {describe("notificationTypes", code) && (
-                    <ItemDescription data-testid={`pref-note-${code}`}>
-                      {describe("notificationTypes", code)}
-                    </ItemDescription>
-                  )}
-                </ItemContent>
-                {/* Email is opt-in, so this is a switch that starts off, per
-                    type, and only a verified address can turn it on. */}
-                <ItemActions className="self-center">
-                  <Label htmlFor={`email-pref-${code}`} className="text-xs font-normal text-muted-foreground">
-                    {m.email_channel()}
-                  </Label>
-                  <Switch
-                    id={`email-pref-${code}`}
-                    size="sm"
-                    checked={emailOn}
-                    disabled={!data?.email?.verified || mute.isPending}
-                    onCheckedChange={(checked) =>
-                      mute.mutate({ notificationTypeCode: code, channelCode: "EMAIL", isEnabled: checked === true })
-                    }
-                    data-testid={`email-pref-${code}`}
-                  />
-                </ItemActions>
-              </Item>
-            )
-          })}
-        </ItemGroup>
+
+        {GROUPS.map((group) => (
+          <FieldSet key={group.code} data-testid={`group-${group.code}`}>
+            <FieldLegend variant="label">{label("notificationCategories", group.code)}</FieldLegend>
+            <div className="flex flex-col">
+              {group.types.map((code) => {
+                const muted = data?.muted.includes(code) ?? false
+                const emailOn = data?.emailOn.includes(code) ?? false
+                const emailOffered = CHANNELS_FOR[code].includes("EMAIL")
+                return (
+                  <div key={code} className="grid grid-cols-[1fr_5rem_5rem] items-center gap-2 border-b py-2 last:border-b-0">
+                    <Field orientation="vertical" className="gap-0.5">
+                      <FieldLabel htmlFor={`pref-${code}`} className="font-normal">
+                        {label("notificationTypes", code)}
+                      </FieldLabel>
+                      {describe("notificationTypes", code) && (
+                        <FieldDescription data-testid={`pref-note-${code}`}>
+                          {describe("notificationTypes", code)}
+                        </FieldDescription>
+                      )}
+                    </Field>
+                    <div className="flex justify-center">
+                      <Switch
+                        id={`pref-${code}`}
+                        size="sm"
+                        checked={!muted && pushReachable}
+                        /* The account, not this browser. A preference is keyed
+                           on the user and read for every device they have, so
+                           gating it on this browser's own subscription froze
+                           the list on a laptop for a reader whose phone was
+                           registered — and permanently in the native app,
+                           where the status is never "on". */
+                        disabled={!pushReachable || mute.isPending}
+                        onCheckedChange={(checked) =>
+                          mute.mutate({ notificationTypeCode: code, isEnabled: checked === true })
+                        }
+                        data-testid={`pref-${code}`}
+                      />
+                    </div>
+                    <div className="flex justify-center">
+                      {emailOffered ? (
+                        <Switch
+                          id={`email-pref-${code}`}
+                          size="sm"
+                          checked={emailOn}
+                          disabled={!data?.email?.verified || mute.isPending}
+                          onCheckedChange={(checked) =>
+                            mute.mutate({ notificationTypeCode: code, channelCode: "EMAIL", isEnabled: checked === true })
+                          }
+                          data-testid={`email-pref-${code}`}
+                        />
+                      ) : (
+                        /* Empty with its reason, not a live control that stores
+                           a preference nothing reads. */
+                        <Muted as="span" className="text-xs" data-testid={`email-none-${code}`}>
+                          {m.channel_push_only()}
+                        </Muted>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </FieldSet>
+        ))}
       </section>
       </CardContent>
     </Card>

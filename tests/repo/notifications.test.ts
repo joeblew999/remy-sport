@@ -106,3 +106,78 @@ rule(
   `check-notifications: ${offered.size} of ${known.size} notification types are sent, ` +
     "and every one of them can be turned off",
 )
+
+/**
+ * The same question, one dimension along: every offered **cell**, not type.
+ *
+ * The check above proves every switch corresponds to a sender. It was written
+ * when there was one channel, and the day EMAIL became a second one it stopped
+ * covering the thing it was for: `ROSTER_CHANGE` was offered an email switch
+ * although src/api/registrations.ts has no EMAIL renderer for it and says so
+ * deliberately. Turning it on wrote a preference row nothing would ever read —
+ * exactly the dead control the original rule guards against, invisible to it
+ * because it compared types.
+ *
+ * `CHANNELS_FOR` in the settings page is the claim; the renderers are the fact.
+ * A renderer is a key in the object a `notify` call site passes — `PUSH:` and
+ * `EMAIL:` beside a `typeCode` — so, like the senders above, it is found by
+ * reading source rather than by inventing a registry for the test's benefit.
+ *
+ * Association is per file, which is coarser than per call site and honest about
+ * it: notify-queue.ts holds the three live types and the reminder and renders
+ * EMAIL for both, registrations.ts holds ROSTER_CHANGE and renders none. If a
+ * file ever mixes a type that has an email body with one that does not, this
+ * will pass something it should not, and the fix then is to narrow it to the
+ * call site rather than to trust it further.
+ */
+const CHANNELS = ["PUSH", "EMAIL"] as const
+
+const rendered = new Map<string, Set<string>>()
+for (const file of serverSources(SERVER)) {
+  const source = readFileSync(file, "utf8")
+  const here = CHANNELS.filter((c) => new RegExp(`\\b${c}:\\s*\\(`).test(source))
+  if (!here.length) continue
+  for (const match of source.matchAll(/"([A-Z][A-Z0-9_]+)"/g)) {
+    const code = match[1]!
+    if (!known.has(code)) continue
+    rendered.set(code, new Set([...(rendered.get(code) ?? []), ...here]))
+  }
+}
+
+const table = settings.match(/const CHANNELS_FOR[^=]*= \{(.*?)\n\}/s)
+const claimed = new Map<string, string[]>()
+for (const line of table?.[1]?.split("\n") ?? []) {
+  const m = line.match(/([A-Z_]+):\s*\[([^\]]*)\]/)
+  if (m) claimed.set(m[1]!, [...m[2]!.matchAll(/"(\w+)"/g)].map((c) => c[1]!))
+}
+
+const cells: string[] = []
+if (!table) cells.push("could not find `const CHANNELS_FOR = {...}` in notification-settings.tsx")
+for (const code of offered) {
+  const has = rendered.get(code) ?? new Set<string>()
+  const says = claimed.get(code) ?? []
+  for (const channel of says) {
+    if (!has.has(channel)) {
+      cells.push(
+        `${code} is offered on ${channel} and nothing renders it.\n` +
+          "    The switch stores a preference no sender will ever read.",
+      )
+    }
+  }
+  for (const channel of has) {
+    if (!says.includes(channel)) {
+      cells.push(
+        `${code} has a ${channel} renderer and no cell offers it.\n` +
+          "    It is sent and cannot be turned off on that channel.",
+      )
+    }
+  }
+}
+
+rule(
+  "every offered channel has something that renders it",
+  cells,
+  "check-notifications: the settings matrix and the renderers disagree\n\n" +
+    cells.map((c) => `  ${c}`).join("\n"),
+  `check-notifications: ${[...claimed.values()].flat().length} (type, channel) cells, each with a renderer`,
+)

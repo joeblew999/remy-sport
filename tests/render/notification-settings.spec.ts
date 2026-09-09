@@ -69,20 +69,21 @@ test.describe("The notification section, as a reader sees it", () => {
     expect(h3, `h3 (${h3}px) must not shout louder than the page title (${title}px)`).toBeLessThanOrEqual(title)
   })
 
-  test("the preference list is a list of settings, not a bulleted list", async ({ page }) => {
+  test("the preference matrix is a matrix, not a bulleted list", async ({ page }) => {
     await as(page, "ADMIN")
     await visit(page, "notifications")
 
-    // The registry's ItemGroup: a list by role, with no browser bullets and no
-    // 40px indent, which is what the old `<ul>` had to be styled out of.
-    const list = page
-      .getByTestId("notification-settings")
-      .locator("[data-slot=item-group]")
-      .filter({ has: page.getByTestId("pref-MATCH_START") })
-    await expect(list).toBeVisible()
-    await expect(list).toHaveAttribute("role", "list")
-    const indent = await list.evaluate((el) => parseFloat(getComputedStyle(el).paddingLeft))
+    // The types are grouped by the model's own categories and laid out against
+    // two channel columns (docs/2026-09-09-08), so what used to be an
+    // ItemGroup is a FieldSet per category. The thing worth holding is
+    // unchanged: no browser bullets and no 40px indent in a card where nothing
+    // else has either.
+    const group = page.getByTestId("group-LIVE")
+    await expect(group).toBeVisible()
+    const indent = await group.evaluate((el) => parseFloat(getComputedStyle(el).paddingLeft))
     expect(indent, "the browser's 40px list indent").toBeLessThan(8)
+    await expect(page.getByTestId("col-push")).toBeVisible()
+    await expect(page.getByTestId("col-email")).toBeVisible()
   })
 
   /**
@@ -126,26 +127,21 @@ test.describe("The notification section, as a reader sees it", () => {
     await expect(page.getByTestId("to-notifications")).toBeVisible()
   })
 
-  test("puts the devices before the preferences, because a device is the prerequisite", async ({ page }) => {
+  test("says where notifications go before it asks what for", async ({ page }) => {
     await as(page, "ADMIN")
     await visit(page, "notifications")
 
     /**
-     * Order as the reader meets it: this device, then which devices, then what
-     * to hear about. Choosing types is refinement — with nothing registered it
-     * is moot, and it used to render first, fully enabled-looking, above the
-     * list that would have said so. On a phone that put a full screen of scroll
-     * between "On for this device" and the row marked "· this device".
+     * Three questions in the order a reader asks them: what this is about, where
+     * it can reach me, what for. The section headed *Where notifications go*
+     * used to be called *Devices receiving notifications* — which named the
+     * whole page while listing only browsers — and the email address sat under
+     * *What to hear about*, a different question. Asserted by what the sections
+     * hold rather than by their words, so it survives translation.
      */
-    const headings = await page
-      .getByTestId("notification-settings")
-      .locator("h3")
-      .allInnerTexts()
-    const devices = headings.findIndex((h) => /device/i.test(h))
-    const prefs = headings.findIndex((h) => /hear/i.test(h))
-    expect(devices, "a devices heading").toBeGreaterThanOrEqual(0)
-    expect(prefs, "a preferences heading").toBeGreaterThanOrEqual(0)
-    expect(devices, `devices (${devices}) must precede preferences (${prefs})`).toBeLessThan(prefs)
+    const where = await page.getByTestId("email-channel-row").boundingBox()
+    const what = await page.getByTestId("col-push").boundingBox()
+    expect(where!.y, "the email row belongs with the browsers, above the matrix").toBeLessThan(what!.y)
   })
 
   test("says the device state once, not twice", async ({ page }) => {

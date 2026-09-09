@@ -28,7 +28,10 @@ for (const locale of ["en", "th", "ja"]) {
       await stubPushRpc(page, { following: following({ address: "pim.s@example.test", verified: true }, ["MATCH_START"]) })
 
       await visit(page, "notifications")
-      await expect(page.getByTestId("email-state")).toContainText("pim.s@example.test")
+      // The address is a row in *Where notifications go* now, beside the
+      // browsers it is a peer of — not a caption under *What to hear about*,
+      // which asks a different question (docs/2026-09-09-08).
+      await expect(page.getByTestId("email-channel-row")).toContainText("pim.s@example.test")
       const on = page.getByTestId("email-pref-MATCH_START")
       await expect(on).toBeEnabled()
       await expect(on).toHaveAttribute("aria-checked", "true")
@@ -46,9 +49,14 @@ test("an unverified address keeps every email switch off, and says why", async (
   await visit(page, "notifications")
   await expect(page.getByTestId("email-state")).toBeVisible()
   await expect(page.getByTestId("email-state")).not.toContainText("pim.s@example.test")
-  for (const code of ["MATCH_START", "SCORE_UPDATE", "MATCH_END", "EVENT_REMINDER", "ROSTER_CHANGE"]) {
+  // ROSTER_CHANGE has no cell at all now: there is no EMAIL renderer for it,
+  // so it says "push only" instead of offering a switch that stores a
+  // preference nothing reads. tests/repo/notifications.test.ts holds that.
+  for (const code of ["MATCH_START", "SCORE_UPDATE", "MATCH_END", "EVENT_REMINDER"]) {
     await expect(page.getByTestId(`email-pref-${code}`)).toBeDisabled()
   }
+  await expect(page.getByTestId("email-pref-ROSTER_CHANGE")).toHaveCount(0) // check-ignore: asserts absence
+  await expect(page.getByTestId("email-none-ROSTER_CHANGE")).toBeVisible()
 })
 
 test("no registered address: the switches are off and the sentence says there is none", async ({ page }) => {

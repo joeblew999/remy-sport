@@ -168,30 +168,30 @@ nothing.
 Ordered so each stage is shippable on its own and the defects land before the
 cosmetics. Nothing here needs a schema change.
 
-- [ ] **1 · The page says what it is about.** Render `data.following` — already
+- [x] **1 · The page says what it is about.** Render `data.following` — already
       fetched and discarded — as the first section, reusing `components/following.tsx`
       rather than a second copy. Its empty state says that nothing below can fire
       until you follow something, with a link to Discover. Rewrite
       `notifications_intro` to name both channels and more than games; three
       locales.
-- [ ] **2 · The push gate moves to the account tier.** Replace
+- [x] **2 · The push gate moves to the account tier.** Replace
       `state?.status !== "on"` on the type rows with "this account has at least
       one enabled PUSH channel" — which `notifications.devices` already returns.
       Fixes defects 1 and 3 together: a laptop can manage the phone's
       preferences, and the native app is no longer locked out. `state` keeps
       governing *this device's* controls only — the toggle, the test button —
       which is the one thing it actually knows about.
-- [ ] **3 · A frozen row states its reason.** When the push column is genuinely
+- [x] **3 · A frozen row states its reason.** When the push column is genuinely
       unusable — no registered device on the account — the column is disabled
       **and says so** once, at the column head, instead of five ticked grey boxes
       that read as consent. New message, three locales.
-- [ ] **4 · Every offered cell proves a renderer exists.** A `CHANNELS_FOR`
+- [x] **4 · Every offered cell proves a renderer exists.** A `CHANNELS_FOR`
       table beside `OFFERED` naming which channels each type is offered on, and
       `tests/repo/notifications.test.ts` extended from types to **(type, channel)
       pairs**, in both directions: a renderer with no cell cannot be reached, a
       cell with no renderer does nothing. Roster Change's email cell goes, with
       "push only" beside it. This is the check that makes decision two permanent.
-- [ ] **5 · The matrix.** `FieldSet` / `FieldLegend` / `FieldGroup` / `Field` /
+- [x] **5 · The matrix.** `FieldSet` / `FieldLegend` / `FieldGroup` / `Field` /
       `FieldDescription` from `components/ui/field.tsx` — the registry item every
       other form in the app already uses, and the wheel the Product Owner's rule
       of 2026-09-08 says not to reinvent. One `FieldSet` per model category,
@@ -200,7 +200,7 @@ cosmetics. Nothing here needs a schema change.
       `label("notificationChannels", "PUSH" | "EMAIL")` — the model's own names,
       like the type names already are, rather than the hardcoded
       `m.email_channel()`.
-- [ ] **6 · The two channels sit together.** Rename the section to *Where
+- [x] **6 · The two channels sit together.** Rename the section to *Where
       notifications go* (`push_devices` currently claims the whole page while
       listing only browsers) and put the email address in it, beside the
       browsers, as the row it is. The address keeps its three states — none,
@@ -258,3 +258,45 @@ device row can be acted on; and the gate is green.
   switch corresponds to a sender, but says nothing about channels — so the day
   EMAIL was added as a second channel, its own guard stopped covering the thing
   it was written for. Step 4 pays it.
+
+## Log — implemented 2026-09-09
+
+Steps 1–6 done. What each one actually changed:
+
+- **1.** `Following` now renders at the top of `/#/notifications`, the same
+  component Home uses. `data.following` was fetched by the settings panel and
+  discarded; the page never said that nothing below fires unless you follow
+  something.
+- **2.** `pushReachable` is `devices.devices.some(d => d.enabled)` — the account,
+  not this browser. Fixes both halves of the defect at once: a laptop can now
+  manage a phone's preferences, and the native app is no longer permanently
+  locked out, because its status is `native` and never `on`.
+- **3.** When no device is registered the column is off and says so once, at the
+  head, instead of five ticked grey boxes that read as consent.
+- **4.** `CHANNELS_FOR` names the channels each type is offered on, and
+  `tests/repo/notifications.test.ts` gained a second rule comparing **(type,
+  channel)** pairs in both directions. Proven to bite: putting `EMAIL` back on
+  `ROSTER_CHANGE` fails with *"offered on EMAIL and nothing renders it"*.
+  Association is per file, which is coarser than per call site and documented as
+  such in the check.
+- **5.** One matrix: `FieldSet` per model category with `FieldLegend` from
+  `label("notificationCategories", …)`, two columns headed from
+  `label("notificationChannels", …)`, and the **same control in both** — the
+  checkbox-beside-a-switch asked one question with two widgets pointing two
+  ways. `ROSTER_CHANGE`'s email cell is *Push only* text, not a control.
+- **6.** The section is *Where notifications go*, and the email address is a row
+  in it beside the browsers rather than a caption filed under *What to hear
+  about*, which asks a different question.
+
+Six messages added in three locales. 360 rendering checks pass, including the
+email matrix in three locales and both schemes.
+
+### Still open
+
+- **Step 7 — Forget on a device row.** Needs the API addition the plan
+  describes: `unsubscribe` keyed on the fingerprint the list already carries,
+  matched server-side. Not started.
+- **Step 8 — the captures.** `notifications` is in the walk and was not re-shot;
+  the desktop capture also hits the known WebKit stall recorded in the status
+  index.
+- The three items under *Open, and not decided here* are unchanged.
