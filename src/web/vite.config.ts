@@ -9,6 +9,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import { VitePWA } from "vite-plugin-pwa";
+import { installName } from "./lib/install-name.ts";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { execSync } from "node:child_process";
@@ -145,20 +146,36 @@ const git = (args: string): string => {
     return "";
   }
 };
-function stamp(command: "build" | "serve") {
+function stamp(command: "build" | "serve", environment: string) {
   const commit = git("rev-parse --short HEAD");
   const repo = process.env.GITHUB_REPO_URL;
   return {
     commit,
     branch: git("branch --show-current"),
     builtAt: process.env.BUILD_ID ?? new Date().toISOString(),
-    environment: process.env.CLOUDFLARE_ENV ?? (command === "serve" ? "dev" : "production"),
+    environment,
     app: (JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8")) as { version: string }).version,
     github: repo && commit ? `${repo}/commit/${git("rev-parse HEAD")}` : null,
   };
 }
 
-export default defineConfig(({ mode, command }) => ({
+/**
+ * The Add to Home Screen name, per environment.
+ *
+ * The mapping lives in `lib/install-name.ts`, imported here and by
+ * `tests/repo/manifest.test.ts`, so the build and the check share one table.
+ * It is keyed off the single `environment` value computed in `defineConfig` —
+ * the same one `stamp()` bakes into `__BUILD__.environment` — so the manifest
+ * name and the reported environment share one source of truth and cannot
+ * disagree.
+ */
+export default defineConfig(({ mode, command }) => {
+  // The single source of truth for which environment this build is for. It
+  // feeds both `__BUILD__.environment` (via `stamp`) and the manifest's
+  // install name, so the two cannot disagree. See `installName` above.
+  const environment = process.env.CLOUDFLARE_ENV ?? (command === "serve" ? "dev" : "production");
+  const { name, short_name } = installName(environment);
+  return {
   root: __dirname,
   // `@/` is this directory: shadcn's components import `@/lib/utils` and
   // `@/components/ui/...` (components.json `aliases`). tsconfig.json carries
@@ -232,8 +249,8 @@ export default defineConfig(({ mode, command }) => ({
       srcDir: ".",
       filename: "sw.ts",
       manifest: {
-        name: "Remy Sport",
-        short_name: "Remy",
+        name,
+        short_name,
         description: "Basketball events, teams and live scoring for Thailand.",
         /**
          * The app's identity, which is not its URL.
@@ -331,10 +348,11 @@ export default defineConfig(({ mode, command }) => ({
    * derives from the request URL (src/auth.ts).
    */
   server: { port: mode === "e2e" ? 8788 : 8787, strictPort: true, host: true },
-  define: { __BUILD__: JSON.stringify(stamp(command)) },
+  define: { __BUILD__: JSON.stringify(stamp(command, environment)) },
   build: {
     // The plugin writes dist/client and dist/remy_sport beneath this.
     outDir: resolve(ROOT, "dist"),
     sourcemap: true,
   },
-}));
+  };
+});

@@ -19,6 +19,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs"
 import { resolve, join } from "node:path"
 import { rule } from "./helpers"
+import { installName } from "../../src/web/lib/install-name"
 
 const ROOT = resolve(import.meta.dirname, "../..")
 const DIST = resolve(ROOT, "dist/client")
@@ -32,7 +33,7 @@ const skipped = !existsSync(MANIFEST)
   : null
 
 type Asset = { src: string; sizes?: string; type?: string; form_factor?: string }
-const manifest: { id?: string; icons?: Asset[]; screenshots?: Asset[] } = skipped
+const manifest: { id?: string; name?: string; short_name?: string; icons?: Asset[]; screenshots?: Asset[] } = skipped
   ? {}
   : JSON.parse(readFileSync(MANIFEST, "utf8"))
 
@@ -104,4 +105,37 @@ rule(
     `of the app. <pwa-install> 0.7.0 also needs it for the Web Install API path.\n\n` +
     `Set \`id\` in the VitePWA manifest in src/web/vite.config.ts.`,
   skipped ?? `manifest: id is ${JSON.stringify(manifest.id)}`,
+)
+
+/**
+ * The install name must say which environment this build is for.
+ *
+ * The build and this check share one table — `installName()` in
+ * `src/web/lib/install-name.ts` — so the expected name here is the same one
+ * the build wrote, and the two cannot drift. The environment is resolved the
+ * same way the build resolves it for a build (not a serve): `CLOUDFLARE_ENV`,
+ * production when unset. A build that forgets its environment ships the
+ * production name on staging, which is exactly the silent failure this catches.
+ */
+const environment = process.env.CLOUDFLARE_ENV ?? "production"
+const expected = installName(environment)
+const nameMismatch = skipped
+  ? []
+  : manifest.name !== expected.name || manifest.short_name !== expected.short_name
+    ? [
+        `name is ${JSON.stringify(manifest.name)} / ${JSON.stringify(manifest.short_name)}, ` +
+          `expected ${JSON.stringify(expected.name)} / ${JSON.stringify(expected.short_name)} for ${environment}`,
+      ]
+    : []
+
+rule(
+  "the manifest names the environment it was built for",
+  nameMismatch,
+  `The web manifest does not name the environment it was built for.\n\n` +
+    nameMismatch.join("\n") +
+    `\n\nA build that forgets its environment ships the production name on staging,\n` +
+    `so two environments installed side by side are indistinguishable. The name\n` +
+    `comes from installName() in src/web/lib/install-name.ts, keyed off\n` +
+    `CLOUDFLARE_ENV. Rebuild with the right environment (bun run deploy -- --env staging).`,
+  skipped ?? `manifest: name ${JSON.stringify(manifest.name)} / ${JSON.stringify(manifest.short_name)} for ${environment}`,
 )
