@@ -179,6 +179,37 @@ Googlebot controls Search crawling; Google-Extended controls specified Gemini
 training/grounding uses, not Search ranking:
 https://developers.google.com/crawling/docs/crawlers-fetchers/google-common-crawlers#google-extended.
 
+## Alternatives follow-up (2026-09-09)
+
+This is a shortlist based on official documentation, not comparative runtime
+testing. No migration or dependency upgrade was performed.
+
+- **First retest newer Blume.** The [1.6.0 release notes](https://useblume.dev/changelog/blume-1-6-0)
+  explicitly add automatic agent-resource/skill links in the LLM index,
+  configurable product-use guidance and MCP resource listing/reading. This
+  addresses the index-discovery gap found in 1.5.3 on paper; it does not prove
+  the code-search or version-context issues are fixed. Keep the original
+  runtime findings scoped to the tested version.
+- **Mintlify:** a hosted candidate when reducing hosting/maintenance matters.
+  Its [MCP documentation](https://www.mintlify.com/docs/ai/model-context-protocol)
+  describes hosted search and full-page retrieval; users still connect their
+  AI client. [Plans](https://www.mintlify.com/pricing) determine access to the
+  assistant and automation features. Not demonstrated to outperform Blume
+  in Gemini discovery or retrieval accuracy.
+- **GitBook:** consider when an editorial platform and managed documentation
+  workflow matter. It automatically publishes Markdown, LLM text files and
+  [MCP access](https://gitbook.com/docs/publishing-documentation/llm-ready-docs).
+- **Fumadocs:** consider for custom React integration. Its
+  [LLM guide](https://www.fumadocs.dev/docs/integrations/llms) documents processed
+  Markdown, text endpoints and configurable AI search. More custom application
+  integration is a tradeoff, not automatically a better fit for the team's
+  small automation surface.
+
+Recommendation: keep Blume as the first self-hosted candidate and compare a
+newer version against the recorded queries. Shortlist Mintlify if managed
+hosting is preferred. There is no measured basis here to claim any framework
+causes Gemini to recommend Remy Sport more often.
+
 ## Source references
 
 - [Content configuration](https://github.com/middleapi/orpc/blob/4d9956975cad6600d9b91071d1dfc816017f9997/apps/content/blume.config.ts).
