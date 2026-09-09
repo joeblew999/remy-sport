@@ -266,3 +266,151 @@ Publishing the current application would include unrelated changes and is not
 silently bundled into the isolated help work. Next required work is a reviewed
 public release/route repair plus a public help origin, followed by external
 retrieval and a credentialed Gemini tool-call acceptance test.
+
+## Proposed Cloudflare integration — dev, staging, production
+
+Requested 2026-09-09. **Proposal only; not implemented or deployed.** Content
+expansion is deferred. The objective is externally discoverable production docs
+and verified assistant access to the corresponding application API.
+
+### Deployment boundary
+
+Retain the existing application Worker and all its bindings/configuration. Add
+one independent help Worker per remote environment. Each help Worker serves the
+static Fumapress assets and a small Fetch-based Streamable HTTP MCP handler.
+The Node HTTP listener currently in help-tools is a local proof, not a deployable
+Cloudflare handler; extract transport-independent tool logic and verify the new
+Worker transport under workerd before making a compatibility claim.
+
+Retain the three isolated packages and their lockfiles. Fumapress produces
+static assets in help; help-tools builds the Worker entry and assembles those
+assets into a separately owned deploy artifact. No root workspace or app imports.
+The editor stays local and is excluded from every remote artifact. The help
+Worker has no D1, R2, mail, queue, app secret or account-session bindings.
+Cloudflare credentials belong only to the existing shared deployment automation.
+
+| Environment | Help/MCP | App target | Index policy |
+| --- | --- | --- | --- |
+| dev | Loopback help at 8791; Vite live updates and local Worker protocol testing | Existing local app at 8787 | noindex |
+| staging | Separate staging help Worker/custom hostname | App staging origin resolved from its existing Wrangler configuration | noindex on HTML and HTTP responses |
+| production | Separate production help Worker/custom hostname | App production origin resolved from its existing Wrangler configuration | Crawlable, self-canonical production pages |
+
+Suggested hostnames: help.remy.ubuntusoftware.net and
+staging-help.remy.ubuntusoftware.net. These are proposals, not registered routes.
+Do not mount the help build inside the app asset directory or replace app routes.
+A same-path /help integration would add routing coupling and is not the initial
+recommendation. Use a simple app Help link in a separately reviewed app change.
+
+### One environment selection, validated end to end
+
+Extend the shared ops/docs automation to use the existing environment names,
+remote-target resolution, credential handling and resolved-config validation.
+The orchestration layer may read app configuration; the help runtime must not
+import app code. Keep help hostnames in help's own deployment configuration.
+Derive and pass non-secret resolved settings explicitly during the build:
+environment, help origin, app origin, build ID, commit and API contract digest.
+Do not scatter URLs in content, browser code, MCP code and shell variables.
+
+Every remote mutation requires --env staging or --env production; missing,
+unknown or mixed targets fail before publishing. Declare environment vars and
+bindings explicitly, accounting for Wrangler's non-inheritable bindings. Verify
+the generated Worker name, custom hostname, app target and index policy together.
+Independent output directories prevent a staging build being reused as a
+production artifact. Never repair a mismatch by falling back to production.
+
+Production and staging get separately built canonical URLs, sitemap URLs,
+robots policy and machine-readable endpoint URLs. Staging noindex is not access
+control: staging must continue to contain fixtures only. Do not block Googlebot
+from fetching pages whose noindex needs to be observed. Private branch previews,
+if added later, need access control and are not Gemini URL-context test targets.
+Only production is submitted for indexing; workers.dev/preview aliases should
+not introduce duplicate indexable copies.
+
+### API and assistant connection
+
+Keep the real application API and its generated OpenAPI document on the app
+Worker. The help Worker exposes /mcp, documentation retrieval and a bounded
+read-only API proxy for the selected event/team/game operations. This gives the
+browser playground a same-origin endpoint without relaxing app CORS or sharing
+cookies. Use explicit paths and methods, never an arbitrary URL proxy.
+
+The proxy and MCP executor call only the configured same-environment public app
+origin with no forwarded Cookie, Authorization or x-api-key headers. No service
+binding granting broader app capabilities is required for this initial scope.
+Both paths use the same allowlist and contract checks. Authentication-required
+or unsupported operations fail closed. Protect the public endpoint with bounded
+request/response sizes, timeouts and rate limiting; avoid an unbounded schema
+fetch for every request by caching validation for a bounded interval and
+invalidating it when the observed API build/contract changes.
+
+Expose a generated OpenAPI contract for the supported proxy operations and
+Gemini function declarations, with correct environment URLs. Link these and the
+MCP endpoint visibly from the existing developer/assistant pages and discovery
+index; a custom manifest is not treated as automatic Gemini tool registration.
+Protected user actions and writes require a later explicit authentication and
+permission design. No model credentials are needed in the public help Worker.
+
+### Shared workflow (proposed commands, not yet available)
+
+- `bun run ops docs dev`: keep Vite live updates; attach to the existing local
+  app, or start its documented dev command when absent. Supervise only owned
+  children. Start local tools/Worker testing automatically; no manual port or
+  multi-terminal coordination. Studio remains the optional author action.
+- `bun run ops docs check --env staging|production`: frozen installs, isolation
+  checks, build target-specific artifact, workerd tests, deployed API identity
+  and contract checks, Cloudflare dry run. A check does not publish anything.
+- `bun run ops docs deploy --env staging|production`: the same gate, then publish
+  only that help Worker, wait for its exact build ID and run external smoke and
+  MCP tests. Do not run app migrations, seed commands or application publish.
+- `bun run ops docs status --env staging|production`: compare served help build,
+  served app build, expected origin and API contract compatibility.
+- `bun run ops docs rollback --env staging|production`: restore the recorded
+  previous help Worker version/assets and repeat compatibility checks. No app
+  or database rollback. Block a rollback incompatible with the current app API.
+
+These actions must use shared Cloudflare helpers, extended with explicit
+component config paths where necessary; not a parallel credential/deploy stack.
+Preserve the existing app deployment workflow. Later, its post-deploy verification
+can check help/API compatibility as a read-only phase, without coupling app
+availability to the docs build. A docs-only release never deploys the app.
+
+### Release and failure handling
+
+Gate against the **deployed target API**, not the developer's current checkout.
+Record help build ID, source revision, tested app build ID and contract digest.
+Identical app/help commits are not required: supported operations must remain
+compatible. Production's presently missing API schema is a release blocker,
+requiring a separately reviewed app release/route repair. Publishing all 189
+unrelated commits is not an implicit part of publishing help.
+
+Stage first. Prove the environment boundary with tests that deliberately wire
+staging help to production and require rejection. Rebuild the same approved
+help revision for production with production settings, recheck its live API,
+and publish only after the gate passes. App/help deployment is not atomic;
+compatibility checks and independent rollback are required, not an assumption
+that two publishes succeed together. Post-publish failure must surface a failed
+release, preserve reports and identify the previous version for recovery.
+
+### Acceptance sequence
+
+1. Workerd serves static docs plus the actual MCP transport; Vite still hot
+   reloads locally. No editor/server-only assets leak into the public artifact.
+2. Staging release proves correct API target, public GET execution, noindex,
+   real 404s, rejected writes/credential forwarding, unchanged app artifacts and
+   independent help rollback. No production data is used in staging tests.
+3. Production passes anonymous external HTTP retrieval of pages, Markdown,
+   sitemap, schemas and MCP protocol calls; verify robots, snippets/canonicals
+   and absence of CDN login/challenge blocks on those intended public routes.
+4. A real configured Gemini client retrieves production docs and uses the MCP
+   or function connection to read an existing event/team/game. Record tool
+   selection, returned identifier/source and final answer; do not fabricate a
+   passing result without a credentialed model invocation. Fetching a URL alone
+   and consumer Gemini automatic tool discovery are separate claims.
+5. Verify the production site in Search Console, submit its sitemap and record
+   URL Inspection/indexing evidence. Track organic discovery separately; HTTP
+   success or a Gemini tool test cannot guarantee ranking/recommendations.
+
+Cloudflare references:
+[Worker environments](https://developers.cloudflare.com/workers/wrangler/environments/),
+[static asset routing](https://developers.cloudflare.com/workers/static-assets/binding/),
+[remote MCP on Workers](https://developers.cloudflare.com/agents/model-context-protocol/guides/remote-mcp-server/).
