@@ -11,10 +11,15 @@ actually left is that **the email channel reaches nobody** — nothing writes a
 real user's address into `userNotificationChannel` as EMAIL, and the settings
 screen is push-only — plus sign-in code auto-submit and three outstanding device
 checks. It also records two dangling references found while checking
-(`docs/dev/email-deliverability.md` and `bun run check:notifications`, neither
-of which exists) and one incorrect deliverability claim in `src/mail/mailer.ts`.
-Magic link and React Email are recommended against, with the reasons; both are
-the Product Owner's call.
+(`docs/dev/email-deliverability.md` <!-- docs-check-ignore --> and
+`bun run check:notifications`, neither of which exists) and one incorrect
+deliverability claim in `src/mail/mailer.ts`.
+Magic link is recommended against, with the reason. React Email is **not**: on
+2026-09-09 the Product Owner asked whether it would give a single source of
+truth, and it would, under one condition — no literal copy in templates, checked
+under `tests/repo/`. The plan records the design that must hold either way and
+what the library costs in the Worker bundle; the tool choice is the Product
+Owner's.
 
 ## Open plans
 
@@ -128,9 +133,9 @@ Official host setup: <https://learn.chatgpt.com/docs/extend/mcp?surface=cli>.
 | Priority / state | Work | Where to continue |
 | --- | --- | --- |
 | Next | Deploy main to staging: it is ahead of the deployed `e9ce101` by the Bun-pin guard, the box score fix (`5f1d2ca`) and the taken-over install name, and a staging test run refuses until they match. Then the phone checks that only a device can give: the two install labels. Then the product roadmap below, starting with listing moderation. | [Convert the GUI to shadcn — log](2026-09-08-01-typography-and-design-system.md#log); [install name](2026-09-08-05-pwa-install-name-per-environment.md) |
-| Found 2026-09-09, not fixed | Two comments name things that do not exist: `docs/dev/email-deliverability.md` (cited at `src/mail/mailer.ts:44` and `scripts/ops/provision.ts:571`) and `bun run check:notifications` (cited in `src/web/components/notification-settings.tsx`). The second is a named guard against offered-type drift that is not actually running. `src/mail/mailer.ts` also claims the bulk subdomain earns its own DKIM reputation; `scripts/ops/provision.ts:566` records that sending is enabled per zone today, so it does not. | [The sign-in code and the email channel — steps](2026-09-09-01-sign-in-code-and-email-channel.md#steps) |
+| Found 2026-09-09, not fixed | <!-- docs-check-ignore --> Two comments name things that do not exist: `docs/dev/email-deliverability.md` (cited at `src/mail/mailer.ts:44` and `scripts/ops/provision.ts:571`) and `bun run check:notifications` (cited in `src/web/components/notification-settings.tsx`). The second is a named guard against offered-type drift that is not actually running. `src/mail/mailer.ts` also claims the bulk subdomain earns its own DKIM reputation; `scripts/ops/provision.ts:566` records that sending is enabled per zone today, so it does not. | [The sign-in code and the email channel — steps](2026-09-09-01-sign-in-code-and-email-channel.md#steps) |
 | Next capture fix | Desktop Devices screenshots intermittently stall in WebKit after data and fonts load. This reproduced in the baseline before the GUI migration; phone captures work. Context cleanup now retains a trace, and the CLI cleans up sessions/storage on failure. Do not call the whole screenshot walk verified. | [GUI consistency implementation record](2026-09-07-06-gui-consistency.md#implementation-record--2026-09-07); reproduce with `bun run shots -- --grep 'devices · ja · desktop' --trace on`. |
-| In progress: separate automation work | Finish and commit the existing local-browser isolation edits. The working-tree CLI now uses 8788 and per-run storage; GUI verification observed startup, seed, session cleanup and storage removal. Lint import-time validation was corrected during GUI work. Developer data/session preservation and broader failure handling still need their own evidence. Keep `bun run dev` as the developer entry point without manual coordination. | [GUI verification and limits](2026-09-07-06-gui-consistency.md#implementation-record--2026-09-07); `playwright.config.ts`, `src/web/vite.config.ts`, `scripts/e2e.ts`, `scripts/lib/prepare.ts`. These pre-existing isolation edits remain uncommitted separately from the GUI change. |
+| Local test isolation | Committed with the GUI conversion: the e2e tier runs on 8788 with per-run storage, cleans up sessions and storage on failure, and refuses a staging run from a tree that differs from the deployment. Developer data and session preservation across restarts, and broader failure handling, still need their own evidence. `bun run dev` stays the developer entry point. | `playwright.config.ts`, `scripts/e2e.ts`, `scripts/lib/local-browser.ts`, `scripts/lib/deployed-source.ts` |
 | Next independent product work | Review existing behavior one domain slice at a time: exact fields, relationships, permitted/refused actions, persistence and delivery. The committed report has **1,375 items: 64 classified, 1,311 unreviewed**. Unreviewed does not mean broken or unimplemented. | [Domain register, GAP-01 and GAP-05–08](2026-09-07-01-react-domain-coverage.md#work-register-and-execution-order); [generated inventory](react-domain-coverage.md). |
 | Open relay work | Choose and prove a per-game credential design, including cross-game denial, expiry/revocation and browser transport compatibility. Ordinary relay setup is working; the old missing-token/403 blockers are historical. | [Relay investigation](2026-09-07-02-relay-capabilities.md#current-work). |
 | Planned product features | Listing moderation before new public draws/rankings, then bracket generation/viewing, ranking history and AI bracket suggestions. These are **five model actions in four feature groups**, with accepted rules but implementation pending. | [GAP-09–12](2026-09-07-01-react-domain-coverage.md). |

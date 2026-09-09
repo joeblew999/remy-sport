@@ -262,3 +262,11 @@ gate is green once and the captures are reviewed in light and dark.
   (`tests/unit/remote*.test.ts`), whose libraries were never committed, so a
   clean checkout of main failed to typecheck. Untracked again, left on disk
   for that plan's owner; the deployed application was never affected.
+- 2026-09-09 — the FieldControl warning fixed (`5f1d2ca`). Run alone, the
+  box score test was the source, not the squad edit: the line form stays
+  mounted after a save and took the refetched line as a new default. It
+  takes its defaults once now. The same shape then showed in the event,
+  organisation and team settings forms on a full run; all four take their
+  defaults through `lib/initial.ts` and are keyed by their entity where
+  rendered. The three saving tests run alone log nothing. Nothing is open
+  on this plan.
