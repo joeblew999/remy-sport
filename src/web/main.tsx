@@ -28,6 +28,7 @@ import { TeamPage } from "./pages/team";
 import { ProfilePage } from "./pages/profile";
 import { LoginPage } from "./pages/login";
 import { DevicesPage } from "./pages/devices";
+import { NotificationsPage } from "./pages/notifications";
 import { AdminPage } from "./pages/admin";
 import { OrgsPage, OrgPage } from "./pages/org";
 import { TeamsPage } from "./pages/teams";
@@ -228,6 +229,7 @@ function App() {
     profile: () => <ProfilePage goto={goto}/>,
     login: () => <LoginPage goto={goto} next={route.query?.next?.startsWith("#/") ? parseRoute(route.query.next) : undefined}/>,
     devices: () => <DevicesPage/>,
+    notifications: () => <NotificationsPage/>,
     admin: () => <AdminPage goto={goto}/>,
     orgs: () => <OrgsPage/>,
     teams: () => <TeamsPage/>,

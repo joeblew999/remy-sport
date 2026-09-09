@@ -521,5 +521,8 @@
   "record_all_events": "Record · all events",
   "venue_multiple_live": "Multiple games are live at this venue. Check the assignment.",
   "games_unassigned": "Games awaiting a venue",
-  "divisions_empty": "No divisions available yet."
+  "divisions_empty": "No divisions available yet.",
+  "sign_in_to_manage_notifications": "Sign in to choose what you are told about, and how.",
+  "notifications_not_sessions": "These are the browsers registered to receive notifications, not where your account is signed in:",
+  "sessions_not_notifications": "This is where your account is signed in, not where notifications are delivered:"
 }

@@ -511,7 +511,11 @@ export const sendTest = authed
        * The timestamp rather than a bare flag, so a second test is
        * distinguishable from a stale query left in the address bar.
        */
-      url: `#/devices?pushtest=${Date.now()}`,
+      // The page the settings are on, which is /#/notifications since the
+      // split of 2026-09-09. Sending it to /#/devices after that would land the
+      // tap on the sessions page, which has nothing to show the reader — the
+      // confirmation is rendered by the settings panel that reads this query.
+      url: `#/notifications?pushtest=${Date.now()}`,
       // A fixed tag, so pressing the button twice replaces the first card
       // rather than leaving a pile of identical ones to clear.
       tag: "test",

@@ -10,8 +10,13 @@
  *
  * **Mounted only behind a session.** Every action here — registering a browser,
  * unregistering it, sending a test — is `authed`. Its only caller is the
- * signed-in branch of /#/devices. Mount it anywhere public and the buttons will
- * 401 in silence.
+ * signed-in branch of /#/notifications. Mount it anywhere public and the
+ * buttons will 401 in silence.
+ *
+ * No card header: the page supplies the title, and this carried one saying the
+ * same thing. It was a section on /#/devices until 2026-09-09 and is the
+ * substance of its own page now —
+ * docs/2026-09-09-06-notifications-off-the-devices-page.md.
  *
  * Every unavailable state gets its own sentence. See lib/push.ts: "you must
  * install this app first" and "you blocked notifications" are different
@@ -29,7 +34,7 @@ import { PushFailure, currentDeviceId, disablePush, enableNative, enablePush, pu
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item"
 import { Label } from "@/components/ui/label"
@@ -63,11 +68,16 @@ function Note({ blocked, children, ...props }: { blocked?: boolean; children: Re
 }
 
 /**
- * @answers RECEIVE_NOTIFICATIONS, RECEIVE_PLAYER_NOTIFICATIONS, RECEIVE_TEAM_NOTIFICATIONS, RECEIVE_EVENT_NOTIFICATIONS, MANAGE_OWN_NOTIFICATION_PREFERENCES
+ * @answers RECEIVE_NOTIFICATIONS, RECEIVE_PLAYER_NOTIFICATIONS, RECEIVE_TEAM_NOTIFICATIONS, RECEIVE_EVENT_NOTIFICATIONS, MANAGE_OWN_NOTIFICATION_PREFERENCES, MANAGE_OWN_NOTIFICATION_CHANNELS
  *
  * What you are told about, and how. The per-object ones are preferences on
  * what you already follow, which is why they are here and not on the follow
  * button.
+ *
+ * `MANAGE_OWN_NOTIFICATION_CHANNELS` — add, remove, verify, enable, disable a
+ * channel — was declared on pages/devices.tsx while this sat inside it. The
+ * channels are the browser list and the email address below, both here, so the
+ * declaration is here.
  */
 export function NotificationSettings() {
   const qc = useQueryClient()
@@ -164,10 +174,6 @@ export function NotificationSettings() {
 
   return (
     <Card data-testid="notification-settings">
-      <CardHeader>
-        <CardTitle>{m.notifications()}</CardTitle>
-        <CardDescription>{m.notifications_intro()}</CardDescription>
-      </CardHeader>
       <CardContent className="flex flex-col gap-4">
 
       {/* The native app, which used to land in "this browser cannot show

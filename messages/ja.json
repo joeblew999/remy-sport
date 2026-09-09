@@ -521,5 +521,8 @@
   "record_all_events": "成績 · 全イベント",
   "venue_multiple_live": "この会場で複数の試合が進行中です。割り当てをご確認ください。",
   "games_unassigned": "会場未定の試合",
-  "divisions_empty": "利用できる部門はまだありません。"
+  "divisions_empty": "利用できる部門はまだありません。",
+  "sign_in_to_manage_notifications": "何をどの方法で通知するか選ぶにはログインしてください。",
+  "notifications_not_sessions": "これは通知を受け取るために登録された端末で、アカウントがログイン中の端末ではありません:",
+  "sessions_not_notifications": "これはアカウントがログイン中の端末で、通知の配信先ではありません:"
 }

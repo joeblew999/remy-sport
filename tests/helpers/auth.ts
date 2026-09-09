@@ -489,7 +489,17 @@ export async function signInThroughLoginForm(page: Page, email: string): Promise
 
   const otp = fixedCodeFor(email) ?? (await codeFromOutboxViaPage(page, email))
   await otpField.fill(otp)
-  await page.getByTestId("spa-verify-code").click()
+  // No Sign in press: the sixth digit submits — docs/2026-09-09-01-sign-in-code-autofill.md.
+  //
+  // spa-login.spec.ts was moved off the button when that landed; this shared
+  // helper was not, and kept clicking a button the completed field had already
+  // turned into a disabled "Signing in…". Playwright waited out the timeout for
+  // an enabled button that never comes back, then reported a missing identity
+  // element — against a sign-in that had in fact worked. A race, and one that
+  // `freshActor()` loses reliably, because its first-ever sign-in also creates
+  // the account and now registers an EMAIL channel, so the submit is in flight
+  // for longer. Two specs failed; the click was the only thing wrong.
+  //
   // Hash routing: the SPA stays on one document, so there is no navigation to
   // wait for. Wait for the identity to appear instead.
   await page.getByTestId("account-user").waitFor({ state: "visible", timeout: 20000 })

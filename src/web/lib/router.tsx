@@ -34,6 +34,7 @@ export const PAGES = [
   "profile",
   "login",
   "devices",
+  "notifications",
   "admin",
   "orgs",
   "org",

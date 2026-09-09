@@ -83,3 +83,17 @@ the installed web app and the Tauri shell recorded either way.
   and `onComplete` on the field, one `verify` behind both the sixth digit and
   the button, the completed value taken from the field rather than state.
   Proofs as ticked. Open: the phone session, which is the Product Owner's.
+- 2026-09-09 — **one caller of this change was missed, and is now fixed.**
+  `spa-login.spec.ts` was moved off pressing Sign in when the sixth digit
+  started submitting, but the shared helper `signInThroughLoginForm` in
+  `tests/helpers/auth.ts` was not. It kept clicking a button that the completed
+  field had already turned into a disabled "Signing in…", so Playwright waited
+  out its timeout for a button that never comes back and then reported a
+  missing identity element — against a sign-in that had worked.
+  A race, and one that `freshActor()` loses reliably: its first-ever sign-in
+  also creates the account, and since the email channel landed it registers an
+  EMAIL channel too, so the submit is in flight for longer. It cost two browser
+  checks, `identity-cache.spec.ts` and `orgs.spec.ts`, and nine more that then
+  did not run. Found while splitting the devices page, which is unrelated to
+  the cause. The helper now waits for the outcome instead of pressing. Full
+  tier after the fix: **49 passed**.

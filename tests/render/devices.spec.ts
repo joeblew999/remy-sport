@@ -49,13 +49,13 @@ const devices = {
 test.describe("Devices", () => {
   test("signed out, the page asks you to sign in rather than erroring", async ({ page }) => {
     await seedCache(page, [VISITOR])
-    await visit(page, "notifications")
+    await visit(page, "sessions")
     await expect(page.getByTestId("devices-signed-out")).toBeVisible()
   })
 
   test("the current session is marked, and cannot be revoked by accident", async ({ page }) => {
     await seedCache(page, [signedIn, devices])
-    await visit(page, "notifications")
+    await visit(page, "sessions")
     await expect(page.getByTestId("devices-list")).toBeVisible()
     await expect(page.getByTestId("device-current")).toBeVisible()
 

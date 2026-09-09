@@ -25,6 +25,15 @@
   in `HONO_ROUTES` with how it is guarded, and the four `following` email
   fields are enrolled in the evidence ledger. 929 unit/repository/Worker and
   344 rendering checks pass, with typecheck and lint.
+- [Notifications off the devices page](2026-09-09-06-notifications-off-the-devices-page.md)
+  is implemented 2026-09-09, at the Product Owner's question that Devices is
+  really an authentication concern. It is now: `/#/devices` holds sessions and
+  nothing else, and the settings that had grown an email address moved to
+  `/#/notifications`, taking `MANAGE_OWN_NOTIFICATION_CHANNELS` with them — the
+  declaration had been sitting on the page rather than on the code that answers
+  it. Each page names the other's device list, which is what the two being
+  adjacent used to do. Open, for the help lane: `sites/help` still tells readers
+  the settings are on the devices page.
 - [A distinct install name per environment](2026-09-08-05-pwa-install-name-per-environment.md)
   is implemented, verified locally and committed on 2026-09-09:
   `remy-localhost`, `remy-staging`, the plain name in production, from one

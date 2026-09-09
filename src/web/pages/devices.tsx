@@ -4,7 +4,6 @@ import { useDevices, useRevokeDevice } from "../lib/auth";
 import { toDevices, formatWhen, type RawSession } from "../lib/devices";
 import { parseRoute, signInRoute, routeHref } from "../lib/router";
 import { m } from "../lib/i18n";
-import { NotificationSettings } from "../components/notification-settings";
 import { useLocale } from "../lib/locale";
 import { PageHeader, PageInner } from "../components/page";
 import { EmptyState, Loading } from "../components/states";
@@ -25,9 +24,12 @@ import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle }
  * Not the multiSession plugin, which is account *switching* — a different
  * feature that would not answer this question.
  *
- * @answers MANAGE_OWN_NOTIFICATION_CHANNELS
- *
- * The devices a notification can reach, and revoking one.
+ * Sessions and nothing else since 2026-09-09. The notification settings were
+ * here too, and this page declared MANAGE_OWN_NOTIFICATION_CHANNELS although
+ * the channel list that answers it is in notification-settings.tsx — the
+ * declaration was carried by the page rather than by the code doing the work,
+ * which sharing a page hid. Both moved to /#/notifications:
+ * docs/2026-09-09-06-notifications-off-the-devices-page.md.
  */
 export function DevicesPage() {
   const { locale } = useLocale();
@@ -139,12 +141,17 @@ export function DevicesPage() {
           </section>
         )}
 
-        {/* The other device list, deliberately on the same page. Above: where
-            you are signed in — a session, revocable. Below: where notifications
-            are delivered — a subscription, per browser. Adjacent, the
-            difference is visible; apart, it is a coincidence of wording
-            nobody can be expected to notice. */}
-        <NotificationSettings />
+        {/* The other device list is on its own page now, so this says which
+            list that is. Here: where the account is signed in — a session,
+            revocable. There: where a notification is delivered — a
+            subscription, per browser. They genuinely diverge; a Mac has held a
+            push subscription for an account it was signed out of. */}
+        <p className="text-sm text-muted-foreground" data-testid="devices-notifications-link">
+          {m.sessions_not_notifications()}{" "}
+          <a className="underline underline-offset-4" href={routeHref({ page: "notifications" })} data-testid="to-notifications">
+            {m.push_devices()}
+          </a>
+        </p>
       </PageInner>
     </div>
   );

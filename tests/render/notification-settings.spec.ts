@@ -50,14 +50,23 @@ test.describe("The notification section, as a reader sees it", () => {
     await as(page, "ADMIN")
     await visit(page, "notifications")
 
-    const section = page.getByTestId("notification-settings")
-    const size = (sel: string) =>
-      section.locator(sel).first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize))
+    const size = (locator: ReturnType<typeof page.locator>) =>
+      locator.first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize))
 
-    // The section is the registry's Card: its title is the card title, and the
-    // sub-headings under it are h3s.
-    const [title, h3] = [await size("[data-slot=card-title]"), await size("h3")]
-    expect(h3, `h3 (${h3}px) must not shout louder than the card title (${title}px)`).toBeLessThanOrEqual(title)
+    /**
+     * The title is the page header's h1 since the settings became their own
+     * page: the card carried its own title while it was one section of
+     * /#/devices, and printing "Notifications" immediately under the page
+     * heading of the same name was the reason to drop it.
+     *
+     * The relationship is what matters and it is unchanged — a sub-heading must
+     * not shout louder than the heading above it.
+     */
+    const [title, h3] = [
+      await size(page.locator("h1")),
+      await size(page.getByTestId("notification-settings").locator("h3")),
+    ]
+    expect(h3, `h3 (${h3}px) must not shout louder than the page title (${title}px)`).toBeLessThanOrEqual(title)
   })
 
   test("the preference list is a list of settings, not a bulleted list", async ({ page }) => {
@@ -79,17 +88,22 @@ test.describe("The notification section, as a reader sees it", () => {
   /**
    * Where it lives, and why that is a test rather than a preference.
    *
-   * There were two device lists in two places and both said "this device": the
-   * sessions on /#/devices (where you are signed in) and the push subscriptions
-   * in notification settings (where notifications are delivered). They are not
-   * the same thing and they genuinely diverge — a Mac held a push subscription
-   * for an account it was signed out of while a signed-in iPhone had none.
+   * There are two device lists and both say "this device": the sessions on
+   * /#/devices (where you are signed in) and the push subscriptions here (where
+   * notifications are delivered). They are not the same thing and they
+   * genuinely diverge — a Mac held a push subscription for an account it was
+   * signed out of while a signed-in iPhone had none.
    *
-   * Apart, that is a coincidence of wording nobody notices. Adjacent, the
-   * difference is visible. So the placement is the fix, and a test is what stops
-   * it drifting back onto the dashboard.
+   * They shared one page until 2026-09-09 precisely so that difference was
+   * visible. Email ended that: an address is not a device, so the settings
+   * outgrew a page named for devices and moved to /#/notifications.
+   *
+   * What adjacency did, the pages must now say. So this holds the replacement,
+   * not merely the separation: each list is on its own page, neither is back on
+   * the dashboard, and each page names the other list and links to it. A test
+   * that only asserted "they are apart" would protect nothing.
    */
-  test("lives beside the sessions list, not on the profile dashboard", async ({ page }) => {
+  test("is its own page, and names the list it is not", async ({ page }) => {
     await as(page, "ADMIN")
     await visit(page, "dashboard")
     await expect(
@@ -99,6 +113,17 @@ test.describe("The notification section, as a reader sees it", () => {
 
     await visit(page, "notifications")
     await expect(page.getByTestId("notification-settings")).toBeVisible()
+    // Sessions are not here, and this page says where they are.
+    await expect(page.getByTestId("devices-list")).toHaveCount(0) // check-ignore: asserts absence
+    await expect(page.getByTestId("to-devices")).toBeVisible()
+
+    // And the other way: sessions, without the settings, pointing back. The
+    // page rather than its list — what the session rows say is
+    // devices.spec.ts's subject, and it seeds the cache to ask.
+    await visit(page, "sessions")
+    await expect(page.getByTestId("devices-page")).toBeVisible()
+    await expect(page.getByTestId("notification-settings")).toHaveCount(0) // check-ignore: asserts absence
+    await expect(page.getByTestId("to-notifications")).toBeVisible()
   })
 
   test("puts the devices before the preferences, because a device is the prerequisite", async ({ page }) => {

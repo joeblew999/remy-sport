@@ -39,8 +39,13 @@ const SURFACES = {
   following: () => "/",
   /** The account: who you are here, and the children you are guardian to. */
   profile: () => "/#/profile",
-  /** Push: this device, the devices receiving them, and what they are for. */
-  notifications: () => "/#/devices",
+  /**
+   * Push and email: this device, the devices receiving them, the address, and
+   * what they are for. Shared /#/devices with `sessions` until 2026-09-09; the
+   * split cost one line here and no navigation anywhere else, which is what
+   * this file is for.
+   */
+  notifications: () => "/#/notifications",
   /** Where you are signed in. Sessions, not subscriptions — a different list. */
   sessions: () => "/#/devices",
   /** Signing in. */

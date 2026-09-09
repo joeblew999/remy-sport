@@ -74,9 +74,9 @@ for (const route of ROUTES) {
  * `PushState` reports a reason for every other case — needs-install,
  * not-configured, denied — and this is the reason it could not express.
  */
-// On /#/devices since the settings moved there, beside the sessions list —
-// the two "device" lists meant different things in different places and both
-// said "this device".
+// On /#/notifications since the settings left the devices page on 2026-09-09.
+// The two "device" lists still mean different things and both say "this
+// device", so each page now names the other rather than sitting beside it.
 test.describe("A push state that could not be determined", () => {
   test("says so, and offers a way to try again", async ({ page }) => {
     await as(page, "ADMIN")

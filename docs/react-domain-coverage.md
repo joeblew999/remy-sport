@@ -118,7 +118,7 @@ Named tests describe specific cases, not exhaustive permission coverage or the l
 | MANAGE_ALL_USERS | PLATFORM | [src/web/pages/admin.tsx](../src/web/pages/admin.tsx) | — | auth.admin/ban-user, auth.admin/impersonate-user, auth.admin/list-users, auth.admin/set-role, auth.admin/stop-impersonating, auth.admin/unban-user |
 | MANAGE_DIVISIONS | EVENT | [src/web/components/event-divisions.tsx](../src/web/components/event-divisions.tsx) | — | events.setDivisions |
 | MANAGE_FIXTURES | EVENT | [src/web/components/schedule.tsx](../src/web/components/schedule.tsx) | [src/web/components/schedule.tsx](../src/web/components/schedule.tsx) | games.create, games.delete, games.update |
-| MANAGE_OWN_NOTIFICATION_CHANNELS | PLATFORM | [src/web/pages/devices.tsx](../src/web/pages/devices.tsx) | — | notifications.devices, notifications.sendTest, notifications.subscribe, notifications.unsubscribe |
+| MANAGE_OWN_NOTIFICATION_CHANNELS | PLATFORM | [src/web/components/notification-settings.tsx](../src/web/components/notification-settings.tsx) | — | notifications.devices, notifications.sendTest, notifications.subscribe, notifications.unsubscribe |
 | MANAGE_OWN_NOTIFICATION_PREFERENCES | PLATFORM | [src/web/components/notification-settings.tsx](../src/web/components/notification-settings.tsx) | — | notifications.following, notifications.setPreference |
 | MANAGE_ROSTER | TEAM | [src/web/pages/team.tsx](../src/web/pages/team.tsx) | [src/web/pages/team.tsx](../src/web/pages/team.tsx) | teams.addPlayer, teams.removePlayer |
 | MODERATE_LISTINGS | PLATFORM | BLOCKED: Decision 006 accepted; event publication, revisions and visibility implementation pending | — | Non-router or unimplemented; audit required |
@@ -859,7 +859,7 @@ Better Auth session lifecycle; credentials are never displayed. Sign-in/out and 
 
 ### userNotificationChannel
 
-[src/web/pages/devices.tsx](../src/web/pages/devices.tsx)
+[src/web/components/notification-settings.tsx](../src/web/components/notification-settings.tsx)
 
 | Field | Value type | Nullable |
 | --- | --- | --- |

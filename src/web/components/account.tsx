@@ -134,6 +134,14 @@ export function Account() {
           {m.nav_profile()}
         </DropdownMenuItem>
         <DropdownMenuItem
+          render={<a data-testid="account-notifications" href={routeHref({ page: "notifications" })} />}
+        >
+          {m.notifications()}
+        </DropdownMenuItem>
+        {/* Both, since the split of 2026-09-09: this one is the security page —
+            where the account is signed in — and the settings that used to share
+            it have their own entry above. */}
+        <DropdownMenuItem
           render={<a data-testid="account-devices" href={routeHref({ page: "devices" })} />}
         >
           {m.devices()}

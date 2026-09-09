@@ -25,7 +25,10 @@ const SURFACES: Record<string, string[]> = {
   eventSession: ["components/event-sessions.tsx"], sessionAttendance: ["components/event-sessions.tsx"],
   guardian: ["components/your-players.tsx"], playerTeam: ["pages/player.tsx", "pages/team.tsx"],
   teamCoach: ["pages/team.tsx"], subscription: ["components/follow.tsx", "components/following.tsx"],
-  userNotificationChannel: ["pages/devices.tsx"], userNotificationPreference: ["components/notification-settings.tsx"],
+  // Both on /#/notifications: the channel is the browser subscription and the
+  // email address, which the settings panel owns. It pointed at pages/devices.tsx
+  // while the panel was mounted there — the page, not the code doing the work.
+  userNotificationChannel: ["components/notification-settings.tsx"], userNotificationPreference: ["components/notification-settings.tsx"],
 }
 const INTERNAL: Record<string, string> = {
   session: "Better Auth session lifecycle; credentials are never displayed. Sign-in/out and device ownership are the user journeys.",

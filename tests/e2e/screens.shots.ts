@@ -73,6 +73,10 @@ const SCREENS: { name: string; path: string; as: string | null; open?: string }[
   { name: "live", path: "/#/live", as: null },
   { name: "admin", path: "/#/admin", as: ADMIN },
   { name: "devices", path: "/#/devices", as: COACH },
+  // Its own screen since the settings left the devices page on 2026-09-09.
+  // Photographed because it is where email is turned on, and nothing else in
+  // this walk shows a channel switch.
+  { name: "notifications", path: "/#/notifications", as: COACH },
   { name: "login", path: "/#/login", as: null },
 ]
 
