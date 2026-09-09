@@ -127,6 +127,17 @@ product in Thailand, and ordered by what I would ship first.
 language adds **zero bytes**. CJK is drawn by the reader's own system font, so
 it adds zero too. All eight already have a script mapping or need none.
 
+> **Correction, 2026-09-09.** I claimed all eleven of Tiers 1 and 2 were free
+> and then measured it: declaring them took `src/web/fonts` from 280KB to 404KB.
+> Eight are free as described. **Russian** pulls `cyrillic` and `cyrillic-ext`,
+> and **Vietnamese** pulls `vietnamese` — 18 new `@font-face` blocks, +124KB in
+> the repository.
+>
+> What is still true, and is the part that matters: every one of those blocks
+> carries a `unicode-range`, so a reader who never renders a Cyrillic or
+> Vietnamese character **downloads none of them**. The repository grew; nobody's
+> page did. Checked, not assumed: 18 new blocks, 18 `unicode-range` declarations.
+
 | | Language | Endonym | Why |
 | --- | --- | --- | --- |
 | 1 | English | English | base locale |

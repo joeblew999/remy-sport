@@ -13,14 +13,29 @@
 // it derives from there — zod row schemas, the oRPC contract, the React types.
 
 
-export const ALL_LOCALES = ["th", "en", "ja"] as const
+/**
+ * Every language declared, released or not.
+ *
+ * Ten were added on 2026-09-09 as drafts — the Product Owner's list of the most
+ * spoken, adjusted for a product in Thailand and ordered by what each costs.
+ * Eleven of the fifteen are free: `latin` and `latin-ext` are downloaded
+ * unconditionally so a Latin-script language adds no bytes, and CJK is drawn by
+ * the reader's own system font. docs/2026-09-09-15-language-picker-at-fifteen.md.
+ */
+export const ALL_LOCALES = ["th", "en", "ja", "zh", "es", "pt", "id", "fr", "tl", "vi", "ko", "de", "ru"] as const
 
 /**
  * The languages a reader is offered.
  *
  * Drafts are declared and compiled in so they can be exercised, but showing a
  * reader a half-translated interface is worse than showing them English. A
- * language moves here by one word changing in the PO's locales.jsonl.
+ * language moves here when its messages are complete — which
+ * `tests/repo/messages.test.ts` then enforces, so this list cannot run ahead of
+ * the translation.
+ *
+ * `names` names each language in the released ones only, which caps it at
+ * fifteen by three rather than fifteen by fifteen. The picker reads `endonym`
+ * and needs no matrix at all.
  */
 export const LOCALES = ["th", "en", "ja"] as const
 
@@ -587,6 +602,16 @@ export const LOCALE = [
   { code: "th", status: "released", endonym: "ไทย", names: {"th":"ไทย","en":"Thai","ja":"タイ語"} },
   { code: "en", status: "released", endonym: "English", names: {"th":"อังกฤษ","en":"English","ja":"英語"} },
   { code: "ja", status: "released", endonym: "日本語", names: {"th":"ญี่ปุ่น","en":"Japanese","ja":"日本語"} },
+  { code: "zh", status: "draft", endonym: "简体中文", names: {"th":"จีน","en":"Chinese","ja":"中国語"} },
+  { code: "es", status: "draft", endonym: "Español", names: {"th":"สเปน","en":"Spanish","ja":"スペイン語"} },
+  { code: "pt", status: "draft", endonym: "Português", names: {"th":"โปรตุเกส","en":"Portuguese","ja":"ポルトガル語"} },
+  { code: "id", status: "draft", endonym: "Bahasa Indonesia", names: {"th":"อินโดนีเซีย","en":"Indonesian","ja":"インドネシア語"} },
+  { code: "fr", status: "draft", endonym: "Français", names: {"th":"ฝรั่งเศส","en":"French","ja":"フランス語"} },
+  { code: "tl", status: "draft", endonym: "Filipino", names: {"th":"ฟิลิปปินส์","en":"Filipino","ja":"フィリピン語"} },
+  { code: "vi", status: "draft", endonym: "Tiếng Việt", names: {"th":"เวียดนาม","en":"Vietnamese","ja":"ベトナム語"} },
+  { code: "ko", status: "draft", endonym: "한국어", names: {"th":"เกาหลี","en":"Korean","ja":"韓国語"} },
+  { code: "de", status: "draft", endonym: "Deutsch", names: {"th":"เยอรมัน","en":"German","ja":"ドイツ語"} },
+  { code: "ru", status: "draft", endonym: "Русский", names: {"th":"รัสเซีย","en":"Russian","ja":"ロシア語"} },
 ] as const
 
 export const LOCALE_CODES = LOCALE.map((t) => t.code) as unknown as [

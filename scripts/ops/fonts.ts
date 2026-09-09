@@ -53,6 +53,16 @@ const SCRIPTS: Record<string, { subsets: string[]; family?: string }> = {
   en: { subsets: [] },
   th: { subsets: ["thai"], family: "Noto+Sans+Thai:wght@400;500;600" },
   vi: { subsets: ["vietnamese"] },
+
+  // Latin, and therefore free: `latin` and `latin-ext` are in KEEP
+  // unconditionally, so declaring one of these downloads nothing new. That is
+  // why they are the first eleven — docs/2026-09-09-15-language-picker-at-fifteen.md.
+  es: { subsets: [] },
+  pt: { subsets: [] },
+  fr: { subsets: [] },
+  de: { subsets: [] },
+  id: { subsets: [] },
+  tl: { subsets: [] },
   ru: { subsets: ["cyrillic", "cyrillic-ext"] },
   el: { subsets: ["greek", "greek-ext"] },
 

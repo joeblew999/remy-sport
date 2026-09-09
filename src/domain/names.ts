@@ -11,12 +11,21 @@
  * enforced upstream by remy-sport-biz's `data:check`.
  */
 
-import { LOCALES, type Locale } from "./vocabularies"
+import { LOCALES, type Locale, type ReleasedLocale } from "./vocabularies"
 
 export type Names = Partial<Record<Locale, string>>
 
 /** English is the pivot: every row has one, so this never returns nothing. */
-export const FALLBACK: Locale = "en"
+/**
+ * The language to fall back to, and it must be one that has been released.
+ *
+ * Typed `Locale` until 2026-09-09, which was harmless while every declared
+ * language was also released. Declaring ten drafts made the two types differ
+ * and the compiler found this immediately: the co-organiser invitation passes
+ * it to `inviteMail`, so a wide type here is a mail composed in a language
+ * whose messages do not exist yet.
+ */
+export const FALLBACK: ReleasedLocale = "en"
 
 /** Resolve a name in the reader's language, degrading rather than blanking. */
 export function pick(names: Names | undefined, locale: Locale, fallback = ""): string {
