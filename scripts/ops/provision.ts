@@ -568,7 +568,7 @@ function setGroup(target: Target, values: Record<string, string>, only?: string[
  * `mail.ubuntusoftware.net`) and every subdomain of it signs with the zone key.
  *
  * That is also why the bulk/transactional split does not buy separate DKIM
- * reputation today, whatever docs/dev/email-deliverability.md claims — worth
+ * reputation today — src/mail/mailer.ts says so beside the split — worth
  * knowing before relying on it.
  */
 function enabledZones(): Set<string> | null {

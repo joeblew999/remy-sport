@@ -126,7 +126,7 @@ export async function stubPushRpc(page: Page, answers: PushAnswers = {}): Promis
     }
     if (url.includes("notifications/devices")) return json(answers.devices ?? { devices: [] })
     if (url.includes("notifications/following")) {
-      return json(answers.following ?? { muted: [], following: [] })
+      return json(answers.following ?? { muted: [], following: [], emailOn: [], email: null })
     }
     if (url.includes("notifications/sendTest")) {
       if (answers.sendTestStatus && answers.sendTestStatus >= 400) return refuse(answers.sendTestStatus)

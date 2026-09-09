@@ -33,6 +33,7 @@
 import { deliverPush, type PushTarget } from "./push-send"
 import { mailerFor } from "../mail/mailer"
 import { unsubscribeHeaders, unsubscribeUrl } from "./unsubscribe"
+import type { Unsubscribe } from "../mail/templates/render"
 import type { Bindings } from "../types"
 import type { Db } from "./base"
 
@@ -51,7 +52,12 @@ export type Rendered =
       channel: "EMAIL"
       subject: string
       text: string
-      html?: string
+      /**
+       * The HTML part, as a function of the recipient's unsubscribe link:
+       * copy is rendered once per locale, the link's token is per person.
+       * Absent means plain text only.
+       */
+      html?: (unsubscribe: Unsubscribe | null) => string
       /**
        * The sentence above the unsubscribe link, in the reader's language.
        *
@@ -144,7 +150,7 @@ const email: Transport = {
             // menus — and the alternative to finding the door is pressing
             // "spam", which costs the sending domain far more.
             text: `${rendered.text}\n\n${rendered.unsubscribeLabel}\n${link}`,
-            ...(rendered.html ? { html: rendered.html } : {}),
+            ...(rendered.html ? { html: rendered.html({ label: rendered.unsubscribeLabel, url: link }) } : {}),
             kind: "bulk",
             headers,
           })

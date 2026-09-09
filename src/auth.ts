@@ -25,6 +25,9 @@ import { FALLBACK } from "./domain/names"
  */
 import { m } from "./paraglide/messages.js"
 import * as schema from "./db/schema"
+import { inviteMail } from "./mail/templates/invite"
+import { otpMail } from "./mail/templates/otp"
+import { registerEmailChannel } from "./api/email-channel"
 
 /** The fixtures' people. A fixed code only ever applies to one of these. */
 const SEEDED_EMAILS: ReadonlySet<string> = new Set<string>(
@@ -229,6 +232,18 @@ export function createAuth(c: AuthHost) {
        *
        * On the edge it is resolved per request and is correct.
        */
+      /**
+       * The address the code just proved becomes the reader's EMAIL channel —
+       * src/api/email-channel.ts. Never fails the sign-in: a missing channel
+       * row is not worth a person locked out.
+       */
+      onSessionCreated: async (userId: string) => {
+        try {
+          await registerEmailChannel(db, userId, localeFrom(c.headers))
+        } catch (error) {
+          console.error("email channel: not registered", error)
+        }
+      },
       sessionPlace: () => ({
         city: c.cf?.city,
         country: c.cf?.country,
@@ -260,12 +275,7 @@ export function createAuth(c: AuthHost) {
          * Their own preference is knowable once they have an account; until
          * then the base locale is the honest answer.
          */
-        const args = { locale: FALLBACK } as const
-        await mailer.send({
-          to: email,
-          subject: m.email_invite_subject({ invitedBy, org: organization.name }, args),
-          text: m.email_invite_body({ invitedBy, org: organization.name, url }, args),
-        })
+        await mailer.send({ to: email, ...inviteMail({ invitedBy, org: organization.name, url }, FALLBACK) })
       },
 
       // No URL here, unlike every other mail this app sends: a code the user
@@ -286,11 +296,7 @@ export function createAuth(c: AuthHost) {
               : type === "change-email"
                 ? m.email_otp_purpose_change_email({}, args)
                 : m.email_otp_purpose_other({}, args)
-        await mailer.send({
-          to: email,
-          subject: m.email_otp_subject({ otp }, args),
-          text: m.email_otp_body({ otp, purpose }, args),
-        })
+        await mailer.send({ to: email, ...otpMail({ otp, purpose }, args.locale) })
       },
 
       // Fixed code for the seeded demo accounts, where the environment has one.

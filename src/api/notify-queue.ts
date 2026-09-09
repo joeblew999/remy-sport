@@ -77,6 +77,8 @@ import type { Bindings } from "../types"
 import { pick, type Names } from "../domain/names"
 import { m } from "../paraglide/messages.js"
 import type { ReleasedLocale } from "../domain/vocabularies"
+import { gameMail } from "../mail/templates/game"
+import { reminderMail } from "../mail/templates/reminder"
 
 /**
  * One fan-out to perform.
@@ -253,18 +255,12 @@ async function runGameJob(db: Db, env: Bindings, job: GameJob): Promise<JobOutco
         const away = pick(game.awayTeam?.names, locale)
         const event = pick(game.event?.names, locale)
         // Absolute: an email is read outside the app, so a hash route on its
-        // own goes nowhere.
+        // own goes nowhere. The words and the layout are the template's.
         const url = `${originOf(env)}/#/game/${job.gameId}`
-        const subject =
-          job.typeCode === "MATCH_START"
-            ? m.email_game_start_subject({ home, away }, { locale })
-            : job.typeCode === "MATCH_END"
-              ? m.email_game_end_subject({ home, away, ...args }, { locale })
-              : m.email_game_subject({ home, away, ...args }, { locale })
+        const kind = job.typeCode === "MATCH_START" ? "start" : job.typeCode === "MATCH_END" ? "end" : "score"
         return {
           channel: "EMAIL" as const,
-          subject,
-          text: m.email_game_text({ event, home, away, url, ...args }, { locale }),
+          ...gameMail({ kind, home, away, event, url, ...args }, locale),
           unsubscribeLabel: m.email_unsubscribe({}, { locale }),
         }
       },
@@ -358,11 +354,7 @@ async function runReminderJob(db: Db, env: Bindings, job: ReminderJob): Promise<
         const name = pick(event.names as Names, locale)
         return {
           channel: "EMAIL" as const,
-          subject: m.email_reminder_subject({ event: name }, { locale }),
-          text: m.email_reminder_text(
-            { event: name, url: `${originOf(env)}/#/event/${job.eventId}` },
-            { locale },
-          ),
+          ...reminderMail({ event: name, url: `${originOf(env)}/#/event/${job.eventId}` }, locale),
           unsubscribeLabel: m.email_unsubscribe({}, { locale }),
         }
       },

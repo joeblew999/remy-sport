@@ -8,7 +8,7 @@ Five accepted feature designs remain unimplemented; internal data is accounted f
 
 ## Evidence baseline
 
-Qualified items: 1375. Unreviewed: 1311. Explicit classifications: 64.
+Qualified items: 1379. Unreviewed: 1315. Explicit classifications: 64.
 
 [The evidence ledger](../tests/repo/lib/domain-evidence.json) records exact schema fields, foreign keys, procedures and nested output paths.
 Report regeneration cannot enroll new items or turn unreviewed items into covered ones.
@@ -1362,6 +1362,10 @@ These remain unreviewed unless explicitly classified in the ledger. Arrays and r
 - output.notifications.devices.devices[].id
 - output.notifications.devices.devices[].label
 - output.notifications.follow.following
+- output.notifications.following.email
+- output.notifications.following.email.address
+- output.notifications.following.email.verified
+- output.notifications.following.emailOn
 - output.notifications.following.following
 - output.notifications.following.following[].name
 - output.notifications.following.following[].names

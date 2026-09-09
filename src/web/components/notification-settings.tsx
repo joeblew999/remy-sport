@@ -31,8 +31,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item"
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 
 /**
  * The types worth offering, not all fourteen.
@@ -40,8 +41,8 @@ import { Label } from "@/components/ui/label"
  * NOTIFICATION_TYPE has fourteen entries and only these have anything that
  * sends them today. Listing the rest would be a settings page full of switches
  * that do nothing — which teaches a reader that the switches do not work.
- * `bun run check:notifications` compares this list against every `typeCode:`
- * the Worker actually sends, in both directions, and fails on either kind of
+ * `tests/repo/notifications.test.ts` compares this list against every type the
+ * Worker actually sends, in both directions, and fails on either kind of
  * drift.
  */
 const OFFERED = [
@@ -127,7 +128,7 @@ export function NotificationSettings() {
   const { data: devices } = useQuery(orpc.notifications.devices.queryOptions())
 
   const mute = useMutation({
-    mutationFn: (args: { notificationTypeCode: (typeof OFFERED)[number]; isEnabled: boolean }) =>
+    mutationFn: (args: { notificationTypeCode: (typeof OFFERED)[number]; isEnabled: boolean; channelCode?: "PUSH" | "EMAIL" }) =>
       api.notifications.setPreference(args),
     onSuccess: () => qc.invalidateQueries({ queryKey: orpc.notifications.following.key() }),
   })
@@ -331,9 +332,23 @@ export function NotificationSettings() {
 
       <section className="flex flex-col gap-2">
         <h3 className="text-sm font-semibold">{m.what_to_hear_about()}</h3>
+        {/* Where email goes, and whether it may. The address is the one the
+            sign-in code proved (src/api/email-channel.ts); until a verified
+            sign-in has registered it, every email switch below stays off and
+            this sentence says why. */}
+        {data && (
+          <p className="text-sm text-muted-foreground" data-testid="email-state">
+            {!data.email
+              ? m.email_no_address()
+              : !data.email.verified
+                ? m.email_unverified()
+                : m.email_goes_to({ address: data.email.address })}
+          </p>
+        )}
         <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border">
           {OFFERED.map((code) => {
             const muted = data?.muted.includes(code) ?? false
+            const emailOn = data?.emailOn.includes(code) ?? false
             return (
               <Item key={code} className="items-start rounded-none">
                 <Checkbox
@@ -358,6 +373,23 @@ export function NotificationSettings() {
                     </ItemDescription>
                   )}
                 </ItemContent>
+                {/* Email is opt-in, so this is a switch that starts off, per
+                    type, and only a verified address can turn it on. */}
+                <ItemActions className="self-center">
+                  <Label htmlFor={`email-pref-${code}`} className="text-xs font-normal text-muted-foreground">
+                    {m.email_channel()}
+                  </Label>
+                  <Switch
+                    id={`email-pref-${code}`}
+                    size="sm"
+                    checked={emailOn}
+                    disabled={!data?.email?.verified || mute.isPending}
+                    onCheckedChange={(checked) =>
+                      mute.mutate({ notificationTypeCode: code, channelCode: "EMAIL", isEnabled: checked === true })
+                    }
+                    data-testid={`email-pref-${code}`}
+                  />
+                </ItemActions>
               </Item>
             )
           })}

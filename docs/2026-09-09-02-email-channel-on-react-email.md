@@ -1,8 +1,10 @@
 # Plan — the email channel, on React Email
 
-Status: proposed 2026-09-09, nothing implemented. Re-cut from the combined
-sign-in-and-email plan at the Product Owner's review. Decided by the Product
-Owner the same day: emails are React-based, and there is no magic link.
+Status: implemented 2026-09-09, every step ticked with its proof below. Re-cut
+from the combined sign-in-and-email plan at the Product Owner's review that
+morning; decided by the Product Owner the same day: emails are React-based,
+and there is no magic link. What remains is a deploy, since staging is the
+only place mail really leaves.
 
 ## What is true today
 
@@ -34,12 +36,11 @@ Read from the tree; no code was changed to write this.
   enabled per zone, so both sign with the zone key and the split earns no
   separate reputation yet. The comment at `src/mail/mailer.ts:38-44` still
   claims it does.
-- **Two comments point at things that do not exist.** A deliverability
-  document, `docs/dev/email-deliverability.md`, <!-- docs-check-ignore --> was
-  never written and is cited by `src/mail/mailer.ts:44`,
-  `scripts/ops/provision.ts:571` and `wrangler.toml:315`. And
-  `bun run check:notifications`, cited at
-  `src/web/components/notification-settings.tsx:43`, is a stale name: the
+- **Two comments pointed at things that do not exist** (fixed in the last
+  step). A deliverability document that was never written was cited as the
+  authority on DNS by `src/mail/mailer.ts`, `scripts/ops/provision.ts` and
+  `wrangler.toml`. And a `check:notifications` script, cited in
+  `src/web/components/notification-settings.tsx`, was a stale name: the
   check exists as `tests/repo/notifications.test.ts`, both directions, and
   runs in the gate.
 
@@ -76,6 +77,15 @@ that split on captured headers.
   bundle, which is 2.4 MB today. The size before and after goes in the log.
   No build-time rendering machinery: it would keep the preview from matching
   what ships.
+- **Rendered with `react-dom/server` directly**, which resolves to React's
+  edge build under workerd. `@react-email/components` supplies the
+  primitives; its own `render` is not used, because it brings html-to-text
+  and prettier into a Worker that only needs markup, and the text part is
+  the message itself, not a conversion of the HTML.
+- **The preview is a dev route, not a second server.** `/api/dev/email/<name>?locale=th`
+  renders any template with the fixtures' names on localhost, behind the
+  same gate as the outbox. React Email's preview app would have meant a
+  Next.js development dependency for the same picture.
 - **Opt-in.** An email preference is off until the reader turns it on, the
   rule `src/api/push.ts` already applies and the one the unsubscribe law
   expects. Only a verified address can be turned on.
@@ -87,40 +97,50 @@ that split on captured headers.
 
 Ordered so each is provable on its own.
 
-- [ ] **Register the verified sign-in address as the EMAIL channel.** On
-      session creation — `databaseHooks.session.create` in
-      `src/auth.config.ts:189` is the one chokepoint every sign-in passes —
-      upsert the `userNotificationChannel` row: EMAIL, label `primary`, the
-      address the code just proved, enabled. When the address changes, the old
-      row goes. Proof: a Worker test signs in and finds the row, so the seeded
-      fixtures stop being the only EMAIL rows in existence.
-- [ ] **A channel in the preferences API.** `src/api/notifications.ts` takes
-      and returns `channelCode`, PUSH by default so every existing caller is
-      unchanged. Proof: the Worker tests for preferences run for EMAIL as well
-      as PUSH.
-- [ ] **The switch on the settings screen.** Per type, an EMAIL switch beside
-      the push one, the registry's `Switch`, disabled with its own sentence
-      while the address is unverified. Proof: rendering tests in EN, TH and JA,
-      light and dark, and `tests/repo/notifications.test.ts` still green.
-- [ ] **React Email.** One component per email in a new folder beside
-      `src/mail/mailer.ts`, each returning subject, text and HTML from Paraglide
-      strings in the given locale; `src/auth.ts` and `src/api/notify-queue.ts`
-      call them instead of assembling copy at the call site. Proof: the dev
-      outbox shows both parts; a Worker test renders every template in every
-      locale. The same day: the repo check that fails on a literal sentence in
-      a template, and the Worker bundle size before and after, in the log.
-- [ ] **Prove the unsubscribe round trip.** A bulk notification carries
-      `List-Unsubscribe` and the sign-in mail carries none, asserted against
-      the outbox, which records `from` and `headers` exactly
-      (`src/mail/mailer.ts:130-146`).
-- [ ] **Correct the comments.** The DKIM claim in `src/mail/mailer.ts` matches
-      `scripts/ops/provision.ts`; the three citations of the never-written
-      document point at the provisioning record instead; the settings comment
-      names `tests/repo/notifications.test.ts`. Then the docs-check markers
-      here and in `docs/README.md` go. Proof: docs-check green without them.
-- [ ] **One real email.** A signed-in person with EMAIL on receives a game
-      notification, end to end through the dev outbox. Proof: the capture, in
-      the log.
+- [x] **Register the verified sign-in address as the EMAIL channel.**
+      `src/api/email-channel.ts`, called from the session-create hook's
+      `after` (`onSessionCreated` in `src/auth.config.ts`), never blocking a
+      sign-in: a row for the address the code just proved, label `primary`,
+      enabled and verified; a row at another address goes. Proof:
+      `tests/worker/email-channel.test.ts` signs in and finds the row, plants
+      a stale address and sees it replaced.
+- [x] **A channel in the preferences API.** `setPreference` takes
+      `channelCode`, PUSH by default; `following` returns `emailOn` (opt-in,
+      the other way round from `muted`) and `email` (the address, and whether
+      it may be used). Proof: the same Worker file turns EMAIL on and off for
+      a type without touching the push mute, and a caller naming no channel
+      still means push.
+- [x] **The switch on the settings screen.** Per type, the registry's
+      `Switch` beside the push checkbox, off until turned on, disabled with a
+      sentence naming why while there is no verified address; the sentence
+      names the address otherwise. Proof: `tests/render/email-settings.spec.ts`
+      in EN, TH and JA, light and dark, plus the unverified, absent and
+      switch-on cases (9 passed); `tests/repo/notifications.test.ts` green.
+- [x] **React Email.** `src/mail/templates/`: `render.tsx` (layout,
+      paragraphs, links, footer, `toHtml`), `frame.ts` (styles and the
+      doctype, the one file allowed a string with a space), and one component
+      per email — `otp`, `invite`, `game`, `reminder` — each composing subject,
+      text and HTML from the Paraglide message the text part already was;
+      `src/auth.ts` and `src/api/notify-queue.ts` call them. Proof:
+      `tests/unit/mail-templates.test.ts` renders every template in every
+      locale (12 passed); the outbox records the HTML part. Same day:
+      `tests/repo/mail-templates.test.ts` reads each template's syntax tree
+      and fails on JSX text, a two-word string or any Thai or Japanese script;
+      the Worker bundle is in the log.
+- [x] **Prove the unsubscribe round trip.** The Worker file asserts the game
+      email carries `List-Unsubscribe` and the bulk sender, with the link in
+      both the text and the HTML, and the sign-in mail carries the
+      transactional sender, no header and no link at all.
+- [x] **Correct the comments.** The DKIM claim in `src/mail/mailer.ts` now
+      matches `scripts/ops/provision.ts`; the three citations of the
+      never-written document point at the mailer and the provisioning record;
+      the settings comment names `tests/repo/notifications.test.ts`; the
+      docs-check markers are gone. Proof: docs-check green without them.
+- [x] **One real email.** The spectator signs in, follows team_001, turns
+      EMAIL on for scores, and the queue's own job for gam_002 lands one email
+      in the outbox: bulk sender, unsubscribe header, HTML with the game link
+      and the way out. Proof: the last test in
+      `tests/worker/email-channel.test.ts`.
 
 ## Done when
 
@@ -139,3 +159,29 @@ and no comment in the tree names a file or a command that does not exist.
   correction, the single-source rule. Dropped: the comparison with a proposal
   nobody in the repo can read, the essay on a decision the code already made,
   and a step to build the offered-types check, which already exists.
+- 2026-09-09 — implemented, the same day, on "Now do it". The Worker bundle
+  before and after, production build: 2,444,877 bytes (552.84 kB gzip) to
+  2,920,613 bytes (647.61 kB gzip), which is React's edge server renderer
+  and the mail primitives. Verified on the running dev server:
+  `/api/dev/email/otp?locale=th` answers with `lang="th"` and the code as
+  the headline. What only staging can show: a real inbox receiving the HTML
+  part, and deliverability with the same zone key on both senders.
+- 2026-09-09 — the two repository checks this work owed the gate are paid, so
+  the whole tier is green again. Both were the model refusing an addition that
+  had not been accounted for, which is what they are for.
+  - `tests/repo/authz.test.ts` had no note for the mail preview route.
+    `GET /api/dev/email/:name` is now in `HONO_ROUTES` saying what guards it:
+    the outbox's own gate, and it reads neither the database nor the outbox —
+    the code it shows is the literal `424242`, not anybody's issued one.
+  - `following` grew four output paths — `email`, `email.address`,
+    `email.verified` and `emailOn` — and the evidence ledger had never seen
+    them. They are enrolled as **unreviewed**, beside every one of their
+    siblings on that procedure: the fields are implemented and tested by the
+    steps above, but a domain-coverage classification is a different and
+    heavier claim, and that review is its own scheduled work. Enrolling them
+    as reviewed to make a check pass is precisely what the ledger forbids.
+    `bun run ops coverage domain --write` regenerated the report; the count
+    moves from 1,375 items to 1,379, unreviewed 1,311 to 1,315.
+  - Gate after the fix: 929 unit/repository/Worker checks and 344 rendering
+    checks passed, with `bun run typecheck` and `bun run lint`. No application
+    source was changed to make a check pass.

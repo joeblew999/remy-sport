@@ -6,8 +6,15 @@ import type { AppEnv } from "../types"
 import { readOutbox, clearOutbox, usesOutbox } from "../mail/mailer"
 import { fixedSignInCode, permits } from "../environment"
 import { SEED_ENTITIES, SEED_RELATIONSHIPS } from "../../src/domain/model/entities"
-import { RELATION, STORED_ROLE } from "../domain/vocabularies"
+import { LOCALES, RELATION, STORED_ROLE, type ReleasedLocale } from "../domain/vocabularies"
 import { isRefusedStatus } from "../auth.config"
+import { pick, type Names } from "../domain/names"
+import { m } from "../paraglide/messages.js"
+import { otpMail } from "../mail/templates/otp"
+import { inviteMail } from "../mail/templates/invite"
+import { gameMail } from "../mail/templates/game"
+import { reminderMail } from "../mail/templates/reminder"
+import type { Bulk } from "../mail/templates/render"
 
 /**
  * Read back mail captured by the `outbox` transport (ADR 010).
@@ -37,6 +44,42 @@ devMail.delete("/api/dev/outbox", (c) => {
   if (!permits(c.env, "devMailRoutes")) return c.notFound()
   clearOutbox()
   return c.json({ cleared: true })
+})
+
+/**
+ * Every email the app sends, rendered from its template with the fixtures'
+ * names, on localhost: `/api/dev/email/<name>?locale=th`, `&part=text` for
+ * the text part. The list of names is the 404. The same gate as the outbox,
+ * because the templates are the product's copy and this is a development
+ * convenience — the Product Owner reads a mail without a deploy or an inbox.
+ */
+devMail.get("/api/dev/email/:name", (c) => {
+  if (!permits(c.env, "devMailRoutes")) return c.notFound()
+  const wanted = c.req.query("locale") ?? "en"
+  if (!(LOCALES as readonly string[]).includes(wanted)) return c.json({ error: "locale", locales: LOCALES }, 400)
+  const locale = wanted as ReleasedLocale
+  const origin = (c.env.BETTER_AUTH_URL ?? new URL(c.req.url).origin).replace(/\/+$/, "")
+  const name = (names: unknown) => pick(names as Names, locale)
+  const team = (index: number) => name(SEED_ENTITIES.teams[index]?.names)
+  const event = SEED_ENTITIES.events[0]
+  const org = SEED_ENTITIES.orgs[0]
+  const inviter = SEED_RELATIONSHIPS.userNotificationChannels.find((ch) => ch.channelCode === "EMAIL")?.address ?? ""
+  const unsubscribe = { label: m.email_unsubscribe({}, { locale }), url: `${origin}/api/unsubscribe?t=preview` }
+  const bulk = (b: Bulk) => ({ subject: b.subject, text: b.text, html: b.html(unsubscribe) })
+  const game = (kind: "start" | "end" | "score") =>
+    bulk(gameMail({ kind, home: team(0), away: team(1), event: name(event?.names), url: `${origin}/#/game/gam_002`, homeScore: "61", awayScore: "58" }, locale))
+  const mails: Record<string, () => { subject: string; text: string; html: string }> = {
+    otp: () => otpMail({ otp: "424242", purpose: m.email_otp_purpose_sign_in({}, { locale }) }, locale),
+    invite: () => inviteMail({ invitedBy: inviter, org: name(org?.names), url: `${origin}/#/accept-invitation/preview` }, locale),
+    "game-start": () => game("start"),
+    "game-end": () => game("end"),
+    score: () => game("score"),
+    reminder: () => bulk(reminderMail({ event: name(event?.names), url: `${origin}/#/event/${event?.id ?? ""}` }, locale)),
+  }
+  const make = mails[c.req.param("name")]
+  if (!make) return c.json({ emails: Object.keys(mails), locales: LOCALES }, 404)
+  const mail = make()
+  return c.req.query("part") === "text" ? c.text(mail.text) : c.html(mail.html)
 })
 
 export default devMail

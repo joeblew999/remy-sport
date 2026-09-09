@@ -76,6 +76,11 @@ export interface AuthDeps {
    * Auth creates a row on first sign-in and knows nothing about this.
    */
   userStatus?: (userId: string) => Promise<string | null>
+  /**
+   * After a session is created: work that must follow every sign-in and may
+   * never block one. The EMAIL channel registration in src/auth.ts.
+   */
+  onSessionCreated?: (userId: string) => Promise<void>
 }
 
 /**
@@ -231,6 +236,9 @@ export function buildAuthOptions(deps: AuthDeps = {}) {
                 network: place.network,
               },
             }
+          },
+          after: async (session) => {
+            await deps.onSessionCreated?.(session.userId)
           },
         },
       },

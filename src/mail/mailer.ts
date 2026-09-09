@@ -40,8 +40,11 @@ export interface Mail {
    *
    * DKIM and reputation attach at the domain level, so the split is a
    * subdomain rather than a different local part: `noreply@remy.…` for
-   * transactional, `notifications@notify.remy.…` for bulk. See
-   * docs/dev/email-deliverability.md for what that needs in DNS.
+   * transactional, `notifications@notify.remy.…` for bulk. What it buys
+   * today is less than it looks: Cloudflare enables Email Sending per zone,
+   * so both identities sign with the zone key and share its reputation —
+   * `enabledZones` in scripts/ops/provision.ts is the record. The split costs
+   * nothing and is right the day sending moves per domain.
    *
    * Transactional is the default because it is the one that must never be
    * skipped: a new caller that forgets to say gets the *safer* identity, and
@@ -143,6 +146,8 @@ interface CapturedMail {
    */
   from: string
   headers: Record<string, string>
+  /** The HTML part, when the mail has one — so the outbox shows both parts, not the text alone. */
+  html?: string
 }
 
 function outbox(): CapturedMail[] {
@@ -173,6 +178,7 @@ function outboxMailer(env: Bindings): Mailer {
         // assertion against the outbox is an assertion about what ships.
         from: senderFor(env, mail.kind),
         headers: mail.headers ?? {},
+        ...(mail.html ? { html: mail.html } : {}),
       })
     },
   }

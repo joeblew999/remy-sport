@@ -37,7 +37,7 @@ const base = [
   entry(orpc.events.list, undefined, { events: projectEvents() }),
   entry(orpc.teams.list, undefined, { teams: projectTeams() }),
   entry(orpc.events.invitations, undefined, { invitations: [] }),
-  entry(orpc.notifications.following, undefined, { following: [], muted: [] }),
+  entry(orpc.notifications.following, undefined, { following: [], muted: [], emailOn: [], email: null }),
   entry(orpc.players.mine, undefined, { players: [] }),
 ]
 

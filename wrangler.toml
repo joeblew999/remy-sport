@@ -312,8 +312,8 @@ BETTER_AUTH_URL = "https://staging-remy.ubuntusoftware.net"
 # table exists to express. `capturesMail: false`.
 MAIL_TRANSPORT  = "cloudflare"
 ENVIRONMENT     = "staging"
-# Staging's own sending identity, for the reason docs/dev/email-deliverability.md
-# gives for splitting bulk from transactional: reputation attaches per domain,
+# Staging's own sending identity, for the reason src/mail/mailer.ts gives for
+# splitting bulk from transactional: reputation attaches per domain,
 # and a staging test that trips a spam filter must not be able to take
 # production's sign-in mail down with it.
 #

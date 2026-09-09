@@ -344,10 +344,21 @@ export const following = authed
         }),
       ),
       muted: z.array(z.enum(NOTIFICATION_TYPE_CODES)),
+      /**
+       * Opt-in, the other way round from push: the types this reader has
+       * turned EMAIL on for. Absence means no — see `wantsChannel` in push.ts.
+       */
+      emailOn: z.array(z.enum(NOTIFICATION_TYPE_CODES)),
+      /**
+       * Where email would go, and whether it may. Null until a verified sign-in
+       * registered the address (src/api/email-channel.ts); the screen's email
+       * switches stay off until `verified`.
+       */
+      email: z.object({ address: z.string(), verified: z.boolean() }).nullable(),
     }),
   )
   .handler(async ({ context }) => {
-    const [subs, prefs] = await Promise.all([
+    const [subs, prefs, channel] = await Promise.all([
       context.db
         .select({
           objectTypeCode: schema.subscription.objectTypeCode,
@@ -356,19 +367,32 @@ export const following = authed
         .from(schema.subscription)
         .where(eq(schema.subscription.userId, context.user.id)),
       context.db
-        .select({ typeCode: schema.userNotificationPreference.notificationTypeCode })
+        .select({
+          typeCode: schema.userNotificationPreference.notificationTypeCode,
+          channelCode: schema.userNotificationPreference.channelCode,
+          isEnabled: schema.userNotificationPreference.isEnabled,
+        })
         .from(schema.userNotificationPreference)
+        .where(eq(schema.userNotificationPreference.userId, context.user.id)),
+      context.db
+        .select({
+          address: schema.userNotificationChannel.address,
+          verifiedAt: schema.userNotificationChannel.verifiedAt,
+        })
+        .from(schema.userNotificationChannel)
         .where(
           and(
-            eq(schema.userNotificationPreference.userId, context.user.id),
-            eq(schema.userNotificationPreference.channelCode, "PUSH"),
-            eq(schema.userNotificationPreference.isEnabled, false),
+            eq(schema.userNotificationChannel.userId, context.user.id),
+            eq(schema.userNotificationChannel.channelCode, "EMAIL"),
           ),
-        ),
+        )
+        .get(),
     ])
     return {
       following: await withNames(context.db, subs as z.infer<typeof ObjectRef>[]),
-      muted: prefs.map((p) => p.typeCode) as NotificationTypeCode[],
+      muted: prefs.filter((p) => p.channelCode === "PUSH" && !p.isEnabled).map((p) => p.typeCode) as NotificationTypeCode[],
+      emailOn: prefs.filter((p) => p.channelCode === "EMAIL" && p.isEnabled).map((p) => p.typeCode) as NotificationTypeCode[],
+      email: channel ? { address: channel.address, verified: channel.verifiedAt !== null } : null,
     }
   })
 
@@ -494,14 +518,22 @@ export const sendTest = authed
     })
   })
 
-/** Mute or unmute one notification type on push. */
+/**
+ * One notification type, on one channel: off for push, on for email.
+ *
+ * The same row either way — `userNotificationPreference` has been keyed by
+ * channel since it was written — and the same statement. What differs is what
+ * absence means, and that is push.ts's `wantsChannel`, not this endpoint.
+ * PUSH by default, so every caller that predates the channel is unchanged.
+ */
 export const setPreference = authed
-  .route({ method: "PUT", path: "/notification-preferences", summary: "Mute or unmute one kind of notification", ...authedRoute })
+  .route({ method: "PUT", path: "/notification-preferences", summary: "Turn one kind of notification on or off, on one channel", ...authedRoute })
   .use(requireAction("MANAGE_OWN_NOTIFICATION_PREFERENCES"))
   .input(
     z.object({
       notificationTypeCode: z.enum(NOTIFICATION_TYPE_CODES),
       isEnabled: z.boolean(),
+      channelCode: z.enum(["PUSH", "EMAIL"]).default("PUSH"),
     }),
   )
   .output(z.object({ ok: z.literal(true) }))
@@ -509,7 +541,7 @@ export const setPreference = authed
     const where = and(
       eq(schema.userNotificationPreference.userId, context.user.id),
       eq(schema.userNotificationPreference.notificationTypeCode, input.notificationTypeCode),
-      eq(schema.userNotificationPreference.channelCode, "PUSH"),
+      eq(schema.userNotificationPreference.channelCode, input.channelCode),
     )
     const existing = await context.db
       .select({ userId: schema.userNotificationPreference.userId })
@@ -525,7 +557,7 @@ export const setPreference = authed
       await context.db.insert(schema.userNotificationPreference).values({
         userId: context.user.id,
         notificationTypeCode: input.notificationTypeCode,
-        channelCode: "PUSH",
+        channelCode: input.channelCode,
         isEnabled: input.isEnabled,
       })
     }
