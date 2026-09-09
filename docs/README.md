@@ -3,11 +3,12 @@
 ## Open plans
 
 - [The sign-in code, filled in by the phone](2026-09-09-01-sign-in-code-autofill.md)
-  is proposed 2026-09-09, nothing implemented. The Product Owner's question —
-  how ChatGPT signs you in from an emailed code without opening the mail app —
-  is answered there: the phone's autofill does it, the field and the mail
-  already qualify, and what is missing is focus, submit on the sixth digit,
-  and a phone to watch it on.
+  is implemented 2026-09-09. The Product Owner's question — how ChatGPT signs
+  you in from an emailed code without opening the mail app — is answered
+  there: the phone's autofill does it. The code field is focused as the step
+  opens and the sixth digit signs the reader in, proven in the rendering and
+  browser tiers. Open: one phone session to watch Mail offer the code, which
+  also covers the two install labels and the iOS links check.
 - [The email channel, on React Email](2026-09-09-02-email-channel-on-react-email.md)
   is proposed 2026-09-09, nothing implemented. The transport, the copy and the
   unsubscribe headers exist and reach nobody: no code path writes a real

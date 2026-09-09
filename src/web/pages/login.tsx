@@ -48,12 +48,28 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
     await requestCode.mutateAsync(email).then(() => setStep("code")).catch(() => undefined);
   }
 
-  async function submitCode(e: React.FormEvent) {
-    e.preventDefault();
+  /**
+   * Redeem a code. Reached two ways: the sixth digit, and the Sign in button.
+   *
+   * The sixth digit is the one a phone takes. Mail hands the code to the
+   * keyboard, one tap fills all six slots, and `onComplete` redeems it — no
+   * second press, which was the whole remaining friction (docs plan
+   * 2026-09-09-01). The button stays for a reader who pastes five and types
+   * one, and for a wrong code, which leaves six digits in the field. The
+   * completed value comes from the field itself: state may not have caught
+   * up by the time `onComplete` fires.
+   */
+  async function verify(code: string) {
+    if (verifyCode.isPending) return;
     await verifyCode
-      .mutateAsync({ email, otp })
+      .mutateAsync({ email, otp: code })
       .then(() => goto(next ?? { page: "home" }))
       .catch(() => undefined);
+  }
+
+  async function submitCode(e: React.FormEvent) {
+    e.preventDefault();
+    await verify(otp);
   }
 
   /**
@@ -126,14 +142,18 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
               <FieldLabel htmlFor="spa-otp">{m.six_digit_code()}</FieldLabel>
               {/* The registry's one-time-code field: six slots, digits only, and
                   `autocomplete="one-time-code"` from the library so a phone can
-                  offer the code straight from the notification. */}
+                  offer the code straight from Mail or the notification. Focused
+                  as the step opens, so the offered code has somewhere to land;
+                  the sixth digit submits — see `verify`. */}
               <InputOTP
                 id="spa-otp"
                 maxLength={6}
                 pattern={REGEXP_ONLY_DIGITS}
                 required
+                autoFocus
                 value={otp}
                 onChange={setOtp}
+                onComplete={(code: string) => void verify(code)}
                 data-testid="spa-otp-input"
                 aria-describedby={error ? "login-error" : undefined}
               >

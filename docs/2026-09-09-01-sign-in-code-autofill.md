@@ -1,8 +1,9 @@
 # Plan — the sign-in code, filled in by the phone
 
-Status: proposed 2026-09-09, nothing implemented. Re-cut from the combined
-sign-in-and-email plan at the Product Owner's review. Small: two code changes,
-one proof in the browser tier, one phone.
+Status: implemented 2026-09-09, the phone check open. Re-cut from the
+combined sign-in-and-email plan at the Product Owner's review. Two code
+changes, proven in the rendering and browser tiers; what is left needs a
+phone in the Product Owner's hand.
 
 ## The question
 
@@ -40,14 +41,15 @@ message.
 
 ## Steps
 
-- [ ] **Focus the code field when the step opens.** `autoFocus` on the
-      `InputOTP`. Proof: the rendering test for the code step asserts the field
-      has focus.
-- [ ] **Submit on the sixth digit.** `onComplete` calls the same `submitCode`;
-      the button stays for a reader who pastes five and types one. Proof: a
-      check in `tests/e2e/spa-login.spec.ts` types six digits and lands signed
-      in without pressing Sign in, and a wrong code still shows its message on
-      the field.
+- [x] **Focus the code field when the step opens.** `autoFocus` on the
+      `InputOTP`. Proof: `tests/render/login.spec.ts` asserts the field has
+      focus as the step opens (1 passed).
+- [x] **Submit on the sixth digit.** `onComplete` redeems the completed value
+      through the same `verify` the button uses; the button stays for a reader
+      who pastes five and types one. Proof: the same rendering test sees the
+      redemption request carry the six digits with no press; in
+      `tests/e2e/spa-login.spec.ts` the correct code lands signed in and the
+      wrong code shows its message, neither pressing Sign in (11 passed).
 - [ ] **Watch it on a phone.** One iPhone session: Safari at staging, then the
       installed web app, then the Tauri build if one is at hand. Record which
       of the three offered the code from Mail. The same session confirms the
@@ -77,3 +79,7 @@ the installed web app and the Tauri shell recorded either way.
   `1df0b5c`) at the Product Owner's review: that plan was three plans and a
   rebuttal of a proposal nobody in the repo can read. The question that
   started it is answered above.
+- 2026-09-09 — the two code steps done the same day, on "do it": `autoFocus`
+  and `onComplete` on the field, one `verify` behind both the sixth digit and
+  the button, the completed value taken from the field rather than state.
+  Proofs as ticked. Open: the phone session, which is the Product Owner's.

@@ -63,7 +63,7 @@ test.describe.serial("SPA sign-in", () => {
     await page.getByTestId("spa-email-input").fill(COACH)
     await page.getByTestId("spa-send-code").click()
     await page.getByTestId("spa-otp-input").fill(LOCAL_CODE)
-    await page.getByTestId("spa-verify-code").click()
+    // No Sign in press: the sixth digit submits — docs/2026-09-09-01-sign-in-code-autofill.md.
 
     // Lands back in the app, not on a server-rendered page.
     await expect(page.getByTestId("spa-login")).toHaveCount(0)
@@ -85,7 +85,7 @@ test.describe.serial("SPA sign-in", () => {
     await page.getByTestId("spa-email-input").fill(ADMIN)
     await page.getByTestId("spa-send-code").click()
     await page.getByTestId("spa-otp-input").fill("000000")
-    await page.getByTestId("spa-verify-code").click()
+    // No Sign in press: the sixth digit submits — docs/2026-09-09-01-sign-in-code-autofill.md.
     await expect(page.getByTestId("login-error")).toBeVisible()
     await expect(page.getByTestId("spa-otp-input")).toBeVisible()
   })
@@ -105,7 +105,7 @@ test.describe.serial("SPA sign-in", () => {
     await page.getByTestId("spa-email-input").fill(COACH)
     await page.getByTestId("spa-send-code").click()
     await page.getByTestId("spa-otp-input").fill(LOCAL_CODE)
-    await page.getByTestId("spa-verify-code").click()
+    // No Sign in press: the sixth digit submits — docs/2026-09-09-01-sign-in-code-autofill.md.
 
     await expect(page.getByTestId("account")).toBeVisible()
     await expect(page.getByTestId("account-user")).toContainText(ACTOR_NAMES.COACH)
