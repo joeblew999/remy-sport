@@ -25,6 +25,16 @@
   in `HONO_ROUTES` with how it is guarded, and the four `following` email
   fields are enrolled in the evidence ledger. 929 unit/repository/Worker and
   344 rendering checks pass, with typecheck and lint.
+- [Main content on the registry, like the sidebar already is](2026-09-09-07-main-content-on-the-registry.md)
+  is **proposed 2026-09-09, nothing implemented**, at the Product Owner's report
+  that the sidebar (which they call the drawer) looks right and all the main
+  content does not. Measured: the sidebar is nine registry primitives used as
+  shipped, while our pages carry 140 hand-picked type classes and 100 overrides
+  of size, padding, radius or gap on registry components, and `page.tsx` invents
+  a second type scale. The font is not the fault — the preset's font is Inter
+  and we apply it. `tests/repo/styles.test.ts` reads only `styles.css`, so the
+  drift moved to the JSX where nothing checks. Stage 1 needs the Product
+  Owner's decision before any code changes.
 - [Notifications off the devices page](2026-09-09-06-notifications-off-the-devices-page.md)
   is implemented 2026-09-09, at the Product Owner's question that Devices is
   really an authentication concern. It is now: `/#/devices` holds sessions and
