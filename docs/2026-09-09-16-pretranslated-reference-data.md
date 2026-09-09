@@ -1,8 +1,9 @@
 # Plan — pretranslated reference data, starting with places
 
 Status: proposed 2026-09-09. **Plan complete; five sources measured; nothing
-implemented.** Blocked on one Product Owner decision — step 2, the depth and the
-licence. Steps 1 and 7 depend on no dataset and are wrong in the tree today.
+implemented.** Arranged to run unattended — see "The unattended run" — by making
+the licence a flag rather than a precondition, defaulting the build to a sample,
+and leaving publishing and deploying as the two human acts they should be.
 
 The Product Owner: we need a places system for every country, pretranslated —
 **reference data that already carries every language**, open source, fitting
@@ -452,8 +453,29 @@ about as often as a country does.
 
 ### What it does not settle
 
-**ODbL still governs the data, and being open source is not automatically
-compliance.** Two things have to be true, and neither is automatic:
+**remy-sport is itself public — and that is not the same as licensed.** Checked
+2026-09-09: `joeblew999/remy-sport` is a **public** repository with
+**`licenseInfo: null`** and no `LICENSE` file in the tree.
+
+Public source with no licence declared is, by default, *all rights reserved*.
+Nobody may legally reuse it. That matters twice over here:
+
+- **It undercuts the stated goal.** The reason for publishing the places service
+  was *"so anyone else can also use it."* A reader who checks the licence of the
+  repo it came from finds none, and a company's lawyer stops there.
+- **It cannot discharge ODbL.** Share-alike requires the derived database to be
+  *offered under ODbL*, which a repo declaring no terms does not do. Being public
+  is necessary and not sufficient.
+
+Being public does soften the boundary in one useful way: dr5hn-derived rows
+appearing in this repo would no longer be a leak to be avoided at all costs, only
+rows that must be **labelled ODbL**. But that is an argument for adding a licence,
+not for skipping one.
+
+**A LICENSE file here is now the cheapest item in this plan and blocks the most.**
+
+**ODbL still governs the data, and open source is not automatically compliance.**
+Two things have to be true in the places repo, and neither is automatic:
 
 - **The repo must contain the derived database**, not merely the ETL that builds
   it. Serving an API *is* public use under ODbL; publishing only the scripts and
@@ -579,6 +601,56 @@ the CLI path used only to shortcut the initial import.
 
 This is entirely the new repo's concern. Nothing about it reaches remy-sport.
 
+### What it costs on a laptop — measured, and it is all in the inputs
+
+The Product Owner's worry, 2026-09-09: *"how much disk will it use locally?"*
+
+Measured 2026-09-09, from the actual downloads and the actual merged rows.
+
+**The inputs are heavy.**
+
+| Source | Download | On disk unzipped |
+| --- | --- | --- |
+| GeoNames `alternateNames.zip` — the translations, worldwide | **193 MB** | **≈ 900 MB** (4.75× measured on the Thai archive: 5.9 MB → 28 MB) |
+| GeoNames `allCountries.zip` — the full gazetteer, **not needed** | 402 MB | ≈ 1.5 GB |
+| GeoNames `cities15000.zip` | 3 MB | 8 MB |
+| dr5hn `countries+states+cities.json` | 44 MB | 44 MB |
+| Wikidata | nothing — SPARQL | nothing |
+| **A full build** | | **≈ 1.2 GB** |
+
+For reference, the six-country sample used to measure this plan's coverage
+figures is already **163 MB**.
+
+**The output is small.** Measured by building the real merged row — id, pivot,
+country, subdivision, coordinates, names — for all 3,067 sample cities:
+**151 bytes per row.**
+
+| Row set | Rows | NDJSON |
+| --- | --- | --- |
+| `cities15000`, worldwide | 34,135 | **≈ 5 MB** |
+| `cities5000` | ~55,000 | ≈ 8 MB |
+| dr5hn's full city list | 152,970 | **≈ 22 MB** |
+
+Subdivisions (5,308) and countries (250) are rounding errors beside these. As a
+SQLite file with indexes, call it two to three times the NDJSON — so **the whole
+world of cities is a database of tens of megabytes.**
+
+**The asymmetry is the point: inputs are ~50× the output.** Which settles the
+previous section's open question:
+
+- **A remy-sport developer stores nothing.** No datasets, no city table, no
+  seed — the app calls the service and keeps an id and a name snapshot. This is
+  the largest single benefit of the PO's decision to publish it separately, and it
+  was not the reason for the decision.
+- **A places-repo contributor stores the output, not the inputs** — tens of
+  megabytes, cloned or fetched as a release artefact. The 1.2 GB belongs in R2,
+  fetched by the Workflow, and should never reach a laptop at all. That is the
+  disk argument for the Cloudflare-native ETL, and it is stronger than the
+  freshness one.
+- **Local development of the service runs on a sample.** Thailand alone is about
+  1,200 cities — roughly 200 KB. Enough to develop and test the cascade against;
+  no reason for a test suite to hold the world.
+
 ## The decisions
 
 | Question | Decision |
@@ -586,8 +658,10 @@ This is entirely the new repo's concern. Nothing about it reaches remy-sport.
 | Countries | CLDR, snapshotted into the model by a generator. Not resolved at render time. |
 | Where does the snapshot live? | The PO's model, same shape as `PROVINCE`, so a name can be overridden by hand. |
 | `tl` | Mapped to `fil` for every ICU call, with a check that no locale silently resolves to another language. |
-| Subdivisions | dr5hn if ODbL is acceptable — 100% in eight of our thirteen, plus `native` — with GeoNames filling `th`/`vi`/`id`, where dr5hn has nothing and GeoNames has 65–74%. GeoNames alone if it is not. |
-| Licences | CLDR is Unicode (free). GeoNames is CC BY 4.0 (a credit). dr5hn is ODbL-1.0, share-alike. **Discharged by publishing** — the service's repo carries the derived database and the credits, so remy-sport inherits neither. |
+| Subdivisions | **dr5hn — decided by the PO, 2026-09-09.** 100% in eight of our thirteen plus `native` at 100%, with GeoNames filling `th`/`vi`/`id` where dr5hn has nothing and GeoNames has 65–74%. `--without dr5hn` stays as an exercised escape hatch, not a theoretical one. |
+| Licences | CLDR is Unicode (free). GeoNames is CC BY 4.0 (a credit). dr5hn is ODbL-1.0, share-alike — **accepted**. Discharged by the service's repo carrying the derived database and the credits under ODbL. |
+| Licence files | **This repo: MIT.** **Places repo: code MIT, data ODbL-1.0, stated separately.** Chosen by the PO 2026-09-09 as "whatever works". MIT here lets anyone run this commercially — a business call, flagged, and irreversible once pushed. |
+| Transliteration | **Deferred, and the schema must not foreclose it.** Provenance carries a `kind` per name and names are addable per (place, locale) without an ETL rerun, so filling `th`/`zh`/`ko` below 100k later is a job rather than a rewrite. |
 | How the data reaches us | **A public Worker of our own**, by service binding; not a committed artefact. It also serves anyone else over HTTP with an OpenAPI document. |
 | Repo licensing | **Data ODbL, code MIT**, stated separately. Publishing the ETL without the derived rows would not satisfy share-alike. |
 | `venue.city_id` | An id plus **a snapshot of the names on our row**. No foreign key exists across a service boundary, and the snapshot is what makes an old fixture keep the name it was played under. |
@@ -605,11 +679,22 @@ This is entirely the new repo's concern. Nothing about it reaches remy-sport.
       mapping beside the locale vocabulary, and a repo check that every declared
       locale's `Intl` tag resolves to its own language. This is the cheapest step
       and the one that is already wrong today wherever a locale reaches ICU.
-- [ ] **2 · Decide the depth and the licence with the PO** — countries only,
-      countries + subdivisions, or cities too; and whether ODbL's share-alike
-      (dr5hn) or CC BY's credit line (GeoNames) is acceptable. Tier 3's answer
-      changes the size of everything below, and no third-party place data should
-      be seeded before the licence answer exists.
+- [x] **2 · The licence question — answered by the PO, 2026-09-09: dr5hn is in.**
+      All three tiers are built: countries, subdivisions and cities. What replaces
+      this step is smaller and is now step 2b.
+- [ ] **2b · Licences, chosen 2026-09-09** — the PO asked for whatever makes this
+      work, so:
+      - **The places repo: code MIT, data ODbL-1.0**, in two separate statements
+        with a `LICENSE` and a `LICENSE-DATA`, plus the GeoNames credit in the
+        README. This is not really a choice — ODbL is forced by dr5hn, and MIT is
+        the only code licence that does not fight it.
+      - **This repo: MIT.** It is already public, and a public repo with no licence
+        grants nobody anything, which contradicts publishing it at all.
+        **What MIT means, plainly: anyone may take this code, change it, and run it
+        commercially, including as a competitor, provided they keep the copyright
+        notice.** That is a business call rather than a technical one, and it is
+        reversible only until the file is pushed — an MIT grant cannot be retracted
+        for a version somebody already has. Flagged rather than assumed.
 - [ ] **3 · `bun run ops refdata`**, a generator in `scripts/ops/`, writing the
       CLDR-derived vocabularies in the model's shape — `COUNTRY` first, then
       `LOCALE`'s endonym and `names`. Same automation as the team, per AGENTS.md
@@ -636,9 +721,27 @@ This is entirely the new repo's concern. Nothing about it reaches remy-sport.
       GeoNames for `th`/`vi`/`id`, `native` for the endonym, English as the pivot.
       Each name records which source and licence it came from — that record is what
       an attribution line and any future licence audit are built from.
-- [ ] **10 · Cities: the three layers.** Romanised name always, the city's own
-      language from GeoNames, cross-language from Wikidata above 100k. A table with
-      a foreign key, never a vocabulary and never an enum.
+- [ ] **10 · Cities: inventory from GeoNames, languages from Wikidata,** joined on
+      `P1566` — the GeoNames ID Wikidata carries on 26,282 city items. Romanised
+      pivot always, own-language name from GeoNames, **cross-language from Wikidata
+      at every population band, not only above 100k**: it is 84% `ja` and 89% `ru`
+      in the 15k–100k band where GeoNames is 7% and 20%. A table with a foreign
+      key, never a vocabulary and never an enum.
+- [ ] **10b · Transliteration — deferred, and the schema must keep it possible.**
+      The PO's requirement, 2026-09-09: it **must be addable later**. So it is not
+      built now, and three things are built now so that it can be:
+      - **Provenance per name, with a `kind`** — `translated`, `native`,
+        `romanised`, `transliterated`. Adding a kind later is a migration; adding
+        the *concept* later is a rewrite.
+      - **Names are addable per (place, locale) without re-running the ETL.** A
+        transliteration pass is then a job that fills gaps, not a rebuild.
+      - **Real names always beat generated ones**, by rule, so a later upstream
+        translation silently replaces a transliteration rather than fighting it.
+
+      The hole it will fill: `th`, `zh` and `ko` below 100,000 people — 29% and
+      worse — where a Latin fallback inside a Thai sentence is unreadable to the
+      reader it is for. Latin-script locales never need it; the romanisation is
+      what they use anyway.
 - [ ] **11 · The cascading picker**, published as a shadcn registry item — country,
       then subdivision, then city, each query filtered by the one above and hitting
       an index. A check that no city query can run unfiltered, because the
@@ -650,24 +753,219 @@ This is entirely the new repo's concern. Nothing about it reaches remy-sport.
       the one that will be skipped under time pressure, and it is the one that
       decides whether every developer now starts two Workers to run one app.
 
+## The unattended run
+
+The Product Owner asked for the plan to be arranged so it can be executed in one
+run with nobody watching. Four things blocked that. Three dissolve with a design
+change, and the fourth is a human act that should stay one.
+
+### Blocker 1 — answered. dr5hn is in.
+
+**The Product Owner decided, 2026-09-09: use dr5hn.** ODbL is accepted, which the
+separate public repo is what makes cheap — the derived database is offered by
+construction, and the obligation never reaches remy-sport.
+
+So subdivisions are built from dr5hn: **100% in eight of our thirteen locales plus
+`native` at 100%**, with GeoNames filling `th`, `vi` and `id` where dr5hn has
+nothing.
+
+The merge stays **source-pluggable with provenance per name** anyway, for two
+reasons that outlive the decision: an attribution line has to be built from
+something, and if ODbL ever becomes unacceptable — a licence change, an acquirer's
+lawyer, a policy — the rows dr5hn contributed can be identified and dropped
+without rebuilding from nothing. `--without dr5hn` is the escape hatch, and it
+should be exercised once in CI so it is known to work rather than assumed.
+
+### Blocker 2 — publishing and deploying. Kept human, by splitting build from publish.
+
+Everything is *buildable* locally: the repo as a local git repository with real
+commits, `wrangler.toml` written but not applied, the registry item authored, both
+licence files in place. What the run produces is a **repository ready to publish**.
+
+Two commands remain, and they stay the Product Owner's:
+
+```
+gh repo create --public          # publishing an ODbL derivative is a licensing act
+wrangler deploy                  # deploying to the account is a spending act
+```
+
+Neither is hard. Both are irreversible in the way that matters — a public repo is
+public, and this plan says the ODbL split deserves twenty minutes of a lawyer's
+time *before* that, not after.
+
+### Blocker 3 — ETL reliability. Dissolved by making sample the default.
+
+1.2 GB of downloads and a SPARQL endpoint that timed out three times in one
+evening is not something to run unwatched. So the unattended run builds the
+**sample**: Thailand in full, plus the world's countries, plus cities above the
+population floor for the thirteen locales. It proves the pipeline end to end,
+produces a database a developer can work against, and finishes in minutes.
+
+The **full world build stays a separate, explicitly triggered command** — it is a
+long job whose first run somebody should watch, and after that it is the cron
+Workflow's problem rather than a person's.
+
+Resumability is not optional here and mostly exists already: the scorer caches
+every download and skips what it has, which is the same mechanism.
+
+### Blocker 4 — other agents in the tree. Dissolved by a worktree.
+
+Three files changed underneath this session already. The run happens in a **git
+worktree**, so a long sweep touching the model, a migration and a new repo cannot
+collide with whatever else is landing, and the whole thing arrives as one branch
+to review rather than as a slow drizzle onto `main`.
+
+### What the run does, in order
+
+**A · This repo, no decisions.**
+
+1. `tl → fil`, with the check that no declared locale resolves to another language.
+2. The vocabulary-names completeness check — *with* its backfill in the same
+   commit, because a check that fails the moment it lands breaks the gate for
+   everyone. The backfill is **derived, not copied**: Thailand's provinces in
+   `pt`, `fr` and `de` are romanisations of the Thai, which is what `name_en`
+   already holds. That is the right data regardless of licence, and it keeps this
+   repo's provenance simple.
+3. `ops refdata generate` — `COUNTRY` and `LOCALE`'s endonyms from CLDR, written
+   into the biz checkout and synced in by `ops domain`. **Committed locally in both
+   repos, pushed to neither**: the model is the Product Owner's to publish.
+4. Retire `CITY_CODES` as an enum — FK plus boundary validation, with the
+   migration. This is the one step that touches production data shape, which is
+   why it lands on a branch rather than on `main`.
+
+**B · The new repo, local only.**
+
+5. Scaffold `remy-places`: oRPC contract, D1 schema, `wrangler.toml`, the two
+   licence files, README with the attribution GeoNames requires.
+6. The streaming normaliser — every source read as a stream to NDJSON, never
+   `JSON.parse` of a whole file, because retrofitting that later is a rewrite.
+7. The source-pluggable merge with provenance, dr5hn off by default.
+8. The sample build, committed, so the repo is useful on clone.
+9. The cascading picker as a shadcn registry item.
+10. The oRPC client wired into remy-sport **against the local fallback**, so
+    `bun run dev` and the full suite pass with the service unreachable — which is
+    the requirement anyway, and means this step needs no deployment to be done.
+
+**C · Left for a person.** Publishing the repo, deploying the Worker, pushing the
+model, the ODbL reading, and pointing remy-sport at the live service instead of
+the fallback.
+
+### What could still go wrong, and what happens then
+
+- **A source changes shape.** The scorer is the canary and the merge fails loudly
+  rather than writing empty names.
+- **Wikidata times out.** Its step is skippable: cities keep the romanised pivot
+  and their own-language names, and the cross-language layer is added on a rerun.
+  A timeout must never be recorded as a zero.
+- **The migration is wrong.** It is on a branch, unpushed, and reviewable.
+
+## What the run actually produces — the acceptance criteria
+
+*"After this plan runs, will we have the data for all places in all languages?"* —
+the Product Owner, 2026-09-09. **No.** That does not exist and cannot be bought or
+found; this plan gets the most that open data contains. Written here as numbers so
+that "did it work" has an answer rather than an impression.
+
+| | Rows | Every one of our 13 | Reality |
+| --- | --- | --- | --- |
+| **Countries** | 280 | **Yes — 100%** | Genuinely complete. The only tier that is |
+| **Subdivisions** | 5,308 | No | 100% in `ja zh es pt fr ko de ru`; `th` 65%, `vi` 66%, `id` 74% from GeoNames; `tl` almost nothing. Plus `native` at 100% |
+| **Cities > 100k** | 4,099 | No | `en` 99%, `ru` 96%, `ja` 95%, `vi` 89%, `id` 86%, `th` 83%, `tl` 41% |
+| **Cities > 15k** | 34,135 | No | Own language 48–94%; cross-language thins out fast below 100k |
+| **Every city** | — | — | **A romanised name, always.** The pivot is never missing |
+
+### The requirement is cross-language, not own-language
+
+An earlier draft of this section reported the **diagonal** — a place named in its
+own country's language — and called the result good. That was the wrong number and
+it flattered the answer.
+
+The Product Owner, 2026-09-09: *"we are going to run this system in most of the
+world's countries and they will need their places data, and it will need to be in
+their language, and then when other people from other places look at that data
+from a foreign place they will need to see the places in their language."*
+
+So the number that matters is the **off-diagonal**: a Brazilian town rendered for a
+Japanese reader. The diagonal is the fallback beneath it, not the deliverable.
+
+**GeoNames is not the cross-language source.** Measured over 3,067 cities in six
+countries, excluding each city's own language:
+
+| Population | Cities | th | en | ja | zh | id | fr | tl | vi | ko | ru |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| over 1M | 54 | 49% | 94% | 83% | 72% | 74% | 76% | 9% | 40% | 73% | 91% |
+| 100k–1M | 813 | 18% | 46% | 26% | 33% | 18% | 25% | 6% | 3% | 35% | 49% |
+| 50k–100k | 703 | 8% | 22% | 13% | 20% | 8% | 9% | 4% | 2% | 22% | 32% |
+| 15k–50k | 1,497 | **3%** | 8% | 7% | 9% | 3% | 4% | 1% | **0%** | 9% | 20% |
+
+It falls off a cliff with city size. For a product operating in most of the
+world's countries, that is not a source of foreign place names.
+
+**Wikidata is, by a wide margin**, and it holds up where GeoNames does not:
+
+| Band | Cities | ja | ru | vi | th |
+| --- | --- | --- | --- | --- | --- |
+| over 100k | 4,099 | 95% | 96% | 89% | 83% |
+| 15k–100k | 6,451 | **84%** | **89%** | 68% | **29%** |
+
+Against GeoNames' 7% and 20% in that lower band, this is the difference between
+having the data and not.
+
+**The join exists.** Wikidata's `P1566` *is* the GeoNames ID, carried by **26,282**
+city items. So the ETL is: **GeoNames supplies the inventory** — which places exist,
+their romanised pivot, their own-language name — and **Wikidata supplies the
+languages**, joined on that key. Neither source does the job alone.
+
+### Where it is still thin, and what closes it
+
+The remaining gap is not geographic and it is not about Thailand. It tracks **how
+large that language's Wikipedia is**: `ja` and `ru` are near-complete, `vi` good,
+`th` 29% below 100k, `tl` worst everywhere. **Every language added later inherits
+its own Wikipedia's size**, so this is a permanent property of the approach rather
+than a one-off gap to fill.
+
+It also does not hurt every language equally:
+
+- **Latin-script locales — `en es pt id fr de vi tl`.** The romanised pivot *is*
+  what those languages use for a small foreign town. A Portuguese reader seeing
+  "Ourinhos" is reading Portuguese. No work needed.
+- **Non-Latin locales — `th ja zh ko ru`.** A romanisation is a real degradation:
+  Latin letters inside a Thai sentence, unreadable to many. `ja` and `ru` are
+  covered by Wikidata; **`th`, `zh` and `ko` below 100k are the actual hole.**
+
+**Machine transliteration into the target script is the honest mitigation**, and it
+is what shipping products do — Japanese renders foreign places in katakana by rule,
+not by looking each one up. Generated at build time, stored with its provenance
+marked as transliterated rather than translated, and overridable by a real name
+whenever one appears upstream. It is worse than a human translation and far better
+than Latin characters in a Thai sentence.
+
+**Decided 2026-09-09: deferred, but the design must keep it possible.** Not built
+in the first run; step 10b lists the three things that have to exist now so that
+adding it later is a gap-filling job rather than a rebuild.
+
 ## Where this plan stands
 
 Every source is measured and every measurement is reproducible by
 `bun run ops refdata score`. Steps 1 and 7 depend on nothing and are wrong in the
 tree today.
 
-The Product Owner's decision to publish this as its own Worker settles what was
-previously the blocking question: **the licences stop being remy-sport's problem**,
-because the derived database and its credits live in the public repo that serves
-them. dr5hn's ODbL becomes a condition on *that* repo — carry the rows, and split
-the data and code licences — rather than a reason not to use the best subdivision
-data available.
+**Both Product Owner decisions are in.** Publish it as its own Worker, and use
+dr5hn. All three tiers get built: countries complete from CLDR, subdivisions at
+100% in eight of thirteen from dr5hn with GeoNames filling the Southeast Asian
+gap, cities from Wikidata above 100k with a romanised pivot underneath.
 
-What remains open is smaller: **how deep to go** (subdivisions at all, or just
-countries and cities), and the twenty minutes of legal reading that the ODbL split
-deserves before the repo is public.
+The run is arranged to go unattended. What is left for a person is two commands —
+`gh repo create --public` and `wrangler deploy` — plus the twenty minutes of legal
+reading the ODbL split deserves *before* the first of them.
 
-Nothing here is implemented.
+**The one thing that got bigger rather than smaller:** this repo is public and
+declares no licence. That was invisible while the plan assumed ODbL data would be
+kept out of it; now that the intent is for other people to use this work, an
+absent licence is the thing that stops them. It is a file, and it blocks more than
+any dataset here.
+
+Nothing else is implemented.
 
 ## Not in this plan
 

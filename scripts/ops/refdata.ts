@@ -132,7 +132,7 @@ const CANDIDATES: Record<string, Candidate> = {
 
   /** 100% in nineteen languages, none of them Southeast Asian, under share-alike. */
   dr5hn: {
-    licence: "ODbL-1.0 — SHARE-ALIKE, decide before seeding",
+    licence: "ODbL-1.0 — share-alike, accepted by the PO 2026-09-09",
     weight: "45MB",
     score: async () => {
       const aliases: Aliases = { zh: ["zh", "zh-CN"], tl: ["tl", "fil"] }
