@@ -4,7 +4,17 @@
   "locales": [
     "th",
     "en",
-    "ja"
+    "ja",
+    "zh",
+    "es",
+    "pt",
+    "id",
+    "fr",
+    "tl",
+    "vi",
+    "ko",
+    "de",
+    "ru"
   ],
   "modules": [
     "https://cdn.jsdelivr.net/npm/@inlang/plugin-message-format@latest/dist/index.js"
