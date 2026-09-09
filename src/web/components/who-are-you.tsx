@@ -5,9 +5,9 @@ import { api } from "../lib/orpc"
 import { useSession } from "../lib/session"
 import { useLocale } from "../lib/locale"
 import { m } from "../lib/i18n"
-import { SectionHeading } from "./page"
+import { Row, RowGroup, SectionHeading } from "./page"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item"
+import { ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item"
 
 /**
  * Saying what you are, after signing up.
@@ -70,23 +70,23 @@ export function WhoAreYou() {
       <SectionHeading title={m.whoareyou()} className="mt-0" />
       <div className="flex flex-col gap-3" data-testid="who-are-you">
         <Alert><AlertDescription>{m.whoareyou_sub()}</AlertDescription></Alert>
-        <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border">
+        <RowGroup>
           {OFFERED.map((code) => (
-            <Item
+            <Row
               key={code}
-              className="rounded-none px-4 py-3 text-left hover:bg-muted disabled:opacity-50"
+              className="text-left hover:bg-muted disabled:opacity-50"
               render={<button type="button" disabled={choose.isPending} />}
               data-testid={`choose-role-${code}`}
               onClick={() => choose.mutate(code)}
             >
               <ItemContent>
-                <ItemTitle className="text-base">{label("roles", code)}</ItemTitle>
+                <ItemTitle>{label("roles", code)}</ItemTitle>
                 {code === "REFEREE" && <ItemDescription>{m.role_pending_note()}</ItemDescription>}
               </ItemContent>
               <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden />
-            </Item>
+            </Row>
           ))}
-        </ItemGroup>
+        </RowGroup>
         {err.form && (
           <Alert variant="destructive">
             <AlertDescription>{err.form}</AlertDescription>

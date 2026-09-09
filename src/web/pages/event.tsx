@@ -10,7 +10,7 @@ import { downloadICS } from "../lib/calendar";
 import { FollowButton } from "../components/follow";
 import { Schedule, AddFixture } from "../components/schedule";
 import { Entries } from "../components/entries";
-import { PageHeader, PageInner, SectionHeading } from "../components/page";
+import { PageHeader, PageInner, Row, RowGroup, SectionHeading } from "../components/page";
 import { EmptyState, Loading } from "../components/states";
 import { StatusBadge } from "../components/status-badge";
 import { useEntries, useEvent, useGames, useStandings } from "../lib/data";
@@ -22,7 +22,7 @@ import { CourtBoard } from "../components/court-board";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Card, CardContent } from "@/components/ui/card";
-import { Item, ItemContent, ItemDescription, ItemGroup } from "@/components/ui/item";
+import { ItemContent, ItemDescription } from "@/components/ui/item";
 import { Label } from "@/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -132,7 +132,7 @@ export function StandingsTable({ eventId, divisionId, spoiler = false }: { event
   const wide = "hidden text-right sm:table-cell";
   return <div className="flex flex-col gap-6" data-testid="standings">
     {[...groups].map(([key, group]) => <section key={key ?? "unassigned"}>
-      <h2 className="mb-3 text-lg font-semibold">{group[0]?.division ?? m.division_unassigned()}</h2>
+      <SectionHeading className="mt-0 mb-3" title={group[0]?.division ?? m.division_unassigned()} />
       <Table className="tabular-nums">
         <TableHeader><TableRow>
           <TableHead className={right}>{m.rank_label()}</TableHead>
@@ -219,19 +219,19 @@ function EventRules({ event }: { event: Event }) {
     <>
       <Card data-testid="event-rules">
         <CardContent>
-          <ItemGroup className="gap-0 divide-y">
-            <Item className="rounded-none px-0">
+          <RowGroup boxed={false}>
+            <Row className="px-0">
               <ItemContent><ItemDescription>{m.event_format()}</ItemDescription></ItemContent>
               <span data-testid="event-format">{label("eventFormats", event.formatCode)}</span>
-            </Item>
-            <Item className="rounded-none px-0">
+            </Row>
+            <Row className="px-0">
               <ItemContent><ItemDescription>{m.event_fiba()}</ItemDescription></ItemContent>
               {/* A certified event is a fact worth stating and an uncertified one
                   is not an absence — most school tournaments are not certified and
                   saying nothing would read as "we did not check". */}
               <span data-testid="event-fiba">{event.isFibaCertified ? m.yes() : m.no()}</span>
-            </Item>
-          </ItemGroup>
+            </Row>
+          </RowGroup>
         </CardContent>
       </Card>
 

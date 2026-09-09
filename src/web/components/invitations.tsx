@@ -1,8 +1,8 @@
 import { formErrors } from "../lib/form-errors"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item"
-import { SectionHeading } from "./page"
+import { ItemActions, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item"
+import { Row, RowGroup, SectionHeading } from "./page"
 /**
  * "Someone asked you to help run this event."
  *
@@ -61,11 +61,11 @@ export function Invitations({ onAccepted }: { onAccepted?: () => void }) {
   return (
     <section>
       <SectionHeading title={m.invitations()} className="mt-0" />
-      <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border" data-testid="invitations">
+      <RowGroup data-testid="invitations">
         {invitations.map((invite) => (
-          <Item key={invite.eventId} className="rounded-none px-4 py-3" data-testid={`invite-${invite.eventId}`}>
+          <Row key={invite.eventId} data-testid={`invite-${invite.eventId}`}>
             <ItemContent>
-              <ItemTitle className="text-base">{name(invite.names, invite.name)}</ItemTitle>
+              <ItemTitle>{name(invite.names, invite.name)}</ItemTitle>
               <ItemDescription>{m.invitation_co_organize()} · <time dateTime={invite.addedAt}>{new Date(invite.addedAt).toLocaleDateString(locale)}</time></ItemDescription>
             </ItemContent>
             <ItemActions>
@@ -77,14 +77,14 @@ export function Invitations({ onAccepted }: { onAccepted?: () => void }) {
                 {m.invitation_accept()}
               </Button>
             </ItemActions>
-          </Item>
+          </Row>
         ))}
         {err.form && (
           <Alert variant="destructive" className="rounded-none border-0">
             <AlertDescription>{err.form}</AlertDescription>
           </Alert>
         )}
-      </ItemGroup>
+      </RowGroup>
     </section>
   )
 }

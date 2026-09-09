@@ -33,6 +33,19 @@
   --font-sans: 'Inter', 'Noto Sans Thai', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-thai: 'Noto Sans Thai', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+  /* The preset's own value, restored. `ui.shadcn.com/init` returns
+     `cssVars.theme: { "--font-heading": "var(--font-sans)" }` for this preset,
+     but `bun run ops ui theme` asks for `only=theme`, which brings the colours
+     and drops this — so the token never reached the file.
+
+     It is not decorative. card, alert-dialog, sheet and empty all set
+     `font-heading` on their titles, and with the token undefined Tailwind
+     generates no such utility: four registry components reference a face that
+     does not exist. It resolves to the sans face here, exactly as the preset
+     says, so this changes no pixel today — it is the hook a distinct heading
+     face would hang on, and it should be the preset's, not missing.
+     docs/2026-09-09-07-main-content-on-the-registry.md. */
+  --font-heading: var(--font-sans);
 }
 
 /* ─── shadcn's theme, as its tooling writes it ───────────────────────────────

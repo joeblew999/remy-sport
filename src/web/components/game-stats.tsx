@@ -9,6 +9,7 @@ import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { SubHeading } from "./page"
 
 /** @answers ENTER_SCORES
  * Mounted inside the game's action gate, including while a line is being edited.
@@ -69,7 +70,7 @@ function PlayerLine({ line }: { line: Line }) {
       points: value("points"), rebounds: value("rebounds"), assists: value("assists"), fouls: value("fouls") });
   }}>
     <FieldGroup className="max-w-[420px]">
-      <h3 className="text-base font-semibold">{name(line.names)}</h3>
+      <SubHeading>{name(line.names)}</SubHeading>
       {fields.map(([field, label]) => (
         <Field key={field}>
           {/* The id carries the player: several lines can be open at once, and

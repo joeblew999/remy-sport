@@ -14,7 +14,7 @@
 import { Fragment, type ComponentProps, type ReactNode } from "react";
 import { ChevronRightIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Item, ItemContent, ItemTitle } from "@/components/ui/item";
+import { Item, ItemContent, ItemGroup, ItemTitle } from "@/components/ui/item";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -97,7 +97,7 @@ export function PageHeader({
         <div className="flex flex-wrap items-start gap-4">
           {media}
           <div className="min-w-0 flex-1">
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
+            <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
             {sub && (
               <p className={cn("mt-1.5 text-muted-foreground", subLang === "th" && "font-thai")}>{sub}</p>
             )}
@@ -117,20 +117,75 @@ export function PageInner({ className, ...props }: ComponentProps<"div">) {
   );
 }
 
-/** A row that opens something: the registry's Item as a link, with a chevron. */
-export function LinkRow({ href, title, children, ...props }: { href: string; title: ReactNode; children?: ReactNode; "data-testid"?: string }) {
+/**
+ * A dense list: one bordered box with divided rows, instead of the registry's
+ * spaced cards.
+ *
+ * `ItemGroup` ships `gap-4` — separate cards — and shadcn has no divided-list
+ * variant. This app needs one: a schedule or a squad is twenty rows read at
+ * courtside on a phone, and twenty cards is a page of scrolling. So the pattern
+ * was written inline, the same five classes, twenty-two times across nineteen
+ * files, every copy free to drift from the others. This is that pattern said
+ * once. The registry's own file is locked (tests/repo/registry.test.ts), which
+ * is why the variant lives here rather than in `Item`.
+ *
+ * Nothing else is ours. The rows keep `Item`'s padding, text size, weight and
+ * hover exactly as the registry ships them, which is what makes a list read
+ * like the sidebar rather than like a page that decided for itself.
+ * docs/2026-09-09-07-main-content-on-the-registry.md.
+ */
+export function RowGroup({
+  boxed = true,
+  className,
+  ...props
+}: { boxed?: boolean } & ComponentProps<typeof ItemGroup>) {
   return (
-    <Item className="rounded-none px-4 py-3" render={<a href={href} />} {...props}>
-      <ItemContent>
-        <ItemTitle className="text-base">{title}</ItemTitle>
-        {children}
-      </ItemContent>
-      <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden />
-    </Item>
+    <ItemGroup
+      className={cn("gap-0 divide-y", boxed && "overflow-hidden rounded-xl border", className)}
+      {...props}
+    />
   );
 }
 
-/** A section title with room for a "more" link or a control beside it. */
+/** One row of a `RowGroup`: the registry's Item, minus the radius the box supplies. */
+export function Row({ className, ...props }: ComponentProps<typeof Item>) {
+  return <Item className={cn("rounded-none", className)} {...props} />;
+}
+
+/** A row that opens something: a `Row` as a link, with a chevron. */
+export function LinkRow({ href, title, children, ...props }: { href: string; title: ReactNode; children?: ReactNode; "data-testid"?: string }) {
+  return (
+    <Row render={<a href={href} />} {...props}>
+      <ItemContent>
+        <ItemTitle>{title}</ItemTitle>
+        {children}
+      </ItemContent>
+      <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden />
+    </Row>
+  );
+}
+
+/**
+ * The heading ladder, in one place, on the registry's own scale.
+ *
+ * shadcn ships no page-header item, so the sizes below are the one genuine
+ * design decision in this file — everything else defers to a registry
+ * component. They are chosen to continue the registry's ladder rather than to
+ * start a second one:
+ *
+ *   page title  h1  text-2xl / 3xl   ours, the only thing bigger than a panel
+ *   section     h2  text-lg          one step above a panel title
+ *   panel       h3  text-base        exactly CardTitle
+ *   row             text-sm          exactly ItemTitle
+ *
+ * Two things come from the registry and are not ours to pick. `font-heading` is
+ * the preset's own heading token, which card, alert-dialog, sheet and empty all
+ * use. And the weight is `font-medium`, not the `font-semibold` this app had
+ * reached for: every title the registry ships is medium, and a page of
+ * semibold headings beside a sidebar of medium ones is most of why the two
+ * halves did not look like one app.
+ * docs/2026-09-09-07-main-content-on-the-registry.md.
+ */
 export function SectionHeading({
   title,
   className,
@@ -139,8 +194,19 @@ export function SectionHeading({
 }: { title: ReactNode } & Omit<ComponentProps<"div">, "title">) {
   return (
     <div className={cn("mt-8 mb-3 flex items-baseline justify-between gap-3", className)} {...props}>
-      <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
+      <h2 className="font-heading text-lg font-medium tracking-tight">{title}</h2>
       {children}
     </div>
   );
+}
+
+/**
+ * A heading inside a panel or a section: `CardTitle`'s scale, as an `h3`.
+ *
+ * The same three words were written seven times at three different sizes —
+ * `text-base font-semibold`, `text-sm font-semibold`, `text-xl font-semibold` —
+ * which is the drift this exists to end.
+ */
+export function SubHeading({ className, ...props }: ComponentProps<"h3">) {
+  return <h3 className={cn("font-heading text-base leading-snug font-medium", className)} {...props} />;
 }

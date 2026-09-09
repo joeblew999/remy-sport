@@ -1,7 +1,7 @@
 import { ChevronRightIcon } from "lucide-react";
 import { CreateEvent } from "../components/create-event";
 import { PlatformCan } from "../components/can";
-import { PageHeader, PageInner } from "../components/page";
+import { PageHeader, PageInner, Row, RowGroup } from "../components/page";
 import { EmptyState, Loading } from "../components/states";
 import { StatusBadge } from "../components/status-badge";
 import { ButtonLink } from "../components/button-link";
@@ -13,15 +13,7 @@ import type { EventStatus, EventType } from "../data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemDescription,
-  ItemGroup,
-  ItemMedia,
-  ItemTitle,
-} from "@/components/ui/item";
+import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/components/ui/item";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -204,14 +196,9 @@ export function DiscoverPage({ goto, spoiler, query, setParam }: DiscoverProps) 
           </div>
         </div>
 
-        <ItemGroup data-testid="event-list" className="gap-0 divide-y overflow-hidden rounded-xl border">
+        <RowGroup data-testid="event-list">
           {events.map(e => (
-            <Item
-              key={e.id}
-              data-testid="event-row"
-              className="rounded-none px-4 py-4 sm:px-5"
-              render={<a href={routeHref({ page: "event", id: e.id })} />}
-            >
+            <Row className="py-4 sm:px-5" key={e.id} data-testid="event-row" render={<a href={routeHref({ page: "event", id: e.id })} />}>
               <ItemMedia className="w-12 flex-col items-start self-start">
                 <span className="text-2xl leading-none font-semibold tabular-nums" data-testid="event-day">
                   {e.day ? String(e.day).padStart(2, "0") : "--"}
@@ -219,7 +206,7 @@ export function DiscoverPage({ goto, spoiler, query, setParam }: DiscoverProps) 
                 <span className="mt-0.5 text-xs font-medium text-muted-foreground" data-testid="event-month">{e.month}</span>
               </ItemMedia>
               <ItemContent>
-                <ItemTitle className="text-base" data-testid="event-title">{e.title}</ItemTitle>
+                <ItemTitle data-testid="event-title">{e.title}</ItemTitle>
                 <ItemDescription>{e.organizer}</ItemDescription>
                 {/* City and province, because "Mueang" alone does not locate an
                     event — every province in Thailand has one. */}
@@ -239,7 +226,7 @@ export function DiscoverPage({ goto, spoiler, query, setParam }: DiscoverProps) 
                 <StatusBadge status={e.status} data-testid="event-status">{e.statusLabel}</StatusBadge>
                 <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden />
               </ItemActions>
-            </Item>
+            </Row>
           ))}
           {isPending && <Loading className="rounded-none border-0">{m.loading_events()}</Loading>}
           {error && <EmptyState className="rounded-none border-0">{m.events_load_failed()}</EmptyState>}
@@ -248,7 +235,7 @@ export function DiscoverPage({ goto, spoiler, query, setParam }: DiscoverProps) 
               {allEvents.length === 0 ? m.no_events_yet() : m.no_events_match()}
             </EmptyState>
           )}
-        </ItemGroup>
+        </RowGroup>
       </PageInner>
     </>
   );
@@ -283,7 +270,7 @@ function LiveBanner({ goto: _goto, spoiler }: { goto: (r: Route) => void; spoile
             </StatusBadge>
             {game.venue && <ItemDescription>{game.venue}</ItemDescription>}
           </div>
-          <ItemTitle className="line-clamp-2 text-lg">
+          <ItemTitle className="line-clamp-2">
             {game.homeTeam} <span className="font-normal text-muted-foreground">{m.versus()}</span> {game.awayTeam}
           </ItemTitle>
         </ItemContent>

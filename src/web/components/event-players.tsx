@@ -32,7 +32,8 @@ import { useSession } from "../lib/session"
 import { m } from "../lib/i18n"
 import { EmptyState } from "./states"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item"
+import { ItemActions, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item"
+import { Row, RowGroup } from "./page"
 
 /**
  * @answers REGISTER_PLAYER_FOR_EVENT
@@ -75,7 +76,7 @@ export function EventPlayers({ eventId }: { eventId: string }) {
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-muted-foreground">{m.event_players_hint()}</p>
-      <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border" data-testid="event-players">
+      <RowGroup data-testid="event-players">
         {!user && <EmptyState className="border-0" data-testid="event-players-signin">{m.sign_in()}</EmptyState>}
         {user && players.length === 0 && (
           <EmptyState className="border-0" data-testid="event-players-none">
@@ -85,9 +86,9 @@ export function EventPlayers({ eventId }: { eventId: string }) {
         {players.map((p) => {
           const entered = enteredHere.has(p.playerId)
           return (
-            <Item key={p.playerId} className="rounded-none px-4 py-3" data-testid={`entry-${p.playerId}`}>
+            <Row key={p.playerId} data-testid={`entry-${p.playerId}`}>
               <ItemContent>
-                <ItemTitle className="text-base">{name(p.names)}</ItemTitle>
+                <ItemTitle>{name(p.names)}</ItemTitle>
                 <ItemDescription>
                   {entered ? m.event_entered() : (p.teamNames ? name(p.teamNames) : m.player_no_team())}
                 </ItemDescription>
@@ -112,10 +113,10 @@ export function EventPlayers({ eventId }: { eventId: string }) {
                 </Button>
               )}
               </ItemActions>
-            </Item>
+            </Row>
           )
         })}
-      </ItemGroup>
+      </RowGroup>
       {err.form && (
         <Alert variant="destructive">
           <AlertDescription>{err.form}</AlertDescription>

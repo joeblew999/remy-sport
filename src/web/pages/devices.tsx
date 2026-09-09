@@ -5,13 +5,13 @@ import { toDevices, formatWhen, type RawSession } from "../lib/devices";
 import { parseRoute, signInRoute, routeHref } from "../lib/router";
 import { m } from "../lib/i18n";
 import { useLocale } from "../lib/locale";
-import { PageHeader, PageInner } from "../components/page";
+import { PageHeader, PageInner, Row, RowGroup } from "../components/page";
 import { EmptyState, Loading } from "../components/states";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "../components/button-link";
-import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
+import { ItemActions, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item";
 
 /**
  * "Where am I signed in?" — ADR 014.
@@ -81,11 +81,11 @@ export function DevicesPage() {
           <Loading>{m.loading_sessions()}</Loading>
         ) : null) : (
           <section className="flex flex-col gap-4">
-            <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border" data-testid="devices-list">
+            <RowGroup data-testid="devices-list">
               {devices.map((d) => (
-                <Item key={d.id} className="rounded-none px-4 py-3" data-testid={`device-${d.id}`}>
+                <Row key={d.id} data-testid={`device-${d.id}`}>
                   <ItemContent>
-                    <ItemTitle className="text-base">
+                    <ItemTitle>
                       {d.label}
                       {d.current && <Badge variant="secondary" data-testid="device-current">{m.this_device()}</Badge>}
                       {/* Worth surfacing: an admin viewing as you produces a real
@@ -120,9 +120,9 @@ export function DevicesPage() {
                       </Button>
                     )}
                   </ItemActions>
-                </Item>
+                </Row>
               ))}
-            </ItemGroup>
+            </RowGroup>
 
             {others.length > 0 && (
               <div>

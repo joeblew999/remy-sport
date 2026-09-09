@@ -11,7 +11,7 @@ import { api, orpc } from "../lib/orpc";
 import { useRoster, useTeam, useTeamGames } from "../lib/data";
 import { routeHref, type Route } from "../lib/router";
 import { m } from "../lib/i18n";
-import { PageHeader, PageInner, SectionHeading } from "../components/page";
+import { PageHeader, PageInner, Row, RowGroup, SectionHeading } from "../components/page";
 import { EmptyState, Loading } from "../components/states";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -22,7 +22,7 @@ import { ButtonLink } from "../components/button-link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Item, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item";
+import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/components/ui/item";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
@@ -121,7 +121,7 @@ export function TeamPage({ id, goto: _goto, query, spoiler = false }: { id: stri
                     {/* The way in to the player page. The roster was the only place
                         a player appeared and there was nowhere to go from it —
                         which is why FOLLOW_PLAYER had a button nothing rendered. */}
-                    <ItemTitle className="text-base">
+                    <ItemTitle>
                       <a className="hover:underline" data-testid={`open-player-${p.playerId}`} href={routeHref({ page: "player", id: p.playerId })}>{p.name}</a>
                     </ItemTitle>
                     <ItemDescription>
@@ -143,21 +143,21 @@ export function TeamPage({ id, goto: _goto, query, spoiler = false }: { id: stri
             staff reads as a team nobody coaches. */}
         <section>
           <SectionHeading title={m.coaching_staff()} className="mt-0" />
-          <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border" data-testid="coaching-staff">
+          <RowGroup data-testid="coaching-staff">
             {!user && <EmptyState className="border-0" data-testid="coaches-signin">{m.coaching_staff_signin()}</EmptyState>}
             {user && (roster?.coaches.length ?? 0) === 0 && <EmptyState className="border-0" data-testid="coaches-empty">{m.coaching_staff_none()}</EmptyState>}
             {(roster?.coaches ?? []).map((c) => (
-              <Item key={c.userId} className="rounded-none px-4 py-3" data-testid={`coach-${c.userId}`}>
+              <Row key={c.userId} data-testid={`coach-${c.userId}`}>
                 <ItemMedia><Avatar aria-hidden="true"><AvatarFallback>{initials(c.name)}</AvatarFallback></Avatar></ItemMedia>
                 <ItemContent>
-                  <ItemTitle className="text-base">{c.name}</ItemTitle>
+                  <ItemTitle>{c.name}</ItemTitle>
                   {/* From the reference vocabulary, in the reader's language — not
                       a map of role codes written out here. */}
                   <ItemDescription>{label("coachRoles", c.coachRoleCode)}</ItemDescription>
                 </ItemContent>
-              </Item>
+              </Row>
             ))}
-          </ItemGroup>
+          </RowGroup>
         </section>
 
         {/* `teams.update` was enforced by EDIT_TEAM_PROFILE and unreachable, so
@@ -171,11 +171,11 @@ export function TeamPage({ id, goto: _goto, query, spoiler = false }: { id: stri
 
         <section>
           <SectionHeading title={m.schedule()} id="team-schedule" className="mt-0" />
-          <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border">
+          <RowGroup>
             {gamesLoading && <Loading className="border-0" />}
             {!gamesLoading && games.length === 0 && <EmptyState className="border-0">{m.no_games_yet()}</EmptyState>}
             {games.map((g) => (
-              <Item key={g.id} className={cn("flex-wrap rounded-none px-4 py-3", g.live && "bg-destructive/5")} data-testid="team-fixture">
+              <Row className={cn("flex-wrap", g.live && "bg-destructive/5")} key={g.id} data-testid="team-fixture">
                 <ItemContent className="basis-full sm:basis-auto">
                   <GameSummary game={g} showEvent/>
                 </ItemContent>
@@ -199,9 +199,9 @@ export function TeamPage({ id, goto: _goto, query, spoiler = false }: { id: stri
                           : g.statusLabel}
                   </Badge>
                 </ItemContent>
-              </Item>
+              </Row>
             ))}
-          </ItemGroup>
+          </RowGroup>
         </section>
       </PageInner>
     </>

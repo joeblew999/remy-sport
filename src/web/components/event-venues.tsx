@@ -25,7 +25,8 @@ import { useEventVenues } from "../lib/data"
 import { m } from "../lib/i18n"
 import { EmptyState, Loading } from "./states"
 import { Badge } from "@/components/ui/badge"
-import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item"
+import { ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item"
+import { Row, RowGroup } from "./page"
 
 export function EventVenues({ eventId, venueId }: { eventId: string; venueId?: string }) {
   const { name, label } = useLocale()
@@ -38,15 +39,15 @@ export function EventVenues({ eventId, venueId }: { eventId: string; venueId?: s
     if (venueId && !isPending) document.getElementById(`venue-${venueId}`)?.scrollIntoView({ block: "start" });
   }, [venueId, isPending]);
   return (
-    <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border" data-testid="event-venues">
+    <RowGroup data-testid="event-venues">
       {isPending && <Loading className="border-0" />}
       {!isPending && rows.length === 0 && (
         <EmptyState className="border-0" data-testid="event-venues-empty">{m.event_venues_none()}</EmptyState>
       )}
       {rows.map(({ link, venue }) => (
-        <Item id={`venue-${venue.id}`} key={venue.id} className="rounded-none px-4 py-3" data-testid={`venue-${venue.id}`}>
+        <Row id={`venue-${venue.id}`} key={venue.id} data-testid={`venue-${venue.id}`}>
           <ItemContent>
-            <ItemTitle className="text-base">
+            <ItemTitle>
               <a className="hover:underline" href={routeHref({ page: "event", id: eventId, query: { tab: "places", court: venue.id } })}>{name(venue.names as Record<string, string>, venue.id)}</a>
               {link.isPrimary && (
                 <Badge variant="outline" data-testid={`venue-primary-${venue.id}`}>
@@ -63,8 +64,8 @@ export function EventVenues({ eventId, venueId }: { eventId: string; venueId?: s
                 .join(" · ")}
             </ItemDescription>
           </ItemContent>
-        </Item>
+        </Row>
       ))}
-    </ItemGroup>
+    </RowGroup>
   )
 }

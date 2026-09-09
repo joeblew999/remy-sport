@@ -42,8 +42,9 @@ import { ButtonLink } from "./button-link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Item, ItemActions, ItemContent, ItemGroup } from "@/components/ui/item";
+import { ItemActions, ItemContent } from "@/components/ui/item";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Row, RowGroup, SectionHeading } from "./page"
 
 /** Fixture/result changes also alter event progress, standings and team records. */
 function refreshGameViews(qc: QueryClient) {
@@ -145,8 +146,8 @@ export function Schedule({
     <div className="flex flex-col gap-6" data-testid="schedule">
       {groups.filter(group => group.games.length).map(group => (
         <section key={group.label}>
-          <h2 className="mb-3 text-lg font-semibold">{group.label}</h2>
-          <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border">
+          <SectionHeading className="mt-0 mb-3" title={group.label} />
+          <RowGroup>
             {group.games.map((g) => (
               <GameRow
                 key={g.id}
@@ -158,7 +159,7 @@ export function Schedule({
                 goto={goto}
               />
             ))}
-          </ItemGroup>
+          </RowGroup>
         </section>
       ))}
     </div>
@@ -188,7 +189,7 @@ export function GameRow({
   const played = game.homeScore !== null && game.awayScore !== null;
 
   return (
-    <Item className="flex-wrap items-start rounded-none px-4 py-3" data-testid={`game-${game.id}`}>
+    <Row className="flex-wrap items-start" data-testid={`game-${game.id}`}>
       <ItemContent className="basis-full sm:basis-auto">
         <GameSummary game={game} details={details} showStatus={false} />
         <div className="text-sm text-muted-foreground">
@@ -281,7 +282,7 @@ export function GameRow({
         )}
       </ItemActions>
       <Can of={game} action="ENTER_SCORES"><GameStats gameId={game.id} /></Can>
-    </Item>
+    </Row>
   );
 }
 

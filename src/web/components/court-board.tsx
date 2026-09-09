@@ -6,6 +6,7 @@ import { GameSummary } from "./game-summary";
 import { EmptyState, Loading } from "./states";
 import { m } from "../lib/i18n";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SubHeading } from "./page"
 
 /** @answers VIEW_COURT_STATUS_BOARD, VIEW_COURT_ASSIGNMENTS, VIEW_MATCH_STATUS
  * The model assigns games to venues, not numbered courts. Show all live games
@@ -24,7 +25,7 @@ export function CourtBoard({ eventId, spoiler = false, courtId }: { eventId?: st
   if (isPending) return <Loading />;
   if (!courts.size) return <EmptyState data-testid="court-board-none">{m.no_courts_yet()}</EmptyState>;
   return <div className="flex flex-col gap-4" data-testid="court-board">
-    <h2 className="text-xl font-semibold tracking-tight">{m.tab_courts()}</h2>
+    <SubHeading>{m.tab_courts()}</SubHeading>
     {[...courts].map(([venueId, title]) => {
       const assigned = games.filter(g => g.venueId === venueId);
       const live = assigned.filter(g => g.statusCode === "LIVE" || g.statusCode === "HALF_TIME");

@@ -4,9 +4,9 @@ import { useLocale } from "../lib/locale";
 import { m } from "../lib/i18n";
 import { routeHref } from "../lib/router";
 import { ButtonLink } from "../components/button-link";
-import { PageHeader, PageInner, SectionHeading } from "../components/page";
+import { PageHeader, PageInner, Row, RowGroup, SectionHeading } from "../components/page";
 import { EmptyState, Loading } from "../components/states";
-import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
+import { ItemActions, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item";
 
 /**
  * @answers BROWSE_TEAMS
@@ -51,11 +51,11 @@ export function TeamsPage() {
         {yours.length > 0 && (
           <section>
             <SectionHeading title={m.your_teams()} className="mt-0" />
-            <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border" data-testid="your-teams">
+            <RowGroup data-testid="your-teams">
               {yours.map((t) => (
-                <Item key={t.id} className="rounded-none px-4 py-3" data-testid={`your-team-${t.id}`}>
+                <Row key={t.id} data-testid={`your-team-${t.id}`}>
                   <ItemContent>
-                    <ItemTitle className="text-base">{t.name}</ItemTitle>
+                    <ItemTitle>{t.name}</ItemTitle>
                     {/* Why this row is above the fold, in the model's own word for
                         it — "Head Coach", "Team Follower" — in the reader's
                         language. This printed the code, HEAD_COACH, until the
@@ -69,9 +69,9 @@ export function TeamsPage() {
                       {m.team_open()}
                     </ButtonLink>
                   </ItemActions>
-                </Item>
+                </Row>
               ))}
-            </ItemGroup>
+            </RowGroup>
           </section>
         )}
 
@@ -79,11 +79,11 @@ export function TeamsPage() {
         {teams.isPending ? (
           <Loading>{m.loading_teams()}</Loading>
         ) : teams.data?.length ? (
-          <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border" data-testid="teams-list">
+          <RowGroup data-testid="teams-list">
             {teams.data.map((t) => (
-              <Item key={t.id} className="rounded-none px-4 py-3" data-testid={`team-row-${t.id}`}>
+              <Row key={t.id} data-testid={`team-row-${t.id}`}>
                 <ItemContent>
-                  <ItemTitle className="text-base">{t.name}</ItemTitle>
+                  <ItemTitle>{t.name}</ItemTitle>
                   {/* Age group and gender in the reader's language — `toTeam` has
                       already resolved them from the reference vocabulary. */}
                   <ItemDescription>
@@ -95,9 +95,9 @@ export function TeamsPage() {
                     {m.team_open()}
                   </ButtonLink>
                 </ItemActions>
-              </Item>
+              </Row>
             ))}
-          </ItemGroup>
+          </RowGroup>
         ) : teams.error ? null : (
           <EmptyState data-testid="teams-empty">{m.teams_empty()}</EmptyState>
         )}

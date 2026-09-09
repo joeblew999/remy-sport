@@ -10,9 +10,9 @@ import { useLocale } from "../lib/locale";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "../components/button-link";
 import { routeHref } from "../lib/router";
-import { PageHeader, PageInner, SectionHeading } from "../components/page";
+import { PageHeader, PageInner, Row, SectionHeading } from "../components/page";
 import { EmptyState, Loading } from "../components/states";
-import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
+import { ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
 
 /**
  * @answers VIEW_PLAYER, VIEW_PLAYER_STATS, EDIT_PLAYER_PROFILE, FOLLOW_PLAYER, UNFOLLOW_PLAYER,
@@ -71,7 +71,6 @@ export function PlayerPage({ id }: { id?: string }) {
 
   const p = player.data;
   const list = "gap-0 divide-y overflow-hidden rounded-xl border";
-  const row = "rounded-none px-4 py-3";
 
   return (
     <div data-testid="player-page">
@@ -98,12 +97,12 @@ export function PlayerPage({ id }: { id?: string }) {
           <SectionHeading title={m.player_team()} className="mt-0" />
           {p.teamId && p.teamNames ? (
             <ItemGroup className={list}>
-              <Item className={row} data-testid={`player-team-${p.teamId}`}>
-                <ItemContent><ItemTitle className="text-base">{name(p.teamNames)}</ItemTitle></ItemContent>
+              <Row  data-testid={`player-team-${p.teamId}`}>
+                <ItemContent><ItemTitle>{name(p.teamNames)}</ItemTitle></ItemContent>
                 <ItemActions>
                   <ButtonLink variant="outline" href={routeHref({ page: "team", id: p.teamId! })}>{m.team_open()}</ButtonLink>
                 </ItemActions>
-              </Item>
+              </Row>
             </ItemGroup>
           ) : (
             // Between squads, and saying so is information. A player with no team is
@@ -120,15 +119,15 @@ export function PlayerPage({ id }: { id?: string }) {
             <SectionHeading title={m.player_past_teams()} className="mt-0" />
             <ItemGroup className={list} data-testid="player-past">
               {p.past.map((spell) => (
-                <Item key={`${spell.teamId}-${spell.toDate}`} className={row} data-testid={`player-past-${spell.teamId}`}>
+                <Row key={`${spell.teamId}-${spell.toDate}`} data-testid={`player-past-${spell.teamId}`}>
                   <ItemContent>
-                    <ItemTitle className="text-base">{name(spell.teamNames)}</ItemTitle>
+                    <ItemTitle>{name(spell.teamNames)}</ItemTitle>
                     <ItemDescription>{m.player_spell_dates({ from: spell.fromDate, to: spell.toDate })}</ItemDescription>
                   </ItemContent>
                   <ItemActions>
                     <ButtonLink variant="outline" href={routeHref({ page: "team", id: spell.teamId })}>{m.team_open()}</ButtonLink>
                   </ItemActions>
-                </Item>
+                </Row>
               ))}
             </ItemGroup>
           </section>
@@ -151,15 +150,15 @@ export function PlayerPage({ id }: { id?: string }) {
                 ["assists", m.stat_assists()],
                 ["fouls", m.stat_fouls()],
               ] as const).map(([key, heading]) => (
-                <Item key={key} className={row} data-testid={`stat-${key}`}>
-                  <ItemContent><ItemTitle className="text-base">{heading}</ItemTitle></ItemContent>
+                <Row key={key} data-testid={`stat-${key}`}>
+                  <ItemContent><ItemTitle>{heading}</ItemTitle></ItemContent>
                   <ItemDescription className="tabular-nums">
                     {stats.data!.totals[key]}
                     {" · "}
                     {(stats.data!.totals[key] / stats.data!.recorded).toFixed(1)}{" "}
                     {m.player_stats_per_game()}
                   </ItemDescription>
-                </Item>
+                </Row>
               ))}
             </ItemGroup>
           </section>
@@ -170,9 +169,9 @@ export function PlayerPage({ id }: { id?: string }) {
           {games.data?.games.length ? (
             <ItemGroup className={list} data-testid="player-games">
               {games.data.games.slice(0, 10).map((g) => (
-                <Item key={g.id} className={row} data-testid={`player-game-${g.id}`}>
+                <Row key={g.id} data-testid={`player-game-${g.id}`}>
                   <ItemContent><GameSummary game={g} showEvent/></ItemContent>
-                </Item>
+                </Row>
               ))}
             </ItemGroup>
           ) : (

@@ -36,9 +36,10 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item"
+import { ItemActions, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { Row, RowGroup, SubHeading } from "./page"
 
 /**
  * The types worth offering, not all fourteen.
@@ -305,11 +306,11 @@ export function NotificationSettings() {
           the Dock has its own subscription and a reader inside the installed
           app saw "Safari on Mac" and read it as themselves. */}
       <section className="flex flex-col gap-2">
-        <h3 className="text-sm font-semibold">{m.push_devices()}</h3>
+        <SubHeading>{m.push_devices()}</SubHeading>
         {devices?.devices.length ? (
-          <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border" data-testid="device-list">
+          <RowGroup data-testid="device-list">
             {devices.devices.map((d, i) => (
-              <Item key={d.id || `${d.label}-${i}`} className="rounded-none" size="sm" data-testid={`device-${i}`}>
+              <Row key={d.id || `${d.label}-${i}`} size="sm" data-testid={`device-${i}`}>
                 <ItemContent>
                   <ItemTitle>
                     {d.label}
@@ -321,9 +322,9 @@ export function NotificationSettings() {
                       reason nothing arrives on it. */}
                   {!d.enabled && <ItemDescription>{m.device_off()}</ItemDescription>}
                 </ItemContent>
-              </Item>
+              </Row>
             ))}
-          </ItemGroup>
+          </RowGroup>
         ) : (
           <Note data-testid="devices-empty">{m.devices_none()}</Note>
         )}
@@ -337,7 +338,7 @@ export function NotificationSettings() {
       </section>
 
       <section className="flex flex-col gap-2">
-        <h3 className="text-sm font-semibold">{m.what_to_hear_about()}</h3>
+        <SubHeading>{m.what_to_hear_about()}</SubHeading>
         {/* Where email goes, and whether it may. The address is the one the
             sign-in code proved (src/api/email-channel.ts); until a verified
             sign-in has registered it, every email switch below stays off and
@@ -351,12 +352,12 @@ export function NotificationSettings() {
                 : m.email_goes_to({ address: data.email.address })}
           </p>
         )}
-        <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border">
+        <RowGroup>
           {OFFERED.map((code) => {
             const muted = data?.muted.includes(code) ?? false
             const emailOn = data?.emailOn.includes(code) ?? false
             return (
-              <Item key={code} className="items-start rounded-none">
+              <Row className="items-start" key={code}>
                 <Checkbox
                   id={`pref-${code}`}
                   className="mt-0.5"
@@ -396,10 +397,10 @@ export function NotificationSettings() {
                     data-testid={`email-pref-${code}`}
                   />
                 </ItemActions>
-              </Item>
+              </Row>
             )
           })}
-        </ItemGroup>
+        </RowGroup>
       </section>
       </CardContent>
     </Card>

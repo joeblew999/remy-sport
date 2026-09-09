@@ -2,14 +2,14 @@ import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { QueryError } from "../components/query-error";
 import { GameSummary } from "../components/game-summary";
 import { Can } from "../components/can";
-import { PageHeader, PageInner } from "../components/page";
+import { PageHeader, PageInner, Row, RowGroup } from "../components/page";
 import { EmptyState, Loading } from "../components/states";
 import { StatusBadge } from "../components/status-badge";
 import { useLiveGames } from "../lib/data";
 import { routeHref } from "../lib/router";
 import { m } from "../lib/i18n";
 import { ButtonLink } from "../components/button-link";
-import { Item, ItemActions, ItemContent, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item";
+import { Item, ItemActions, ItemContent, ItemMedia, ItemTitle } from "@/components/ui/item";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
@@ -77,9 +77,9 @@ export function LivePage({ spoiler, setSpoiler }: LiveProps) {
         )}
 
         {games.length > 0 && (
-          <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border" data-testid="live-list">
+          <RowGroup data-testid="live-list">
             {games.map((g) => (
-              <Item key={g.id} className="flex-wrap rounded-none px-4 py-3" data-testid={`live-${g.id}`}>
+              <Row className="flex-wrap" key={g.id} data-testid={`live-${g.id}`}>
                 <ItemContent className="basis-full sm:basis-auto" data-testid="live-game">
                   <GameSummary game={g} showEvent/>
                 </ItemContent>
@@ -112,9 +112,9 @@ export function LivePage({ spoiler, setSpoiler }: LiveProps) {
                     </Can>
                   )}
                 </ItemActions>
-              </Item>
+              </Row>
             ))}
-          </ItemGroup>
+          </RowGroup>
         )}
       </PageInner>
     </>

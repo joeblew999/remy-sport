@@ -1,6 +1,6 @@
 import { QueryError, isNotFound } from "../components/query-error";
 import { NameTranslations, namesFrom } from "../components/name-translations";
-import { PageHeader, PageInner, SectionHeading } from "../components/page";
+import { PageHeader, PageInner, Row, SectionHeading, SubHeading } from "../components/page";
 import { EmptyState, Loading } from "../components/states";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import { ButtonLink } from "../components/button-link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
+import { ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ChevronRightIcon } from "lucide-react";
@@ -51,7 +51,6 @@ import { m } from "../lib/i18n";
 import { useLocale } from "../lib/locale";
 
 const LIST = "gap-0 divide-y overflow-hidden rounded-xl border";
-const ROW = "rounded-none px-4 py-3";
 
 /**
  * @answers VIEW_ORG, EDIT_ORG_PROFILE, INVITE_ORG_MEMBER, REMOVE_ORG_MEMBER, CREATE_TEAM
@@ -87,9 +86,9 @@ export function OrgsPage() {
             <SectionHeading title={m.your_orgs()} className="mt-0" />
             <ItemGroup className={LIST} data-testid="your-orgs">
               {yours.map((o) => (
-                <Item key={o.id} className={ROW} data-testid={`your-org-${o.id}`}>
+                <Row key={o.id} data-testid={`your-org-${o.id}`}>
                   <ItemContent>
-                    <ItemTitle className="text-base">{o.name}</ItemTitle>
+                    <ItemTitle>{o.name}</ItemTitle>
                     <ItemDescription>
                       {[o.city, label("relations", held.get(o.id)!)].filter(Boolean).join(" · ")}
                     </ItemDescription>
@@ -97,7 +96,7 @@ export function OrgsPage() {
                   <ItemActions>
                     <ButtonLink variant="outline" href={routeHref({ page: "org", id: o.id })}>{m.org_open()}</ButtonLink>
                   </ItemActions>
-                </Item>
+                </Row>
               ))}
             </ItemGroup>
           </section>
@@ -109,9 +108,9 @@ export function OrgsPage() {
         ) : orgs.data?.length ? (
           <ItemGroup className={LIST} data-testid="orgs-list">
             {orgs.data.map((o) => (
-              <Item key={o.id} className={ROW} data-testid={`org-${o.id}`}>
+              <Row key={o.id} data-testid={`org-${o.id}`}>
                 <ItemContent>
-                  <ItemTitle className="text-base">{o.name}</ItemTitle>
+                  <ItemTitle>{o.name}</ItemTitle>
                   {/* What kind of organisation, in the reader's language — not
                       the slug, which is an identifier and read as one. */}
                   <ItemDescription>{[o.city, o.orgType].filter(Boolean).join(" · ")}</ItemDescription>
@@ -122,7 +121,7 @@ export function OrgsPage() {
                 <ItemActions>
                   <ButtonLink variant="outline" href={routeHref({ page: "org", id: o.id })}>{m.org_view()}</ButtonLink>
                 </ItemActions>
-              </Item>
+              </Row>
             ))}
           </ItemGroup>
         ) : orgs.error ? null : (
@@ -492,20 +491,20 @@ function OrgTeams({
       {mine.length > 0 && (
         <ItemGroup className={LIST}>
           {mine.map((t) => (
-            <Item key={t.id} className={ROW} data-testid={`org-team-${t.id}`} render={<a href={routeHref({ page: "team", id: t.id })} />}>
+            <Row key={t.id} data-testid={`org-team-${t.id}`} render={<a href={routeHref({ page: "team", id: t.id })} />}>
               <ItemContent>
-                <ItemTitle className="text-base">{t.name}</ItemTitle>
+                <ItemTitle>{t.name}</ItemTitle>
                 <ItemDescription>{t.ageGroupLabel} · {t.genderLabel}</ItemDescription>
               </ItemContent>
               <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden />
-            </Item>
+            </Row>
           ))}
         </ItemGroup>
       )}
 
       {canCreate && (
         <section className="flex flex-col gap-4">
-          <h3 className="text-base font-semibold">{m.org_add_team()}</h3>
+          <SubHeading>{m.org_add_team()}</SubHeading>
           {created && (
             <Alert role="status" data-testid="org-team-created">
               <AlertDescription>{m.org_team_created()}</AlertDescription>

@@ -32,14 +32,14 @@ import { formErrors } from "../lib/form-errors"
 import { useLocale } from "../lib/locale"
 import { m } from "../lib/i18n"
 import type { Route } from "../lib/router"
-import { SectionHeading } from "./page"
+import { Row, RowGroup, SectionHeading, SubHeading } from "./page"
 import { EmptyState } from "./states"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item"
+import { ItemActions, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 
 /**
@@ -71,7 +71,7 @@ export function YourPlayers({ goto }: { goto: (r: Route) => void }) {
         <EmptyState data-testid="your-players-none">{m.your_players_none()}</EmptyState>
       )}
       {players.length > 0 && (
-      <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border" data-testid="your-players">
+      <RowGroup data-testid="your-players">
         {players.map((p) =>
           editing === p.playerId ? (
             <Can key={p.playerId} of={p} action="EDIT_PLAYER_PROFILE"><EditPlayer player={p} onDone={() => setEditing(null)} /></Can>
@@ -82,7 +82,7 @@ export function YourPlayers({ goto }: { goto: (r: Route) => void }) {
            * the outer button and an inner one is unreachable, while a screen
            * reader is told about a button that contains a button.
            */
-          <Item key={p.playerId} className="rounded-none p-0" data-testid={`your-player-${p.playerId}`}>
+          <Row className="p-0" key={p.playerId} data-testid={`your-player-${p.playerId}`}>
             <button
               type="button"
               className="flex min-w-0 flex-1 items-center gap-2.5 px-4 py-3 text-left outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-default disabled:hover:bg-transparent"
@@ -93,7 +93,7 @@ export function YourPlayers({ goto }: { goto: (r: Route) => void }) {
               onClick={() => p.teamId && goto({ page: "team", id: p.teamId })}
             >
               <ItemContent>
-                <ItemTitle className="text-base">
+                <ItemTitle>
                   {name(p.names)}
                   <span className="text-xs font-normal text-muted-foreground tabular-nums">{m.player_jersey({ n: p.jerseyNumber })}</span>
                 </ItemTitle>
@@ -125,10 +125,10 @@ export function YourPlayers({ goto }: { goto: (r: Route) => void }) {
                 </Button>
               </ItemActions>
             </Can>
-          </Item>
+          </Row>
           ),
         )}
-      </ItemGroup>
+      </RowGroup>
       )}
     </section>
   )
@@ -304,7 +304,7 @@ export function EditPlayer({
         })
       }}
     >
-      <h3 className="text-base font-semibold">{name(player.names)}</h3>
+      <SubHeading>{name(player.names)}</SubHeading>
       <FieldGroup className="max-w-[420px]">
         <Field>
           <FieldLabel htmlFor={`name-${player.playerId}`}>{m.event_name_label()}</FieldLabel>

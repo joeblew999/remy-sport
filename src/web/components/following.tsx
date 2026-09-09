@@ -16,9 +16,9 @@ import { useQuery } from "@tanstack/react-query"
 import { orpc } from "../lib/orpc"
 import { m } from "../../paraglide/messages.js"
 import { useLocale } from "../lib/locale"
-import { SectionHeading } from "./page"
+import { Row, RowGroup, SectionHeading } from "./page"
 import { EmptyState } from "./states"
-import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item"
+import { ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item"
 
 export function Following() {
   const { label, name } = useLocale()
@@ -27,23 +27,23 @@ export function Following() {
   return (
     <section data-testid="following-card">
       <SectionHeading title={m.following_label()} className="mt-0" />
-      <ItemGroup className="gap-0 divide-y overflow-hidden rounded-xl border" data-testid="following-list">
+      <RowGroup data-testid="following-list">
         {data?.following.length ? (
           data.following.map((f) => (
-            <Item key={`${f.objectTypeCode}:${f.objectId}`} className="rounded-none px-4 py-3" data-testid="following-entry">
+            <Row key={`${f.objectTypeCode}:${f.objectId}`} data-testid="following-entry">
               <ItemContent>
                 {/* The thing's own name, in the reader's language — "Assumption
                     College U16 Boys", not "Team". A list of type labels reads as
                     "Team, Team, Team" and is not one anybody can act on. */}
-                <ItemTitle className="text-base">{name(f.names, f.name) || label("objectTypes", f.objectTypeCode)}</ItemTitle>
+                <ItemTitle>{name(f.names, f.name) || label("objectTypes", f.objectTypeCode)}</ItemTitle>
                 <ItemDescription>{label("objectTypes", f.objectTypeCode)}</ItemDescription>
               </ItemContent>
-            </Item>
+            </Row>
           ))
         ) : (
           <EmptyState className="border-0">{m.nothing_followed_yet()}</EmptyState>
         )}
-      </ItemGroup>
+      </RowGroup>
     </section>
   )
 }

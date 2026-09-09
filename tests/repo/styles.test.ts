@@ -202,3 +202,56 @@ rule("no authored JSX sets uppercase or monospace by class", escapes,
   `Tailwind escapes in src/web JSX:\n  ${escapes.join("\n  ")}\n\n` +
   `A registry Badge is sentence case, and a column of digits aligns with tabular-nums. If a case is\n` +
   `real, add the file to JSX_ESCAPES_ALLOWED with why.`)
+
+/* ── The scale is decided in a component, never at a call site ──────────────
+   The September 8 conversion cleaned this stylesheet and the drift moved into
+   the JSX, where until now nothing looked: 140 hand-picked type classes and
+   100 overrides of a registry component's own size, padding, radius or gap.
+   That is what made main content read as assembled while the sidebar — nine
+   registry primitives used as shipped — read as designed.
+
+   These three rules hold the boundary. `src/web/components/page.tsx` is the one
+   file allowed to name a heading size, because it is where the ladder lives;
+   the registry's own files are exempt because they are hash-locked and are the
+   scale everything else defers to.
+   docs/2026-09-09-07-main-content-on-the-registry.md. */
+const FRAME = "src/web/components/page.tsx"
+const authored = files.filter(f => !f.path.startsWith("src/web/components/ui/"))
+
+/* A list is `RowGroup`/`Row`, which carry the divided-box pattern once. Written
+   inline it was five classes copied twenty-two times across nineteen files. */
+const inlineRows = authored
+  .filter(f => f.path !== FRAME)
+  .flatMap(f => [...stripTsxComments(f.text).matchAll(/<Item(?:Group)?\b[^>]*?\b(divide-y|rounded-none)\b/g)]
+    .map(m => `${f.path}: <Item${m[0].includes("Group") ? "Group" : ""}> with ${m[1]}`))
+rule("a divided list is RowGroup/Row, not five classes on an Item", inlineRows,
+  `Inline divided-list styling in src/web JSX:\n  ${inlineRows.join("\n  ")}\n\n` +
+  `Use RowGroup and Row from ${FRAME}. They are that pattern, written once.`)
+
+/* The registry decides how big its own title is. Twenty-three call sites said
+   text-base on an ItemTitle whose own size is text-sm — one decision, taken
+   twenty-three times without ever being taken once. */
+const RESIZED = "ItemTitle|ItemDescription|CardTitle|CardDescription|SidebarGroupLabel"
+const resized = authored
+  .flatMap(f => [...stripTsxComments(f.text).matchAll(new RegExp(`<(${RESIZED})\\b[^>]*?className="[^"]*\\b(text-(?:xs|sm|base|lg|xl|2xl|3xl)|font-(?:normal|medium|semibold|bold))\\b`, "g"))]
+    .map(m => `${f.path}: <${m[1]}> set to ${m[2]}`))
+rule("no call site resizes a registry component's own title", resized,
+  `Registry titles resized in src/web JSX:\n  ${resized.join("\n  ")}\n\n` +
+  `Take the registry's size. If a different one is genuinely needed, give the component a\n` +
+  `variant in ${FRAME} so it is decided once.`)
+
+/* Headings come from PageHeader, SectionHeading and SubHeading. Seven were
+   written by hand at three different sizes before those existed. */
+const HEADINGS_ALLOWED: Record<string, string> = {
+  // The error boundary renders when the app has crashed, deliberately outside
+  // the sidebar, the topbar and the page frame — so it cannot take its heading
+  // from a component that may be part of what just broke.
+  "src/web/components/crash.tsx": "renders outside the app layout, by design",
+}
+const looseHeadings = authored
+  .filter(f => f.path !== FRAME && !(f.path in HEADINGS_ALLOWED))
+  .flatMap(f => [...stripTsxComments(f.text).matchAll(/<h([1-3])\b[^>]*className="[^"]*\btext-(?:xs|sm|base|lg|xl|2xl|3xl)\b/g)]
+    .map(m => `${f.path}: <h${m[1]}> with its own size`))
+rule("headings take their size from the page frame", looseHeadings,
+  `Hand-sized headings in src/web JSX:\n  ${looseHeadings.join("\n  ")}\n\n` +
+  `Use PageHeader, SectionHeading or SubHeading from ${FRAME}, which hold the ladder.`)
