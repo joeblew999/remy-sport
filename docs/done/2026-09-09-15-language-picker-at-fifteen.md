@@ -1,15 +1,44 @@
 # Plan — the language picker, at ten to fifteen languages
 
-Archive: completed (2026-09-09). All five steps built; thirteen of the fifteen
-languages on this page released, the remaining two named as blocked below.
+Archive: completed (2026-09-09). All five steps built, and **twenty** locales
+released — the fifteen this page planned plus five more the Product Owner asked
+for afterwards ("all the common languages, so we have a global audience").
 Current work is in the [documentation index](../README.md) — the reference-data
 plan there retires this plan's N×N `names` matrix and is where places, countries
 and language names go next.
 
 ## What shipped
 
-Thirteen released locales — th, en, ja, zh, es, pt, id, fr, tl, vi, ko, de, ru —
-at **946 strings each**: 618 interface messages and 328 vocabulary terms.
+Twenty released locales, at **946 strings each** (618 interface messages and 328
+vocabulary terms):
+
+| | Locales | Font cost |
+| --- | --- | --- |
+| Latin | en, es, pt, id, fr, tl, de, tr, it, pl, ms | none — `latin`/`latin-ext` are unconditional |
+| CJK | ja, zh, ko | none — drawn by the reader's own system font |
+| Thai | th | already self-hosted |
+| Cyrillic | ru, uk | +? for `ru`; `uk` free, it reuses what `ru` paid for |
+| Vietnamese | vi | `vietnamese` subset |
+| Devanagari | hi | **+164KB**, the first new family since Thai |
+| Arabic | ar | **+216KB**, and the layout work below |
+
+`src/web/fonts` went 280KB → 784KB across the whole exercise. Every block added
+carries a `unicode-range`, so a reader who renders none of a script downloads
+none of its files: the repository grew, no page did. Checked with `ops fonts`
+after each language rather than assumed.
+
+**The two Tier 3 languages both shipped**, which this page did not expect:
+
+- **Hindi** needed only a font, and the pipeline already refused an unmapped
+  locale, so it was mechanical.
+- **Arabic** needed the layout, and that is the one piece of real work here.
+  `@shadcn/direction` (Base UI's `DirectionProvider`) plus `dir` on the document
+  plus `side="right"` on the sidebar plus rotating five drill-in chevrons. CSS
+  alone was not enough — Base UI decides which way a menu opens from its own
+  context — and `dir` alone mirrored the text inside the sidebar while leaving
+  the panel on the left. Verified in a browser, not inferred.
+
+Two things this plan got wrong, corrected here rather than left standing:
 
 Two things this plan got wrong, corrected here rather than left standing:
 
@@ -30,7 +59,34 @@ defect rather than in anticipation:
   placeholder check that reads `{braces}`. It renders as a tofu box for every
   Vietnamese reader, which is the exact failure the font pipeline exists to
   prevent, arriving through the copy instead.
-- **The RTL blocker**, step 5, which is what stands between this page and Arabic.
+- **The RTL blocker**, step 5. It did its job twice: it refused to let Arabic
+  ship before the layout could take one, and then — once `@shadcn/direction` was
+  installed — it said so and got out of the way. The check reads
+  *"direction installed, right-to-left locales may be released"* now.
+
+The stray-script check also earned its keep beyond the bug that prompted it: it
+fired 826 times on Ukrainian, 831 on Hindi and 831 on Arabic, because a locale
+absent from `WRITES_IN` is treated as Latin-only. That is deliberate — failing
+closed means somebody answers "which scripts does this language use?" once per
+language, rather than a new language being silently exempt.
+
+## What is left, and what it now costs
+
+Every remaining candidate got cheaper, because the two expensive pieces are
+built. Named so the next person does not have to re-derive them:
+
+| Language | Speakers | What it needs now |
+| --- | --- | --- |
+| Bengali | ~280M | a `bengali` entry in `SCRIPTS` and its Noto subset — mechanical, exactly as Hindi was |
+| Urdu | ~230M | **nothing new**: Arabic script and RTL are both built. Naskh renders it; Nastaliq would be a quality choice, not a blocker |
+| Persian | ~130M | **nothing new**, same reason |
+| Swahili, Dutch | — | Latin, free |
+
+**A caveat worth writing down.** All twenty locales were translated by the agent
+that shipped them, not by native speakers. The checks prove *completeness*,
+*placeholder parity* and *script correctness* — they cannot prove that the copy
+reads naturally. A native pass is worth doing before any marketing push, and
+Hindi, Arabic and Bengali are where it matters most.
 
 Everything below this line is the plan as proposed, left as written.
 
