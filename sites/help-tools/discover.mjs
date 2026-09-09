@@ -6,14 +6,17 @@ const origin = apiOrigin(process.argv[2] ?? 'http://127.0.0.1:8787');
 const report = { checkedAt: new Date().toISOString(), application: origin, api: [], discovery: process.argv[3] ? 'pending API verification' : 'not checked: public help origin not supplied', googleIndexed: 'not established', geminiInvocation: 'not established' };
 await mkdir('.proof', { recursive: true });
 try {
+  console.log(`docs discovery: checking contract at ${origin}`);
   await contract(origin);
   for (const resource of ['events', 'teams', 'games']) {
+    console.log(`docs discovery: reading ${resource}`);
     const list = await callApplication(origin, `list_${resource}`);
     if (!Array.isArray(list.data[resource])) throw new Error(`Unexpected ${resource} response`);
     report.api.push({ operation: `list_${resource}`, status: 'passed', count: list.data[resource].length });
     const first = list.data[resource][0];
     if (first) {
       const name = `get_${resource.slice(0,-1)}`;
+      console.log(`docs discovery: reading one ${resource}`);
       const detail = await callApplication(origin, name, { id: first.id });
       if (detail.data.id !== first.id) throw new Error(`Unexpected ${resource} detail`);
       report.api.push({ operation: name, status: 'passed' });

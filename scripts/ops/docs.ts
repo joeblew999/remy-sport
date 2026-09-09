@@ -48,12 +48,13 @@ function childEnv(): NodeJS.ProcessEnv {
 async function command(args: string[], cwd = site, explicitEnv: Record<string, string> = {}) {
   const child = spawn(args[0]!, args.slice(1), { cwd, env: { ...childEnv(), ...explicitEnv }, stdio: "inherit", detached: true })
   const stop = () => { if (child.pid) { try { process.kill(-child.pid, "SIGKILL") } catch { /* already exited */ } } }
-  const timer = setTimeout(stop, 300_000)
+  let timedOut = false
+  const timer = setTimeout(() => { timedOut = true; stop() }, 300_000)
   process.once("SIGINT", stop)
   process.once("SIGTERM", stop)
   try {
     const [code, signal] = await once(child, "exit")
-    if (code !== 0) throw new Error(`docs: ${args.join(" ")} failed (${signal ?? code})`)
+    if (code !== 0) throw new Error(`docs: ${args.join(" ")} failed (${timedOut ? "timed out after 300 seconds" : signal ?? code})`)
   } finally {
     clearTimeout(timer)
     stop()
