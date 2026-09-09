@@ -25,6 +25,19 @@
   in `HONO_ROUTES` with how it is guarded, and the four `following` email
   fields are enrolled in the evidence ledger. 929 unit/repository/Worker and
   344 rendering checks pass, with typecheck and lint.
+- [The notifications page, with two channels on it](2026-09-09-08-notifications-page-two-channels.md)
+  is **proposed 2026-09-09, nothing implemented**, at the Product Owner's report
+  that the page is wrong and illogical now that push and email both live on it.
+  Email was fitted into a page built for push and nothing was re-thought around
+  there being two channels. Five defects found, not just shape: the push
+  preferences are gated on *this browser* holding a subscription although a
+  preference is an account fact, which also locks the native app out entirely;
+  the frozen rows still read as ticked; Roster Change offers an email switch
+  with no EMAIL renderer behind it; and `data.following` — the page's own
+  subject — is fetched here and thrown away. Two decisions taken the same day:
+  one matrix with Push and Email as columns, and Roster Change loses the cell
+  rather than gaining a template. Needs the Product Owner's approval of the
+  steps before any code changes.
 - [Main content on the registry, like the sidebar already is](2026-09-09-07-main-content-on-the-registry.md)
   is **proposed 2026-09-09, nothing implemented**, at the Product Owner's report
   that the sidebar (which they call the drawer) looks right and all the main
