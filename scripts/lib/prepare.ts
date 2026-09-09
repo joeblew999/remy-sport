@@ -21,6 +21,7 @@
 import { spawnSync } from "node:child_process"
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs"
 import { join } from "node:path"
+import { assertPinnedBun } from "./bun-pin.ts"
 
 /**
  * Quiet on success, and on failure everything the command said.
@@ -92,6 +93,17 @@ function mcpBrowserInstall(): string[] {
   return ["bun", "x", pkg, "install-browser", browser.browserName]
 }
 
+/**
+ * First, before install: `bun install` on another Bun can rewrite the
+ * lockfile, and everything after assumes the pin. scripts/lib/bun-pin.ts
+ * says what running the wrong one cost.
+ */
+const BUN: Step = {
+  name: "bun",
+  why: "the pinned Bun — the lockfile, the tests and every recorded run are its; another Bun is another environment",
+  go: assertPinnedBun,
+}
+
 const INSTALL: Step = {
   name: "install",
   why: "everything below is a node_modules binary",
@@ -99,6 +111,7 @@ const INSTALL: Step = {
 }
 
 const BUILD: Step[] = [
+  BUN,
   INSTALL,
   { name: "i18n", why: "generate the message modules before typechecking a fresh checkout", go: () => sh(["bun", "scripts/lib/i18n.ts"]) },
   { name: "types", why: "generate stable binding types independently of local credentials", go: () => sh(["bun", "x", "wrangler", "types", "--env-file", "scripts/lib/types.env"]) },
@@ -181,7 +194,7 @@ function runSteps(steps: Step[]): void {
 
 /** Dependencies only — what `ops` and `db` need, since neither builds anything. */
 export function install(): void {
-  runSteps([INSTALL])
+  runSteps([BUN, INSTALL])
 }
 
 /** What any command needs to BUILD. check and deploy stop here. */

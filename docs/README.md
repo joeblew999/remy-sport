@@ -11,8 +11,9 @@ own tokens removed for the preset's (`d2ae514`, `b97f92f`, `00286b2`,
 `4f964f1`, `228a3c3`, `7461a5a`). The stylesheet is shadcn's output plus
 three rules that say why. The gate is green: 898 unit/repository/Worker
 checks, 334 rendering checks, 49 end-to-end checks with cleanup, 222
-captures in light and dark. Open: the Product Owner's review of the
-captures under `screenshots/`.
+captures in light and dark. Accepted by the Product Owner on 2026-09-08
+("it all looks fine") and deployed to staging as `e9ce101`; verified there
+on 2026-09-09: 45 passed, four development-only skips, sessions ended.
 
 [The top of the page on a phone](2026-09-08-02-mobile-top-of-page.md) is
 complete: every step is delivered by the shadcn plan and ticked.
@@ -79,8 +80,8 @@ Official host setup: <https://learn.chatgpt.com/docs/extend/mcp?surface=cli>.
 | Work | Evidence and limits |
 | --- | --- |
 | Connected GUI | Games replaces Overview/Schedule; independent division rankings; linked games, teams, players and places; URL/Back context. Final local gate and 49 browser checks passed. [Implementation and limits](2026-09-07-05-gui-connections.md#implementation-record--2026-09-07). |
-| Staging browser verification | Two consecutive full runs: **42 passed, four development-only skips, zero retries** per run. Admin impersonation, returning to admin, role switching and cleanup passed. [Rollout record](2026-09-07-03-staging-broadcast.md#final-result-two-consecutive-complete-passes). |
-| Staging deployment | Last verified application: `e1fa4dc`, build `2026-09-07T06:57:08.555Z`. Later commits repair tests/runner and document results. Local gate: 847 unit/repository/Worker tests, 289 rendering tests and local browsers passed before publication. |
+| Staging browser verification | Latest, 2026-09-09 against `e9ce101`: **45 passed, four development-only skips, no retries**; admin impersonation, role switching, session cleanup and the restore of admin access passed. Earlier: two consecutive runs of 42 passed. [Rollout record](2026-09-07-03-staging-broadcast.md#final-result-two-consecutive-complete-passes). |
+| Staging deployment | Last verified application: `e9ce101`, build `2026-09-08T07:38:13.662Z`. Local gate before publication: 898 unit/repository/Worker tests, 334 rendering tests, 49 browser checks. The deploy's own verification step reported "browser failed" because the shell's Bun was 1.3.14 against the 1.4.0 pin; repeated under the pinned Bun it passed. `scripts/lib/bun-pin.ts` now refuses an unpinned Bun before any command; that guard is committed, not yet deployed. |
 | Shared staging test command | The CLI enables and measures temporary admin access, runs tests serially, restores prior access and verifies cleanup. The public admin login button remains hidden. [Behavior and remaining limitations](2026-09-07-04-staging-verification.md). |
 | Coach access and session revocation | Coach grant corrections and browser device-revocation journeys are implemented. These do not close every permission/state combination. [Domain register](2026-09-07-01-react-domain-coverage.md). |
 | Shared UI action gates | `Can`/`PlatformCan`, gate checks and a team-page permission matrix exist. Whole-app matrices and reveal mode are not complete. [Gate record](2026-09-06-03-one-gate.md). |
@@ -91,7 +92,7 @@ Official host setup: <https://learn.chatgpt.com/docs/extend/mcp?surface=cli>.
 
 | Priority / state | Work | Where to continue |
 | --- | --- | --- |
-| Next: the Product Owner's review of the shadcn conversion | Every screen is on the registry, the stylesheet is shadcn's output, and the gate, the end-to-end tier and the captures are green (`7461a5a` and after). What remains is a look at the captures on a phone and a desktop, in EN, TH and JA, light and dark, and any change the Product Owner asks for. | [Convert the GUI to shadcn](2026-09-08-01-typography-and-design-system.md#steps-10-to-14--by-registry-item-done-by-surface) |
+| Next GUI debt | The shadcn conversion is accepted and on staging. Left from its run logs: Base UI warns that an uncontrolled FieldControl changed its default value on the coach's squad edit from the player page. The Bun-pin guard is a deployment input, so the next staging test run needs a deploy first. | [Convert the GUI to shadcn — log](2026-09-08-01-typography-and-design-system.md#log) |
 | Next capture fix | Desktop Devices screenshots intermittently stall in WebKit after data and fonts load. This reproduced in the baseline before the GUI migration; phone captures work. Context cleanup now retains a trace, and the CLI cleans up sessions/storage on failure. Do not call the whole screenshot walk verified. | [GUI consistency implementation record](2026-09-07-06-gui-consistency.md#implementation-record--2026-09-07); reproduce with `bun run shots -- --grep 'devices · ja · desktop' --trace on`. |
 | In progress: separate automation work | Finish and commit the existing local-browser isolation edits. The working-tree CLI now uses 8788 and per-run storage; GUI verification observed startup, seed, session cleanup and storage removal. Lint import-time validation was corrected during GUI work. Developer data/session preservation and broader failure handling still need their own evidence. Keep `bun run dev` as the developer entry point without manual coordination. | [GUI verification and limits](2026-09-07-06-gui-consistency.md#implementation-record--2026-09-07); `playwright.config.ts`, `src/web/vite.config.ts`, `scripts/e2e.ts`, `scripts/lib/prepare.ts`. These pre-existing isolation edits remain uncommitted separately from the GUI change. |
 | Next independent product work | Review existing behavior one domain slice at a time: exact fields, relationships, permitted/refused actions, persistence and delivery. The committed report has **1,375 items: 64 classified, 1,311 unreviewed**. Unreviewed does not mean broken or unimplemented. | [Domain register, GAP-01 and GAP-05–08](2026-09-07-01-react-domain-coverage.md#work-register-and-execution-order); [generated inventory](react-domain-coverage.md). |

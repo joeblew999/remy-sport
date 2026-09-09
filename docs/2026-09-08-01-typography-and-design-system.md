@@ -1,12 +1,13 @@
 # Plan — convert the GUI to shadcn
 
-Status, 2026-09-08: the whole GUI is on shadcn, and the gate is green. Done
+Status, 2026-09-09: the whole GUI is on shadcn, and the gate is green. Done
 and committed: Stage A (readable type), B1 (the tooling), B2 step 8 (the
 shell, `d2ae514`), step 9 (the forms, `b97f92f`), steps 10 to 13 (every
 list, table, card, page frame, dialog and input, and the removal of our own
 tokens for the preset's — `00286b2`, `4f964f1`, `228a3c3`, `7461a5a`) and
-step 14 (the full gate 898 + 334, e2e 49, 222 captures). Open: the Product
-Owner's review of the captures.
+step 14 (the full gate 898 + 334, e2e 49, 222 captures). Accepted by the
+Product Owner on 2026-09-08 and on staging as `e9ce101`, verified there on
+2026-09-09: 45 passed, four development-only skips. Nothing is open here.
 
 ## The rule
 
@@ -191,10 +192,12 @@ commits and are ticked together.
       the admin Events table's description column wrapped one word per line
       on a phone and pushed Delete off the screen; it is a desktop column
       now. Dark mode has no light islands.
-- [ ] **Product Owner review** of Discover, an event, sign-in and the admin
+- [x] **Product Owner review** of Discover, an event, sign-in and the admin
       console on a phone and a desktop, in EN, TH and JA, light and dark.
       Four captures were sent on 2026-09-08; the rest are under
-      `screenshots/`. The answer is theirs.
+      `screenshots/`. Accepted the same day — "I have been checking it all
+      along and it all looks fine" — then pushed and deployed to staging as
+      `e9ce101` at their ask.
 
 **Parked:** our own registry (a manifest naming the game summary row, score
 entry and the standings table) waits until a second repository wants the
@@ -240,3 +243,17 @@ gate is green once and the captures are reviewed in light and dark.
 - 2026-09-08 — step 14 done: `bun run check` 898 + 334, e2e 49, 222
   captures in light and dark. The phone drawer is our own labelled Sheet
   (`7461a5a`). Open: the Product Owner's review.
+- 2026-09-08 — accepted by the Product Owner, pushed as `e9ce101` and
+  deployed to staging (version `86a2a2d9`, build `2026-09-08T07:38:13.662Z`).
+  The Install app button came back at their ask, in the sidebar's Settings
+  group. The deploy's own verification reported "browser failed": the
+  shell's Bun was 1.3.14 against the 1.4.0 pin, and under 1.3.14
+  Playwright's request API throws on the first Set-Cookie, which hung the
+  staging admin preflight. The Product Owner aligned the global mise pin;
+  `scripts/lib/bun-pin.ts` now refuses every command on an unpinned Bun.
+- 2026-09-09 — verified on staging under the pinned Bun, from a clean
+  checkout of `e9ce101`: 45 passed, four development-only skips, no
+  retries; the run's sessions ended and admin access restored to disabled.
+  Debt seen in the run logs, not fixed: Base UI warns "changing the default
+  value state of an uncontrolled FieldControl" on the coach's squad edit
+  from the player page.
