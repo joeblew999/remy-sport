@@ -42,7 +42,7 @@ export function NotificationsPage() {
 
   return (
     <div data-testid="notifications-page">
-      <PageHeader crumbs={[{ label: m.notifications() }]} title={m.notifications()} sub={m.notifications_intro()} />
+      <PageHeader title={m.notifications()} sub={m.notifications_intro()} />
       <PageInner className="flex flex-col gap-6">
         <NotificationSettings />
         {/* What adjacency used to do, said out loud instead.

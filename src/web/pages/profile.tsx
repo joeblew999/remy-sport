@@ -31,7 +31,6 @@ export function ProfilePage({ goto }: { goto: (r: Route) => void }) {
   return (
     <>
       <PageHeader
-        crumbs={[{ label: m.profile_crumb() }]}
         title={user ? m.welcome_back({ name: user.name || user.email }) : m.profile_signed_out()}
         sub={user ? m.profile_sub() : loading ? "" : m.profile_signed_out_sub()}
       />

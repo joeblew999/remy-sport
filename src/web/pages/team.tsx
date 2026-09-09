@@ -78,6 +78,9 @@ export function TeamPage({ id, goto: _goto, query, spoiler = false }: { id: stri
     <>
       <PageHeader
         data-testid="team-hero"
+        // A team is reached from the directory, from a schedule, from a player.
+        // It had no ancestors at all, so every one of those was a one-way trip.
+        crumbs={[{ label: m.nav_teams(), href: routeHref({ page: "teams" }) }]}
         media={<Avatar size="lg" className="size-16" aria-hidden="true"><AvatarFallback className="bg-primary/15 text-lg font-semibold text-primary">{initials(t.name)}</AvatarFallback></Avatar>}
         title={<span data-testid="team-name">{t.name}</span>}
         sub={<><a className="hover:underline" href={routeHref({ page: "org", id: t.orgId })}>{t.orgName}</a>{t.city && ` · ${t.city}`}</>}

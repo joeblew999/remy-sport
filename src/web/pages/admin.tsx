@@ -213,7 +213,6 @@ export function AdminPage({ goto }: { goto: (r: Route) => void }) {
       )}
 
       <PageHeader
-        crumbs={[{ label: m.admin_crumb() }]}
         // "Dashboard" until Home existed; this is the console.
         title={m.home_admin()}
         sub={<>{user.name || user.email} · <Badge variant="secondary" data-testid="role-badge">{role}</Badge></>}

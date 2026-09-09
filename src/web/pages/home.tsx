@@ -72,7 +72,6 @@ export function HomePage({ goto }: { goto: (r: Route) => void }) {
   return (
     <>
       <PageHeader
-        crumbs={[{ label: m.home_crumb() }]}
         title={m.welcome_back({ name: user?.name || user?.email || "" })}
         sub={m.home_sub()}
       />

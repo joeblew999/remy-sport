@@ -102,7 +102,7 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
 
   return (
     <div data-testid="spa-login">
-      <PageHeader crumbs={[{ label: m.sign_in_crumb() }]} title={m.welcome()} sub={m.sign_in_sub()} />
+      <PageHeader title={m.welcome()} sub={m.sign_in_sub()} />
       <PageInner className="flex flex-col gap-6">
       {error && (
         <Alert variant="destructive" id="login-error" data-testid="login-error">

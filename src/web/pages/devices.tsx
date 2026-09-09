@@ -68,7 +68,7 @@ export function DevicesPage() {
 
   return (
     <div data-testid="devices-page">
-      <PageHeader crumbs={[{ label: m.security() }]} title={m.signed_in_devices()} sub={m.sessions_note()} />
+      <PageHeader title={m.signed_in_devices()} sub={m.sessions_note()} />
       <PageInner className="flex flex-col gap-6">
         <QueryError error={q.error} retry={q.refetch} pending={q.isFetching} />
         {error && (

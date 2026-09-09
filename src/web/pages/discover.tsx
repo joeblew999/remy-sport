@@ -118,7 +118,7 @@ export function DiscoverPage({ goto, spoiler, query, setParam }: DiscoverProps) 
   return (
     <>
       <PageHeader
-        crumbs={[{ label: m.nav_home() }, { label: m.nav_discover() }]}
+        
         title={m.discover_heading()}
         sub={m.discover_sub()}
         subLang={locale === "th" ? "th" : undefined}

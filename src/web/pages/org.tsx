@@ -79,7 +79,7 @@ export function OrgsPage() {
 
   return (
     <div data-testid="orgs-page">
-      <PageHeader crumbs={[{ label: m.nav_orgs() }]} title={m.orgs_heading()} sub={m.orgs_sub()} />
+      <PageHeader  title={m.orgs_heading()} sub={m.orgs_sub()} />
       <PageInner className="flex flex-col gap-6">
         {yours.length > 0 && (
           <section>

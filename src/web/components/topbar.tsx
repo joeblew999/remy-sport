@@ -3,7 +3,15 @@ import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import { Account } from "./account";
 import { m } from "../lib/i18n";
+import { Fragment } from "react";
 import { Separator } from "@/components/ui/separator";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Muted, usePageTitle } from "./page"
 
 /**
@@ -81,7 +89,7 @@ function Brand() {
  */
 export function Topbar() {
   const { toggleSidebar } = useSidebar();
-  const title = usePageTitle();
+  const trail = usePageTitle();
   return (
     <header className="topbar flex h-(--header-height) shrink-0 items-center gap-2 border-b bg-background px-3 lg:px-4">
       <Button
@@ -94,15 +102,49 @@ export function Topbar() {
         <PanelLeftIcon />
       </Button>
       <Brand />
-      {title && (
+      {trail && (
         <>
           <Separator orientation="vertical" className="mx-1 h-4 shrink-0 data-vertical:self-auto" />
-          {/* The page's one `h1`, where the block puts it. `min-w-0` and the
-              truncate keep a long event name from pushing the account off a
-              320px row — the thing the whole bar is measured against. */}
-          <h1 className="min-w-0 truncate font-heading text-base font-medium" data-testid="page-title">
-            {title}
-          </h1>
+          {/*
+            One trail, in the bar: where you are, and every step back up.
+
+            This is the block's own header pattern (`sidebar-07` puts the
+            breadcrumb here, not in the page), and it is what makes drilling in
+            consistent. Before 2026-09-09 a page's ancestors were a row in the
+            content band on eleven screens, absent entirely on a team and a
+            game — you could reach a team from the directory and the app gave
+            you no way back — and Discover carried an unlinked "Home" that no
+            other landing page had.
+
+            The rule the pages now follow: `crumbs` are the **ancestors**, each
+            one linked, and the page itself is the `h1` at the end. A top-level
+            screen has no ancestors and is just the `h1`.
+
+            The ancestors fold away below `sm`, as they do in the block: on a
+            phone the row belongs to the page you are on, and the sidebar is
+            the way back.
+          */}
+          <Breadcrumb aria-label={m.breadcrumbs()} className="min-w-0">
+            <BreadcrumbList className="flex-nowrap">
+              {trail.crumbs.map((c, i) => (
+                <Fragment key={i}>
+                  <BreadcrumbItem className="hidden shrink-0 sm:inline-flex">
+                    {c.href ? (
+                      <BreadcrumbLink href={c.href} data-testid={c.testId}>{c.label}</BreadcrumbLink>
+                    ) : (
+                      <span>{c.label}</span>
+                    )}
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator className="hidden sm:block" />
+                </Fragment>
+              ))}
+              <BreadcrumbItem className="min-w-0">
+                <h1 className="min-w-0 truncate font-heading text-base font-medium text-foreground" data-testid="page-title">
+                  {trail.title}
+                </h1>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
         </>
       )}
       <div className="flex-1" />

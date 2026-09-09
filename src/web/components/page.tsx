@@ -39,11 +39,17 @@ import { m } from "../lib/i18n";
  * name). Cleared on unmount so a route with no `PageHeader` does not inherit
  * the last page's name.
  */
-const PageTitle = createContext<((title: ReactNode) => void) | null>(null);
-const PageTitleValue = createContext<ReactNode>(null);
+export interface Trail {
+  /** Where this page hangs: its ancestors, each linked. Empty at the top. */
+  crumbs: Crumb[];
+  /** Where you are. The bar renders it as the page's one `h1`. */
+  title: ReactNode;
+}
+const PageTitle = createContext<((t: Trail | null) => void) | null>(null);
+const PageTitleValue = createContext<Trail | null>(null);
 
 export function PageTitleProvider({ children }: { children: ReactNode }) {
-  const [title, setTitle] = useState<ReactNode>(null);
+  const [title, setTitle] = useState<Trail | null>(null);
   return (
     <PageTitle.Provider value={setTitle}>
       <PageTitleValue.Provider value={title}>{children}</PageTitleValue.Provider>
@@ -51,8 +57,8 @@ export function PageTitleProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/** What the current page calls itself. Rendered by the site header. */
-export function usePageTitle(): ReactNode {
+/** Where you are and how you got here. Rendered by the site header. */
+export function usePageTitle(): Trail | null {
   return useContext(PageTitleValue);
 }
 
@@ -125,22 +131,19 @@ export function PageHeader({
    * right, and the page's action row.
    */
   const setTitle = useContext(PageTitle);
+  const trail = JSON.stringify(crumbs?.map((c) => [c.href, c.testId]) ?? []);
   useEffect(() => {
-    setTitle?.(title);
+    setTitle?.({ crumbs: crumbs ?? [], title });
     return () => setTitle?.(null);
-  }, [setTitle, title]);
+    // `trail` stands in for `crumbs`, which is a fresh array every render.
+  }, [setTitle, title, trail]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Nothing left to draw once the name went to the bar: no band, no border.
-  if (!crumbs && !aside && !media && !extra && !sub && !children) return null;
+  // The name and the trail are both the bar's now; this band draws neither.
+  if (!aside && !media && !extra && !sub && !children) return null;
   return (
     <header className={cn("border-b px-4 py-4 lg:px-6", className)} {...props}>
-      {(crumbs || aside) && (
-        <div className="flex flex-wrap items-center gap-3">
-          {crumbs && <Crumbs items={crumbs} />}
-          {aside}
-        </div>
-      )}
-      <div className={cn("flex flex-wrap items-start gap-4", (crumbs || aside) && "mt-2")}>
+      {aside && <div className="flex flex-wrap items-center gap-3">{aside}</div>}
+      <div className={cn("flex flex-wrap items-start gap-4", aside && "mt-2")}>
         {media}
         {/*
           The name is in the bar and only there.

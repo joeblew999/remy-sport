@@ -46,7 +46,7 @@ export function TeamsPage() {
 
   return (
     <div data-testid="teams-page">
-      <PageHeader crumbs={[{ label: m.nav_teams() }]} title={m.teams_heading()} sub={m.teams_sub()} />
+      <PageHeader title={m.teams_heading()} sub={m.teams_sub()} />
       <PageInner className="flex flex-col gap-6">
         {yours.length > 0 && (
           <section>

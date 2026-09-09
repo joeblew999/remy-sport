@@ -47,7 +47,7 @@ export function LivePage({ spoiler, setSpoiler }: LiveProps) {
 
   return (
     <>
-      <PageHeader crumbs={[{ label: m.nav_live() }]} title={m.live_and_next()} />
+      <PageHeader title={m.live_and_next()} />
 
       <PageInner className="flex flex-col gap-4">
         <QueryError error={liveQuery.error} retry={liveQuery.refetch} pending={liveQuery.isFetching} />
