@@ -118,7 +118,16 @@ export function Account() {
         <Avatar aria-hidden="true">
           <AvatarFallback className="bg-primary/15 text-xs font-semibold text-primary">{initials}</AvatarFallback>
         </Avatar>
-        <span className="flex min-w-0 flex-col leading-tight">
+        {/*
+          The avatar alone on a phone, the name beside it on a screen with room.
+
+          The bar carries the page's title now, and at 390px the name was taking
+          a third of the row to say "Thanakorn …". The avatar identifies who is
+          signed in, the dropdown it opens says the name in full, and the block
+          this shell comes from does not put the user in the header at all — it
+          is in the sidebar footer.
+        */}
+        <span className="hidden min-w-0 flex-col leading-tight sm:flex">
           {/* Wide enough to be a name on a desktop, willing to become an
               ellipsis on a 320px phone, where the row is menu + brand + this
               and something has to give. The full name is the menu it opens. */}

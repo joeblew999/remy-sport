@@ -43,9 +43,20 @@ import { Muted, usePageTitle } from "./page"
  */
 function Brand() {
   return (
-    <div className="flex min-w-0 items-center gap-2.5" data-testid="brand">
+    <div className="flex min-w-0 shrink-0 items-center gap-2.5" data-testid="brand">
       <span className="size-7 shrink-0 rounded-full bg-primary" aria-hidden="true" />
-      <span className="min-w-0 leading-tight">
+      {/*
+        The name in words, on a screen with room for it.
+
+        The bar now carries the page's title as well, and at 390px the three of
+        them — brand, title, account — each truncated the others to an initial:
+        "R… | What's … | Thanakorn …". The page you are on is the more useful of
+        the two, and the app's name is still in plain sight as the mark to the
+        left and spelled out at the top of the sidebar the menu button opens.
+        This is also where `dashboard-01` puts the brand: in the sidebar, with
+        the header carrying only the trigger and the title.
+      */}
+      <span className="hidden min-w-0 leading-tight sm:block">
         <span className="block truncate text-base font-semibold tracking-tight">Remy Sport</span>
         <Muted as="span" className="text-xs block truncate font-thai">เรมีสปอร์ต</Muted>
       </span>
