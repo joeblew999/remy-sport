@@ -33,7 +33,7 @@ A shipped feature stays here if its acceptance checks or follow-ups are still op
 
 | Work | State | Next step / owning plan |
 | --- | --- | --- |
-| Language picker | Proposed; decide before the languages arrive | [The picker at fifteen](2026-09-09-15-language-picker-at-fifteen.md). The control shows two-letter codes and the model names languages in an N×N matrix — 225 strings at fifteen. Fonts, draft status and the completeness check already scale. |
+| Language picker | Proposed; the fifteen are chosen | [The picker at fifteen](2026-09-09-15-language-picker-at-fifteen.md). The control shows two-letter codes and the model names languages in an N×N matrix — 225 strings at fifteen. Fonts, draft status and the completeness check already scale. |
 | Installed-app Back | Proposed; the trail it rebases on is now in `done/` |  [Back navigation](2026-09-09-10-installed-app-back-navigation.md). Check actual route history and mobile controls before implementing; installed iPhone/Android acceptance remains open. |
 | Sign-in autofill | Implemented; phone acceptance open | [Sign-in code](2026-09-09-01-sign-in-code-autofill.md). Watch a real phone offer the emailed code. |
 | Email channel | Verified locally; remote delivery open | [React Email](2026-09-09-02-email-channel-on-react-email.md). Verify real inbox delivery after the next authorised staging deployment. |

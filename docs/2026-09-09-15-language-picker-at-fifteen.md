@@ -108,3 +108,74 @@ app set to"* for somebody who cannot read the rest of the sidebar.
 - **Locale detection.** `strategy: ["localStorage", "cookie", "preferredLanguage", "baseLocale"]`
   already prefers the browser's own list before falling back, and fifteen
   languages makes that better, not worse.
+
+## The fifteen, picked 2026-09-09
+
+The Product Owner asked me to choose, by what is most spoken in the world. I
+have, and one correction is owed first: **pure speaker count is not quite the
+right criterion for this product**, and pretending otherwise would be picking
+badly on purpose. A Thai youth basketball platform has a second axis — where it
+is used and who plays the sport — and a third that decides what a language
+actually costs to ship: its script.
+
+So the list below is the world's most-spoken, adjusted at the edges for a
+product in Thailand, and ordered by what I would ship first.
+
+### Tier 1 — free, and the whole point (ship first)
+
+`latin` and `latin-ext` are downloaded unconditionally, so a Latin-script
+language adds **zero bytes**. CJK is drawn by the reader's own system font, so
+it adds zero too. All eight already have a script mapping or need none.
+
+| | Language | Endonym | Why |
+| --- | --- | --- | --- |
+| 1 | English | English | base locale |
+| 2 | Thai | ไทย | home |
+| 3 | Japanese | 日本語 | shipped |
+| 4 | Chinese (Simplified) | 简体中文 | most speakers on earth; system font, no download |
+| 5 | Spanish | Español | second by total speakers; a basketball language |
+| 6 | Portuguese | Português | top ten, and Brazil is a basketball nation |
+| 7 | Indonesian | Bahasa Indonesia | ~200M, next door, trivially cheap |
+| 8 | French | Français | global, free |
+
+### Tier 2 — free, and closer to home than the raw numbers suggest
+
+| | Language | Endonym | Why |
+| --- | --- | --- | --- |
+| 9 | Filipino | Filipino | outside the global top ten and **in** for this product: the Philippines is among the most basketball-obsessed countries on earth |
+| 10 | Vietnamese | Tiếng Việt | regional; `vi` is already mapped to the vietnamese subset |
+| 11 | Korean | 한국어 | regional, basketball-strong, system font |
+| 12 | German | Deutsch | free, and European basketball |
+| 13 | Russian | Русский | top ten; `ru` already mapped to cyrillic |
+
+### Tier 3 — genuinely top-five by speakers, and genuinely expensive
+
+These two are in any honest world list and neither is free. They go last, each
+behind its own piece of work.
+
+| | Language | Endonym | Cost |
+| --- | --- | --- | --- |
+| 14 | Hindi | हिन्दी | a new script. Needs a `devanagari` entry in `SCRIPTS` and a self-hosted Noto Sans Devanagari subset — the first new font family since Thai. |
+| 15 | Arabic | العربية | **right-to-left.** Not a font problem, a layout problem: every sidebar, drawer, breadcrumb and chevron in the app assumes a direction. Blocked on installing the registry's `direction` item and checking the layout, which is step 5 above. |
+
+### What I left out, and why
+
+- **Bengali (~270M) and Urdu (~230M)** outrank German by speakers. Both need a
+  new script — Bengali its own, Urdu the Arabic one plus RTL — so they carry
+  Tier 3 cost for less product relevance than the Tier 2 entries they would
+  displace. Add them when a reader asks, not to win an argument about counts.
+- **Marathi, Telugu, Tamil, Nigerian Pidgin** appear in top-fifteen lists and
+  are not plausible for this product this year.
+- **Lao, Khmer, Burmese** are neighbours and each needs its own font. Worth more
+  than Hindi to this product; worth revisiting the moment the platform crosses a
+  border.
+
+### Sequencing
+
+1. The picker itself (steps 1–4 above). Needed at eight languages, never mind
+   fifteen, and independent of which ones.
+2. Tier 1 and Tier 2 together: eleven Latin/CJK/Cyrillic languages, no new font
+   bytes, each released only when its messages are complete.
+3. Hindi, behind its font.
+4. Arabic, behind RTL — which is the largest single piece of work on this page
+   and should not be started by accident.
