@@ -11,10 +11,43 @@ No Remy Sport application changes are part of this review.
 - Disposable source checkout: `/private/tmp/remy-orpc-review-20260909`.
 - Follow upstream `CONTRIBUTING.md`, workspace manifest and content scripts.
 - Node 26.8.1 is installed locally; upstream pins pnpm 12.0.0.
-- Existing pnpm auto-switch launcher was an uninstalled native-binary placeholder.
-  Standard npm package execution successfully launches the pinned version:
-  `mise exec node@26.8.1 -- npm exec --yes --package=pnpm@12.0.0 -- pnpm`.
-- Dependency installation: append `install --frozen-lockfile` to that command.
+- The clone originally had no mise file. A follow-up added the configuration
+  below to its root; it is a local review addition, not an upstream change.
+- The initial review used npm's standard package runner to launch pnpm because
+  the existing global auto-switch launcher was an incomplete native installer.
+  The verified mise setup below replaces that workaround.
+
+### Mise setup added after the review
+
+The complete clone-root configuration is recorded here so it survives disposal
+of the temporary checkout:
+
+```toml
+[tools]
+node = "26.8.1"
+pnpm = "12.0.0"
+
+[settings]
+# Keep nested package scripts on the pins, ahead of global package managers.
+activate_aggressive = true
+
+[tasks.setup]
+description = "Install the locked workspace dependencies with the pinned toolchain"
+run = "pnpm install --frozen-lockfile --network-concurrency=1"
+```
+
+Use the native `pnpm` backend, not `npm:pnpm`: the latter left an unbuilt
+pnpm 12 installer placeholder in this environment. That failed installation
+was removed. Without `activate_aggressive`, nested pnpm calls selected the
+broken Homebrew launcher even though a direct mise invocation used the pin.
+The documented setting fixes precedence without changing the user's global
+configuration or introducing a custom launcher.
+
+Verified: `mise run setup` succeeds with Node 26.8.1 / pnpm 12.0.0 and the
+frozen lockfile; `mise exec -- pnpm run docs:validate` passes including its
+nested pnpm invocation. The earlier production build used these same versions.
+Mise manages the tools; the setup task delegates package installation to the
+upstream package manager and preserves its lockfile and policy checks.
 
 ## Verdict
 
@@ -27,17 +60,16 @@ and recommendation frequency were not measured.
 
 ## Verified local workflow
 
-Run these from the cloned upstream repository using pnpm 12.0.0 and Node 26.8.1.
-The standard npm launcher above was used for each pnpm command on this machine.
+Run these from the cloned upstream repository with the mise file above.
 
 ```sh
-pnpm install --frozen-lockfile --network-concurrency=1
-pnpm run docs:validate
-pnpm --filter @orpc/content run build
-pnpm --filter @orpc/content run preview --host 127.0.0.1 --port 4325
+mise run setup
+mise exec -- pnpm run docs:validate
+mise exec -- pnpm --filter @orpc/content run build
+mise exec -- pnpm --filter @orpc/content run preview --host 127.0.0.1 --port 4325
 # In another terminal while preview runs:
-pnpm --filter @orpc/content exec blume audit --json
-pnpm --filter @orpc/content exec blume audit --url http://127.0.0.1:4325 --json
+mise exec -- pnpm --filter @orpc/content exec blume audit --json
+mise exec -- pnpm --filter @orpc/content exec blume audit --url http://127.0.0.1:4325 --json
 ```
 
 Install succeeded without changing the lockfile. Serial downloads resolved the
@@ -46,7 +78,8 @@ network timeout problem. Strict validation passed: 212 docs-mentioned symbols,
 The production build succeeded: 126 content pages, 45 configured redirects,
 Cloudflare server output, Orama search, four published skills. The audit scans
 129 HTML pages including custom pages. The sitemap contains 128 URLs.
-Upstream Git status remained clean after installation, build and review.
+Upstream Git status remained clean after the initial installation, build and
+review. The follow-up adds only the local mise configuration described above.
 
 ## Runtime results
 
