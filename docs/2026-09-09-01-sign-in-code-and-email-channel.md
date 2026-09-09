@@ -122,22 +122,56 @@ still states the stronger claim and should be corrected to match.
 
 ## Not recommended
 
-Two items in the proposal contradict decisions already recorded beside the code.
-Raising them here rather than silently dropping them; the Product Owner can
-overrule either, but the reasons are on the record.
+Two things the proposal asked for would undo decisions this repo already made on
+purpose. Neither is refused — both are the Product Owner's call. They are here
+so the choice is made with the reason in front of it, rather than by accident.
 
-- **A magic-link button as the Android fallback.** `src/auth.ts:271` says why
-  there is no link: "A link in an inbox is a bearer credential that survives
-  forwarding." Adding `magicLink` re-introduces exactly the credential shape
-  that comment rejects, for a convenience that a working auto-submit largely
-  delivers anyway. If the Product Owner wants it, it should be a decision about
-  that risk, not a fallback slipped in beside an ergonomics fix.
-- **React Email.** Email copy is already Paraglide's, in `messages/`, in EN/TH,
-  reviewed in one place and asserted by tests. A `emails/` folder of React
-  templates makes it two places, adds a dependency tree to a repo with a
-  [fewer dependencies](2026-09-05-03-fewer-dependencies.md) plan behind it, and
-  buys HTML — which nothing currently asks for (§3). If branded HTML is wanted,
-  a wrapper function around the existing strings is the smaller answer.
+### A magic link in the sign-in email
+
+A magic link is a link in an email that signs you in when you click it, instead
+of a code you type.
+
+**Why not.** The link *is* the key to the account, and it keeps working for
+whoever is holding the email. Forward that mail to a colleague and you have
+forwarded your account. Let it sync to a shared tablet, or leave the mailbox
+open on a desk, and the person who opens it is signed in as you. A six-digit
+code cannot be clicked by somebody else: it has to be read and retyped by the
+person sitting in front of the app, and it expires.
+
+This is already written down beside the code. `src/auth.ts:271` says the OTP
+mail deliberately carries no URL, "unlike every other mail this app sends",
+because "a link in an inbox is a bearer credential that survives forwarding".
+Adding `magicLink` puts that exact thing back.
+
+**What it was for.** The proposal wanted it as a fallback for Android, where it
+assumed autofill would not work. Android does autofill these codes, and the
+auto-submit step in this plan removes most of the remaining friction. So the
+trade is a real safety property for a convenience that is being fixed another
+way.
+
+**If the answer is yes anyway**, it should be decided as "we accept that a
+forwarded email signs somebody in", not slipped in beside an ergonomics fix.
+
+### React Email
+
+React Email is a library for writing emails as React components in an `emails/`
+folder.
+
+**Why not.** Every word this app emails already lives in one place: the
+Paraglide messages in `messages/`, English and Thai side by side, reviewed
+together and asserted by tests. React templates would hold wording too, so the
+same sentence exists twice, in two languages, and the two drift apart — the
+usual result being an English line in a Thai email.
+
+What the library buys is nicely formatted HTML mail. Nothing has asked for that,
+and today every email the app sends is plain text: `html` exists as an optional
+field and no renderer ever sets it (§3). It also adds a dependency tree to a
+repo that has [fewer dependencies](2026-09-05-03-fewer-dependencies.md) behind
+it.
+
+**If branded HTML is wanted**, the smaller answer is one function that wraps the
+existing translated strings in HTML — same copy, one place, no new template
+system.
 
 ## Steps
 
