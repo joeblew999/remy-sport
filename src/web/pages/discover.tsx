@@ -224,7 +224,7 @@ export function DiscoverPage({ goto, spoiler, query, setParam }: DiscoverProps) 
               <ItemActions className="flex-wrap justify-end">
                 <Badge variant="outline" data-testid="event-type">{typeLabel(e.typeCode)}</Badge>
                 <StatusBadge status={e.status} data-testid="event-status">{e.statusLabel}</StatusBadge>
-                <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden />
+                <ChevronRightIcon className="size-4 text-muted-foreground rtl:rotate-180" aria-hidden />
               </ItemActions>
             </Item>
           ))}

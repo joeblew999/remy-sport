@@ -83,7 +83,7 @@ export function WhoAreYou() {
                 <ItemTitle>{label("roles", code)}</ItemTitle>
                 {code === "REFEREE" && <ItemDescription>{m.role_pending_note()}</ItemDescription>}
               </ItemContent>
-              <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden />
+              <ChevronRightIcon className="size-4 text-muted-foreground rtl:rotate-180" aria-hidden />
             </Item>
           ))}
         </ItemGroup>

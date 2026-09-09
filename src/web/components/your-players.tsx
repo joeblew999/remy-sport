@@ -120,7 +120,7 @@ export function YourPlayers({ goto }: { goto: (r: Route) => void }) {
                     .join(" · ")}
                 </ItemDescription>
               </ItemContent>
-              {p.teamId && <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden />}
+              {p.teamId && <ChevronRightIcon className="size-4 text-muted-foreground rtl:rotate-180" aria-hidden />}
             </button>
             {/* The model's answer for this reader on this player, not assumed
                 from the row being on their own profile — a guardian holds

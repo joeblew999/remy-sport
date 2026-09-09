@@ -12,7 +12,7 @@
 import { createContext, useContext, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { overwriteGetLocale } from "../../paraglide/runtime.js";
-import { VOCABULARY } from "../../domain/vocabularies";
+import { LOCALE, VOCABULARY } from "../../domain/vocabularies";
 import { orpc } from "./orpc";
 import type { ReactNode } from "react";
 import {
@@ -101,8 +101,30 @@ overwriteGetLocale(() => currentLocale);
  * Guarded like the localStorage read above: this module is imported by tests
  * that have no document.
  */
+/**
+ * Which way a language reads, from the model rather than from a list here.
+ *
+ * `direction` is declared on every LOCALE row, so adding Arabic is a change to
+ * the Product Owner's model and not to this file. An unknown code reads
+ * left-to-right, which is the safe default: a mis-declared language looks
+ * ordinary rather than mirrored.
+ */
+export const directionOf = (locale: string): "ltr" | "rtl" =>
+  (LOCALE.find((l) => l.code === locale) as { direction?: string } | undefined)?.direction === "rtl"
+    ? "rtl"
+    : "ltr";
+
+/**
+ * `dir` goes on the document beside `lang`, and for a different reason.
+ *
+ * `lang` is read once at load by screen readers and crawlers. `dir` is read
+ * continuously by the layout: it drives CSS logical properties, Tailwind's
+ * `rtl:` variants and the browser's own bidirectional text algorithm, so it has
+ * to change the moment the reader switches language rather than on next load.
+ */
 try {
   document.documentElement.lang = currentLocale;
+  document.documentElement.dir = directionOf(currentLocale);
 } catch {
   // no document — not a browser
 }
@@ -160,6 +182,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
         currentLocale = next;
         setLocaleState(next);
         document.documentElement.lang = next;
+        document.documentElement.dir = directionOf(next);
         try {
           localStorage.setItem(STORAGE_KEY, next);
         } catch {

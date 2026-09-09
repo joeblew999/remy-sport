@@ -192,7 +192,7 @@ export function LinkRow({ href, title, children, ...props }: { href: string; tit
         <ItemTitle>{title}</ItemTitle>
         {children}
       </ItemContent>
-      <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden />
+      <ChevronRightIcon className="size-4 text-muted-foreground rtl:rotate-180" aria-hidden />
     </Item>
   );
 }

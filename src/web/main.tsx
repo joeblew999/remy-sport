@@ -10,7 +10,8 @@ import { isNativeApp, pushState } from "./lib/push";
 import { useNativeScoreNotifications } from "./lib/data";
 import { parseRoute, useRouter, type Page } from "./lib/router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { LocaleProvider, useLocale, type Locale } from "./lib/locale";
+import { LocaleProvider, directionOf, useLocale, type Locale } from "./lib/locale";
+import { DirectionProvider } from "@/components/ui/direction";
 import { useSession } from "./lib/session";
 import { m } from "./lib/i18n";
 import { CrashBoundary } from "./components/crash";
@@ -85,9 +86,27 @@ const DEFAULTS: Required<TweakDefaults> = {
 /** The loading line, read at render so it follows a language switch. */
 const loadingLabel = () => m.loading();
 
+/**
+ * The locale keys the subtree; the direction wraps it.
+ *
+ * `document.dir` (set in lib/locale.tsx) is enough for CSS — logical
+ * properties, Tailwind's `rtl:` variants, the browser's bidi algorithm. It is
+ * not enough for Base UI, which decides which way a menu opens, which way a
+ * slider fills and which arrow key moves forward from its own context rather
+ * than from the DOM. Without this provider an Arabic reader gets mirrored text
+ * inside primitives that still behave left-to-right, which is worse than either
+ * direction done consistently.
+ *
+ * `@shadcn/direction` is that provider, taken from the registry rather than
+ * written here — docs/done/2026-09-09-15-language-picker-at-fifteen.md, step 5.
+ */
 function LocalisedApp() {
   const { locale } = useLocale();
-  return <App key={locale}/>;
+  return (
+    <DirectionProvider direction={directionOf(locale)}>
+      <App key={locale}/>
+    </DirectionProvider>
+  );
 }
 
 /**

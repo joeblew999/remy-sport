@@ -21,7 +21,7 @@ import { isNativeApp } from "../lib/push";
 import type { PwaInstall } from "../lib/installable";
 import type { ComponentProps } from "react";
 import { useSession } from "../lib/session";
-import { useLocale, type Locale } from "../lib/locale";
+import { directionOf, useLocale, type Locale } from "../lib/locale";
 import { LOCALE } from "../../domain/vocabularies";
 import { useTheme } from "../lib/theme-provider";
 import { m } from "../lib/i18n";
@@ -262,6 +262,7 @@ export function AppSidebar({ page, spoiler, onSpoilerChange, variant }: {
   variant?: ComponentProps<typeof Sidebar>["variant"];
 }) {
   const { user } = useSession();
+  const { locale } = useLocale();
   const { isMobile, openMobile, setOpenMobile } = useSidebar();
   const group = (title: string, items: NavItem[]) => (
     <SidebarGroup>
@@ -321,5 +322,20 @@ export function AppSidebar({ page, spoiler, onSpoilerChange, variant }: {
     );
   }
 
-  return <Sidebar collapsible="icon" variant={variant}>{content}</Sidebar>;
+  /**
+   * The drawer changes sides in a right-to-left language.
+   *
+   * The registry's Sidebar positions itself physically — `left-0` / `right-0`
+   * keyed off `data-side` — and defaults to the left, so `dir="rtl"` alone
+   * mirrors the text inside it and leaves the panel where it was. In Arabic the
+   * navigation belongs on the right, which is where the reader's eye starts.
+   *
+   * `side` is the registry's own prop, so this is choosing between the two
+   * behaviours it already ships rather than overriding its CSS.
+   */
+  return (
+    <Sidebar collapsible="icon" variant={variant} side={directionOf(locale) === "rtl" ? "right" : "left"}>
+      {content}
+    </Sidebar>
+  );
 }

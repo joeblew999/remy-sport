@@ -169,6 +169,11 @@
       "files": {
         "src/web/components/ui/select.tsx": "d3c275e0212325c0bba459800fb155839783d33d5c91d363b5b974973aa7e9e0"
       }
+    },
+    "@shadcn/direction": {
+      "files": {
+        "src/web/components/ui/direction.tsx": "ab76d53aee6608ca1465874e1565d36fde7c0d1642088f0428ab5f6342a1e863"
+      }
     }
   }
 }
