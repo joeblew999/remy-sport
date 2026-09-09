@@ -3,7 +3,7 @@ import press from "fumapress/vite";
 import { fumadocsMdx } from "fumadocs-mdx/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { isAbsolute, relative, resolve } from "node:path";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 
 // Fail the content build if a Vite module is loaded from the app or its install.
 // This is dependency isolation, not an OS sandbox for malicious build scripts.
@@ -24,6 +24,10 @@ const boundary: Plugin = {
     // Waku probes this HTTP endpoint as a module in development before routing
     // it to Fumapress. It is a URL, not an app filesystem dependency.
     if (file === "/api/search") return;
+    // Waku also probes locale page URLs as modules for Worker-originated
+    // requests. Only non-filesystem public document URLs can fall through;
+    // real absolute files still undergo the package boundary check below.
+    if (file && !existsSync(file) && /^\/(en|th|ja)(?:\/[A-Za-z0-9_-]+)*(?:\.md)?$/.test(file)) return;
     if (!file || !isAbsolute(file) || file.startsWith("/@")) return;
     const rel = relative(root, file);
     if (rel.startsWith("../") || isAbsolute(rel)) throw new Error(`Help build escaped its package: ${file}`);

@@ -6,13 +6,14 @@ import deployment from './deployment.generated.json';
 
 function reply(value, status = 200) { return Response.json(value, { status, headers: { 'Cache-Control': 'no-store' } }); }
 function schema() {
-  return { openapi: '3.1.0', info: { title: 'Remy Sport public assistant API', version: '1.0.0' }, servers: [{ url: deployment.origin }], paths: Object.fromEntries(operations.map(op => [`/api${op.path}`, { get: { operationId: op.name, description: declarations().find(d => d.name === op.name).description, parameters: Object.entries(declarations().find(d => d.name === op.name).parameters.properties).map(([name, property]) => ({ name, in: name === 'id' ? 'path' : 'query', required: name === 'id', schema: property })), responses: { 200: { description: 'Timestamped public application result', content: { 'application/json': { schema: { type: 'object', properties: { source: { type: 'string' }, retrievedAt: { type: 'string' }, data: { type: 'object' } } } } } } } } }])) };
+  return { openapi: '3.1.0', info: { title: 'Remy Sport public assistant API', version: '1.0.0' }, servers: [{ url: deployment.toolsOrigin ?? deployment.origin }], paths: Object.fromEntries(operations.map(op => [`/api${op.path}`, { get: { operationId: op.name, description: declarations().find(d => d.name === op.name).description, parameters: Object.entries(declarations().find(d => d.name === op.name).parameters.properties).map(([name, property]) => ({ name, in: name === 'id' ? 'path' : 'query', required: name === 'id', schema: property })), responses: { 200: { description: 'Timestamped public application result', content: { 'application/json': { schema: { type: 'object', properties: { source: { type: 'string' }, retrievedAt: { type: 'string' }, data: { type: 'object' } } } } } } } } }])) };
 }
 async function assets(request, env) {
   if (env.VITE_ORIGIN) {
     if (deployment.environment !== 'dev' || env.VITE_ORIGIN !== 'http://127.0.0.1:8791') throw new Error('Invalid development asset target');
     const path = new URL(request.url);
-    return fetch(env.VITE_ORIGIN + path.pathname + path.search, { redirect: 'manual' });
+    const html = !path.pathname.includes('.') && !path.pathname.startsWith('/api/');
+    return fetch(env.VITE_ORIGIN + path.pathname + path.search, { redirect: 'manual', headers: { Accept: html ? 'text/html' : '*/*' } });
   }
   return env.ASSETS.fetch(request);
 }

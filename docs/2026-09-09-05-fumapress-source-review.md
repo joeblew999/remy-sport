@@ -402,3 +402,12 @@ and use fetch manual redirects with explicit status rejection because workerd
 does not implement redirect:error. Neither issue is reported as a Fuma bug.
 The shared Wrangler helper can explicitly clear ambient environment selection
 for already-resolved component configs, preventing environment suffix drift.
+
+The dev Worker also exposed Waku probing locale page URLs as filesystem modules.
+The Vite guard now permits non-existent filesystem paths only when they match
+the public locale URL namespace; existing absolute files still undergo the
+package boundary check. Dev verification includes a rejected request for the
+app's source file through the help proxy. This extends the earlier /api/search
+integration fix without allowing arbitrary app imports. MCP search also now
+weights guide descriptions, after a Worker test found sign-in could fall outside
+the default top five email results. These are local integration fixes.

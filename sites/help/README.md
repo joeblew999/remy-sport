@@ -98,14 +98,20 @@ public site imports no editor or MCP service. Nothing is added to the main appâ€
 source, asset bundle or Vite/Worker configuration. Shared commands check app and
 dependency fingerprints before/after without resetting other work.
 
-The site remains **noindex**, with `https://help.remy.invalid` as the reserved
-canonical origin. Thai/Japanese translations await human review. Local SEO and
+The local site remains **noindex**, with `https://help.remy.invalid` as its
+reserved canonical origin. Published production help is indexable. Thai/Japanese translations await human review. Local SEO and
 LLM checks verify output; they do not prove Google indexing or Gemini discovery.
 
 [Plan and verification record](../../docs/2026-09-09-04-blume-public-help.md) Â·
 [Upstream bugs and fixes](../../docs/2026-09-09-05-fumapress-source-review.md)
 
 ## Cloudflare environments
+
+- Production: https://help.remy.ubuntusoftware.net/
+- Staging: https://staging-help.remy.ubuntusoftware.net/
+- MCP: append `/mcp` to the matching help origin.
+- Production sitemap: https://help.remy.ubuntusoftware.net/sitemap.xml
+
 
 The app retains its own Worker. Help and read-only MCP share an independent
 help Worker per environment; Studio is never deployed. The dev command uses

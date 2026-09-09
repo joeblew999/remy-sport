@@ -5,6 +5,7 @@ export const site = {
   origin: deployment.origin,
   environment: deployment.environment,
   appOrigin: deployment.appOrigin,
+  toolsOrigin: deployment.toolsOrigin ?? deployment.origin,
   description: "Guides to finding games, signing in, following teams and managing notifications in Remy Sport.",
   reviewedAt: "2026-09-09",
 };

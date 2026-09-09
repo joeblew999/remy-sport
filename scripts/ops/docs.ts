@@ -173,19 +173,17 @@ async function preview(interactive: boolean, live = false, author = false) {
     if (!ready) throw new Error("docs: preview did not become ready")
     if (interactive) {
       await freePort(8792)
-      if (live) {
+      {
         const config = join(toolSite, ".proof/dev-wrangler.json")
         mkdirSync(join(toolSite, ".proof"), { recursive: true })
         const target = helpTarget("dev")
         writeFileSync(config, JSON.stringify({ name: "remy-help-local", main: join(toolSite, "worker.mjs"), compatibility_date: "2026-09-09", compatibility_flags: ["nodejs_compat"], workers_dev: false, vars: { ENVIRONMENT: "dev", HELP_ORIGIN: target.origin, APP_ORIGIN: target.appOrigin, VITE_ORIGIN: url } }))
         companion = spawn("node", [join(site, "node_modules/wrangler/bin/wrangler.js"), "dev", "--local", "--config", config, "--port", "8792", "--ip", "127.0.0.1"], { cwd: toolSite, env: childEnv(), stdio: "inherit" })
-      } else {
-        companion = spawn("node", [join(toolSite, "server.mjs"), url, "8792"], { cwd: toolSite, env: childEnv(), stdio: "inherit" })
       }
       let toolsReady = false
       for (let attempt = 0; attempt < 50; attempt++) {
         if (companion.exitCode !== null) throw new Error("docs: tools server exited")
-        try { toolsReady = (await fetch("http://127.0.0.1:8792/health")).ok } catch { /* starting */ }
+        try { toolsReady = (await fetch("http://127.0.0.1:8792/health", { signal: AbortSignal.timeout(1000) })).ok } catch { /* starting */ }
         if (toolsReady) break
         await new Promise(resolve => setTimeout(resolve, 100))
       }
@@ -211,6 +209,7 @@ async function preview(interactive: boolean, live = false, author = false) {
         const result = await fetch(url + path, { signal: AbortSignal.timeout(5000) })
         if (!result.ok) throw new Error(`docs: live endpoint failed ${path}: ${result.status}`)
       }
+      await command(["node", "worker-check.mjs", "http://127.0.0.1:8792", "dev"], toolSite)
       console.log(`docs: live development ready at ${url}; edits update through Vite; Ctrl-C stops it`)
       await once(child, "exit")
       return

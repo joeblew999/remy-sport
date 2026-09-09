@@ -1,6 +1,9 @@
 # Public help: isolated Fumapress proof
 
-Status: local proof implemented on 2026-09-09. This replaces the earlier proposal
+Status: isolated dev, staging and production help/MCP are implemented; both remote
+help Workers were deployed and externally verified on 2026-09-09. Real Gemini
+execution and Google indexing remain unverified pending Google credentials/access.
+The original local proof was implemented on 2026-09-09. This replaces the earlier proposal
 to merge generated help into the app's Worker. The user's priority is protecting
 the repository and application from documentation dependencies.
 
@@ -455,3 +458,53 @@ this specific negative-cache mismatch using public DNS with normal original-host
 TLS verification; no hostfile/environment overrides or certificate bypasses.
 Shared status subsequently verified the deployed identity and application reads.
 The original timed-out deployment is not retroactively described as a passing run.
+
+### Deployment and final verification — 2026-09-09
+
+- Production: https://help.remy.ubuntusoftware.net/; Worker remy-help;
+  version 38c3f1fa-617d-4be9-9299-f6667049dca6; build
+  2026-09-09T06:36:54.916Z, help source revision 0b483b6. It calls only
+  https://remy.ubuntusoftware.net, whose existing build remains
+  2026-09-03T04:15:32.014Z. No app deployment or database change was performed.
+- Staging: https://staging-help.remy.ubuntusoftware.net/; Worker
+  remy-help-staging. Verified rollback restored version
+  b03d49c8-5f78-4b95-abab-7bd62e8b860e and build
+  2026-09-09T05:24:47.789Z (help revision 0dd547c), then repeated the external
+  protocol/API tests. It calls only the existing staging app build.
+- Production check/deploy passed all 39-page workerd audits, three-language MCP
+  search, guide retrieval, six real public application reads, same-origin proxy,
+  unknown/write/body-limit rejection, correct identity and no reserved canonical
+  URLs. Production HTTP/meta noindex is absent; staging retains it.
+- The final public discovery probe passed HTTPS pages, Markdown exports,
+  sitemap, robots and the six application reads. Chrome independently loaded
+  production and verified its canonical URL, six-operation schema and public
+  event response. Cloudflare bindings contain assets, metadata and rate limit,
+  plus non-secret environment URLs; none of the app's data/services bindings.
+- Each completed deployment/rollback reported 2,464 app/dependency fingerprints
+  unchanged. A killed rollback preflight was retried before mutation; a killed
+  production preflight stopped before publication. Command timeout/progress
+  diagnostics were improved; failed attempts are not counted as passing runs.
+- Local author command now runs Vite at 8791, the actual Worker transport at
+  8792 and Studio at 8793, with automatic protocol/API checks. It verifies the
+  public-document URL handling and rejects app-source access through the help
+  proxy. Dev-only connection links now point to the local Worker. These local
+  follow-up fixes do not change the already verified remote deployments.
+- Five focused repository tests passed. Typecheck/lint passed before deployment.
+  A later root typecheck encountered transient concurrent app JSX edits outside
+  the help changes; they were left untouched and the subsequent result is
+  recorded below rather than attributed to help.
+
+Remaining external acceptance: `bun run ops docs gemini --env production`
+refused because GEMINI_API_KEY was absent from environment and fnox. No model
+call was run or claimed. Search Console opened its public about/login page;
+there is no authenticated property access here, so no sitemap submission or
+indexing proof was claimed. The user was asked to configure the key and confirm
+Search Console domain verification. Sitemap to submit once access is available:
+https://help.remy.ubuntusoftware.net/sitemap.xml. No extra content work was done.
+
+Final root-typecheck retry still fails in concurrent app UI migration files:
+unresolved Row/RowGroup names and unused Item/ItemGroup imports (for example
+src/web/components/event-divisions.tsx and src/web/pages/team.tsx). These files
+were not changed by the help work. The migration needs its imports/tags completed;
+root lint was not rerun after that failed typecheck. The five help/repository
+tests and actual dev/staging/production Worker checks passed independently.

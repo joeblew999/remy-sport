@@ -9,7 +9,7 @@ const root = resolve(import.meta.dirname, '../..')
 const help = join(root, 'sites/help')
 const tools = join(root, 'sites/help-tools')
 type Run = (args: string[], cwd?: string) => Promise<void>
-export interface HelpTarget { environment: string; name: string; origin: string; appOrigin: string; buildId: string; commit: string; contractDigest?: string; appBuildId?: string; versionId?: string }
+export interface HelpTarget { environment: string; name: string; origin: string; appOrigin: string; buildId: string; commit: string; contractDigest?: string; appBuildId?: string; versionId?: string; toolsOrigin?: string }
 export function helpTarget(environment: string): HelpTarget {
   if (!['dev', 'staging', 'production'].includes(environment)) throw new Error('Unknown help environment')
   const remote = environment === 'dev' ? null : JSON.parse(readFileSync(join(help, 'deployment.json'), 'utf8'))[environment]
@@ -22,7 +22,7 @@ export function helpTarget(environment: string): HelpTarget {
     }
   }
   const appOrigin = environment === 'dev' ? 'http://127.0.0.1:8787' : originOf(resolveTarget(['--env', environment]))
-  return { environment, name: remote?.name ?? 'remy-help-local', origin: remote ? `https://${remote.host}` : 'https://help.remy.invalid', appOrigin, buildId: new Date().toISOString(), commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim() }
+  return { environment, toolsOrigin: remote ? `https://${remote.host}` : 'http://127.0.0.1:8792', name: remote?.name ?? 'remy-help-local', origin: remote ? `https://${remote.host}` : 'https://help.remy.invalid', appOrigin, buildId: new Date().toISOString(), commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim() }
 }
 export function writeHelpTarget(target: HelpTarget) {
   for (const dir of [help, tools]) writeFileSync(join(dir, 'deployment.generated.json'), JSON.stringify(target, null, 2))

@@ -105,5 +105,5 @@ for (let i = 0; i < 3; i++) await get("/en.md", "text/markdown");
 // Compare the served index with the artifact, catching a preview of stale output.
 assert.equal(await readFile(resolve(publicDir, "llms.txt"), "utf8"), llms);
 await mkdir(resolve(root, ".proof"), { recursive: true });
-await writeFile(resolve(root, ".proof/seo-llm.json"), JSON.stringify({ checkedAt: new Date().toISOString(), scope: "local generated output; preview remains noindex", pages, llmsBytes: Buffer.byteLength(llms), fullBytes: Buffer.byteLength(full), checks: "passed" }, null, 2));
+await writeFile(resolve(root, ".proof/seo-llm.json"), JSON.stringify({ checkedAt: new Date().toISOString(), scope: `local ${site.environment} artifact; indexable: ${site.environment === "production"}`, pages, llmsBytes: Buffer.byteLength(llms), fullBytes: Buffer.byteLength(full), checks: "passed" }, null, 2));
 console.log(`docs audit: ${pages.length} pages passed HTML, metadata, canonical, JSON-LD, social image, Markdown, sitemap and endpoint checks`);

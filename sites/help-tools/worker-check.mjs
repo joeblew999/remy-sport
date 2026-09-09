@@ -3,6 +3,11 @@ import assert from 'node:assert/strict';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 const base = process.argv[2], environment = process.argv[3];
+if (environment === 'dev') {
+  const appSource = new URL('../../src/index.ts', import.meta.url).pathname;
+  const escaped = await fetch(base + '/@fs' + appSource);
+  assert(escaped.status >= 400, 'Help must not serve application source files');
+}
 const health = await (await fetch(base + '/health')).json();
 assert.equal(health.environment, environment);
 const remote = !base.startsWith('http://127.0.0.1:');
@@ -12,13 +17,13 @@ for (const path of ['/en', '/llms.txt', '/llms-full.txt', '/application-openapi.
   assert.equal(response.status, 200, path);
   assert.equal(response.headers.get('x-robots-tag')?.includes('noindex') ?? false, environment !== 'production');
   const text = await response.text();
-  assert(!text.includes('help.remy.invalid'), `${path}: no reserved production links`);
+  if (environment !== 'dev') assert(!text.includes('help.remy.invalid'), `${path}: no reserved production links`);
   if (path === '/en') { assert(text.includes(health.origin + '/en')); assert.equal(/<meta[^>]+content="noindex"/.test(text), environment !== 'production'); }
 }
 const spec = await (await fetch(base + '/application-openapi.json')).json();
 assert.equal(Object.keys(spec.paths).length, 6);
 assert(Object.values(spec.paths).every(path => Object.keys(path).join() === 'get'));
-assert.equal(spec.servers[0].url, health.origin);
+assert.equal(spec.servers[0].url, health.toolsOrigin ?? health.origin);
 assert.equal((await fetch(base + '/api/events', { method: 'POST' })).status, 405);
 assert.equal((await fetch(base + '/api/me')).status, 404);
 assert.equal((await fetch(base + '/mcp', { method: 'POST', headers: { Origin: 'https://example.com' }, body: '{}' })).status, 403);
