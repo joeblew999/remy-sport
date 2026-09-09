@@ -48,6 +48,15 @@ const SURFACES = {
   notifications: () => "/#/notifications",
   /** Where you are signed in. Sessions, not subscriptions — a different list. */
   sessions: () => "/#/devices",
+  /** Who has asked to talk to you, and who you are already talking to. */
+  meetings: () => "/#/meetings",
+  /**
+   * One meeting: the people in it, and the media once you join.
+   *
+   * Not `meeting-test`, which is the dev-only two-seat experiment and a
+   * different surface with different copy — see tests/repo/copy-surfaces.test.ts.
+   */
+  meeting: (id?: string) => (id ? `/#/meeting/${id}` : "/#/meeting"),
   /** Signing in. */
   login: () => "/#/login",
   /** Platform administration. */

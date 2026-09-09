@@ -95,7 +95,7 @@ Named tests describe specific cases, not exhaustive permission coverage or the l
 | BROWSE_TEAMS | PLATFORM | [src/web/pages/teams.tsx](../src/web/pages/teams.tsx) | — | teams.list |
 | CONFIRM_MATCH_STATUS | GAME | [src/web/components/schedule.tsx](../src/web/components/schedule.tsx) | [src/web/components/schedule.tsx](../src/web/components/schedule.tsx) | games.setStatus |
 | CREATE_EVENT | PLATFORM | [src/web/components/create-event.tsx](../src/web/components/create-event.tsx), [src/web/pages/admin.tsx](../src/web/pages/admin.tsx) | [src/web/pages/discover.tsx](../src/web/pages/discover.tsx) | events.create |
-| CREATE_MEETING | PLATFORM | [src/web/pages/meetings.tsx](../src/web/pages/meetings.tsx) | — | meetings.create, meetings.mine, meetings.people |
+| CREATE_MEETING | PLATFORM | [src/web/pages/meetings.tsx](../src/web/pages/meetings.tsx) | — | meetings.create, meetings.mine |
 | CREATE_PLAYER | PLATFORM | [src/web/components/new-player.tsx](../src/web/components/new-player.tsx), [src/web/pages/team.tsx](../src/web/pages/team.tsx) | [src/web/pages/profile.tsx](../src/web/pages/profile.tsx), [src/web/pages/team.tsx](../src/web/pages/team.tsx) | players.create |
 | CREATE_TEAM | PLATFORM | [src/web/pages/org.tsx](../src/web/pages/org.tsx) | — | teams.create |
 | CREATE_USER_ACCOUNT | PLATFORM | [src/web/pages/admin.tsx](../src/web/pages/admin.tsx) | — | auth.admin/create-user |
@@ -1397,9 +1397,6 @@ These remain unreviewed unless explicitly classified in the ledger. Arrays and r
 - output.meetings.mine.meetings[].participants[].userId
 - output.meetings.mine.meetings[].startsAt
 - output.meetings.mine.meetings[].title
-- output.meetings.people.people
-- output.meetings.people.people[].id
-- output.meetings.people.people[].name
 - output.meetings.respond.ok
 - output.moq.config.token
 - output.moq.config.url
@@ -1479,6 +1476,9 @@ These remain unreviewed unless explicitly classified in the ledger. Arrays and r
 - output.orgs.update.orgTypeCode
 - output.orgs.update.provinceCode
 - output.orgs.update.slug
+- output.people.list.people
+- output.people.list.people[].id
+- output.people.list.people[].name
 - output.playerTeams.list.items
 - output.playerTeams.list.items[].fromDate
 - output.playerTeams.list.items[].playerId

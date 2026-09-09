@@ -16,7 +16,7 @@
  * docs/2026-09-09-13-meetings.md.
  */
 
-import { and, desc, eq, inArray, ne } from "drizzle-orm"
+import { and, desc, eq, inArray } from "drizzle-orm"
 import { ORPCError } from "@orpc/server"
 import { z } from "zod"
 import * as schema from "../db/schema"
@@ -45,26 +45,6 @@ const Meeting = z.object({
   myStatusCode: z.enum(MEETING_STATUS_CODES),
   participants: z.array(Participant),
 })
-
-/**
- * Everyone you could invite.
- *
- * Deliberately every account, at the Product Owner's instruction — you cannot
- * invite people you cannot name. It returns an id and a name and nothing else:
- * no address, no role, no status. That is what a picker needs and it is the
- * whole of what this exposes.
- */
-export const people = authed
-  .route({ method: "GET", path: "/meetings/people", summary: "People you can invite", ...authedRoute })
-  .use(requireAction("CREATE_MEETING"))
-  .output(z.object({ people: z.array(z.object({ id: z.string(), name: z.string() })) }))
-  .handler(async ({ context }) => {
-    const rows = await context.db
-      .select({ id: schema.user.id, name: schema.user.name, email: schema.user.email })
-      .from(schema.user)
-      .where(ne(schema.user.id, context.user.id))
-    return { people: rows.map((r) => ({ id: r.id, name: r.name || r.email })) }
-  })
 
 /** The meetings this reader is in, newest first. */
 export const mine = authed

@@ -10,7 +10,6 @@ import { QueryError } from "../components/query-error";
 import { ButtonLink } from "../components/button-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogClose,
@@ -23,6 +22,7 @@ import {
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
+import { PeoplePicker, type Person } from "../components/people-picker";
 
 /**
  * @answers CREATE_MEETING, RESPOND_TO_MEETING_INVITE
@@ -143,19 +143,27 @@ export function MeetingsPage() {
 /**
  * Starting one: a title and the people.
  *
- * The registry's Dialog, which is the only new item this feature installs. The
- * people are `Checkbox` rows in a bordered list rather than a combobox: with no
- * restriction on who may be invited the list is everybody, and a plain list a
- * reader can scan is the honest first version of that.
+ * The people are the registry's `Combobox` in `multiple` + `inline` mode: the
+ * chips are who is coming, typing narrows the list, and the list is part of the
+ * dialog rather than a popup layered over it — on a phone that popup would
+ * cover the form it belongs to.
+ *
+ * The first version was `Checkbox` rows, on the reasoning that a list you can
+ * scan is honest. It is, at twenty accounts. `meetings.people` returns *every*
+ * account with no restriction, so the control has to survive the day that list
+ * is a thousand long, and scrolling a thousand checkboxes to find one coach is
+ * not a thing anybody does twice. Filtering, keyboard navigation and the
+ * announcement of how many matches remain are Base UI's, not ours — writing a
+ * search box over a filtered `.map()` is the wheel this repo does not reinvent.
  */
 function NewMeeting({ onCreated }: { onCreated: () => void }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
-  const [picked, setPicked] = useState<string[]>([]);
-  const people = useQuery({ ...orpc.meetings.people.queryOptions(), enabled: open });
+  const [picked, setPicked] = useState<Person[]>([]);
+  const people = useQuery({ ...orpc.people.list.queryOptions(), enabled: open });
 
   const create = useMutation({
-    mutationFn: () => api.meetings.create({ title, userIds: picked }),
+    mutationFn: () => api.meetings.create({ title, userIds: picked.map((p) => p.id) }),
     onSuccess: () => {
       setOpen(false);
       setTitle("");
@@ -182,27 +190,18 @@ function NewMeeting({ onCreated }: { onCreated: () => void }) {
             />
           </Field>
           <Field orientation="vertical">
-            <FieldLabel>{m.meeting_people_label()}</FieldLabel>
+            <FieldLabel htmlFor="meeting-people-search">{m.meeting_people_label()}</FieldLabel>
             {people.isPending ? (
               <Loading />
             ) : (
-              <ItemGroup className="max-h-64 overflow-y-auto" data-testid="meeting-people">
-                {people.data?.people.map((p) => (
-                  <Item variant="outline" size="sm" key={p.id}>
-                    <Checkbox
-                      id={`invite-${p.id}`}
-                      checked={picked.includes(p.id)}
-                      onCheckedChange={(c) =>
-                        setPicked((was) => (c === true ? [...was, p.id] : was.filter((x) => x !== p.id)))
-                      }
-                      data-testid={`invite-${p.id}`}
-                    />
-                    <ItemContent>
-                      <FieldLabel htmlFor={`invite-${p.id}`} className="font-normal">{p.name}</FieldLabel>
-                    </ItemContent>
-                  </Item>
-                ))}
-              </ItemGroup>
+              <PeoplePicker
+                id="meeting-people-search"
+                people={people.data?.people ?? []}
+                value={picked}
+                onValueChange={setPicked}
+                placeholder={m.meeting_search()}
+                data-testid="meeting-people"
+              />
             )}
           </Field>
           {create.isError && <Muted data-testid="meeting-error">{create.error.message}</Muted>}
@@ -215,7 +214,7 @@ function NewMeeting({ onCreated }: { onCreated: () => void }) {
             onClick={() => create.mutate()}
             data-testid="meeting-send"
           >
-            {m.meeting_create()}
+            {m.meeting_send()}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -14,9 +14,7 @@
   },
   "items": {
     "@shadcn/button": {
-      "files": {
-        "src/web/components/ui/button.tsx": "313353436d0fcc8e44ab470adb614b9fd013d28626f624328ea0d66d41a6c81b"
-      }
+      "files": {}
     },
     "@shadcn/card": {
       "files": {
@@ -24,9 +22,7 @@
       }
     },
     "@shadcn/input": {
-      "files": {
-        "src/web/components/ui/input.tsx": "dab990dfefa0ba78854ab6602ad074270dba9d7d1262184d9bfbb62bd990903b"
-      }
+      "files": {}
     },
     "@shadcn/badge": {
       "files": {
@@ -92,9 +88,7 @@
       }
     },
     "@shadcn/textarea": {
-      "files": {
-        "src/web/components/ui/textarea.tsx": "82601c91ffc6c727d924162c78d7cb853114bcced4e2eb922a68ca12d4239c0f"
-      }
+      "files": {}
     },
     "@shadcn/alert": {
       "files": {
@@ -160,6 +154,15 @@
     "@shadcn/dialog": {
       "files": {
         "src/web/components/ui/dialog.tsx": "8081cc14ab4d744b75925706523192f60cc75863e05cb986aaf6a08677c83304"
+      }
+    },
+    "@shadcn/combobox": {
+      "files": {
+        "src/web/components/ui/input-group.tsx": "492310e6d519441c3e2a3b11330b3f35da71bd37630672f749271b9585a88e64",
+        "src/web/components/ui/combobox.tsx": "ccc44c4aa4afca181f04a174359689b1cd55989f511271ac738c79c881e90010",
+        "src/web/components/ui/button.tsx": "313353436d0fcc8e44ab470adb614b9fd013d28626f624328ea0d66d41a6c81b",
+        "src/web/components/ui/input.tsx": "dab990dfefa0ba78854ab6602ad074270dba9d7d1262184d9bfbb62bd990903b",
+        "src/web/components/ui/textarea.tsx": "82601c91ffc6c727d924162c78d7cb853114bcced4e2eb922a68ca12d4239c0f"
       }
     }
   }

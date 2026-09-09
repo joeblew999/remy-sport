@@ -74,7 +74,7 @@ export function MeetingPage({ route }: { route: Route }) {
       </PageHeader>
       <PageInner className="flex flex-col gap-4">
         {mine.isPending && <Loading />}
-        {!mine.isPending && !meeting && <EmptyState data-testid="meeting-not-found">{m.meeting_none()}</EmptyState>}
+        {!mine.isPending && !meeting && <EmptyState data-testid="meeting-not-found">{m.meeting_not_found()}</EmptyState>}
         {joined && relay.isPending && <Loading />}
         {joined && relay.isError && (
           <Alert variant="destructive" data-testid="meeting-failed">
@@ -86,9 +86,12 @@ export function MeetingPage({ route }: { route: Route }) {
           <div className="grid gap-4 lg:grid-cols-2" data-testid="meeting-media">
             <MoqPublisher name={config.publish.name} config={config.publish} meeting title={m.meeting_you()} description={m.meeting_local_hint()} />
             {config.watch.map((w) => (
-              <MoqWatcher key={w.name} name={w.name} config={w} title={w.who} description={m.meeting_peer_hint()} />
+              // Named, because a room can hold more than two people: "the other
+              // participant" is the two-seat test's sentence and says nothing
+              // about which of four tiles is still dark.
+              <MoqWatcher key={w.name} name={w.name} config={w} title={w.who} description={m.meeting_waiting({ name: w.who })} />
             ))}
-            {!config.watch.length && <Muted data-testid="meeting-alone">{m.meeting_peer_hint()}</Muted>}
+            {!config.watch.length && <Muted data-testid="meeting-alone">{m.meeting_alone()}</Muted>}
           </div>
         )}
       </PageInner>

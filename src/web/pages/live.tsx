@@ -50,7 +50,11 @@ export function LivePage({ spoiler, setSpoiler }: LiveProps) {
       <PageHeader title={m.live_and_next()} />
 
       <PageInner className="flex flex-col gap-4">
-        {__BUILD__.environment === "dev" && <ButtonLink variant="outline" href={routeHref({ page: "meeting-test" })} data-testid="meeting-test-link">{m.meeting_title()}</ButtonLink>}
+        {/* The entry to the two-seat media test. Its `meeting_test_*` copy
+            reaches no reader outside dev, because the gate on this line is the
+            same one the page itself applies.
+            check-ignore: tests/repo/copy-surfaces.test.ts */}
+        {__BUILD__.environment === "dev" &&<ButtonLink variant="outline" href={routeHref({ page: "meeting-test" })} data-testid="meeting-test-link">{m.meeting_test_title()}</ButtonLink>}
         <QueryError error={liveQuery.error} retry={liveQuery.refetch} pending={liveQuery.isFetching} />
 
         {/* The in-context spoiler control. The setting itself lives in the

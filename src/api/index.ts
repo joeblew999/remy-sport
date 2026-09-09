@@ -20,6 +20,7 @@ import * as me from "./me"
 import * as domain from "./domain"
 import * as moq from "./moq"
 import * as meetings from "./meetings"
+import * as people from "./people"
 import * as notifications from "./notifications"
 import * as playersApi from "./players"
 import * as stats from "./stats"
@@ -29,8 +30,8 @@ export const router = {
    * Push, following, and muting. See src/api/notifications.ts for why these
    * are three separate ideas rather than one "notifications on" switch.
    */
+  people: { list: people.list },
   meetings: {
-    people: meetings.people,
     mine: meetings.mine,
     create: meetings.create,
     respond: meetings.respond,

@@ -11,6 +11,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { Input } from "@/components/ui/input";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { PeoplePicker, type Person } from "../components/people-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ChevronRightIcon } from "lucide-react";
 /**
@@ -39,7 +40,7 @@ import { ChevronRightIcon } from "lucide-react";
  */
 
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useInitial } from "../lib/initial";
 import { api, orpc } from "../lib/orpc";
 import { useCan, useMine, useOrg, useOrgMembers, useOrgs, useTeams } from "../lib/data";
@@ -282,6 +283,8 @@ function OrgProfile({
 }
 
 function OrgMembers({ id }: { id: string }) {
+  const [picked, setPicked] = useState<Person[]>([]);
+  const people = useQuery(orpc.people.list.queryOptions());
   const qc = useQueryClient();
   const { label } = useLocale();
   const members = useOrgMembers(id);
@@ -289,9 +292,11 @@ function OrgMembers({ id }: { id: string }) {
   const invalidate = () =>
     qc.invalidateQueries({ queryKey: orpc.orgs.members.key({ input: { id } }) });
 
+  // Either half, because the procedure takes `userId` XOR `email` and the form
+  // now offers both: a person already here, or an address for somebody not yet.
   const add = useMutation({
-    mutationFn: (v: { email: string; orgRoleCode: string }) =>
-      api.orgs.addMember({ id, email: v.email, orgRoleCode: v.orgRoleCode as never }),
+    mutationFn: (v: { userId?: string; email?: string; orgRoleCode: string }) =>
+      api.orgs.addMember({ id, ...v, orgRoleCode: v.orgRoleCode as never }),
     onSuccess: invalidate,
   });
 
@@ -389,24 +394,51 @@ function OrgMembers({ id }: { id: string }) {
             // reader typed the moment it was refused, so "Invalid email
             // address" sat under an empty box describing a value they could no
             // longer see or correct.
+            /**
+             * Whoever was picked, or the address that was typed.
+             *
+             * `orgs.addMember` has always taken `userId` XOR `email` and only
+             * the address was ever offered, so adding somebody already on the
+             * platform meant knowing and retyping their address — and getting
+             * it wrong was the "Invalid email address" this form is best known
+             * for. The picker is the Product Owner's meeting-invite control,
+             * reused (docs/2026-09-09-14-people-picker.md); the box stays for
+             * somebody who has no account yet, which a picker cannot express.
+             */
             add.mutate(
-              { email: String(f.get("email")), orgRoleCode: String(f.get("role")) },
-              { onSuccess: () => form.reset() },
+              picked.length
+                ? { userId: picked[0]!.id, orgRoleCode: String(f.get("role")) }
+                : { email: String(f.get("email")), orgRoleCode: String(f.get("role")) },
+              { onSuccess: () => { form.reset(); setPicked([]); } },
             );
           }}
         >
           <FieldGroup className="max-w-[420px]">
+          <Field orientation="vertical">
+            <FieldLabel htmlFor="add-member-person">{m.org_add_member_person()}</FieldLabel>
+            <PeoplePicker
+              id="add-member-person"
+              people={people.data?.people ?? []}
+              value={picked}
+              onValueChange={setPicked}
+              multiple={false}
+              data-testid="add-member-people"
+            />
+          </Field>
           {/* No `type="email"`: the browser would refuse to submit and the
               server's own rule — the one that actually decides — would never
               run. The schema is the single source of what a valid address is,
               and its message is what the reader sees. */}
           <Field data-invalid={!!addErr.field("email") || undefined}>
-            <FieldLabel htmlFor="add-member-email">{m.org_add_member_email()}</FieldLabel>
+            <FieldLabel htmlFor="add-member-email">{m.org_add_member_or_email()}</FieldLabel>
             <Input
               id="add-member-email"
               name="email"
               data-testid="add-member-email"
-              required
+              // Required only when nobody was picked: one of the two has to
+              // name a person, and the server enforces exactly that.
+              required={!picked.length}
+              disabled={picked.length > 0}
               autoComplete="off"
             />
             {addErr.field("email") && (
