@@ -206,7 +206,7 @@ cosmetics. Nothing here needs a schema change.
       browsers, as the row it is. The address keeps its three states — none,
       unverified, verified — as a row rather than a sentence filed under the
       wrong heading.
-- [ ] **7 · The device list can be acted on.** Every row gets **Forget**, and
+- [x] **7 · The device list can be acted on.** Every row gets **Forget**, and
       the `device_not_registered` warning gets the button its prose currently
       describes ("turn them off and on again"). Needs one API addition:
       `unsubscribe` takes an endpoint, and the endpoint is deliberately never
@@ -291,11 +291,17 @@ Steps 1–6 done. What each one actually changed:
 Six messages added in three locales. 360 rendering checks pass, including the
 email matrix in three locales and both schemes.
 
+### Step 7, done
+
+`notifications.forget` takes the fingerprint the list already shows. The
+endpoint stays what it always was — a bearer capability the server never
+returns — so the id is matched by recomputing the fingerprint over the
+**caller's own** rows, which means an id belonging to somebody else matches
+nothing. Every row has a Forget button; the sibling Devices page has given every
+session a Sign out all along and this list had none.
+
 ### Still open
 
-- **Step 7 — Forget on a device row.** Needs the API addition the plan
-  describes: `unsubscribe` keyed on the fingerprint the list already carries,
-  matched server-side. Not started.
 - **Step 8 — the captures.** `notifications` is in the walk and was not re-shot;
   the desktop capture also hits the known WebKit stall recorded in the status
   index.

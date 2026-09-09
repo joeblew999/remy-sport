@@ -191,6 +191,51 @@ export const unsubscribe = authed
     return { removed: removed.length }
   })
 
+/**
+ * Forget one registered browser, named by the fingerprint the list shows.
+ *
+ * `unsubscribe` above takes the endpoint, and the endpoint is deliberately never
+ * returned to the client — it is a bearer capability, and holding one lets you
+ * push to that browser. So the list could be read and never acted on: the
+ * sibling Devices page gives every session a Sign out and this one gave nothing,
+ * which is the gap plan 2026-09-09-08 step 7 names.
+ *
+ * The fingerprint is the way through. It is already on every row, it is a hash
+ * rather than the capability, and it is matched here by recomputing it over the
+ * caller's **own** rows — so an id belonging to somebody else matches nothing,
+ * for the same reason `unsubscribe` scopes its delete to the caller.
+ */
+export const forget = authed
+  .route({ method: "POST", path: "/push/forget", summary: "Forget one registered browser", ...authedRoute })
+  .use(requireAction("MANAGE_OWN_NOTIFICATION_CHANNELS"))
+  .input(z.object({ id: z.string().min(1) }))
+  .output(z.object({ removed: z.number() }))
+  .handler(async ({ context, input }) => {
+    const rows = await context.db
+      .select({ address: schema.userNotificationChannel.address })
+      .from(schema.userNotificationChannel)
+      .where(
+        and(
+          eq(schema.userNotificationChannel.userId, context.user.id),
+          eq(schema.userNotificationChannel.channelCode, "PUSH"),
+        ),
+      )
+    const match = (await Promise.all(rows.map(async (r) => [await deviceFingerprint(r.address), r.address] as const)))
+      .find(([id]) => id === input.id)
+    if (!match) return { removed: 0 }
+    const removed = await context.db
+      .delete(schema.userNotificationChannel)
+      .where(
+        and(
+          eq(schema.userNotificationChannel.userId, context.user.id),
+          eq(schema.userNotificationChannel.channelCode, "PUSH"),
+          eq(schema.userNotificationChannel.address, match[1]),
+        ),
+      )
+      .returning({ address: schema.userNotificationChannel.address })
+    return { removed: removed.length }
+  })
+
 /** The devices this reader has registered, for a list they can prune. */
 export const devices = authed
   .route({ method: "GET", path: "/push/devices", summary: "Browsers registered for push", ...authedRoute })

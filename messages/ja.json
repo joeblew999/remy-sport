@@ -446,7 +446,7 @@
   "versus": "対",
   "video_broadcast": "配信",
   "video_broadcast_heading": "この試合を配信する",
-  "video_broadcast_hint": "ソースを選ぶと開始します。ブラウザが許可を求めます。",
+  "video_broadcast_hint": "試合を配信するカメラを選んでください。ブラウザが許可を求めます。",
   "video_broadcasting": "配信中です。別の端末で視聴ページを開くと見られます。",
   "video_harness_note": "テスト用の仕組みです。実際の端末と回線でライブ映像がどう動くかを計測し、失敗したものだけでなく全セッションを記録します。",
   "video_no_game": "試合が選ばれていません。",
@@ -568,7 +568,7 @@
   "meeting_sign_in": "ログインして2人でミーティングを試せます。",
   "meeting_experiment": "2人用のメディアテストです。ヘッドホンをご利用ください。非公開の会議サービスではありません。",
   "meeting_invite": "相手を招待",
-  "meeting_invite_hint": "別の端末でこのリンクを開いてください。各参加枠につき端末は1台です。",
+  "meeting_invite_hint": "別の端末でこのリンクを開いてください。各リンクは1つのブラウザでご利用ください。",
   "meeting_create": "テストルームを作成",
   "meeting_copy": "招待リンクをコピー",
   "meeting_copied": "コピーしました",
@@ -581,5 +581,6 @@
   "meeting_local_hint": "カメラを開始するか画面を共有してください。プレビューは無音です。",
   "meeting_peer_hint": "相手の開始を待っています。音声を有効にすると相手の声が聞こえます。",
   "meeting_mute_mic": "マイクをミュート",
-  "meeting_unmute_mic": "マイクのミュートを解除"
+  "meeting_unmute_mic": "マイクのミュートを解除",
+  "device_forget": "削除"
 }

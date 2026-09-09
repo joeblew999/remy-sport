@@ -8,7 +8,7 @@ Five accepted feature designs remain unimplemented; internal data is accounted f
 
 ## Evidence baseline
 
-Qualified items: 1379. Unreviewed: 1315. Explicit classifications: 64.
+Qualified items: 1390. Unreviewed: 1326. Explicit classifications: 64.
 
 [The evidence ledger](../tests/repo/lib/domain-evidence.json) records exact schema fields, foreign keys, procedures and nested output paths.
 Report regeneration cannot enroll new items or turn unreviewed items into covered ones.
@@ -118,7 +118,7 @@ Named tests describe specific cases, not exhaustive permission coverage or the l
 | MANAGE_ALL_USERS | PLATFORM | [src/web/pages/admin.tsx](../src/web/pages/admin.tsx) | — | auth.admin/ban-user, auth.admin/impersonate-user, auth.admin/list-users, auth.admin/set-role, auth.admin/stop-impersonating, auth.admin/unban-user |
 | MANAGE_DIVISIONS | EVENT | [src/web/components/event-divisions.tsx](../src/web/components/event-divisions.tsx) | — | events.setDivisions |
 | MANAGE_FIXTURES | EVENT | [src/web/components/schedule.tsx](../src/web/components/schedule.tsx) | [src/web/components/schedule.tsx](../src/web/components/schedule.tsx) | games.create, games.delete, games.update |
-| MANAGE_OWN_NOTIFICATION_CHANNELS | PLATFORM | [src/web/components/notification-settings.tsx](../src/web/components/notification-settings.tsx) | — | notifications.devices, notifications.sendTest, notifications.subscribe, notifications.unsubscribe |
+| MANAGE_OWN_NOTIFICATION_CHANNELS | PLATFORM | [src/web/components/notification-settings.tsx](../src/web/components/notification-settings.tsx) | — | notifications.devices, notifications.forget, notifications.sendTest, notifications.subscribe, notifications.unsubscribe |
 | MANAGE_OWN_NOTIFICATION_PREFERENCES | PLATFORM | [src/web/components/notification-settings.tsx](../src/web/components/notification-settings.tsx) | — | notifications.following, notifications.setPreference |
 | MANAGE_ROSTER | TEAM | [src/web/pages/team.tsx](../src/web/pages/team.tsx) | [src/web/pages/team.tsx](../src/web/pages/team.tsx) | teams.addPlayer, teams.removePlayer |
 | MODERATE_LISTINGS | PLATFORM | BLOCKED: Decision 006 accepted; event publication, revisions and visibility implementation pending | — | Non-router or unimplemented; audit required |
@@ -1357,6 +1357,14 @@ These remain unreviewed unless explicitly classified in the ledger. Arrays and r
 - output.me.mine.holdings[].type
 - output.moq.config.token
 - output.moq.config.url
+- output.moq.meetingConfig.publish
+- output.moq.meetingConfig.publish.name
+- output.moq.meetingConfig.publish.token
+- output.moq.meetingConfig.publish.url
+- output.moq.meetingConfig.watch
+- output.moq.meetingConfig.watch.name
+- output.moq.meetingConfig.watch.token
+- output.moq.meetingConfig.watch.url
 - output.notifications.devices.devices
 - output.notifications.devices.devices[].enabled
 - output.notifications.devices.devices[].id
@@ -1373,6 +1381,7 @@ These remain unreviewed unless explicitly classified in the ledger. Arrays and r
 - output.notifications.following.following[].objectId
 - output.notifications.following.following[].objectTypeCode
 - output.notifications.following.muted
+- output.notifications.forget.removed
 - output.notifications.key.publicKey
 - output.notifications.sendTest.configured
 - output.notifications.sendTest.failed

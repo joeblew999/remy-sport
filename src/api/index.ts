@@ -33,6 +33,7 @@ export const router = {
     subscribe: notifications.subscribe,
     unsubscribe: notifications.unsubscribe,
     devices: notifications.devices,
+    forget: notifications.forget,
     follow: notifications.follow,
     unfollow: notifications.unfollow,
     following: notifications.following,
@@ -41,6 +42,7 @@ export const router = {
   },
   moq: {
     config: moq.config,
+    meetingConfig: moq.meetingConfig,
   },
   events: {
     list: events.list,

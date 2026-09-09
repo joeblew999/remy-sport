@@ -186,6 +186,19 @@ export function NotificationSettings() {
   })
 
   /**
+   * Forget one registered browser.
+   *
+   * The list could be read and never acted on: the sibling Devices page gives
+   * every session a Sign out and this one gave nothing. Keyed on the
+   * fingerprint the row already shows, because the endpoint is a bearer
+   * capability the server deliberately never returns.
+   */
+  const forget = useMutation({
+    mutationFn: (id: string) => api.notifications.forget({ id }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: orpc.notifications.devices.key() }),
+  })
+
+  /**
    * Turning it on or off, and saying so when it does not work. Three things in
    * that path can throw, and the one that actually does is
    * `notifications.subscribe`, which is `authed`.
@@ -359,6 +372,17 @@ export function NotificationSettings() {
                       reason nothing arrives on it. */}
                   {!d.enabled && <ItemDescription>{m.device_off()}</ItemDescription>}
                 </ItemContent>
+                <ItemActions>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={forget.isPending}
+                    onClick={() => forget.mutate(d.id)}
+                    data-testid={`forget-${i}`}
+                  >
+                    {m.device_forget()}
+                  </Button>
+                </ItemActions>
               </Item>
             ))}
           </ItemGroup>

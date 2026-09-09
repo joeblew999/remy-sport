@@ -235,4 +235,6 @@ Physical rear/front switching still requires phone verification.
 
 Browser constraint behavior: [MDN getUserMedia](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia).
 Exact facing mode can fail when unavailable; ideal expresses a preference.
-Installed API evidence: `@moq/publish/source/camera.d.ts` and `source/device.d.ts`.
+Installed API evidence: `node_modules/@moq/publish/source/camera.d.ts` and
+`node_modules/@moq/publish/source/device.d.ts` — written as the paths they are,
+so the documentation check can resolve them from the repository root.

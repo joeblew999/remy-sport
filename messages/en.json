@@ -446,7 +446,7 @@
   "versus": "vs",
   "video_broadcast": "Broadcast",
   "video_broadcast_heading": "Broadcast this game",
-  "video_broadcast_hint": "Choose a source to start. Your browser will ask for permission.",
+  "video_broadcast_hint": "Choose a camera to broadcast the game. Your browser will ask for permission.",
   "video_broadcasting": "Broadcasting. Open the Watch page on another device to see it.",
   "video_harness_note": "A test harness. It measures how live video behaves on real phones and real networks — every session is reported, not just the ones that fail.",
   "video_no_game": "No game chosen.",
@@ -568,7 +568,7 @@
   "meeting_sign_in": "Sign in to try a two-person meeting.",
   "meeting_experiment": "Two-person media test. Use headphones. This is not a private meeting service.",
   "meeting_invite": "Invite the other participant",
-  "meeting_invite_hint": "Open this link on the other device. Use one device per seat.",
+  "meeting_invite_hint": "Open this link on the other device. Use each link in one browser only.",
   "meeting_create": "Create test room",
   "meeting_copy": "Copy invite link",
   "meeting_copied": "Link copied",
@@ -581,5 +581,6 @@
   "meeting_local_hint": "Start your camera or share your screen. Your preview is silent.",
   "meeting_peer_hint": "Waiting for the other participant to start. Enable sound to hear them.",
   "meeting_mute_mic": "Mute microphone",
-  "meeting_unmute_mic": "Unmute microphone"
+  "meeting_unmute_mic": "Unmute microphone",
+  "device_forget": "Forget"
 }
