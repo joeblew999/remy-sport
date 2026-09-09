@@ -8,7 +8,7 @@ Five accepted feature designs remain unimplemented; internal data is accounted f
 
 ## Evidence baseline
 
-Qualified items: 1390. Unreviewed: 1326. Explicit classifications: 64.
+Qualified items: 1434. Unreviewed: 1370. Explicit classifications: 64.
 
 [The evidence ledger](../tests/repo/lib/domain-evidence.json) records exact schema fields, foreign keys, procedures and nested output paths.
 Report regeneration cannot enroll new items or turn unreviewed items into covered ones.
@@ -95,6 +95,7 @@ Named tests describe specific cases, not exhaustive permission coverage or the l
 | BROWSE_TEAMS | PLATFORM | [src/web/pages/teams.tsx](../src/web/pages/teams.tsx) | — | teams.list |
 | CONFIRM_MATCH_STATUS | GAME | [src/web/components/schedule.tsx](../src/web/components/schedule.tsx) | [src/web/components/schedule.tsx](../src/web/components/schedule.tsx) | games.setStatus |
 | CREATE_EVENT | PLATFORM | [src/web/components/create-event.tsx](../src/web/components/create-event.tsx), [src/web/pages/admin.tsx](../src/web/pages/admin.tsx) | [src/web/pages/discover.tsx](../src/web/pages/discover.tsx) | events.create |
+| CREATE_MEETING | PLATFORM | [src/web/pages/meetings.tsx](../src/web/pages/meetings.tsx) | — | meetings.create, meetings.mine, meetings.people |
 | CREATE_PLAYER | PLATFORM | [src/web/components/new-player.tsx](../src/web/components/new-player.tsx), [src/web/pages/team.tsx](../src/web/pages/team.tsx) | [src/web/pages/profile.tsx](../src/web/pages/profile.tsx), [src/web/pages/team.tsx](../src/web/pages/team.tsx) | players.create |
 | CREATE_TEAM | PLATFORM | [src/web/pages/org.tsx](../src/web/pages/org.tsx) | — | teams.create |
 | CREATE_USER_ACCOUNT | PLATFORM | [src/web/pages/admin.tsx](../src/web/pages/admin.tsx) | — | auth.admin/create-user |
@@ -130,6 +131,7 @@ Named tests describe specific cases, not exhaustive permission coverage or the l
 | REGISTER_PLAYER_FOR_EVENT | PLAYER | [src/web/components/event-players.tsx](../src/web/components/event-players.tsx) | — | players.registerForEvent, players.withdrawFromEvent |
 | REGISTER_TEAM_FOR_EVENT | TEAM | [src/web/components/entries.tsx](../src/web/components/entries.tsx) | — | events.registerTeam, events.withdrawTeam |
 | REMOVE_ORG_MEMBER | ORG | [src/web/pages/org.tsx](../src/web/pages/org.tsx) | — | orgs.removeMember |
+| RESPOND_TO_MEETING_INVITE | MEETING | [src/web/pages/meeting.tsx](../src/web/pages/meeting.tsx), [src/web/pages/meetings.tsx](../src/web/pages/meetings.tsx) | — | meetings.respond, moq.meetingRoom |
 | SIGN_IN_OUT | PLATFORM | [src/web/components/account.tsx](../src/web/components/account.tsx), [src/web/pages/login.tsx](../src/web/pages/login.tsx) | — | auth.email-otp/send-verification-otp, auth.get-session, auth.list-sessions, auth.revoke-other-sessions, auth.revoke-session, auth.sign-in/email-otp, auth.sign-out |
 | SIGN_UP_AS_COACH | PLATFORM | [src/web/components/who-are-you.tsx](../src/web/components/who-are-you.tsx) | — | Non-router or unimplemented; audit required |
 | SIGN_UP_AS_ORGANIZER | PLATFORM | [src/web/components/who-are-you.tsx](../src/web/components/who-are-you.tsx) | — | Non-router or unimplemented; audit required |
@@ -513,6 +515,34 @@ Better Auth credential/provider bookkeeping, managed by authentication flows rat
 | locale.names | json | no |
 | locale.sort | number | no |
 | locale.status | string | no |
+
+### meeting
+
+[src/web/pages/meetings.tsx](../src/web/pages/meetings.tsx), [src/web/pages/meeting.tsx](../src/web/pages/meeting.tsx)
+
+| Field | Value type | Nullable |
+| --- | --- | --- |
+| meeting.createdAt | string | no |
+| meeting.createdBy | string | no |
+| meeting.id | string | no |
+| meeting.startsAt | string | yes |
+| meeting.title | string | no |
+
+- meeting.(created_by) → user.(id)
+
+### meetingParticipant
+
+[src/web/pages/meetings.tsx](../src/web/pages/meetings.tsx)
+
+| Field | Value type | Nullable |
+| --- | --- | --- |
+| meetingParticipant.meetingId | string | no |
+| meetingParticipant.respondedAt | string | yes |
+| meetingParticipant.statusCode | string | no |
+| meetingParticipant.userId | string | no |
+
+- meeting_participant.(meeting_id) → meeting.(id)
+- meeting_participant.(user_id) → user.(id)
 
 ### notificationCategory
 
@@ -1355,6 +1385,22 @@ These remain unreviewed unless explicitly classified in the ledger. Arrays and r
 - output.me.mine.holdings[].id
 - output.me.mine.holdings[].relation
 - output.me.mine.holdings[].type
+- output.meetings.create.id
+- output.meetings.mine.meetings
+- output.meetings.mine.meetings[].createdBy
+- output.meetings.mine.meetings[].createdByName
+- output.meetings.mine.meetings[].id
+- output.meetings.mine.meetings[].myStatusCode
+- output.meetings.mine.meetings[].participants
+- output.meetings.mine.meetings[].participants[].name
+- output.meetings.mine.meetings[].participants[].statusCode
+- output.meetings.mine.meetings[].participants[].userId
+- output.meetings.mine.meetings[].startsAt
+- output.meetings.mine.meetings[].title
+- output.meetings.people.people
+- output.meetings.people.people[].id
+- output.meetings.people.people[].name
+- output.meetings.respond.ok
 - output.moq.config.token
 - output.moq.config.url
 - output.moq.meetingConfig.publish
@@ -1365,6 +1411,15 @@ These remain unreviewed unless explicitly classified in the ledger. Arrays and r
 - output.moq.meetingConfig.watch.name
 - output.moq.meetingConfig.watch.token
 - output.moq.meetingConfig.watch.url
+- output.moq.meetingRoom.publish
+- output.moq.meetingRoom.publish.name
+- output.moq.meetingRoom.publish.token
+- output.moq.meetingRoom.publish.url
+- output.moq.meetingRoom.watch
+- output.moq.meetingRoom.watch[].name
+- output.moq.meetingRoom.watch[].token
+- output.moq.meetingRoom.watch[].url
+- output.moq.meetingRoom.watch[].who
 - output.notifications.devices.devices
 - output.notifications.devices.devices[].enabled
 - output.notifications.devices.devices[].id

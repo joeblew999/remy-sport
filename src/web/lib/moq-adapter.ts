@@ -4,7 +4,7 @@ import { Audio, Broadcast, Net, Signals, Source, Video } from "@moq/publish"
 import * as WatchSupport from "@moq/watch/support"
 import * as PublishSupport from "@moq/publish/support"
 import { api } from "./orpc"
-import { broadcastName, ENCODER, errorName, relayUrl, remoteErrorCode, RECONNECT, reportSession, type MoqConfig } from "./moq"
+import { ENCODER, errorName, relayUrl, remoteErrorCode, RECONNECT, reportSession, type MoqConfig } from "./moq"
 import { BroadcastHeartbeat, CaptureSession, WatchProgress, type WatchState } from "./moq-lifecycle"
 import "@moq/watch/element"
 
@@ -32,7 +32,9 @@ export function useMediaSupport(role: "watch" | "publish") {
   return { support, error, retry: () => setAttempt(value => value + 1) }
 }
 
-function sessionReport(connection: Net.Connection.Reload, role: "watch" | "publish", gameId: string) {
+function sessionReport(connection: Net.Connection.Reload, role: "watch" | "publish", gameId?: string) {
+  // Meeting experiments are not game analytics.
+  if (!gameId) return () => {}
   const started = performance.now()
   let transport = connection.established.peek()?.transport ?? "none"
   let reported = false
@@ -49,7 +51,7 @@ function sessionReport(connection: Net.Connection.Reload, role: "watch" | "publi
 }
 
 /** Read installed element signals every 250 ms; never invent DOM media events. */
-export function useWatchAdapter(gameId: string) {
+export function useWatchAdapter(gameId?: string) {
   const [element, setElement] = useState<MoqWatch | null>(null)
   const [attempt, setAttempt] = useState(0)
   const intent = useRef({ paused: false, muted: true, volume: 1 })
@@ -129,16 +131,19 @@ export function useWatchAdapter(gameId: string) {
 export type PublishState = "idle" | "requesting" | "connecting" | "broadcasting" | "reconnecting" | "stopped" | "error"
 
 /** Browser acquisition stays here because the upstream element discards permission errors. */
-export function usePublishAdapter(gameId: string, config: MoqConfig, audio: boolean) {
+export function usePublishAdapter(target: { name: string; gameId?: string; frontCamera?: boolean }, config: MoqConfig, audio: boolean) {
+  const { name, gameId } = target
   const [preview, setPreview] = useState<HTMLVideoElement | null>(null)
   const [state, setState] = useState<PublishState>("idle")
   const [error, setError] = useState<unknown>(null)
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([])
-  const [camera, setCamera] = useState("environment")
+  const [camera, setCamera] = useState(target.frontCamera ? "user" : "environment")
   const cameraRef = useRef(camera)
   const [source, setSource] = useState<"camera" | "screen" | null>(null)
   const [cameraLabel, setCameraLabel] = useState("")
-  const controller = useRef<{ start: (source: "camera" | "screen") => void; stop: () => void; connection: Net.Connection.Reload } | null>(null)
+  const [micMuted, setMicMuted] = useState(false)
+  const micMutedRef = useRef(false)
+  const controller = useRef<{ start: (source: "camera" | "screen") => void; stop: () => void; mute: (muted: boolean) => void; connection: Net.Connection.Reload } | null>(null)
   const configRef = useRef(config)
   configRef.current = config
   useEffect(() => {
@@ -146,6 +151,7 @@ export function usePublishAdapter(gameId: string, config: MoqConfig, audio: bool
     let alive = true
     let request = 0
     let stream: MediaStream | undefined
+    let pendingScreen: MediaStream | undefined
     let wasReady = false
     let requestedSource: "camera" | "screen" = "camera"
     const devices = navigator.mediaDevices ? new Source.Device("video") : undefined
@@ -156,21 +162,22 @@ export function usePublishAdapter(gameId: string, config: MoqConfig, audio: bool
     const enabled = new Signals.Signal(false)
     const connection = new Net.Connection.Reload({ enabled, url: new URL(relayUrl(configRef.current)), delay: RECONNECT })
     const capture = new Video.Capture({ source: videoSource })
-    const broadcast = new Broadcast({ connection: connection.established, enabled, name: Net.Path.from(broadcastName(gameId)), display: capture.out.display })
+    const broadcast = new Broadcast({ connection: connection.established, enabled, name: Net.Path.from(name), display: capture.out.display })
     const video = new Video.Encoder("video", { broadcast, capture, enabled: true, config: ENCODER })
     const sound = new Audio.Encoder("audio", { broadcast, source: audioSource, enabled: true })
     const report = sessionReport(connection, "publish", gameId)
-    const heartbeat = new BroadcastHeartbeat(
+    const heartbeat = gameId ? new BroadcastHeartbeat(
       () => api.games.startBroadcast({ id: gameId }),
       () => api.games.stopBroadcast({ id: gameId }),
       failure => { stop(); if (alive) { setError(failure); setState("error") } },
-    )
+    ) : undefined
     const session = new CaptureSession(next => {
       releaseDevice?.()
       releaseDevice = undefined
       stream = next
       const track = next?.getVideoTracks()[0]
       const mic = next?.getAudioTracks()[0]
+      if (mic) mic.enabled = !micMutedRef.current
       if (track && requestedSource === "camera") releaseDevice = devices?.capture(track.getSettings().deviceId)
       if (alive) {
         setSource(track ? requestedSource : null)
@@ -182,17 +189,20 @@ export function usePublishAdapter(gameId: string, config: MoqConfig, audio: bool
       enabled.set(!!track)
       preview.srcObject = next ?? null
       if (!next) {
-        heartbeat.setReady(false)
+        heartbeat?.setReady(false)
         if (alive) setState("stopped")
       }
     })
     function stop() {
       request++
+      pendingScreen?.getTracks().forEach(track => track.stop())
+      pendingScreen = undefined
       session.stop()
-      heartbeat.setReady(false)
+      heartbeat?.setReady(false)
       if (alive) setState("stopped")
     }
     const start = (source: "camera" | "screen") => {
+      stop()
       const current = ++request
       // Phones may only open one camera at a time. Release before requesting
       // the replacement, and withdraw the heartbeat during the switch.
@@ -208,26 +218,43 @@ export function usePublishAdapter(gameId: string, config: MoqConfig, audio: bool
             ? { deviceId: { exact: cameraRef.current.slice(7) } }
             : { facingMode: { ideal: cameraRef.current } }),
         }, audio })
-        : navigator.mediaDevices.getDisplayMedia({ video: true, audio })
+        : (async () => {
+          const screen = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
+          if (current !== request) { screen.getTracks().forEach(track => track.stop()); return screen }
+          pendingScreen = screen
+          try {
+            // Meetings keep speech when sharing a screen; desktop audio is not
+            // a substitute for a microphone. Stop also owns this pending stream.
+            if (audio) {
+              const microphone = await navigator.mediaDevices.getUserMedia({ audio: true })
+              if (current !== request) microphone.getTracks().forEach(track => track.stop())
+              else microphone.getAudioTracks().forEach(track => screen.addTrack(track))
+            }
+            return screen
+          } catch (error) {
+            screen.getTracks().forEach(track => track.stop())
+            throw error
+          } finally { if (pendingScreen === screen) pendingScreen = undefined }
+        })()
       ).then(captured => {
         if (alive && current === request && captured) setState("connecting")
       }, failure => {
         if (alive && current === request) { setError(failure); setState("error") }
       })
     }
-    controller.current = { start, stop, connection }
+    controller.current = { start, stop, connection, mute: muted => stream?.getAudioTracks().forEach(track => { track.enabled = !muted }) }
     const tick = () => {
       if (!stream) return
       const ready = stream.getVideoTracks().some(track => track.readyState === "live") &&
         connection.status.peek() === "connected" && !!broadcast.net.peek() && !!capture.out.frame.peek()
-      heartbeat.setReady(ready)
+      heartbeat?.setReady(ready)
       setState(ready ? "broadcasting" : wasReady ? "reconnecting" : "connecting")
       wasReady ||= ready
     }
     const timer = setInterval(tick, 250)
     const hide = () => {
       stop()
-      void fetch(`/api/games/${gameId}/broadcast`, { method: "DELETE", keepalive: true, credentials: "same-origin" }).catch(() => undefined)
+      if (gameId) void fetch(`/api/games/${gameId}/broadcast`, { method: "DELETE", keepalive: true, credentials: "same-origin" }).catch(() => undefined)
     }
     window.addEventListener("pagehide", hide)
     return () => {
@@ -235,17 +262,22 @@ export function usePublishAdapter(gameId: string, config: MoqConfig, audio: bool
       stop()
       clearInterval(timer)
       window.removeEventListener("pagehide", hide)
-      void heartbeat.close()
+      void heartbeat?.close()
       unsubscribeDevices?.(); releaseDevice?.(); devices?.close()
       video.close(); sound.close(); broadcast.close(); capture.close(); connection.close(); report()
       controller.current = null
     }
-  }, [preview, gameId, audio])
+  }, [preview, name, gameId, audio])
   useEffect(() => { controller.current?.connection.url.set(new URL(relayUrl(config))) }, [config.url, config.token])
   const chooseCamera = (value: string) => {
     cameraRef.current = value
     setCamera(value)
     if (source === "camera") controller.current?.start("camera")
   }
-  return { setPreview, state, error, cameras, camera, cameraLabel, chooseCamera, start: (source: "camera" | "screen") => controller.current?.start(source), stop: () => controller.current?.stop() }
+  const mute = () => {
+    micMutedRef.current = !micMutedRef.current
+    setMicMuted(micMutedRef.current)
+    controller.current?.mute(micMutedRef.current)
+  }
+  return { setPreview, state, error, cameras, camera, cameraLabel, chooseCamera, micMuted, mute, start: (source: "camera" | "screen") => controller.current?.start(source), stop: () => controller.current?.stop() }
 }

@@ -15,7 +15,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { CompassIcon, DownloadIcon, HomeIcon, MoonIcon, RadioIcon, SchoolIcon, SunIcon, UserIcon, UsersIcon, XIcon, type LucideIcon } from "lucide-react";
+import { CompassIcon, DownloadIcon, HomeIcon, MoonIcon, RadioIcon, SchoolIcon, SunIcon, UserIcon, UsersIcon, VideoIcon, XIcon, type LucideIcon } from "lucide-react";
 import { BuildStamp } from "./build-stamp";
 import { isNativeApp } from "../lib/push";
 import type { PwaInstall } from "../lib/installable";
@@ -67,6 +67,9 @@ interface NavItem {
 const YOU = (): NavItem[] => [
   { id: "home", label: m.nav_home(), icon: HomeIcon },
   { id: "profile", label: m.nav_profile(), icon: UserIcon },
+  // Under You rather than Browse: a meeting is a thing you are in, not
+  // something you look through. docs/2026-09-09-13-meetings.md.
+  { id: "meetings", label: m.meetings(), icon: VideoIcon },
 ];
 
 /** The platform: what is on, what is live, every team, every school. */

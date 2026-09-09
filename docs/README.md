@@ -22,6 +22,7 @@ A shipped feature stays here if its acceptance checks or follow-ups are still op
 
 | Work | State | Next step / owning plan |
 | --- | --- | --- |
+| Meetings | Implemented; live-media acceptance open | [Meetings](2026-09-09-13-meetings.md). Anyone may call anyone, invitees are notified on their own channels, and the room reuses the Hang media. Open: a real two-person call and the captures. |
 | Meeting test | In progress | [Hang two-person test page](2026-09-09-12-hang-meeting-test.md). Reuse media adapters without introducing meeting domain records. |
 | Team page | Implemented; full acceptance open | [Roster, Schedule and Manage tabs](2026-09-09-11-team-page-tabs.md). 32 targeted rendering checks, the browser journey and 36 captures pass. Whole-gate failures remain recorded in the plan. |
 | MoQ screens | Implemented; live-media acceptance open | [Watching and broadcasting](2026-09-09-09-moq-on-shadcn.md). Shadcn controls checked directly; post-fix live delivery needs camera permission. No further e2e runs requested. |

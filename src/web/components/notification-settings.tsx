@@ -52,6 +52,7 @@ import { Muted, SubHeading } from "./page"
  * drift.
  */
 const OFFERED = [
+  "MEETING_INVITE",
   "MATCH_START",
   "SCORE_UPDATE",
   "MATCH_END",
@@ -75,6 +76,7 @@ const CHANNELS_FOR: Record<(typeof OFFERED)[number], readonly ("PUSH" | "EMAIL")
   SCORE_UPDATE: ["PUSH", "EMAIL"],
   MATCH_END: ["PUSH", "EMAIL"],
   EVENT_REMINDER: ["PUSH", "EMAIL"],
+  MEETING_INVITE: ["PUSH", "EMAIL"],
   ROSTER_CHANGE: ["PUSH"],
 }
 

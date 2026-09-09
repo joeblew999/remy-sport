@@ -14,9 +14,7 @@
   },
   "items": {
     "@shadcn/button": {
-      "files": {
-        "src/web/components/ui/button.tsx": "313353436d0fcc8e44ab470adb614b9fd013d28626f624328ea0d66d41a6c81b"
-      }
+      "files": {}
     },
     "@shadcn/card": {
       "files": {
@@ -154,6 +152,12 @@
     "@shadcn/slider": {
       "files": {
         "src/web/components/ui/slider.tsx": "1fd32ee03ddaa382aabccce0bd88669aa8f91e4fe487622a68745d2ed1d5f5b9"
+      }
+    },
+    "@shadcn/dialog": {
+      "files": {
+        "src/web/components/ui/dialog.tsx": "8081cc14ab4d744b75925706523192f60cc75863e05cb986aaf6a08677c83304",
+        "src/web/components/ui/button.tsx": "313353436d0fcc8e44ab470adb614b9fd013d28626f624328ea0d66d41a6c81b"
       }
     }
   }

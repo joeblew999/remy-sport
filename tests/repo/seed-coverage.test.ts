@@ -78,6 +78,12 @@ const VOCABULARY = new Set([
 const EMPTY_TABLES: Record<string, string> = {
   session: "Better Auth writes a session at sign-in. A seeded row would be a login nobody performed.",
   verification: "Better Auth writes a verification when a code is issued, and consumes it on use.",
+  meeting:
+    "A meeting is a person asking other people to talk. Seeding one would be a " +
+    "conversation nobody had, sitting in every reader's list on a fresh database — " +
+    "the same reason a session is not seeded. The page's empty state is the honest " +
+    "first thing a new account sees.",
+  meeting_participant: "Written with the meeting it belongs to, and empty for the same reason.",
   notification_sent:
     "The scheduler's idempotency record — it inserts before it sends and treats a conflict as " +
     "'somebody else has this'. Seeding it would suppress the notifications it exists to make safe.",
@@ -124,6 +130,9 @@ type Expectation =
  */
 const EXPECTED: Record<string, Expectation> = {
   // ── Every parent, no exceptions ───────────────────────────────────────────
+  "user->meeting via created_by": { none: true, why: "A meeting is a person asking other people to talk, so a seeded one is a conversation nobody had. Created in the app; the empty state is what a fresh account should see." },
+  "user->meeting_participant via user_id": { none: true, why: "Written with the meeting it belongs to, and empty for the same reason." },
+  "meeting->meeting_participant via meeting_id": { every: true, why: "A meeting with nobody in it cannot happen — the creator is written in as a participant at create time." },
   "user->account via user_id": { every: true, why: "A user who cannot sign in is not a user. The seed writes one credential account per person." },
   "player->playerTeam via player_id": { every: true, why: "A player belongs to a team; a player belonging to none has no screen to appear on." },
   "team->playerTeam via team_id": { every: true, why: "A team with no roster renders an empty page nobody would ship." },

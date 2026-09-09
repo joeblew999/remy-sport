@@ -34,6 +34,7 @@ export const OBJECT_TYPE = [
   { code: "EVENT", tableName: "events", parentTypeCode: null, parentColumn: null, names: {"th":"อีเวนต์","en":"Event","ja":"イベント"}, descriptions: {"th":"ทัวร์นาเมนต์ ลีก ค่ายฝึก และกิจกรรมแสดงผลงาน โดยประเภทย่อยอยู่ใน events.type_code","en":"Tournaments leagues camps showcases — subtype lives in events.type_code","ja":"大会・リーグ・キャンプ・ショーケース — 種別は events.type_code"} },
   { code: "TEAM", tableName: "teams", parentTypeCode: null, parentColumn: null, names: {"th":"ทีม","en":"Team","ja":"チーム"}, descriptions: {"th":"โปรไฟล์ทีมและรายชื่อผู้เล่น","en":"Team profile and roster","ja":"チームのプロフィールとロースター"} },
   { code: "PLAYER", tableName: "players", parentTypeCode: null, parentColumn: null, names: {"th":"ผู้เล่น","en":"Player","ja":"選手"}, descriptions: {"th":"โปรไฟล์ผู้เล่นรายบุคคล","en":"Individual player profile","ja":"選手個人のプロフィール"} },
+  { code: "MEETING", tableName: "meetings", parentTypeCode: null, parentColumn: null, names: {"th":"การประชุม","en":"Meeting","ja":"ミーティング"}, descriptions: {"th":"การพูดคุยด้วยเสียงและวิดีโอระหว่างผู้ใช้","en":"A voice and video call between people on the platform","ja":"プラットフォーム上の人どうしの音声・ビデオ通話"} },
   { code: "ORG", tableName: "orgs", parentTypeCode: null, parentColumn: null, names: {"th":"องค์กร","en":"Organisation","ja":"団体"}, descriptions: {"th":"โรงเรียน สโมสร และสหพันธ์","en":"Schools clubs federations","ja":"学校・クラブ・連盟"} },
   { code: "GAME", tableName: "games", parentTypeCode: "EVENT", parentColumn: "event_id", names: {"th":"เกม","en":"Game","ja":"試合"}, descriptions: {"th":"การแข่งขันหนึ่งนัดภายในอีเวนต์ — มีสองทีม เวลา สนาม และผลการแข่งขัน","en":"One match inside an event — two teams, a time, a court and a result","ja":"イベント内の1試合 — 2チーム、時刻、コート、結果"} },
   { code: "PLATFORM", tableName: null, parentTypeCode: null, parentColumn: null, names: {"th":"แพลตฟอร์ม","en":"Platform","ja":"プラットフォーム"}, descriptions: {"th":"การดำเนินการทั่วทั้งระบบที่ไม่ผูกกับออบเจ็กต์ใดโดยเฉพาะ","en":"Global actions not tied to a specific object","ja":"特定の対象に紐づかない全体的な操作"} },
@@ -88,6 +89,8 @@ export const ACTION = [
   { code: "FOLLOW_PLAYER", objectTypeCode: "PLAYER", category: "Players", names: {"th":"ติดตามผู้เล่น","en":"Follow player","ja":"選手をフォロー"} },
   { code: "UNFOLLOW_PLAYER", objectTypeCode: "PLAYER", category: "Players", names: {"th":"เลิกติดตามผู้เล่น","en":"Unfollow player","ja":"選手のフォローを解除"} },
   { code: "RECEIVE_PLAYER_NOTIFICATIONS", objectTypeCode: "PLAYER", category: "Live", names: {"th":"รับการแจ้งเตือนผู้เล่น","en":"Receive player notifications","ja":"選手の通知を受け取る"} },
+  { code: "CREATE_MEETING", objectTypeCode: "PLATFORM", category: "Live", names: {"th":"สร้างการประชุม","en":"Create a meeting","ja":"ミーティングを作成"} },
+  { code: "RESPOND_TO_MEETING_INVITE", objectTypeCode: "MEETING", category: "Live", names: {"th":"ตอบรับคำเชิญประชุม","en":"Accept or decline a meeting invitation","ja":"ミーティングの招待に応答"} },
   { code: "FOLLOW_TEAM", objectTypeCode: "TEAM", category: "Teams", names: {"th":"ติดตามทีม","en":"Follow team","ja":"チームをフォロー"} },
   { code: "UNFOLLOW_TEAM", objectTypeCode: "TEAM", category: "Teams", names: {"th":"เลิกติดตามทีม","en":"Unfollow team","ja":"チームのフォローを解除"} },
   { code: "RECEIVE_TEAM_NOTIFICATIONS", objectTypeCode: "TEAM", category: "Live", names: {"th":"รับการแจ้งเตือนทีม","en":"Receive team notifications","ja":"チームの通知を受け取る"} },
@@ -582,6 +585,7 @@ export type LocaleCode = (typeof LOCALE_CODES)[number]
 export const NOTIFICATION_CATEGORY = [
   { code: "LIVE", names: {"th":"สด","en":"Live","ja":"ライブ"} },
   { code: "REMINDER", names: {"th":"เตือนความจำ","en":"Reminder","ja":"リマインダー"} },
+  { code: "MEETING", names: {"th":"การประชุม","en":"Meeting","ja":"ミーティング"} },
   { code: "DISCOVERY", names: {"th":"ค้นพบ","en":"Discovery","ja":"発見"} },
   { code: "TEAM", names: {"th":"ทีม","en":"Team","ja":"チーム"} },
   { code: "REGISTRATION", names: {"th":"การสมัคร","en":"Registration","ja":"登録"} },
@@ -627,6 +631,7 @@ export const NOTIFICATION_TYPE = [
   { code: "MATCH_START", categoryCode: "LIVE", names: {"th":"เริ่มแข่งขัน","en":"Match Start","ja":"試合開始"}, descriptions: {"th":"การแข่งขันกำลังจะเริ่มต้น","en":"A match is starting now","ja":"試合が始まります"} },
   { code: "MATCH_END", categoryCode: "LIVE", names: {"th":"จบการแข่งขัน","en":"Match End","ja":"試合終了"}, descriptions: {"th":"การแข่งขันจบลงแล้วและมีผลคะแนนสุดท้าย","en":"A match has ended (final score available)","ja":"試合が終了しました（最終スコアあり）"} },
   { code: "SCORE_UPDATE", categoryCode: "LIVE", names: {"th":"คะแนนเปลี่ยนแปลง","en":"Score Update","ja":"スコア更新"}, descriptions: {"th":"คะแนนเปลี่ยนแปลงระหว่างการแข่งขันสด","en":"Score changed during a live match","ja":"試合中にスコアが変わりました"} },
+  { code: "MEETING_INVITE", categoryCode: "MEETING", names: {"th":"คำเชิญประชุม","en":"Meeting Invitation","ja":"ミーティングへの招待"}, descriptions: {"th":"มีคนเชิญคุณเข้าร่วมการประชุม","en":"Somebody invited you to a meeting","ja":"ミーティングに招待されました"} },
   { code: "EVENT_REMINDER", categoryCode: "REMINDER", names: {"th":"เตือนความจำอีเวนต์","en":"Event Reminder","ja":"イベントのリマインダー"}, descriptions: {"th":"อีเวนต์กำลังจะเริ่มในอีกไม่นาน ก่อนเริ่ม 24 ชั่วโมงหรือ 1 ชั่วโมง","en":"An event is starting soon (24h or 1h before)","ja":"まもなくイベントが始まります（24時間前または1時間前）"} },
   { code: "EVENT_CREATED", categoryCode: "DISCOVERY", names: {"th":"อีเวนต์ใหม่","en":"Event Created","ja":"イベント作成"}, descriptions: {"th":"มีการเผยแพร่อีเวนต์ใหม่ในขอบเขตที่คุณติดตาม","en":"A new event was published in your followed scope","ja":"フォロー中の範囲で新しいイベントが公開されました"} },
   { code: "ROSTER_CHANGE", categoryCode: "TEAM", names: {"th":"เปลี่ยนแปลงรายชื่อผู้เล่น","en":"Roster Change","ja":"ロースター変更"}, descriptions: {"th":"รายชื่อผู้เล่นของทีมที่คุณติดตามมีการเปลี่ยนแปลง","en":"A followed team's roster changed","ja":"フォロー中のチームのロースターが変わりました"} },
@@ -641,6 +646,7 @@ export const NOTIFICATION_TYPE = [
 ] as const
 
 export const NOTIFICATION_TYPE_CODES = NOTIFICATION_TYPE.map((t) => t.code) as unknown as [
+  "MEETING_INVITE",
   "MATCH_START",
   "MATCH_END",
   "SCORE_UPDATE",
@@ -1104,6 +1110,20 @@ export const GRANTS = {
     { relation: "PLATFORM_ADMIN", eventTypes: [] },
   ],
   ACCEPT_CO_ORGANIZER_INVITE: [
+    { relation: "ANY_SIGNED_IN", eventTypes: [] },
+  ],
+  /**
+   * Deliberately unrestricted, at the Product Owner's instruction: anyone may
+   * ask anyone for a meeting. The protection is the invitation rather than the
+   * gate — nothing happens to the invitee until they accept, and declining is
+   * one press. `RESPOND_TO_MEETING_INVITE` is equally open because the row it
+   * writes is the caller's own; the handler scopes it to them, the way every
+   * other preference write in this app does.
+   */
+  CREATE_MEETING: [
+    { relation: "ANY_SIGNED_IN", eventTypes: [] },
+  ],
+  RESPOND_TO_MEETING_INVITE: [
     { relation: "ANY_SIGNED_IN", eventTypes: [] },
   ],
   FOLLOW_PLAYER: [

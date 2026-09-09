@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm"
-import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core"
+import { sqliteTable, text, integer, index, primaryKey } from "drizzle-orm/sqlite-core"
 import type { Names } from "../domain/names"
 import { org } from "./fixtures-schema"
 /**
@@ -22,6 +22,7 @@ import {
   EVENT_FORMAT_CODES,
   EVENT_TYPE_CODES,
   GENDER_CODES,
+  MEETING_STATUS_CODES,
 } from "../domain/vocabularies"
 
 /**
@@ -200,4 +201,68 @@ export const eventRelations = relations(event, ({ one }) => ({
 
 export const cityRelations = relations(city, ({ one }) => ({
   province: one(province, { fields: [city.provinceCode], references: [province.code] }),
+}))
+
+/**
+ * Meetings: a call between people on the platform.
+ *
+ * Hand-written here rather than in the generated fixtures schema, because a
+ * meeting is an application concern and not part of the Product Owner's sport
+ * model — the generator would be the wrong owner and would drop it on the next
+ * sync. The model does carry MEETING as an object type and the two actions that
+ * govern it; only the storage is ours.
+ *
+ * `startsAt` is nullable and null means *now*. The common case is "let's talk",
+ * and making a time mandatory would be a form field nobody wants to fill in.
+ * docs/2026-09-09-13-meetings.md.
+ */
+export const meeting = sqliteTable("meeting", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  /** An ISO instant, or null for "now". */
+  startsAt: text("starts_at"),
+  createdAt: text("created_at").notNull(),
+})
+
+/**
+ * Who is in a meeting, and whether they said yes.
+ *
+ * The creator is written in as ACCEPTED at create time, so "meetings I am in"
+ * is one query rather than a union of "mine" and "ones I was asked to". They do
+ * not have to accept their own invitation.
+ *
+ * Declining does not remove the row and does not lock the door: it takes the
+ * meeting out of your list, and the room stays open to any participant who
+ * changes their mind. That is the Product Owner's rule — no restrictions,
+ * because the invitee decides.
+ */
+export const meetingParticipant = sqliteTable(
+  "meeting_participant",
+  {
+    meetingId: text("meeting_id")
+      .notNull()
+      .references(() => meeting.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    statusCode: text("status_code", { enum: MEETING_STATUS_CODES }).notNull().default("INVITED"),
+    respondedAt: text("responded_at"),
+  },
+  (t) => [
+    primaryKey({ columns: [t.meetingId, t.userId] }),
+    index("meeting_participant_user").on(t.userId),
+  ],
+)
+
+export const meetingRelations = relations(meeting, ({ one, many }) => ({
+  creator: one(user, { fields: [meeting.createdBy], references: [user.id] }),
+  participants: many(meetingParticipant),
+}))
+
+export const meetingParticipantRelations = relations(meetingParticipant, ({ one }) => ({
+  meeting: one(meeting, { fields: [meetingParticipant.meetingId], references: [meeting.id] }),
+  person: one(user, { fields: [meetingParticipant.userId], references: [user.id] }),
 }))

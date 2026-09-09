@@ -35,11 +35,14 @@ export const PAGES = [
   "login",
   "devices",
   "notifications",
+  "meetings",
+  "meeting",
   "admin",
   "orgs",
   "org",
   "broadcast",
   "watch",
+  "meeting-test",
   "not-found",
 ] as const;
 
@@ -93,7 +96,7 @@ export function parseRoute(hash: string): Route {
  * back-step on the top of the hierarchy, which is nowhere.
  */
 const DRILL: ReadonlySet<Page> = new Set<Page>([
-  "team", "player", "org", "event", "game", "watch", "broadcast",
+  "team", "player", "org", "event", "game", "watch", "broadcast", "meeting",
 ]);
 
 /**
@@ -201,6 +204,7 @@ const DETAIL_IDS: Partial<Record<Page, string>> = {
   team: "team_001",
   player: "ply_001",
   broadcast: "gam_002",
+  meeting: "mtg_001",
   watch: "gam_002",
 };
 

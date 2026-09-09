@@ -25,6 +25,7 @@ const SURFACES: Record<string, string[]> = {
   eventSession: ["components/event-sessions.tsx"], sessionAttendance: ["components/event-sessions.tsx"],
   guardian: ["components/your-players.tsx"], playerTeam: ["pages/player.tsx", "pages/team.tsx"],
   teamCoach: ["pages/team.tsx"], subscription: ["components/follow.tsx", "components/following.tsx"],
+  meeting: ["pages/meetings.tsx", "pages/meeting.tsx"], meetingParticipant: ["pages/meetings.tsx"],
   // Both on /#/notifications: the channel is the browser subscription and the
   // email address, which the settings panel owns. It pointed at pages/devices.tsx
   // while the panel was mounted there — the page, not the code doing the work.

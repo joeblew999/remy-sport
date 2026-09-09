@@ -29,6 +29,8 @@ import { ProfilePage } from "./pages/profile";
 import { LoginPage } from "./pages/login";
 import { DevicesPage } from "./pages/devices";
 import { NotificationsPage } from "./pages/notifications";
+import { MeetingsPage } from "./pages/meetings";
+import { MeetingPage } from "./pages/meeting";
 import { AdminPage } from "./pages/admin";
 import { OrgsPage, OrgPage } from "./pages/org";
 import { TeamsPage } from "./pages/teams";
@@ -53,6 +55,7 @@ const BroadcastPage = lazy(() =>
   import("./pages/video").then((m) => ({ default: m.BroadcastPage })),
 );
 const WatchPage = lazy(() => import("./pages/video").then((m) => ({ default: m.WatchPage })));
+const MeetingTestPage = lazy(() => import("./pages/meeting-test").then((m) => ({ default: m.MeetingTestPage })));
 
 interface TweakDefaults {
   spoilerMode?: boolean;
@@ -230,6 +233,8 @@ function App() {
     login: () => <LoginPage goto={goto} next={route.query?.next?.startsWith("#/") ? parseRoute(route.query.next) : undefined}/>,
     devices: () => <DevicesPage/>,
     notifications: () => <NotificationsPage/>,
+    meetings: () => <MeetingsPage/>,
+    meeting: () => <MeetingPage route={route}/>,
     admin: () => <AdminPage goto={goto}/>,
     orgs: () => <OrgsPage/>,
     teams: () => <TeamsPage/>,
@@ -241,6 +246,7 @@ function App() {
     // fail in different ways.
     broadcast: () => lazily(<BroadcastPage id={route.id}/>),
     watch: () => lazily(<WatchPage id={route.id}/>),
+    "meeting-test": () => lazily(<MeetingTestPage route={route} goto={goto}/>),
     /**
      * The address bar said something this app does not serve.
      *

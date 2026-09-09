@@ -19,6 +19,7 @@ import * as health from "./health"
 import * as me from "./me"
 import * as domain from "./domain"
 import * as moq from "./moq"
+import * as meetings from "./meetings"
 import * as notifications from "./notifications"
 import * as playersApi from "./players"
 import * as stats from "./stats"
@@ -28,6 +29,12 @@ export const router = {
    * Push, following, and muting. See src/api/notifications.ts for why these
    * are three separate ideas rather than one "notifications on" switch.
    */
+  meetings: {
+    people: meetings.people,
+    mine: meetings.mine,
+    create: meetings.create,
+    respond: meetings.respond,
+  },
   notifications: {
     key: notifications.key,
     subscribe: notifications.subscribe,
@@ -43,6 +50,7 @@ export const router = {
   moq: {
     config: moq.config,
     meetingConfig: moq.meetingConfig,
+      meetingRoom: moq.meetingRoom,
   },
   events: {
     list: events.list,

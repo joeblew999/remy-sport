@@ -1,7 +1,7 @@
 /** Shadcn presentation only; the adapter owns capture, transport and observed media state. */
 import { useRef, type ReactNode } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { CameraIcon, MaximizeIcon, MicIcon, PauseIcon, PlayIcon, ScreenShareIcon, SquareIcon, Volume2Icon, VolumeXIcon } from "lucide-react"
+import { CameraIcon, MaximizeIcon, MicIcon, MicOffIcon, PauseIcon, PlayIcon, ScreenShareIcon, SquareIcon, Volume2Icon, VolumeXIcon } from "lucide-react"
 import { orpc } from "../lib/orpc"
 import { useGame } from "../lib/data"
 import { m } from "../lib/i18n"
@@ -74,17 +74,17 @@ export function GameVideo({ gameId }: { gameId: string }) {
   if (relay.isPending) return <MediaLoading />
   if (relay.error) return <MediaError testId="moq-renewal-denied" message={formErrors(relay.error).form ?? m.video_not_permitted()} retry={relay.refetch} />
   if (!relay.config) return <EmptyState data-testid="moq-unconfigured">{m.video_not_configured()}</EmptyState>
-  return <Watcher key={gameId} gameId={gameId} config={relay.config} />
+  return <MoqWatcher key={gameId} gameId={gameId} name={broadcastName(gameId)} config={relay.config} />
 }
 
-function Watcher({ gameId, config }: { gameId: string; config: MoqConfig }) {
+export function MoqWatcher({ gameId, name, config, title = m.video_watch_heading(), description = m.video_watch_hint() }: { gameId?: string; name: string; config: MoqConfig; title?: string; description?: string }) {
   const capability = useMediaSupport("watch")
   const watch = useWatchAdapter(gameId)
   const frame = useRef<HTMLDivElement>(null)
   const { support } = capability
   if (capability.error) return <MediaError message={m.video_support_failed()} retry={capability.retry} />
   if (!support) return <MediaLoading />
-  return <MediaFrame title={m.video_watch_heading()} description={m.video_watch_hint()} state={watch.state} data-testid="moq-watch" frameRef={frame}
+  return <MediaFrame title={title} description={description} state={watch.state} data-testid="moq-watch" frameRef={frame}
     controls={<>
       <Button variant="outline" disabled={!support.video} data-testid="moq-play" onClick={() => watch.change({ paused: !watch.controls.paused })}>
         {watch.controls.paused ? <PlayIcon /> : <PauseIcon />}{watch.controls.paused ? m.video_play() : m.video_pause()}
@@ -102,7 +102,7 @@ function Watcher({ gameId, config }: { gameId: string; config: MoqConfig }) {
     </>}>
     <SupportNotice support={support} />
     <div className="moq-media">
-      {support.video && <moq-watch key={watch.attempt} ref={watch.setElement} url={relayUrl(config)} name={broadcastName(gameId)} muted>
+      {support.video && <moq-watch key={watch.attempt} ref={watch.setElement} url={relayUrl(config)} name={name} muted>
         <canvas data-testid="moq-canvas" />
       </moq-watch>}
     </div>
@@ -120,7 +120,7 @@ export function GameBroadcast({ gameId }: { gameId: string }) {
   if (!relay.config) return <EmptyState data-testid="moq-unconfigured">{m.video_not_configured()}</EmptyState>
   if (game.isPending) return <MediaLoading />
   return <Can of={game.data} action="BROADCAST_GAME" fallback={<EmptyState data-testid="moq-not-permitted">{m.video_not_permitted()}</EmptyState>}>
-    <Publisher key={gameId} gameId={gameId} config={relay.config} />
+    <MoqPublisher key={gameId} gameId={gameId} name={broadcastName(gameId)} config={relay.config} />
   </Can>
 }
 
@@ -132,18 +132,22 @@ function captureMessage(error: unknown) {
   return formErrors(error).form ?? m.video_capture_failed()
 }
 
-function Publisher({ gameId, config }: { gameId: string; config: MoqConfig }) {
+export function MoqPublisher({ gameId, name, config, meeting = false, title = m.video_broadcast_heading(), description = m.video_broadcast_hint() }: { gameId?: string; name: string; config: MoqConfig; meeting?: boolean; title?: string; description?: string }) {
   const capability = useMediaSupport("publish")
   const { support } = capability
-  const publish = usePublishAdapter(gameId, config, support?.audio ?? false)
+  const publish = usePublishAdapter({ gameId, name, frontCamera: meeting }, config, support?.audio ?? false)
   if (capability.error) return <MediaError message={m.video_support_failed()} retry={capability.retry} />
   if (!support) return <MediaLoading />
   const active = ["requesting", "connecting", "broadcasting", "reconnecting"].includes(publish.state)
-  return <MediaFrame title={m.video_broadcast_heading()} description={m.video_broadcast_hint()} state={publish.state} data-testid="moq-publish"
-    controls={active ? <Button variant="outline" onClick={publish.stop} data-testid="moq-stop"><SquareIcon />{m.video_stop()}</Button> : <>
+  return <MediaFrame title={title} description={description} state={publish.state} data-testid="moq-publish"
+    controls={<>{active ? <><Button variant="outline" onClick={publish.stop} data-testid="moq-stop"><SquareIcon />{m.video_stop()}</Button>
+      {meeting && <Button variant="outline" disabled={!support.audio || publish.state === "requesting"} onClick={publish.mute} data-testid="moq-microphone">{publish.micMuted ? <MicOffIcon /> : <MicIcon />}{publish.micMuted ? m.meeting_unmute_mic() : m.meeting_mute_mic()}</Button>}
+      {meeting && support.screen && <Button variant="outline" disabled={publish.state === "requesting"} onClick={() => publish.start("screen")} data-testid="moq-share-screen"><ScreenShareIcon />{m.video_start_screen()}</Button>}
+      {meeting && <Button variant="outline" disabled={publish.state === "requesting" || !support.camera} onClick={() => publish.start("camera")} data-testid="moq-use-camera"><CameraIcon />{m.video_start_camera()}</Button>}
+    </> : <>
       <Button disabled={!support.video || !support.camera} onClick={() => publish.start("camera")} data-testid="moq-start-camera"><CameraIcon />{m.video_start_camera()}</Button>
-      {support.screen && <Button variant="outline" disabled={!support.video} onClick={() => publish.start("screen")} data-testid="moq-start-screen"><ScreenShareIcon />{m.video_start_screen()}</Button>}
-    </>}>
+      {meeting && support.screen && <Button variant="outline" disabled={!support.video} onClick={() => publish.start("screen")} data-testid="moq-start-screen"><ScreenShareIcon />{m.video_start_screen()}</Button>}
+    </>}</>}>
     <SupportNotice support={support} />
     <div className="moq-media"><video ref={publish.setPreview} data-testid="moq-preview" muted autoPlay playsInline /></div>
     {support.camera && <Field>

@@ -72,6 +72,17 @@ async function audience(
   db: Db,
   typeCode: NotificationTypeCode,
   targets: Target[],
+  /**
+   * People named directly, for a notification that is *addressed* rather than
+   * broadcast. Everything else here answers "who follows this object"; a
+   * meeting invitation answers "who did somebody invite", which no relation can
+   * derive because the meeting is the thing being announced.
+   *
+   * They still pass through the same preference and channel machinery below, so
+   * an invitee who has turned meeting email off does not get one. That is what
+   * makes "via their chosen notification option" true without special-casing.
+   */
+  addressed: string[],
   exclude?: string,
 ) {
   if (targets.length === 0) return []
@@ -89,7 +100,7 @@ async function audience(
     targets.map((t) => audienceFor(db, RECEIVE_ACTION[t.objectTypeCode] ?? "", t.objectId)),
   )
 
-  const userIds = [...new Set(reached.flat())].filter((id) => id !== exclude)
+  const userIds = [...new Set([...reached.flat(), ...addressed])].filter((id) => id !== exclude)
   if (userIds.length === 0) return []
 
   /**
@@ -215,6 +226,8 @@ export async function notify(
     tag: string
     /** The actor. Nobody needs telling about the thing they just did. */
     exclude?: string
+    /** Named recipients, for an addressed notification. See `audience`. */
+    users?: string[]
     /**
      * Deliver a slice, starting after this many recipients.
      *
@@ -229,7 +242,7 @@ export async function notify(
     source?: string
   },
 ): Promise<{ sent: number; gone: number; remaining: number }> {
-  const byChannel = await audience(db, args.typeCode, args.targets, args.exclude)
+  const byChannel = await audience(db, args.typeCode, args.targets, args.users ?? [], args.exclude)
 
   /**
    * A stable order, so slicing by offset means the same thing across messages.

@@ -58,6 +58,9 @@ export const FIXTURE_TABLE = {
   "guardians": "guardian",
   "game_referees": "gameReferee",
   "games": "game",
+  // Hand-written in app-schema.ts, not generated: a meeting is an
+  // application concern, so the model names the table and we own the storage.
+  "meetings": "meeting",
   "org_members": "org_member",
   "orgs": "org",
   "player_teams": "playerTeam",
@@ -92,6 +95,16 @@ export const FIXTURE_TABLE = {
 export const STORED_ORG_ROLE = Object.fromEntries(
   ORG_ROLE.map((r) => [r.code, r.code.toLowerCase()]),
 ) as Record<(typeof ORG_ROLE)[number]["code"], string>
+
+/**
+ * Where an invitee stands. INVITED until they say, then their answer.
+ *
+ * Not in the Product Owner's model file: it is the storage of a response, not a
+ * fact about basketball, and the model already carries MEETING and its two
+ * actions. docs/2026-09-09-13-meetings.md.
+ */
+export const MEETING_STATUS_CODES = ["INVITED", "ACCEPTED", "DECLINED"] as const
+export type MeetingStatusCode = (typeof MEETING_STATUS_CODES)[number]
 
 export const STORED_ROLE = {
   ADMIN: "admin",

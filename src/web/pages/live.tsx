@@ -50,6 +50,7 @@ export function LivePage({ spoiler, setSpoiler }: LiveProps) {
       <PageHeader title={m.live_and_next()} />
 
       <PageInner className="flex flex-col gap-4">
+        {__BUILD__.environment === "dev" && <ButtonLink variant="outline" href={routeHref({ page: "meeting-test" })} data-testid="meeting-test-link">{m.meeting_title()}</ButtonLink>}
         <QueryError error={liveQuery.error} retry={liveQuery.refetch} pending={liveQuery.isFetching} />
 
         {/* The in-context spoiler control. The setting itself lives in the
