@@ -232,13 +232,23 @@ const BLOCKS: [string, RegExp][] = [
   ["Han", /[一-鿿㐀-䶿]/u],
 ]
 
-/** What each language actually writes in. Everything absent here is Latin-only. */
+/**
+ * What each language actually writes in. Everything absent here is Latin-only.
+ *
+ * A locale missing from this map is treated as Latin-only, so declaring a new
+ * non-Latin language fails this check until it is listed. That is deliberate:
+ * failing closed means the question "which scripts does this language use?" is
+ * answered by a person once, rather than inferred — and an unlisted language is
+ * loud rather than silently exempt. Ukrainian arrived and produced 826 failures
+ * in one run, which is exactly the intended noise.
+ */
 const WRITES_IN: Record<string, string[]> = {
   th: ["Thai"],
   ja: ["Hiragana", "Katakana", "Han"],
   zh: ["Han"],
   ko: ["Hangul", "Han"],
   ru: ["Cyrillic"],
+  uk: ["Cyrillic"],
   el: ["Greek"],
 }
 

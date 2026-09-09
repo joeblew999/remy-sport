@@ -66,6 +66,7 @@ const SCRIPTS: Record<string, { subsets: string[]; family?: string }> = {
   tr: { subsets: [] },
   it: { subsets: [] },
   pl: { subsets: [] },
+  uk: { subsets: ["cyrillic", "cyrillic-ext"] },
   ru: { subsets: ["cyrillic", "cyrillic-ext"] },
   el: { subsets: ["greek", "greek-ext"] },
 
