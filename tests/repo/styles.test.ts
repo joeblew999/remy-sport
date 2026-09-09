@@ -251,6 +251,10 @@ const HEADINGS_ALLOWED: Record<string, string> = {
 const looseHeadings = authored
   .filter(f => f.path !== FRAME && !(f.path in HEADINGS_ALLOWED))
   .flatMap(f => [...stripTsxComments(f.text).matchAll(/<h([1-3])\b[^>]*className="[^"]*\btext-(?:xs|sm|base|lg|xl|2xl|3xl)\b/g)]
+    // The shared topbar now owns PageHeader's h1, using dashboard-01's
+    // text-base title. Permit that one role; other headings and caption
+    // overrides in the topbar remain subject to the same checks as pages.
+    .filter(m => !(f.path === "src/web/components/topbar.tsx" && m[1] === "1" && m[0].endsWith("text-base")))
     .map(m => `${f.path}: <h${m[1]}> with its own size`))
 rule("headings take their size from the page frame", looseHeadings,
   `Hand-sized headings in src/web JSX:\n  ${looseHeadings.join("\n  ")}\n\n` +

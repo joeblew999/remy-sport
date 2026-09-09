@@ -502,9 +502,24 @@ indexing proof was claimed. The user was asked to configure the key and confirm
 Search Console domain verification. Sitemap to submit once access is available:
 https://help.remy.ubuntusoftware.net/sitemap.xml. No extra content work was done.
 
-Final root-typecheck retry still fails in concurrent app UI migration files:
-unresolved Row/RowGroup names and unused Item/ItemGroup imports (for example
-src/web/components/event-divisions.tsx and src/web/pages/team.tsx). These files
-were not changed by the help work. The migration needs its imports/tags completed;
-root lint was not rerun after that failed typecheck. The five help/repository
-tests and actual dev/staging/production Worker checks passed independently.
+Follow-up on the reported app typecheck failures (2026-09-09): the concurrent
+UI migration completed its Row/RowGroup imports and tags. Root typecheck, lint,
+production build and model check now pass. The full unit/repository/Worker run
+passed 933 tests and identified one outdated heading guard: the migrated shared
+topbar now owns PageHeader's h1. The guard now permits only that topbar h1 at
+the registry's text-base size, retaining checks on other headings and captions;
+all 17 style tests pass on retry. This is an app integration check correction,
+not a Fuma upstream bug. The five help/repository tests and actual
+dev/staging/production Worker checks passed independently.
+
+Final follow-up validation: a subsequent unit/repository/Worker run passed 933
+of 934 tests, with only abbreviated dependency paths in the newly added MoQ plan
+failing documentation validation. Expanded those to verified full package paths;
+the documentation and style suites then passed all 19 tests. The final browser
+run passed 345 of 346 tests; the remaining assertion accidentally matched the
+team-name abbreviation instead of the division label. Corrected it to check
+"Under 18 Girls" and all 21 team rendering tests passed on retry. Root typecheck
+also passed after the final header edits. Results are from full runs plus focused
+retries, not a claim that a single uninterrupted `bun run check` passed. The UI
+migration and its title/selector corrections are tracked in plan 07; these local
+verification fixes required no deployment or database changes.

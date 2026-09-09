@@ -54,8 +54,10 @@ be copied.
 
 Sources checked 2026-09-09: [MoQ project](https://github.com/moq-dev/moq),
 [MoQ site](https://moq.dev/), and [shadcn Base UI Card composition](https://ui.shadcn.com/docs/components/base/card).
-The installed `node_modules/@moq/{watch,publish}/element.d.ts`, watch
-`broadcast.d.ts`, and both `support/index.d.ts` are the version-specific API
+The installed `node_modules/@moq/watch/element.d.ts`,
+`node_modules/@moq/publish/element.d.ts`, `node_modules/@moq/watch/broadcast.d.ts`,
+`node_modules/@moq/watch/support/index.d.ts`, and
+`node_modules/@moq/publish/support/index.d.ts` are the version-specific API
 evidence. The MoQ documentation URLs attempted did not load; API conclusions
 above come from the shipped packages. No exhaustive claim about the absence
 of third-party MoQ registry components is needed for this plan.

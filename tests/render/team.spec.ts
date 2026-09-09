@@ -57,7 +57,9 @@ test.describe("Team page renders what the API returned", () => {
     await visit(page, "team", { id: "team_002" })
     await expect(page.getByTestId("team-name")).toHaveText("Triam Udom U18 Girls")
     await expect(page.getByTestId("team-hero")).toContainText("Triam Udom Suksa School")
-    await expect(page.getByTestId("team-hero")).toContainText("U18 Girls")
+    // Assert the division label, not the abbreviation inside the team name
+    // (that name now lives in the shared topbar).
+    await expect(page.getByTestId("team-hero")).toContainText("Under 18 Girls")
   })
 
   test("a different id renders a different team", async ({ page }) => {
