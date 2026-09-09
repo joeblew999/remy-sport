@@ -1,9 +1,44 @@
 # Project status — start here
 
-## Active GUI plan
+## Open plan: the sign-in code and the email channel
+
+[The sign-in code and the email channel](2026-09-09-01-sign-in-code-and-email-channel.md)
+is proposed 2026-09-09, nothing implemented. It replaces an external four-phase
+proposal whose first three phases already exist here: shadcn's `InputOTP`,
+Better Auth's `emailOTP` with localized copy, the EMAIL transport, unsubscribe
+headers and the bulk/transactional sender split are all committed. What is
+actually left is that **the email channel reaches nobody** — nothing writes a
+real user's address into `userNotificationChannel` as EMAIL, and the settings
+screen is push-only — plus sign-in code auto-submit and three outstanding device
+checks. It also records two dangling references found while checking
+(`docs/dev/email-deliverability.md` and `bun run check:notifications`, neither
+of which exists) and one incorrect deliverability claim in `src/mail/mailer.ts`.
+Magic link and React Email are recommended against, with the reasons; both are
+the Product Owner's call.
+
+## Open plans
+
+- [A distinct install name per environment](2026-09-08-05-pwa-install-name-per-environment.md)
+  is implemented, verified locally and committed on 2026-09-09:
+  `remy-localhost`, `remy-staging`, the plain name in production, from one
+  table that both the build and a repo check import. Open: confirming the
+  two labels on a phone.
+- [Why iPhone links open Safari](2026-09-08-04-ios-installed-web-app-links.md)
+  is an accepted, unresolved requirement: no supported iOS mechanism opens an
+  installed web app from an external link. Resume only on credible evidence
+  of one; the upstream issue is linked there.
+- [Remote development without manual coordination](2026-09-08-03-remote-development.md)
+  is paused, and committed on 2026-09-09 as taken-over work: `ops tunnel`,
+  `ops tunnel status` and `ops tunnel -- --run` work without the identity
+  plugin, `ops remote status|stop` work, and `ops remote` startup refuses
+  with its reason until the plugin is wired and verified in isolation. The
+  remote walkthrough has not been done. Read its takeover record before
+  resuming.
+
+## GUI
 
 [Convert the GUI to shadcn](2026-09-08-01-typography-and-design-system.md)
-is the current GUI work, under the Product Owner's rule of 2026-09-08: no
+is complete, under the Product Owner's rule of 2026-09-08: no
 reinvented wheels, and their theme, not ours. Done and committed: Stage A,
 B1 (shadcn's setup, the lock, the MCP server), the shell, the forms, and on
 the same day every list, table, card, page frame, dialog and input, with our
@@ -92,7 +127,8 @@ Official host setup: <https://learn.chatgpt.com/docs/extend/mcp?surface=cli>.
 
 | Priority / state | Work | Where to continue |
 | --- | --- | --- |
-| Next GUI debt | The shadcn conversion is accepted and on staging. Left from its run logs: Base UI warns that an uncontrolled FieldControl changed its default value on the coach's squad edit from the player page. The Bun-pin guard is a deployment input, so the next staging test run needs a deploy first. | [Convert the GUI to shadcn — log](2026-09-08-01-typography-and-design-system.md#log) |
+| Next | Deploy main to staging: it is ahead of the deployed `e9ce101` by the Bun-pin guard, the box score fix (`5f1d2ca`) and the taken-over install name, and a staging test run refuses until they match. Then the phone checks that only a device can give: the two install labels. Then the product roadmap below, starting with listing moderation. | [Convert the GUI to shadcn — log](2026-09-08-01-typography-and-design-system.md#log); [install name](2026-09-08-05-pwa-install-name-per-environment.md) |
+| Found 2026-09-09, not fixed | Two comments name things that do not exist: `docs/dev/email-deliverability.md` (cited at `src/mail/mailer.ts:44` and `scripts/ops/provision.ts:571`) and `bun run check:notifications` (cited in `src/web/components/notification-settings.tsx`). The second is a named guard against offered-type drift that is not actually running. `src/mail/mailer.ts` also claims the bulk subdomain earns its own DKIM reputation; `scripts/ops/provision.ts:566` records that sending is enabled per zone today, so it does not. | [The sign-in code and the email channel — steps](2026-09-09-01-sign-in-code-and-email-channel.md#steps) |
 | Next capture fix | Desktop Devices screenshots intermittently stall in WebKit after data and fonts load. This reproduced in the baseline before the GUI migration; phone captures work. Context cleanup now retains a trace, and the CLI cleans up sessions/storage on failure. Do not call the whole screenshot walk verified. | [GUI consistency implementation record](2026-09-07-06-gui-consistency.md#implementation-record--2026-09-07); reproduce with `bun run shots -- --grep 'devices · ja · desktop' --trace on`. |
 | In progress: separate automation work | Finish and commit the existing local-browser isolation edits. The working-tree CLI now uses 8788 and per-run storage; GUI verification observed startup, seed, session cleanup and storage removal. Lint import-time validation was corrected during GUI work. Developer data/session preservation and broader failure handling still need their own evidence. Keep `bun run dev` as the developer entry point without manual coordination. | [GUI verification and limits](2026-09-07-06-gui-consistency.md#implementation-record--2026-09-07); `playwright.config.ts`, `src/web/vite.config.ts`, `scripts/e2e.ts`, `scripts/lib/prepare.ts`. These pre-existing isolation edits remain uncommitted separately from the GUI change. |
 | Next independent product work | Review existing behavior one domain slice at a time: exact fields, relationships, permitted/refused actions, persistence and delivery. The committed report has **1,375 items: 64 classified, 1,311 unreviewed**. Unreviewed does not mean broken or unimplemented. | [Domain register, GAP-01 and GAP-05–08](2026-09-07-01-react-domain-coverage.md#work-register-and-execution-order); [generated inventory](react-domain-coverage.md). |
