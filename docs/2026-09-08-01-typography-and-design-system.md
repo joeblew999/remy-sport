@@ -257,3 +257,8 @@ gate is green once and the captures are reviewed in light and dark.
   Debt seen in the run logs, not fixed: Base UI warns "changing the default
   value state of an uncontrolled FieldControl" on the coach's squad edit
   from the player page.
+- 2026-09-09 — a mistake of `e9ce101`, found by checking that commit out
+  clean: it had swept in five of the remote-development plan's unit tests
+  (`tests/unit/remote*.test.ts`), whose libraries were never committed, so a
+  clean checkout of main failed to typecheck. Untracked again, left on disk
+  for that plan's owner; the deployed application was never affected.
