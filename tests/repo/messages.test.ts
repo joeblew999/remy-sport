@@ -30,6 +30,7 @@
 
 import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
+import * as vocabularies from "../../src/domain/vocabularies"
 import { ALL_LOCALES, LOCALE, LOCALES } from "../../src/domain/vocabularies"
 import { ERRORS } from "../../src/api/errors"
 import { rule } from "./helpers"
@@ -156,4 +157,97 @@ rule(
     `Without it the picker falls back to the two-letter code, which is what it is\n` +
     `there to replace.`,
   `check-messages: ${LOCALE.length} declared locale(s), each naming itself`,
+)
+
+/**
+ * No language contains a character from a script it does not use.
+ *
+ * Written after shipping `Mùa giải定 kỳ` in Vietnamese. One CJK character in the
+ * middle of a Latin word, typed by accident and reviewed by eye, past a
+ * completeness check that only counts keys and a placeholder check that only
+ * reads `{braces}`. Everything green.
+ *
+ * It is a worse defect than a missing translation, because a missing one falls
+ * back to English and still reads. This renders a tofu box mid-word for every
+ * reader of that language — and it is the exact failure the whole self-hosted
+ * font pipeline exists to prevent, arriving through the copy instead of through
+ * the font.
+ *
+ * The rule is per-locale and deliberately narrow: only scripts a locale is
+ * expected to write in are allowed, and the check names the offending character
+ * rather than the range, so the fix is visible from the failure.
+ *
+ * Latin, digits and punctuation are allowed everywhere — every language here
+ * carries names, codes and numerals, which is the same reason `latin` and
+ * `latin-ext` are unconditional in `ops fonts`.
+ */
+const BLOCKS: [string, RegExp][] = [
+  ["Thai", /[฀-๿]/u],
+  ["Cyrillic", /[Ѐ-ӿԀ-ԯ]/u],
+  ["Greek", /[Ͱ-Ͽ]/u],
+  ["Arabic", /[؀-ۿ]/u],
+  ["Devanagari", /[ऀ-ॿ]/u],
+  ["Hiragana", /[぀-ゟ]/u],
+  ["Katakana", /[゠-ヿ]/u],
+  ["Hangul", /[가-힯ᄀ-ᇿ]/u],
+  ["Han", /[一-鿿㐀-䶿]/u],
+]
+
+/** What each language actually writes in. Everything absent here is Latin-only. */
+const WRITES_IN: Record<string, string[]> = {
+  th: ["Thai"],
+  ja: ["Hiragana", "Katakana", "Han"],
+  zh: ["Han"],
+  ko: ["Hangul", "Han"],
+  ru: ["Cyrillic"],
+  el: ["Greek"],
+}
+
+/** Every translated string the product ships, as (locale, where, text). */
+function* translations(): Generator<[string, string, string]> {
+  for (const locale of ALL_LOCALES) {
+    for (const [key, text] of Object.entries(load(locale) ?? {})) {
+      if (!key.startsWith("$") && typeof text === "string") yield [locale, `messages/${locale}.json ${key}`, text]
+    }
+  }
+  for (const [name, entries] of Object.entries(vocabularies)) {
+    if (!Array.isArray(entries)) continue
+    for (const entry of entries as Record<string, unknown>[]) {
+      if (!entry || typeof entry !== "object") continue
+      for (const field of ["names", "descriptions"] as const) {
+        const byLocale = entry[field]
+        if (!byLocale || typeof byLocale !== "object") continue
+        for (const [locale, text] of Object.entries(byLocale as Record<string, unknown>)) {
+          if (typeof text === "string") yield [locale, `${name}.${String(entry.code)}.${field}`, text]
+        }
+      }
+    }
+  }
+}
+
+const strays: string[] = []
+for (const [locale, where, text] of translations()) {
+  // The endonym is the one string that is deliberately in its own script while
+  // sitting under every other locale's key: `ja`'s name for itself is 日本語 in
+  // the English column too, which is the whole point of the picker.
+  if (where.startsWith("LOCALE.")) continue
+  const allowed = WRITES_IN[locale] ?? []
+  for (const [script, pattern] of BLOCKS) {
+    if (allowed.includes(script)) continue
+    const found = text.match(pattern)
+    if (!found) continue
+    strays.push(`${locale}: ${where} — ${script} character ${JSON.stringify(found[0])} in "${text.slice(0, 60)}"`)
+    break
+  }
+}
+
+rule(
+  "no language contains a character from a script it does not use",
+  strays,
+  `check-messages: ${strays.length} stray character(s):\n` +
+    strays.map((s) => `  ${s}`).join("\n") +
+    `\n\nA character from another script renders as a tofu box mid-word — the font\n` +
+    `pipeline only ships the subsets a language declares. Usually a typo or a\n` +
+    `line copied from the wrong column.`,
+  `check-messages: no stray scripts across ${ALL_LOCALES.length} declared locale(s)`,
 )
