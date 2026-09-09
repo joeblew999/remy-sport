@@ -398,7 +398,8 @@ test.describe("The team hero's buttons", () => {
     ])
     await visit(page, "team", { id: "team_002" })
 
-    await expect(page.getByRole("link", { name: "Roster" })).toHaveAttribute("href", "#/team/team_002?section=roster")
+    await expect(page.getByRole("link", { name: "Roster" }))
+      .toHaveAttribute("href", expect.stringContaining("#/team/team_002?section=roster"))
     await expect(page.getByRole("link", { name: "Schedule" })).toHaveAttribute(
       "href",
       "#/team/team_002?section=schedule",

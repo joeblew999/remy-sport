@@ -1,6 +1,8 @@
 import { PanelLeftIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
+import { ancestorsOf, useRouter } from "../lib/router";
+import { RouteCrumb } from "./route-crumb";
 import { Account } from "./account";
 import { m } from "../lib/i18n";
 import { Fragment } from "react";
@@ -90,6 +92,8 @@ function Brand() {
 export function Topbar() {
   const { toggleSidebar } = useSidebar();
   const trail = usePageTitle();
+  const { route } = useRouter();
+  const taken = ancestorsOf(route);
   return (
     <header className="topbar flex h-(--header-height) shrink-0 items-center gap-2 border-b bg-background px-3 lg:px-4">
       <Button
@@ -126,18 +130,38 @@ export function Topbar() {
           */}
           <Breadcrumb aria-label={m.breadcrumbs()} className="min-w-0">
             <BreadcrumbList className="flex-nowrap">
-              {trail.crumbs.map((c, i) => (
-                <Fragment key={i}>
-                  <BreadcrumbItem className="hidden shrink-0 sm:inline-flex">
-                    {c.href ? (
-                      <BreadcrumbLink href={c.href} data-testid={c.testId}>{c.label}</BreadcrumbLink>
-                    ) : (
-                      <span>{c.label}</span>
-                    )}
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator className="hidden sm:block" />
-                </Fragment>
-              ))}
+              {/*
+                The route taken wins over the hierarchy.
+
+                `taken` is the chain this page was reached through, read out of
+                the URL. When it is there it *replaces* the page's declared
+                ancestors, because it is the more truthful answer to "how do I
+                get back": a team reached from a schedule goes back to that
+                schedule, not to the directory. When it is empty — a cold link,
+                a bookmark, a sidebar entry — the page's own hierarchy is what
+                is left, and it is still right.
+              */}
+              {taken.length > 0
+                ? taken.map((r, i) => (
+                    <Fragment key={i}>
+                      <BreadcrumbItem className="hidden shrink-0 sm:inline-flex">
+                        <RouteCrumb route={r} />
+                      </BreadcrumbItem>
+                      <BreadcrumbSeparator className="hidden sm:block" />
+                    </Fragment>
+                  ))
+                : trail.crumbs.map((c, i) => (
+                    <Fragment key={i}>
+                      <BreadcrumbItem className="hidden shrink-0 sm:inline-flex">
+                        {c.href ? (
+                          <BreadcrumbLink href={c.href} data-testid={c.testId}>{c.label}</BreadcrumbLink>
+                        ) : (
+                          <span>{c.label}</span>
+                        )}
+                      </BreadcrumbItem>
+                      <BreadcrumbSeparator className="hidden sm:block" />
+                    </Fragment>
+                  ))}
               <BreadcrumbItem className="min-w-0">
                 <h1 className="min-w-0 truncate font-heading text-base font-medium text-foreground" data-testid="page-title">
                   {trail.title}

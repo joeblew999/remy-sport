@@ -52,7 +52,10 @@ test.describe("Event Games on a phone", () => {
     await expect(rows).toHaveCount(games.length)
     const first = games.find(g => g.statusCode === "LIVE" || g.statusCode === "HALF_TIME") ?? games.find(g => g.statusCode === "SCHEDULED") ?? finished.at(-1)!
     await expect(rows.first()).toHaveAttribute("data-testid", `game-${first.id}`)
-    await expect(rows.first().getByTestId(`open-game-${first.id}`)).toHaveAttribute("href", `#/game/${first.id}`)
+    await expect(rows.first().getByTestId(`open-game-${first.id}`))
+      // The link records the event it was opened from, so the game can go back
+      // to this tab rather than to Discover.
+      .toHaveAttribute("href", new RegExp(`^#/game/${first.id}\\?from=`))
     await expect(page.getByTestId("tab-games")).toHaveAttribute("aria-current", "page")
     await expect(page.getByTestId("tab-overview")).toHaveCount(0)
     expect(await page.locator("body").evaluate(el => el.scrollWidth <= window.innerWidth)).toBe(true)

@@ -13,11 +13,12 @@ test("directory failure is recoverable and never claims there are no teams", asy
   }))
   await page.getByTestId("page").getByRole("button", { name: "Try again" }).click()
   const link = page.getByTestId("team-row-team_001").getByRole("link")
-  await expect(link).toHaveAttribute("href", "#/team/team_001")
+  // Opened from the directory, so the link records Teams as the way back.
+  await expect(link).toHaveAttribute("href", "#/team/team_001?from=%2Fteams")
   await link.focus()
   await expect(link).toBeFocused()
   await link.press("Enter")
-  await expect(page).toHaveURL(/#\/team\/team_001$/)
+  await expect(page).toHaveURL(/#\/team\/team_001\?from=%2Fteams$/)
 })
 
 test("game's failed event query offers retry instead of permanent loading", async ({ page }) => {

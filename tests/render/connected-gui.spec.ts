@@ -39,7 +39,8 @@ test("division survives tabs, reload and language change; each game opens the ri
   await expect(page.getByTestId("tab-standings")).toHaveAttribute("aria-current", "page")
   await page.getByTestId("tab-games").click()
   await page.getByTestId(`open-game-${game.id}`).click()
-  await expect(page).toHaveURL(new RegExp(`#/game/${game.id}$`))
+  // The game records the event tab it was opened from, so it can go back there.
+  await expect(page).toHaveURL(new RegExp(`#/game/${game.id}\\?from=%2Fevent%2F`))
   await expect(page.getByTestId(`game-${game.id}`)).toBeVisible()
   await page.goBack()
   await expect(page.getByTestId("event-division")).toHaveValue(division)
@@ -47,12 +48,16 @@ test("division survives tabs, reload and language change; each game opens the ri
 
 test("game to team to roster to player and back never hits a dead route", async ({ page }) => {
   await visit(page, "game", { id: game.id })
-  await page.getByTestId("game-team-links").locator(`a[href="#/team/${teamId}"]`).click()
+  // Prefix, not exact: the link carries the trail it was clicked from.
+  await page.getByTestId("game-team-links").locator(`a[href^="#/team/${teamId}"]`).click()
   await page.getByRole("link", { name: "Roster", exact: true }).click()
-  await expect(page).toHaveURL(new RegExp(`#/team/${teamId}\\?section=roster$`))
+  // `section` jumps within the page and the trail rides along with it.
+  await expect(page).toHaveURL(new RegExp(`#/team/${teamId}\\?section=roster`))
   await expect(page.getByTestId("team-name")).toBeAttached()
   await page.getByTestId(`open-player-${player.playerId}`).click()
-  await expect(page).toHaveURL(new RegExp(`#/player/${player.playerId}$`))
+  // Three steps deep by now — game, team, player — and each one is recorded,
+  // so the way back is the way in rather than the hierarchy.
+  await expect(page).toHaveURL(new RegExp(`#/player/${player.playerId}\\?from=%2Fteam%2F${teamId}`))
   await page.goBack()
   await expect(page.getByTestId("roster")).toBeVisible()
   await expect(page.getByText("That page does not exist.")).toHaveCount(0)

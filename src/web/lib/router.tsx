@@ -85,10 +85,86 @@ export function parseRoute(hash: string): Route {
   return Object.keys(query).length ? { ...base, query } : base;
 }
 
-export function routeHref(route: Route): string {
+/**
+ * The pages you drill *into*, as opposed to the ones the sidebar goes to.
+ *
+ * Only these carry a `from`. A nav link to Teams or Discover is a place you go,
+ * not a place you arrived at from somewhere — giving those a trail would put a
+ * back-step on the top of the hierarchy, which is nowhere.
+ */
+const DRILL: ReadonlySet<Page> = new Set<Page>([
+  "team", "player", "org", "event", "game", "watch", "broadcast",
+]);
+
+/**
+ * Where the reader is standing, so a link out of it can say where it came from.
+ *
+ * The Product Owner, 2026-09-09: a team reached from a schedule must go back to
+ * that schedule, everywhere in the app. Breadcrumbs alone cannot do that — they
+ * are a position in a hierarchy, and a team's position is Teams however you got
+ * there — so the route taken has to be carried, and it is carried in the URL so
+ * that a shared link opens with the same trail rather than an emptier one.
+ *
+ * A module variable rather than a prop because `routeHref` has 85 call sites and
+ * threading the current route through all of them would mean every future link
+ * has to remember. It is set from the one place the route is parsed.
+ */
+let here: Route | null = null;
+
+/** Set the standing route directly. For tests, which have no hashchange. */
+export function __setHereForTest(route: Route | null) {
+  here = route;
+}
+
+/** Depth cap. A trail is a way back, not a log; four steps is already generous. */
+const MAX_TRAIL = 4;
+
+/** The chain a route arrived through, oldest first. Empty when arrived cold. */
+export function ancestorsOf(route: Route): Route[] {
+  const out: Route[] = [];
+  let from = route.query?.from;
+  while (from && out.length < MAX_TRAIL) {
+    // Already decoded: `parseRoute` reads the search with URLSearchParams.
+    const parent = parseRoute(from);
+    out.unshift(parent);
+    from = parent.query?.from;
+  }
+  return out;
+}
+
+export function routeHref(route: Route, opts?: { trail?: boolean }): string {
   // Empty values are dropped rather than written as `province=`: an unset
   // filter should leave no trace in a link somebody is about to send.
-  const entries = Object.entries(route.query ?? {}).filter(([, v]) => v !== "");
+  const query = { ...(route.query ?? {}) };
+  /**
+   * The step back, attached here so every link in the app gets one without
+   * asking. Skipped when the link already names its own `from` (a page building
+   * a deliberate trail), when the target is not a drill-in, and when it points
+   * at the page the reader is already on — which would make a crumb back to
+   * itself.
+   */
+  // `trail` is a step *back* along the trail. Attaching a `from` to it would
+  // record the page you are leaving as the way you got to the page you came
+  // from, so the crumb would point forwards and the trail would grow in a
+  // circle — first found by clicking a crumb and watching the URL double.
+  const same = here !== null && here.page === route.page && here.id === route.id;
+  /**
+   * Staying on the same page — a tab, a section, a filter — keeps the trail
+   * that brought you here. Without this, pressing Roster on a team reached from
+   * a schedule dropped the way back to that schedule.
+   */
+  if (same && here?.query?.from && query.from === undefined) query.from = here.query.from;
+  if (!opts?.trail && here && DRILL.has(route.page) && query.from === undefined) {
+    if (!same) {
+      const trail = ancestorsOf(here);
+      // Trim the oldest steps rather than growing the URL without limit.
+      const parent = trail.length >= MAX_TRAIL ? { ...here, query: { ...here.query, from: "" } } : here;
+      // Not encoded here: `URLSearchParams` below does it, and doing both
+              // produced `%252Fdiscover` — a path that parses to nothing.
+              query.from = routeHref(parent).replace(/^#/, "");
+    }
+  }
+  const entries = Object.entries(query).filter(([, v]) => v !== "");
   const search = entries.length ? `?${new URLSearchParams(entries)}` : "";
   if (!route || !route.page || route.page === "home") return `#/${search}`;
   if (route.id) return `#/${route.page}/${route.id}${search}`;
@@ -157,9 +233,18 @@ export function signInRoute(from: Route, query: Record<string, string> = {}): Ro
 }
 
 export function useRouter(): RouterAPI {
-  const [route, setRoute] = useState<Route>(() => parseRoute(window.location.hash));
+  const [route, setRoute] = useState<Route>(() => {
+    const r = parseRoute(window.location.hash);
+    here = r;
+    return r;
+  });
   useEffect(() => {
-    const onHashChange = () => setRoute(parseRoute(window.location.hash));
+    const onHashChange = () => {
+      const r = parseRoute(window.location.hash);
+      // Before the render, so a link built during it says where it came from.
+      here = r;
+      setRoute(r);
+    };
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
@@ -169,6 +254,17 @@ export function useRouter(): RouterAPI {
   useEffect(() => {
     const page = document.getElementById("page");
     if (!page) return;
+    /**
+     * A link to a section of the page you are on is not a new place to restore.
+     *
+     * The Roster and Schedule buttons on a team wrote `?section=roster` and
+     * nothing moved. Both halves worked — the id was on the heading and the
+     * page's own effect called `scrollIntoView` — and this one undid it: a
+     * changed query is a new key, a new key has no saved position, so it forced
+     * the container back to 0 and held it there until it agreed. The page's
+     * jump lost to the restore every time.
+     */
+    if (route.query?.section) return;
     const key = routeHref(route);
     const target = scrollPositions.get(key) ?? 0;
     let restoring = true;

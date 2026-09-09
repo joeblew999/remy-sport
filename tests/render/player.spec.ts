@@ -80,7 +80,10 @@ test.describe("The player page", () => {
 
     const first = projectRoster(TEAM, { signedIn: true }).players[0]!
     await page.getByTestId(`open-player-${first.playerId}`).click()
-    await expect(page).toHaveURL(new RegExp(`#/player/${first.playerId}$`))
+    // The trail comes with it: opened from the roster, the player records the
+    // team as the way back (docs/2026-09-09-09). Asserted, not tolerated —
+    // this is the behaviour, so the URL says so.
+    await expect(page).toHaveURL(new RegExp(`#/player/${first.playerId}\\?from=%2Fteam%2F${TEAM}$`))
   })
 })
 
