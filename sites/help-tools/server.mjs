@@ -3,13 +3,14 @@ import { pathToFileURL } from 'node:url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { z } from 'zod';
+import { registerApplication } from './application.mjs';
 
 export function validateSource(value) {
   const url = new URL(value);
   if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || url.pathname !== '/' || url.username || url.password || url.search || url.hash) throw new Error('Expected a loopback help origin');
   return url.origin;
 }
-export async function createDocsServer(source) {
+export async function createDocsServer(source, application) {
   const base = validateSource(source);
   async function read(path) {
     const result = await fetch(base + path, { signal: AbortSignal.timeout(8000), redirect: 'error' });
@@ -20,7 +21,7 @@ export async function createDocsServer(source) {
   }
   const catalog = JSON.parse(await read('/help-index.json'));
   const pages = catalog.pages;
-  const server = new McpServer({ name: 'remy-help', version: '1.0.0' }, { instructions: 'Read-only Remy Sport documentation. Cite source pages. Local preview; translations may be drafts. Never infer account data, live scores or privileges.' });
+  const server = new McpServer({ name: 'remy-help', version: '1.0.0' }, { instructions: 'Read-only Remy Sport documentation. Cite source pages. Local preview; translations may be drafts. Never infer account data or privileges. Documentation is not live data; when application tools are available, use their timestamped responses for public events, teams and games.' });
   const annotations = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
   const locale = z.enum(['en', 'th', 'ja']).default('en');
   const textResult = value => ({ content: [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value) }] });
@@ -46,10 +47,11 @@ export async function createDocsServer(source) {
   for (const page of pages) {
     server.registerResource(page.url, `remy-help://guide${page.url}`, { title: page.title, description: page.description, mimeType: 'text/markdown' }, async uri => ({ contents: [{ uri: uri.href, mimeType: 'text/markdown', text: await read(page.markdown) }] }));
   }
+  if (application) registerApplication(server, application);
   return server;
 }
 
-export async function startServer({ source, port = 8792 }) {
+export async function startServer({ source, port = 8792, application }) {
   validateSource(source);
   const http = createServer(async (req, res) => {
     if (!/^127\.0\.0\.1:\d+$/.test(req.headers.host ?? '') || req.headers.origin) { res.writeHead(403).end(); return; }
@@ -62,7 +64,7 @@ export async function startServer({ source, port = 8792 }) {
       const chunks = []; let bytes = 0;
       for await (const chunk of req) { bytes += chunk.length; if (bytes > 65536) { res.writeHead(413).end(); return; } chunks.push(chunk); }
       const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-      server = await createDocsServer(source);
+      server = await createDocsServer(source, application);
       transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
       res.on('close', () => { void transport.close(); void server.close(); });
       await server.connect(transport);
@@ -76,7 +78,7 @@ export async function startServer({ source, port = 8792 }) {
   return http;
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const http = await startServer({ source: process.argv[2] ?? 'http://127.0.0.1:8791', port: Number(process.argv[3] ?? 8792) });
+  const http = await startServer({ source: process.argv[2] ?? 'http://127.0.0.1:8791', port: Number(process.argv[3] ?? 8792), application: 'http://127.0.0.1:8787' });
   console.log(`docs: MCP ready at http://127.0.0.1:${http.address().port}/mcp`);
   for (const signal of ['SIGTERM', 'SIGINT']) process.once(signal, () => { http.close(); http.closeAllConnections(); });
 }

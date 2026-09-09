@@ -211,3 +211,58 @@ is human translation review and, after a separately configured public launch,
 actual Google indexing/Gemini discovery. This local noindex system cannot supply
 that evidence. Editor offline collaboration and upstream CSS preload limitations
 are recorded in the bug register; no upstream messages have been submitted.
+
+## Current priority — external discovery and real API use
+
+User steering: content and other features are deferred. The acceptance target is
+Google/LLM access to the system and actual application API calls. The completed
+local help milestone above does NOT satisfy that external acceptance target.
+
+1. Verify the existing generated application OpenAPI contract and public GET
+   calls through shared automation, without app imports or app changes.
+2. Connect those verified reads to the isolated MCP service and emit Gemini
+   function declarations; test protocol use and rejection of protected paths.
+3. Verify public HTTPS reachability and crawl eligibility of the actual help
+   hostname. The help hostname is still undecided; no deployment authorized or
+   performed by this work. Do not treat the existing app hostname as an already
+   deployed Fuma site.
+4. With public endpoints and an explicitly configured Gemini test credential,
+   prove model retrieval/tool use and record citations/tool results. Indexing
+   requires Search Console evidence and may take time; never infer it from HTTP
+   success, llms.txt, an OpenAPI file or a local mock.
+
+`bun run ops docs discover` verifies the running local app by default; optional
+arguments are application origin and public help origin. It reads the generated
+schema and exercises the six explicitly allowlisted event/team/game list/detail
+GETs. It emits a local report and Gemini function declarations under the isolated
+tools package’s ignored .proof directory. No account credentials are forwarded.
+MCP exposes the same reads in local author/dev mode. This is a public-data initial
+connection, not permission for autonomous account changes or writes.
+
+Google’s documentation distinguishes indexable web content from model tool use:
+[Search AI eligibility](https://developers.google.com/search/docs/appearance/ai-features),
+[Gemini URL context](https://ai.google.dev/gemini-api/docs/url-context),
+[Gemini function calling and remote MCP](https://ai.google.dev/gemini-api/docs/function-calling).
+An indexed API description does not automatically install a tool in the consumer
+Gemini app. An explicit client tool connection is required for guaranteed API
+execution. Public launch and a real Gemini call remain open until measured.
+
+### External-access findings, 2026-09-09
+
+Local discovery verification passed all six real public application reads at
+127.0.0.1:8787 with 2,460 app/dependency fingerprints unchanged (the concurrent
+app work had already changed the previous baseline before this run). The current
+public origin returned HTTP 404 for its generated API schema. Consequently,
+external API-use acceptance is **not complete**. This needs public route/deploy
+repair before model testing. The isolated bridge tests passed MCP invocation,
+authentication-contract changes failing closed, traversal/unknown-operation
+rejection and absence of forwarded credentials. No production API was changed.
+
+The existing `bun run ops versions` read-only report identified production
+f936324 (2026-09-03), 189 commits behind the checkout at inspection time;
+staging e9ce101 was 30 behind. This supports deployment drift as a likely cause
+of the missing public schema, but does not prove the exact routing cause.
+Publishing the current application would include unrelated changes and is not
+silently bundled into the isolated help work. Next required work is a reviewed
+public release/route repair plus a public help origin, followed by external
+retrieval and a credentialed Gemini tool-call acceptance test.

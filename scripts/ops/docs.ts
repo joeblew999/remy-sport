@@ -180,6 +180,7 @@ async function preview(interactive: boolean, live = false, author = false) {
     }
     await command([process.execPath, "run", "audit", url])
     await command(["node", "check.mjs", url], toolSite)
+    await command(["node", "application-check.mjs", url], toolSite)
     await command([process.execPath, "install", "--frozen-lockfile"], editorSite)
     checkAuxInstall(editorSite)
     await command(["node", "check.mjs"], editorSite)
@@ -206,10 +207,10 @@ async function preview(interactive: boolean, live = false, author = false) {
 export async function runDocs(args: string[]): Promise<number> {
   const action = args[0] ?? "check"
   if (action === "--help") {
-    console.log("bun run ops docs [dev|author|stop|check|preview|lock|clean]\nauthor starts Studio alongside help and MCP; dev installs and starts Vite live updates at http://127.0.0.1:8791; check installs the independent locked packages, builds and verifies locally; preview keeps the verified site open; stop stops help development, MCP and Studio; clean removes only the three help packages’ generated files. lock updates their independent lockfiles after manifest edits. No deployment command.")
+    console.log("bun run ops docs [dev|author|stop|check|preview|lock|clean|discover]\nauthor starts Studio alongside help and MCP; dev installs and starts Vite live updates at http://127.0.0.1:8791; check installs the independent locked packages, builds and verifies locally; preview keeps the verified site open; stop stops help development, MCP and Studio; clean removes only the three help packages’ generated files. lock updates their independent lockfiles after manifest edits. No deployment command.\ndiscover [app-origin] [public-help-origin] verifies the live public API and optional public crawlability without starting or stopping servers.")
     return 0
   }
-  if (args.length > 1 || !["dev", "author", "stop", "check", "preview", "lock", "clean"].includes(action)) throw new Error("docs: expected dev, author, stop, check, preview, lock or clean")
+  if ((args.length > 1 && action !== "discover") || !["dev", "author", "stop", "check", "preview", "lock", "clean", "discover"].includes(action)) throw new Error("docs: expected dev, author, stop, check, preview, lock or clean")
   if (assertPinnedBun()) return 1
   for (const dir of [site, toolSite, editorSite]) {
     if (realpathSync(dir) !== dir) throw new Error("docs: package directory must not be a symlink")
@@ -217,6 +218,13 @@ export async function runDocs(args: string[]): Promise<number> {
   if (JSON.parse(readFileSync(join(root, "package.json"), "utf8")).workspaces) throw new Error("docs: recheck isolation before introducing a root workspace")
   const before = appSnapshot()
   try {
+    if (action === "discover") {
+      if (args.length > 3) throw new Error("docs discover [app-origin] [public-help-origin]")
+      await command([process.execPath, "install", "--frozen-lockfile"], toolSite)
+      checkAuxInstall(toolSite)
+      await command(["node", "discover.mjs", ...args.slice(1)], toolSite)
+      return 0
+    }
     await stopDev()
     if (action === "stop") return 0
     if (action === "clean") {

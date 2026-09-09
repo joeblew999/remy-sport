@@ -52,7 +52,9 @@ application merely because that application uses the same port.
 An MCP client on this machine can connect to the URL above while `dev` or
 `author` runs. Available tools: `search_docs` (query, locale, optional limit),
 `read_guide` (catalogue path). Resources include the catalogue and each guide.
-There are no write tools, account data or model-provider calls. Remote hosted
+The companion also provides six public event/team/game read tools against the
+local app at 8787, checking its generated API contract before each call.
+There are no write tools, private account data or model-provider calls. Remote hosted
 assistants cannot reach a localhost service. MCP is a companion service, not a
 route in the static Cloudflare deployment.
 
