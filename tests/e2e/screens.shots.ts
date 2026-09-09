@@ -51,6 +51,7 @@ const SCREENS: { name: string; path: string; as: string | null; open?: string }[
   { name: "places", path: "/#/event/evt_002", as: null, open: "places" },
   { name: "manage", path: "/#/event/evt_002", as: actor("ORGANIZER", 1), open: "manage" },
   { name: "watch", path: "/#/watch/gam_002", as: null },
+  { name: "broadcast", path: "/#/broadcast/gam_002", as: "adisorn.b@bat.test" },
   { name: "orgs", path: "/#/orgs", as: COACH },
   { name: "org", path: "/#/org/org_001", as: COACH },
   // The same URL as the line above, and the point of the pair: this coach
@@ -105,7 +106,7 @@ for (const [role, email] of Object.entries(ACTORS)) {
  * the whole mechanism. Declared after `YOURS`, because `home-coach` is one of
  * the generated lines and the lookup needs it to exist first.
  */
-const DARK_SLICE = ["discover", "places", "game", "home-coach", "admin", "login", "roster", "team-schedule", "team-manage"]
+const DARK_SLICE = ["discover", "places", "game", "home-coach", "admin", "login", "roster", "team-schedule", "team-manage", "watch", "broadcast"]
 for (const name of DARK_SLICE) {
   const base = SCREENS.find((s) => s.name === name)!
   SCREENS.push({ ...base, name: `${name}-dark` })

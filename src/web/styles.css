@@ -213,29 +213,12 @@
   .topbar :where(button, a, input, select, textarea) { min-height: 0; }
 }
 
-/* 2. The live-video surface (components/moq-video.tsx). A custom element is
-   `display: inline` with no intrinsic size, so the player and the camera
-   preview render at 0×0 unless told otherwise; the child <video> and <canvas>
-   are the actual draw surfaces — the elements have no shadow root — and carry
-   the aspect ratio. The element sets `display: none` on its child until
-   capture starts, and that inline style beats a stylesheet rule, so this only
-   shapes the surface once the element has revealed it. A utility cannot reach
-   a custom element's children by tag, which is why this is a rule. */
-.moq-surface moq-publish-ui,
-.moq-surface moq-watch-ui,
-.moq-surface moq-publish,
-.moq-surface moq-watch {
-  display: block;
-  width: 100%;
-}
-.moq-surface video,
-.moq-surface canvas {
-  width: 100%;
-  /* 16:9, so the box holds its shape before any frame has arrived. */
-  aspect-ratio: 16 / 9;
-  background: #000;
-  object-fit: contain;
-}
+/* 2. Native media has no intrinsic layout while awaiting a frame. Reserve 16:9
+   on the container; the MoQ element may hide its canvas until decoding starts.
+   Black belongs only to this picture area. All surrounding UI uses shadcn. */
+.moq-media { aspect-ratio: 16 / 9; background: #000; overflow: hidden; }
+.moq-media moq-watch { display: block; width: 100%; height: 100%; }
+.moq-media video, .moq-media canvas { width: 100%; height: 100%; object-fit: contain; }
 
 /* 3. Motion off when the reader asked for it, everywhere at once. */
 @media (prefers-reduced-motion: reduce) {

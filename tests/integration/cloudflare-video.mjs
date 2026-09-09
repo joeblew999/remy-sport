@@ -1,24 +1,12 @@
 /** Real Cloudflare relay check, with Chrome's synthetic camera.
- * Run: bun tests/integration/cloudflare-video.mjs while bun run dev is running.
- * Staging: BASE_URL=<staging origin> bun tests/integration/cloudflare-video.mjs --env staging
+ * Run: bun run test:e2e -- --media
+ * The shared runner owns the isolated server, seed, sessions and cleanup.
  * No traces, screenshots or browser logs: relay URLs contain credentials.
  */
 import { chromium, expect } from '@playwright/test'
-import { BASE, IS_LOCAL, REFEREE, signIn, releaseSessions } from '../helpers/auth.ts'
+import { BASE, REFEREE, signIn, releaseSessions } from '../helpers/auth.ts'
 
-if (!IS_LOCAL) {
-  const { originOf, resolveTarget } = await import('../../scripts/lib/cloudflare.ts')
-  const target = resolveTarget(process.argv.slice(2), 'explicit')
-  if (target.environment !== 'staging' || BASE !== originOf(target)) {
-    throw new Error('Remote video checks require --env staging and its configured BASE_URL')
-  }
-  const health = await fetch(`${BASE}/api/health`).then(r => r.json())
-  if (health.environment !== 'staging') throw new Error('The server did not identify itself as staging')
-  // Use the already-enabled fixture sign-in; never change deployment secrets.
-  const accounts = await fetch(`${BASE}/api/dev/accounts`).then(r => r.json())
-  if (!accounts.code) throw new Error('Staging fixture sign-in is not enabled')
-  process.env.TEST_OTP = accounts.code
-}
+export async function verifyCloudflareVideo() {
 const browser = await chromium.launch({ channel: 'chrome', args: [
   '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream',
   '--autoplay-policy=no-user-gesture-required',
@@ -51,6 +39,20 @@ try {
   await pub.goto('/#/broadcast/gam_002')
   await watch.goto('/#/watch/gam_002')
   await expect(pub.getByTestId('moq-start-camera')).toBeVisible({ timeout: 30000 })
+  step = 'denied capture does not advertise a broadcast'
+  const denied = await browser.newContext({ baseURL: BASE, storageState: await publisher.storageState() })
+  try {
+    const deniedPage = await denied.newPage()
+    let heartbeats = 0
+    deniedPage.on('request', request => { if (request.url().includes('/rpc/games/startBroadcast')) heartbeats++ })
+    await deniedPage.addInitScript(() => {
+      navigator.mediaDevices.getUserMedia = () => Promise.reject(new DOMException('Denied by test', 'NotAllowedError'))
+    })
+    await deniedPage.goto('/#/broadcast/gam_002')
+    await deniedPage.getByTestId('moq-start-camera').click()
+    await expect(deniedPage.getByTestId('moq-broadcast-error')).toBeVisible()
+    expect(heartbeats).toBe(0)
+  } finally { await denied.close() }
   step = 'wait for a publisher that has not started yet'
   await watch.waitForTimeout(12_000)
   const frames = () => watch.evaluate(() => window.__moqFrames.size)
@@ -69,10 +71,26 @@ try {
   expect(await healthy.evaluate(node => node.isConnected)).toBe(true)
   await advancing()
   console.log('PASS: healthy video stays connected across the recovery interval')
+  step = 'pause, resume, mute and volume controls'
+  await watch.getByTestId('moq-play').click()
+  await expect.poll(() => watch.locator('moq-watch').evaluate(node => node.paused)).toBe(true)
+  await watch.waitForTimeout(1000)
+  const paused = await frames()
+  await watch.waitForTimeout(1000)
+  expect(await frames()).toBe(paused)
+  await watch.getByTestId('moq-play').click()
+  await advancing()
+  await watch.getByTestId('moq-mute').click()
+  await expect.poll(() => watch.locator('moq-watch').evaluate(node => node.muted)).toBe(false)
+  await watch.getByRole('slider').focus()
+  await watch.getByRole('slider').press('ArrowLeft')
+  await expect.poll(() => watch.locator('moq-watch').evaluate(node => node.volume)).toBeLessThan(1)
+  await watch.getByTestId('moq-mute').click()
+  console.log('PASS: playback, sound and keyboard volume controls reach the media engine')
   step = 'stop capture and video delivery'
   await pub.getByTestId('moq-stop').click()
   started = false
-  await expect.poll(() => pub.locator('moq-publish video').evaluate(video =>
+  await expect.poll(() => pub.getByTestId('moq-preview').evaluate(video =>
     !video.srcObject || video.srcObject.getTracks().every(track => track.readyState === 'ended')
   )).toBe(true)
   await watch.waitForTimeout(3000)
@@ -92,10 +110,11 @@ try {
   for (const context of [publisher, watcher]) {
     for (const page of context.pages()) {
       console.log(await page.evaluate(() => {
-        const node = document.querySelector('moq-publish, moq-watch')
+        const node = document.querySelector('moq-watch')
         const video = document.querySelector('video')
         return {
           element: node?.tagName,
+          status: document.querySelector('[data-testid="moq-status"]')?.textContent,
           connection: node?.connection?.status?.peek?.(),
           broadcast: node?.broadcast?.out?.status?.peek?.(),
           videoWidth: video?.videoWidth,
@@ -104,10 +123,12 @@ try {
       }).catch(() => ({ pageUnavailable: true })))
     }
   }
-  process.exitCode = 1
+  throw new Error(`Real media verification failed at: ${step}`)
 } finally {
   clearInterval(progress)
   if (started) await publisher.request.delete('/api/games/gam_002/broadcast').catch(() => {})
   await releaseSessions()
   await browser.close()
+}
+
 }

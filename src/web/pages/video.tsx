@@ -17,6 +17,9 @@ import { GameBroadcast, GameVideo } from "../components/moq-video"
 import { PageHeader, PageInner } from "../components/page"
 import { EmptyState, Loading } from "../components/states"
 import { StatusBadge } from "../components/status-badge"
+import { Badge } from "@/components/ui/badge"
+import { ButtonLink } from "../components/button-link"
+import { Item, ItemContent, ItemTitle, ItemDescription } from "@/components/ui/item"
 import { useDefaultGame, useGame } from "../lib/data"
 import { m } from "../lib/i18n"
 
@@ -37,25 +40,26 @@ function GameHeading({ gameId }: { gameId: string }) {
   const played = game.homeScore !== null && game.awayScore !== null
   return (
     <>
-      <p className="mt-1.5 text-muted-foreground" data-testid="video-game">
-        {game.homeTeam} {m.versus()} {game.awayTeam}
-        {game.venue ? ` · ${game.venue}` : ""}
-      </p>
+      <Item variant="outline">
+        <ItemContent>
+          <ItemTitle data-testid="video-game">{game.homeTeam} {m.versus()} {game.awayTeam}</ItemTitle>
+          {game.venue && <ItemDescription>{game.venue}</ItemDescription>}
+        </ItemContent>
+      </Item>
       <div className="mt-3 flex flex-wrap items-center gap-3" data-testid="video-score">
         {played && (
-          <span className="text-2xl font-semibold tabular-nums">
+          <Badge variant="outline">
             {game.homeScore}–{game.awayScore}
-          </span>
+          </Badge>
         )}
         <StatusBadge status={game.statusCode}>{game.statusLabel}</StatusBadge>
         {/* Not a dead end: back to the event this game belongs to. */}
-        <a
-          className="text-sm underline underline-offset-4"
+        <ButtonLink variant="outline"
           href={routeHref({ page: "event", id: game.eventId })}
           data-testid="video-event-link"
         >
           {m.view_schedule()}
-        </a>
+        </ButtonLink>
       </div>
     </>
   )

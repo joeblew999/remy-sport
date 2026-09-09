@@ -1,4 +1,5 @@
 import { test, expect } from "./fixture"
+import type MoqWatch from "@moq/watch/element"
 import { visit } from "../helpers/surfaces"
 import { seedCache, entry, orpc } from "../helpers/seed-cache"
 import { type ApiGame } from "../helpers/api-fixtures"
@@ -225,3 +226,47 @@ test.describe("A broadcaster starts from the fixture they are standing at", () =
     await expect(page.getByTestId(`watch-fixture-${liveGame.id}`)).toBeVisible()
   })
 })
+
+for (const surface of ["watch", "broadcast"] as const) {
+  test(`${surface} distinguishes pending relay config from an unconfigured relay`, async ({ page }) => {
+    await seedCache(page, [entry(orpc.games.get, { id: liveGame.id }, liveGame)])
+    let release!: () => void
+    const ready = new Promise<void>(resolve => { release = resolve })
+    await page.route('**/rpc/moq/config**', async route => {
+      await ready
+      await route.fulfill({ json: { json: { url: null, token: null } } })
+    })
+    await visit(page, surface, { id: liveGame.id })
+    await expect(page.getByTestId('moq-loading')).toBeVisible()
+    await expect(page.getByTestId('moq-unconfigured')).toHaveCount(0)
+    release()
+    await expect(page.getByTestId('moq-unconfigured')).toBeVisible()
+  })
+}
+
+for (const locale of ["en", "th", "ja"] as const) {
+  for (const dark of [false, true]) {
+    test(`watch controls use the registry on a phone in ${locale}, dark=${dark}`, async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 844 })
+      await page.addInitScript(({ locale, dark }) => {
+        localStorage.setItem('remy.locale', locale)
+        localStorage.setItem('remy.theme', dark ? 'dark' : 'light')
+      }, { locale, dark })
+      await seedCache(page, [entry(orpc.games.get, { id: liveGame.id }, liveGame)])
+      await page.route('**/rpc/moq/config**', route => route.fulfill({ json: { json: { url: 'https://relay.invalid', token: 'test' } } }))
+      await visit(page, 'watch', { id: liveGame.id })
+      await expect(page.getByTestId('moq-watch')).toHaveAttribute('data-slot', 'card')
+      await expect(page.getByTestId('moq-play')).toBeVisible()
+      await expect(page.getByRole('slider')).toHaveAccessibleName(/.+/)
+      await page.getByTestId('moq-play').click()
+      await expect(page.locator('moq-watch')).toHaveJSProperty('paused', true)
+      await page.getByRole('slider').focus()
+      await page.keyboard.press('Home')
+      await expect.poll(() => page.evaluate(() => document.querySelector<MoqWatch>('moq-watch')!.volume)).toBe(0)
+      await page.keyboard.press('ArrowRight')
+      await expect.poll(() => page.evaluate(() => document.querySelector<MoqWatch>('moq-watch')!.volume)).toBe(0.01)
+      expect(await page.locator('body').evaluate(el => el.scrollWidth <= innerWidth)).toBe(true)
+      await expect(page.getByTestId('moq-status')).not.toContainText(liveGame.id)
+    })
+  }
+}

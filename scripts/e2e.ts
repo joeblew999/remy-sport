@@ -208,9 +208,10 @@ function target(argv: string[]): { origin: string; environment: string } | null 
 
 const argv = process.argv.slice(2)
 if (argv.includes("--help") || argv.includes("-h")) {
-  console.log("bun run test:e2e [-- --env staging] [Playwright options]\nLocal runs start an isolated Worker on localhost:8788 and remove its storage afterwards.\nRecovery: --cleanup-run <run UUID> [--env staging] ends only recorded sessions from that run.\nStaging runs include automatic admin access and checked restoration. --retries 0 disables retries.")
+  console.log("bun run test:e2e [-- --env staging] [Playwright options]\n--media runs the real relay publisher/watcher proof (requires configured relay credentials and Chrome).\nLocal runs start an isolated Worker on localhost:8788 and remove its storage afterwards.\nRecovery: --cleanup-run <run UUID> [--env staging] ends only recorded sessions from that run.\nStaging runs include automatic admin access and checked restoration. --retries 0 disables retries.")
   process.exit(0)
 }
+if (argv.includes("--media") && argv.includes("--shots")) throw new Refused("Choose --media or --shots, not both")
 const TARGET = target(argv)
 const cleanupAt = argv.indexOf("--cleanup-run")
 if (cleanupAt !== -1) {
@@ -228,7 +229,7 @@ const env: NodeJS.ProcessEnv = { ...process.env, E2E_STATE_DIR: `.playwright/run
 delete env.BASE_URL
 delete env.TEST_OTP
 delete env.TEST_ADMIN_SIGNIN
-const rest = argv.filter((a, i) => a !== "--shots" && !(a === "--env" || a.startsWith("--env=") || (i > 0 && argv[i - 1] === "--env")))
+const rest = argv.filter((a, i) => a !== "--shots" && a !== "--media" && !(a === "--env" || a.startsWith("--env=") || (i > 0 && argv[i - 1] === "--env")))
 
 async function run(adminConfirmed = false): Promise<void> {
   if (TARGET) {
@@ -238,7 +239,7 @@ async function run(adminConfirmed = false): Promise<void> {
     env.TEST_ADMIN_SIGNIN = admin ? "1" : "0"
     if (TARGET.environment === "staging" && !admin) throw new Refused("Staging admin preflight failed; refusing to skip admin tests")
   }
-  const child = spawn("bun", ["x", "playwright", "test", ...(argv.includes("--shots") ? ["--project", "shots"] : ["--project", "e2e", "--project", "admin", "--project", "authz"]), ...rest, ...(TARGET?.environment === "staging" ? ["--workers", "1"] : [])], { stdio: "inherit", env })
+  const child = spawn("bun", ["x", "playwright", "test", ...(argv.includes("--shots") ? ["--project=shots"] : argv.includes("--media") ? ["--project=media"] : ["--project=e2e", "--project=admin", "--project=authz"]), ...rest, ...(TARGET?.environment === "staging" ? ["--workers", "1"] : [])], { stdio: "inherit", env })
   let interrupted = false
   const cancel = () => { interrupted = true; child.kill("SIGINT") }
   process.on("SIGINT", cancel)

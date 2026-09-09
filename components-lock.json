@@ -150,6 +150,11 @@
       "files": {
         "src/web/components/ui/checkbox.tsx": "51b82e5ca459ea7792d8f24ac924f13aeaa2b2cd338560d2b4291e38b648c12e"
       }
+    },
+    "@shadcn/slider": {
+      "files": {
+        "src/web/components/ui/slider.tsx": "1fd32ee03ddaa382aabccce0bd88669aa8f91e4fe487622a68745d2ed1d5f5b9"
+      }
     }
   }
 }

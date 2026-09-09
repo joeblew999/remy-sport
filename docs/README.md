@@ -23,6 +23,7 @@ A shipped feature stays here if its acceptance checks or follow-ups are still op
 | Work | State | Next step / owning plan |
 | --- | --- | --- |
 | Team page | Implemented; full acceptance open | [Roster, Schedule and Manage tabs](2026-09-09-11-team-page-tabs.md). 32 targeted rendering checks, the browser journey and 36 captures pass. Whole-gate failures remain recorded in the plan. |
+| MoQ screens | Implemented; live-media acceptance open | [Watching and broadcasting](2026-09-09-09-moq-on-shadcn.md). Shadcn controls checked directly; post-fix live delivery needs camera permission. No further e2e runs requested. |
 | Notification settings | Changes present; acceptance pending | [Two-channel notification page](2026-09-09-08-notifications-page-two-channels.md). Reconcile the implementation against its checklist and verify it. The current style check reports a muted-caption violation in this component. |
 | Main content styling | Partly implemented; visual review open | [Registry composition](2026-09-09-07-main-content-on-the-registry.md). The shell and density changed; remaining registry replacements, old checks and multilingual/dark visual review need reconciliation. This owns the incomplete part of the archived initial GUI conversion. |
 | Public help | Implemented; discovery/integration work open | [Public help](2026-09-09-04-blume-public-help.md). Continue from “Current priority — external discovery and real API use”; use the help package's shared CLI. |
@@ -33,7 +34,6 @@ A shipped feature stays here if its acceptance checks or follow-ups are still op
 | Work | State | Next step / owning plan |
 | --- | --- | --- |
 | Installed-app Back | Proposed; rebase on new trail behavior | [Back navigation](2026-09-09-10-installed-app-back-navigation.md). Check actual route history and mobile controls before implementing; installed iPhone/Android acceptance remains open. |
-| MoQ screens | In progress | [Watching and broadcasting](2026-09-09-09-moq-on-shadcn.md). Shared registry frame, typed media state and a real-media browser probe. |
 | Sign-in autofill | Implemented; phone acceptance open | [Sign-in code](2026-09-09-01-sign-in-code-autofill.md). Watch a real phone offer the emailed code. |
 | Email channel | Verified locally; remote delivery open | [React Email](2026-09-09-02-email-channel-on-react-email.md). Verify real inbox delivery after the next authorised staging deployment. |
 | Environment install names | Verified locally; phone acceptance open | [Install names](2026-09-08-05-pwa-install-name-per-environment.md). Confirm localhost/staging labels on a phone. |

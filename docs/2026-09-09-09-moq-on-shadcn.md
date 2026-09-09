@@ -1,8 +1,9 @@
 # Plan — MoQ watching and broadcasting on shadcn
 
-Status: implementation started 2026-09-09 at the user’s request.
-Next: typed media adapters, then shared registry frame/controls and real-media
-verification through the repository CLI.
+Status: implemented 2026-09-09; live-media acceptance remains open.
+Next: verify distinct live frames, stop and restart after camera permission is
+available. The user explicitly stopped e2e runs: test the actual page directly;
+do not restart e2e, the full gate or screenshot suites for this work.
 This document owns the MoQ UI work. The [main-content plan](2026-09-09-07-main-content-on-the-registry.md)
 owns the shared page architecture; the [relay record](2026-09-07-02-relay-capabilities.md)
 continues to own transport and credential isolation.
@@ -14,6 +15,11 @@ application. Keep the official MoQ media engine, and compose every ordinary
 visible UI element from the repository's registry components: frame, controls,
 status, loading, empty states and errors. Use the existing `base-nova`, stone,
 Base UI preset, with its shipped spacing, typography, variants and theme.
+
+**User requirement:** use the installed shadcn theme as shipped. This is a firm
+constraint, not an invitation to imitate it with custom styles. Registry source
+stays unchanged; compose its components and variants. The media rectangle is
+the only video-specific visual treatment.
 
 This is an application composition of shadcn components. It does not require
 publishing a new registry or inventing a second UI library. Custom elements
@@ -133,10 +139,10 @@ per-frame announcements. Controls work with touch and keyboard without hover.
 - Real media: preserve the separate publisher/watcher proof of distinct decoded
   frames, healthy playback, stop/release and restart in
   `tests/integration/cloudflare-video.mjs`; extend it for playback controls and
-  denied capture. **Automation debt:** this script currently advertises a direct
-  invocation with a separately running dev server and is not wired into the
-  package CLI. Integrate it into `bun run test:e2e` with shared lifecycle and
-  cleanup before using it as acceptance evidence. If relay credentials are
+  denied capture. The former direct-script automation debt is fixed: the proof
+  is now an explicit `bun run test:e2e -- --media` mode with shared lifecycle and
+  cleanup. It is not part of the default suite. Do not run it again under the
+  user's current no-e2e instruction. If relay credentials are
   unavailable, report that limitation explicitly; a skip does not pass delivery.
 - Exercise real camera/audio and phone behavior through the existing walkthrough
   workflow where automation cannot prove them. Record browser/version and limits.
@@ -147,3 +153,84 @@ Done means both surfaces use the same shadcn frame and primitives, every offered
 control works, displayed state matches observed media state, capture is released
 correctly, the shared checks pass, and real media evidence is recorded. Deployment
 is a subsequent action; this planning request does not publish changes.
+
+## Implementation decision — capture ownership
+
+The installed publisher source code catches getUserMedia/getDisplayMedia errors
+and discards them; its public types expose no capture-error signal. Screen
+capture also races cancellation without releasing a stream that arrives later.
+A typed observer of that element cannot meet the denied/pending/late-cleanup
+acceptance honestly. Use the official `@moq/publish` JavaScript exports instead:
+Net, Signals, Video.Capture, Broadcast and Audio/Video.Encoder. The application
+owns the native capture request, preview and track cleanup; MoQ still owns frame
+capture, codecs, catalog, transport and demand-driven encoding. No dependency
+upgrade or new direct dependency is needed (Signals and Net are public exports).
+Watch retains the official custom element behind a typed adapter. This replaces
+the original proposal to observe both elements, based on the installed API.
+
+## Implementation and verification record — 2026-09-09
+
+- Watch/Broadcast now compose the installed Card, Badge, Alert, Button, Field
+  and newly installed registry Slider. Game context uses Item and ButtonLink.
+  No upstream MoQ UI/support tags or duplicate visual theme remain. All new
+  controls and statuses are translated in English, Thai and Japanese.
+- Typed adapters own capability probes, actual frame progress, renewal,
+  reconnects, capture errors, analytics and cleanup. A serialized heartbeat
+  prevents a delayed start response from leaving a stopped broadcast advertised.
+- Fixed two defects found during verification: `Net.Connection.Reload` defaults
+  to disabled, so the publisher now shares the capture-enabled signal; Watch's
+  asynchronous unmute restores old volume, so slider changes wait for that
+  restoration before applying the requested value.
+- Direct Chrome 152 checks at localhost:8787: pause updates both engine and
+  status; keyboard volume reaches 0.01; mute reaches zero and unmute restores
+  0.01; fullscreen enters and exits the media Card. At 390×844 in dark mode,
+  controls wrap without horizontal overflow; the actual screenshot was inspected.
+  Broadcast shows Requesting permission and Stop cancels the pending request.
+- Camera permission did not resolve in the connected browser. No real camera
+  stream or post-fix relay delivery is claimed. Prior to the publisher connection
+  fix, the optional media proof captured a 1280-wide preview but received zero
+  viewer frames. That failed run cleaned up its isolated storage and sessions.
+- Typecheck passes. The targeted lifecycle, MoQ registry and docs-organisation
+  checks pass (10 tests, 141 ms, including camera-switch release order). Earlier registry integrity check passed all 29
+  components; lint/build/model passed before the final adapter corrections.
+- Earlier focused rendering had 20 passes and six keyboard-volume failures.
+  The faulty volume binding is fixed and directly checked; those tests now
+  assert an exact keyboard value but were not rerun after the user's instruction.
+  No whole-gate pass is claimed: concurrent notification settings still had a
+  style violation and rendering failures owned by its plan.
+- Optional media automation is now wired to the public CLI and selects projects
+  with `--project=...`, avoiding positional spec paths being swallowed. Its CLI
+  selection regression test is saved but has not been run in this final pass.
+
+Remaining acceptance: post-fix live video/audio, stop/restart delivery, screen
+capture, and real-phone behavior. Keep this plan active until these are proven.
+
+## Camera choice — user follow-up
+
+Rear-camera preference is the default (`facingMode: { ideal: "environment" }`),
+so a laptop with only a front camera can still broadcast. The shadcn NativeSelect
+offers rear/front preference before capture and specific camera names when the
+browser reveals them. A named camera uses exact `deviceId`; it must not silently
+switch to a different device. The preview reports the active camera's label.
+Selecting a camera during camera capture stops the old tracks before requesting
+the replacement, with the heartbeat withdrawn during the interruption. Selecting
+while idle changes the next request without starting capture; screen sharing
+is not interrupted by changing the camera preference.
+
+The installed MoQ package does help: `Source.Camera` accepts facing constraints
+and a preferred device, and `Source.Device` discovers cameras, handles device
+changes and tracks permission/active device. Reuse `Source.Device` directly,
+reporting successful native capture through `device.capture(deviceId)` and
+disposing it on stop. Keep application-owned getUserMedia for observable
+permission errors and cancellation, as explained above; do not recreate device
+enumeration or import MoQ's separate UI.
+
+Direct Chrome check: picker defaults to rear preference; front/rear changes while
+idle leave the preview stopped and status Ready; MoQ discovers the Mac's named
+camera. Mobile-width layout has no horizontal overflow. The focused lifecycle
+test proves the previous track is stopped before replacement acquisition.
+Physical rear/front switching still requires phone verification.
+
+Browser constraint behavior: [MDN getUserMedia](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia).
+Exact facing mode can fail when unavailable; ideal expresses a preference.
+Installed API evidence: `@moq/publish/source/camera.d.ts` and `source/device.d.ts`.

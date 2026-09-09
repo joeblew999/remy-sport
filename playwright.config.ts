@@ -120,6 +120,7 @@ export default defineConfig({
      * whole content was "the same as e2e"). `bun run test:e2e` names the e2e, admin
      * and authz projects, so a test run never takes pictures.
      */
+    { name: "media", testMatch: /moq\.media\.ts/, dependencies: ["auth"], use: { trace: "off", screenshot: "off", video: "off" } },
     { name: "shots", testMatch: /screens\.shots\.ts/, dependencies: ["auth"] },
   ],
   ...(isLocal && {

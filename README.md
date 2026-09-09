@@ -128,6 +128,7 @@ For a smaller task:
 | `bun run test:watch` | Rerun those tests as files change. |
 | `bun run test:render` | Check page layouts in a browser. |
 | `bun run shots` | Capture screenshots. |
+| `bun run test:e2e -- --media` | Verify real relay video, playback controls and capture cleanup using Chrome and configured relay credentials. |
 
 Run browser tests and screenshots one at a time: both use 8788.
 Tests still read the shared source files, so code edits during a run can affect
