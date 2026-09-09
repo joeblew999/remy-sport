@@ -33,7 +33,7 @@ try {
   for (const [locale, query] of [['en', 'email'], ['th', 'อีเมล'], ['ja', 'メール']]) {
     const search = await client.callTool({ name: 'search_docs', arguments: { query, locale } });
     assert(!search.isError, JSON.stringify(search));
-    assert(JSON.parse(search.content[0].text).some(page => page.url === `/${locale}/sign-in`));
+    assert(JSON.parse(search.content[0].text).some(page => page.url === `/${locale}/sign-in`), `${locale}: sign-in must be in the top five email results`);
   }
   const guide = await client.callTool({ name: 'read_guide', arguments: { path: '/en/sign-in' } });
   assert(!guide.isError, JSON.stringify(guide));

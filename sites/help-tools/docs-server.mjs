@@ -15,7 +15,8 @@ export async function createDocsServer(read, application, cacheMs = 0) {
       const markdown = await read(page.markdown);
       const content = markdown.toLocaleLowerCase(locale).normalize('NFKC');
       const title = page.title.toLocaleLowerCase(locale).normalize('NFKC');
-      const score = (title.includes(needle) ? 20 : 0) + (content.includes(needle) ? 5 : 0) + words.filter(word => content.includes(word)).length;
+      const description = (page.description ?? '').toLocaleLowerCase(locale).normalize('NFKC');
+      const score = (title.includes(needle) ? 20 : 0) + (description.includes(needle) ? 12 : 0) + (content.includes(needle) ? 5 : 0) + words.filter(word => content.includes(word)).length;
       const index = content.indexOf(needle);
       return { ...page, score, excerpt: markdown.slice(Math.max(0, index - 60), Math.max(0, index - 60) + 450) };
     }));
