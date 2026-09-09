@@ -262,3 +262,53 @@ pre-shadcn stylesheet), the mobile-layout specs' pinned viewport expectations,
 and the three JSX rules added today — which enforce **our** `RowGroup`, `Muted`
 and heading ladder, and would need revisiting if the block's architecture is
 adopted.
+
+## Implemented — the shell, 2026-09-09
+
+The Product Owner chose "shell now, lists stay dense". Done, `ed69a91` and
+`348fee1`, on top of `431b19a` and `3f93e49`.
+
+| Taken from `dashboard-01` | Where |
+| --- | --- |
+| `variant="inset"` sidebar — a floating, rounded, shadowed panel | `main.tsx`, `app-sidebar.tsx` |
+| `--sidebar-width` and `--header-height` on `SidebarProvider` | `main.tsx` |
+| The page's `h1` in the site header, `text-base font-medium`, after the trigger and a separator | `topbar.tsx` |
+| `px-4 lg:px-6` gutters, full width, `@container/main` | `page.tsx` |
+| Brand in the sidebar, user in its footer — followed below `sm` | `topbar.tsx`, `account.tsx` |
+
+Kept deliberately, each with its reason beside the code: `RowGroup`'s divided
+rows (courtside density, the Product Owner's choice), our own menu button (the
+registry's `SidebarTrigger` ships an English label), 56px rather than 48px
+header height (the mobile plan's number, with a check behind it), and 44px
+controls under `pointer: coarse`.
+
+### What the port actually changed, and what it cost
+
+- The title moved out of the content, so `PageHeader` renders **nothing** when a
+  page gives it only a title. Thirteen screens kept their API.
+- It is drawn **once**. Rendering it in both the bar and the hero put the pages'
+  own test ids in the document twice and 217 render checks resolved to two
+  elements at once. Two specs that asserted an entity names itself in its hero
+  now assert it names itself in the bar.
+- `--font-heading` was restored earlier in the day: the preset defines it as
+  `var(--font-sans)` and `ops ui theme` drops it by asking `only=theme`, so
+  `card`, `alert-dialog`, `sheet` and `empty` were referencing a token that did
+  not exist.
+
+### Verified
+
+934 unit/repository/Worker, 346 rendering, 49 browser checks, typecheck, lint.
+Looked at through the Playwright MCP browser rather than the five-minute
+screenshot walk: desktop discover, a team page, and 390px before and after the
+header fix.
+
+**Not verified by eye:** dark, Thai and Japanese at the new shell. The walk is
+the tool for that and it was not re-run; the three `notifications` desktop
+captures also hit the known WebKit stall recorded in the status index, which
+followed the push-capability checks to their new page.
+
+### Still open
+
+- Lists are `RowGroup`, not the block's `Card` grids. That was the Product
+  Owner's decision, not an omission; reversing it is now a small change.
+- The checks named above as encoding old decisions have not all been re-read.

@@ -48,7 +48,15 @@
   rather than gaining a template. Needs the Product Owner's approval of the
   steps before any code changes.
 - [Main content on the registry, like the sidebar already is](2026-09-09-07-main-content-on-the-registry.md)
-  is **proposed 2026-09-09, nothing implemented**, at the Product Owner's report
+  is **implemented 2026-09-09**: shadcn's own `dashboard-01` shell for our preset
+  was fetched from the registry and adopted — inset sidebar, the page title as an
+  `h1` in the site header, the block's header-height and sidebar-width variables,
+  its `px-4 lg:px-6` gutters and `@container/main`. Before that, `--control-height:
+  44px` was applied to every pointer, so every control was 20-37% taller than the
+  preset draws them; it is a `pointer: coarse` rule now, and the render tier's
+  assertion of 44px on Desktop Safari — a check that actively held the preset out
+  — was corrected. Lists stay `RowGroup` by the Product Owner's decision. Dark,
+  Thai and Japanese have not been looked at under the new shell. It began as a report
   that the sidebar (which they call the drawer) looks right and all the main
   content does not. Measured: the sidebar is nine registry primitives used as
   shipped, while our pages carry 140 hand-picked type classes and 100 overrides
