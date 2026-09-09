@@ -170,3 +170,39 @@ globally and accidentally disabling Fumapress rebuilds.
 Use ordinary editing first. Collaboration and hosted CMS use remain separate
 decisions. Saved content must still pass the same repository review, content
 validation and release workflow; autosave must never mean automatic publication.
+
+### Cloudflare hosting feasibility
+
+User asked whether the editor can run on Cloudflare. Assessment: feasible with
+an adapted persistence layer, not an unchanged Studio deployment. The React UI
+runs in the browser and can be served with Remy's assets. Its simple API accepts
+MDX and calls onChange; the richer SyncTransport interface exposes list, read,
+version-checked write and watch. A Worker backend can implement those contracts.
+This has not been built or deployed here.
+
+The existing Node sync server's filesystem model is the mismatch. Workers now
+support node:fs, but their writable temporary files are nonpersistent; deploying
+that server does not create a durable Git checkout or save back into the repo.
+[Cloudflare filesystem documentation](https://developers.cloudflare.com/workers/runtime-apis/nodejs/fs/).
+
+For a hosted proof, prefer a lazily loaded authorized editor screen, the existing
+Better Auth/oRPC authorization path, and D1 draft/revision records with atomic
+version checks. Reuse R2 for uploaded media if needed. Keep Save and Publish
+distinct. To retain static Fumapress publishing, approved revisions must become
+an immutable content snapshot consumed by the shared build/deploy workflow;
+they cannot update deployed static assets merely by saving a database record.
+Specify that handoff and the content source of truth before implementing hosted
+editing. Do not introduce bidirectional Git/database synchronization implicitly.
+
+If simultaneous collaborative editing becomes required, Durable Objects provide
+coordination, persistent storage and WebSockets. Adapting the editor's Yjs
+protocol, durable save acknowledgements and recovery would still be work;
+hibernation alone does not persist editor state. No Durable Object is required
+for the initial version-checked save workflow.
+[Cloudflare WebSocket guidance](https://developers.cloudflare.com/durable-objects/best-practices/websockets/).
+
+Treat authored MDX as executable build input: initially limit authors to trusted
+content administrators and validate the allowed syntax/components before the
+build. Hosted access must be enforced on reads, writes, uploads and publishing.
+The local-first recommendation remains the smallest proof; hosted editing is a
+feasible follow-on, not blocked by an inability to serve the React editor.
