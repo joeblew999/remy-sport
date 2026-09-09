@@ -77,6 +77,136 @@ describe("watchInstallable", () => {
     expect(report).toHaveBeenLastCalledWith(false)
   })
 
+  /**
+   * The regression this file exists to hold. The component's own success event
+   * is raised from the native `appinstalled` event, so hearing the native event
+   * directly cannot be lost to the component's timing — a reader who installs
+   * the app in another tab, or whose browser already has it, gets no offer.
+   */
+  it("withdraws the offer on the browser's own appinstalled event", () => {
+    const report = vi.fn()
+    const el = fakeElement({ isInstallAvailable: true })
+    const listeners: Record<string, () => void> = {}
+    vi.stubGlobal("window", {
+      addEventListener: (type: string, fn: () => void) => {
+        listeners[type] = fn
+      },
+      removeEventListener: () => {},
+    })
+    watchInstallable(el, report)
+    expect(report).toHaveBeenLastCalledWith(true)
+
+    listeners["appinstalled"]()
+    expect(report).toHaveBeenLastCalledWith(false)
+    vi.unstubAllGlobals()
+  })
+
+  it("offers nothing to a returning visitor whose browser already has the app", async () => {
+    const report = vi.fn()
+    const el = fakeElement({ isInstallAvailable: true })
+    vi.stubGlobal("window", {
+      location: { origin: "http://localhost:8787" },
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })
+    vi.stubGlobal("navigator", {
+      getInstalledRelatedApps: async () => [{ id: "/", url: "http://localhost:8787/", platform: "webapp" }],
+    })
+    watchInstallable(el, report)
+    expect(report).toHaveBeenLastCalledWith(true)
+
+    await Promise.resolve()
+    expect(report).toHaveBeenLastCalledWith(false)
+    vi.unstubAllGlobals()
+  })
+
+  /**
+   * The refresh case. `getInstalledRelatedApps` returns nothing on localhost
+   * and `appinstalled` does not fire on a later load, so the only signal that
+   * survives a refresh is the persistent flag written when the app was
+   * installed. A reader who installed on a previous visit gets no offer.
+   */
+  it("offers nothing on load to a reader who installed on a previous visit", () => {
+    const report = vi.fn()
+    const el = fakeElement({ isInstallAvailable: true })
+    const store = new Map<string, string>([["remy-pwa-installed", "1"]])
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => {
+        store.set(k, v)
+      },
+    })
+    watchInstallable(el, report)
+    expect(report).toHaveBeenLastCalledWith(false)
+    vi.unstubAllGlobals()
+  })
+
+  it("writes the installed flag when the app is installed, so a refresh stays quiet", () => {
+    const report = vi.fn()
+    const el = fakeElement({ isInstallAvailable: true })
+    const store = new Map<string, string>()
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => {
+        store.set(k, v)
+      },
+    })
+    vi.stubGlobal("window", {
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })
+    watchInstallable(el, report)
+    expect(report).toHaveBeenLastCalledWith(true)
+
+    el.dispatchEvent(new CustomEvent("pwa-install-success-event"))
+    expect(report).toHaveBeenLastCalledWith(false)
+    expect(store.get("remy-pwa-installed")).toBe("1")
+    vi.unstubAllGlobals()
+  })
+
+  /**
+   * The regression that kept the button coming back. The browser can raise
+   * `beforeinstallprompt` again after an install, and the component re-raises
+   * `pwa-install-available-event` in response — so once the app is installed,
+   * that event must not re-show the offer.
+   */
+  it("does not re-show the offer once the app is installed", () => {
+    const report = vi.fn()
+    const el = fakeElement({ isInstallAvailable: true })
+    watchInstallable(el, report)
+    expect(report).toHaveBeenLastCalledWith(true)
+
+    el.dispatchEvent(new CustomEvent("pwa-install-success-event"))
+    expect(report).toHaveBeenLastCalledWith(false)
+
+    // The component re-raises "available" after install — the offer must stay gone.
+    saysAvailable(el)
+    expect(report).toHaveBeenLastCalledWith(false)
+  })
+
+  it("writes the installed flag when the reader accepts the install dialog", () => {
+    const report = vi.fn()
+    const el = fakeElement({ isInstallAvailable: true })
+    const store = new Map<string, string>()
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => {
+        store.set(k, v)
+      },
+    })
+    vi.stubGlobal("window", {
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })
+    watchInstallable(el, report)
+    expect(report).toHaveBeenLastCalledWith(true)
+
+    el.dispatchEvent(new CustomEvent("pwa-user-choice-result-event", { detail: "accepted" }))
+    expect(report).toHaveBeenLastCalledWith(false)
+    expect(store.get("remy-pwa-installed")).toBe("1")
+    vi.unstubAllGlobals()
+  })
+
   it("stops listening when the component unmounts", () => {
     const report = vi.fn()
     const el = fakeElement()
