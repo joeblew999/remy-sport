@@ -1,28 +1,30 @@
 # Plan — the language picker, at ten to fifteen languages
 
-Archive: completed (2026-09-09). All five steps built, and **twenty** locales
-released — the fifteen this page planned plus five more the Product Owner asked
-for afterwards ("all the common languages, so we have a global audience").
+Archive: completed (2026-09-09). All five steps built, and **twenty-seven**
+locales released — the fifteen this page planned plus twelve more the Product
+Owner asked for afterwards ("all the common languages, so we have a global
+audience", then Taiwan and Hong Kong by name).
 Current work is in the [documentation index](../README.md) — the reference-data
 plan there retires this plan's N×N `names` matrix and is where places, countries
 and language names go next.
 
 ## What shipped
 
-Twenty released locales, at **946 strings each** (618 interface messages and 328
-vocabulary terms):
+Twenty-seven released locales, at **946 strings each** (618 interface messages
+and 328 vocabulary terms):
 
 | | Locales | Font cost |
 | --- | --- | --- |
-| Latin | en, es, pt, id, fr, tl, de, tr, it, pl, ms | none — `latin`/`latin-ext` are unconditional |
-| CJK | ja, zh, ko | none — drawn by the reader's own system font |
+| Latin | en, es, pt, id, fr, tl, de, tr, it, pl, ms, sw, nl | none — `latin`/`latin-ext` are unconditional |
+| CJK | ja, zh, ko, zh-TW, zh-HK | none — drawn by the reader's own system font |
 | Thai | th | already self-hosted |
-| Cyrillic | ru, uk | +? for `ru`; `uk` free, it reuses what `ru` paid for |
-| Vietnamese | vi | `vietnamese` subset |
+| Cyrillic | ru, uk | `ru` bought `cyrillic` and `cyrillic-ext`; `uk` reuses them and cost nothing |
+| Vietnamese | vi | the `vietnamese` subset. Measured together with Cyrillic: **+124KB across 18 blocks** |
 | Devanagari | hi | **+164KB**, the first new family since Thai |
-| Arabic | ar | **+216KB**, and the layout work below |
+| Bengali | bn | **+152KB**, mechanical once Hindi had proved the path |
+| Arabic | ar, ur, fa | **+216KB** once, and the layout work below. Urdu and Persian reuse it whole and cost nothing |
 
-`src/web/fonts` went 280KB → 784KB across the whole exercise. Every block added
+`src/web/fonts` went 280KB → 936KB across the whole exercise. Every block added
 carries a `unicode-range`, so a reader who renders none of a script downloads
 none of its files: the repository grew, no page did. Checked with `ops fonts`
 after each language rather than assumed.
@@ -37,8 +39,6 @@ after each language rather than assumed.
   alone was not enough — Base UI decides which way a menu opens from its own
   context — and `dir` alone mirrored the text inside the sidebar while leaving
   the panel on the left. Verified in a browser, not inferred.
-
-Two things this plan got wrong, corrected here rather than left standing:
 
 Two things this plan got wrong, corrected here rather than left standing:
 
@@ -72,21 +72,32 @@ language, rather than a new language being silently exempt.
 
 ## What is left, and what it now costs
 
-Every remaining candidate got cheaper, because the two expensive pieces are
-built. Named so the next person does not have to re-derive them:
+Very little, and none of it is blocked:
 
-| Language | Speakers | What it needs now |
+| Language | Speakers | What it needs |
 | --- | --- | --- |
-| Bengali | ~280M | a `bengali` entry in `SCRIPTS` and its Noto subset — mechanical, exactly as Hindi was |
-| Urdu | ~230M | **nothing new**: Arabic script and RTL are both built. Naskh renders it; Nastaliq would be a quality choice, not a blocker |
-| Persian | ~130M | **nothing new**, same reason |
-| Swahili, Dutch | — | Latin, free |
+| Punjabi | ~110M | a `gurmukhi` entry and its Noto subset — mechanical, as Hindi and Bengali were |
+| Marathi | ~85M | **nothing new** — Devanagari is already self-hosted for Hindi |
+| Telugu, Tamil, Gujarati | ~75M each | one font family each, same shape |
+| Lao, Khmer, Burmese | regional | one font family each, and worth more to this product than the raw counts suggest the moment it crosses a border |
 
-**A caveat worth writing down.** All twenty locales were translated by the agent
-that shipped them, not by native speakers. The checks prove *completeness*,
-*placeholder parity* and *script correctness* — they cannot prove that the copy
-reads naturally. A native pass is worth doing before any marketing push, and
-Hindi, Arabic and Bengali are where it matters most.
+**Two caveats worth writing down rather than discovering.**
+
+All twenty-seven were translated by the agent that shipped them, not by native
+speakers. The checks prove *completeness*, *placeholder parity* and *script
+correctness* — they cannot prove the copy reads naturally. A native pass is
+worth doing before any marketing push, and Hindi, Bengali, Arabic, Urdu and
+Persian are where it matters most.
+
+**Hong Kong is weaker than the rest and is not a peer of Taiwan.** It shares
+Taiwan's writing system, so it was derived from the Taiwanese file through a
+vocabulary table (網絡 for 網路, 短片 for 影片, 短訊 for 簡訊, 熒幕 for 螢幕,
+日曆 for 行事曆) rather than written from scratch. The main terms are right; a
+Hong Kong reader will still meet phrasing that reads as Taiwanese.
+
+**Urdu renders in Naskh, not Nastaliq.** Correct and readable, but Nastaliq is
+what an Urdu reader would prefer and it needs its own font family. Worth doing
+if Urdu turns out to matter.
 
 Everything below this line is the plan as proposed, left as written.
 
