@@ -13,6 +13,10 @@ import type { AppEnv } from "../types"
  * Apple caches this file aggressively. Serving a placeholder with wrong IDs is
  * worse than serving nothing, so this 404s until APPLE_TEAM_ID and
  * APPLE_BUNDLE_ID are set — see `mise run cf:apple:set`.
+ *
+ * This is the native app's file: an installed Tauri app claims links through
+ * it. A web app added to the home screen never reads it, which is why it is no
+ * answer to docs/2026-09-08-04-ios-installed-web-app-links.md.
  */
 const wellKnown = new Hono<AppEnv>()
 
