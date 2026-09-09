@@ -51,6 +51,16 @@
   one matrix with Push and Email as columns, and Roster Change loses the cell
   rather than gaining a template. Needs the Product Owner's approval of the
   steps before any code changes.
+- [One navigation trail, on every screen](2026-09-09-09-navigation-trail.md)
+  is implemented 2026-09-09, at the Product Owner's report that organisations
+  drill in and back out and the other entry points do not. Fifteen headers had
+  three habits: ten passed their own name as a crumb, Discover passed an
+  unlinked "Home" as well, and a team passed nothing — so a team reached from
+  the directory, a schedule or a player had no way back from any of them. The
+  rule now: crumbs are the ancestors, each linked; the page is the `h1` at the
+  end; a top-level screen passes nothing. The trail is in the site header, where
+  the title already went. `tests/repo/navigation.test.ts` fails any crumb
+  without an href.
 - [Main content on the registry, like the sidebar already is](2026-09-09-07-main-content-on-the-registry.md)
   is **implemented 2026-09-09**: shadcn's own `dashboard-01` shell for our preset
   was fetched from the registry and adopted — inset sidebar, the page title as an
