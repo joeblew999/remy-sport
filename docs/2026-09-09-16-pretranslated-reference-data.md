@@ -519,6 +519,66 @@ usable shape are the same shape, which is the good case.
 FTS5 stays in reserve for the day somebody must search cities across all
 countries at once. It is not needed for a venue in a Thai tournament.
 
+## Can the ETL itself run on Cloudflare?
+
+The Product Owner, 2026-09-09: *"I am really wondering if the ETL and stuffing the
+data into R2 and then D1 can actually all be done on Cloudflare itself. It's weird
+I know."*
+
+It is not weird. It is feasible, **Workflows is the primitive rather than a plain
+Worker**, and there is a better argument for it than elegance. Limits checked
+2026-09-09 against Cloudflare's own documentation.
+
+### The three limits that decide the design
+
+| Limit | Value | What it rules out |
+| --- | --- | --- |
+| [Memory per isolate](https://developers.cloudflare.com/workers/platform/limits/) | **128 MB, not configurable** | `JSON.parse` of dr5hn's 44MB export. The object graph is several times the file. **Everything must stream.** |
+| [CPU time](https://developers.cloudflare.com/workers/platform/limits/) | 30s default, **5 min** opt-in via `cpu_ms`; 15 min for a cron trigger on a ≥1h interval | Nothing, once work is split into steps. Waiting on a download is not CPU time |
+| [D1 bulk import](https://developers.cloudflare.com/d1/best-practices/import-export-data/) | `wrangler d1 execute --file` is the documented path, and it is **a CLI operation, not callable from a Worker** | The easy load. From inside a Worker there is only the binding API: batched `INSERT`s |
+
+[Workflows](https://developers.cloudflare.com/workflows/) absorbs the first two:
+10,000 steps by default and 25,000 configurable, each step retried independently
+with backoff, and an instance runs indefinitely as long as no single step exceeds
+the CPU limit. Steps return up to 1 MiB, or a `ReadableStream` for more — which is
+the escape hatch the 128 MB limit demands.
+
+### The shape, if it all runs there
+
+1. **Fetch → R2.** One step per source. Downloads are wall-clock, not CPU, so the
+   44MB and the six GeoNames archives cost nothing against the limit. R2 is exactly
+   the right staging layer, and its objects read back as streams.
+2. **Normalise → R2.** Stream each raw file, emit NDJSON of one row per line.
+   Never hold a dataset in memory. This is the step that would be four lines in
+   Node and is real work here.
+3. **Load → D1.** Read the NDJSON in chunks, batched `INSERT`s through the binding.
+   152,970 cities is a lot of *rows written* — a one-off cost, not a per-request
+   one, but the part that `wrangler d1 execute --file` would do in a single command
+   from CI.
+
+### The honest trade
+
+**Against:** two of the three steps are harder on Cloudflare than in a Node script
+on a laptop. Streaming parsers exist because of a memory limit that a CI runner
+does not have, and the D1 load is batched inserts instead of one file import.
+Nobody would choose this for a one-time job.
+
+**For, and it is the stronger argument:** this is not a one-time job. It is a
+**public service that has to stay fresh** — GeoNames changes daily, Wikidata
+constantly, CLDR twice a year. An ETL that only runs when a maintainer remembers
+to run it on their laptop is how public datasets die. A cron-triggered Workflow
+keeps the service current with nobody in the loop, holds no CI secrets, and its
+retry and observability story is better than a shell script's.
+
+So the recommendation is **both, split by frequency**: the first load can be
+`wrangler d1 execute --file` from a machine, because it happens once and the CLI
+does it in one command. The **refresh** should be a Workflow on a cron, because it
+happens forever and should not depend on a person. Which also means the streaming
+normaliser has to be written either way — so it may as well be written first, and
+the CLI path used only to shortcut the initial import.
+
+This is entirely the new repo's concern. Nothing about it reaches remy-sport.
+
 ## The decisions
 
 | Question | Decision |
@@ -532,6 +592,7 @@ countries at once. It is not needed for a venue in a Thai tournament.
 | Repo licensing | **Data ODbL, code MIT**, stated separately. Publishing the ETL without the derived rows would not satisfy share-alike. |
 | `venue.city_id` | An id plus **a snapshot of the names on our row**. No foreign key exists across a service boundary, and the snapshot is what makes an old fixture keep the name it was played under. |
 | Local development | `bun run dev` and the whole test suite must run with the places service unreachable, on the seeded fixtures' own cities. |
+| Where the ETL runs | **Both, split by frequency.** First load by `wrangler d1 execute --file`, which is one command; the recurring refresh as a **cron-triggered Workflow** with R2 staging, because a public dataset that needs a maintainer's laptop goes stale. Streaming throughout — the 128 MB isolate limit is not negotiable. |
 | Cities | **Wikidata over 100k (CC0) for cross-language, GeoNames for the local-language tail, romanised name as the pivot.** Not a vocabulary and not an enum: a table plus search. |
 | `CITY_CODES` as `z.enum` | Goes. `provinceCode` already showed the way. |
 | Backfill the existing four locales? | Yes — provinces in 4 of 13 beside countries in 13 is worse than either. |
@@ -567,6 +628,10 @@ countries at once. It is not needed for a venue in a Thai tournament.
       sources are in. It holds the ETL, **the derived database** (without which
       ODbL is not satisfied), the oRPC contract, its own D1, and two licence
       statements: data ODbL, code MIT.
+- [ ] **8b · The normaliser streams, from the first line written.** Every source
+      read as a stream into NDJSON in R2, never `JSON.parse` of a whole file. It is
+      the same code whether it runs in CI or in a Workflow, and retrofitting it
+      later means rewriting the ETL rather than moving it.
 - [ ] **9 · Subdivisions, merged and provenanced.** dr5hn for the eight it covers,
       GeoNames for `th`/`vi`/`id`, `native` for the endonym, English as the pivot.
       Each name records which source and licence it came from — that record is what
