@@ -108,6 +108,11 @@ const OPS: Record<string, Op> = {
     cmd: (rest) => ["bun", "scripts/ops/biz.ts", ...rest],
     help: "biz                              fast-forward the PO's checkout",
   },
+  refdata: {
+    group: "model",
+    cmd: ([action = "score", ...rest]) => ["bun", "scripts/ops/refdata.ts", action, ...rest],
+    help: "refdata score [candidate...]     is a third-party dataset actually translated into the locales we declare",
+  },
   coverage: {
     group: "report",
     cmd: ([what = "gui", ...rest]) => ["bun", `scripts/ops/coverage-${what}.ts`, ...rest],

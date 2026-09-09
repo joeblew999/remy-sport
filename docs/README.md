@@ -33,6 +33,7 @@ A shipped feature stays here if its acceptance checks or follow-ups are still op
 
 | Work | State | Next step / owning plan |
 | --- | --- | --- |
+| Pretranslated reference data | Proposed; five sources measured, shipping as its own public Worker | [Reference data, starting with places](2026-09-09-16-pretranslated-reference-data.md). Every tier has a source: CLDR for countries (complete, free, and it also retires the language picker's N×N matrix), dr5hn plus GeoNames for subdivisions, Wikidata for cities (CC0, th 83% over 100k). Ships as a separate open-source Worker with an oRPC contract and a shadcn registry item, which is what takes the ODbL and CC BY obligations off this repo. Open: how deep to go, and the `CITY_CODES` `z.enum` blocker. |
 | Installed-app Back | Proposed; the trail it rebases on is now in `done/` |  [Back navigation](2026-09-09-10-installed-app-back-navigation.md). Check actual route history and mobile controls before implementing; installed iPhone/Android acceptance remains open. |
 | Sign-in autofill | Implemented; phone acceptance open | [Sign-in code](2026-09-09-01-sign-in-code-autofill.md). Watch a real phone offer the emailed code. |
 | Email channel | Verified locally; remote delivery open | [React Email](2026-09-09-02-email-channel-on-react-email.md). Verify real inbox delivery after the next authorised staging deployment. |
