@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, orpc } from "../lib/orpc";
 import { formErrors } from "../lib/form-errors";
+import { useInitial } from "../lib/initial";
 import { useLocale } from "../lib/locale";
 import { m } from "../lib/i18n";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
@@ -43,17 +44,9 @@ function Lines({ gameId }: { gameId: string }) {
 function PlayerLine({ line }: { line: Line }) {
   const { name } = useLocale();
   const qc = useQueryClient();
-  /**
-   * What the inputs open with, taken once.
-   *
-   * A save refetches the line, and the form stays mounted to say "saved", so
-   * `line` moves underneath it. An uncontrolled input keeps what was typed
-   * whatever its default does, so handing Base UI the refetched value as a
-   * new default changed nothing on screen and logged a warning on every save
-   * ("changing the default value state of an uncontrolled FieldControl").
-   * The box-score e2e test showed it, alone, on 2026-09-09.
-   */
-  const [initial] = useState(line);
+  // A save refetches the line while the form stays mounted to say "saved";
+  // the inputs keep what they opened with — see lib/initial.ts.
+  const initial = useInitial(line);
   const save = useMutation({
     mutationFn: (input: Parameters<typeof api.games.setPlayerStats>[0]) => api.games.setPlayerStats(input),
     onSuccess: async () => {

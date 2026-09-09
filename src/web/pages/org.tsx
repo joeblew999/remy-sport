@@ -40,6 +40,7 @@ import { ChevronRightIcon } from "lucide-react";
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInitial } from "../lib/initial";
 import { api, orpc } from "../lib/orpc";
 import { useCan, useMine, useOrg, useOrgMembers, useOrgs, useTeams } from "../lib/data";
 import { useSession } from "../lib/session";
@@ -152,7 +153,7 @@ export function OrgPage({ id }: { id?: string }) {
         sub={[org.data.city, org.data.orgType].filter(Boolean).join(" · ")}
       />
       <PageInner className="flex flex-col gap-6">
-        <OrgProfile id={org.data.id} names={org.data.names} cityCode={org.data.cityCode} provinceCode={org.data.provinceCode} canEdit={org.data.can.EDIT_ORG_PROFILE} />
+        <OrgProfile key={org.data.id} id={org.data.id} names={org.data.names} cityCode={org.data.cityCode} provinceCode={org.data.provinceCode} canEdit={org.data.can.EDIT_ORG_PROFILE} />
         {/* Signed-out visitors are not offered a members section at all: the
             query would 403 for a reason that has nothing to do with this org. */}
         {user && <OrgMembers id={org.data.id} />}
@@ -190,6 +191,9 @@ function OrgProfile({
 }) {
   const qc = useQueryClient();
   const { terms, name } = useLocale();
+  // The fields open with the profile as it was, and keep that after the
+  // save's refetch — see lib/initial.ts. Keyed by id where rendered.
+  const initial = useInitial({ names, cityCode, provinceCode });
 
   // No `useState` for the error: the mutation already holds it, and a copy in
   // state has to be cleared by hand on every success — which is a second place
@@ -243,7 +247,7 @@ function OrgProfile({
               aria-describedby={saveErr.field("names[en]") ? "org-name-issue" : undefined}
               name="name"
               data-testid="org-name-input"
-              defaultValue={names.en ?? ""}
+              defaultValue={initial.names.en ?? ""}
               required
               autoComplete="off"
             />
@@ -257,10 +261,10 @@ function OrgProfile({
               </FieldError>
             )}
           </Field>
-          <NameTranslations names={names} id="org-name" />
+          <NameTranslations names={initial.names} id="org-name" />
           {([
-            ["cityCode", "cities", m.event_city(), cityCode],
-            ["provinceCode", "provinces", m.province(), provinceCode],
+            ["cityCode", "cities", m.event_city(), initial.cityCode],
+            ["provinceCode", "provinces", m.province(), initial.provinceCode],
           ] as const).map(([field, vocabulary, title, value]) => (
             <Field key={field}>
               <FieldLabel htmlFor={`org-${field}`}>{title}</FieldLabel>

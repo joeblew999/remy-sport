@@ -28,6 +28,7 @@ import { Can } from "./can";
 
 import { useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useInitial } from "../lib/initial"
 import { api, orpc } from "../lib/orpc"
 import { formErrors } from "../lib/form-errors"
 import { m } from "../lib/i18n"
@@ -52,6 +53,9 @@ export function EventSettings({ event }: { event: Event }) {
   const { terms, name } = useLocale()
   const [startDate, setStartDate] = useState(event.startDate ?? "")
   const [endDate, setEndDate] = useState(event.endDate ?? "")
+  // The uncontrolled fields open with the event as it was, and keep that
+  // after the save's refetch — see lib/initial.ts. Keyed by id where rendered.
+  const initial = useInitial(event)
 
   // No `useState` for the error: the mutation already holds it, and a copy in
   // state has to be cleared by hand on every success — a second place for "is
@@ -112,7 +116,7 @@ export function EventSettings({ event }: { event: Event }) {
                 aria-describedby={err.field("names[en]") ? "event-name-issue" : undefined}
                 name="name"
                 data-testid="event-name-input"
-                defaultValue={event.names.en ?? event.title}
+                defaultValue={initial.names.en ?? initial.title}
                 required
                 autoComplete="off"
               />
@@ -123,20 +127,20 @@ export function EventSettings({ event }: { event: Event }) {
               )}
             </Field>
 
-            <NameTranslations names={event.names} id="event-name" />
+            <NameTranslations names={initial.names} id="event-name" />
             <Field>
               <FieldLabel htmlFor="event-description">{m.description()}</FieldLabel>
-              <Textarea id="event-description" name="description" defaultValue={event.description ?? ""} />
+              <Textarea id="event-description" name="description" defaultValue={initial.description ?? ""} />
             </Field>
             <Field>
               <FieldLabel htmlFor="event-timezone">{m.event_timezone()}</FieldLabel>
-              <Input id="event-timezone" name="timezone" required defaultValue={event.timezone ?? "UTC"} />
+              <Input id="event-timezone" name="timezone" required defaultValue={initial.timezone ?? "UTC"} />
             </Field>
             {([
-              ["typeCode", "eventTypes", m.event_type(), event.typeCode],
-              ["formatCode", "eventFormats", m.event_format(), event.formatCode],
-              ["cityCode", "cities", m.event_city(), event.cityCode],
-              ["provinceCode", "provinces", m.province(), event.provinceCode],
+              ["typeCode", "eventTypes", m.event_type(), initial.typeCode],
+              ["formatCode", "eventFormats", m.event_format(), initial.formatCode],
+              ["cityCode", "cities", m.event_city(), initial.cityCode],
+              ["provinceCode", "provinces", m.province(), initial.provinceCode],
             ] as const).map(([field, vocabulary, title, value]) => (
               <Field key={field}>
                 <FieldLabel htmlFor={`event-${field}`}>{title}</FieldLabel>
@@ -147,7 +151,7 @@ export function EventSettings({ event }: { event: Event }) {
               </Field>
             ))}
             <div className="flex items-center gap-2">
-              <Checkbox id="event-fiba" name="isFibaCertified" defaultChecked={event.isFibaCertified} />
+              <Checkbox id="event-fiba" name="isFibaCertified" defaultChecked={initial.isFibaCertified} />
               <Label htmlFor="event-fiba" className="font-normal">{m.event_fiba()}</Label>
             </div>
 

@@ -115,7 +115,7 @@ export function EventPage({ id, goto, spoiler, query = {}, setParam }: {
     </PageInner>}
     {tab === "manage" && <PageInner className="flex flex-col gap-6">
       {!camp && e.can.MANAGE_DIVISIONS && <EventDivisions eventId={e.id} can={e.can}/>}
-      {e.can.EDIT_EVENT && <EventSettings event={e}/>}
+      {e.can.EDIT_EVENT && <EventSettings key={e.id} event={e}/>}
     </PageInner>}
   </div>;
 }

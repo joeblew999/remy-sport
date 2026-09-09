@@ -6,6 +6,7 @@ import { Can, PlatformCan } from "../components/can";
 import { useEffect, useState } from "react";
 import { FollowButton } from "../components/follow";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInitial } from "../lib/initial";
 import { api, orpc } from "../lib/orpc";
 import { useRoster, useTeam, useTeamGames } from "../lib/data";
 import { routeHref, type Route } from "../lib/router";
@@ -161,7 +162,7 @@ export function TeamPage({ id, goto: _goto, query, spoiler = false }: { id: stri
 
         {/* `teams.update` was enforced by EDIT_TEAM_PROFILE and unreachable, so
             a team named wrong when it was created stayed named wrong. */}
-        <Can of={t} action="EDIT_TEAM_PROFILE"><TeamSettings team={t}/></Can>
+        <Can of={t} action="EDIT_TEAM_PROFILE"><TeamSettings key={t.id} team={t}/></Can>
 
         {/* Only for someone the server says may manage this squad — a head or
             assistant coach, or the team's manager. MANAGE_ROSTER, asked per
@@ -331,6 +332,9 @@ function TeamSettings({ team }: { team: Team }) {
   const qc = useQueryClient();
   const { terms, name } = useLocale();
   const [saved, setSaved] = useState(false);
+  // The fields open with the team as it was, and keep that after the save's
+  // refetch — see lib/initial.ts. Keyed by id where rendered.
+  const initial = useInitial(team);
 
   const save = useMutation({
     mutationFn: (v: { names: Record<string, string>; ageGroupCode: string; genderCode: string }) =>
@@ -384,7 +388,7 @@ function TeamSettings({ team }: { team: Team }) {
               id="team-name"
               name="name"
               data-testid="team-name-input"
-              defaultValue={team.names.en ?? team.name}
+              defaultValue={initial.names.en ?? initial.name}
               required
               autoComplete="off"
             />
@@ -395,11 +399,11 @@ function TeamSettings({ team }: { team: Team }) {
             )}
           </Field>
 
-          <NameTranslations names={team.names} id="team-name" />
+          <NameTranslations names={initial.names} id="team-name" />
 
           <Field>
             <FieldLabel htmlFor="team-age">{m.team_age_label()}</FieldLabel>
-            <NativeSelect id="team-age" name="ageGroupCode" data-testid="team-age-input" defaultValue={team.ageGroupCode}>
+            <NativeSelect id="team-age" name="ageGroupCode" data-testid="team-age-input" defaultValue={initial.ageGroupCode}>
               {terms("ageGroups").map((a) => (
                 <NativeSelectOption key={a.code} value={a.code}>{name(a.names, a.code)}</NativeSelectOption>
               ))}
@@ -408,7 +412,7 @@ function TeamSettings({ team }: { team: Team }) {
 
           <Field>
             <FieldLabel htmlFor="team-gender">{m.team_gender_label()}</FieldLabel>
-            <NativeSelect id="team-gender" name="genderCode" data-testid="team-gender-input" defaultValue={team.genderCode}>
+            <NativeSelect id="team-gender" name="genderCode" data-testid="team-gender-input" defaultValue={initial.genderCode}>
               {terms("genders").map((g) => (
                 <NativeSelectOption key={g.code} value={g.code}>{name(g.names, g.code)}</NativeSelectOption>
               ))}
