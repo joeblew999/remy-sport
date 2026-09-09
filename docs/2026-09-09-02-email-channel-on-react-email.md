@@ -43,6 +43,28 @@ Read from the tree; no code was changed to write this.
   check exists as `tests/repo/notifications.test.ts`, both directions, and
   runs in the gate.
 
+## Which emails, and which half of this plan touches them
+
+The plan has two halves, and they cover different sets. The template half
+(React Email) is every email the app sends. The channel half — the audience,
+the switch, opt-in, unsubscribe — is notifications only. Sign-up is not a
+separate email: signing in is signing up (`src/web/pages/login.tsx`), so a
+first-time address that redeems the code gets an account, and the code mail
+is the only thing it ever receives.
+
+| Email | Sent from | Sender | Templates | Channel, switch, opt-in, unsubscribe |
+| --- | --- | --- | --- | --- |
+| The sign-in code | `src/auth.ts:291`, per purpose: sign in, verify email, change email | transactional, `noreply@remy.ubuntusoftware.net` | yes | no — always sent, no preference, no `List-Unsubscribe`, no link |
+| The co-organiser invitation | `src/auth.ts:266` | transactional | yes | no — always sent to the invited address |
+| Game start | `src/api/notify-queue.ts:260` | bulk, `notifications@notify.remy.ubuntusoftware.net` | yes | yes |
+| Game end | `src/api/notify-queue.ts:262` | bulk | yes | yes |
+| Event reminder | `src/api/notify-queue.ts:361` | bulk | yes | yes |
+
+The bulk sender and the `List-Unsubscribe` header are attached in one place,
+`src/api/transports.ts:137-148`, which only the queue reaches; the two
+transactional mails never pass through it. The unsubscribe step below asserts
+that split on captured headers.
+
 ## Decided
 
 - **React Email, in the Worker, under one rule.** Every word comes from a
