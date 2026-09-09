@@ -20,8 +20,6 @@
 import { spawnSync } from "node:child_process"
 import { install } from "./lib/prepare.ts"
 
-import { Refused } from "./lib/cloudflare.ts"
-
 type Group = "deployment" | "report" | "setup" | "model" | "maintenance"
 
 interface Op {
@@ -33,6 +31,11 @@ interface Op {
 }
 
 const OPS: Record<string, Op> = {
+  remote: {
+    group: "setup",
+    cmd: (rest) => ["bun", "scripts/ops/remote.ts", ...rest],
+    help: "remote status|stop               remote development: inspect or stop; startup is paused (docs/2026-09-08-03)",
+  },
   demo: {
     group: "deployment",
     cmd: ([action = "status", ...rest]) =>
@@ -66,7 +69,7 @@ const OPS: Record<string, Op> = {
   tunnel: {
     group: "setup",
     cmd: (rest) => ["bun", "scripts/ops/tunnel.ts", ...rest],
-    help: "tunnel [--run]                   create the dev tunnel and its hostname; --run keeps it up beside bun run dev",
+    help: "tunnel [status|--run]            the dev tunnel and its hostname; status is read-only, --run keeps it up beside bun run dev",
   },
   ui: {
     group: "setup",
@@ -235,6 +238,16 @@ bun run ops <operation>
 }
 
 // Help must work on a fresh checkout, without installation or network access.
+// Remote and tunnel commands validate arguments and own preparation. Their
+// status/help paths must also work without dependencies, credentials or writes.
+if (name === "remote" || name === "tunnel") {
+  // Run the supervisor in this process. An extra synchronous dispatcher parent
+  // would leave it alive if somebody killed only the command they launched.
+  process.argv.splice(2, 1)
+  if (name === "remote") process.exitCode = await (await import("./ops/remote.ts")).runRemote(rest)
+  else await import("./ops/tunnel.ts")
+  process.exit(process.exitCode ?? 0)
+}
 install()
 
 const argv = OPS[name]!.cmd(rest)
@@ -242,6 +255,6 @@ const proc = spawnSync(argv[0]!, argv.slice(1), { stdio: "inherit" })
 if (proc.status !== 0) {
   // The operation printed its own reason; this only carries the code out. No
   // status at all means it never ran — the binary is missing or it was killed.
-  if (typeof proc.status !== "number") throw new Refused(`${name} did not run${proc.error ? `: ${proc.error.message}` : ""}`)
+  if (typeof proc.status !== "number") throw new Error(`${name} did not run${proc.error ? `: ${proc.error.message}` : ""}`)
   process.exit(proc.status)
 }

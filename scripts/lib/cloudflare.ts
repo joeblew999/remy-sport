@@ -367,7 +367,7 @@ export function token(): string | null {
  * uninstalling anything.
  */
 export function fnoxGet(name: string, bin = "fnox"): string | null {
-  const got = spawnSync(bin, ["get", name], { stdio: ["ignore", "pipe", "ignore"] })
+  const got = spawnSync(bin, ["get", name], { stdio: ["ignore", "pipe", "ignore"], timeout: 15_000 })
   if (got.error || got.status !== 0) return null
   return got.stdout?.toString().trim() || null
 }

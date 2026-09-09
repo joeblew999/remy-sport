@@ -1,147 +1,97 @@
 /**
- * Create the dev tunnel and point a fixed hostname at it. Idempotent.
+ * The Cloudflare dev tunnel: a fixed HTTPS name for the dev server.
  *
- * `cloudflared tunnel login` is the documented path and it cannot work here: it
- * opens a browser, asks a person to pick a zone, and writes a `cert.pem`. Fine
- * for a human, impossible for an agent — which is why `tunnel:named` sat
- * unusable for however long. It referenced `TUNNEL_NAME` and `TUNNEL_HOSTNAME`
- * that were never defined anywhere, so it expanded to an empty tunnel name and
- * would have failed the first time anyone ran it.
+ *   bun run ops tunnel               provision what is missing: tunnel, ingress, DNS
+ *   bun run ops tunnel status        read-only: configured, and is a connector up
+ *   bun run ops tunnel -- --run      provision, then run the connector beside `bun run dev`
  *
- * A *remotely-managed* tunnel needs no certificate. It is created through the
- * account API with the token this repo already holds in fnox, and
- * `cloudflared tunnel run --token …` authenticates with the tunnel's own
- * credential rather than a local cert.
+ * Inspection never provisions or saves credentials; the run token goes to
+ * cloudflared through its environment and nowhere else.
  *
- * Why a fixed hostname at all: `tunnel:quick` works but mints a random
- * `*.trycloudflare.com` name per run, so a link goes dead the moment the server
- * restarts. And it has to be HTTPS — iOS Safari with HTTPS-Only refuses a plain
- * `http://192.168.x.x`, which is the wall this started at.
- *
- * Run once. Re-running is safe and changes nothing that already matches.
+ * Two ways the local app can be ready. With the remote identity plugin in the
+ * dev configuration (paused — docs/2026-09-08-03-remote-development.md) the
+ * app proves it is this checkout's, the public hostname is compared instance
+ * for instance, and access through the hostname is a lease this command holds
+ * and releases. Without it — the state since the plugin left the shared
+ * configuration — the dev server's health check is the whole answer, the
+ * hostname is open while the connector runs, as it always was before the gate
+ * existed, and an already-active connector cannot be told apart from ours, so
+ * it is left alone.
  */
+import { resolve } from "node:path"
+import { randomUUID } from "node:crypto"
+import { activeConnectors, connectorCount, cloudflareTunnelApi, ensureTunnel, inspectTunnel, tunnelRunToken, tunnelSettings } from "../lib/app-tunnel.ts"
+import { appStatus, devHealth, sameInstance } from "../lib/remote-status.ts"
+import { workspaceId } from "../lib/remote-identity.ts"
+import { RemoteSession } from "../lib/remote-session.ts"
+import { remoteAccess } from "../lib/remote-access.ts"
 
-import { spawnSync } from "node:child_process"
-import { DEV_ORIGIN } from "../../src/environment.ts"
-
-import { accountApi, apiResult, zoneApi } from "../lib/cloudflare.ts"
-
-const env = (name: string): string => {
-  const v = process.env[name]
-  if (!v) throw new Error(`${name} is not set — mise [env] should provide it`)
-  return v
+const args = process.argv.slice(2).filter(x => x !== "--")
+if (args.includes("--help") || args.includes("-h")) {
+  console.log("bun run ops tunnel [status|--run]\nStatus is read-only. No arguments provisions missing dev tunnel configuration.\n--run starts the connector once this checkout's dev server answers its health check.\nbun run ops remote (startup) is paused; its status and stop work.")
+  process.exit(0)
 }
-
-/**
- * Account and zone calls, through the module.
- *
- * The token resolver that used to live here had both defects the boundary has
- * since fixed — a missing fnox threw rather than returning a code, and an
- * empty `CLOUDFLARE_API_TOKEN` counted as present — and its
- * envelope unwrap was the second copy of `apiResult`.
- */
-const acct = async <T>(path: string, init?: RequestInit): Promise<T> =>
-  apiResult<T>(await accountApi(path, init), `${init?.method ?? "GET"} ${path}`)
-
-const zone_ = async <T>(path: string, init?: RequestInit): Promise<T> =>
-  apiResult<T>(await zoneApi(path, init), `${init?.method ?? "GET"} /zones${path}`)
-
-const name = env("TUNNEL_NAME")
-const hostname = env("TUNNEL_HOSTNAME")
-const zoneName = env("TUNNEL_ZONE")
-const service = process.env.DEV_URL ?? DEV_ORIGIN
-
-// ── The tunnel ───────────────────────────────────────────────────────────────
-
-type Tunnel = { id: string; name: string }
-const existing = await acct<Tunnel[]>(`/cfd_tunnel?name=${encodeURIComponent(name)}&is_deleted=false`,
-)
-
-let id: string
-if (existing.length) {
-  id = existing[0]!.id
-  console.log(`tunnel-setup: '${name}' already exists`)
-} else {
-  // `config_src: cloudflare` is what makes it remotely managed — the ingress
-  // below lives on Cloudflare's side rather than in a local config file, so
-  // nothing about this setup has to exist on the machine that runs it.
-  const made = await acct<Tunnel>(`/cfd_tunnel`, {
-    method: "POST",
-    body: JSON.stringify({ name, config_src: "cloudflare" }),
-  })
-  id = made.id
-  console.log(`tunnel-setup: created '${name}'`)
-}
-
-// ── Its ingress ──────────────────────────────────────────────────────────────
-
-// The catch-all 404 is required: a tunnel with no terminating rule is rejected.
-await acct(`/cfd_tunnel/${id}/configurations`, {
-  method: "PUT",
-  body: JSON.stringify({
-    config: { ingress: [{ hostname, service }, { service: "http_status:404" }] },
-  }),
-})
-console.log(`tunnel-setup: ${hostname} -> ${service}`)
-
-// ── The DNS record ───────────────────────────────────────────────────────────
-
-type Zone = { id: string }
-type Record = { id: string; content: string }
-
-const [zone] = await zone_<Zone[]>(`?name=${encodeURIComponent(zoneName)}`)
-if (!zone) throw new Error(`No zone '${zoneName}' on this account`)
-
-const found = await zone_<Record[]>(`/${zone.id}/dns_records?name=${encodeURIComponent(hostname)}`,
-)
-// `proxied: true` is what gives it a certificate. Without it the hostname
-// resolves but serves plain http, which is the thing this exists to avoid.
-const record = { type: "CNAME", name: hostname, content: `${id}.cfargotunnel.com`, proxied: true }
-
-if (!found.length) {
-  await zone_(`/${zone.id}/dns_records`, { method: "POST", body: JSON.stringify(record) })
-  console.log(`tunnel-setup: created DNS ${hostname}`)
-} else if (found[0]!.content === record.content) {
-  console.log(`tunnel-setup: DNS ${hostname} already points here`)
-} else {
-  await zone_(`/${zone.id}/dns_records/${found[0]!.id}`, {
-    method: "PUT",
-    body: JSON.stringify(record),
-  })
-  console.log(`tunnel-setup: repointed DNS ${hostname}`)
-}
-
-// ── The run token ────────────────────────────────────────────────────────────
-
-/**
- * `cloudflared tunnel run` needs the tunnel's own credential, which is not the
- * account token. It goes into the keychain via fnox rather than a file, because
- * anyone holding it can serve traffic on this hostname.
- */
-const runToken = await acct<string>(`/cfd_tunnel/${id}/token`)
-const set = spawnSync("fnox", ["set", "--global", "-p", "keychain", "TUNNEL_RUN_TOKEN"], {
-  input: runToken,
-  stdio: ["pipe", "ignore", "pipe"],
-})
-if (set.status !== 0) {
-  console.error(
-    "tunnel-setup: could not store the run token in fnox.\n" +
-      "  Store it yourself, then `bun run dev` will pick it up:\n" +
-      "  mise exec -- fnox set --global -p keychain TUNNEL_RUN_TOKEN",
-  )
-  process.exit(1)
-}
-
-console.log(`\n  https://${hostname}\n  A fixed URL. 'bun run ops tunnel --run' brings it up beside 'bun run dev'.\n`)
-
-/**
- * `--run`: stay attached and run the tunnel, so a phone can reach the dev
- * server on its fixed HTTPS name. The dev script used to start this beside
- * wrangler; the dev server is plain Vite now and starts nothing else.
- */
-if (process.argv.includes("--run")) {
-  console.log(`tunnel: running https://${hostname} -> ${service} (Ctrl-C stops it)`)
-  // Attached until it ends; Ctrl-C reaches both of us through the terminal.
-  const run = spawnSync("cloudflared", ["tunnel", "run", "--token", runToken], { stdio: "inherit" })
-  process.exit(run.status ?? 1)
+if (args.length > 1 || (args.length && !["status", "--run"].includes(args[0]!))) { console.error("Usage: bun run ops tunnel [status|--run]"); process.exit(1) }
+const session = new RemoteSession()
+const workspace = workspaceId(resolve(import.meta.dirname, "../.."))
+const accessOwner = randomUUID()
+let accessEnabled = false
+process.on("SIGINT", session.stop)
+process.on("SIGTERM", session.stop)
+try {
+  const settings = tunnelSettings()
+  const api = await cloudflareTunnelApi(session.abort.signal)
+  const snapshot = await inspectTunnel(api, settings)
+  if (args[0] === "status") {
+    console.log(JSON.stringify({ tunnel: snapshot.tunnel, connectors: snapshot.connectors.length, configured: snapshot.configured, dnsMatches: snapshot.dnsMatches }, null, 2))
+    process.exitCode = activeConnectors(snapshot) && snapshot.configured && snapshot.dnsMatches ? 0 : 1
+  } else {
+    if (connectorCount(snapshot) > 1) throw new Error("Multiple connectors serve the app hostname; refusing ambiguous host ownership.")
+    const local = await appStatus(settings.service, workspace)
+    // The gate is there when the app answers with this checkout's identity;
+    // otherwise a healthy dev server is as much as can be known.
+    const gated = local.state === "ready"
+    const serving = gated || await devHealth(settings.service)
+    if (activeConnectors(snapshot)) {
+      if (!gated) throw new Error("A connector already serves the hostname, and without the remote identity plugin this checkout's app cannot be proven to be the one behind it. Stop that connector first, or resume the remote plan.")
+      if (!sameInstance(local, await appStatus(`https://${settings.hostname}`, workspace))) throw new Error("An active app tunnel belongs to an unverified host; it was left unchanged.")
+      if (!snapshot.configured || !snapshot.dnsMatches) throw new Error("Active tunnel configuration differs; it was left unchanged.")
+      console.log("tunnel: reusing the existing connector; nothing started or changed.")
+    } else {
+      if (args[0] === "--run" && !serving) throw new Error(`Nothing healthy answers at ${settings.service}. Start the dev server first: bun run dev`)
+      const tunnel = await ensureTunnel(api, settings, snapshot)
+      console.log(`tunnel: configured https://${settings.hostname}`)
+      if (args[0] === "--run") {
+        const credential = await tunnelRunToken(api, tunnel.id)
+        await session.launch("Cloudflare tunnel", "cloudflared", ["tunnel", "run"], { env: { ...process.env, TUNNEL_TOKEN: credential } })
+      }
+    }
+    if (args[0] === "--run") {
+      if (gated) {
+        await session.waitFor("the public app", async () => {
+          await remoteAccess("enable", accessOwner, workspace)
+          accessEnabled = true
+          const publicApp = await appStatus(`https://${settings.hostname}`, workspace)
+          return publicApp.state === "ready" && sameInstance(await appStatus(settings.service, workspace), publicApp)
+        })
+        console.log(`tunnel: ready https://${settings.hostname}; Ctrl-C closes this session's remote app access.`)
+      } else {
+        await session.waitFor("the public app", () => devHealth(`https://${settings.hostname}`))
+        console.log(`tunnel: ready https://${settings.hostname} — open to anyone with the address while this runs (no remote identity plugin, so no access lease). Ctrl-C stops the connector.`)
+      }
+      while (!session.abort.signal.aborted) {
+        await session.pause(15_000)
+        if (!session.abort.signal.aborted && gated) await remoteAccess("enable", accessOwner, workspace)
+      }
+      if (session.error) throw session.error
+    }
+  }
+} catch (error) {
+  if (!session.abort.signal.aborted || session.error) {
+    console.error(`tunnel: ${session.error?.message ?? (error instanceof Error ? error.message : "failed")}`)
+    process.exitCode = 2
+  }
+} finally {
+  try { if (accessEnabled) await remoteAccess("disable", accessOwner, workspace) }
+  finally { await session.close() }
 }

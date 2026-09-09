@@ -22,6 +22,65 @@ bun run dev
 Open **http://localhost:8787**. If someone already started it, just open the URL.
 Only one dev server needs to run on the machine.
 
+## Work remotely in VS Code
+
+**Use your browser to connect to the computer where Remy Sport already runs.**
+That computer runs Bun, the app, tests and agents. Your laptop or tablet only
+needs a browser. Opening the GitHub repo in plain `vscode.dev` gives you an
+editor, but no terminal to run this project. [VS Code web guide](https://code.visualstudio.com/docs/remote/vscode-web).
+
+### Connect to your development computer
+
+1. On that computer, open this repo in VS Code. Complete [Start the app](#start-the-app)
+   there if it has not been set up yet.
+2. Open the Command Palette and choose **Remote Tunnels: Turn on Remote Tunnel
+   Access...**. Sign in with GitHub and follow the prompts.
+3. On your other device, open the `vscode.dev` link VS Code provides. Sign in
+   with the same account and open the `remy-sport` folder on the host.
+4. Use the browser editor's terminal for the same `bun run` commands in this README.
+   Reuse the dev server if it is already running.
+
+Keep the host awake, online and VS Code running. This connects to your existing
+files and data; it does not create an isolated copy. Remote Tunnels is intended
+for access to your own machine, rather than a shared team login.
+[Remote Tunnels setup](https://code.visualstudio.com/docs/remote/tunnels).
+
+### Use agents from the browser
+
+With the host tunnel running, open [VS Code Agents](https://insiders.vscode.dev/agents).
+Sign in with GitHub, select your host, choose the `remy-sport` folder, then select
+an agent and start or resume a session. The Agents window is currently **Preview**.
+[Remote agent instructions](https://code.visualstudio.com/docs/agents/run/remote-agent-sessions).
+
+You also need access to the selected agent provider; signing into the tunnel
+alone does not provide it. GitHub Copilot is the standard sign-in route described
+in the [Agents prerequisites](https://code.visualstudio.com/docs/agents/run/agents-window#prerequisites).
+
+Tell the agent to read [AGENTS.md](AGENTS.md), use the repository commands, and
+keep plans and handovers in [docs](docs/README.md). Sessions using this same
+checkout share edits and ports, including the localhost behavior below.
+
+### Open the app on your other device
+
+`localhost:8787` in your tablet's browser means the tablet, not the development
+computer. For this project's remote GUI, use its existing HTTPS tunnel. On the
+development computer, leave `bun run dev` running and, in another terminal, run:
+
+```sh
+bun run ops tunnel -- --run
+```
+
+Open **https://dev-remy.ubuntusoftware.net** on your other device. This command
+needs the project's Cloudflare access. The hostname is shared: use the existing
+host if it is already serving the team's dev app.
+
+The VS Code tunnel gives access to the editor and agents. The project tunnel
+above gives access to the app. VS Code also offers [port forwarding](https://code.visualstudio.com/docs/debugtest/port-forwarding),
+but its generated app URLs have not been verified here for sign-in and live reload.
+
+These instructions were checked against Microsoft's documentation on 2026-09-08.
+A complete remote browser walkthrough is still to be verified for this project.
+
 ## Using localhost while an agent works
 
 **You can keep clicking around the app while an agent runs local tests.**

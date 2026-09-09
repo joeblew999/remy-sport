@@ -215,11 +215,13 @@ if (import.meta.main && process.argv.includes("--help")) {
     for (const s of steps) console.log(`  ${s.name.padEnd(pad)}  ${s.why}`)
   }
   console.log("")
+  console.log("dependencies: install dependencies only (used by remote startup before account inspection).")
   process.exit(0)
 }
 
 if (import.meta.main) {
   const mode = process.argv[2]
   if (mode === "local") local()
+  else if (mode === "dependencies") install()
   else prepare()
 }

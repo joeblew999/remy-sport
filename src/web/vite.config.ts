@@ -347,7 +347,18 @@ export default defineConfig(({ mode, command }) => {
    * reach it — and sign-in works from either address, because trustedOrigins
    * derives from the request URL (src/auth.ts).
    */
-  server: { port: mode === "e2e" ? 8788 : 8787, strictPort: true, host: true },
+  server: {
+    port: mode === "e2e" ? 8788 : 8787,
+    strictPort: true,
+    host: true,
+    /**
+     * Vite answers only localhost and IP hosts unless told otherwise, so a
+     * request arriving through the dev tunnel — Host: dev-remy… — was a 403
+     * "Blocked request" and `bun run ops tunnel -- --run` served nothing. The
+     * hostname comes from mise's [env], the same place the tunnel reads it.
+     */
+    allowedHosts: process.env.TUNNEL_HOSTNAME ? [process.env.TUNNEL_HOSTNAME] : [],
+  },
   define: { __BUILD__: JSON.stringify(stamp(command, environment)) },
   build: {
     // The plugin writes dist/client and dist/remy_sport beneath this.
