@@ -10,9 +10,9 @@ import { useLocale } from "../lib/locale";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "../components/button-link";
 import { routeHref } from "../lib/router";
-import { Muted, PageHeader, PageInner, Row, SectionHeading } from "../components/page";
+import { Muted, PageHeader, PageInner, SectionHeading } from "../components/page";
 import { EmptyState, Loading } from "../components/states";
-import { ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
 
 /**
  * @answers VIEW_PLAYER, VIEW_PLAYER_STATS, EDIT_PLAYER_PROFILE, FOLLOW_PLAYER, UNFOLLOW_PLAYER,
@@ -97,12 +97,12 @@ export function PlayerPage({ id }: { id?: string }) {
           <SectionHeading title={m.player_team()} className="mt-0" />
           {p.teamId && p.teamNames ? (
             <ItemGroup className={list}>
-              <Row  data-testid={`player-team-${p.teamId}`}>
+              <Item  data-testid={`player-team-${p.teamId}`}>
                 <ItemContent><ItemTitle>{name(p.teamNames)}</ItemTitle></ItemContent>
                 <ItemActions>
                   <ButtonLink variant="outline" href={routeHref({ page: "team", id: p.teamId! })}>{m.team_open()}</ButtonLink>
                 </ItemActions>
-              </Row>
+              </Item>
             </ItemGroup>
           ) : (
             // Between squads, and saying so is information. A player with no team is
@@ -119,7 +119,7 @@ export function PlayerPage({ id }: { id?: string }) {
             <SectionHeading title={m.player_past_teams()} className="mt-0" />
             <ItemGroup className={list} data-testid="player-past">
               {p.past.map((spell) => (
-                <Row key={`${spell.teamId}-${spell.toDate}`} data-testid={`player-past-${spell.teamId}`}>
+                <Item key={`${spell.teamId}-${spell.toDate}`} data-testid={`player-past-${spell.teamId}`}>
                   <ItemContent>
                     <ItemTitle>{name(spell.teamNames)}</ItemTitle>
                     <ItemDescription>{m.player_spell_dates({ from: spell.fromDate, to: spell.toDate })}</ItemDescription>
@@ -127,7 +127,7 @@ export function PlayerPage({ id }: { id?: string }) {
                   <ItemActions>
                     <ButtonLink variant="outline" href={routeHref({ page: "team", id: spell.teamId })}>{m.team_open()}</ButtonLink>
                   </ItemActions>
-                </Row>
+                </Item>
               ))}
             </ItemGroup>
           </section>
@@ -150,7 +150,7 @@ export function PlayerPage({ id }: { id?: string }) {
                 ["assists", m.stat_assists()],
                 ["fouls", m.stat_fouls()],
               ] as const).map(([key, heading]) => (
-                <Row key={key} data-testid={`stat-${key}`}>
+                <Item key={key} data-testid={`stat-${key}`}>
                   <ItemContent><ItemTitle>{heading}</ItemTitle></ItemContent>
                   <ItemDescription className="tabular-nums">
                     {stats.data!.totals[key]}
@@ -158,7 +158,7 @@ export function PlayerPage({ id }: { id?: string }) {
                     {(stats.data!.totals[key] / stats.data!.recorded).toFixed(1)}{" "}
                     {m.player_stats_per_game()}
                   </ItemDescription>
-                </Row>
+                </Item>
               ))}
             </ItemGroup>
           </section>
@@ -169,9 +169,9 @@ export function PlayerPage({ id }: { id?: string }) {
           {games.data?.games.length ? (
             <ItemGroup className={list} data-testid="player-games">
               {games.data.games.slice(0, 10).map((g) => (
-                <Row key={g.id} data-testid={`player-game-${g.id}`}>
+                <Item key={g.id} data-testid={`player-game-${g.id}`}>
                   <ItemContent><GameSummary game={g} showEvent/></ItemContent>
-                </Row>
+                </Item>
               ))}
             </ItemGroup>
           ) : (

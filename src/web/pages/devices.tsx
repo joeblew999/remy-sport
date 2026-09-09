@@ -5,13 +5,13 @@ import { toDevices, formatWhen, type RawSession } from "../lib/devices";
 import { parseRoute, signInRoute, routeHref } from "../lib/router";
 import { m } from "../lib/i18n";
 import { useLocale } from "../lib/locale";
-import { Muted, PageHeader, PageInner, Row, RowGroup } from "../components/page";
+import { Muted, PageHeader, PageInner } from "../components/page";
 import { EmptyState, Loading } from "../components/states";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "../components/button-link";
-import { ItemActions, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item";
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
 
 /**
  * "Where am I signed in?" — ADR 014.
@@ -81,9 +81,9 @@ export function DevicesPage() {
           <Loading>{m.loading_sessions()}</Loading>
         ) : null) : (
           <section className="flex flex-col gap-4">
-            <RowGroup data-testid="devices-list">
+            <ItemGroup data-testid="devices-list">
               {devices.map((d) => (
-                <Row key={d.id} data-testid={`device-${d.id}`}>
+                <Item key={d.id} data-testid={`device-${d.id}`}>
                   <ItemContent>
                     <ItemTitle>
                       {d.label}
@@ -120,9 +120,9 @@ export function DevicesPage() {
                       </Button>
                     )}
                   </ItemActions>
-                </Row>
+                </Item>
               ))}
-            </RowGroup>
+            </ItemGroup>
 
             {others.length > 0 && (
               <div>

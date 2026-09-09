@@ -32,8 +32,8 @@ import { useSession } from "../lib/session"
 import { m } from "../lib/i18n"
 import { EmptyState } from "./states"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { ItemActions, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item"
-import { Muted, Row, RowGroup } from "./page"
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item"
+import { Muted } from "./page"
 
 /**
  * @answers REGISTER_PLAYER_FOR_EVENT
@@ -76,7 +76,7 @@ export function EventPlayers({ eventId }: { eventId: string }) {
   return (
     <div className="flex flex-col gap-3">
       <Muted>{m.event_players_hint()}</Muted>
-      <RowGroup data-testid="event-players">
+      <ItemGroup data-testid="event-players">
         {!user && <EmptyState className="border-0" data-testid="event-players-signin">{m.sign_in()}</EmptyState>}
         {user && players.length === 0 && (
           <EmptyState className="border-0" data-testid="event-players-none">
@@ -86,7 +86,7 @@ export function EventPlayers({ eventId }: { eventId: string }) {
         {players.map((p) => {
           const entered = enteredHere.has(p.playerId)
           return (
-            <Row key={p.playerId} data-testid={`entry-${p.playerId}`}>
+            <Item key={p.playerId} data-testid={`entry-${p.playerId}`}>
               <ItemContent>
                 <ItemTitle>{name(p.names)}</ItemTitle>
                 <ItemDescription>
@@ -113,10 +113,10 @@ export function EventPlayers({ eventId }: { eventId: string }) {
                 </Button>
               )}
               </ItemActions>
-            </Row>
+            </Item>
           )
         })}
-      </RowGroup>
+      </ItemGroup>
       {err.form && (
         <Alert variant="destructive">
           <AlertDescription>{err.form}</AlertDescription>

@@ -25,8 +25,7 @@ import { useEventVenues } from "../lib/data"
 import { m } from "../lib/i18n"
 import { EmptyState, Loading } from "./states"
 import { Badge } from "@/components/ui/badge"
-import { ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item"
-import { Row, RowGroup } from "./page"
+import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item"
 
 export function EventVenues({ eventId, venueId }: { eventId: string; venueId?: string }) {
   const { name, label } = useLocale()
@@ -39,13 +38,13 @@ export function EventVenues({ eventId, venueId }: { eventId: string; venueId?: s
     if (venueId && !isPending) document.getElementById(`venue-${venueId}`)?.scrollIntoView({ block: "start" });
   }, [venueId, isPending]);
   return (
-    <RowGroup data-testid="event-venues">
+    <ItemGroup data-testid="event-venues">
       {isPending && <Loading className="border-0" />}
       {!isPending && rows.length === 0 && (
         <EmptyState className="border-0" data-testid="event-venues-empty">{m.event_venues_none()}</EmptyState>
       )}
       {rows.map(({ link, venue }) => (
-        <Row id={`venue-${venue.id}`} key={venue.id} data-testid={`venue-${venue.id}`}>
+        <Item id={`venue-${venue.id}`} key={venue.id} data-testid={`venue-${venue.id}`}>
           <ItemContent>
             <ItemTitle>
               <a className="hover:underline" href={routeHref({ page: "event", id: eventId, query: { tab: "places", court: venue.id } })}>{name(venue.names as Record<string, string>, venue.id)}</a>
@@ -64,8 +63,8 @@ export function EventVenues({ eventId, venueId }: { eventId: string; venueId?: s
                 .join(" · ")}
             </ItemDescription>
           </ItemContent>
-        </Row>
+        </Item>
       ))}
-    </RowGroup>
+    </ItemGroup>
   )
 }

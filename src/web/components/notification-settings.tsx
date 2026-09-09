@@ -36,10 +36,10 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ItemActions, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item"
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { Muted, Row, RowGroup, SubHeading } from "./page"
+import { Muted, SubHeading } from "./page"
 
 /**
  * The types worth offering, not all fourteen.
@@ -308,9 +308,9 @@ export function NotificationSettings() {
       <section className="flex flex-col gap-2">
         <SubHeading>{m.push_devices()}</SubHeading>
         {devices?.devices.length ? (
-          <RowGroup data-testid="device-list">
+          <ItemGroup data-testid="device-list">
             {devices.devices.map((d, i) => (
-              <Row key={d.id || `${d.label}-${i}`} size="sm" data-testid={`device-${i}`}>
+              <Item key={d.id || `${d.label}-${i}`} size="sm" data-testid={`device-${i}`}>
                 <ItemContent>
                   <ItemTitle>
                     {d.label}
@@ -322,9 +322,9 @@ export function NotificationSettings() {
                       reason nothing arrives on it. */}
                   {!d.enabled && <ItemDescription>{m.device_off()}</ItemDescription>}
                 </ItemContent>
-              </Row>
+              </Item>
             ))}
-          </RowGroup>
+          </ItemGroup>
         ) : (
           <Note data-testid="devices-empty">{m.devices_none()}</Note>
         )}
@@ -352,12 +352,12 @@ export function NotificationSettings() {
                 : m.email_goes_to({ address: data.email.address })}
           </Muted>
         )}
-        <RowGroup>
+        <ItemGroup>
           {OFFERED.map((code) => {
             const muted = data?.muted.includes(code) ?? false
             const emailOn = data?.emailOn.includes(code) ?? false
             return (
-              <Row className="items-start" key={code}>
+              <Item className="items-start" key={code}>
                 <Checkbox
                   id={`pref-${code}`}
                   className="mt-0.5"
@@ -397,10 +397,10 @@ export function NotificationSettings() {
                     data-testid={`email-pref-${code}`}
                   />
                 </ItemActions>
-              </Row>
+              </Item>
             )
           })}
-        </RowGroup>
+        </ItemGroup>
       </section>
       </CardContent>
     </Card>

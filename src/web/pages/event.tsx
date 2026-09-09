@@ -10,7 +10,7 @@ import { downloadICS } from "../lib/calendar";
 import { FollowButton } from "../components/follow";
 import { Schedule, AddFixture } from "../components/schedule";
 import { Entries } from "../components/entries";
-import { Muted, PageHeader, PageInner, Row, RowGroup, SectionHeading } from "../components/page";
+import { Muted, PageHeader, PageInner, SectionHeading } from "../components/page";
 import { EmptyState, Loading } from "../components/states";
 import { StatusBadge } from "../components/status-badge";
 import { useEntries, useEvent, useGames, useStandings } from "../lib/data";
@@ -22,7 +22,7 @@ import { CourtBoard } from "../components/court-board";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Card, CardContent } from "@/components/ui/card";
-import { ItemContent, ItemDescription } from "@/components/ui/item";
+import { Item, ItemContent, ItemDescription, ItemGroup } from "@/components/ui/item";
 import { Label } from "@/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -219,19 +219,19 @@ function EventRules({ event }: { event: Event }) {
     <>
       <Card data-testid="event-rules">
         <CardContent>
-          <RowGroup boxed={false}>
-            <Row className="px-0">
+          <ItemGroup>
+            <Item className="px-0">
               <ItemContent><ItemDescription>{m.event_format()}</ItemDescription></ItemContent>
               <span data-testid="event-format">{label("eventFormats", event.formatCode)}</span>
-            </Row>
-            <Row className="px-0">
+            </Item>
+            <Item className="px-0">
               <ItemContent><ItemDescription>{m.event_fiba()}</ItemDescription></ItemContent>
               {/* A certified event is a fact worth stating and an uncertified one
                   is not an absence — most school tournaments are not certified and
                   saying nothing would read as "we did not check". */}
               <span data-testid="event-fiba">{event.isFibaCertified ? m.yes() : m.no()}</span>
-            </Row>
-          </RowGroup>
+            </Item>
+          </ItemGroup>
         </CardContent>
       </Card>
 

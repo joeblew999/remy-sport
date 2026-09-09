@@ -5,12 +5,12 @@ import { useLocale } from "../lib/locale"
 import { m } from "../lib/i18n"
 import type { Event } from "../data"
 import { QueryError } from "./query-error"
-import { Row, RowGroup, SectionHeading } from "./page"
+import { SectionHeading } from "./page"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ItemContent, ItemDescription } from "@/components/ui/item"
+import { Item, ItemContent, ItemDescription, ItemGroup } from "@/components/ui/item"
 import { Label } from "@/components/ui/label"
 
 /**
@@ -84,9 +84,9 @@ export function EventDivisions({ eventId, can }: { eventId: string; can: Event["
             defaultChecked captures the empty participation set during a slow load. */}
         {entries && <fieldset disabled={save.isPending || !!participation.error || !!catalogue.error}>
         <legend className="sr-only">{m.event_divisions()}</legend>
-        <RowGroup boxed={false}>
+        <ItemGroup>
         {divisions.map((d) => (
-          <Row className="px-0" key={d.id} data-testid={`division-${d.id}`}>
+          <Item className="px-0" key={d.id} data-testid={`division-${d.id}`}>
             <Checkbox
               id={`division-check-${d.id}`}
               name="division"
@@ -105,9 +105,9 @@ export function EventDivisions({ eventId, can }: { eventId: string; can: Event["
                 .filter(Boolean)
                 .join(" · ")}
             </ItemDescription>
-          </Row>
+          </Item>
         ))}
-        </RowGroup>
+        </ItemGroup>
         </fieldset>}
 
         {can.MANAGE_DIVISIONS && divisions.length > 0 && (

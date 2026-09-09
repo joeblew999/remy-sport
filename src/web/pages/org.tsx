@@ -1,6 +1,6 @@
 import { QueryError, isNotFound } from "../components/query-error";
 import { NameTranslations, namesFrom } from "../components/name-translations";
-import { Muted, PageHeader, PageInner, Row, SectionHeading, SubHeading } from "../components/page";
+import { Muted, PageHeader, PageInner, SectionHeading, SubHeading } from "../components/page";
 import { EmptyState, Loading } from "../components/states";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import { ButtonLink } from "../components/button-link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ChevronRightIcon } from "lucide-react";
@@ -86,7 +86,7 @@ export function OrgsPage() {
             <SectionHeading title={m.your_orgs()} className="mt-0" />
             <ItemGroup className={LIST} data-testid="your-orgs">
               {yours.map((o) => (
-                <Row key={o.id} data-testid={`your-org-${o.id}`}>
+                <Item key={o.id} data-testid={`your-org-${o.id}`}>
                   <ItemContent>
                     <ItemTitle>{o.name}</ItemTitle>
                     <ItemDescription>
@@ -96,7 +96,7 @@ export function OrgsPage() {
                   <ItemActions>
                     <ButtonLink variant="outline" href={routeHref({ page: "org", id: o.id })}>{m.org_open()}</ButtonLink>
                   </ItemActions>
-                </Row>
+                </Item>
               ))}
             </ItemGroup>
           </section>
@@ -108,7 +108,7 @@ export function OrgsPage() {
         ) : orgs.data?.length ? (
           <ItemGroup className={LIST} data-testid="orgs-list">
             {orgs.data.map((o) => (
-              <Row key={o.id} data-testid={`org-${o.id}`}>
+              <Item key={o.id} data-testid={`org-${o.id}`}>
                 <ItemContent>
                   <ItemTitle>{o.name}</ItemTitle>
                   {/* What kind of organisation, in the reader's language — not
@@ -121,7 +121,7 @@ export function OrgsPage() {
                 <ItemActions>
                   <ButtonLink variant="outline" href={routeHref({ page: "org", id: o.id })}>{m.org_view()}</ButtonLink>
                 </ItemActions>
-              </Row>
+              </Item>
             ))}
           </ItemGroup>
         ) : orgs.error ? null : (
@@ -491,13 +491,13 @@ function OrgTeams({
       {mine.length > 0 && (
         <ItemGroup className={LIST}>
           {mine.map((t) => (
-            <Row key={t.id} data-testid={`org-team-${t.id}`} render={<a href={routeHref({ page: "team", id: t.id })} />}>
+            <Item key={t.id} data-testid={`org-team-${t.id}`} render={<a href={routeHref({ page: "team", id: t.id })} />}>
               <ItemContent>
                 <ItemTitle>{t.name}</ItemTitle>
                 <ItemDescription>{t.ageGroupLabel} · {t.genderLabel}</ItemDescription>
               </ItemContent>
               <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden />
-            </Row>
+            </Item>
           ))}
         </ItemGroup>
       )}

@@ -3,9 +3,9 @@ import { useLocale } from "../lib/locale";
 import { formatDayShort } from "../lib/dates";
 import { routeHref } from "../lib/router";
 import { m } from "../lib/i18n";
-import { LinkRow, RowGroup, SectionHeading } from "./page";
+import { LinkRow, SectionHeading } from "./page";
 import { EmptyState } from "./states";
-import { ItemDescription } from "@/components/ui/item";
+import { ItemDescription, ItemGroup } from "@/components/ui/item";
 
 /**
  * The games you are refereeing — the screen Adisorn never had.
@@ -38,7 +38,7 @@ export function YourGames() {
   return (
     <section>
       <SectionHeading title={m.your_games()} className="mt-0" />
-      <RowGroup data-testid="your-games">
+      <ItemGroup data-testid="your-games">
         {games.length === 0 ? (
           <EmptyState className="border-0" data-testid="your-games-none">{m.home_no_upcoming_games()}</EmptyState>
         ) : (
@@ -55,7 +55,7 @@ export function YourGames() {
             );
           })
         )}
-      </RowGroup>
+      </ItemGroup>
     </section>
   );
 }

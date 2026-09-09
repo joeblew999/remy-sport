@@ -42,9 +42,9 @@ import { ButtonLink } from "./button-link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { ItemActions, ItemContent } from "@/components/ui/item";
+import { Item, ItemActions, ItemContent, ItemGroup } from "@/components/ui/item";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
-import { Muted, Row, RowGroup, SectionHeading } from "./page"
+import { Muted, SectionHeading } from "./page"
 import { Label } from "@/components/ui/label";
 
 /** Fixture/result changes also alter event progress, standings and team records. */
@@ -148,7 +148,7 @@ export function Schedule({
       {groups.filter(group => group.games.length).map(group => (
         <section key={group.label}>
           <SectionHeading className="mt-0 mb-3" title={group.label} />
-          <RowGroup>
+          <ItemGroup>
             {group.games.map((g) => (
               <GameRow
                 key={g.id}
@@ -160,7 +160,7 @@ export function Schedule({
                 goto={goto}
               />
             ))}
-          </RowGroup>
+          </ItemGroup>
         </section>
       ))}
     </div>
@@ -190,7 +190,7 @@ export function GameRow({
   const played = game.homeScore !== null && game.awayScore !== null;
 
   return (
-    <Row className="flex-wrap items-start" data-testid={`game-${game.id}`}>
+    <Item className="flex-wrap items-start" data-testid={`game-${game.id}`}>
       <ItemContent className="basis-full sm:basis-auto">
         <GameSummary game={game} details={details} showStatus={false} />
         <Muted as="div">
@@ -283,7 +283,7 @@ export function GameRow({
         )}
       </ItemActions>
       <Can of={game} action="ENTER_SCORES"><GameStats gameId={game.id} /></Can>
-    </Row>
+    </Item>
   );
 }
 

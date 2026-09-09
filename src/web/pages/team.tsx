@@ -11,7 +11,7 @@ import { api, orpc } from "../lib/orpc";
 import { useRoster, useTeam, useTeamGames } from "../lib/data";
 import { routeHref, type Route } from "../lib/router";
 import { m } from "../lib/i18n";
-import { Muted, PageHeader, PageInner, Row, RowGroup, SectionHeading } from "../components/page";
+import { Muted, PageHeader, PageInner, SectionHeading } from "../components/page";
 import { EmptyState, Loading } from "../components/states";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -22,7 +22,7 @@ import { ButtonLink } from "../components/button-link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/components/ui/item";
+import { Item, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
@@ -143,11 +143,11 @@ export function TeamPage({ id, goto: _goto, query, spoiler = false }: { id: stri
             staff reads as a team nobody coaches. */}
         <section>
           <SectionHeading title={m.coaching_staff()} className="mt-0" />
-          <RowGroup data-testid="coaching-staff">
+          <ItemGroup data-testid="coaching-staff">
             {!user && <EmptyState className="border-0" data-testid="coaches-signin">{m.coaching_staff_signin()}</EmptyState>}
             {user && (roster?.coaches.length ?? 0) === 0 && <EmptyState className="border-0" data-testid="coaches-empty">{m.coaching_staff_none()}</EmptyState>}
             {(roster?.coaches ?? []).map((c) => (
-              <Row key={c.userId} data-testid={`coach-${c.userId}`}>
+              <Item key={c.userId} data-testid={`coach-${c.userId}`}>
                 <ItemMedia><Avatar aria-hidden="true"><AvatarFallback>{initials(c.name)}</AvatarFallback></Avatar></ItemMedia>
                 <ItemContent>
                   <ItemTitle>{c.name}</ItemTitle>
@@ -155,9 +155,9 @@ export function TeamPage({ id, goto: _goto, query, spoiler = false }: { id: stri
                       a map of role codes written out here. */}
                   <ItemDescription>{label("coachRoles", c.coachRoleCode)}</ItemDescription>
                 </ItemContent>
-              </Row>
+              </Item>
             ))}
-          </RowGroup>
+          </ItemGroup>
         </section>
 
         {/* `teams.update` was enforced by EDIT_TEAM_PROFILE and unreachable, so
@@ -171,11 +171,11 @@ export function TeamPage({ id, goto: _goto, query, spoiler = false }: { id: stri
 
         <section>
           <SectionHeading title={m.schedule()} id="team-schedule" className="mt-0" />
-          <RowGroup>
+          <ItemGroup>
             {gamesLoading && <Loading className="border-0" />}
             {!gamesLoading && games.length === 0 && <EmptyState className="border-0">{m.no_games_yet()}</EmptyState>}
             {games.map((g) => (
-              <Row className={cn("flex-wrap", g.live && "bg-destructive/5")} key={g.id} data-testid="team-fixture">
+              <Item className={cn("flex-wrap", g.live && "bg-destructive/5")} key={g.id} data-testid="team-fixture">
                 <ItemContent className="basis-full sm:basis-auto">
                   <GameSummary game={g} showEvent/>
                 </ItemContent>
@@ -199,9 +199,9 @@ export function TeamPage({ id, goto: _goto, query, spoiler = false }: { id: stri
                           : g.statusLabel}
                   </Badge>
                 </ItemContent>
-              </Row>
+              </Item>
             ))}
-          </RowGroup>
+          </ItemGroup>
         </section>
       </PageInner>
     </>

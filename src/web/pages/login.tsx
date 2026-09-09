@@ -3,14 +3,14 @@ import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { useDevAccounts, useRequestCode, useVerifyCode, codeFromOutbox } from "../lib/auth";
 import type { Route } from "../lib/router";
 import { m } from "../lib/i18n";
-import { Muted, PageHeader, PageInner, Row, RowGroup, SectionHeading } from "../components/page";
+import { Muted, PageHeader, PageInner, SectionHeading } from "../components/page";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item";
+import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
 
 /**
  * Passwordless sign-in for the SPA (ADR 012).
@@ -200,9 +200,9 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
 
               `holds` is derived from the model server-side, so what is printed
               here is the same answer the API will give when you act as them. */}
-          <RowGroup>
+          <ItemGroup>
             {devAccounts.data.accounts.map((account) => (
-              <Row
+              <Item
                 key={account.email}
                 className="text-left hover:bg-muted"
                 render={<button type="button" />}
@@ -221,9 +221,9 @@ export function LoginPage({ goto, next }: { goto: (r: Route) => void; next?: Rou
                     {account.holds.length ? account.holds.join(" · ") : m.dev_holds_nothing()}
                   </ItemDescription>
                 </ItemContent>
-              </Row>
+              </Item>
             ))}
-          </RowGroup>
+          </ItemGroup>
         </section>
       ) : null}
       </PageInner>

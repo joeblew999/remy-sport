@@ -218,15 +218,18 @@ rule("no authored JSX sets uppercase or monospace by class", escapes,
 const FRAME = "src/web/components/page.tsx"
 const authored = files.filter(f => !f.path.startsWith("src/web/components/ui/"))
 
-/* A list is `RowGroup`/`Row`, which carry the divided-box pattern once. Written
-   inline it was five classes copied twenty-two times across nineteen files. */
+/* A list is the registry's own `ItemGroup` and `Item`, used as they ship.
+   They were wrapped in a `RowGroup`/`Row` of ours that flattened the radius and
+   divided the rows, which was itself an improvement on the same five classes
+   copied twenty-two times — and still not the preset. The wrapper is gone. */
 const inlineRows = authored
   .filter(f => f.path !== FRAME)
   .flatMap(f => [...stripTsxComments(f.text).matchAll(/<Item(?:Group)?\b[^>]*?\b(divide-y|rounded-none)\b/g)]
     .map(m => `${f.path}: <Item${m[0].includes("Group") ? "Group" : ""}> with ${m[1]}`))
-rule("a divided list is RowGroup/Row, not five classes on an Item", inlineRows,
-  `Inline divided-list styling in src/web JSX:\n  ${inlineRows.join("\n  ")}\n\n` +
-  `Use RowGroup and Row from ${FRAME}. They are that pattern, written once.`)
+rule("a list is the registry's ItemGroup, not a box with dividers", inlineRows,
+  `Inline list styling in src/web JSX:\n  ${inlineRows.join("\n  ")}\n\n` +
+  `Use ItemGroup and Item as the registry ships them. They already carry the gap,\n` +
+  `the radius, the border and the hover.`)
 
 /* The registry decides how big its own title is. Twenty-three call sites said
    text-base on an ItemTitle whose own size is text-sm — one decision, taken

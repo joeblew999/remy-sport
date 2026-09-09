@@ -6,7 +6,7 @@ import { useLocale } from "../lib/locale"
 import { formatClockOn, fromLocalInput } from "../lib/dates"
 import { m } from "../lib/i18n"
 import type { Event } from "../data"
-import { Row, RowGroup, SectionHeading } from "./page"
+import { SectionHeading } from "./page"
 import { EmptyState, Loading } from "./states"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { ItemActions, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item"
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item"
 import { Label } from "@/components/ui/label"
 
 /**
@@ -88,13 +88,13 @@ export function EventSessions({ eventId, can, timezone }: { eventId: string; can
     <div className="flex flex-col gap-4">
       <SectionHeading title={m.event_sessions()} className="mt-0 mb-0" />
 
-      <RowGroup data-testid="event-sessions">
+      <ItemGroup data-testid="event-sessions">
         {isPending && <Loading className="border-0" />}
         {!isPending && sessions.length === 0 && (
           <EmptyState className="border-0" data-testid="sessions-none">{m.event_sessions_none()}</EmptyState>
         )}
         {sessions.map((s) => (
-          <Row className="flex-wrap" key={s.id} data-testid={`session-${s.id}`}>
+          <Item className="flex-wrap" key={s.id} data-testid={`session-${s.id}`}>
             <ItemContent>
               <ItemTitle>{name(s.names)}</ItemTitle>
               <ItemDescription>
@@ -125,9 +125,9 @@ export function EventSessions({ eventId, can, timezone }: { eventId: string; can
               )}
             </ItemActions>
             {openRegister === s.id && <Register eventId={eventId} sessionId={s.id} can={can} />}
-          </Row>
+          </Item>
         ))}
-      </RowGroup>
+      </ItemGroup>
 
       {can.DEFINE_SESSION_SCHEDULE && (
         <Card>
@@ -223,13 +223,13 @@ function Register({
   const players = data?.players ?? []
 
   return (
-    <RowGroup className="mt-2 basis-full" data-testid={`register-list-${sessionId}`}>
+    <ItemGroup className="mt-2 basis-full" data-testid={`register-list-${sessionId}`}>
       {isPending && <Loading className="border-0" />}
       {!isPending && players.length === 0 && (
         <EmptyState className="border-0" data-testid="register-empty">{m.event_session_register_none()}</EmptyState>
       )}
       {players.map((p) => (
-        <Row key={p.playerId} data-testid={`attendee-${p.playerId}`}>
+        <Item key={p.playerId} data-testid={`attendee-${p.playerId}`}>
           <Checkbox
             id={`attended-${p.playerId}`}
             checked={p.attended}
@@ -240,13 +240,13 @@ function Register({
             }
           />
           <Label htmlFor={`attended-${p.playerId}`} className="flex-1 font-normal">{name(p.names)}</Label>
-        </Row>
+        </Item>
       ))}
       {attendanceError.form && (
         <Alert variant="destructive">
           <AlertDescription>{attendanceError.form}</AlertDescription>
         </Alert>
       )}
-    </RowGroup>
+    </ItemGroup>
   )
 }

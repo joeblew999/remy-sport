@@ -14,7 +14,7 @@
 import { Fragment, createContext, useContext, useEffect, useState, type ComponentProps, type ReactNode } from "react";
 import { ChevronRightIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Item, ItemContent, ItemGroup, ItemTitle } from "@/components/ui/item";
+import { Item, ItemContent, ItemTitle } from "@/components/ui/item";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -181,51 +181,16 @@ export function PageInner({ className, ...props }: ComponentProps<"div">) {
   );
 }
 
-/**
- * A dense list: one bordered box with divided rows, instead of the registry's
- * spaced cards.
- *
- * `ItemGroup` ships `gap-4` — separate cards — and shadcn has no divided-list
- * variant. This app needs one: a schedule or a squad is twenty rows read at
- * courtside on a phone, and twenty cards is a page of scrolling. So the pattern
- * was written inline, the same five classes, twenty-two times across nineteen
- * files, every copy free to drift from the others. This is that pattern said
- * once. The registry's own file is locked (tests/repo/registry.test.ts), which
- * is why the variant lives here rather than in `Item`.
- *
- * Nothing else is ours. The rows keep `Item`'s padding, text size, weight and
- * hover exactly as the registry ships them, which is what makes a list read
- * like the sidebar rather than like a page that decided for itself.
- * docs/2026-09-09-07-main-content-on-the-registry.md.
- */
-export function RowGroup({
-  boxed = true,
-  className,
-  ...props
-}: { boxed?: boolean } & ComponentProps<typeof ItemGroup>) {
-  return (
-    <ItemGroup
-      className={cn("gap-0 divide-y", boxed && "overflow-hidden rounded-xl border", className)}
-      {...props}
-    />
-  );
-}
-
-/** One row of a `RowGroup`: the registry's Item, minus the radius the box supplies. */
-export function Row({ className, ...props }: ComponentProps<typeof Item>) {
-  return <Item className={cn("rounded-none", className)} {...props} />;
-}
-
-/** A row that opens something: a `Row` as a link, with a chevron. */
+/** A row that opens something: the registry's Item as a link, with a chevron. */
 export function LinkRow({ href, title, children, ...props }: { href: string; title: ReactNode; children?: ReactNode; "data-testid"?: string }) {
   return (
-    <Row render={<a href={href} />} {...props}>
+    <Item render={<a href={href} />} {...props}>
       <ItemContent>
         <ItemTitle>{title}</ItemTitle>
         {children}
       </ItemContent>
       <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden />
-    </Row>
+    </Item>
   );
 }
 

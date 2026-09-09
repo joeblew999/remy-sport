@@ -1,7 +1,7 @@
 import { ChevronRightIcon } from "lucide-react";
 import { CreateEvent } from "../components/create-event";
 import { PlatformCan } from "../components/can";
-import { PageHeader, PageInner, Row, RowGroup } from "../components/page";
+import { PageHeader, PageInner } from "../components/page";
 import { EmptyState, Loading } from "../components/states";
 import { StatusBadge } from "../components/status-badge";
 import { ButtonLink } from "../components/button-link";
@@ -13,7 +13,7 @@ import type { EventStatus, EventType } from "../data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/components/ui/item";
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -196,9 +196,9 @@ export function DiscoverPage({ goto, spoiler, query, setParam }: DiscoverProps) 
           </div>
         </div>
 
-        <RowGroup data-testid="event-list">
+        <ItemGroup data-testid="event-list">
           {events.map(e => (
-            <Row className="py-4 sm:px-5" key={e.id} data-testid="event-row" render={<a href={routeHref({ page: "event", id: e.id })} />}>
+            <Item className="py-4 sm:px-5" key={e.id} data-testid="event-row" render={<a href={routeHref({ page: "event", id: e.id })} />}>
               <ItemMedia className="w-12 flex-col items-start self-start">
                 <span className="text-2xl leading-none font-semibold tabular-nums" data-testid="event-day">
                   {e.day ? String(e.day).padStart(2, "0") : "--"}
@@ -226,7 +226,7 @@ export function DiscoverPage({ goto, spoiler, query, setParam }: DiscoverProps) 
                 <StatusBadge status={e.status} data-testid="event-status">{e.statusLabel}</StatusBadge>
                 <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden />
               </ItemActions>
-            </Row>
+            </Item>
           ))}
           {isPending && <Loading className="rounded-none border-0">{m.loading_events()}</Loading>}
           {error && <EmptyState className="rounded-none border-0">{m.events_load_failed()}</EmptyState>}
@@ -235,7 +235,7 @@ export function DiscoverPage({ goto, spoiler, query, setParam }: DiscoverProps) 
               {allEvents.length === 0 ? m.no_events_yet() : m.no_events_match()}
             </EmptyState>
           )}
-        </RowGroup>
+        </ItemGroup>
       </PageInner>
     </>
   );

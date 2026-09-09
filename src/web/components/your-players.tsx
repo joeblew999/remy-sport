@@ -32,14 +32,14 @@ import { formErrors } from "../lib/form-errors"
 import { useLocale } from "../lib/locale"
 import { m } from "../lib/i18n"
 import type { Route } from "../lib/router"
-import { Row, RowGroup, SectionHeading, SubHeading } from "./page"
+import { SectionHeading, SubHeading } from "./page"
 import { EmptyState } from "./states"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { ItemActions, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item"
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 
 /**
@@ -71,7 +71,7 @@ export function YourPlayers({ goto }: { goto: (r: Route) => void }) {
         <EmptyState data-testid="your-players-none">{m.your_players_none()}</EmptyState>
       )}
       {players.length > 0 && (
-      <RowGroup data-testid="your-players">
+      <ItemGroup data-testid="your-players">
         {players.map((p) =>
           editing === p.playerId ? (
             <Can key={p.playerId} of={p} action="EDIT_PLAYER_PROFILE"><EditPlayer player={p} onDone={() => setEditing(null)} /></Can>
@@ -82,7 +82,7 @@ export function YourPlayers({ goto }: { goto: (r: Route) => void }) {
            * the outer button and an inner one is unreachable, while a screen
            * reader is told about a button that contains a button.
            */
-          <Row className="p-0" key={p.playerId} data-testid={`your-player-${p.playerId}`}>
+          <Item className="p-0" key={p.playerId} data-testid={`your-player-${p.playerId}`}>
             {/*
               The one raw control left in the app, and why it stays one.
 
@@ -135,10 +135,10 @@ export function YourPlayers({ goto }: { goto: (r: Route) => void }) {
                 </Button>
               </ItemActions>
             </Can>
-          </Row>
+          </Item>
           ),
         )}
-      </RowGroup>
+      </ItemGroup>
       )}
     </section>
   )

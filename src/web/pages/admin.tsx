@@ -32,7 +32,7 @@ import { useSession } from "../lib/session";
 import { useCan, useTeams } from "../lib/data";
 import { STORED_ROLE } from "../../domain/vocabularies";
 import type { Route } from "../lib/router";
-import { Muted, PageHeader, PageInner, Row } from "../components/page";
+import { Muted, PageHeader, PageInner } from "../components/page";
 import { EmptyState, Loading } from "../components/states";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import {
@@ -50,7 +50,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -618,7 +618,7 @@ function DeletePlayers() {
       {players.length > 0 && (
         <ItemGroup className={LIST}>
           {players.map((p) => (
-            <Row key={p.id} data-testid={`admin-player-${p.id}`}>
+            <Item key={p.id} data-testid={`admin-player-${p.id}`}>
               <ItemContent>
                 <ItemTitle>{name(p.names)}</ItemTitle>
                 {/* The code is the model's, not a reader's — `label` is how every
@@ -634,7 +634,7 @@ function DeletePlayers() {
                   onConfirm={() => remove.mutate(p.id)}
                 />
               </ItemActions>
-            </Row>
+            </Item>
           ))}
         </ItemGroup>
       )}
@@ -668,7 +668,7 @@ function DeleteTeams() {
       {teams.length > 0 && (
         <ItemGroup className={LIST}>
           {teams.map((t) => (
-            <Row key={t.id} data-testid={`admin-team-${t.id}`}>
+            <Item key={t.id} data-testid={`admin-team-${t.id}`}>
               <ItemContent>
                 <ItemTitle>{t.name}</ItemTitle>
                 <ItemDescription>{[t.orgName, t.ageGroupLabel, t.genderLabel].filter(Boolean).join(" · ")}</ItemDescription>
@@ -682,7 +682,7 @@ function DeleteTeams() {
                   onConfirm={() => remove.mutate(t.id)}
                 />
               </ItemActions>
-            </Row>
+            </Item>
           ))}
         </ItemGroup>
       )}

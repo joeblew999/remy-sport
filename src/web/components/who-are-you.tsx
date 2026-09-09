@@ -5,9 +5,9 @@ import { api } from "../lib/orpc"
 import { useSession } from "../lib/session"
 import { useLocale } from "../lib/locale"
 import { m } from "../lib/i18n"
-import { Row, RowGroup, SectionHeading } from "./page"
+import { SectionHeading } from "./page"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item"
+import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item"
 
 /**
  * Saying what you are, after signing up.
@@ -70,9 +70,9 @@ export function WhoAreYou() {
       <SectionHeading title={m.whoareyou()} className="mt-0" />
       <div className="flex flex-col gap-3" data-testid="who-are-you">
         <Alert><AlertDescription>{m.whoareyou_sub()}</AlertDescription></Alert>
-        <RowGroup>
+        <ItemGroup>
           {OFFERED.map((code) => (
-            <Row
+            <Item
               key={code}
               className="text-left hover:bg-muted disabled:opacity-50"
               render={<button type="button" disabled={choose.isPending} />}
@@ -84,9 +84,9 @@ export function WhoAreYou() {
                 {code === "REFEREE" && <ItemDescription>{m.role_pending_note()}</ItemDescription>}
               </ItemContent>
               <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden />
-            </Row>
+            </Item>
           ))}
-        </RowGroup>
+        </ItemGroup>
         {err.form && (
           <Alert variant="destructive">
             <AlertDescription>{err.form}</AlertDescription>
