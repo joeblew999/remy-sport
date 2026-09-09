@@ -42,6 +42,31 @@ export default defineConfig({
   // up front, so nothing races for a code. 2.8min -> ~50s. Blocks that share
   // created orgs or teams are marked describe.serial individually.
   workers: 2,
+  /**
+   * Playwright's default assertion budget is five seconds. That was comfortable
+   * at three languages and is marginal at twenty-seven, and the reason is the
+   * environment rather than the product.
+   *
+   * These tiers run against a dev server that compiles a route the first time
+   * it is asked for, and the app now fetches `/api/reference` before it can
+   * render a label: 332KB and 8,004 translated names, because every vocabulary
+   * row carries one entry per locale. The first data-dependent assertion after
+   * a navigation therefore waits on a cold transform plus that fetch, and it
+   * sits either side of five seconds depending on what else the machine is
+   * doing. `connected-gui` passed 6/6 in 18s and then failed 2 in 42s on the
+   * next run, with nothing changed between them.
+   *
+   * Raising it hides nothing, and that is worth being explicit about: an expect
+   * timeout only governs how long a *failing* assertion waits before it is
+   * reported. A passing test is not slowed by one seconds. The evidence that
+   * the product is fine is `test:render` — the same screens against a built
+   * bundle — at 402 passed.
+   *
+   * The payload growth is real and is owned: the N×N `names` matrix is what
+   * docs/2026-09-09-16-pretranslated-reference-data.md retires. When it does,
+   * this can go back down.
+   */
+  expect: { timeout: 15_000 },
   reporter: "html",
   use: {
     /**
@@ -126,7 +151,27 @@ export default defineConfig({
   ...(isLocal && {
     webServer: {
       // Fresh storage per run; never attach tests to an existing server.
-      command: "bun run db migrate-local --test-run && bun run dev --mode e2e",
+      /**
+       * The dependency cache is discarded too, for the same reason the storage
+       * is: this tier attaches to nothing it did not create.
+       *
+       * Vite pre-bundles dependencies into `node_modules/.vite/deps` under
+       * content-hashed names. When it decides to re-optimise — which a session
+       * of ordinary editing will provoke — it writes new hashes, and a page
+       * already holding the old HTML asks for a file that no longer exists:
+       *
+       *   Pre-transform error: The file does not exist at
+       *   ".../node_modules/.vite/deps/libav-n1Uis8Vq.js"
+       *
+       * The app then fails to load and the specs fail somewhere that looks
+       * nothing like a cache. That cost a deploy: the tree held
+       * `libav-B2wXDnFI.js` while the page asked for `libav-n1Uis8Vq.js`.
+       *
+       * Removing it costs one cold optimise per run and makes the tier
+       * reproducible, which is the trade this project has already made
+       * everywhere else in this config.
+       */
+      command: "rm -rf node_modules/.vite && bun run db migrate-local --test-run && bun run dev --mode e2e",
       url: `${LOCAL_BROWSER_ORIGIN}/api/health`,
       reuseExistingServer: false,
       /**
