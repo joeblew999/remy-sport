@@ -63,9 +63,10 @@ queue.
 
 ### 3. Emails have no HTML part
 
-`Mail.html` and `Rendered.html` are optional and **nothing ever sets them** —
-`html:` appears only at the two points that forward it (`src/mail/mailer.ts:99`,
-`src/api/transports.ts:147`). Every email this app sends is plain text today.
+The `html` field on `Mail` and on `Rendered` is optional, and **nothing ever
+sets it** — `html:` appears only at the two points that forward it
+(`src/mail/mailer.ts:99`, `src/api/transports.ts:147`). Every email this app
+sends is plain text today.
 
 That is not a defect: plain text is deliverable, translatable and honest. It is
 worth naming so nobody assumes an HTML pipeline exists. If the Product Owner
@@ -97,9 +98,12 @@ Real, small, and unproven on a device:
 Both are comments pointing at things that do not exist. Neither breaks a build,
 which is why they survived; both mislead the next reader, which is the cost.
 
-- `docs/dev/email-deliverability.md` **does not exist.** It is cited twice, as
-  the authority on DNS, at `src/mail/mailer.ts:44` and
-  `scripts/ops/provision.ts:571`.
+- `docs/dev/email-deliverability.md` **does not exist.** <!-- docs-check-ignore -->
+  It is cited twice, as the authority on DNS, at `src/mail/mailer.ts:44` and
+  `scripts/ops/provision.ts:571`. The marker on the line above is there because
+  that line names the path precisely to say it is absent — which is what the
+  check's own message says the marker is for. Delete the marker on the day the
+  file is written.
 - `bun run check:notifications` **does not exist** — not in `package.json`, not
   in `mise.toml`, not in `scripts/ops.ts`. It is cited in
   `src/web/components/notification-settings.tsx` as the check that keeps the
@@ -178,8 +182,9 @@ system.
 Ordered so each one is provable on its own. Nothing here is started.
 
 - [ ] **Fix the two dangling references.** Either write
-      `docs/dev/email-deliverability.md` or repoint the two comments at what is
-      true; correct the DKIM-reputation claim in `src/mail/mailer.ts` to match
+      `docs/dev/email-deliverability.md` <!-- docs-check-ignore --> or repoint
+      the two comments at what is true; correct the DKIM-reputation claim in
+      `src/mail/mailer.ts` to match
       `scripts/ops/provision.ts`. Add a check under `tests/repo/` that a
       doc path named in a source comment exists, so this cannot recur.
 - [ ] **Make `check:notifications` real.** Implement the check its comment
