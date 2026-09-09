@@ -22,22 +22,21 @@ A shipped feature stays here if its acceptance checks or follow-ups are still op
 
 | Work | State | Next step / owning plan |
 | --- | --- | --- |
+| Meeting test | In progress | [Hang two-person test page](2026-09-09-12-hang-meeting-test.md). Reuse media adapters without introducing meeting domain records. |
 | Team page | Implemented; full acceptance open | [Roster, Schedule and Manage tabs](2026-09-09-11-team-page-tabs.md). 32 targeted rendering checks, the browser journey and 36 captures pass. Whole-gate failures remain recorded in the plan. |
 | MoQ screens | Implemented; live-media acceptance open | [Watching and broadcasting](2026-09-09-09-moq-on-shadcn.md). Shadcn controls checked directly; post-fix live delivery needs camera permission. No further e2e runs requested. |
-| Notification settings | Changes present; acceptance pending | [Two-channel notification page](2026-09-09-08-notifications-page-two-channels.md). Reconcile the implementation against its checklist and verify it. The current style check reports a muted-caption violation in this component. |
-| Main content styling | Partly implemented; visual review open | [Registry composition](2026-09-09-07-main-content-on-the-registry.md). The shell and density changed; remaining registry replacements, old checks and multilingual/dark visual review need reconciliation. This owns the incomplete part of the archived initial GUI conversion. |
+| Notification settings | Steps 1–6 implemented; steps 7–8 open | [Two-channel notification page](2026-09-09-08-notifications-page-two-channels.md). One matrix, account-tier push gate, Roster Change's dead email cell removed and held by a (type, channel) check. Open: Forget on a device row, which needs a fingerprint-keyed `unsubscribe`, and the captures. |
 | Public help | Implemented; discovery/integration work open | [Public help](2026-09-09-04-blume-public-help.md). Continue from “Current priority — external discovery and real API use”; use the help package's shared CLI. |
-| Navigation trail | Implemented; documentation needs reconciliation | [Trail record](2026-09-09-09-navigation-trail.md). Commit `5d0c57f` carries the actual route in the URL; the record still describes that behavior as absent. Reconcile remaining sidebar/highlight work and the Back plan below. |
 
 ## Planned, waiting or paused
 
 | Work | State | Next step / owning plan |
 | --- | --- | --- |
-| Installed-app Back | Proposed; rebase on new trail behavior | [Back navigation](2026-09-09-10-installed-app-back-navigation.md). Check actual route history and mobile controls before implementing; installed iPhone/Android acceptance remains open. |
+| Installed-app Back | Proposed; the trail it rebases on is now in `done/` |  [Back navigation](2026-09-09-10-installed-app-back-navigation.md). Check actual route history and mobile controls before implementing; installed iPhone/Android acceptance remains open. |
 | Sign-in autofill | Implemented; phone acceptance open | [Sign-in code](2026-09-09-01-sign-in-code-autofill.md). Watch a real phone offer the emailed code. |
 | Email channel | Verified locally; remote delivery open | [React Email](2026-09-09-02-email-channel-on-react-email.md). Verify real inbox delivery after the next authorised staging deployment. |
 | Environment install names | Verified locally; phone acceptance open | [Install names](2026-09-08-05-pwa-install-name-per-environment.md). Confirm localhost/staging labels on a phone. |
-| Help after the notification move | App change complete; help follow-up open | [Notifications off Devices](2026-09-09-06-notifications-off-the-devices-page.md). Verify/correct help in all three locales to point at Notifications. |
+| Help after the notification move | App change complete; help follow-up open | [Notifications off Devices](done/2026-09-09-06-notifications-off-the-devices-page.md). Verify/correct help in all three locales to point at Notifications. |
 | GUI consistency captures | Implemented; capture limitation open | [GUI consistency](2026-09-07-06-gui-consistency.md). Recheck the recorded desktop WebKit Devices/Notifications capture stall. |
 | External iPhone links | Unresolved requirement | [Installed web-app links](2026-09-08-04-ios-installed-web-app-links.md). Resume only with evidence of a supported mechanism. |
 | Remote development | Paused | [Remote development](2026-09-08-03-remote-development.md). Read the takeover record; remote startup remains paused pending identity integration and an isolated walkthrough. |

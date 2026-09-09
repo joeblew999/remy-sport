@@ -16,7 +16,7 @@
  * No card header: the page supplies the title, and this carried one saying the
  * same thing. It was a section on /#/devices until 2026-09-09 and is the
  * substance of its own page now —
- * docs/2026-09-09-06-notifications-off-the-devices-page.md.
+ * docs/done/2026-09-09-06-notifications-off-the-devices-page.md.
  *
  * Every unavailable state gets its own sentence. See lib/push.ts: "you must
  * install this app first" and "you blocked notifications" are different

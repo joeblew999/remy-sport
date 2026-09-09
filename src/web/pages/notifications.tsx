@@ -10,7 +10,7 @@ import { ButtonLink } from "../components/button-link";
 /**
  * "What am I told about, and how?"
  *
- * Split off /#/devices on 2026-09-09 — docs/2026-09-09-06-notifications-off-the-devices-page.md.
+ * Split off /#/devices on 2026-09-09 — docs/done/2026-09-09-06-notifications-off-the-devices-page.md.
  * That page answers an authentication question (where am I signed in) and had
  * grown a second, unrelated one. Email settled it: an address is not a device,
  * so half the page was no longer described by its name.

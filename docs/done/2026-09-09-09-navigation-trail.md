@@ -1,5 +1,9 @@
 # Plan — one navigation trail, on every screen
 
+Archive: completed (2026-09-09). Crumbs are the ancestors and the page is the h1, held by tests/repo/navigation.test.ts; the route taken is carried in the URL and pinned by tests/unit/route-trail.test.ts.
+
+Current work: [project index](../README.md). Original evidence follows.
+
 Status: implemented 2026-09-09, initially `18494d2`, with actual-route history
 added in `5d0c57f`. Reconciliation remains open: the “Not done” paragraph below
 predates that later commit. Check current behavior before continuing; the
@@ -80,3 +84,22 @@ already had, not from where the reader happened to come from.
   route taken would mean carrying the route in the URL, which is a different
   feature and a larger one: it changes what a shared link means.
 - The sidebar's own highlighted entry is not derived from the trail.
+
+## Closed 2026-09-09
+
+Both halves done. The hierarchy is consistent — crumbs are the ancestors, each
+linked, the page is the `h1` at the end, a top-level screen passes nothing — and
+`tests/repo/navigation.test.ts` fails any crumb without an `href`.
+
+Then the Product Owner asked for the part this file had listed as *not done*: a
+crumb that goes back the way you came, everywhere. That is implemented. `from`
+is attached in `routeHref` itself, so all 85 call sites and every future link
+get it without asking; only drill-in pages carry one; the chain is capped at
+four and each step keeps its own tab. `RouteCrumb` names each step from the
+route rather than from a label in the URL, so a rename cannot leave a stale
+crumb behind. `tests/unit/route-trail.test.ts` pins the six rules.
+
+Two bugs found by walking it rather than by a test, both fixed and recorded in
+the commit: a step back recorded a step forward, so the URL grew in a circle;
+and the Roster and Schedule buttons on a team scrolled nowhere because this
+router's own scroll restoration undid the page's jump.

@@ -144,7 +144,7 @@ Keep existing breadcrumb hierarchy and sidebar navigation.
    installed-device checks below.
 
 Coordinate implementation with the ongoing header/main-content changes in
-[the registry plan](2026-09-09-07-main-content-on-the-registry.md). The edits
+[the registry plan](done/2026-09-09-07-main-content-on-the-registry.md). The edits
 that were uncommitted when this plan was written are committed and the tree is
 clean, but that plan still reads *proposed, nothing implemented*, and the status
 index was corrected on 2026-09-09 for claiming the shadcn conversion was

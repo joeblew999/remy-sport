@@ -214,7 +214,7 @@ rule("no authored JSX sets uppercase or monospace by class", escapes,
    file allowed to name a heading size, because it is where the ladder lives;
    the registry's own files are exempt because they are hash-locked and are the
    scale everything else defers to.
-   docs/2026-09-09-07-main-content-on-the-registry.md. */
+   docs/done/2026-09-09-07-main-content-on-the-registry.md. */
 const FRAME = "src/web/components/page.tsx"
 const authored = files.filter(f => !f.path.startsWith("src/web/components/ui/"))
 

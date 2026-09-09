@@ -57,7 +57,7 @@ claims, not current status. Use [the current index](../README.md).
   one matrix with Push and Email as columns, and Roster Change loses the cell
   rather than gaining a template. Needs the Product Owner's approval of the
   steps before any code changes.
-- [One navigation trail, on every screen](../2026-09-09-09-navigation-trail.md)
+- [One navigation trail, on every screen](2026-09-09-09-navigation-trail.md)
   is implemented 2026-09-09, at the Product Owner's report that organisations
   drill in and back out and the other entry points do not. Fifteen headers had
   three habits: ten passed their own name as a crumb, Discover passed an
@@ -67,7 +67,7 @@ claims, not current status. Use [the current index](../README.md).
   end; a top-level screen passes nothing. The trail is in the site header, where
   the title already went. `tests/repo/navigation.test.ts` fails any crumb
   without an href.
-- [Main content on the registry, like the sidebar already is](../2026-09-09-07-main-content-on-the-registry.md)
+- [Main content on the registry, like the sidebar already is](2026-09-09-07-main-content-on-the-registry.md)
   is **implemented 2026-09-09**: shadcn's own `dashboard-01` shell for our preset
   was fetched from the registry and adopted — inset sidebar, the page title as an
   `h1` in the site header, the block's header-height and sidebar-width variables,
@@ -85,7 +85,7 @@ claims, not current status. Use [the current index](../README.md).
   and we apply it. `tests/repo/styles.test.ts` reads only `styles.css`, so the
   drift moved to the JSX where nothing checks. Stage 1 needs the Product
   Owner's decision before any code changes.
-- [Notifications off the devices page](../2026-09-09-06-notifications-off-the-devices-page.md)
+- [Notifications off the devices page](2026-09-09-06-notifications-off-the-devices-page.md)
   is implemented 2026-09-09, at the Product Owner's question that Devices is
   really an authentication concern. It is now: `/#/devices` holds sessions and
   nothing else, and the settings that had grown an email address moved to
@@ -125,7 +125,7 @@ still in the tree a month later: `--font-heading`, which the preset defines and
 `ops ui theme` drops; `--control-height: 44px` applied to every pointer, making
 every control 20-37% taller than the preset draws it; and the page architecture,
 which was ours throughout. The Product Owner found all three by looking at the
-screen. See [main content on the registry](../2026-09-09-07-main-content-on-the-registry.md)
+screen. See [main content on the registry](2026-09-09-07-main-content-on-the-registry.md)
 for what was actually done about it on 2026-09-09.
 
 What that plan did deliver, under the Product Owner's rule of 2026-09-08: no

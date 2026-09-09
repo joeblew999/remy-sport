@@ -12,7 +12,7 @@ test("a visitor can filter, open a game and return to the same competition on a 
   await expect(page.getByTestId("event-division")).toHaveValue("div_001")
   await page.getByTestId("tab-games").click()
   await page.getByTestId("open-game-gam_002").click()
-  // The game records the event tab it was opened from (docs/2026-09-09-09).
+  // The game records the event tab it was opened from (docs/done/2026-09-09-09-navigation-trail.md).
   await expect(page).toHaveURL(/#\/game\/gam_002\?from=%2Fevent%2F/)
   await expect(page.getByTestId("game-gam_002")).toBeVisible()
   await expect(page.getByTestId("enter-score-gam_002")).toHaveCount(0)

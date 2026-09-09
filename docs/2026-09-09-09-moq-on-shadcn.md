@@ -1,10 +1,12 @@
 # Plan — MoQ watching and broadcasting on shadcn
 
 Status: implemented 2026-09-09; live-media acceptance remains open.
+User correction: game Broadcast is camera-only. Screen sharing belongs to the
+[Hang meeting test](2026-09-09-12-hang-meeting-test.md), never the event camera page.
 Next: verify distinct live frames, stop and restart after camera permission is
 available. The user explicitly stopped e2e runs: test the actual page directly;
 do not restart e2e, the full gate or screenshot suites for this work.
-This document owns the MoQ UI work. The [main-content plan](2026-09-09-07-main-content-on-the-registry.md)
+This document owns the MoQ UI work. The [main-content plan](done/2026-09-09-07-main-content-on-the-registry.md)
 owns the shared page architecture; the [relay record](2026-09-07-02-relay-capabilities.md)
 continues to own transport and credential isolation.
 

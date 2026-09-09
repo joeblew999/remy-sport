@@ -1,5 +1,9 @@
 # Plan — notifications off the devices page
 
+Archive: completed (2026-09-09). Sessions and settings are on their own routes and the model declaration moved to the code that answers it. The page this created is rebuilt in ../2026-09-09-08-notifications-page-two-channels.md, which also carries the unfixed help content.
+
+Current work: [project index](../README.md). Original evidence follows.
+
 Status: implemented 2026-09-09, the same day it was asked for.
 
 The Product Owner's question: does some of what is on Devices belong somewhere
@@ -128,3 +132,16 @@ confirmation still arrives where the reader was sent; and the gate is green.
   that is wrong: the settings are on `/#/notifications`. The help package is
   another agent's working tree and was deliberately not edited from here. It
   needs a content correction in all three locales.
+
+## Closed 2026-09-09
+
+Every step delivered and verified. `/#/devices` holds sessions;
+`/#/notifications` holds the settings and the model declaration that belongs
+with them. The page it created was then rebuilt around having two channels —
+[the notifications page, with two channels on it](2026-09-09-08-notifications-page-two-channels.md)
+— which is where that work continues.
+
+Carried forward, not lost: `sites/help/content/notifications.mdx` still tells
+readers the settings are on the Signed-in devices page, in three locales. It is
+another package's working tree; it is named again in plan 08's *Open* section so
+it survives this file being archived.

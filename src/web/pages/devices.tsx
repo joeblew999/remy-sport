@@ -29,7 +29,7 @@ import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle }
  * the channel list that answers it is in notification-settings.tsx — the
  * declaration was carried by the page rather than by the code doing the work,
  * which sharing a page hid. Both moved to /#/notifications:
- * docs/2026-09-09-06-notifications-off-the-devices-page.md.
+ * docs/done/2026-09-09-06-notifications-off-the-devices-page.md.
  */
 export function DevicesPage() {
   const { locale } = useLocale();

@@ -44,7 +44,7 @@
      does not exist. It resolves to the sans face here, exactly as the preset
      says, so this changes no pixel today — it is the hook a distinct heading
      face would hang on, and it should be the preset's, not missing.
-     docs/2026-09-09-07-main-content-on-the-registry.md. */
+     docs/done/2026-09-09-07-main-content-on-the-registry.md. */
   --font-heading: var(--font-sans);
 }
 
@@ -201,7 +201,7 @@
    `pointer: coarse` is the actual question being asked — is the thing pointing
    at this a finger — so a phone, a tablet and a touchscreen laptop all keep the
    courtside size, and a mouse gets the preset.
-   docs/2026-09-09-07-main-content-on-the-registry.md. */
+   docs/done/2026-09-09-07-main-content-on-the-registry.md. */
 @media (pointer: coarse) {
   [data-slot="button"],
   [data-slot="input"],

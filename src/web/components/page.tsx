@@ -216,7 +216,7 @@ export function LinkRow({ href, title, children, ...props }: { href: string; tit
  * reached for: every title the registry ships is medium, and a page of
  * semibold headings beside a sidebar of medium ones is most of why the two
  * halves did not look like one app.
- * docs/2026-09-09-07-main-content-on-the-registry.md.
+ * docs/done/2026-09-09-07-main-content-on-the-registry.md.
  */
 export function SectionHeading({
   title,

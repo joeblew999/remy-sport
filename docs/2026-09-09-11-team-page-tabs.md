@@ -103,7 +103,7 @@ coverage. The current scroll effect also depends on roster and game data, so a
 refetch can re-scroll the reader; deleting it resolves that fragility.
 
 This is the team navigation work. Coordinate its use of the page frame with
-[main-content styling](2026-09-09-07-main-content-on-the-registry.md) and its URL
+[main-content styling](done/2026-09-09-07-main-content-on-the-registry.md) and its URL
 behavior with [installed-app Back](2026-09-09-10-installed-app-back-navigation.md).
 Neither broader redesign is required to implement these tabs. Concurrent
 uncommitted account/topbar changes were present during inspection and are not

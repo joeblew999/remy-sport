@@ -14,7 +14,7 @@ and the page is just wrong and illogical now."*
 They are right, and "now" is the load-bearing word. The page was coherent when
 it answered one question — *can this browser be reached, and what for* — and it
 was split onto its own route on 2026-09-09
-([the split](2026-09-09-06-notifications-off-the-devices-page.md)) for exactly
+([the split](done/2026-09-09-06-notifications-off-the-devices-page.md)) for exactly
 the reason it is now incoherent: **email arrived and was fitted into a page
 built for push.** It went in as one grey sentence and a second, differently
 shaped switch on the end of each row. Nothing was re-thought around the fact
@@ -234,7 +234,7 @@ cosmetics. Nothing here needs a schema change.
   per-type ons or merely look like it does.
 - **The help content is still wrong.** `sites/help/content/notifications.mdx`
   tells readers the settings are on the Signed-in devices page. Carried over
-  unfixed from [the split](2026-09-09-06-notifications-off-the-devices-page.md#log);
+  unfixed from [the split](done/2026-09-09-06-notifications-off-the-devices-page.md#log);
   it is another agent's working tree. Three locales.
 
 ## Done when

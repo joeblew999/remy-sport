@@ -1,5 +1,9 @@
 # Plan — main content on the registry, like the sidebar already is
 
+Archive: completed (2026-09-09). dashboard-01's shell adopted from the registry, lists on ItemGroup/Item as shipped, --font-heading restored and the 44px control height made a pointer: coarse rule. Stage 4 was dropped because the survey disproved its premise; the closing record says why and names two unre-read style allowlists.
+
+Current work: [project index](../README.md). Original evidence follows.
+
 Status: partially implemented 2026-09-09; visual acceptance and remaining
 registry/check reconciliation are open. The implementation log below supersedes
 the original proposal. The earlier GUI-conversion plan is archived; this plan
@@ -315,3 +319,24 @@ followed the push-capability checks to their new page.
 - Lists are `RowGroup`, not the block's `Card` grids. That was the Product
   Owner's decision, not an omission; reversing it is now a small change.
 - The checks named above as encoding old decisions have not all been re-read.
+
+## Closed 2026-09-09
+
+The question this plan opened — why does the sidebar look designed and the
+content assembled — is answered and acted on. The shell is `dashboard-01`'s,
+fetched from the registry rather than guessed at. Lists are `ItemGroup` and
+`Item` as they ship, at the registry's own `sm` density and `outline` variant,
+with our `RowGroup` wrapper deleted. `--font-heading` is the preset's again, and
+the 44px control height is a `pointer: coarse` rule rather than one applied to
+every pointer — which is what had held the preset's density out of the app.
+
+**Stage 4 was dropped, and the reason is the finding.** It assumed we hand-rolled
+components the registry ships. The survey disproved that: no bespoke dialog,
+select, progress or popover exists — those patterns simply are not in the app.
+One raw control survives, in `your-players.tsx`, with its reason beside it.
+
+Still true and carried into the status index rather than lost here:
+`MONO_ALLOWED` and `UPPERCASE_ALLOWED` in `styles.test.ts` were written for the
+pre-shadcn stylesheet and have not been re-read, and the three JSX rules added
+by this plan enforce the shape it chose, so they would need revisiting if the
+page architecture changes again.
