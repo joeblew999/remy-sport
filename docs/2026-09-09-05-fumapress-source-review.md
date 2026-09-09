@@ -70,6 +70,16 @@ enables MCP and includes sponsor/CMS packages, so do not copy that app wholesale
 
 ## Remaining differences and concrete concerns
 
+- React Email clarification, checked against the current working tree on
+  2026-09-09: Remy already renders React inside the Cloudflare Worker. The email
+  renderer in `src/mail/templates/render.tsx` imports `renderToStaticMarkup`
+  from `react-dom/server` and produces an HTML string. This is static server-side
+  rendering, distinct from React Server Components. The current Vite config,
+  package manifest and Bun lock show no Waku/RSC plugin or transport setup.
+  Thus React-on-Cloudflare is already part of our architecture; the additional
+  integration to prove is specifically Waku's RSC build and routing pipeline.
+  [React static markup API](https://react.dev/reference/react-dom/server/renderToStaticMarkup),
+  [React Server Components](https://react.dev/reference/rsc/server-components).
 - Waku is pinned to 1.0.0-rc.0. The CLI constructs Waku/RSC build environments;
   the Vite integration includes handling for duplicate Waku resolution. This
   differs from Remy's Cloudflare Vite pipeline. Use separate build configurations
