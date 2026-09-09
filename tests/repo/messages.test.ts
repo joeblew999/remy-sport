@@ -265,6 +265,8 @@ const WRITES_IN: Record<string, string[]> = {
   hi: ["Devanagari"],
   ar: ["Arabic"],
   bn: ["Bengali"],
+  "zh-TW": ["Han"],
+  "zh-HK": ["Han"],
 }
 
 /** Every translated string the product ships, as (locale, where, text). */

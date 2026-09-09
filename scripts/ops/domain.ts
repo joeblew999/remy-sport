@@ -59,7 +59,13 @@ if (!existsSync(BIZ)) {
  */
 function inlangSettings(): string {
   const model = readFileSync(resolve(BIZ, "vocabularies.ts"), "utf8")
-  const locales = [...(model.match(/export const ALL_LOCALES = \[(.*?)\]/s)?.[1] ?? "").matchAll(/"(\w+)"/g)].map(
+  // `[\w-]`, not `\w`: a locale may carry a region subtag, and `\w` excludes the
+  // hyphen. `"zh-TW"` matched nothing at all, so Traditional Chinese was dropped
+  // from this list without a word — 21 locales written where the model declared
+  // 23 — and Paraglide compiled no messages for it. That is the exact silent
+  // failure the note above says this function exists to prevent, so it is worth
+  // the character.
+  const locales = [...(model.match(/export const ALL_LOCALES = \[(.*?)\]/s)?.[1] ?? "").matchAll(/"([\w-]+)"/g)].map(
     (m) => m[1],
   )
   if (!locales.length) {
