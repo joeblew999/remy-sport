@@ -10,6 +10,8 @@ import { assertPinnedBun } from "../lib/bun-pin"
 
 const root = resolve(import.meta.dirname, "../..")
 const site = join(root, "sites/help")
+const toolSite = join(root, "sites/help-tools")
+const editorSite = join(root, "sites/help-editor")
 
 /** Capture bytes, not Git status: the app already has unrelated uncommitted work. */
 export function appSnapshot(base = root): Record<string, string> {
@@ -41,8 +43,8 @@ function childEnv(): NodeJS.ProcessEnv {
   return { ...env, CI: "1", NO_COLOR: "1", WRANGLER_SEND_METRICS: "false", WRANGLER_LOG_PATH: join(site, ".proof/wrangler"), WRANGLER_CACHE_DIR: join(site, ".proof/cache") } as unknown as NodeJS.ProcessEnv
 }
 
-async function command(args: string[]) {
-  const child = spawn(args[0]!, args.slice(1), { cwd: site, env: childEnv(), stdio: "inherit", detached: true })
+async function command(args: string[], cwd = site) {
+  const child = spawn(args[0]!, args.slice(1), { cwd, env: childEnv(), stdio: "inherit", detached: true })
   const stop = () => { if (child.pid) { try { process.kill(-child.pid, "SIGKILL") } catch { /* already exited */ } } }
   const timer = setTimeout(stop, 300_000)
   process.once("SIGINT", stop)
@@ -72,6 +74,19 @@ function checkInstall() {
   }
 }
 
+function checkAuxInstall(dir: string) {
+  if (realpathSync(dir) !== dir) throw new Error("docs: auxiliary package must not be a symlink")
+  const manifest = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"))
+  if (manifest.workspaces) throw new Error("docs: auxiliary package must be independent")
+  const req = createRequire(join(dir, "package.json"))
+  for (const name of Object.keys({ ...manifest.dependencies, ...manifest.devDependencies })) {
+    const local = join(dir, "node_modules", name)
+    if (!existsSync(join(local, "package.json")) || !realpathSync(local).startsWith(dir + "/node_modules/")) throw new Error(`docs: auxiliary dependency escaped: ${name}`)
+  }
+  const representative = dir === toolSite ? "@modelcontextprotocol/sdk/server/mcp.js" : "@fumadocs-editor/core/sync"
+  if (!realpathSync(req.resolve(representative)).startsWith(dir + "/node_modules/")) throw new Error("docs: auxiliary module resolved outside package")
+}
+
 async function freePort(preferred = 0) {
   const server = createServer()
   server.listen(preferred, "127.0.0.1")
@@ -85,13 +100,16 @@ async function freePort(preferred = 0) {
 // Recover our exact local development process even if its terminal was closed.
 // Never stop the main app or a different process using the same port.
 async function stopDev() {
-  const expected = `node ${join(site, "node_modules/fumapress/cli.js")} dev --port 8791 --host 127.0.0.1`
+  const expected = [`node ${join(site, "node_modules/fumapress/cli.js")} dev --port 8791 --host 127.0.0.1`, `node ${join(toolSite, "server.mjs")} http://127.0.0.1:8791 8792`, `node ${join(editorSite, "node_modules/@fumadocs-editor/studio/dist/cli.js")} --config fumadocs-studio.config.ts --no-open`]
   const lines = execFileSync("ps", ["-ax", "-o", "pid=,command="], { encoding: "utf8" }).split("\n")
   for (const line of lines) {
     const match = line.trim().match(/^(\d+)\s+(.+)$/)
-    if (!match || match[2] !== expected) continue
+    if (!match || !expected.includes(match[2]!)) continue
     const pid = Number(match[1])
-    process.kill(pid, "SIGTERM")
+    try { process.kill(pid, "SIGTERM") } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ESRCH") continue // supervisor already stopped this child
+      throw error
+    }
     for (let attempt = 0; attempt < 50; attempt++) {
       try { process.kill(pid, 0) } catch { break }
       await new Promise((r) => setTimeout(r, 100))
@@ -100,7 +118,7 @@ async function stopDev() {
   }
 }
 
-async function preview(interactive: boolean, live = false) {
+async function preview(interactive: boolean, live = false, author = false) {
   const port = await freePort(interactive ? 8791 : 0)
   const url = `http://127.0.0.1:${port}`
   // Launch the local binary directly so normal cleanup is not reported as a
@@ -109,7 +127,9 @@ async function preview(interactive: boolean, live = false) {
     ? [join(site, "node_modules/fumapress/cli.js"), "dev", "--port", String(port), "--host", "127.0.0.1"]
     : [join(site, "node_modules/wrangler/bin/wrangler.js"), "dev", "--local", "--config", "wrangler.jsonc", "--port", String(port), "--ip", "127.0.0.1"]
   const child = spawn("node", serverArgs, { cwd: site, env: childEnv(), stdio: "inherit", detached: !live })
-  const stop = () => { if (child.pid) { try { if (live) child.kill("SIGTERM"); else process.kill(-child.pid, "SIGTERM") } catch { /* already exited */ } } }
+  let companion: ReturnType<typeof spawn> | undefined
+  let editor: ReturnType<typeof spawn> | undefined
+  const stop = () => { editor?.kill("SIGTERM"); companion?.kill("SIGTERM"); if (child.pid) { try { if (live) child.kill("SIGTERM"); else process.kill(-child.pid, "SIGTERM") } catch { /* already exited */ } } }
   const onSignal = () => stop()
   process.once("SIGINT", onSignal)
   process.once("SIGTERM", onSignal)
@@ -122,10 +142,35 @@ async function preview(interactive: boolean, live = false) {
       await new Promise((r) => setTimeout(r, 200))
     }
     if (!ready) throw new Error("docs: preview did not become ready")
+    if (interactive) {
+      await freePort(8792)
+      companion = spawn("node", [join(toolSite, "server.mjs"), url, "8792"], { cwd: toolSite, env: childEnv(), stdio: "inherit" })
+      let toolsReady = false
+      for (let attempt = 0; attempt < 50; attempt++) {
+        if (companion.exitCode !== null) throw new Error("docs: tools server exited")
+        try { toolsReady = (await fetch("http://127.0.0.1:8792/health")).ok } catch { /* starting */ }
+        if (toolsReady) break
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
+      if (!toolsReady) throw new Error("docs: tools server did not become ready")
+    }
+    if (author) {
+      await freePort(8793)
+      editor = spawn("node", [join(editorSite, "node_modules/@fumadocs-editor/studio/dist/cli.js"), "--config", "fumadocs-studio.config.ts", "--no-open"], { cwd: editorSite, env: childEnv(), stdio: "inherit" })
+      let editorReady = false
+      for (let attempt = 0; attempt < 100; attempt++) {
+        if (editor.exitCode !== null) throw new Error("docs: editor exited before readiness")
+        try { editorReady = (await fetch("http://127.0.0.1:8793")).ok } catch { /* starting */ }
+        if (editorReady) break
+        await new Promise(resolve => setTimeout(resolve, 200))
+      }
+      if (!editorReady) throw new Error("docs: editor did not become ready")
+      console.log("docs: Studio ready at http://127.0.0.1:8793; changes save to public help content only")
+    }
     if (live) {
       const response = await fetch(url)
       if (!response.headers.get("x-robots-tag")?.includes("noindex")) throw new Error("docs: dev missing noindex")
-      for (const path of ["/index.md", "/index.md", "/sign-in.md", "/api/search"]) {
+      for (const path of ["/en.md", "/en.md", "/en/sign-in.md", "/api/search"]) {
         const result = await fetch(url + path, { signal: AbortSignal.timeout(5000) })
         if (!result.ok) throw new Error(`docs: live endpoint failed ${path}: ${result.status}`)
       }
@@ -134,7 +179,11 @@ async function preview(interactive: boolean, live = false) {
       return
     }
     await command([process.execPath, "run", "audit", url])
-    for (const [path, expected] of [["/", "Remy Sport help"], ["/sign-in", "Signing in"], ["/following-a-game", "Following a game"], ["/sign-in.md", "Signing in"], ["/llms.txt", "sign-in"], ["/sitemap.xml", "help.remy.invalid"], ["/api/search", "sign-in"]]) {
+    await command(["node", "check.mjs", url], toolSite)
+    await command([process.execPath, "install", "--frozen-lockfile"], editorSite)
+    checkAuxInstall(editorSite)
+    await command(["node", "check.mjs"], editorSite)
+    for (const [path, expected] of [["/en", "Remy Sport help"], ["/en/sign-in", "Signing in"], ["/en/following-a-game", "Following a game"], ["/en/sign-in.md", "Signing in"], ["/llms.txt", "sign-in"], ["/sitemap.xml", "help.remy.invalid"], ["/api/search", "sign-in"]]) {
       const response = await fetch(url + path, { signal: AbortSignal.timeout(5000) })
       const body = await response.text()
       if (!response.ok || !body.includes(expected!)) throw new Error(`docs: failed response check ${path}: ${response.status}`)
@@ -157,28 +206,48 @@ async function preview(interactive: boolean, live = false) {
 export async function runDocs(args: string[]): Promise<number> {
   const action = args[0] ?? "check"
   if (action === "--help") {
-    console.log("bun run ops docs [dev|stop|check|preview|clean]\ndev installs and starts Vite live updates at http://127.0.0.1:8791; check installs the independent locked package, builds and verifies locally; preview keeps the verified site open; stop stops this package’s dev server; clean removes only its generated files. No deployment command.")
+    console.log("bun run ops docs [dev|author|stop|check|preview|lock|clean]\nauthor starts Studio alongside help and MCP; dev installs and starts Vite live updates at http://127.0.0.1:8791; check installs the independent locked packages, builds and verifies locally; preview keeps the verified site open; stop stops help development, MCP and Studio; clean removes only the three help packages’ generated files. lock updates their independent lockfiles after manifest edits. No deployment command.")
     return 0
   }
-  if (args.length > 1 || !["dev", "stop", "check", "preview", "clean"].includes(action)) throw new Error("docs: expected dev, stop, check, preview or clean")
+  if (args.length > 1 || !["dev", "author", "stop", "check", "preview", "lock", "clean"].includes(action)) throw new Error("docs: expected dev, author, stop, check, preview, lock or clean")
   if (assertPinnedBun()) return 1
-  if (realpathSync(site) !== site) throw new Error("docs: package directory must not be a symlink")
+  for (const dir of [site, toolSite, editorSite]) {
+    if (realpathSync(dir) !== dir) throw new Error("docs: package directory must not be a symlink")
+  }
   if (JSON.parse(readFileSync(join(root, "package.json"), "utf8")).workspaces) throw new Error("docs: recheck isolation before introducing a root workspace")
   const before = appSnapshot()
   try {
     await stopDev()
     if (action === "stop") return 0
     if (action === "clean") {
-      for (const name of ["node_modules", "dist", ".source", ".vite", ".proof", ".wrangler"]) rmSync(join(site, name), { recursive: true, force: true })
+      for (const dir of [site, toolSite, editorSite]) {
+        for (const name of ["node_modules", "dist", ".source", ".vite", ".proof", ".wrangler"]) rmSync(join(dir, name), { recursive: true, force: true })
+      }
       return 0
     }
     mkdirSync(join(site, ".proof"), { recursive: true })
     rmSync(join(site, ".proof/result.json"), { force: true })
+    if (action === "lock") {
+      await command([process.execPath, "install"])
+      checkInstall()
+      await command([process.execPath, "install"], toolSite)
+      await command([process.execPath, "install"], editorSite)
+      checkAuxInstall(toolSite)
+      checkAuxInstall(editorSite)
+      return 0
+    }
     if (!existsSync(join(site, "bun.lock"))) throw new Error("docs: committed sites/help/bun.lock is missing; refusing an unlocked install")
     await command([process.execPath, "install", "--frozen-lockfile"])
     checkInstall()
-    if (action === "dev") {
-      await preview(true, true)
+    await command([process.execPath, "install", "--frozen-lockfile"], toolSite)
+    checkAuxInstall(toolSite)
+    await command(["node", "scripts/fonts.mjs"])
+    if (action === "dev" || action === "author") {
+      if (action === "author") {
+        await command([process.execPath, "install", "--frozen-lockfile"], editorSite)
+        checkAuxInstall(editorSite)
+      }
+      await preview(true, true, action === "author")
       return 0
     }
     rmSync(join(site, "dist"), { recursive: true, force: true })

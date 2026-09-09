@@ -28,7 +28,16 @@ it("keeps the content package out of the app workspace and deployment", () => {
   const app = JSON.parse(readFileSync(join(root, "package.json"), "utf8"))
   const help = JSON.parse(readFileSync(join(root, "sites/help/package.json"), "utf8"))
   expect(app.workspaces).toBeUndefined()
-  expect(Object.keys({ ...app.dependencies, ...app.devDependencies }).filter((name) => /fuma|waku/.test(name))).toEqual([])
+  expect(Object.keys({ ...app.dependencies, ...app.devDependencies }).filter((name) => /fuma|waku|modelcontextprotocol/.test(name))).toEqual([])
+  for (const name of ["help", "help-tools", "help-editor"]) {
+    const manifest = JSON.parse(readFileSync(join(root, `sites/${name}/package.json`), "utf8"))
+    expect(manifest.private).toBe(true)
+    expect(manifest.workspaces).toBeUndefined()
+    expect(JSON.stringify(manifest)).not.toMatch(/workspace:|link:|file:/)
+    expect(readFileSync(join(root, `sites/${name}/bun.lock`), "utf8")).toContain('"lockfileVersion"')
+  }
+  expect(help.dependencies["@fumadocs-editor/studio"]).toBeUndefined()
+  expect(help.dependencies["@modelcontextprotocol/sdk"]).toBeUndefined()
   expect(help.workspaces).toBeUndefined()
   expect(help.overrides).toBeUndefined()
   expect(help.dependencies.fumapress).toBe("1.2.0")

@@ -1,66 +1,104 @@
-# Remy Sport help — local, isolated preview
+# Remy Sport help
 
-Run these commands **from the Remy Sport repository root**, using its pinned Bun
-and Node toolchain. The docs command installs this package's own frozen lockfile;
-you do not need to install its dependencies separately.
+Run commands **from the repository root** with its pinned Bun and Node toolchain.
+Preparation, frozen installs and server startup are automatic.
 
 ```sh
 bun run ops docs dev
 ```
 
-Wait for `live development ready`, then open **http://127.0.0.1:8791/**.
-Keep that terminal running; **Ctrl-C** stops the development server and its children.
-The CLI stops a previous help development server automatically before starting
-or checking. It will not kill another application using port 8791.
-`bun run ops docs stop` also stops this package’s development server if its
-original terminal is no longer available.
+Open **http://127.0.0.1:8791/** and choose English, Thai or Japanese.
+Keep the terminal running. Editing public MDX or CSS updates the GUI through
+Fumapress’s Vite server. The app can keep running on its own port.
 
-Useful local URLs:
+For visual authoring, use this single command instead:
 
-| URL | What it provides |
+```sh
+bun run ops docs author
+```
+
+It starts **Fuma Studio at http://127.0.0.1:8793/** alongside live help and MCP.
+Studio edits only public help Markdown. It uses Fuma’s own CLI, autosave, file
+browser and collaboration features. Saving changes local files; it never deploys
+or commits. Use the MDX tab for unsupported custom components, which are preserved
+when left untouched. Creating/renaming files is currently a filesystem operation;
+Studio browses and edits existing files.
+
+**Ctrl-C** stops the command’s children. `bun run ops docs stop` also recovers
+these servers after a terminal closes. Starting another docs command stops our
+previous development/authoring servers automatically. It never kills a different
+application merely because that application uses the same port.
+
+## Local addresses
+
+| Address | Purpose |
 | --- | --- |
-| http://127.0.0.1:8791/ | Help home page |
-| http://127.0.0.1:8791/sign-in | Email-code sign-in guide |
-| http://127.0.0.1:8791/sign-in.md | The same guide as Markdown |
-| http://127.0.0.1:8791/for-assistants | How to retrieve and cite these guides |
-| http://127.0.0.1:8791/llms.txt | Guide index for assistants |
-| http://127.0.0.1:8791/llms-full.txt | All guide text |
-| http://127.0.0.1:8791/sitemap.xml | Generated sitemap |
+| http://127.0.0.1:8791/en | English help |
+| http://127.0.0.1:8791/th | Thai help, translation drafts |
+| http://127.0.0.1:8791/ja | Japanese help, translation drafts |
+| http://127.0.0.1:8791/en/start-here | Spectator, player and organiser starting points |
+| http://127.0.0.1:8791/en/troubleshooting | Interactive troubleshooting and its text equivalent |
+| http://127.0.0.1:8791/en/sign-in.md | Individual Markdown guide; English home is `/en.md` |
+| http://127.0.0.1:8791/llms.txt | All-language guide index |
+| http://127.0.0.1:8791/llms-full.txt | Complete guide text |
+| http://127.0.0.1:8791/en/updates | News archive and tagged release notes |
+| http://127.0.0.1:8791/rss.xml | Documentation update feed |
+| http://127.0.0.1:8791/en/api-reference/listGuides | Generated API reference with working request playground |
+| http://127.0.0.1:8791/openapi.json | Public help retrieval schema |
+| http://127.0.0.1:8791/help-index.json | Machine-readable guide catalogue |
+| http://127.0.0.1:8792/mcp | Read-only MCP, Streamable HTTP |
+| http://127.0.0.1:8793/ | Visual editor, with `author` |
 
-## Check or clean
+An MCP client on this machine can connect to the URL above while `dev` or
+`author` runs. Available tools: `search_docs` (query, locale, optional limit),
+`read_guide` (catalogue path). Resources include the catalogue and each guide.
+There are no write tools, account data or model-provider calls. Remote hosted
+assistants cannot reach a localhost service. MCP is a companion service, not a
+route in the static Cloudflare deployment.
+
+## Verification and maintenance
 
 ```sh
 bun run ops docs check
+bun run ops docs preview
 bun run ops docs clean
 ```
 
-`check` installs, builds, checks the generated output and serves it briefly in
-local Cloudflare emulation on a temporary port. It stops the server when done.
-`clean` removes only this package's installed dependencies and generated output.
-Stop a running production preview before checking or cleaning; development
-servers are stopped automatically.
+`check` builds the site, packages it with a dry run, audits all pages over local
+Cloudflare emulation, checks MCP with the official SDK client, and tests editor
+round trips, conflicts, two-peer collaboration, persisted restart and boundaries.
+It stops its temporary servers when finished. `preview` does the same checks and
+keeps the production preview running at 8791 with MCP at 8792; it has no hot reload.
+Stop a running production preview before another build or cleanup.
 
-`dev` uses this package’s own Vite server. Edit `content/*.mdx` or `src/app.css`
-and the open browser updates automatically. Configuration changes restart the
-server automatically. The main app can keep running on its own port.
+`clean` removes generated output and dependencies from the three help packages.
+It preserves public content and vendored font assets. After intentional package
+manifest edits, `bun run ops docs lock` updates only their independent lockfiles.
+Normal commands always use frozen lockfiles.
 
-`bun run ops docs preview` builds and verifies the production output, then keeps
-Cloudflare emulation running at the same URL. Use it to inspect the final static
-HTML, Markdown and headers; it does not hot reload.
+Thai/Japanese social-image fonts are licensed, vendored subsets. The CLI checks
+needed title/description characters before starting/building. If that character
+set changes, it downloads a new subset and licence through the recorded font
+script. Unchanged content uses the committed assets offline. Include font asset
+changes when committing new titles. Readers never fetch these fonts from Google.
 
-The preview stays **noindex** and uses `https://help.remy.invalid` as its reserved
-canonical origin. It is not publicly discoverable or deployed. SEO/LLM checks
-verify the generated documents, not Google indexing or Gemini recommendations.
+## Collaboration and isolation
 
-## Isolation
+Studio’s `?collab` option enables collaborative editing for a tab; ordinary
+editing is the default. Saved collaborative edits survive server restart in our
+checks. Upstream still documents loss of **unsent edits made while the server is
+down** when it restarts. Wait for a saved/synced state before restarting; this is
+local authoring, not a production multi-user CMS. Uploads are disabled and the
+server rejects cross-origin requests, hidden paths and symlink escapes.
 
-This is not a root Bun workspace. Its dependencies, lockfile, configuration,
-build output and Cloudflare configuration stay here. The app's source and asset
-bundle are not imported or merged. Each command checks app/dependency fingerprints
-before and after and reports unexpected changes without resetting files.
+The three packages have separate manifests, lockfiles and installations. The
+public site imports no editor or MCP service. Nothing is added to the main app’s
+source, asset bundle or Vite/Worker configuration. Shared commands check app and
+dependency fingerprints before/after without resetting other work.
 
-Do not run the content build from the app directory, install Fuma dependencies
-in the root package, or point this package at the internal `docs/` directory.
-The editor and collaboration packages are not included.
+The site remains **noindex**, with `https://help.remy.invalid` as the reserved
+canonical origin. Thai/Japanese translations await human review. Local SEO and
+LLM checks verify output; they do not prove Google indexing or Gemini discovery.
 
-[Current evidence and feature plan](../../docs/2026-09-09-04-blume-public-help.md).
+[Plan and verification record](../../docs/2026-09-09-04-blume-public-help.md) ·
+[Upstream bugs and fixes](../../docs/2026-09-09-05-fumapress-source-review.md)

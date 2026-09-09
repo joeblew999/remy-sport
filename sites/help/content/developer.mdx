@@ -1,0 +1,35 @@
+---
+title: Public help API and assistant tools
+description: Retrieve Remy Sport documentation through a public catalogue, Markdown exports and a read-only assistant connection.
+---
+
+## Read the documentation programmatically
+
+This API serves help content only. It has no access to accounts, live scores,
+team administration or broadcast controls. No API key is needed.
+
+- Download the [OpenAPI schema](/openapi.json).
+- Fetch the [guide catalogue](/help-index.json) for page and Markdown URLs by language.
+- Fetch [all guide text](/llms-full.txt), or choose individual Markdown URLs from the catalogue.
+- Browse the API reference in the sidebar and use its request playground. Requests
+  go to this help site and only read public documentation.
+
+## Example
+
+```js
+const catalog = await fetch('/help-index.json').then(response => response.json());
+const guide = catalog.pages.find(page => page.locale === 'en' && page.url.endsWith('/sign-in'));
+const markdown = await fetch(guide.markdown).then(response => response.text());
+```
+
+## Assistant connection
+
+The local tools service provides read-only MCP access to this same documentation.
+It can search and read guides, but it cannot change content or inspect an account.
+The project README documents the local connection command and address.
+
+## Version and scope
+
+The retrieval schema is version 1.0.0. Additive catalogue fields may appear;
+clients should ignore fields they do not need. All local-preview pages remain
+noindex and use a reserved canonical hostname until publication is configured.

@@ -1,0 +1,17 @@
+{
+  "title": "Remy Sport ヘルプ",
+  "description": "Remy Sport guides. Local preview reviewed 2026-09-09. See for-assistants for source and scope.",
+  "pages": [
+    "index",
+    "start-here",
+    "sign-in",
+    "following-a-game",
+    "notifications",
+    "troubleshooting",
+    "install",
+    "for-assistants",
+    "developer",
+    "api-reference",
+    "news"
+  ]
+}

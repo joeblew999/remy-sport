@@ -34,7 +34,7 @@ const OPS: Record<string, Op> = {
   docs: {
     group: "maintenance",
     cmd: (rest) => ["bun", "scripts/ops/docs.ts", ...rest],
-    help: "docs [dev|stop|check|preview|clean]       isolated public-help proof; no deployment",
+    help: "docs [dev|author|stop|check|preview|lock|clean]  isolated help, MCP and Studio; no deployment",
   },
   remote: {
     group: "setup",

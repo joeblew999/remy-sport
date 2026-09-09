@@ -10,9 +10,10 @@ The independent package is [sites/help](../sites/help/package.json). It is not a
 Bun workspace and has its own committed lockfile, node_modules, Vite configuration
 and build output. There are no Fuma packages in the root manifest or lockfile,
 no imports from the app into help, and no changes to the app's Vite or Wrangler
-configuration. The editor, collaboration, CMS and runtime MCP are outside this proof.
+configuration. MCP and Studio run in independent sibling packages, each with its own lockfile.
+Neither is imported into the public help build.
 
-Fumapress 1.2.0 builds six source-reviewed guides in static mode. Its Cloudflare config
+Fumapress 1.2.0 builds 39 pages across English, Thai and Japanese in static mode. Its Cloudflare config
 has its own name, no application bindings or routes, and a reserved .invalid
 canonical hostname. It cannot be mistaken for a configured production help site.
 No content is copied into the app's asset directory. A future deployment would
@@ -30,8 +31,8 @@ From the repository root:
 bun run ops docs check
 ```
 
-This command validates the existing Bun pin, installs only the help package with
-its frozen lockfile, checks local dependency resolution, removes stale help
+This command validates the existing Bun pin, installs the isolated help, MCP and editor packages with
+their frozen lockfiles, checks local dependency resolution, removes stale help
 output, builds, packages with Wrangler dry-run, starts local Cloudflare
 emulation on a free loopback port, checks responses, and stops that process group.
 
@@ -43,7 +44,7 @@ package. No inherited app credentials or deployment overrides are passed to
 children. This measures the covered files; it is not a whole-filesystem audit.
 
 `bun run ops docs preview` runs the same checks and keeps the verified preview
-open until Ctrl-C. `bun run ops docs clean` removes only help dependencies and
+open until Ctrl-C. `bun run ops docs clean` removes only the three help packages’ dependencies and
 generated output. Neither command deploys anything. Setup and cleanup need no
 manually coordinated servers.
 
@@ -51,7 +52,7 @@ The generated result is in `sites/help/.proof/result.json`; it is not committed.
 The module-path audit is beside it. The public content is deliberately outside
 the internal `docs/` tree. Generated files and installed dependencies are ignored.
 
-## Acceptance and evidence
+## Initial proof evidence (before expansion)
 
 - Independent install succeeded: 357 packages reported on the first installation.
   The size of the docs dependency tree is real; none was installed into the app.
@@ -89,8 +90,8 @@ Recovery matches the exact package CLI command, never just the port.
 
 The following are implemented with the existing Fuma installation:
 
-- Six guides: overview, sign-in, games, notifications, phone installation and
-  instructions for AI assistants. Content describes verified app behavior and
+- Guides cover overview, sign-in, games, notifications, phone installation,
+  role-based starting points, troubleshooting, news and developer/assistant access. Content describes verified app behavior and
   avoids promising unfinished email subscription functionality.
 - Ordered sidebar, responsive navigation, table of contents and anchor links.
 - Static full-text search. In Chrome, searching “email” returned sign-in content;
@@ -107,7 +108,8 @@ HTML headings, visible descriptions, metadata, structured data, social-image
 signatures, sitemap coverage, Markdown content/provenance, LLM index coverage,
 full-text export consistency, response types and missing/private-route 404s.
 It writes `sites/help/.proof/seo-llm.json`. <!-- docs-check-ignore -->
-Current output: six guides, 1,100 bytes of LLM index and 9,005 bytes of full text.
+The initial six-guide proof produced a 1,100-byte index and 9,005-byte text export;
+the expansion below supersedes those counts.
 The browser was checked at 390px width with no horizontal overflow; the mobile
 sidebar opened and navigated to the selected guide. The shared stop command and
 subsequent dev restart passed with 2,461 app/dependency fingerprints unchanged. A temporary
@@ -134,26 +136,78 @@ in the [upstream bug register](2026-09-09-05-fumapress-source-review.md#upstream
   track an upstream fix/version before removing the warning from this record.
 - Browser checks are a focused smoke test, not a complete accessibility audit.
 
-## Feature roadmap
+## Execution plan — full local help system
 
-Prioritize features that improve authoring or answers without adding app coupling.
-Each addition stays in this package or another independent authoring package and
-must pass the shared automation and unchanged-app checks.
+Authorized 2026-09-09: implement the feature set autonomously, with the editor
+**last**. This plan supersedes the earlier priority table. Keep this file as the
+single plan; detailed upstream defects stay in the linked bug register.
 
-| Priority | Feature | Acceptance before enabling |
-| --- | --- | --- |
-| Next | Rich MDX callouts, steps, tabs and screenshots | Use where real guides need them; verify mobile layout and Markdown exports preserve the instructions. |
-| Next | Local visual editor/Studio | Separate package and lockfile; one shared CLI command; save/reopen and conflict tests; writes restricted to public content; preview edits through the current dev server. |
-| Next | English, Thai and Japanese guides | Human-reviewed translations matching app terms; locale search, canonical/hreflang and language-specific Markdown checks. |
-| Later | Release notes and RSS | Real dated releases with useful changes; validate feed links and dates. |
-| Later | Public API documentation | Explicitly allowlisted public schema; never dump private app APIs or credentials into static output. |
-| Later | Read-only documentation MCP | Separate runtime and read-only content tools; prove protocol compatibility and bounds before adding a server. |
-| Conditional | Feedback and AI chat | Defined moderation/storage, model budget and privacy requirements; no silent dependency on app auth. |
-| Conditional | Collaborative CMS/editor | Persistence, authorization and restart/conflict recovery tests first; upstream demo defaults are insufficient. |
+Scope is an integrated local system, with reproducible commands and isolated
+packages. No deployment, messages to third parties, production credentials or
+changes to the app’s runtime/dependency graph. App source is read-only evidence
+for guide accuracy. Human translation review and public indexing are external
+validation steps, never silently claimed complete.
 
-The editor’s storage and authorization requirements are described in the
-[source review](2026-09-09-05-fumapress-source-review.md). They remain separate
-from the working public-help build and live authoring workflow.
+| Order | Deliverable | Acceptance | Status |
+| --- | --- | --- | --- |
+| 1 | Rich tutorials and role-based starting points | Fuma steps/tabs/callouts; spectator/player/organiser paths; interactive notification troubleshooting with text equivalent; responsive browser check | Implemented; checks passed |
+| 2 | English, Thai and Japanese help | Native locale navigation/search; matching guide routes; hreflang/canonical/Markdown audits; translations explicitly marked pending human review | Implemented; local checks passed |
+| 3 | News, release notes and RSS | A factual dated local-help release, blog/tag pages, working RSS discovery and feed checks | Implemented; local checks passed |
+| 4 | Public developer reference | Fuma OpenAPI pages and request playground for the help system’s public read-only endpoints; downloadable schema; no private app API imports | Implemented; local checks passed |
+| 5 | Assistant access | Read-only MCP with guide search/read tools and resources; protocol tests; one CLI startup; no model key required | Implemented; local checks passed |
+| 6 | End-to-end verification | Shared check covers generated HTML, links, multilingual search data, feeds, API docs, Markdown and MCP; browser interactions; isolation fingerprints; README updated | Implemented; local checks passed |
+| 7 — last | Visual editor, local CMS and collaboration | Separate authoring package; one command starts editor + help; constrained content root; saved edits survive restart, external edits/conflicts checked, collaboration tested and upstream limits recorded; saving never deploys | Implemented; local checks and browser save/live preview passed |
+
+Implementation choices: retain Flexsearch unless a measured need justifies a
+hosted provider; use Fuma’s maintained components/plugins before custom code;
+keep interactive tutorials usable as plain text in Markdown. The public API
+reference documents **help retrieval**, not an invented public Remy application
+API. News must distinguish a local help release from an app release. Translations
+can be usable local drafts while awaiting human language review. MCP and editor
+services bind to loopback and remain outside the static/public app build.
+
+For each stage, record commands, results, limitations and relevant commits here.
+A broken required check keeps that stage open. Every framework workaround gets
+an upstream record. Finish with the GUI running and a reproducible README.
 
 References: [Fumapress/editor source review](2026-09-09-05-fumapress-source-review.md)
 and [oRPC/Blume measurements](2026-09-09-03-orpc-blume-review.md).
+
+### Expansion evidence before editor work
+
+Shared docs check passed for 39 pages (33 authored pages and six generated API
+reference pages), three locales, RSS, metadata, social images and Markdown. MCP
+SDK client tests passed handshake, tools/resources, three-language search/read,
+invalid paths and origin rejection. 2,461 app/dependency fingerprints unchanged.
+Browser checks passed the troubleshooting selection, Android tab, Japanese
+search and a real API-playground GET returning all 39 catalogue records.
+Thai/Japanese social-image glyphs now use licensed local subsets. Typecheck,
+lint and four focused repository tests passed. The static help artifact is about
+18 MB, including optional syntax-language chunks from upstream OpenAPI; this is
+not the amount fetched for a normal guide and none is added to the app bundle.
+
+### Completed expansion — 2026-09-09
+
+All seven local stages are implemented. Final `bun run ops docs check` passed:
+39 pages; 8,948-byte all-language LLM index; 77,356-byte full-text export; all
+metadata, hreflang, social images, search, feeds, schema, Markdown and 404 checks.
+MCP passed protocol handshake, resource retrieval, read-only tools and language
+search. Editor passed 33 unchanged real-document round trips, save conflicts,
+external-file watching, two-peer collaboration, saved restart and path/origin
+boundaries. All 2,461 monitored app/dependency fingerprints remained unchanged.
+
+Browser evidence includes Studio autosave/reload, live help updating without
+navigation, and external source restoration appearing in both views. The test
+marker was removed. The official editor CLI is used, and its unused direct
+WebSocket dependency was removed; normal installs use independent frozen locks.
+`bun run typecheck`, `bun run lint`, and the two focused docs/isolation test files
+(four tests) passed. Known earlier email test failures remain owned by the email
+work, as recorded above; no app files were changed to hide them.
+
+Start everything with `bun run ops docs author`: help at http://127.0.0.1:8791/,
+read-only MCP at http://127.0.0.1:8792/mcp, Studio at http://127.0.0.1:8793/.
+The README provides the same one-command workflow. Remaining external validation
+is human translation review and, after a separately configured public launch,
+actual Google indexing/Gemini discovery. This local noindex system cannot supply
+that evidence. Editor offline collaboration and upstream CSS preload limitations
+are recorded in the bug register; no upstream messages have been submitted.

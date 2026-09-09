@@ -1,0 +1,7 @@
+{
+  "name": "remy-help-editor",
+  "private": true,
+  "type": "module",
+  "scripts": { "dev": "fumadocs-studio --config fumadocs-studio.config.ts --no-open", "check": "node check.mjs" },
+  "dependencies": { "@fumadocs-editor/studio": "0.1.2", "@fumadocs-editor/core": "0.2.0" }
+}

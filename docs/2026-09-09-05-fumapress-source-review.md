@@ -318,3 +318,76 @@ For future fixes, add the package/version, reproduction, expected/actual result,
 local change, regression evidence, upstream submission status and removal condition
 here before treating the workaround as finished. Link code workarounds back to
 this register. Do not describe an unsubmitted local record as an upstream report.
+
+### FUMA-003 — Blog tag with spaces fails internal link validation
+
+Observed while implementing news with Fumapress 1.2.0 at this register’s pinned
+environment: a tag `Local preview` generated a link ending in `/updates/tags/Local preview`.
+The build link validator reported that route not found for all three locales.
+Using URL-safe tags `help` and `local-preview` passed. No dependency patch was
+made. This is a reproduced integration symptom; whether the underlying fault
+is tag encoding, route matching or the validator remains unlocalized.
+
+Reproduce by replacing `local-preview` with `Local preview` in the release-note
+frontmatter and running `bun run ops docs check`; restore the slug afterwards.
+Expected: generated links resolve for supported tag strings, or invalid values
+are rejected explicitly. Upstream regression should cover tags containing spaces
+and non-Latin characters. No issue/PR submitted. Our content convention is to
+use URL-safe tag identifiers until this case is resolved upstream.
+
+### Additional integration evidence from the feature expansion
+
+- The default LLM index follows the default-language page tree and omitted the
+  other locales and a folder overview. Our index now enumerates every loader
+  page, grouped by language; the audit checks exact coverage. This is a deliberate
+  index policy, not a claim of a broken documented upstream contract.
+- Processed Markdown preserves MDX wrappers by default. We configured Fuma’s
+  supported stringifier to retain prose, card links and headings while removing
+  component wrappers. Interactive troubleshooting has a complete textual
+  equivalent in each locale. The audit rejects raw executable/MDX markup.
+- Default Takumi fonts produced missing-glyph boxes in Japanese social images.
+  Locally vendored OFL font subsets fix Thai/Japanese rendering. This requires
+  font configuration, not an upstream bug patch; a default-font documentation
+  improvement may be useful. Font licences and sources are stored with the assets.
+
+### Which upstream tool does the work
+
+Fumapress’s installed CLI handles `dev`, `build` and `start`. Our shared ops CLI
+calls it inside the isolated package and adds dependency/boundary checks,
+Cloudflare preview and verification. `@fumadocs/cli` handles component-source
+installation, layout customisation and file-tree generation; packaged Fuma UI
+imports currently avoid the need to copy/customise that source. Studio’s own
+`fumadocs-studio` CLI is the editor launcher. Content-specific guides,
+locale policy and isolation audits remain our implementation work.
+
+The MCP companion uses the official protocol SDK against the generated help
+catalogue. Fuma’s MCP plugin explicitly requires a non-static Fumapress runtime;
+the separate SDK service preserves our static public-site boundary without
+installing the AI/chat dependency bundle or duplicating the whole Fumapress app.
+[Official Fumadocs CLI](https://www.fumadocs.dev/docs/cli),
+[official MCP SDK v1 server guide](https://ts.sdk.modelcontextprotocol.io/server).
+
+### Editor boundary and integration evidence
+
+Pinned Studio 0.1.2 / core 0.2.0 source uses lexical path containment; that alone
+cannot prevent an existing content symlink from resolving outside the root.
+This is a source-review concern, not a reproduced exploit against an unmodified
+upstream server. Our authentication hook checks every path segment with lstat,
+rejects symlinks and hidden/traversal paths, and permits only existing MD/MDX
+files beneath the resolved help-content root. An isolated fixture verifies
+symlink, traversal and cross-origin rejection. No upstream issue submitted;
+a prospective upstream fix should enforce real-path containment at file access.
+
+The official Studio CLI runs on loopback with uploads disabled. Verification
+covers all 33 authored documents round-tripping without changes, opaque MDX,
+save conflicts, filesystem watching, two-peer collaboration and saved data after
+server restart. Browser verification saved a temporary edit, saw Vite update the
+open help page without reload, reopened Studio and restored the source; both
+views observed the restoration. Unsent collaboration edits during a server
+outage remain an upstream limitation; collaboration is off by default.
+
+Our shutdown recovery initially treated an already-exited companion (ESRCH) as a
+failure after its supervisor stopped it. Recovery now tolerates that normal race
+while surfacing other errors. This is our process-management fix. Node 26 emits
+an upstream localStorage experimental warning at Studio startup; it does not
+prevent the verified workflow, and no hidden Node flags suppress it.

@@ -1,0 +1,31 @@
+---
+title: 公開ヘルプAPIとアシスタント用ツール
+description: 公開カタログ、Markdown出力、読み取り専用のアシスタント接続を使ってRemy Sportの文書を取得します。
+---
+
+> ローカルプレビュー用の翻訳草案です。人による確認はまだ済んでいません。
+
+## プログラムから文書を読む
+
+このAPIが提供するのはヘルプ文書のみです。アカウント、ライブスコア、チーム管理、配信操作にはアクセスできません。APIキーは不要です。
+
+- [OpenAPIスキーマ](/openapi.json) をダウンロードします。
+- [ガイドカタログ](/help-index.json) で言語別のページURLとMarkdown URLを確認します。
+- [全文](/llms-full.txt) を読むか、カタログから個別のMarkdownを選びます。
+- サイドバーのAPI referenceからリクエストを試せます。このヘルプサイトの公開文書を読み取る操作です。技術的なoperation名とスキーマの説明は各言語で共通の英語を使用します。
+
+## 使用例
+
+```js
+const catalog = await fetch('/help-index.json').then(response => response.json());
+const guide = catalog.pages.find(page => page.locale === 'ja' && page.url.endsWith('/sign-in'));
+const markdown = await fetch(guide.markdown).then(response => response.text());
+```
+
+## アシスタントを接続する
+
+ローカルサービスは同じ文書への読み取り専用MCP接続を提供します。ガイドの検索と取得ができますが、文書の変更やアカウントの確認はできません。起動コマンドと接続先はプロジェクトのREADMEを参照してください。
+
+## バージョンと範囲
+
+取得用スキーマはバージョン1.0.0です。カタログにはフィールドが追加される場合があります。クライアントは不要なフィールドを無視してください。公開設定が完了するまではnoindexと予約済みホスト名を使用します。

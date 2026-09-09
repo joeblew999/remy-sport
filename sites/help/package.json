@@ -16,7 +16,9 @@
     "fumadocs-ui": "npm:@fumadocs/base-ui@16.15.7",
     "fumapress": "1.2.0",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "fumadocs-openapi": "11.3.5",
+    "zod": "4.5.4"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.3",

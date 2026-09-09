@@ -1,0 +1,9 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "Remy Sport Help Retrieval", "version": "1.0.0", "description": "Read-only documentation endpoints. These contain public help content, not live scores, private account data or application management APIs." },
+  "servers": [{ "url": "/", "description": "This help site" }],
+  "paths": {
+    "/help-index.json": { "get": { "operationId": "listGuides", "summary": "List available guides", "description": "Get the language, title, description, page URL and Markdown URL of every guide. No authentication is required.", "responses": { "200": { "description": "Guide catalogue", "content": { "application/json": { "schema": { "type": "object", "properties": { "product": { "type": "string" }, "pages": { "type": "array", "items": { "type": "object", "required": ["url", "markdown", "locale", "title"], "properties": { "url": { "type": "string" }, "markdown": { "type": "string" }, "locale": { "type": "string", "enum": ["en", "th", "ja"] }, "title": { "type": "string" }, "description": { "type": "string" } } } } } } } } } } } },
+    "/llms-full.txt": { "get": { "operationId": "readAllGuides", "summary": "Read the complete documentation", "description": "Fetch readable Markdown for all guides, including source URLs and review context. Translation drafts are identified in the content.", "responses": { "200": { "description": "Complete guide text", "content": { "text/plain": { "schema": { "type": "string" } } } } } } }
+  }
+}
