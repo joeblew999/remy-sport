@@ -6,6 +6,11 @@
 
 ## Open plans
 
+- [MoQ watching and broadcasting on shadcn](2026-09-09-09-moq-on-shadcn.md):
+  proposed 2026-09-09; planning only. Shared registry frame and working controls
+  for both surfaces, with typed MoQ state. Fix the obsolete watcher status path,
+  premature broadcast heartbeat and loading state as part of the work. Also wire
+  the real-media probe into the shared browser test workflow before acceptance.
 - [Public Remy Sport help](2026-09-09-04-blume-public-help.md): isolated Fumapress package implemented and verified locally. Separate dependencies/build/Worker; no app asset merging. App build, typecheck and lint pass. The two email-related repo checks it found failing were the email work's, and are fixed below; the whole tier is green. Use `bun run ops docs check`.
 - [The sign-in code, filled in by the phone](2026-09-09-01-sign-in-code-autofill.md)
   is implemented 2026-09-09. The Product Owner's question — how ChatGPT signs
