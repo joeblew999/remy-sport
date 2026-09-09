@@ -6,6 +6,10 @@
 
 ## Open plans
 
+- [Back navigation in the installed app](2026-09-09-10-installed-app-back-navigation.md):
+  proposed 2026-09-09; planning only. Shared shadcn Back control, safe app
+  history and named fallbacks for fresh deep links, with automated and actual
+  iPhone/Android installed-app acceptance checks.
 - [MoQ watching and broadcasting on shadcn](2026-09-09-09-moq-on-shadcn.md):
   proposed 2026-09-09; planning only. Shared registry frame and working controls
   for both surfaces, with typed MoQ state. Fix the obsolete watcher status path,
