@@ -23,16 +23,30 @@ Ask it rather than trusting a summary — `GET /api/coverage/{locale}` reports
 *named* and *translated* separately, so a language whose every value is the
 English string does not read as 100%. Today, for `th`:
 
-| Tier | Rows | Named | Translated |
-| --- | --- | --- | --- |
-| Country | 257 | 100% | 100% |
-| Subdivision | 5,304 | 0% | 0% |
-| City | 34,135 | 0% | 0% |
+| Tier | Rows | Translated into Thai |
+| --- | --- | --- |
+| Country | 257 | **100%** |
+| Subdivision | 5,304 | **77%** — and **78 of 78 Thai provinces** |
+| City | 69,700 | 11% worldwide, **89% of Thai cities** |
 
-**Countries are the tier worth adopting first**, and possibly the only one for a
-while. Thai subdivisions and cities are empty because dr5hn carries no Thai and
-because cities are not translated by anyone — see the service's own README for the
-measurement that disproved a much rosier figure.
+**Updated 2026-09-10. The earlier version of this table read 0% for subdivisions
+and cities and said countries were the only tier worth adopting.** That was true
+for about six hours. Adding OpenStreetMap and running Wikidata against
+subdivisions moved Thai from nothing to 77%, and widening the city inventory took
+Thai cities in Thailand to 89%.
+
+**The blocker that made this plan cautious is gone.** It said adopting the
+service's subdivisions would be a downgrade from the 77 provinces this repo
+already has. It would now be an upgrade, and by a wide margin:
+
+| | this repo's `PROVINCE` | the service |
+| --- | --- | --- |
+| Thai provinces | 77 | 78 |
+| Non-Latin-script cells that are byte-identical to English | **847 of 1,001 — 85%** | 0 |
+| Genuinely translated in `th`, `ja`, `ru`, `ar`, `ko`, `zh` | — | **78/78 in each** |
+
+Our own province names are 85% English wearing a locale tag. The service's are
+real translations with the source and `kind` recorded for every one.
 
 ## The three things this repository has to decide
 
