@@ -8,6 +8,20 @@ const isLocal = !process.env.BASE_URL
 
 export default defineConfig({
   testDir: "./tests/e2e",
+  /**
+   * Its own directory, because Playwright empties this one when a run starts.
+   *
+   * Both configs defaulted to `test-results/`, so starting either tier deleted
+   * the other's artefacts underneath it. On 2026-09-10 a render run begun while
+   * a deploy was verifying staging removed the trace files that run was writing,
+   * and the deploy failed with
+   *
+   *   ENOENT: … test-results/.playwright-artifacts-1/traces/…recording9.network
+   *
+   * — an auth setup that had nothing wrong with it, against a deployment that
+   * was fine. Two tiers cannot share a directory one of them truncates.
+   */
+  outputDir: "./test-results/e2e",
   // One directory per tier, so nothing here needs a filename convention to tell
   // the suites apart:
   //   tests/unit/    bun test   pure logic

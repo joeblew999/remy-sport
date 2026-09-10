@@ -16,6 +16,9 @@ import { defineConfig, devices } from "@playwright/test"
  */
 export default defineConfig({
   testDir: "./tests/render",
+  /** Its own directory — see the note in playwright.config.ts. Playwright
+   *  empties this when a run starts, and these two tiers used to share one. */
+  outputDir: "./test-results/render",
     /**
      * WebKit, not Chromium.
      *

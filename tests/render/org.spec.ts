@@ -224,3 +224,61 @@ test.describe("A school's teams", () => {
     expect(sent).toContain("U14")
   })
 })
+
+/**
+ * Nothing appears above something a reader is already looking at.
+ *
+ * `Your organisations` is gated on `me.mine` and renders ABOVE the list, which
+ * is gated on `orgs.list`. Two requests, resolving separately, so there used to
+ * be a window where the rows were on screen and the section was not — and when
+ * it landed, every row moved down the page.
+ *
+ * That is not cosmetic. A `click` fires only on the element that received both
+ * `mousedown` and `mouseup`; when the row moves between them the browser fires
+ * `click` on the nearest common ancestor and the link is never followed.
+ * `orgs.spec.ts:24` in the e2e tier caught it as a click that completed and
+ * navigated nowhere, and a reader tapping a school as their own list appears
+ * loses the tap in exactly the same way, with nothing on screen to say why.
+ *
+ * This holds the invariant directly: while the section's query is in flight the
+ * rows are not rendered at all. Seeding cannot express that — a seeded query is
+ * answered before the first paint — so `me.mine` is left unseeded and held open
+ * on the wire, which is the real shape of a slow answer.
+ *
+ * docs/2026-09-09-18-browser-tier-flakiness.md, step 9.
+ */
+test.describe("A section that renders above the list", () => {
+  /** Holds one procedure open until the test lets it answer. */
+  async function holdOpen(page: Parameters<typeof seedCache>[0], path: string) {
+    let release: () => void = () => {}
+    const held = new Promise<void>((resolve) => { release = resolve })
+    // Registered after seedCache's catch-all, so it wins: Playwright matches
+    // routes in reverse order of registration.
+    await page.route(`**/rpc/${path}`, async (route) => {
+      await held
+      // The harness's own 404 — this test is about *when* the answer arrives,
+      // not what it says.
+      await route.fulfill({
+        status: 404,
+        contentType: "application/json",
+        body: JSON.stringify({ code: "NOT_FOUND", message: "held open by this test" }),
+      })
+    })
+    return () => release()
+  }
+
+  test("the organisations list waits for it, rather than being pushed down", async ({ page }) => {
+    await seedCache(page, [signedIn, entry(orpc.orgs.list, undefined, { orgs: [ORG] })])
+    const release = await holdOpen(page, "me/mine")
+    await visit(page, "orgs")
+
+    await expect(page.getByTestId("orgs-page")).toBeVisible()
+    // The rows must not be on screen while something destined to sit above them
+    // is still in flight.
+    await expect(page.getByTestId("orgs-list")).toHaveCount(0)
+
+    release()
+    await expect(page.getByTestId("orgs-list")).toBeVisible()
+    await expect(page.getByTestId("org-org_001")).toContainText("Assumption College")
+  })
+})

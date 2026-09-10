@@ -1,7 +1,14 @@
 # Plan — the browser tier fails differently every time
 
-Status: open, 2026-09-10. Two causes found by reading traces rather than
-guessing, and a third reading of the second one that is the general case.
+Status: **done, 2026-09-10** — and the word is used carefully this time, because
+it was used once already and was wrong: after the picker fix and fifteen clean
+runs this plan called itself finished, and the next deploy failed on a page
+those runs never exercised at that timing. What closes it now is not a green
+number but a **swept pattern**: every component holding more than one
+asynchronous gate has been read, and the two that were wrong are fixed.
+
+Two causes found by reading traces rather than guessing, and a third reading of
+the second one that is the general case.
 
 1. **Vite re-optimising a dynamically-imported dependency mid-run** and
    reloading every open page, discarding whatever a test had navigated to.
@@ -343,9 +350,28 @@ written down a day before it was understood.
       for a reader all the same.
 
       `bun run ops flake --runs 12` after the list-page fixes: **12 of 12**.
-- [ ] **10 · Then consider retries.** Once the cause is known and fixed, whether
-      local runs should retry is a real question with an informed answer. It is
-      not one now.
+- [x] **10 · Then consider retries. Decided 2026-09-10: still no,** and now for
+      a reason rather than a principle.
+
+      The question was left open until the cause was known, because "should a
+      flaky tier retry" cannot be answered while nobody knows what the flake is.
+      Both causes turned out to be **real defects a reader meets**:
+      - a page reloading under whatever the reader was doing, and
+      - a click landing on nothing because the thing under it moved.
+
+      Retries would have turned both green. The first cost six deploys and was
+      diagnosed only because the tier kept failing; the second would have
+      shipped a form that silently ignores presses, on two pages, to every
+      reader whose connection is a little slower than a laptop on the office
+      wifi. **Every hour this tier cost was an hour it was right.**
+
+      `retries: 2` stays for CI and for runs against a deployed origin, where
+      the suite crosses a network and D1 replicas are eventually consistent —
+      that is a genuinely non-deterministic environment and the config already
+      says so. Local runs keep 0.
+
+      Revisit if a *known* non-determinism appears locally that is not the
+      product's. There is none today.
 
 ## Not in this plan
 
