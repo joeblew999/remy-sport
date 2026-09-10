@@ -22,7 +22,7 @@ object with one entry per locale, and the endpoint returns the row.
 
 ## Why this is not the reference-data plan's job
 
-[Reference data, starting with places](2026-09-09-16-pretranslated-reference-data.md)
+[Reference data, starting with places](https://github.com/joeblew999/shadcn-places/blob/main/docs/2026-09-09-why-these-sources.md)
 says it *"retires the language picker's worst number"*, and it does — but the
 number it retires is the **cost of filling** the N×N matrix, not the cost of
 shipping it. Generating names from CLDR makes the matrix free to author. It does
