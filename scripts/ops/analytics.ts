@@ -29,7 +29,7 @@
  * `cf:audit`: `$CLOUDFLARE_API_TOKEN`, or fnox.
  */
 
-import { accountId, token } from "../lib/cloudflare.ts"
+import { accountId, resolvedConfig, token } from "../lib/cloudflare.ts"
 
 import {
   EVENTS,
@@ -45,7 +45,6 @@ import {
 // was for, and why it can now go. It was the last copy of that rule.
 const ACCOUNT = accountId()
 const TOKEN = token()
-const DATASET = "remy_sport_events"
 /**
  * Which environment to report on. `bun run ops analytics --env staging`.
  *
@@ -57,6 +56,53 @@ const DATASET = "remy_sport_events"
 const ENVIRONMENT =
   process.argv.find((a) => a.startsWith("--env="))?.slice(6) ??
   (process.argv.includes("--all-environments") ? "" : "production")
+
+/**
+ * The table each environment writes to — read from wrangler.toml, not typed.
+ *
+ * **Every environment has its own dataset.** Staging binds ANALYTICS to
+ * `remy_sport_events_staging` precisely so its traffic cannot corrupt
+ * production's numbers, which is the right decision and was invisible here: the
+ * dataset was a constant naming production's table, so `--env staging` filtered
+ * *production's* rows by `environment = 'staging'` and returned nothing. Not an
+ * error — an empty report, which reads exactly like a healthy silence.
+ *
+ * That cost real time on 2026-09-10. `mail.sent` had shipped and was recording
+ * 41 refusals on staging; this command showed `(nothing)` and the conclusion
+ * drawn from it was that the counter was broken. Two environments' worth of
+ * telemetry was unreachable through the tool built to read it.
+ *
+ * `resolvedConfig` applies wrangler's inheritance, so this is the binding the
+ * Worker actually gets rather than the block that happens to be written under
+ * that environment's heading. A dataset renamed in wrangler.toml moves this
+ * report with it; there is no second place to remember.
+ */
+function datasetFor(environment: string): string {
+  // Production is wrangler's unnamed top-level environment, so it resolves with
+  // no argument — passing "production" would look for [env.production].
+  const config = resolvedConfig(environment === "production" ? undefined : environment) as {
+    analytics_engine_datasets?: { binding: string; dataset: string }[]
+  }
+  const dataset = config.analytics_engine_datasets?.find((d) => d.binding === "ANALYTICS")?.dataset
+  if (!dataset) {
+    throw new Error(
+      `analytics: ${environment} binds no ANALYTICS dataset in wrangler.toml.\n` +
+        "  Nothing this command reports on exists for that environment.",
+    )
+  }
+  return dataset
+}
+
+/**
+ * Every dataset a report has to read, because they cannot be joined.
+ *
+ * Analytics Engine has no cross-dataset query, so `--all-environments` is one
+ * query per environment merged here rather than one `WHERE` clause. Kept
+ * explicit because the merge is lossy in a way worth naming: two environments'
+ * p50s cannot be averaged, so a merged row's `n` sums and its percentiles come
+ * from whichever environment had more rows.
+ */
+const ENVIRONMENTS = ENVIRONMENT ? [ENVIRONMENT] : ["production", "staging"]
 const DEV = process.env.DEV_URL ?? "http://127.0.0.1:8787"
 
 /** How far back, in hours. `bun run ops analytics 168` for a week. */
@@ -79,9 +125,16 @@ const NOTES: Partial<Record<EventName, string>> = {
   "moq.session": "Video. A `websocket` transport is a browser without WebTransport.",
 }
 
-/** The headings a report shows, derived from what the event declares. */
+/**
+ * The headings a report shows, derived from what the event declares.
+ *
+ * `env` leads when more than one is being read, because a row's environment
+ * changes what it means: 41 refused emails are the test fixtures on staging and
+ * an outage in production.
+ */
 function columnsFor(spec: EventSpec): string[] {
-  return [...spec.dimensions, "n", ...spec.doubles.map((d) => `p50_${d}`)]
+  const env = ENVIRONMENTS.length > 1 ? ["env"] : []
+  return [...env, ...spec.dimensions, "n", ...spec.doubles.map((d) => `p50_${d}`)]
 }
 
 // ── the deployment: one SQL query per event ────────────────────────────────
@@ -111,20 +164,44 @@ async function sql(query: string): Promise<Row[]> {
  * high volume and hands back the weight it applied. Counting rows would
  * under-report exactly the events that became frequent enough to matter.
  */
-function queryFor(event: EventName, spec: EventSpec, since: string): string {
+function queryFor(
+  event: EventName,
+  spec: EventSpec,
+  since: string,
+  environment: string,
+): string {
   const dims = spec.dimensions.map((d) => `${blobColumn(spec.blobs.indexOf(d))} AS ${d}`)
   const stats = spec.doubles.map(
     (d, i) => `round(quantileWeighted(0.5)(${doubleColumn(i)}, _sample_interval)) AS p50_${d}`,
   )
   const select = [...dims, "sum(_sample_interval) AS n", ...stats].join(", ")
   const group = spec.dimensions.length > 0 ? `GROUP BY ${spec.dimensions.join(", ")}` : ""
-  // The environment filter this file's `--env` promised and never applied:
-  // ENVIRONMENT was computed and read by nothing, so every report mixed three
-  // deployments into one table. Empty means --all-environments.
-  const env = ENVIRONMENT ? ` AND ${fixedColumn("environment")} = '${ENVIRONMENT}'` : ""
-  return `SELECT ${select} FROM ${DATASET}
+  // The dataset already narrows this to one environment — every environment
+  // writes to its own table. The blob is still filtered on, because a Worker
+  // deployed with the wrong `ENVIRONMENT` var would otherwise be invisible:
+  // rows in staging's table stamped "production" are a misconfiguration, and
+  // this makes them disappear from both reports rather than flatter one.
+  const env = ` AND ${fixedColumn("environment")} = '${environment}'`
+  return `SELECT ${select} FROM ${datasetFor(environment)}
           WHERE timestamp > ${since} AND ${fixedColumn("event")} = '${event}'${env}
           ${group} ORDER BY n DESC LIMIT 25`
+}
+
+/**
+ * One event's rows across every environment being reported on.
+ *
+ * Environments are tagged rather than silently concatenated. A merged report
+ * that cannot say which deployment a row came from is how staging's 41 refused
+ * emails would read as production's.
+ */
+async function rowsFor(event: EventName, spec: EventSpec, since: string): Promise<Row[]> {
+  const perEnv = await Promise.all(
+    ENVIRONMENTS.map(async (environment) => {
+      const rows = await sql(queryFor(event, spec, since, environment))
+      return ENVIRONMENTS.length > 1 ? rows.map((r) => ({ env: environment, ...r })) : rows
+    }),
+  )
+  return perEnv.flat()
 }
 
 // ── the dev server: the same aggregation, over the in-memory ring ──────────
@@ -219,7 +296,9 @@ if (!local && (!ACCOUNT || !TOKEN)) {
 
 console.log(
   `\nremy-sport telemetry · ${
-    local ? `dev server · collecting for ${ago(local.since)}` : `${DATASET} · last ${HOURS}h`
+    local
+      ? `dev server · collecting for ${ago(local.since)}`
+      : `${ENVIRONMENTS.map(datasetFor).join(" + ")} · last ${HOURS}h`
   }`,
 )
 
@@ -238,7 +317,7 @@ for (const [name, spec] of Object.entries(EVENTS) as [EventName, EventSpec][]) {
         // no rows at all, which reads as "0 broadcasts" where the truth is
         // "none recorded" — a distinction that matters when you are checking
         // whether the pipe works.
-        (await sql(queryFor(name, spec, since))).filter((r) => Number(r.n) > 0)
+        (await rowsFor(name, spec, since)).filter((r) => Number(r.n) > 0)
     if (rows.length === 0) {
       console.log(dim("  (nothing)"))
       continue

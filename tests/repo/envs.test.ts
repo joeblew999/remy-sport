@@ -38,6 +38,7 @@
 
 import { declaredEnvs, resolvedConfig } from "../../scripts/lib/cloudflare"
 import { rule } from "./helpers"
+import { lineOf, parse, sources, walk } from "./lib/ast"
 
 /** Which environment a resolved config belongs to, for messages. */
 type Named = { label: string; env: string | undefined }
@@ -158,6 +159,48 @@ for (const { label, config } of resolved) {
         `      Sign-in links from this deployment would land on a different one.`,
     )
   }
+}
+
+// ── 4. Nothing outside wrangler.toml names a dataset ─────────────────────────
+//
+// Rule 1 keeps the environments' datasets distinct. This keeps the *tools*
+// honest about that, which is a separate failure and the one that actually
+// happened, on 2026-09-10.
+//
+// `scripts/ops/analytics.ts` held `const DATASET = "remy_sport_events"`. Every
+// report therefore read production's table, and `--env staging` filtered that
+// table by `environment = 'staging'` — a condition no row in it can satisfy,
+// because staging writes somewhere else entirely. The result was not an error.
+// It was an empty report, which is indistinguishable from a healthy silence.
+//
+// So `mail.sent` shipped, recorded 47 refused sends on staging, and the command
+// built to read telemetry said `(nothing)`. The conclusion drawn from that was
+// that the new counter was broken. Two environments' telemetry was unreachable
+// through the only tool that reads it, and nothing failed to say so.
+//
+// A dataset name in code is always this bug: the name is per-environment, so
+// naming one in a file that runs for all of them is a decision made in the
+// wrong place. Read it from resolved config, as `datasetFor` now does.
+//
+// String literals only, via the AST — this file and that one both discuss the
+// datasets in prose, and a comment naming one is documentation, not a binding.
+const datasetNames = new Set(
+  resolved.flatMap(({ config }) =>
+    config.analytics_engine_datasets.map((a: { dataset?: string }) => a.dataset).filter(Boolean),
+  ) as string[],
+)
+for (const path of [...sources("src"), ...sources("scripts")]) {
+  const parsed = parse(path)
+  walk(parsed.program, (node) => {
+    if (node.type !== "Literal" || typeof node.value !== "string") return
+    if (!datasetNames.has(node.value)) return
+    problems.push(
+      `${path}:${lineOf(parsed, node)} names the dataset "${node.value}".\n` +
+        `      Datasets are per-environment — see rule 1 — so a name in code reports on\n` +
+        `      one deployment whatever environment was asked for, and reports the others\n` +
+        `      as empty rather than as an error. Resolve it from wrangler.toml instead.`,
+    )
+  })
 }
 
 rule(
