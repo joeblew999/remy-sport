@@ -25,6 +25,33 @@ A locale can pass all three and still read like a machine. Two are already known
 to, and they are known only because the agent that wrote them said so — which is
 exactly the knowledge this plan wants to stop depending on memory for.
 
+## The one measurable signal that exists — and what it actually says
+
+The places-service plan turned up a number and handed it here, which is the
+right home for it: **1,199 of 3,848 name cells in non-Latin-script locales are
+byte-identical to their English value — 31%.** Verified independently before
+being adopted.
+
+The percentage on its own is alarming and misleading. Attributed:
+
+| Cells | Where | Verdict |
+| --- | --- | --- |
+| 869 | `PROVINCE` (847) and `CITY` (22) | **Expected.** 77 provinces × 11 non-Latin locales. The release applier copies the romanised English for place names because nobody has transliterated them, and that decision is documented. |
+| 235 | `LOCALE` | **Pre-existing.** The N×N `names` convention already stored the English name of a language in most locales. Not introduced by the translations, and what the places service retires. |
+| 18 | `NOTIFICATION_CHANNEL` | **Correct.** `LINE`, `SMS`, `Push` are brand and technical terms that are identical on purpose. |
+| **33** | `EVENT_FORMAT` (12), `ACTION` (11), `POSITION` (10) | **The real residue.** |
+
+And of those 33, `EVENT_FORMAT` is `3x3` and `POSITION` is `PG`/`SG`/`SF` —
+abbreviations that are arguably right untranslated. What is left is
+approximately **eleven genuinely missed strings**, and they are visible:
+`ACTION.DEFINE_SESSION_SCHEDULE` reads "Define session schedule" in Korean,
+Russian, Chinese, Ukrainian, Hindi, Arabic, Bengali and Traditional Chinese —
+a key the release applier had no entry for, so it fell through to English.
+
+So the honest headline is not "31% of translations are suspect". It is **eleven
+strings were missed, and a rule would have caught them**. That is worth having,
+and it is the check this plan should build.
+
 ## The two known weaknesses, written down before they are forgotten
 
 - **`zh-HK` is not a peer of the others.** It shares Taiwan's writing system, so
@@ -67,14 +94,22 @@ would notice and no test ever will.
       `ur` entry in `SCRIPTS`, the same one-line change every other font took.
       Measure it first — Nastaliq is a heavier face than Naskh and the number
       should be in front of whoever decides.
-- [ ] **5 · A place for a reviewer to leave a mark.** When a speaker does read
+- [ ] **5 · The identical-to-English rule.** Identical to the English value, in
+      a locale whose script is not Latin, is a missed translation — with the
+      exemptions above declared rather than assumed, because place names and
+      `LINE` are identical on purpose. It would have caught the eleven above,
+      and it is the only mechanical signal of copy quality available.
+- [ ] **6 · Fix the eleven.** `ACTION.DEFINE_SESSION_SCHEDULE` first; the rule
+      from step 5 lists the rest.
+- [ ] **7 · A place for a reviewer to leave a mark.** When a speaker does read
       one, `provenance` becomes `"reviewed"` in the same commit as their fixes,
       so the field means something rather than being aspirational.
 
 ## Not in this plan
 
-- **Retranslating anything.** Nothing here is known to be wrong; it is known to
-  be unverified, and those are different.
+- **Retranslating anything wholesale.** Eleven strings are known to be wrong and
+  step 6 fixes those. The other twenty-seven languages are *unverified*, which is
+  a different thing, and re-running the machine over them would not change it.
 - **A translation management system.** Twenty-seven JSON files and a model
   column is the right size for this. Revisit at a hundred, or when somebody
   outside the repository needs to edit them.
