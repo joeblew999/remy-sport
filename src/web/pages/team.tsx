@@ -64,10 +64,7 @@ export function TeamPage({ id, goto: _goto, setParam, query, spoiler = false }: 
   if (!t) {
     return (
       <PageInner>
-        <EmptyState data-testid="not-found">
-          <p>{m.not_found_team()}</p>
-          <a href={routeHref({ page: "discover" })}>{m.back_to_discover()}</a>
-        </EmptyState>
+        <EmptyState data-testid="not-found">{m.not_found_team()}</EmptyState>
       </PageInner>
     );
   }

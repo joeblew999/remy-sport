@@ -19,8 +19,26 @@ Deliberately an arrow and one word rather than the destination's name:
 a trail and wrong for an escape hatch — a reader on a page that is loading or
 failing is exactly the one who needs it, immediately.
 
-Still open: the responsive breadcrumb for the phone *hierarchy* half, replacing
-the three bespoke escape links, and every device check in the acceptance table.
+**Both halves built 2026-09-10.** The hierarchy half is
+`src/web/components/crumb-overflow.tsx`: the ancestors collapse behind a
+`BreadcrumbEllipsis` below `sm` instead of being removed, which is the
+registry's `breadcrumb-responsive` with one deviation stated in the file —
+that example opens a Drawer on mobile, `drawer` is not installed here, and
+`dropdown-menu` already is.
+
+The three hand-rolled escapes are gone from `event.tsx`, `team.tsx` and
+`game.tsx`, and `back_to_discover` is removed from all twenty-seven locales.
+The shell's control derives its destination from the route, so **team's escape
+now goes to Teams** rather than the Discover it pointed at — the defect this
+plan named, fixed by deletion rather than by editing it.
+
+Whole gate: 1100 unit, 418 render, 49 e2e.
+
+Still open: **every device check in the acceptance table.** No tier in this
+repository reaches an installed app or a Tauri window, so iOS A2HS, Android
+installed, Tauri Mac and Tauri Windows are a person on real hardware. Tauri's
+bundle targets are `app` and `dmg` — macOS only — so Windows targets are added
+with that release.
 
 The user reports that installing through Add to Home Screen removes the browser
 Back button. Every app screen must provide a usable route out without browser

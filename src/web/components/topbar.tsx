@@ -4,6 +4,7 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { ancestorsOf, useRouter } from "../lib/router";
 import { RouteCrumb } from "./route-crumb";
 import { BackLink, backTarget } from "./back-control";
+import { CrumbOverflow } from "./crumb-overflow";
 import { Account } from "./account";
 import { m } from "../lib/i18n";
 import { Fragment } from "react";
@@ -142,6 +143,26 @@ export function Topbar() {
           */}
           <Breadcrumb aria-label={m.breadcrumbs()} className="min-w-0">
             <BreadcrumbList className="flex-nowrap">
+              {/*
+                Below `sm` the ancestors are collapsed behind an ellipsis rather
+                than removed. They used to be `hidden sm:` — gone entirely on a
+                390px phone, which is the width this is mostly read at. The same
+                steps render twice and CSS shows one: the overflow trigger below
+                `sm`, the inline row above it. `RouteCrumb` resolves its label
+                from the query cache the origin page just filled, so the second
+                instance costs a cache read rather than a request.
+              */}
+              <CrumbOverflow>
+                {(taken.length > 0
+                  ? taken.map((r, i) => <RouteCrumb key={i} route={r} />)
+                  : trail.crumbs
+                      .filter((c) => c.href)
+                      .map((c, i) => (
+                        <BreadcrumbLink key={i} href={c.href!} data-testid={`overflow-${c.testId ?? i}`}>
+                          {c.label}
+                        </BreadcrumbLink>
+                      )))}
+              </CrumbOverflow>
               {/*
                 The route taken wins over the hierarchy.
 

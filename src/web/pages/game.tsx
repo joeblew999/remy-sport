@@ -16,7 +16,7 @@ export function GamePage({ id, goto, spoiler }: { id?: string; goto: (route: Rou
   const g = game.data;
   if (game.error && !g && !isNotFound(game.error)) return <PageInner><QueryError error={game.error} retry={game.refetch} pending={game.isFetching} /></PageInner>;
   if (id && game.isPending) return <PageInner><Loading /></PageInner>;
-  if (!g) return <PageInner><EmptyState data-testid="not-found"><p>{m.game_unavailable()}</p><a href={routeHref({ page: "live" })}>{m.nav_live()}</a></EmptyState></PageInner>;
+  if (!g) return <PageInner><EmptyState data-testid="not-found">{m.game_unavailable()}</EmptyState></PageInner>;
   const home = entries.data?.registered.find(t => t.teamId === g.homeTeamId);
   const away = entries.data?.registered.find(t => t.teamId === g.awayTeamId);
   const division = home && away && home.divisionId === away.divisionId ? home : undefined;

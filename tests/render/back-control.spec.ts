@@ -69,3 +69,62 @@ test.describe("The way back", () => {
     await expect(page.getByTestId("back")).toHaveAttribute("href", /#\/(\?|$)/)
   })
 })
+
+/**
+ * The way out is there when the page has nothing to show.
+ *
+ * A reader on a missing record is the one who most needs an exit, and until now
+ * three pages hand-rolled their own: a bare `<a>` with the arrow inside the
+ * translated string, and `team.tsx` pointing at Discover although a team's
+ * parent is Teams. The shell's control replaces all three and derives the
+ * destination from the route, so it cannot point at the wrong parent.
+ */
+test.describe("When the record is missing", () => {
+  test("the shell still offers the way out, at the right parent", async ({ page }) => {
+    await seedCache(page, [signedIn])
+    // Nothing seeded for this id: the harness 404s it, which is the missing
+    // record a reader meets.
+    await visit(page, "team", { id: "team_nope" })
+
+    await expect(page.getByTestId("not-found")).toBeVisible()
+    await expect(page.getByTestId("back")).toBeVisible()
+    // Teams, not Discover — the defect the hand-rolled link carried.
+    await expect(page.getByTestId("back")).toHaveAttribute("href", "#/teams")
+  })
+})
+
+/**
+ * The hierarchy is reachable on a phone, rather than removed.
+ *
+ * The ancestors were `hidden sm:inline-flex` — gone below 640px, which is the
+ * width this product is mostly read at. The registry's `breadcrumb-responsive`
+ * collapses instead of hiding, and this asserts the collapse exists and opens.
+ *
+ * Distinct from the Back control above: this is *where a thing lives*, that is
+ * *where the reader came from*. A team reached from a schedule has Teams in its
+ * hierarchy and the schedule in its trail, and both are worth having.
+ */
+test.describe("Hierarchy on a phone", () => {
+  test("collapses behind an ellipsis instead of disappearing", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    // The org itself, not just the directory: the trail only renders once the
+    // page has registered a title, and an unseeded page never gets that far.
+    await seedCache(page, [signedIn, entry(orpc.orgs.get, { id: "org_001" }, ORG)])
+    await visit(page, "org", { id: "org_001", query: { from: "/orgs" } })
+
+    const overflow = page.getByTestId("crumb-overflow")
+    await expect(overflow).toBeVisible()
+    await overflow.click()
+    // The ancestor is in the menu, so it is reachable rather than merely absent.
+    await expect(page.getByRole("menu").getByRole("link")).toHaveCount(1)
+  })
+
+  test("stays inline at desktop width, where it fits", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await seedCache(page, [signedIn, entry(orpc.orgs.get, { id: "org_001" }, ORG)])
+    await visit(page, "org", { id: "org_001", query: { from: "/orgs" } })
+
+    // The trigger is `sm:hidden`; above that the row lays out as it always has.
+    await expect(page.getByTestId("crumb-overflow")).toBeHidden()
+  })
+})

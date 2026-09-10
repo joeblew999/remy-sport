@@ -41,7 +41,7 @@ export function EventPage({ id, goto, spoiler, query = {}, setParam }: {
   const { data: games } = useGames(id);
   if (eventQuery.error && !e && !isNotFound(eventQuery.error)) return <PageInner><QueryError error={eventQuery.error} retry={eventQuery.refetch} pending={eventQuery.isFetching} /></PageInner>;
   if (id && isPending) return <PageInner><Loading>{m.loading_event()}</Loading></PageInner>;
-  if (!id || !e) return <PageInner><EmptyState data-testid="not-found"><p>{m.not_found_event()}</p><a href={routeHref({ page: "discover" })}>{m.back_to_discover()}</a></EmptyState></PageInner>;
+  if (!id || !e) return <PageInner><EmptyState data-testid="not-found">{m.not_found_event()}</EmptyState></PageInner>;
   const camp = e.typeCode === "CAMP";
   const canManage = e.can.EDIT_EVENT || e.can.MANAGE_DIVISIONS;
   const tabs: [EventTab, string][] = [
