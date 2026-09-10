@@ -61,7 +61,7 @@ export async function releaseHelp(action: string, environment: string, run: Run,
     const previous = JSON.parse(readFileSync(recordPath, 'utf8'))
     if (previous.target.environment !== environment || previous.target.appOrigin !== target.appOrigin) throw new Error('Rollback environment mismatch')
     await run(['node', 'discover.mjs', target.appOrigin], tools)
-    const result = wrangler(['rollback', previous.versionId, '--name', target.name, '--yes'], undefined, { inherit: true, resolvedConfig: true })
+    const result = wrangler(['rollback', previous.versionId, '--name', target.name, '--yes'], undefined, { inherit: true })
     if (result.code) throw new Error('Help rollback failed')
     let restored = false
     for (let n = 0; n < 60; n++) {
@@ -128,7 +128,7 @@ export async function releaseHelp(action: string, environment: string, run: Run,
       if (!versionId) throw new Error('Existing help version could not be identified')
       writeFileSync(join(dir, 'previous.json'), JSON.stringify({ target: previous, versionId }, null, 2))
     }
-    const published = wrangler(['deploy', '--config', configPath], undefined, { inherit: true, resolvedConfig: true })
+    const published = wrangler(['deploy', '--config', configPath], undefined, { inherit: true })
     if (published.code) throw new Error('Help publish failed')
     let current = false
     for (let n = 0; n < 60; n++) {

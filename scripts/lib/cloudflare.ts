@@ -453,12 +453,42 @@ export function accountId(): string {
   return id
 }
 
-/** The environment every Cloudflare child process gets, and nothing else. */
-function credentialEnv(): NodeJS.ProcessEnv {
+/**
+ * The environment every Cloudflare child process gets, and nothing else.
+ *
+ * Exported for tests/unit/cloudflare-target.test.ts, which asserts what is
+ * *absent* — the one property of this function that cannot be seen by reading a
+ * call site.
+ */
+export function credentialEnv(): NodeJS.ProcessEnv {
   // Discarded from the spread, not overwritten: an empty CLOUDFLARE_API_TOKEN
   // means unset, `token()` reads it that way, and a child that still received
   // "" would be authenticating differently from what this module decided.
-  const { CLOUDFLARE_API_TOKEN: _discarded, ...rest } = process.env
+  //
+  // CLOUDFLARE_ENV goes for a different reason, and a sharper one. It is
+  // wrangler's environment variable equivalent of `--env`, so an exported
+  // CLOUDFLARE_ENV silently retargets any wrangler call that does not pass the
+  // flag — and **production is exactly that call**, because `Target.flag` is
+  // undefined for the top-level config.
+  //
+  // Measured 2026-09-10, against the real account: `wrangler secret list` with
+  // nothing set returns production's 7 secrets; with CLOUDFLARE_ENV=staging in
+  // the shell it returns staging's 8. Same command, different Worker, no
+  // warning. `wrangler deploy --dry-run` likewise resolved every binding —
+  // D1, R2, queue, dataset, BETTER_AUTH_URL and the ENVIRONMENT var itself —
+  // to staging while the tool believed it was acting on production.
+  //
+  // So `ops demo on --env production` could have written its sign-in secret to
+  // staging, and `ops provision --env production --apply` its secrets too,
+  // reporting success about production either way. `deploy` was already safe:
+  // `publish()` deletes the variable by hand, with a comment recording the day
+  // it published a Worker called `remy-sport-staging-staging`. That fix was
+  // right and was in one function; this is the same fix for every other call.
+  //
+  // Nothing here needs it. Every caller states its target as an argument, and
+  // the build — the one place CLOUDFLARE_ENV is genuinely read, to pick the
+  // PWA install name — is vite, not wrangler, and does not come through here.
+  const { CLOUDFLARE_API_TOKEN: _discarded, CLOUDFLARE_ENV: _ambient, ...rest } = process.env
   const t = token()
   return {
     ...rest,
@@ -486,14 +516,34 @@ export interface Ran {
 export function wrangler(
   args: string[],
   target?: Target,
-  opts: { stdin?: string; inherit?: boolean; resolvedConfig?: boolean } = {},
+  opts: { stdin?: string; inherit?: boolean } = {},
 ): Ran {
-  const full = ["x", "wrangler", ...args, ...(target?.flag ? ["--env", target.flag] : [])]
+  /**
+   * A named target always says which environment, production included.
+   *
+   * `--env ""` is wrangler's own way of naming the top-level environment, and
+   * it is what wrangler's warning asks for: with several environments declared
+   * and no flag, it prints "no target environment was specified ... to avoid
+   * unintentional changes to the wrong environment". That warning has been on
+   * every production operation this repo runs, and was correct.
+   *
+   * Omitting the flag is not neutral — it hands the decision to CLOUDFLARE_ENV,
+   * and thence to whatever a shell happens to export. `credentialEnv` now
+   * removes that variable, so this is the second lock rather than the first: it
+   * makes the intent explicit in the command itself, which is what shows up in
+   * a log when somebody is working out what an operation actually touched.
+   *
+   * Only when a target was passed. `undefined` means the caller deliberately
+   * supplies a fully resolved config — deploy's generated dist/<worker>/
+   * wrangler.json — where naming an environment is *not* idempotent: a config
+   * with no `env` section plus a named environment makes wrangler fall back to
+   * legacy behaviour and publish `remy-sport-staging-staging`, which it did
+   * once, taking the custom domain with it. See publish() in scripts/deploy.ts.
+   */
+  const environment = target ? ["--env", target.flag ?? ""] : []
+  const full = ["x", "wrangler", ...args, ...environment]
   const out = opts.inherit ? "inherit" : "pipe"
   const env = credentialEnv()
-  // A generated component config is already resolved; ambient selection must
-  // not append another environment or point it at a different Worker.
-  if (opts.resolvedConfig) delete env.CLOUDFLARE_ENV
   const proc = spawnSync("bun", full, {
     input: opts.stdin,
     stdio: [opts.stdin === undefined ? "ignore" : "pipe", out, out],
