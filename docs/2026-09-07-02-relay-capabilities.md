@@ -1,5 +1,10 @@
 # Relay capability investigation — GAP-02
 
+Status: **standing register, not a plan.** GAP-02 is an area of continuing
+work — per-game credentials, cross-game denial, expiry and revocation — not a
+task with an end. Basic media delivery is already proven; the rest is worked
+down here.
+
 Current status, reconciled 2026-09-07: ordinary local and staging broadcasting
 is configured and has recorded delivery/stop/restart evidence. The user also
 confirmed a local physical-camera walkthrough. Optional local scoped-adapter

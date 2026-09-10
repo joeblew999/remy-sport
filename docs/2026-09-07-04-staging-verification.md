@@ -1,5 +1,11 @@
 # Staging automation — completed work and remaining limits
 
+Status: **standing record, not a plan.** The staging verification task it was
+opened for is complete and the wider CLI redesign was stopped by the user; what
+remains is a record of limits — cross-machine coordination, forced-termination
+recovery, shared-fixture effects — that other plans cite as *the automation
+record*. It stays here so those citations resolve, and it does not close.
+
 Reconciled 2026-09-07. Start with [project status](README.md). The staging
 verification task is complete; the wider CLI redesign was stopped by the user.
 No GitHub CI, new CLI framework or task runner is part of this work.

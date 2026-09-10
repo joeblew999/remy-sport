@@ -1,7 +1,8 @@
 # Back navigation in the installed app
 
-Status: **step 1 built 2026-09-10**; the return control ships and the device
-checks below remain. Scope corrected the same day — this is not a phone
+Status: **built and deployed 2026-09-10**; the web-install device checks are
+the only thing left, and they belong to the Product Owner. Live on production
+at `1c66dd4`, verified in the shipped bundle rather than the build. Scope corrected the same day — this is not a phone
 problem.
 
 Built: `src/web/components/back-control.tsx`, rendered by the shell at every

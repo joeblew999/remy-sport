@@ -44,6 +44,11 @@ A shipped feature stays here if its acceptance checks or follow-ups are still op
 
 ## Continuing engineering work
 
+**These are standing registers, not plans.** They are worked down rather than
+finished, and each now says so in its own status line. Counting them among
+unfinished plans overstates what is outstanding — which is the mistake this
+heading invited before it said this.
+
 | Work | Owner and remaining scope |
 | --- | --- |
 | Domain coverage and product roadmap | [Domain register](2026-09-07-01-react-domain-coverage.md) owns field/action/relationship review, whole-app permission and state matrices (GAP-06–08), listing moderation, brackets, ranking history and AI suggestions (GAP-09–12). The archived gate/permission proposals are context, not a second backlog. |

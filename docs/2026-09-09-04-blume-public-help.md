@@ -1,7 +1,8 @@
 # Public help: isolated Fumapress proof
 
-Status: isolated dev, staging and production help/MCP are implemented; both remote
-help Workers were deployed and externally verified on 2026-09-09. Real Gemini
+Status: **blocked on external access, not on work.** Isolated dev, staging and
+production help/MCP are implemented, and both remote help Workers were deployed
+and externally verified on 2026-09-09. Real Gemini
 execution and Google indexing remain unverified pending Google credentials/access.
 The original local proof was implemented on 2026-09-09. This replaces the earlier proposal
 to merge generated help into the app's Worker. The user's priority is protecting

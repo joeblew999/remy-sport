@@ -1,5 +1,10 @@
 # Plan — close the remaining React/domain coverage gaps
 
+Status: **standing register, not a plan.** It does not close; it is worked
+down. Twenty-seven open items today, and a finished one is ticked here rather
+than moving this file to `done/`. Counting it among unfinished plans overstates
+what is outstanding, which is why this line exists.
+
 Reconciled 2026-09-07 against `ed0a672`. This is the detailed product/coverage
 register; [project status](README.md) is the current overview. Coach grant
 corrections and session-revocation journeys are implemented. Coverage review,
