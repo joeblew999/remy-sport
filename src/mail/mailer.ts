@@ -94,14 +94,40 @@ function cloudflareMailer(env: Bindings): Mailer {
           "mailer: MAIL_TRANSPORT=cloudflare but no EMAIL binding is configured",
         )
       }
-      await env.EMAIL.send({
-        from: senderFor(env, mail.kind),
-        to: mail.to,
-        subject: mail.subject,
-        text: mail.text,
-        ...(mail.html ? { html: mail.html } : {}),
-        ...(mail.headers ? { headers: mail.headers } : {}),
-      })
+      const from = senderFor(env, mail.kind)
+      try {
+        await env.EMAIL.send({
+          from,
+          to: mail.to,
+          subject: mail.subject,
+          text: mail.text,
+          ...(mail.html ? { html: mail.html } : {}),
+          ...(mail.headers ? { headers: mail.headers } : {}),
+        })
+      } catch (cause) {
+        /**
+         * Say who it was for and why it failed, before anybody swallows it.
+         *
+         * Better Auth sends the sign-in code through `runInBackgroundOrAwait`
+         * and logs a failure as "Failed to run background task:" followed by a
+         * stack and **nothing else** — no message, no address, no reason. Read
+         * from staging's Workers Logs on 2026-09-10: ten frames of minified
+         * line numbers and no way to tell an unverified destination from an
+         * expired binding from a malformed sender.
+         *
+         * On staging that is noise, because the suite signs in as `@bat.test`
+         * addresses that no mail server will accept. In production it is a
+         * reader who did not get their code, and it would look exactly the
+         * same. So the reason is attached here, where the send actually
+         * happens, and the original is kept as `cause`.
+         *
+         * The address is included deliberately: it is the difference between
+         * "the test fixtures again" and "a real person is locked out", and it
+         * is already in this Worker's logs on every request that carries it.
+         */
+        const why = cause instanceof Error ? cause.message : String(cause)
+        throw new Error(`mailer: ${from} → ${mail.to} (${mail.kind}) refused: ${why}`, { cause })
+      }
     },
   }
 }

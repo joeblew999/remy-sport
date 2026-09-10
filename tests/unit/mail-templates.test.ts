@@ -56,3 +56,43 @@ describe.each(LOCALES)("mail templates in %s", (locale) => {
     expect(mail.html(unsubscribe)).toContain(unsubscribe.label)
   })
 })
+
+/**
+ * A refused email says who it was for and why.
+ *
+ * Better Auth sends the sign-in code through `runInBackgroundOrAwait` and logs
+ * a failure as "Failed to run background task:" followed by a stack and nothing
+ * else. Read from staging's Workers Logs on 2026-09-10: ten frames of minified
+ * line numbers, no message, no address, no reason — no way to tell an
+ * unverified destination from an expired binding.
+ *
+ * On staging that is noise, because the suite signs in as addresses no mail
+ * server will accept. In production it is a reader who never got their code,
+ * and it would look identical. So the mailer attaches the reason where the send
+ * happens, before anything upstream can swallow it.
+ */
+describe("a refused send", () => {
+  it("names the sender, the recipient, the kind and the reason", async () => {
+    const { mailerFor } = await import("../../src/mail/mailer")
+    const env = {
+      MAIL_TRANSPORT: "cloudflare",
+      EMAIL_FROM: "noreply@staging.example.test",
+      EMAIL: { send: async () => { throw new Error("destination address not verified") } },
+    } as never
+
+    const failure = await mailerFor(env)
+      .send({ kind: "transactional", to: "somebody@example.test", subject: "Your code", text: "123456" } as never)
+      .then(() => null, (e: Error) => e)
+
+    expect(failure, "a refused send must reject").toBeInstanceOf(Error)
+    // Each part earns its place: the sender identifies the domain whose
+    // reputation is involved, the recipient separates a test fixture from a
+    // real person, and the reason is the whole point.
+    expect(failure!.message).toContain("noreply@staging.example.test")
+    expect(failure!.message).toContain("somebody@example.test")
+    expect(failure!.message).toContain("transactional")
+    expect(failure!.message).toContain("destination address not verified")
+    // The original survives, so a stack is still reachable.
+    expect(failure!.cause).toBeInstanceOf(Error)
+  })
+})
