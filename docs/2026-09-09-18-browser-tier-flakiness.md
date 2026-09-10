@@ -321,7 +321,29 @@ written down a day before it was understood.
       watching "Loading" on a public list — 16 render specs went red, including
       "lists every squad, signed out". `isLoading` is the predicate that means
       "actually fetching", and is false for a disabled query.
-- [ ] **9 · Then consider retries.** Once the cause is known and fixed, whether
+- [x] **9 · Sweep the pattern instead of waiting for the next deploy to find
+      it.** Two instances had been fixed one failure at a time, which is the
+      method that let the second one ship. Every component holding more than one
+      asynchronous gate was read.
+
+      **The codebase mostly already gets this right, in two ways** — worth
+      writing down, because they are the two available answers:
+      | Where | How |
+      | --- | --- |
+      | `admin.tsx`, `meetings.tsx` | gate the whole page until the session resolves |
+      | `account.tsx` | **reserve the height** — `min-h-9` while loading |
+      | `event-divisions.tsx` | wait for *both* queries before rendering the region |
+      | `home.tsx` | one query gates everything; the `can?.X` sections all come from it |
+
+      One more instance found and fixed by reading rather than by failing:
+      `OrgPage` renders `{user && <OrgMembers/>}` **above** `<OrgTeams/>`, so the
+      session resolving pushed the teams section down, and `canCreateTeam`
+      does the same one level in by adding a control above that section's list.
+      No spec clicks either, so nothing would have caught it — it is a defect
+      for a reader all the same.
+
+      `bun run ops flake --runs 12` after the list-page fixes: **12 of 12**.
+- [ ] **10 · Then consider retries.** Once the cause is known and fixed, whether
       local runs should retry is a real question with an informed answer. It is
       not one now.
 

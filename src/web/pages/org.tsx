@@ -158,10 +158,13 @@ export function OrgsPage() {
 
 export function OrgPage({ id }: { id?: string }) {
   const org = useOrg(id);
-  const { user } = useSession();
+  const { user, loading: sessionLoading } = useSession();
   // A platform grant — a coach may create a team, full stop; the school is
   // chosen on the form. It used to ride on the org row as `canCreateTeam`.
-  const { data: canCreateTeam } = useCan("CREATE_TEAM");
+  // `isLoading` rather than `isPending`, because the holdings query behind this
+  // is disabled without a session and a disabled query is pending for ever.
+  const createTeam = useCan("CREATE_TEAM");
+  const canCreateTeam = createTeam.data;
 
   if (org.error && !org.data && !isNotFound(org.error)) return <PageInner><QueryError error={org.error} retry={org.refetch} pending={org.isFetching} /></PageInner>;
   if (org.isPending) return <PageInner><Loading>{m.loading_org()}</Loading></PageInner>;
@@ -177,13 +180,35 @@ export function OrgPage({ id }: { id?: string }) {
       />
       <PageInner className="flex flex-col gap-6">
         <OrgProfile key={org.data.id} id={org.data.id} names={org.data.names} cityCode={org.data.cityCode} provinceCode={org.data.provinceCode} canEdit={org.data.can.EDIT_ORG_PROFILE} />
-        {/* Signed-out visitors are not offered a members section at all: the
-            query would 403 for a reason that has nothing to do with this org. */}
-        {user && <OrgMembers id={org.data.id} />}
-        {/* A school's own teams, and — for a coach — the only way to make one.
-            `teams.create` was enforced and unreachable, so a team could not be
-            created from the app at all. */}
-        <OrgTeams orgId={org.data.id} canCreate={canCreateTeam} />
+        {/**
+          * Members and teams appear together, once both answers are in.
+          *
+          * The members section is conditional on there being a session and sits
+          * ABOVE the teams section, so rendering the page before the session
+          * resolved put a whole section over content a reader was already
+          * looking at and pushed the teams down. `canCreateTeam` does the same
+          * thing one level in: it adds a control inside the teams section above
+          * that section's own list.
+          *
+          * A `click` fires only on the element that received both `mousedown`
+          * and `mouseup`, so anything that moves in that window swallows the
+          * press — the failure that cost a deploy on the organisations list
+          * (`orgs.spec.ts:24`) and is the same shape here. No spec clicks these
+          * sections today, which is why this was found by looking rather than by
+          * failing; it is a defect for a reader either way.
+          * docs/2026-09-09-18-browser-tier-flakiness.md.
+          */}
+        {!sessionLoading && !createTeam.isLoading && (
+          <>
+            {/* Signed-out visitors are not offered a members section at all: the
+                query would 403 for a reason that has nothing to do with this org. */}
+            {user && <OrgMembers id={org.data.id} />}
+            {/* A school's own teams, and — for a coach — the only way to make one.
+                `teams.create` was enforced and unreachable, so a team could not be
+                created from the app at all. */}
+            <OrgTeams orgId={org.data.id} canCreate={canCreateTeam} />
+          </>
+        )}
       </PageInner>
     </div>
   );
