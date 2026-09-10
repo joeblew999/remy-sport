@@ -208,6 +208,24 @@ export default defineConfig({
        * locales, all of them sent to every reader to render one.
        */
       timeout: 180_000,
+      /**
+       * Let the dev server speak.
+       *
+       * Playwright swallows webServer output by default, and that silence cost
+       * this project a fortnight: the line that identified the flaky tier's
+       * cause was printed by Vite on every single run and nobody ever saw it —
+       *
+       *   [vite] (client) optimized dependencies changed. reloading
+       *
+       * — while the suite reported a missing element in whichever spec happened
+       * to be mid-action. The trace showed the page booting twice; only the
+       * server said why. docs/2026-09-09-18-browser-tier-flakiness.md.
+       *
+       * It is a few lines per run against a class of failure that is invisible
+       * from the browser side.
+       */
+      stdout: "pipe",
+      stderr: "pipe",
     },
   }),
 })

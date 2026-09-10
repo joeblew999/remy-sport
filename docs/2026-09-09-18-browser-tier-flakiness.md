@@ -1,8 +1,9 @@
 # Plan — the browser tier fails differently every time
 
-Status: proposed 2026-09-09. Evidence collected; no fix attempted yet, and the
-distinction matters — two *environmental* causes were found and fixed on
-2026-09-09, and what remains is the part that was not explained.
+Status: open, 2026-09-10. **The cause this plan was written to find has been
+found, named and fixed** — Vite re-optimising a dynamically-imported dependency
+mid-run and reloading every open page (steps 1–5). A *second*, unrelated flake
+survives it and is step 6, recorded with its evidence and no theory attached.
 
 `bun run test:e2e` passes, then fails, then fails differently, with nothing
 changed between runs. It has cost at least six deploy attempts.
@@ -67,13 +68,91 @@ was blamed on contention with specs signed in as that actor; those specs use
 only that actor's *storage state*, which does not change org membership. Neither
 was the cause.
 
-## What is left, stated as a question and not an answer
+## The cause, found 2026-09-10
 
-After both fixes, one run in two still fails. The honest position is that the
-remaining cause is **not yet known**, and this plan's first job is to find it
-rather than to guess a third time.
+**Vite re-optimises dependencies mid-run and reloads every open page.** The
+first page to execute `import("virtual:pwa-register")` — a *dynamic* import, so
+the initial dependency scan cannot see it — makes Vite discover
+`workbox-window`, re-bundle, and broadcast a full reload:
 
-What is known:
+```
+[vite] (client) dependency optimized: workbox-window
+[vite] (client) optimized dependencies changed. reloading
+```
+
+A test whose page is reloaded loses whatever the SPA had navigated to. It does
+not error; it goes back to the URL the document was opened at and waits for an
+element that will never appear, until the **per-test** budget expires.
+
+### How it was found
+
+`bun run ops flake` caught it on run 3 of 8. The trace shows the failing page
+booting twice:
+
+| | |
+| --- | --- |
+| 00:54:58.307 | `GET /` — first document |
+| 00:54:58.480 | `GET /main.tsx` — first boot |
+| 00:54:59.8 | five `/rpc/…` calls, all 200 — the app is healthy |
+| 00:55:00.229 | `GET /dev-sw.js?dev-sw` → **-1**, cancelled |
+| 00:55:00.258 | `GET /` — **reload**, 29 ms later |
+| 00:55:00.281 | `GET /main.tsx` — second boot |
+| 00:55:11.703 | `POST /rpc/games/get` — still alive, still on the game page |
+
+The test clicked its team link at 00:55:00.28 — the same instant as the reload.
+The click's hash navigation was discarded, the page came back at the `goto` URL,
+and `tab-schedule` never existed. `[vite] connecting` and `Lit is in dev mode`
+each appear twice in the console, confirming two boots.
+
+Reproduced deterministically: wipe `node_modules/.vite`, start the dev server,
+open one WebKit page. The **first** page fetches `/` and `/main.tsx` twice one
+second apart; the second and third pages fetch them once.
+
+### What was ruled out, and on what evidence
+
+- **Vite HMR reacting to another agent's edit of the shared tree.** This was the
+  leading theory going in, and it is wrong: Vite logs `[vite] page reload <file>`
+  for an HMR reload and the console has no such line. The tree was also clean and
+  untouched for the whole run.
+- **The legacy `/sw.js` kill switch,** whose worker does `client.navigate()` on
+  purpose. `/sw.js` is never requested in the trace — only `/dev-sw.js?dev-sw`.
+- **`virtual:pwa-register`'s autoUpdate reload.** `main.tsx` supplies
+  `onNeedReload`, which replaces `window.location.reload()` in that path.
+- **The service worker claiming an uncontrolled page.** Five fresh WebKit
+  contexts against a *warm* server: no reload, every time.
+
+The `-1` on the service-worker script and the four
+`Fetch API cannot load … due to access control checks` page errors are
+**consequences** of the reload cancelling in-flight requests, not causes. WebKit
+reports a fetch aborted by navigation that way, and reading them as CORS errors
+is what sent the first hour in the wrong direction.
+
+### Why it survived this long
+
+- **`test:render` cannot see it.** It runs against a built bundle, which has no
+  dependency optimiser. That is the clue the last draft called the strongest, and
+  the reason it pointed here.
+- **`dev-entry.spec.ts` cannot see it either.** It counts entry loads with
+  `performance.getEntriesByType`, which is reset by the reload it is trying to
+  catch. It is a guard against a self-importing entry, not against a second boot.
+- **`expect: { timeout: 15_000 }` could never have helped.** The failure is
+  `Test timeout of 30000ms exceeded` — Playwright's *per-test* budget, which is
+  still the default 30s. Raising the assertion budget addressed a different
+  number entirely.
+- **This tier wipes `node_modules/.vite` before every run** — added 2026-09-09 to
+  fix a genuine stale-hash problem. That fix is correct and guarantees a cold
+  optimiser on every single run, which is what makes this fire every single run.
+  One fix created the conditions for the other to be constant.
+
+## What was left, stated as a question — and how it read before the answer
+
+Kept as written on 2026-09-09, because the answer came from the last bullet in
+this list and a plan that edits away its own reasoning teaches nothing. At the
+time: after both fixes, one run in two still failed, the remaining cause was
+**not known**, and this plan's first job was to find it rather than guess a
+third time.
+
+What was known:
 
 - `fullyParallel: true`, `workers: 2`.
 - `retries: process.env.CI || !isLocal ? 2 : 0` — **local runs get no retries**,
@@ -89,6 +168,10 @@ What is known:
 
 That last point is the strongest clue available and the reason to suspect the
 environment rather than the product.
+
+**It was the answer.** A built bundle has no dependency optimiser, which is
+exactly what distinguished the stable tier from the flaky one. The clue was
+written down a day before it was understood.
 
 ## The decisions
 
@@ -119,16 +202,51 @@ environment rather than the product.
       `show-trace` command. `--runs N`, `--tier render`, and `-- <filter>` to
       pass a spec filter through. It stops at the first failure: the point is to
       catch one, not to measure a rate.
-- [ ] **3 · Read the trace, not the assertion.** The failure message says an
+- [x] **3 · Read the trace, not the assertion.** The failure message says an
       element was missing; the trace says what the page had actually received —
       whether the request was slow, failed, or never made. That distinction is
       the whole answer and is currently unknown.
-- [ ] **4 · Name the cause in this file before changing anything.** Same
+      **Done 2026-09-10:** the trace said the page had received a *second copy of
+      itself*. Table above. The assertion was never the subject.
+- [x] **4 · Name the cause in this file before changing anything.** Same
       discipline that found the dep cache: measure, state, then fix. Two wrong
       theories have already been paid for.
-- [ ] **5 · Fix it, and prove the fix the way it was found** — the loop from
+      **Done 2026-09-10:** written above before a line of `src/` changed, with
+      four ruled-out theories and the evidence for each — including the one this
+      session started out believing.
+- [x] **5 · Fix it, and prove the fix the way it was found** — the loop from
       step 2 run enough times to mean something, with the number written down.
-- [ ] **6 · Then consider retries.** Once the cause is known and fixed, whether
+      **Done 2026-09-10:** `optimizeDeps: { include: ["workbox-window",
+      "workbox-precaching"] }` in `src/web/vite.config.ts`, bundling them at
+      startup when no page is open to reload. Proved twice:
+      - **Directly.** Wipe `node_modules/.vite`, cold start, open one WebKit
+        page. Before: the first page fetches `/` and `/main.tsx` twice, and the
+        server logs `dependency optimized: workbox-window` /
+        `optimized dependencies changed. reloading`. After: once each, and the
+        server logs no optimiser event at all.
+      - **At the tier.** `bun run ops flake --runs 12`: runs 1–5 passed, run 6
+        failed **for a different reason** — no second boot in its trace, and no
+        optimiser line anywhere in its now-piped server log. See below.
+      `bun run build` unchanged (exit 0, 369 precache entries).
+- [ ] **6 · The second cause: a click that lands before the form is listening.**
+      Found by run 6 above, and *not* the same thing — recorded with its
+      evidence and no theory attached, which is what the first cause needed and
+      did not get:
+      `orgs.spec.ts:54` fills the add-member email, clicks submit, and waits for
+      `org-members-error`, which never arrives. What the trace says:
+      - The click completed — "performing click action / click action done".
+      - **No request followed it.** The whole trace holds two calls,
+        `/rpc/orgs/get` and `/rpc/orgs/members`. The mutation was never sent, so
+        there was no error to render and the assertion was waiting for something
+        nothing was going to produce.
+      - The click ran **1.31s** after `goto` began, while `/rpc/orgs/members`
+        was still in flight.
+      - One `[vite] connecting`, one boot. React logged a missing-`key` warning
+        from `ComboboxList` on the same page.
+      The shape to test first is whether the members list resolving re-renders
+      the section and replaces the form between the click and its handler — but
+      that is a hypothesis, and step 4's rule applies to it too.
+- [ ] **7 · Then consider retries.** Once the cause is known and fixed, whether
       local runs should retry is a real question with an informed answer. It is
       not one now.
 

@@ -52,6 +52,33 @@ So the honest headline is not "31% of translations are suspect". It is **eleven
 strings were missed, and a rule would have caught them**. That is worth having,
 and it is the check this plan should build.
 
+## Where a locale's fields actually live — checked against staging, 2026-09-10
+
+Two things were verified against the deployed payload rather than assumed, and
+both change what step 1 below has to decide.
+
+**The 235 `LOCALE` cells are not reader-visible.** Arabic's name for Thai really
+is the string `Thai`, but nobody sees it: the language switcher renders
+`endonym` — [`app-sidebar.tsx:63`](../src/web/components/app-sidebar.tsx#L63) —
+so an Arabic reader gets `العربية`, `ไทย`, `日本語`. The English cells sit in
+`names`, which the switcher never asks for. That lowers the urgency and does not
+remove the row from the count: anything calling `label("locales", code)` would
+show them.
+
+**`direction` and `endonym` never leave the compiled bundle.** The `locale`
+table is `code, nameEn, names, status, sort` — no direction, no endonym — so the
+API serves neither, and staging returns exactly that:
+
+```json
+{"code":"th","nameEn":"Thai","names":{"en":"Thai","ar":"Thai"},"status":"released","sort":1}
+```
+
+RTL works anyway, because `directionOf()` reads the generated
+`src/domain/vocabularies.ts` at build time rather than the endpoint. But it means
+**a field on the model is not a field the server can read.** Nothing server-side
+can ask which way a locale runs — which the email work is about to want, since an
+Arabic message needs `dir="rtl"` on markup no browser bundle produces.
+
 ## The two known weaknesses, written down before they are forgotten
 
 - **`zh-HK` is not a peer of the others.** It shares Taiwan's writing system, so
@@ -82,7 +109,12 @@ would notice and no test ever will.
 
 - [ ] **1 · `provenance` on `LOCALE`,** in the Product Owner's repo, synced.
       `"machine"` for all twenty-seven today — which is the honest starting
-      state and the whole point.
+      state and the whole point. **Model-only, like `direction`** — see the
+      section above: the `locale` table has no column for either, so the field
+      will feed the check in step 2 and the compiled bundle, and *not* the API.
+      That is sufficient for everything this plan asks for. It stops being
+      sufficient the moment somebody wants to show a reader the badge, which is
+      the undecided question below and would need a column and a migration.
 - [ ] **2 · A check that every declared locale declares one,** beside the
       endonym check in `tests/repo/messages.test.ts`. It fails closed the same
       way the script check does, so a twenty-eighth language cannot arrive

@@ -341,6 +341,34 @@ export default defineConfig(({ mode, command }) => {
   ],
   base: "./",
   /**
+   * The two dependencies the scanner cannot find on its own.
+   *
+   * Vite pre-bundles what it can reach by walking static imports from the entry.
+   * `workbox-window` is reached only through `import("virtual:pwa-register")` —
+   * a dynamic import in main.tsx, deliberately, so a browser that refuses a
+   * service worker loses push and not the app — and `workbox-precaching` only
+   * from the service worker, which is a separate entry the client scan never
+   * sees. So neither is bundled at startup. Both are discovered the moment the
+   * first page actually runs that import, and a discovery mid-session makes Vite
+   * re-bundle and broadcast a full reload to every open page:
+   *
+   *   [vite] (client) dependency optimized: workbox-window
+   *   [vite] (client) optimized dependencies changed. reloading
+   *
+   * On a developer's machine that is a flicker on the first load of the day. On
+   * the e2e tier it is a page reload landing in the middle of a test, which
+   * loses whatever the SPA had navigated to and fails an assertion somewhere
+   * that looks nothing like a service worker — a different spec nearly every
+   * run, and at least six deploys.
+   *
+   * Naming them here bundles them at startup, when no page is open to reload.
+   * It does not hide anything: if a third dynamic-only dependency appears, the
+   * same message will say so, and the e2e webServer now pipes its output so it
+   * is one grep away rather than a morning's work.
+   * docs/2026-09-09-18-browser-tier-flakiness.md.
+   */
+  optimizeDeps: { include: ["workbox-window", "workbox-precaching"] },
+  /**
    * One port, the one everything else in this repo already knows: the tunnel's
    * ingress, `.dev.vars`' BETTER_AUTH_URL, the e2e tier's baseURL, Tauri's
    * devUrl. `host: true` binds every interface so a phone on the same wifi can
