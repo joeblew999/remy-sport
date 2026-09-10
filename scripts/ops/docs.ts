@@ -6,7 +6,7 @@ import { join, relative, resolve } from "node:path"
 import { spawn, execFileSync } from "node:child_process"
 import { createServer } from "node:net"
 import { once } from "node:events"
-import { fnoxGet } from "../lib/cloudflare"
+import { fnoxGet, namedEnvironment, normalisedEnvironmentArgs } from "../lib/cloudflare"
 import { helpTarget, writeHelpTarget, releaseHelp } from "./docs-release"
 import { assertPinnedBun } from "../lib/bun-pin"
 
@@ -240,10 +240,22 @@ async function preview(interactive: boolean, live = false, author = false) {
   }
 }
 
-export async function runDocs(args: string[]): Promise<number> {
+export async function runDocs(rawArgs: string[]): Promise<number> {
+  /**
+   * `--env=staging` normalised to `--env staging` before anything reads it.
+   *
+   * The checks below are positional — `environmentAt !== 1` and `length !== 3`
+   * — so they cannot be made to accept both spellings in place. Normalising
+   * once keeps that strictness and removes the trap: this function read only
+   * `--env `, so `docs check --env=staging` set `remote` to false and ran a
+   * **local** check while the caller believed they had asked about staging.
+   * No error, and the output of a local check looks like the output of a
+   * remote one.
+   */
+  const args = normalisedEnvironmentArgs(rawArgs)
   const action = args[0] ?? "check"
   const environmentAt = args.indexOf("--env")
-  const environment = environmentAt >= 0 ? args[environmentAt + 1] : undefined
+  const environment = environmentAt >= 0 ? namedEnvironment(args) : undefined
   const remote = ["deploy", "status", "rollback", "gemini"].includes(action) || (action === "check" && environmentAt >= 0)
   if (remote && (args.length !== 3 || environmentAt !== 1 || !["staging", "production"].includes(environment ?? ""))) throw new Error("docs remote actions require --env staging|production")
   if (action === "--help") {

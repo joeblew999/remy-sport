@@ -64,7 +64,9 @@ const OPS: Record<string, Op> = {
   analytics: {
     group: "deployment",
     cmd: (rest) => ["bun", "scripts/ops/analytics.ts", ...rest],
-    help: "analytics [hours] [--runtime] [--logs] [--all]   what it did, what CF saw, and what it said",
+    help:
+      "analytics [hours] [--env X] [--runtime] [--logs] [--all-environments]   what it did, what CF saw, and what it said\n" +
+      "                                   defaults to production; every environment has its own dataset",
   },
   audit: {
     group: "deployment",

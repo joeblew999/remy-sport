@@ -14,7 +14,7 @@
 import { rmSync } from "node:fs"
 import { LOCAL_BROWSER_ORIGIN, localBrowserState } from "./lib/local-browser.ts"
 import { spawn, spawnSync } from "node:child_process"
-import { Refused, originOf, resolveTarget } from "./lib/cloudflare.ts"
+import { Refused, namedEnvironment, originOf, resolveTarget, withoutEnvironment } from "./lib/cloudflare.ts"
 import { endRunSessions } from "../tests/helpers/session-cleanup.ts"
 import { affectsDeployment } from "./lib/deployed-source.ts"
 import { randomUUID } from "node:crypto"
@@ -238,8 +238,7 @@ async function preflight(origin: string, environment: string, adminConfirmed = f
  * about which hostname staging is.
  */
 function target(argv: string[]): { origin: string; environment: string } | null {
-  const at = argv.indexOf("--env")
-  const named = at !== -1 ? argv[at + 1] : argv.find((a) => a.startsWith("--env="))?.split("=")[1]
+  const named = namedEnvironment(argv)
   if (!named || named === "dev") return null
   const t = resolveTarget(argv, "explicit")
   return { origin: originOf(t), environment: t.environment }
@@ -268,7 +267,7 @@ const env: NodeJS.ProcessEnv = { ...process.env, E2E_STATE_DIR: `.playwright/run
 delete env.BASE_URL
 delete env.TEST_OTP
 delete env.TEST_ADMIN_SIGNIN
-const rest = argv.filter((a, i) => a !== "--shots" && a !== "--media" && !(a === "--env" || a.startsWith("--env=") || (i > 0 && argv[i - 1] === "--env")))
+const rest = withoutEnvironment(argv).filter((a) => a !== "--shots" && a !== "--media")
 
 async function run(adminConfirmed = false): Promise<void> {
   if (TARGET) {

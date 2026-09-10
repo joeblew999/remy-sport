@@ -251,9 +251,63 @@ export const DEPLOYABLE: Environment[] = ["staging", "production"]
  */
 export type TargetRule = "explicit" | "ambient"
 
-export function resolveTarget(argv: string[], rule: TargetRule = "explicit"): Target {
+/**
+ * The environment a caller named, in either spelling, or undefined.
+ *
+ * Both spellings, because both are typed and neither is wrong: `--env staging`
+ * is what every help text in this repo shows, and `--env=staging` is what a
+ * shell alias or a CI file tends to carry. A reader that knows only one of them
+ * does not fail on the other — it reports "no environment named" and falls
+ * through to whatever the default is, which is production.
+ *
+ * Exported because that failure has now happened three times in files that each
+ * rolled their own parse: `ops analytics` accepted only `--env=` and reported
+ * production for `--env staging`; `ops docs` accepts only `--env ` and runs a
+ * *local* check for `--env=staging` while the caller believes they asked about
+ * a deployment. Both were silent. One reader, so there is one behaviour to get
+ * right and one place to fix it.
+ *
+ * This answers "what did they type", not "what should we act on" — callers that
+ * need a validated target want `resolveTarget`. The separate question is real:
+ * smoke and demo-status both have to know whether an environment was named at
+ * all, because `CF_DEPLOY_URL` may only win when nothing more specific was said.
+ */
+export function namedEnvironment(argv: string[]): string | undefined {
   const at = argv.indexOf("--env")
-  const named = at !== -1 ? argv[at + 1] : argv.find((a) => a.startsWith("--env="))?.split("=")[1]
+  if (at !== -1) return argv[at + 1]
+  return argv.find((a) => a.startsWith("--env="))?.slice("--env=".length)
+}
+
+/**
+ * The same argv with `--env=staging` rewritten as `--env staging`.
+ *
+ * For the caller whose own checks are positional and cannot be taught two
+ * spellings in place — `ops docs` requires `--env` at index 1 with its value at
+ * index 2. Normalising once at the door keeps that strictness and still accepts
+ * what people type.
+ */
+export function normalisedEnvironmentArgs(argv: string[]): string[] {
+  return argv.flatMap((a) =>
+    a.startsWith("--env=") ? ["--env", a.slice("--env=".length)] : [a],
+  )
+}
+
+/**
+ * The same argv with the environment flag removed, in either spelling.
+ *
+ * For a command that consumes `--env` itself and forwards the remainder to
+ * another tool — `test:e2e` passes the rest to Playwright, which would refuse an
+ * argument it has never heard of. Both spellings, and the separated form's value
+ * too, which is the part a hand-rolled filter forgets.
+ */
+export function withoutEnvironment(argv: string[]): string[] {
+  return argv.filter(
+    (a, i) => !(a === "--env" || a.startsWith("--env=") || (i > 0 && argv[i - 1] === "--env")),
+  )
+}
+
+export function resolveTarget(argv: string[], rule: TargetRule = "explicit"): Target {
+  const named = namedEnvironment(argv)
 
   if (!named) {
     // `ambient` resolves the unknown to production for the same reason

@@ -161,44 +161,99 @@ for (const { label, config } of resolved) {
   }
 }
 
-// ── 4. Nothing outside wrangler.toml names a dataset ─────────────────────────
+// ── 4. No code names one environment's resource ──────────────────────────────
 //
-// Rule 1 keeps the environments' datasets distinct. This keeps the *tools*
-// honest about that, which is a separate failure and the one that actually
-// happened, on 2026-09-10.
+// Rule 1 keeps the environments' resources distinct. This keeps the *tools*
+// honest about that, which is a separate failure, and the one that actually
+// happened — twice, six months apart, in the same shape.
 //
-// `scripts/ops/analytics.ts` held `const DATASET = "remy_sport_events"`. Every
-// report therefore read production's table, and `--env staging` filtered that
-// table by `environment = 'staging'` — a condition no row in it can satisfy,
-// because staging writes somewhere else entirely. The result was not an error.
-// It was an empty report, which is indistinguishable from a healthy silence.
+// On 2026-09-10, `scripts/ops/analytics.ts` held
+// `const DATASET = "remy_sport_events"`. Every report therefore read
+// production's table, and `--env staging` filtered that table by
+// `environment = 'staging'` — a condition no row in it can satisfy, because
+// staging writes somewhere else entirely. The result was not an error. It was
+// an empty report, which is indistinguishable from a healthy silence. So
+// `mail.sent` shipped, recorded 47 refused sends on staging, and the command
+// built to read telemetry said `(nothing)`; the conclusion drawn was that the
+// new counter was broken.
 //
-// So `mail.sent` shipped, recorded 47 refused sends on staging, and the command
-// built to read telemetry said `(nothing)`. The conclusion drawn from that was
-// that the new counter was broken. Two environments' telemetry was unreachable
-// through the only tool that reads it, and nothing failed to say so.
+// Earlier, `CF_D1_NAME` was a mise literal pinned to production's database, so
+// `migrations:apply:remote --env staging` migrated **production**. That one is
+// written up in the header of scripts/db.ts, which was rewritten to resolve the
+// name — and which had since grown a fresh `"remy-sport-db"` literal in its
+// status block, found by this rule on the day it was added.
 //
-// A dataset name in code is always this bug: the name is per-environment, so
-// naming one in a file that runs for all of them is a decision made in the
-// wrong place. Read it from resolved config, as `datasetFor` now does.
+// That is why this checks every resource in `exclusive()` rather than only the
+// one that just bit us. The shared property is what makes them dangerous: each
+// name identifies **one** deployment, so a name written into code that runs for
+// all of them silently serves the wrong one. And the symptom is never an
+// exception — it is a plausible-looking answer about somewhere else.
 //
-// String literals only, via the AST — this file and that one both discuss the
-// datasets in prose, and a comment naming one is documentation, not a binding.
-const datasetNames = new Set(
-  resolved.flatMap(({ config }) =>
-    config.analytics_engine_datasets.map((a: { dataset?: string }) => a.dataset).filter(Boolean),
-  ) as string[],
-)
+// The fix is always the same: resolve it from wrangler config for the target in
+// hand, as `databaseName` and `datasetFor` do.
+//
+// String literals only, via the AST. Several files discuss these names in
+// prose — this one does, at length — and a comment naming a database is
+// documentation, not a binding.
+const owned = new Map<string, string>()
+for (const { label, config } of resolved) {
+  for (const [kind, names] of Object.entries(exclusive(config))) {
+    // Route hosts are excluded: `originOf` already resolves them per target,
+    // and a hostname legitimately appears in a CSP, a doc link and a test
+    // fixture. Rule 3 covers the case that actually matters — a deployment
+    // whose BETTER_AUTH_URL points at another environment's host.
+    if (kind === "route host") continue
+    for (const name of names) if (!owned.has(name)) owned.set(name, `${kind} of ${label}`)
+  }
+}
 for (const path of [...sources("src"), ...sources("scripts")]) {
   const parsed = parse(path)
   walk(parsed.program, (node) => {
     if (node.type !== "Literal" || typeof node.value !== "string") return
-    if (!datasetNames.has(node.value)) return
+    const owner = owned.get(node.value)
+    if (!owner) return
     problems.push(
-      `${path}:${lineOf(parsed, node)} names the dataset "${node.value}".\n` +
-        `      Datasets are per-environment — see rule 1 — so a name in code reports on\n` +
-        `      one deployment whatever environment was asked for, and reports the others\n` +
-        `      as empty rather than as an error. Resolve it from wrangler.toml instead.`,
+      `${path}:${lineOf(parsed, node)} names "${node.value}" — the ${owner}.\n` +
+        `      These are per-environment by rule 1, so a name in code acts on one\n` +
+        `      deployment whatever --env the caller passed, and reports the others as\n` +
+        `      empty rather than as an error. Resolve it from wrangler config for the\n` +
+        `      target in hand — see databaseName() in scripts/db.ts.`,
+    )
+  })
+}
+
+// ── 5. One reader for `--env` ────────────────────────────────────────────────
+//
+// `--env staging` and `--env=staging` are both typed, and a reader that knows
+// only one of them does not fail on the other. It reports "no environment
+// named" and falls through to the default, which is production. Silently, and
+// about the wrong deployment.
+//
+// Both halves of that have now happened. `ops analytics` accepted only
+// `--env=`, so `--env staging` reported production's telemetry under a heading
+// that did not say which environment it was. `ops docs` accepted only `--env `,
+// so `docs check --env=staging` ran a **local** check while the caller believed
+// they were asking about a deployment — and a local check's output looks like a
+// remote one's.
+//
+// So the parse lives in `namedEnvironment`, once, and this keeps it there. The
+// literal `--env=` is the tell: nothing needs to write that except a parser, and
+// a file that writes it has started a second one.
+//
+// Passing `"--env"` to a child process is untouched by this — that is
+// *constructing* an argument, which deploy.ts and demo.ts legitimately do, and
+// it is `"--env"` without the `=`.
+for (const path of sources("scripts")) {
+  if (path === "scripts/lib/cloudflare.ts") continue
+  const parsed = parse(path)
+  walk(parsed.program, (node) => {
+    if (node.type !== "Literal" || typeof node.value !== "string") return
+    if (!node.value.startsWith("--env=")) return
+    problems.push(
+      `${path}:${lineOf(parsed, node)} parses "${node.value}" itself.\n` +
+        `      Use namedEnvironment() from scripts/lib/cloudflare.ts. A second reader is a\n` +
+        `      second chance to know only one spelling, and the failure is not an error —\n` +
+        `      it is the default environment, reported as though it were the one asked for.`,
     )
   })
 }

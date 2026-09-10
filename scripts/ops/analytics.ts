@@ -29,7 +29,7 @@
  * `cf:audit`: `$CLOUDFLARE_API_TOKEN`, or fnox.
  */
 
-import { accountId, resolvedConfig, token } from "../lib/cloudflare.ts"
+import { accountId, resolveTarget, resolvedConfig, token } from "../lib/cloudflare.ts"
 
 import {
   EVENTS,
@@ -49,13 +49,24 @@ const TOKEN = token()
  * Which environment to report on. `bun run ops analytics --env staging`.
  *
  * Defaults to production because that is the one somebody is usually asking
- * about, and because an unfiltered report now mixes three deployments into one
- * table — staging's traffic is one person exercising a feature, and averaging
- * it with production's would make both numbers describe nothing.
+ * about, and because an unfiltered report mixes deployments into one table —
+ * staging's traffic is one person exercising a feature, and averaging it with
+ * production's would make both numbers describe nothing.
+ *
+ * **`resolveTarget`, not a local parser.** This read `--env=` and only `--env=`,
+ * so `--env staging` — the spelling every other command in this repo takes, and
+ * the one its own help text implies — matched nothing and silently fell through
+ * to production. A report about the wrong deployment, presented as the right
+ * one, with no way to tell from the output. It also accepted any string, so a
+ * typo produced an empty report rather than an error.
+ *
+ * `ambient` because this only reads. The asymmetry is the module's rule: an
+ * unnamed read costs a wrong answer you can see, an unnamed write costs a
+ * migration on the live database — see scripts/lib/cloudflare.ts.
  */
-const ENVIRONMENT =
-  process.argv.find((a) => a.startsWith("--env="))?.slice(6) ??
-  (process.argv.includes("--all-environments") ? "" : "production")
+const ENVIRONMENT = process.argv.includes("--all-environments")
+  ? ""
+  : resolveTarget(process.argv.slice(2), "ambient").environment
 
 /**
  * The table each environment writes to — read from wrangler.toml, not typed.

@@ -85,14 +85,22 @@ if (op === "generate" || op === "studio") {
  */
 if (!op) {
   const quiet: SpawnSyncOptions = { stdio: ["ignore", "pipe", "ignore"] }
+  // Resolved, not typed. This block once named `remy-sport-db` directly — the
+  // very literal this file's header was written to eliminate. It is `--local`
+  // so it could not have written to production, but the failure mode is the one
+  // that keeps recurring: a wrong database name makes wrangler print nothing
+  // useful, so the summary reads "0 tables, every migration applied" rather
+  // than admitting it looked in the wrong place. Ambient, because a summary is
+  // read-only and the local D1 state belongs to the top-level config.
+  const local = databaseName(resolveTarget([], "ambient"))
   const migrations =
-    spawnSync("bun", ["x", "wrangler", "d1", "migrations", "list", "remy-sport-db", "--local"], quiet)
+    spawnSync("bun", ["x", "wrangler", "d1", "migrations", "list", local, "--local"], quiet)
       .stdout?.toString() ?? ""
   const pending = (migrations.match(/\.sql/g) ?? []).length
   const tables =
     spawnSync(
       "bun",
-      ["x", "wrangler", "d1", "execute", "remy-sport-db", "--local", "--json", "--command",
+      ["x", "wrangler", "d1", "execute", local, "--local", "--json", "--command",
        "SELECT name FROM sqlite_master WHERE type='table'"],
       quiet,
     ).stdout?.toString() ?? ""

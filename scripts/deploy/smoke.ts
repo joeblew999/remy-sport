@@ -29,7 +29,7 @@
  * or creates an account.
  */
 
-import { originOf, resolveTarget } from "../lib/cloudflare.ts"
+import { namedEnvironment, originOf, resolveTarget } from "../lib/cloudflare.ts"
 
 /**
  * An explicit --env beats the ambient override.
@@ -39,7 +39,7 @@ import { originOf, resolveTarget } from "../lib/cloudflare.ts"
  * forgotten — `--env staging` silently smoked production instead and reported
  * success about the wrong deployment.
  */
-const NAMED = process.argv.some((a) => a === "--env" || a.startsWith("--env="))
+const NAMED = namedEnvironment(process.argv.slice(2)) !== undefined
 const BASE = NAMED
   ? originOf(resolveTarget(process.argv.slice(2), "ambient"))
   : (process.env.CF_DEPLOY_URL ?? originOf(resolveTarget([], "ambient")))

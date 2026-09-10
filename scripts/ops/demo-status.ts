@@ -32,7 +32,7 @@
  * tests the thing rather than a proxy for it.
  */
 
-import { originOf, resolveTarget } from "../lib/cloudflare.ts"
+import { namedEnvironment, originOf, resolveTarget } from "../lib/cloudflare.ts"
 
 import { DEMO_SIGN_IN_CODE } from "../../src/environment.ts"
 import { SEED_ENTITIES } from "../../src/domain/model/entities.ts"
@@ -56,7 +56,7 @@ import { SEED_ENTITIES } from "../../src/domain/model/entities.ts"
  * The override stays for the case it was kept for — pointing this at localhost
  * or the dev tunnel — but only when nothing more specific was said.
  */
-const named = process.argv.includes("--env") || process.argv.some((a) => a.startsWith("--env="))
+const named = namedEnvironment(process.argv.slice(2)) !== undefined
 const BASE =
   !named && process.env.CF_DEPLOY_URL
     ? process.env.CF_DEPLOY_URL
