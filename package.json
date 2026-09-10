@@ -14,7 +14,7 @@
     "test:render": "playwright test --config playwright.render.config.ts",
     "test:e2e": "bun scripts/e2e.ts",
     "check": "bun scripts/lib/prepare.ts && bun run typecheck && bun run lint && bun run build && bun run check:model && bun run test && bun run test:render",
-    "build": "vite build --config src/web/vite.config.ts",
+    "build": "bun scripts/build.ts",
     "shots": "bun scripts/e2e.ts --shots --reporter list --retries 0",
     "deploy": "bun scripts/deploy.ts",
     "db": "bun scripts/db.ts",

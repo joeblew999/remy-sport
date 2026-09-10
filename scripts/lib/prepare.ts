@@ -22,6 +22,7 @@ import { spawnSync } from "node:child_process"
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs"
 import { join } from "node:path"
 import { assertPinnedBun } from "./bun-pin.ts"
+import { refuseWhileDeploying } from "./deploy-lock.ts"
 
 /**
  * Quiet on success, and on failure everything the command said.
@@ -220,6 +221,12 @@ if (import.meta.main && process.argv.includes("--help")) {
 }
 
 if (import.meta.main) {
+  /**
+   * Guarded here rather than inside `prepare()`, because the deploy calls that
+   * function directly and must not refuse itself. This is the path `bun run
+   * check` takes, which is the one that builds into a deploy's dist/.
+   */
+  refuseWhileDeploying("check")
   const mode = process.argv[2]
   if (mode === "local") local()
   else if (mode === "dependencies") install()

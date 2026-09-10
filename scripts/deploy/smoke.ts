@@ -228,6 +228,59 @@ await check("the SPA is served", async () => {
     : "response did not look like the app shell"
 })
 
+/**
+ * The worker this deployment publishes can actually install.
+ *
+ * A service worker fetches every precache entry before it installs, and only an
+ * installed worker activates. If the install never finishes, the worker already
+ * on a reader's machine goes on answering navigations from its own cache — so a
+ * returning reader keeps the build they had, for as long as that takes.
+ *
+ * On 2026-09-10 that was for ever. `build.emptyOutDir` is false by default when
+ * the output sits outside the Vite root, which it does here, so every build's
+ * assets accumulated: 765 files, 575MB, all uploaded and all globbed into the
+ * manifest — 369 entries, 90MB. Production served a week-old interface to
+ * anyone who had visited before.
+ *
+ * **Every check passed throughout**, which is the reason this one exists at the
+ * origin rather than only over the built artefact. `/api/versions` was correct.
+ * Smoke was correct. The browser tiers were correct — and all of them are
+ * first-time visitors holding no worker and no cache, so not one of them could
+ * see the only thing that was wrong. This asks the deployment the question a
+ * returning reader's browser asks.
+ */
+await check("the service worker it publishes can finish installing", async () => {
+  const res = await get("/sw.js")
+  if (!res.ok) return `expected 200 for /sw.js, got ${res.status}`
+  const sw = await res.text()
+
+  // workbox records urls and revisions, not sizes, and Cloudflare serves these
+  // chunked, so `content-length` is null on both GET and HEAD. The only honest
+  // measure is the bytes themselves — which is what the browser downloads too.
+  const named = [...new Set([...sw.matchAll(/"((?:assets|fonts)\/[^"]+)"/g)].map((m) => m[1]!))]
+  if (!named.length) return "the service worker names no precache entries — the manifest did not inject"
+
+  const BUDGET_MB = 10
+  const budget = BUDGET_MB * 1024 * 1024
+  let bytes = 0
+  let weighed = 0
+  for (const path of named) {
+    const asset = await fetch(`${BASE}/${path}`)
+    if (!asset.ok) return `the precache names ${path}, which the origin answers with ${asset.status}`
+    bytes += (await asset.arrayBuffer()).byteLength
+    weighed++
+    // Stop at the budget rather than proving the point in full: a deployment
+    // this broken should not have ninety megabytes pulled through to say so.
+    if (bytes > budget) break
+  }
+
+  return bytes <= budget
+    ? null
+    : `the precache passed ${BUDGET_MB}MB after ${weighed} of ${named.length} file(s). ` +
+        `A worker downloads all of it before it installs, and one that never installs never ` +
+        `replaces the worker already serving this reader. Check build.emptyOutDir in src/web/vite.config.ts.`
+})
+
 await check("every installable icon the manifest names is served", async () => {
   const res = await get("/manifest.webmanifest")
   if (!res.ok) return `expected 200, got ${res.status}`

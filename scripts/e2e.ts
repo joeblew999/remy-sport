@@ -20,6 +20,7 @@ import { affectsDeployment } from "./lib/deployed-source.ts"
 import { randomUUID } from "node:crypto"
 import { withStagingAccess } from "./lib/staging-test-access.ts"
 import { assertPinnedBun } from "./lib/bun-pin.ts"
+import { refuseWhileDeploying } from "./lib/deploy-lock.ts"
 import { DEMO_SIGN_IN_CODE } from "../src/environment.ts"
 import { SEED_ENTITIES } from "../src/domain/model/entities.ts"
 
@@ -305,6 +306,9 @@ async function run(adminConfirmed = false): Promise<void> {
 try {
   // Before anything: the deploy's verification once hung for hours on a Bun
   // that was not the pinned one — scripts/lib/bun-pin.ts.
+  // Both tiers write test-results/ and drive port 8788; a deploy is doing the
+  // same. Exempt when this run IS the deploy's — see scripts/lib/deploy-lock.ts.
+  refuseWhileDeploying("test:e2e")
   if (assertPinnedBun() !== 0) throw new Refused("Not the pinned Bun")
   console.log(`e2e: session records ${env.E2E_STATE_DIR}`)
   console.log(`e2e: against ${TARGET ? `${TARGET.environment} — ${TARGET.origin}` : `isolated dev — ${LOCAL_BROWSER_ORIGIN}`}`)

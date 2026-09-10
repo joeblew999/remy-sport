@@ -30,6 +30,7 @@ import { setTimeout as sleep } from "node:timers/promises"
 import { prepare } from "./lib/prepare.ts"
 import { Refused, accountId, originOf, resolveTarget, workerName, wrangler, type Target } from "./lib/cloudflare.ts"
 import { buildConfig } from "./deploy/build-config.ts"
+import { holdDeployLock } from "./lib/deploy-lock.ts"
 
 /**
  * This build's identity, minted here and baked into the Worker by
@@ -168,6 +169,15 @@ try {
   // stack trace.
   prepare()
   const target = resolveTarget(process.argv.slice(2), "explicit")
+  /**
+   * Claim the tree before the first step touches it.
+   *
+   * After `resolveTarget`, so a mistyped environment fails on its own terms
+   * rather than leaving a lock behind, and before `build`, which is the first
+   * step to write anything shared. scripts/lib/deploy-lock.ts says what this
+   * cost before it existed.
+   */
+  holdDeployLock(target.environment)
   const origin = originOf(target)
   console.log(`deploy: ${target.environment} → ${origin}  (build ${BUILD_ID})`)
 
