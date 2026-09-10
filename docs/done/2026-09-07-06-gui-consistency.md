@@ -1,7 +1,18 @@
 # GUI consistency plan
 
-Status: implemented and verified locally, 2026-09-07, with the desktop Devices
-screenshot limitation below. The user approved with “GO FOR IT”.
+Archive: completed (2026-09-10). The desktop Devices capture stall that held this open was Vite's cold dependency optimiser reloading the page mid-capture — not a font or data defect, which is why waiting, foregrounding and disabling animation all failed. `shots --grep devices` → 57 passed after the fix.
+
+Current work: [project index](../README.md). Original evidence follows.
+Status: **done 2026-09-10.** Implemented and verified locally 2026-09-07 with
+one limitation held open — the desktop Devices capture that "repeatedly stalls
+after the trace shows loaded rows and fonts". Resolved, and not by anything in
+this plan: `bun run shots` starts a fresh dev server every run, so Vite's
+dependency optimiser was cold every time, discovered `workbox-window` through a
+dynamic import mid-run, and reloaded the page while the capture was in flight.
+Named in `optimizeDeps.include` on 2026-09-10. Re-run: 57 passed, no stall.
+The captures are a manual review aid and sit outside the gate and the deploy on
+purpose — `test:e2e` names the e2e, admin and authz projects, so a test run
+never takes pictures.
 
 ## Outcome and ownership
 

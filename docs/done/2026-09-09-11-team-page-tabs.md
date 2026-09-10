@@ -1,8 +1,20 @@
 # Plan — team page sections as tabs
 
-Status: implemented 2026-09-09; targeted checks and captures pass. The whole
-repository gate has unrelated failures, recorded below, so full acceptance
-remains open and this plan stays outside done/.
+Archive: completed (2026-09-10). Held open by a whole gate with unrelated failures; the organisation unknown-email assertion among them had a named cause and a fix. Whole gate 2026-09-10: exit 0, 1099 unit, 411 render, 49 e2e.
+
+Current work: [project index](../README.md). Original evidence follows.
+Status: **done 2026-09-10.** Implemented 2026-09-09; targeted checks and
+captures passed then, and the whole gate held it open — "unrelated failures,
+recorded below". Those are resolved.
+
+The organisation unknown-email assertion in that list was `orgs.spec.ts:54`, and
+it had a cause: the people picker's list arriving moved the submit button between
+`mousedown` and `mouseup`, so the browser fired `click` on the form and the
+mutation was never sent. A product defect a reader meets too, fixed 2026-09-10 —
+docs/2026-09-09-18-browser-tier-flakiness.md, cause two.
+
+**Whole gate, 2026-09-10, exit 0:** 1099 unit, 411 render, 49 e2e. Claimed here
+because it was run, not because the failures were re-labelled.
 
 ## Problem and evidence
 
@@ -103,7 +115,7 @@ coverage. The current scroll effect also depends on roster and game data, so a
 refetch can re-scroll the reader; deleting it resolves that fragility.
 
 This is the team navigation work. Coordinate its use of the page frame with
-[main-content styling](done/2026-09-09-07-main-content-on-the-registry.md) and its URL
+[main-content styling](2026-09-09-07-main-content-on-the-registry.md) and its URL
 behavior with [installed-app Back](2026-09-09-10-installed-app-back-navigation.md).
 Neither broader redesign is required to implement these tabs. Concurrent
 uncommitted account/topbar changes were present during inspection and are not

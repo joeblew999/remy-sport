@@ -1,5 +1,8 @@
 # Plan — `/api/reference` should send one language, not twenty-seven
 
+Archive: completed (2026-09-10). 346KB and 27 name entries per row → 8.3KB and 2. Verified on the deployed origin rather than the build.
+
+Current work: [project index](../README.md). Original evidence follows.
 Status: **done 2026-09-09.** Measured before, built, measured after — the
 numbers below are both sets.
 

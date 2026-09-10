@@ -1,5 +1,8 @@
 # Plan — the browser tier fails differently every time
 
+Archive: completed (2026-09-10). Two causes, both read from traces rather than guessed, both fixed and proven; four ruled-out theories kept with their evidence.
+
+Current work: [project index](../README.md). Original evidence follows.
 Status: **done, 2026-09-10** — and the word is used carefully this time, because
 it was used once already and was wrong: after the picker fix and fifteen clean
 runs this plan called itself finished, and the next deploy failed on a page

@@ -12,7 +12,7 @@ claims, not current status. Use [the current index](../README.md).
 
 ## Open plans
 
-- [Team page sections as tabs](../2026-09-09-11-team-page-tabs.md):
+- [Team page sections as tabs](2026-09-09-11-team-page-tabs.md):
   proposed 2026-09-09; planning only. Replace the duplicate-looking header jump
   links and stacked content with Roster, Schedule and permission-controlled
   Manage tabs, following the event page pattern and preserving old section URLs.
@@ -143,7 +143,7 @@ on 2026-09-09: 45 passed, four development-only skips, sessions ended.
 [The top of the page on a phone](2026-09-08-02-mobile-top-of-page.md) is
 complete: every step is delivered by the shadcn plan and ticked.
 
-[GUI consistency plan](../2026-09-07-06-gui-consistency.md) records the latest completed GUI work.
+[GUI consistency plan](2026-09-07-06-gui-consistency.md) records the latest completed GUI work.
 Status: implemented and verified locally, with a desktop Devices screenshot
 limitation recorded as the next capture fix below. It aligns
 page layout, controls, forms, feedback and responsive behavior across existing
@@ -218,7 +218,7 @@ Official host setup: <https://learn.chatgpt.com/docs/extend/mcp?surface=cli>.
 | Priority / state | Work | Where to continue |
 | --- | --- | --- |
 | Next | Deploy main to staging: it is ahead of the deployed `e9ce101` by the Bun-pin guard, the forms fix, the taken-over install name, the sign-in autofill and the email channel on React Email, and a staging test run refuses until they match. Then what only staging and a phone can show: a real inbox receiving the HTML mail, Mail offering the sign-in code, the two install labels. Then the product roadmap below, starting with listing moderation. | [Convert the GUI to shadcn — log](2026-09-08-01-typography-and-design-system.md#log); [install name](../2026-09-08-05-pwa-install-name-per-environment.md) |
-| Next capture fix | Desktop Devices screenshots intermittently stall in WebKit after data and fonts load. This reproduced in the baseline before the GUI migration; phone captures work. Context cleanup now retains a trace, and the CLI cleans up sessions/storage on failure. Do not call the whole screenshot walk verified. | [GUI consistency implementation record](../2026-09-07-06-gui-consistency.md#implementation-record--2026-09-07); reproduce with `bun run shots -- --grep 'devices · ja · desktop' --trace on`. |
+| Next capture fix | Desktop Devices screenshots intermittently stall in WebKit after data and fonts load. This reproduced in the baseline before the GUI migration; phone captures work. Context cleanup now retains a trace, and the CLI cleans up sessions/storage on failure. Do not call the whole screenshot walk verified. | [GUI consistency implementation record](2026-09-07-06-gui-consistency.md#implementation-record--2026-09-07); reproduce with `bun run shots -- --grep 'devices · ja · desktop' --trace on`. |
 | Local test isolation | Committed with the GUI conversion: the e2e tier runs on 8788 with per-run storage, cleans up sessions and storage on failure, and refuses a staging run from a tree that differs from the deployment. Developer data and session preservation across restarts, and broader failure handling, still need their own evidence. `bun run dev` stays the developer entry point. | `playwright.config.ts`, `scripts/e2e.ts`, `scripts/lib/local-browser.ts`, `scripts/lib/deployed-source.ts` |
 | Next independent product work | Review existing behavior one domain slice at a time: exact fields, relationships, permitted/refused actions, persistence and delivery. The committed report has **1,379 items: 64 classified, 1,315 unreviewed**. Unreviewed does not mean broken or unimplemented. | [Domain register, GAP-01 and GAP-05–08](../2026-09-07-01-react-domain-coverage.md#work-register-and-execution-order); [generated inventory](../react-domain-coverage.md). |
 | Open relay work | Choose and prove a per-game credential design, including cross-game denial, expiry/revocation and browser transport compatibility. Ordinary relay setup is working; the old missing-token/403 blockers are historical. | [Relay investigation](../2026-09-07-02-relay-capabilities.md#current-work). |

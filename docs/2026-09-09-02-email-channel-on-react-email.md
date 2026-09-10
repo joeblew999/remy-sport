@@ -3,8 +3,17 @@
 Status: implemented 2026-09-09, every step ticked with its proof below. Re-cut
 from the combined sign-in-and-email plan at the Product Owner's review that
 morning; decided by the Product Owner the same day: emails are React-based,
-and there is no magic link. What remains is a deploy, since staging is the
-only place mail really leaves.
+and there is no magic link.
+
+**The deploy it was waiting for happened on 2026-09-10** — staging and then
+production, both on `f2fcfba`, smoke green including "Better Auth is mounted and
+reaches the database" and "a wrong sign-in code is refused". So the blocker this
+status named is gone.
+
+What remains is the one thing an agent cannot do: **somebody has to look in a
+real inbox.** The seeded actors are `@bat.test` addresses that no mail server
+will deliver to, so proving a React email arrives, renders and is not filed as
+spam needs a real address and a person reading it.
 
 ## What is true today
 
