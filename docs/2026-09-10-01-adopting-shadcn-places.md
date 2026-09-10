@@ -1,6 +1,7 @@
 # Plan — adopting shadcn-places
 
-Status: proposed 2026-09-10. Nothing implemented here. **The service exists and is
+Status: open, 2026-09-10. **Step 1 done and both listed bugs closed**; the
+decision in step 2 is the Product Owner's and is what everything else waits on. **The service exists and is
 live**; this is the plan for what *this* application does about it.
 
 Places have moved out. The reasoning, the five sources measured against each
@@ -67,24 +68,33 @@ at another database. So a venue stores the id *and a snapshot of the names*, whi
 is mostly a gain: the event page renders when the service is down, and a fixture
 from 2024 keeps the name it was played under when a city is renamed upstream.
 
-## Two live bugs here, unrelated to any of this
+## Two live bugs here, unrelated to any of this — **both fixed 2026-09-10**
 
-Found while measuring for the service, and they are this repository's:
+Found while measuring for the service, and they were this repository's:
 
-- **`tl` resolves to `en-US` through ICU.** Filipino is `fil`; `tl` does not error,
-  it silently returns English. Anywhere a declared locale reaches an `Intl` API,
-  Filipino readers get English and nothing says so.
-- **1,199 of 3,852 name cells in non-Latin-script locales are byte-identical to
-  the English value** — 31%, `PROVINCE` accounting for 847 of them. Completeness
-  passes because the cell is non-empty; the stray-script rule passes because Latin
-  is not a stray script for Russian. The rule that catches it is one line: identical
-  to English, in a locale whose script is not Latin. Owned by
-  [Translation provenance](2026-09-09-19-translation-provenance.md).
+- ~~**`tl` resolves to `en-US` through ICU.**~~ **Fixed.** Filipino is `fil`;
+  `tl` did not error, it silently returned English, so anywhere a declared
+  locale reached an `Intl` API Filipino readers got English and nothing said so.
+  `INTL_TAG` in `src/web/lib/dates.ts` maps it, and a unit test asserts that
+  *every* released locale reaches Intl as itself rather than as another
+  language — the general form, so a twenty-eighth locale with the same problem
+  fails on arrival. `tag("tl")` now resolves to `fil-u-ca-gregory`.
+- ~~**1,199 of 3,852 name cells … byte-identical to the English value**~~
+  **The rule exists.** "No non-Latin language ships the English word
+  untranslated" is in `tests/repo/messages.test.ts`. Run against the model as it
+  stood that morning it reported exactly 55 — four object types and one action,
+  on screen in eleven languages — which are fixed. `PROVINCE`'s 847 remain, and
+  they are this plan's subject rather than a defect: they are romanised because
+  nobody transliterated them, which is the argument for adopting the service.
+  Owned by [Translation provenance](2026-09-09-19-translation-provenance.md).
 
 ## Steps
 
-- [ ] **1 · Fix `tl → fil`,** with a check that no declared locale resolves through
+- [x] **1 · Fix `tl → fil`,** with a check that no declared locale resolves through
       ICU to a different language. Independent of everything else here.
+      **Done 2026-09-10**, and as the general check rather than the one mapping:
+      `tests/unit/dates.test.ts` asserts every released locale reaches Intl as
+      itself, so the next locale ICU disagrees with fails the day it is declared.
 - [ ] **2 · Decide question 1** with the Product Owner: which tiers, if any, this
       app stops owning.
 - [ ] **3 · Retire `CITY_CODES` as an enum** — FK plus boundary validation — only
