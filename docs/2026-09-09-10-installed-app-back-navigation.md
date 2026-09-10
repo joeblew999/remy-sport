@@ -1,10 +1,69 @@
 # Back navigation in the installed app
 
-Status: proposed 2026-09-09. Planning only; application behavior is unchanged.
+Status: proposed 2026-09-09, scope corrected 2026-09-10. Planning only;
+application behavior is unchanged.
 
 The user reports that installing through Add to Home Screen removes the browser
 Back button. Every app screen must provide a usable route out without browser
 chrome. Implement this once in the shared shell using our existing shadcn UI.
+
+## Which surfaces lose what — corrected 2026-09-10
+
+This was scoped as a phone problem. It is not. The product ships to Android,
+iOS, Windows and Mac, as a web install today and as a Tauri app for **Windows
+and Mac** when that ships (`src-tauri/tauri.conf.json` targets `app` and `dmg`
+today, so Windows targets are added with it).
+
+| Surface | Hierarchy (crumbs, ≥`sm`) | Platform back | Net |
+| --- | --- | --- | --- |
+| Browser tab, any OS | yes | yes — browser button | fine |
+| Installed web app, **Android** phone | **no** — folded below `sm` | yes — system back | degraded |
+| Installed web app, **iOS** phone | **no** — folded below `sm` | **no** — edge-swipe only, undiscoverable, fights horizontal scrollers | **nothing** |
+| Installed web app, **Windows / Mac** | yes | `Alt+←` / `Cmd+[`, no visible control | hierarchy only |
+| **Tauri, Mac and Windows** | yes | **no** — no chrome, no system back | **hierarchy only** |
+
+**So there are two failures, not one, and the second is the larger.**
+
+1. **Phones lose hierarchy.** `BreadcrumbItem` carries `hidden … sm:inline-flex`,
+   so on a 390px phone the ancestors are not rendered at all.
+2. **Every installed surface loses *return*.** The `from=` trail has no control
+   at any width on any surface. Crumbs cannot stand in: they lead to a team's
+   *parent*, never back to the filtered schedule the reader actually came from.
+   This includes the 1280px Tauri window, where the screen is large and the
+   information is still unreachable.
+
+The control therefore belongs at **every width on every installed surface**, not
+behind a phone breakpoint. `isNativeApp()` in `src/web/lib/push.ts` already
+distinguishes Tauri, and the app already knows when it is installed.
+
+**And we cause it.** The app ships `<pwa-install>` and actively prompts —
+"This site has app functionality. Add it to your Dock" — so we invite readers
+into the mode that removes their Back button and then render no replacement.
+
+### Two things considered and rejected
+
+- **`display: "minimal-ui"`** keeps platform back/forward chrome. It would help
+  Android, Windows and Mac — which already have a working back — and does
+  nothing for iOS, which has never honoured it, or for Tauri, which has no
+  browser chrome to keep. It fixes the rows that are not broken. Noted here so
+  it is not proposed again. (`display: "standalone"` in `src/web/vite.config.ts`
+  carries no comment, unlike `id`, `start_url` and `theme_color` around it, so
+  it currently reads as a default rather than a decision; whichever value
+  survives should say why.)
+- **`history.back()`** as the control's action. The app pushes history entries
+  for tabs and filters, so it frequently undoes a filter instead of leaving the
+  page. That is precisely why `from=` exists in `routeHref`, where it already
+  survives same-page tab and filter changes and trims at `MAX_TRAIL`.
+
+### The registry has already solved the first failure
+
+`breadcrumb-responsive` is in the shadcn registry and is the sanctioned answer
+to crumbs that do not fit: it **collapses** ancestors behind an ellipsis into a
+Dropdown on desktop and a Drawer on mobile, rather than hiding them. Our
+`hidden sm:` is the deviation. Adopt it for the hierarchy half — composing the
+`sheet` we already have rather than adding `drawer` for one control — and keep
+this plan's own work for the return half, which no registry item can supply
+because it is application state.
 
 ## Findings and the shadcn approach
 
@@ -173,6 +232,19 @@ and history boundary and nothing about the visual migration.
   shared workflow with cleanup, not in a private harness.
 - Real iPhone A2HS and Android installed app: cold launch, multi-page Back,
   relaunch, notification entry where available, rotation and safe areas.
+- **Every surface the product ships to, because they fail differently.** A
+  browser tab proves nothing about the installed cases, and a phone proves
+  nothing about Tauri:
+  | Surface | What only this surface proves |
+  | --- | --- |
+  | iOS, Add to Home Screen | The one case with no platform back at all. If the control is wrong here, the reader is stuck with the sidebar. |
+  | Android, installed | The app's Back and the system's Back interleaved — the app must not fight the platform's. |
+  | Windows / Mac, installed web app | Hierarchy is visible here, so this proves the *return* control is distinguishable from a crumb rather than a duplicate of it. |
+  | **Tauri, Mac** | A 1280px window with no chrome and no system back — the case that shows this is not a small-screen feature. |
+  | **Tauri, Windows** | The same, on the platform whose bundle targets do not exist yet; add them with the Tauri release rather than discovering this then. |
+  These are checks a person runs on real hardware. No browser tier reaches an
+  installed app or a Tauri window, and saying so is part of the plan rather
+  than a gap to be discovered at acceptance.
   Confirm Android system Back and iOS gestures still behave normally. Browser
   emulation alone is insufficient evidence for installed-app behavior.
 - The Tauri shells have this problem more completely than an installed PWA
