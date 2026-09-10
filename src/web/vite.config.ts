@@ -29,20 +29,12 @@ const ROOT = resolve(__dirname, "../..");
  * dist/remy-sport for the Worker with the wrangler.json that `wrangler deploy`
  * then uses. There is no dist/ during development at all.
  *
- * That replaces a 300-line dev script that ran `vite build --watch` into
- * dist/web beside a `wrangler dev` serving it — a directory one process wrote
- * while another read it, which was the race behind a day of stale bundles,
- * 945 superseded chunks, and two checks that existed only to police it.
- *
  * `--mode render` leaves the Cloudflare plugin out: the render tier is a
- * browser against a static file server, on purpose, and starts no Worker.
+ * browser against a static file server and starts no Worker.
  *
- * No build-time version constant here, and the reason is worth keeping: a
- * `define` once baked `git rev-parse HEAD` into the bundle, and `git commit`
- * moves HEAD without touching any file the bundle is built from, so the
- * artifact carried the previous commit forever. components/build-stamp.tsx
- * compares the served shell's content-hashed script against the one the page
- * loaded instead; a hash cannot disagree with its bytes.
+ * No build-time version constant: `git commit` moves HEAD without touching any
+ * file the bundle is built from, so a baked-in `rev-parse HEAD` carries the
+ * previous commit forever. build-stamp.tsx compares content hashes instead.
  */
 
 /**
@@ -78,27 +70,18 @@ function seedOnStart(): Plugin {
 /**
  * A dev server that no service worker can shadow.
  *
- * Every build registers `/sw.js` as a classic script, and a browser that once
- * loaded a build from this origin — `wrangler dev` serving dist/, before the
- * Vite plugin — still holds that registration. Its worker precaches the whole
- * built shell and answers every navigation from the cache, so `bun run dev`
- * shows the old build, edit after edit. The way out is an update: the browser
- * refetches `/sw.js` on navigation and a worker with different bytes takes
- * over. But in dev vite-plugin-pwa answers `/sw.js` with sw.ts as an ES
- * module, and a registration made as a classic script cannot load an `import`.
- * The update fails silently, every time, and no console shows it: the page's
- * own code is the old build's. Found 2026-09-06, after an hour of edits that
- * changed nothing on screen.
+ * A browser that once loaded a build from this origin still holds a `/sw.js`
+ * registration made as a classic script, and that worker answers every
+ * navigation from its precache — so `bun run dev` shows the old build, edit
+ * after edit. It cannot update itself out of the way: in dev the plugin serves
+ * `/sw.js` as an ES module, which a classic registration cannot load, and the
+ * failure is silent.
  *
- * So in dev, `/sw.js` is a classic script whose whole job is to leave: it
- * installs, unregisters itself, and reloads every tab it controls. The next
- * load comes from Vite, and main.tsx registers the dev worker the plugin
- * serves at `/dev-sw.js?dev-sw` — which is what dev has used all along.
- * Nothing in dev asks for `/sw.js` except a stale registration, and this is
- * its way out. tests/e2e/dev-worker.spec.ts holds it.
+ * So in dev `/sw.js` is a classic script whose whole job is to leave: install,
+ * unregister, reload every tab it controls. main.tsx then registers the dev
+ * worker at `/dev-sw.js?dev-sw`. tests/e2e/dev-worker.spec.ts holds it.
  *
- * `serve` only, and before the plugin so it answers first: a build writes the
- * real worker at that path, and preview serves it.
+ * `serve` only, and before the plugin: a build writes the real worker there.
  */
 function legacyWorkerKillSwitch(): Plugin {
   const script = [
@@ -199,25 +182,16 @@ export default defineConfig(({ mode, command }) => {
       /**
        * No Fast Refresh for the entry, and this is why.
        *
-       * Fast Refresh (oxc's, under this plugin) gives every module with a
-       * component a self-import — `import * as currentExports from
-       * "/main.tsx"` — by its bare URL. After the first edit of a dev session
-       * Vite serves index.html with `<script src="./main.tsx?t=…">`, and a
-       * URL with a query is a different module from the same URL without
-       * one. So the entry ran twice: two React roots on one container, two
-       * QueryClients, two apps listening to the same hash. Sign in happened
-       * in the one you could see; the ghost still held the visitor's session
-       * and bounced you to the login screen from a page you were allowed on.
-       * Found 2026-09-06, and it is very likely what made the GUI feel
-       * unreliable to work on: it only ever happens on a dev server that has
-       * seen an edit, never on a fresh one, never in a build.
+       * Fast Refresh gives every module a self-import by its bare URL. After
+       * the first edit of a session Vite serves the entry as `main.tsx?t=…`,
+       * and a URL with a query is a different module — so the entry ran twice:
+       * two React roots, two QueryClients, two apps on one hash. Sign-in
+       * happened in the visible one while the ghost held the visitor session
+       * and bounced you to login from a page you were allowed on.
        *
-       * Every other module's self-import gets its `?t=` rewritten and is the
-       * same instance; only the entry, which the HTML names rather than
-       * another module, misses out. The entry cannot hot-refresh anyway — a
-       * change there is a full reload — so excluding it costs nothing.
-       * tests/e2e/dev-entry.spec.ts holds it. `node_modules` stays excluded,
-       * as the plugin's own default has it.
+       * Only the entry is affected, because the HTML names it rather than
+       * another module. It cannot hot-refresh anyway, so excluding it costs
+       * nothing. tests/e2e/dev-entry.spec.ts holds it.
        */
       exclude: [/\/node_modules\//, /\/src\/web\/main\.tsx$/],
     }),
@@ -292,16 +266,13 @@ export default defineConfig(({ mode, command }) => {
         /**
          * What the install dialog shows before a reader commits.
          *
-         * `<pwa-install>` reads these for its gallery — the "Show Gallery"
-         * button — and Chromium's own install UI uses them for the richer card
-         * it shows instead of a bare name and icon. Without them the dialog we
-         * chose *because* its GUI is right was showing its plainest form, and
-         * its gallery button had nothing behind it.
+         * `<pwa-install>` reads these for its gallery, and Chromium's install
+         * UI for its richer card. Without them both fall back to a bare name
+         * and icon.
          *
          * One of each form factor is required, not stylistic: the component
-         * filters the gallery by `deviceFormFactor()`, so a phone in portrait is
-         * shown only the `narrow` entries and would open an empty gallery if
-         * this listed just the desktop shot.
+         * filters by `deviceFormFactor()`, so a phone shown only `narrow`
+         * entries would open an empty gallery if this listed the desktop shot.
          *
          * Both are promoted from the screenshot walk by `bun run ops
          * screenshots` and committed, because the walk needs a seeded database
