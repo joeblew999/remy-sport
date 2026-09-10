@@ -86,7 +86,16 @@ question with different trade-offs.
 - [ ] **2 · Trim `names` and `descriptions` server-side** to the requested
       locale plus `FALLBACK`. One helper, applied where the rows are shaped.
 - [ ] **3 · The client passes its locale** and puts it in the query key.
-      `LocaleProvider` already knows it.
+      `LocaleProvider` already knows it — it is the only real caller.
+- [ ] **3a · Update the render stubs in the same commit.** Five specs stub this
+      endpoint with an *undefined* input — `crash`, `home`, `i18n`, `geography`
+      and `teams` in `tests/render/`. The moment the client sends a locale those
+      stubs stop matching, the query never resolves, and the failure looks like a
+      broken page rather than a stale test. Named here because whoever does step
+      3 will otherwise meet it as a mystery.
+
+      (This plan first said three specs and named the wrong set. Counted
+      properly: five. A wrong list here costs more than no list.)
 - [ ] **4 · A check that holds the size.** A worker test that asserts the
       payload for one locale carries at most two entries per `names` object.
       Not a byte budget — a byte budget is a number that drifts and gets

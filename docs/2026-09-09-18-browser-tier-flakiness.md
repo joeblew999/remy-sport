@@ -68,6 +68,9 @@ What is known:
 - `fullyParallel: true`, `workers: 2`.
 - `retries: process.env.CI || !isLocal ? 2 : 0` — **local runs get no retries**,
   so a single flake fails a deploy. Staging and CI get two.
+- `trace: "on-first-retry"`. Combined with the line above that means **no
+  local failure has ever produced a trace**, which is why ten runs of evidence
+  amount to a list of spec names and nothing about what the pages were doing.
 - The failures cluster on assertions that follow either a navigation or a
   mutation — the first moment a page needs data it does not yet have.
 - `test:render` covers the same screens against a **built** bundle and is
@@ -84,23 +87,29 @@ environment rather than the product.
 | Add retries locally to make deploys green? | **No.** That converts a known problem into an unknown one and would have hidden every fact in the table above. The tier's value is that it fails. |
 | Chase each failing spec? | **No.** Six specs have failed once or twice each; fixing them one at a time treats the symptom and there is no evidence any individual test is wrong. |
 | Then what first? | **Make one failure reproducible.** Everything above is a sample of one run. A loop that runs the tier until it fails, keeping the trace, turns this from anecdote into a thing that can be read. |
-| Is the dev server the suspect? | It is *a* suspect and the leading one, but it has not been demonstrated. Playwright traces record what the page was doing; nobody has looked at one yet. |
+| Is the dev server the suspect? | It is *a* suspect and the leading one, but it has not been demonstrated. A Playwright trace would record what the page was actually doing — and none exist, which is step 1. |
 
 ## Steps
 
-- [ ] **1 · Reproduce on demand.** A loop that runs `test:e2e` until it fails,
-      preserving the Playwright trace and the webServer log for the failing run.
-      Record how many runs it took. Without this the rest is guesswork.
-- [ ] **2 · Read the trace, not the assertion.** The failure message says an
+- [ ] **1 · Turn tracing on for the loop, because there is none today.**
+      `trace: "on-first-retry"` and `retries: 0` locally are mutually exclusive:
+      a trace is written on the first retry and there is no first retry, so
+      **every local failure this session produced no trace at all** — checked,
+      there are none on disk. The loop must run with tracing forced on, or the
+      next step is impossible. This was a hole in this plan's own first draft.
+- [ ] **2 · Reproduce on demand.** A loop that runs `test:e2e` until it fails,
+      keeping the trace and the webServer log for the failing run, and recording
+      how many runs it took. Without this the rest is guesswork.
+- [ ] **3 · Read the trace, not the assertion.** The failure message says an
       element was missing; the trace says what the page had actually received —
       whether the request was slow, failed, or never made. That distinction is
       the whole answer and is currently unknown.
-- [ ] **3 · Name the cause in this file before changing anything.** Same
+- [ ] **4 · Name the cause in this file before changing anything.** Same
       discipline that found the dep cache: measure, state, then fix. Two wrong
       theories have already been paid for.
-- [ ] **4 · Fix it, and prove the fix the way it was found** — the loop from
-      step 1 run enough times to mean something, with the number written down.
-- [ ] **5 · Then consider retries.** Once the cause is known and fixed, whether
+- [ ] **5 · Fix it, and prove the fix the way it was found** — the loop from
+      step 2 run enough times to mean something, with the number written down.
+- [ ] **6 · Then consider retries.** Once the cause is known and fixed, whether
       local runs should retry is a real question with an informed answer. It is
       not one now.
 
