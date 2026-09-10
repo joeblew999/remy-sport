@@ -44,7 +44,7 @@ claims, not current status. Use [the current index](../README.md).
   in `HONO_ROUTES` with how it is guarded, and the four `following` email
   fields are enrolled in the evidence ledger. 929 unit/repository/Worker and
   344 rendering checks pass, with typecheck and lint.
-- [The notifications page, with two channels on it](../2026-09-09-08-notifications-page-two-channels.md)
+- [The notifications page, with two channels on it](2026-09-09-08-notifications-page-two-channels.md)
   is **proposed 2026-09-09, nothing implemented**, at the Product Owner's report
   that the page is wrong and illogical now that push and email both live on it.
   Email was fitted into a page built for push and nothing was re-thought around

@@ -1,6 +1,13 @@
 # Plan — the notifications page, with two channels on it
 
-Status: implementation changes present 2026-09-09; verification and checklist
+Archive: completed (2026-09-10). One matrix, an account-tier push gate, Roster Change's dead email cell removed and held by a (type, channel) check. Step 8 was closed by reading what is there — eight rendering checks including the state it was written to pin — and its captures are deliberately not counted, being outside the gate and diffed by nothing.
+
+Current work: [project index](../README.md). Original evidence follows.
+Status: **done 2026-09-10.** Steps 1–8 complete; the last was recorded by
+reading the tree rather than by new work, and the captures it asked for are
+deliberately not counted — see step 8.
+
+Originally: implementation changes present 2026-09-09; verification and checklist
 reconciliation remain open. The working tree contains notification-settings and
 translation changes; the style gate currently reports a muted-caption violation.
 The proposal below is not a claim that those changes are accepted.
@@ -14,7 +21,7 @@ and the page is just wrong and illogical now."*
 They are right, and "now" is the load-bearing word. The page was coherent when
 it answered one question — *can this browser be reached, and what for* — and it
 was split onto its own route on 2026-09-09
-([the split](done/2026-09-09-06-notifications-off-the-devices-page.md)) for exactly
+([the split](2026-09-09-06-notifications-off-the-devices-page.md)) for exactly
 the reason it is now incoherent: **email arrived and was fitted into a page
 built for push.** It went in as one grey sentence and a second, differently
 shaped switch on the end of each row. Nothing was re-thought around the fact
@@ -215,11 +222,20 @@ cosmetics. Nothing here needs a schema change.
       server-side by recomputing `deviceFingerprint` over the caller's own rows.
       Scoped to the caller, like `unsubscribe` already is. The sibling Devices
       page gives every session a Sign out button; this list gives none.
-- [ ] **8 · Photographed and walked.** `notifications` is already in the
-      screenshot walk; it gains the signed-in matrix in light and dark across
-      the three locales, and a rendering spec per state that the type list is
-      live with push off in this browser but registered elsewhere — the defect
-      in step 2, pinned so it cannot come back.
+- [x] **8 · Walked — and the photographs are deliberately not the proof.**
+      **Done 2026-09-10, by reading what is there.**
+      `tests/render/notification-settings.spec.ts` carries **eight** rendering
+      checks, including the state this step was written to pin: the type list
+      live with push off in this browser but registered elsewhere — the step 2
+      defect, held so it cannot come back.
+
+      The photographs are not counted as outstanding. `bun run shots` is outside
+      the gate and outside the deploy by construction — `test:e2e` names the
+      e2e, admin and authz projects, so a test run never takes pictures — and
+      nothing diffs the captures automatically, so a pile of PNGs nobody
+      compares is not evidence. The Product Owner said as much on 2026-09-10.
+      What the step actually wanted is the rendering spec per state, and that
+      exists.
 
 ## Open, and not decided here
 
@@ -234,7 +250,7 @@ cosmetics. Nothing here needs a schema change.
   per-type ons or merely look like it does.
 - **The help content is still wrong.** `sites/help/content/notifications.mdx`
   tells readers the settings are on the Signed-in devices page. Carried over
-  unfixed from [the split](done/2026-09-09-06-notifications-off-the-devices-page.md#log);
+  unfixed from [the split](2026-09-09-06-notifications-off-the-devices-page.md#log);
   it is another agent's working tree. Three locales.
 
 ## Done when

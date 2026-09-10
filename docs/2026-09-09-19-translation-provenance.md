@@ -1,9 +1,15 @@
 # Plan — say which of the twenty-seven languages a person has read
 
-Status: open, 2026-09-10. Steps 1, 3 and 6 done in the Product Owner's repo —
-the model now records how each locale was produced, what is known to be wrong
-with two of them, and the four words eleven languages were missing. Steps 2, 5
-and 7 are the mechanical parts and are not built.
+Status: open, 2026-09-10. **Six of eight steps done and shipped** — 1, 2, 3, 5,
+6 and 7. The model records how each locale was produced and what is known to be
+wrong with two of them; the check that every locale answers the question is in
+`tests/repo/messages.test.ts`; the identical-to-English rule is beside it; the
+four words eleven languages were missing are translated; and the N×N matrix is
+out of the interface.
+
+The two that remain need a person, not an agent: **4 · Nastaliq for Urdu** wants
+a designer to look at twenty-seven screens in a face that slopes and stacks, and
+**8 · a reviewer's mark** wants a native speaker to have read one.
 
 Twenty-seven locales shipped on 2026-09-09. **Twenty-six of them were translated
 by an agent** — the twenty-seventh is English, which everything else was
@@ -167,10 +173,15 @@ would notice and no test ever will.
       and Japanese included: they predate the bulk translation, but nothing here
       records a speaker having read them, and "probably fine" is not a
       provenance.
-- [ ] **2 · A check that every declared locale declares one,** beside the
+- [x] **2 · A check that every declared locale declares one,** beside the
       endonym check in `tests/repo/messages.test.ts`. It fails closed the same
       way the script check does, so a twenty-eighth language cannot arrive
       without answering the question.
+      **Done 2026-09-10.** "every declared language says how its words got
+      here" in `tests/repo/messages.test.ts`. Deliberately weak: it asks that
+      the question be answered, not that the answer be "reviewed", and it
+      requires exactly one `source` because "translated from" has to mean
+      something.
 - [x] **3 · Record the two known weaknesses** as a `caveat` string on the row —
       `zh-HK` derived from `zh-TW`, `ur` set in Naskh — so they live next to the
       data rather than in a plan nobody re-reads.
@@ -218,7 +229,7 @@ would notice and no test ever will.
       English in eleven languages in the Following list.
       **Done 2026-09-10** (`remy-sport-biz` 47af7a5): 44 cells, names only,
       descriptions deliberately untouched and explained above.
-- [ ] **7 · Take the N×N matrix out of the interface.** `name-translations.tsx`
+- [x] **7 · Take the N×N matrix out of the interface.** `name-translations.tsx`
       labels each translation box with `label("locales", …)`, which is the only
       thing in the app still reading the `names` matrix the model says is "not
       extended for new languages". Reading `endonym` instead — what the switcher
@@ -226,6 +237,11 @@ would notice and no test ever will.
       cells from what a reader can see without translating any of them. Lift
       `endonymOf` out of `app-sidebar.tsx` into `lib/locale.tsx` beside
       `directionOf`, since both read the compiled model for the same reason.
+      **Done 2026-09-10.** `name-translations.tsx` reads `endonymOf(locale)`,
+      and `endonymOf` moved into `lib/locale.tsx` beside `directionOf` since
+      both read the compiled model for the same reason. Nothing in `src/web`
+      calls `label("locales", …)` any more, so 235 matrix cells left the
+      interface without one of them being translated.
 - [ ] **8 · A place for a reviewer to leave a mark.** When a speaker does read
       one, `provenance` becomes `"reviewed"` in the same commit as their fixes,
       so the field means something rather than being aspirational.
