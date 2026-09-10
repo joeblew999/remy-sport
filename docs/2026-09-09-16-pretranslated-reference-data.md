@@ -877,13 +877,96 @@ licence audit it was introduced for:
 | Scope of the generator | Every reference vocabulary CLDR already carries, not only countries. Languages and time-zone names are the two with a caller waiting. |
 | `LOCALE.names` and `endonym` | Generated, not hand-written. Supersedes step 2 of the language picker plan. |
 
+## The name: `shadcn-places`
+
+Chosen by the PO 2026-09-10, with the reasoning that the stack is a popular one
+and the service should reach as many developers as possible. Checked, and the
+instinct matches how the ecosystem actually names things:
+
+```
+shadcn-ui/ui                     ★123,449   MIT
+satnaing/shadcn-admin            ★ 14,165   MIT
+unovue/shadcn-vue                ★ 10,572   MIT
+huntabyte/shadcn-svelte          ★  9,106   MIT
+sersavan/shadcn-multi-select…    ★  2,210   MIT
+```
+
+`shadcn-*` is a recognised community prefix, not an unusual claim, and
+`joeblew999/shadcn-places` is available. Two things follow from the name, and the
+second one matters:
+
+- **Say it is not affiliated** with shadcn/ui, in one README line. Every project
+  above does; it is free insurance.
+- **The name sets a licence expectation that our data breaks.** Every popular
+  `shadcn-*` repo above is MIT throughout. A developer installing a `shadcn-*`
+  registry item reasonably assumes MIT — and our *data* is ODbL share-alike. That
+  cannot be a footnote. The README has to answer, above the fold, the question a
+  developer actually has:
+
+  > **Using the hosted API imposes nothing on you.** Calling the service is
+  > consuming a Produced Work, not creating a Derivative Database — your app does
+  > not become ODbL. **Redistributing the database does.** If you self-host from
+  > our dumps, share-alike applies to what you publish.
+
+  Get that wrong and the licence looks like a trap; get it right and it is a
+  non-event. It is the difference between a developer adopting this in ten seconds
+  and closing the tab.
+
+## Where the work happens — a sibling checkout
+
+The Product Owner, 2026-09-10: *"so then we need an isolated folder for this to be
+done in I think? The system uses the same stack as our app."*
+
+**`../shadcn-places`, beside this repo.** That is not a new convention: the PO's
+model already lives at `../remy-sport-biz` and is fetched by
+[`scripts/ops/biz.ts`](../scripts/ops/biz.ts), which defaults `BIZ_DIR` to exactly
+that shape. Siblings under `github.com/joeblew999/` is how this workspace is laid
+out; `shadcn-places` is the third.
+
+Two shapes that were considered and are wrong:
+
+- **A git worktree.** A worktree is one repository on another branch. This is a
+  *different repository* with a different licence and a different release cadence.
+- **A folder inside this repo.** That is the coupling the PO ruled out, and it
+  would put a 44 MB dataset and an ODbL licence inside an MIT application.
+
+### Same stack, inherited conventions, no shared code
+
+The stack is deliberately the same — Bun, Wrangler, D1, Drizzle, Hono, oRPC,
+vitest, Tailwind, shadcn — so that anyone who can work on the app can work on the
+service without learning a second toolchain.
+
+**What is worth copying is the way this repo works, not its code:**
+
+- **One CLI, not a task list.** `scripts/ops.ts` dispatches rather than growing a
+  script per verb, and the places repo should start that way rather than
+  discovering it at fifteen commands.
+- **`tests/repo/` as executable convention.** The checks that hold this codebase
+  together are the reason a plan can say "prove it" and mean something. The
+  service needs its own: no unfiltered city query, every name carries a `kind`,
+  the licence files exist.
+- **`docs/` with an index**, because the next agent reads it first.
+- **`AGENTS.md`**, short, and its own.
+
+**What must not be shared: source.** No shared `node_modules`, no shared lockfile,
+no importing `src/domain/names.ts` across the boundary. Two repositories that
+import each other's internals are one repository with extra steps — and this one
+must be usable by people who have never heard of remy-sport.
+
+**The one thing that legitimately crosses is generated:** the oRPC client and the
+shadcn registry item, consumed as published artefacts the way any third party
+would consume them. If that path is good enough for a stranger, it is good enough
+for us; if it is not, we will find out before a stranger does.
+
 ## Steps
 
-- [ ] **1 · The repo, its licences, and the Worker skeleton.** `remy-places`:
-      oRPC contract, D1 schema, `wrangler.toml`, `LICENSE` (MIT, code) and
-      `LICENSE-DATA` (ODbL-1.0, data) as two separate statements, plus the
-      GeoNames credit in the README. Local git only — publishing and deploying
-      stay the PO's two commands.
+- [ ] **1 · The sibling checkout, its licences, and the Worker skeleton.**
+      `../shadcn-places`, beside `../remy-sport-biz`: oRPC contract, D1 schema,
+      `wrangler.toml`, its own `AGENTS.md`, `docs/` and `tests/repo/`, plus
+      `LICENSE` (MIT, code) and `LICENSE-DATA` (ODbL-1.0, data) as two separate
+      statements, the GeoNames credit, the not-affiliated-with-shadcn/ui line, and
+      the API-versus-database licence answer above the fold. Local git only —
+      publishing and deploying stay the PO's two commands.
 - [x] **2 · Licence question — answered by the PO 2026-09-09: dr5hn is in.** All
       three tiers get built. ODbL is discharged by this repo being public and
       carrying the derived rows.
@@ -1042,7 +1125,7 @@ to review rather than as a slow drizzle onto `main`.
 
 **B · The new repo, local only.**
 
-5. Scaffold `remy-places`: oRPC contract, D1 schema, `wrangler.toml`, the two
+5. Scaffold `shadcn-places`: oRPC contract, D1 schema, `wrangler.toml`, the two
    licence files, README with the attribution GeoNames requires.
 6. The streaming normaliser — every source read as a stream to NDJSON, never
    `JSON.parse` of a whole file, because retrofitting that later is a rewrite.
