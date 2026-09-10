@@ -52,6 +52,12 @@ chrome. Implement this once in the shared shell using our existing shadcn UI.
 
 ## Which surfaces lose what — corrected 2026-09-10
 
+**The target is web and web-installed, on mobile and desktop.** Those four are
+the product; Tauri is later and is designed for rather than waited on
+(Product Owner, 2026-09-10). So "installed" here means Add to Home Screen and
+the installed web app, and the desktop half of that matters as much as the
+phone half — which is the correction below.
+
 This was scoped as a phone problem. It is not. The product ships to Android,
 iOS, Windows and Mac, as a web install today and as a Tauri app for **Windows
 and Mac** when that ships (`src-tauri/tauri.conf.json` targets `app` and `dmg`
