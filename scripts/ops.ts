@@ -64,7 +64,7 @@ const OPS: Record<string, Op> = {
   analytics: {
     group: "deployment",
     cmd: (rest) => ["bun", "scripts/ops/analytics.ts", ...rest],
-    help: "analytics [hours]                what the deployed worker has been doing",
+    help: "analytics [hours] [--runtime] [--all]   what the worker did, and what Cloudflare saw of it",
   },
   audit: {
     group: "deployment",

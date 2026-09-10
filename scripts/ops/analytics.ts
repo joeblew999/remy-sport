@@ -264,3 +264,122 @@ if (total === 0) {
   )
 }
 console.log()
+
+// ── what Cloudflare thinks of how it runs ──────────────────────────────────
+
+/**
+ * The other half of the question, and the half our own telemetry cannot answer.
+ *
+ * Everything above is what the *application* recorded: an invalid code, a
+ * client error, a reminder that ran. None of it exists if the Worker never got
+ * far enough to write it. A handler killed for exceeding CPU writes nothing at
+ * all, and reads here as silence — which is indistinguishable from a quiet hour.
+ *
+ * `workersInvocationsAdaptive` is the platform's own view: how long each
+ * invocation took, how many subrequests it made, and — the column worth the
+ * whole query — its `status`. `exceededResources` means Cloudflare stopped the
+ * code; `scriptThrewException` means it threw; `clientDisconnected` means the
+ * reader left first, which for a long request usually means they gave up.
+ *
+ * Found on 2026-09-10, the first time this was run: a sibling Worker with two
+ * requests at **thirty seconds of CPU** — the limit itself — and one uncaught
+ * exception. Nothing in that project's own telemetry showed either, because
+ * neither request lived long enough to record anything.
+ *
+ * This uses the GraphQL analytics API and the token already needed for the SQL
+ * above: **Account Analytics: Read** covers both. The newer Workers
+ * Observability *logs* API is a different scope and answers 403 with this
+ * token — worth knowing before somebody spends an afternoon on it.
+ */
+const CPU_LIMIT_US = 30_000_000
+
+async function runtime(): Promise<void> {
+  const since = new Date(Date.now() - HOURS * 3600 * 1000).toISOString()
+  const res = await fetch("https://api.cloudflare.com/client/v4/graphql", {
+    method: "POST",
+    headers: { authorization: `Bearer ${TOKEN}`, "content-type": "application/json" },
+    body: JSON.stringify({
+      query: `query($acc:String!,$since:Time!){viewer{accounts(filter:{accountTag:$acc}){
+        workersInvocationsAdaptive(limit:100, filter:{datetime_geq:$since}){
+          sum{requests errors subrequests}
+          quantiles{cpuTimeP50 cpuTimeP99 wallTimeP99}
+          dimensions{scriptName status}
+        }}}}`,
+      variables: { acc: ACCOUNT, since },
+    }),
+  })
+  const body = (await res.json()) as {
+    errors?: { message: string }[]
+    data?: { viewer?: { accounts?: { workersInvocationsAdaptive?: RuntimeRow[] }[] } }
+  }
+  if (body.errors?.length) {
+    // The reason, not the status: a scope problem and a bad query look the same
+    // from the outside and are fixed in completely different places.
+    console.error(`\nruntime: ${body.errors.map((e) => e.message).join("; ").slice(0, 300)}`)
+    return
+  }
+
+  const rows = body.data?.viewer?.accounts?.[0]?.workersInvocationsAdaptive ?? []
+  /**
+   * This repository's Workers by default, every Worker in the account with
+   * `--all`.
+   *
+   * The narrow default is right for a report headed "remy-sport telemetry".
+   * The flag exists because the first run of this query found the problem in a
+   * *sibling* project — two requests at the CPU limit — and a filter that hides
+   * the neighbour's fire is a filter worth being able to turn off.
+   */
+  const all = process.argv.includes("--all")
+  const ours = all ? rows : rows.filter((r) => r.dimensions.scriptName.startsWith("remy-"))
+  if (!ours.length) {
+    console.log(dim("\nNo invocations recorded for remy-* in this window."))
+    return
+  }
+
+  console.log(`\n${bold("runtime")}  ${dim(`what Cloudflare saw · last ${HOURS}h`)}`)
+  const summary = ours
+    .sort((a, b) => b.sum.requests - a.sum.requests)
+    .map((r) => ({
+      worker: r.dimensions.scriptName,
+      status: r.dimensions.status,
+      requests: r.sum.requests,
+      errors: r.sum.errors,
+      subreq: r.sum.subrequests,
+      cpu_p50_ms: (r.quantiles.cpuTimeP50 / 1000).toFixed(1),
+      cpu_p99_ms: (r.quantiles.cpuTimeP99 / 1000).toFixed(1),
+    }))
+  console.log(
+    summary.length
+      ? table(["worker", "status", "requests", "errors", "subreq", "cpu_p50_ms", "cpu_p99_ms"], summary as unknown as Row[])
+      : dim("  (nothing)"),
+  )
+
+  // The two that are never acceptable, said plainly rather than left in a row.
+  const killed = ours.filter((r) => r.dimensions.status === "exceededResources")
+  const threw = ours.filter((r) => r.dimensions.status === "scriptThrewException")
+  const near = ours.filter((r) => r.quantiles.cpuTimeP99 > CPU_LIMIT_US / 2 && r.dimensions.status === "success")
+  for (const r of killed) {
+    console.log(`  ${bold("!")} ${r.dimensions.scriptName}: ${r.sum.requests} request(s) stopped for exceeding CPU. Cloudflare killed the code; it recorded nothing itself.`)
+  }
+  for (const r of threw) {
+    console.log(`  ${bold("!")} ${r.dimensions.scriptName}: ${r.sum.errors} uncaught exception(s).`)
+  }
+  for (const r of near) {
+    console.log(`  ${bold("~")} ${r.dimensions.scriptName}: p99 CPU is ${(r.quantiles.cpuTimeP99 / 1000).toFixed(0)}ms, over half the 30s limit.`)
+  }
+}
+
+interface RuntimeRow {
+  sum: { requests: number; errors: number; subrequests: number }
+  quantiles: { cpuTimeP50: number; cpuTimeP99: number; wallTimeP99: number }
+  dimensions: { scriptName: string; status: string }
+}
+
+if (process.argv.includes("--runtime")) {
+  if (!ACCOUNT || !TOKEN) {
+    console.error("\nruntime needs CLOUDFLARE_ACCOUNT_ID and a token with Account Analytics: Read.")
+  } else {
+    await runtime()
+  }
+  console.log()
+}
