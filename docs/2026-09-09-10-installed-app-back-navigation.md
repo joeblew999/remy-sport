@@ -34,11 +34,17 @@ plan named, fixed by deletion rather than by editing it.
 
 Whole gate: 1100 unit, 418 render, 49 e2e.
 
-Still open: **every device check in the acceptance table.** No tier in this
-repository reaches an installed app or a Tauri window, so iOS A2HS, Android
-installed, Tauri Mac and Tauri Windows are a person on real hardware. Tauri's
-bundle targets are `app` and `dmg` — macOS only — so Windows targets are added
-with that release.
+Still open, and **only the web installs block this**: iOS Add to Home Screen,
+Android installed, and the installed web app on Windows and Mac. No tier in
+this repository reaches an installed app, so those are a person on real
+hardware.
+
+**Tauri is later** — the Product Owner's decision on 2026-09-10 is to see how
+far web installs go first. Its rows below are planned for, not waited on: the
+control is already unconditional at every width, which is what a Tauri window
+needs, so nothing further is owed until that release. Bundle targets are `app`
+and `dmg`, macOS only, and Windows targets are added with it rather than
+discovered then.
 
 The user reports that installing through Add to Home Screen removes the browser
 Back button. Every app screen must provide a usable route out without browser
@@ -314,8 +320,8 @@ and history boundary and nothing about the visual migration.
   | iOS, Add to Home Screen | The one case with no platform back at all. If the control is wrong here, the reader is stuck with the sidebar. |
   | Android, installed | The app's Back and the system's Back interleaved — the app must not fight the platform's. |
   | Windows / Mac, installed web app | Hierarchy is visible here, so this proves the *return* control is distinguishable from a crumb rather than a duplicate of it. |
-  | **Tauri, Mac** | A 1280px window with no chrome and no system back — the case that shows this is not a small-screen feature. |
-  | **Tauri, Windows** | The same, on the platform whose bundle targets do not exist yet; add them with the Tauri release rather than discovering this then. |
+  | **Tauri, Mac** — *with that release, not now* | A 1280px window with no chrome and no system back — the case that shows this is not a small-screen feature. Designed for already: the control is unconditional at every width. |
+  | **Tauri, Windows** — *with that release, not now* | The same, on the platform whose bundle targets do not exist yet; add them with the Tauri release rather than discovering this then. |
   These are checks a person runs on real hardware. No browser tier reaches an
   installed app or a Tauri window, and saying so is part of the plan rather
   than a gap to be discovered at acceptance.
