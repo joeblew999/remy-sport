@@ -22,7 +22,6 @@ A shipped feature stays here if its acceptance checks or follow-ups are still op
 
 | Work | State | Next step / owning plan |
 | --- | --- | --- |
-| Meetings | **Built and shipped**; Worker tests are the remainder | [Meetings](2026-09-09-13-meetings.md). Anyone may call anyone, invitees are notified on their own channels, and the room reuses the Hang media. Open: a real two-person call and the captures. |
 | Meeting test | In progress | [Hang two-person test page](2026-09-09-12-hang-meeting-test.md). Reuse media adapters without introducing meeting domain records. |
 | MoQ screens | Implemented; live-media acceptance open | [Watching and broadcasting](2026-09-09-09-moq-on-shadcn.md). Shadcn controls checked directly; post-fix live delivery needs camera permission. No further e2e runs requested. |
 | Public help | Implemented; discovery/integration work open | [Public help](2026-09-09-04-blume-public-help.md). Continue from “Current priority — external discovery and real API use”; use the help package's shared CLI. |

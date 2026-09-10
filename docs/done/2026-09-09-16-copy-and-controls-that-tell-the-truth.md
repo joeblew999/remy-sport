@@ -38,7 +38,7 @@ them asks what a sentence *says* on the screen it is on.
       on the day somebody needed a create button. Proven against five known-bad
       fixtures, not merely against a repository that is already clean.
 - [x] **The tier that would have seen it.** `tests/render/meetings.spec.ts`,
-      which step 6 of [Meetings](../2026-09-09-13-meetings.md) ("Proof") had
+      which step 6 of [Meetings](2026-09-09-13-meetings.md) ("Proof") had
       left unwritten — fourteen checks by the end of this record.
 
 ## 2 · A date the reader could not read
