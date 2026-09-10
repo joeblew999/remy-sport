@@ -412,7 +412,57 @@ an agent, and nothing here is legal advice. **No dr5hn data should be seeded
 until that answer exists** — it is easier to decide now than to unpick from a
 shipped database later.
 
-## Tier 3 — Cities: Wikidata has them, and it is CC0
+## Tier 3 — Cities: corrected 2026-09-10, and the answer got worse
+
+**The figures in this section were measured wrong, and building the service found
+it.** They are left below with the correction above them, because a plan that
+quietly edits its own evidence teaches the next person nothing.
+
+**What was claimed:** Wikidata gives Thai 83% and Japanese 95% for cities over
+100k, and 84%/89% for the 15k–100k band.
+
+**What that actually measured:** *of Wikidata items carrying a population
+statement*, how many have a label in that language. There are 6,451 such items in
+the 15k–100k band. **GeoNames has about 30,000 real cities in it.** The question
+had silently narrowed to the fifth of the world Wikidata knows well enough to have
+recorded a population for — and an item somebody curated a population onto is the
+same item somebody curated labels onto. The number was true and described the
+wrong population.
+
+**Measured against a real inventory** — 400 Brazilian cities from `cities15000`,
+joined to Wikidata on `P1566`, 305 of 400 matching so the join itself is sound:
+
+```
+  en   296 / 400        pt  10 / 400        de   6 / 400
+  ja     3 / 400        ar   2 / 400        ru   1 / 400
+  zh     1 / 400        th   1 / 400        vi   1 / 400
+```
+
+Three Japanese labels. One Russian. Even Portuguese, the local language, manages
+ten — because a Wikidata *label* is not a Wikipedia *article*, and municipality
+items are imported with an English label and left there.
+
+### What follows
+
+**Cities are not a translated tier and cannot be made into one from open data.**
+Countries are complete. Subdivisions are genuinely good in the nineteen languages
+dr5hn carries. Cities get a romanised name and, for most places in most languages,
+nothing else.
+
+For Latin-script readers that costs nothing — "Ourinhos" is what a Portuguese,
+German or Vietnamese reader writes anyway. For `th`, `ja`, `ko`, `zh`, `ar`, `ru`
+and every other non-Latin script it means **Latin characters inside their sentence
+for essentially every city in the world**.
+
+So **transliteration is not a deferred nicety. For cities in non-Latin scripts it
+is the only answer that exists.** Step 13 was written as optional; it is
+load-bearing. The design already allows it — `kind` distinguishes it, names are
+addable per (place, locale), real names win by rule — so nothing has to be rebuilt.
+Only the priority was wrong.
+
+The superseded measurement follows.
+
+## Tier 3 — Cities: Wikidata has them, and it is CC0 (superseded, see above)
 
 **This section replaces an earlier conclusion that was wrong.** Measured across
 GeoNames and dr5hn only, cities looked hopeless — 5–49% and 0% — and this plan
