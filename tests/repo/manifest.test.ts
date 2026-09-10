@@ -19,7 +19,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs"
 import { resolve, join } from "node:path"
 import { rule } from "./helpers"
-import { installName } from "../../src/web/lib/install-name"
+import { INSTALL_NAME, installName } from "../../src/web/lib/install-name"
 
 const ROOT = resolve(import.meta.dirname, "../..")
 const DIST = resolve(ROOT, "dist/client")
@@ -119,23 +119,55 @@ rule(
  */
 const environment = process.env.CLOUDFLARE_ENV ?? "production"
 const expected = installName(environment)
-const nameMismatch = skipped
-  ? []
-  : manifest.name !== expected.name || manifest.short_name !== expected.short_name
-    ? [
-        `name is ${JSON.stringify(manifest.name)} / ${JSON.stringify(manifest.short_name)}, ` +
-          `expected ${JSON.stringify(expected.name)} / ${JSON.stringify(expected.short_name)} for ${environment}`,
-      ]
-    : []
+const wrongName = !skipped && (manifest.name !== expected.name || manifest.short_name !== expected.short_name)
+
+/**
+ * Which of the two failures this is, because they look identical and are not.
+ *
+ * A manifest naming the wrong environment has two causes with opposite fixes:
+ *
+ *   - **The build forgot.** It shipped the production name to staging, two
+ *     environments are indistinguishable on a home screen, and the bug is in
+ *     the build. That is what this check exists to catch.
+ *   - **`dist/` holds somebody else's build.** `bun run deploy -- --env staging`
+ *     leaves a staging build behind, and the next bare `bun run test` reads it
+ *     and reports a defect that does not exist. Nothing is wrong; the artifact
+ *     is simply for a different environment.
+ *
+ * Told apart by asking whether the name is *exactly* another known
+ * environment's, which a forgetful build's would not be — it would be
+ * production's, or malformed. The message then says which one it is, because
+ * this cost two rebuilds while its advice pointed the wrong way: it read
+ * "rebuild with the right environment (--env staging)" at somebody whose
+ * problem was a staging build they needed to replace with a local one.
+ */
+const leftoverFrom = wrongName
+  ? Object.keys(INSTALL_NAME).concat("production").find((other) => {
+      const name = installName(other)
+      return other !== environment && manifest.name === name.name && manifest.short_name === name.short_name
+    })
+  : undefined
+
+const nameMismatch = wrongName
+  ? [
+      `name is ${JSON.stringify(manifest.name)} / ${JSON.stringify(manifest.short_name)}, ` +
+        `expected ${JSON.stringify(expected.name)} / ${JSON.stringify(expected.short_name)} for ${environment}`,
+    ]
+  : []
 
 rule(
   "the manifest names the environment it was built for",
   nameMismatch,
-  `The web manifest does not name the environment it was built for.\n\n` +
-    nameMismatch.join("\n") +
-    `\n\nA build that forgets its environment ships the production name on staging,\n` +
-    `so two environments installed side by side are indistinguishable. The name\n` +
-    `comes from installName() in src/web/lib/install-name.ts, keyed off\n` +
-    `CLOUDFLARE_ENV. Rebuild with the right environment (bun run deploy -- --env staging).`,
+  leftoverFrom
+    ? `dist/client holds a build for ${leftoverFrom}, and this run expects ${environment}.\n\n` +
+      nameMismatch.join("\n") +
+      `\n\nNothing is broken — a deploy leaves its own build behind. Run 'bun run build'\n` +
+      `to rebuild for ${environment} and run this again.`
+    : `The web manifest does not name the environment it was built for.\n\n` +
+      nameMismatch.join("\n") +
+      `\n\nA build that forgets its environment ships the production name on staging,\n` +
+      `so two environments installed side by side are indistinguishable. The name\n` +
+      `comes from installName() in src/web/lib/install-name.ts, keyed off\n` +
+      `CLOUDFLARE_ENV.`,
   skipped ?? `manifest: name ${JSON.stringify(manifest.name)} / ${JSON.stringify(manifest.short_name)} for ${environment}`,
 )
