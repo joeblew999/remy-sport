@@ -29,7 +29,7 @@
  * `cf:audit`: `$CLOUDFLARE_API_TOKEN`, or fnox.
  */
 
-import { accountId, resolveTarget, resolvedConfig, token } from "../lib/cloudflare.ts"
+import { accountId, namedEnvironment, resolveTarget, resolvedConfig, token } from "../lib/cloudflare.ts"
 
 import {
   EVENTS,
@@ -118,8 +118,26 @@ const DEV = process.env.DEV_URL ?? "http://127.0.0.1:8787"
 
 /** How far back, in hours. `bun run ops analytics 168` for a week. */
 const HOURS = Number(process.argv.slice(2).find((a) => /^\d+$/.test(a)) ?? 24)
-/** `--remote` reads the deployment even when a dev server is up. */
-const FORCE_REMOTE = process.argv.includes("--remote")
+/**
+ * Read the deployment rather than a dev server's in-memory ring.
+ *
+ * `--remote` says so outright. Naming an environment says so too, and used not
+ * to: `local` won unconditionally, so `ops analytics --env production` with
+ * `bun run dev` running reported the **dev server's** last few minutes. The
+ * header did say "dev server", which makes it better than a wrong dataset and
+ * still wrong — an explicit `--env` is a statement about which deployment you
+ * mean, and dev is not one of them. Asking about production and being answered
+ * about localhost is the same class of error this whole file has been audited
+ * for today.
+ *
+ * The bare `ops analytics` is unchanged and still prefers a dev server: with no
+ * environment named there is nothing to contradict, and the local ring is the
+ * fast loop the fallback exists for.
+ */
+const FORCE_REMOTE =
+  process.argv.includes("--remote") ||
+  process.argv.includes("--all-environments") ||
+  namedEnvironment(process.argv.slice(2)) !== undefined
 
 type Row = Record<string, string | number>
 
