@@ -150,23 +150,34 @@ Keep existing breadcrumb hierarchy and sidebar navigation.
 
 ## Implementation sequence
 
-1. Extend the existing hash router with one shared navigation state and a
-   back operation. Use namespaced history.state entry IDs plus a per-tab
-   session record to prove a previous app entry exists. Preserve unrelated
-   history.state fields. Handle hash links, goto, popstate/hashchange,
-   replacement and forward-branch truncation without recording traversal as
-   a new visit or counting both events twice. Do not patch browser APIs globally.
-   Reconcile state on reload and locale remount. When state cannot be trusted
-   or storage is unavailable, start a new boundary and offer the fallback.
-   Never infer safety from history.length or document.referrer alone.
-   The mechanism follows from what the router does today, and it is the part
-   worth getting right first: `write` assigns `window.location.hash`, and an
-   ordinary `<a href="#/…">` creates its entry before the app hears anything, so
-   the entry ID can only be stamped afterwards — in the hashchange handler, with
-   `replaceState` on the entry that has just appeared. Going the other way,
-   `replaceState` with a different hash fires no hashchange at all, so
-   replacement navigation must set the router's own state itself rather than
-   waiting to be told.
+1. **Use the return trail that already exists. Do not build a history boundary.**
+   This step used to specify namespaced `history.state` entry IDs, a per-tab
+   session record, forward-branch truncation and reload reconciliation — roughly
+   a hundred and fifty lines of the fiddliest code in any front end, to answer
+   one question: *is there a previous app screen?*
+
+   `routeHref` already answers it. `from=` **nests** — `ancestorsOf` walks it and
+   `MAX_TRAIL` caps it at four — so it is a full return stack, not one level, and
+   it survives things `history.state` cannot:
+
+   | | `from=` trail | a `history.state` boundary |
+   | --- | --- | --- |
+   | Multi-level back | yes, capped at 4 | yes |
+   | Survives reload | **yes — it is in the URL** | no |
+   | Survives a shared link | **yes** | no |
+   | Survives a cold launch from a notification | **yes** | no |
+   | Code to write | **none; it exists** | ~150 lines |
+
+   For an installed app that is cold-launched from a notification — which is
+   this product — URL-carried state is not a workaround, it is the better
+   design. So the control reads `ancestorsOf(route)`, takes the last entry, and
+   falls back to the page's parent when the trail is empty.
+
+   **The divergence from the browser's own Back is deliberate and is not a gap.**
+   Browser Back undoes one filter or tab change at a time; the shell's control
+   returns to the previous *screen*. Both are correct for what they are, and
+   step 2 records why.
+
 2. Add explicit replacement navigation. Fresh-entry fallback replaces the
    current entry so it cannot create a Back loop. Successful sign-in replaces
    its transient login entry; verify that Back cannot cycle through completed
@@ -201,6 +212,32 @@ Keep existing breadcrumb hierarchy and sidebar navigation.
    on actual phones. Update this plan and the docs index with evidence and any
    remaining device limitation. Completion requires both automation and the
    installed-device checks below.
+
+## Deferred, and deliberately not folded in: this app has no router library
+
+Recorded here because this plan is where it surfaced, and losing it would mean
+re-deriving it. **`src/web/lib/router.tsx` is 315 hand-written lines and there is
+no routing dependency at all**, in an application that already depends on
+`@tanstack/react-query`. TanStack Router is the obvious sibling and would supply,
+as library code rather than ours: keyed history entries and `canGoBack()`, typed
+search parameters, and scroll restoration — all of which exist here by hand.
+
+The first draft of step 1 above was this repository reinventing that wheel one
+layer deeper. It is cut, and the *feature* no longer needs it.
+
+**Adopting a router is a separate decision and a separate plan**, for reasons
+that are about risk rather than merit:
+
+- It touches every route, every link and every navigation test in a live
+  application serving twenty-seven locales.
+- The trigger would be a routing need, not a button. Swapping the router to add
+  a Back control is the scope creep that goes wrong.
+- It is a Product Owner call. The current router works, is tested, and its
+  `from=` design is genuinely well suited to an installed app.
+
+What would justify opening it: typed search parameters becoming a real need,
+route-level code splitting, or a second hand-rolled history mechanism appearing.
+Any of those, and this stops being a preference.
 
 Coordinate implementation with the ongoing header/main-content changes in
 [the registry plan](done/2026-09-09-07-main-content-on-the-registry.md). The edits
