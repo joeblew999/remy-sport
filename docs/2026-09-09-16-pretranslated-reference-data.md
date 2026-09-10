@@ -1,9 +1,16 @@
-# Plan — pretranslated reference data, starting with places
+# Plan — a standalone places service, in every language
 
-Status: proposed 2026-09-09. **Plan complete; five sources measured; nothing
-implemented.** Arranged to run unattended — see "The unattended run" — by making
-the licence a flag rather than a precondition, defaulting the build to a sample,
-and leaving publishing and deploying as the two human acts they should be.
+Status: proposed 2026-09-09, scope corrected 2026-09-10. **Plan complete; five
+sources measured; nothing implemented.**
+
+**What this builds: a places system that is independent of this application** — its
+own public repository, its own Worker, its own database — holding countries,
+subdivisions and cities in **every language the sources carry**, not in the set
+some app happens to declare. The app adopts it later, and *that* is a different
+plan; see "Not this plan" below for what was wrongly pulled in here and taken out
+again.
+
+Arranged to run unattended: publishing and deploying are the only human acts.
 
 The Product Owner: we need a places system for every country, pretranslated —
 **reference data that already carries every language**, open source, fitting
@@ -11,7 +18,7 @@ what we have.
 
 That is exactly what CLDR is, and the ask is bigger than places: the same corpus
 already carries our regions, languages, scripts, currencies and time-zone names
-in all thirteen locales, complete, for zero bytes. Section "The corpus" below is
+in every declared locale, complete, for zero bytes. Section "The corpus" below is
 the whole inventory.
 
 The short answer for places specifically: **every tier is solvable, and each has a
@@ -23,18 +30,137 @@ measured — are 83–99% for anywhere a tournament would be held, under CC0.
 A plan that treats "places" as one dataset buys the wrong thing for two of the
 three tiers, which is the main reason this document is long.
 
+## How many languages? Keep every one the free sources carry
+
+The Product Owner, 2026-09-10: *"this plan will produce the data for how many
+languages? We might as well produce the data for all languages."*
+
+**Mostly yes — and for three of the four sources it is nearly free.**
+
+First, a dating correction, because this document is read at the start of
+sessions. **The coverage figures below were measured on 2026-09-09, when the model
+declared thirteen locales. It declares twenty-seven now** — `th en ja zh es pt id
+fr tl vi ko de ru tr it pl uk hi ar ms bn zh-TW zh-HK ur fa sw nl` — every one of
+them released. GeoNames, dr5hn and Wikidata have not been re-scored against the
+new fourteen; that is one command, `bun run ops refdata score`, and it should be
+run before anyone quotes a percentage at the new count.
+
+**CLDR has been re-scored, and it is the encouraging half:** 280 countries at
+**100% in all twenty-seven**, including `ar`, `bn`, `ur`, `fa`, `sw`, `ms`, `hi`,
+`zh-TW`, `zh-HK`. Fourteen languages were added and the country tier cost nothing
+— no code change either, because the scorer reads `ALL_LOCALES` rather than a list
+of its own. That is the design working exactly as intended.
+
+### What "all languages" costs, measured
+
+Over the 3,067-city sample, GeoNames carries **217 distinct language tags**.
+Keeping all of them versus keeping only ours:
+
+| | Names | Bytes |
+| --- | --- | --- |
+| Our declared locales | 12,304 | 0.2 MB |
+| **Every language** | **23,505** | **0.4 MB** |
+| Ratio | **1.9×** | **2.5×** |
+
+**2.5× on a base of tens of megabytes is not a reason to throw data away.** And
+the case is stronger than the ratio suggests, per source:
+
+- **GeoNames** — `alternateNames` is one file containing every language. The
+  extraction already streams the whole thing, so **filtering to our locales is
+  extra work, not less.** Keeping all is the cheaper code.
+- **dr5hn** — nineteen languages, fixed. Take all nineteen.
+- **CLDR** — ICU carries hundreds of locales; 280 countries × any number of
+  languages is trivial.
+- **Wikidata — the exception.** Labels come one SPARQL pass per language, so
+  "every language" means hundreds of passes against an endpoint that already times
+  out. **Wikidata stays scoped to declared locales**, and re-runs when one is
+  added.
+
+**So: keep every language from GeoNames, dr5hn and CLDR; scope Wikidata to what is
+declared.** The payoff is that language twenty-eight arrives with its GeoNames,
+dr5hn and CLDR names *already in the database* — only the Wikidata pass is owed,
+which is better than the "minutes" promised in the previous section.
+
+Two things follow. **The rendering side stays scoped** — nobody ships 217
+languages to a browser; that is [the reference-payload plan's](2026-09-09-17-reference-payload-per-locale.md)
+concern, and it is a different question from what the database holds. And **a
+language's coverage can be reported before it is declared**, since the data is
+already there to count.
+
+### One more join key, found while measuring
+
+GeoNames' `alternateNames` uses pseudo-language tags for non-name rows — `link`,
+`unlc`, and **`wkdt`, which is the Wikidata ID**: 10,318 of them in Thailand
+alone. So the GeoNames↔Wikidata join can be made from *either* side — `P1566` on
+Wikidata, or `wkdt` in GeoNames. Whichever is denser wins; both should be tried
+before assuming a place has no Wikidata labels. The same rows must be **excluded
+from language counts**, or `link` and `unlc` appear as two of the world's most
+widely spoken languages.
+
+## Reference data is not only places — and a third of it is English
+
+*"Is the reference data only about places?"* — the Product Owner, 2026-09-10. No.
+The model carries **23 vocabularies, 298 rows, 8,046 name cells at twenty-seven
+locales**, and they split into two kinds that need completely different treatment:
+
+- **What CLDR and the open sources have** — countries, subdivisions, cities,
+  languages, currencies, time zones. This plan.
+- **What nobody has but us** — `POSITION`, `ACTION`, `AGE_GROUP`, `EVENT_TYPE`,
+  `SKILL_TIER`, `COACH_ROLE` and the rest. **No open dataset contains "Point
+  Guard" in Swahili.** Those are ours to translate, and the only leverage
+  available is a check that says when one is missing.
+
+### What that check has to test, because the obvious version passes
+
+Measured 2026-09-10, across every vocabulary:
+
+| | |
+| --- | --- |
+| Name cells in **non-Latin-script** locales (`th ja zh zh-TW zh-HK ko ru uk hi bn ar fa ur`) | 3,852 |
+| …holding text **byte-identical to the English value** | **1,199 — 31%** |
+
+By vocabulary: **`PROVINCE` 847**, `LOCALE` 235, `OBJECT_TYPE` 44, `CITY` 22,
+`NOTIFICATION_CHANNEL` 18, `EVENT_FORMAT` 12, `ACTION` 11, `POSITION` 10.
+
+`ACTION.DEFINE_SESSION_SCHEDULE.zh` is the string `"Define session schedule"`.
+`PROVINCE.BKK.ru` is `"Bangkok"`, where Russian has Бангкок, Korean 방콕 and
+Arabic بانكوك — real names, in CLDR and Wikidata, free.
+
+**Both existing checks pass on all 1,199.** Completeness asks whether the cell is
+non-empty, and it is. The stray-script rule in
+[`tests/repo/messages.test.ts`](../tests/repo/messages.test.ts) asks whether a
+character comes from a script the locale does not use — and Latin is not a stray
+script for Russian, because brand names legitimately appear in it. Each check is
+right about its own question; neither asks this one.
+
+**The rule that catches it is one line: a value identical to the English value, in
+a locale whose script is not Latin.** Low false-positive by construction — a
+genuine Russian name is not byte-identical to the English one — and it is what
+step 5 must test rather than mere presence.
+
+An earlier draft of this plan said `PROVINCE` sat at four locales and no check
+would notice. It is now at twenty-seven, filled overnight, and **847 of those
+cells are English**. The gap did not close; it became invisible. That is the
+stronger argument for the check, and for taking the names from CLDR and Wikidata
+where they exist rather than copying the pivot sideways.
+
+Provenance is what keeps this honest at scale: a `kind` of `romanised` on those
+cells would have made them a known state rather than a silent one. See
+[Translation provenance](2026-09-09-19-translation-provenance.md), which owns the
+copy-quality question this plan only touches.
+
 ## The corpus — what "already translated into all languages" gets us
 
 Measured 2026-09-09 on Bun 1.4.0, counting entries the runtime will actually
-name in each of the thirteen locales:
+name in each of the declared locales:
 
 | Reference data | Entries, per locale | State today |
 | --- | --- | --- |
-| Territories (countries) | **280**, all 13 locales | Not modelled at all |
-| Languages | **all 13 + every other tag**, all 13 locales | Hand-written N×N `names` in `LOCALE` |
-| Currencies | **173–307**, all 13 locales | Not modelled |
+| Territories (countries) | **280**, all 27 — re-measured | Not modelled at all |
+| Languages | **every tag**, all 27 | Hand-written N×N `names` in `LOCALE` |
+| Currencies | **173–307**, measured at 13 | Not modelled |
 | Scripts | 8–10 of 10 sampled | Not modelled |
-| Time-zone display names | **445 IANA zones**, all 13 locales | `event.timezone` stores the tag, shows it raw |
+| Time-zone display names | **445 IANA zones**, measured at 13 | `event.timezone` stores the tag, shows it raw |
 | **Subdivisions** | **English only — 3 entries elsewhere** | Thailand's 77, hand-written, 4 locales |
 
 The first five are a solved problem we have not collected. The sixth is the only
@@ -73,9 +199,11 @@ other one, with names on the row:
 Two facts about that, before adding anything:
 
 **The places we already have are not pretranslated.** Every `PROVINCE` row
-carries `th`, `en`, `ja`, `es` — four of the thirteen declared locales. Adding
-250 countries in all thirteen while Thailand's provinces have four would make
-one page fluent and the next one English.
+carries `th`, `en`, `ja`, `es` — **four of the twenty-seven declared locales, and
+all twenty-seven are released.** That gap widened by fourteen languages overnight
+without anyone touching `PROVINCE`, which is precisely the failure the missing
+check would have caught. Adding 250 countries in all twenty-seven while Thailand's
+provinces have four would make one page fluent and the next one English.
 
 **`cityCode` is a TypeScript union, not a foreign key.** `CITY_CODES` is derived
 from the model array and used twice as an enum:
@@ -100,9 +228,9 @@ locale `ALL_LOCALES` declares. Adding the next candidate is a row in that file's
 
 | Candidate | Licence | Countries | Subdivisions | Cities |
 | --- | --- | --- | --- | --- |
-| **CLDR** / `Intl.DisplayNames` | Unicode — free | **280, all 13 at 100%** | 5,395 **en only** | — |
+| **CLDR** / `Intl.DisplayNames` | Unicode — free | **280, all 27 at 100%** | 5,395 **en only** | — |
 | **GeoNames** | CC BY 4.0 — credit | (use CLDR) | 3,865 rows, **58–90%** | 34k–152k, **5–49%** |
-| **dr5hn/countries-states-cities** | **ODbL — share-alike** | 250, **8 of 13** | 5,308 rows, **100% in 8 of 13** + `native` 100% | 152,970, **0%** |
+| **dr5hn/countries-states-cities** | **ODbL — share-alike** | 250, **8 of 13 then** | 5,308 rows, **100% in 8 of 13 then** + `native` 100% | 152,970, **0%** |
 | **annexare/Countries** | MIT — free | 252, **en only** + endonym | — | — |
 | **Wikidata** | **CC0 — free** | (use CLDR) | ISO 3166-2, not yet counted | **4,099 over 100k: th 83%, vi 89%, id 86%, ja 95%, ru 96%, en 99%** |
 
@@ -232,7 +360,7 @@ page — not only a code one. If the PO would rather not carry it, ISO 3166-2
 labels from Wikidata are CC0 with no attribution, at the price of a SPARQL
 extraction and its own uneven coverage.
 
-### dr5hn/countries-states-cities-database — better than both, for eight of our thirteen
+### dr5hn/countries-states-cities-database — better than both, for eight of the thirteen declared then
 
 The PO put this forward, and it beats everything above for subdivisions. Measured
 2026-09-09 against the published JSON exports:
@@ -684,13 +812,26 @@ So a fourteenth language is **minutes over staged data**, not a rebuild. The 1.2
 is fetched when a *source* changes, which is a different and rarer event than a
 language being added.
 
-### The locale list is an input, never a constant
+### The service has no locale list at all
 
-The ETL reads the model's declared locales the way
-[`scripts/ops/refdata.ts`](../scripts/ops/refdata.ts) already does — so declaring a
-language in the model is the whole act, and the pipeline widens by itself. A list
-typed into the ETL is a list that goes stale the first time somebody adds a
-language without knowing the ETL exists.
+Corrected 2026-09-10. An earlier draft had the ETL read this application's
+declared locales — which would have coupled a standalone service to one consumer's
+configuration, and made "add a language" a change in the wrong repository.
+
+**The service stores every language its sources carry and takes `locale` as a
+request parameter.** A caller asks for `sw`; if the data is there it is returned,
+and if it is not the pivot comes back. Adding a language to *any* consumer then
+costs the service nothing, because there was never a list to add it to.
+
+Wikidata remains the one place a list is needed, since its labels come one SPARQL
+pass per language — so the service keeps its **own** policy there (a coverage
+threshold, or on-demand for a language somebody asks for), decided by the service,
+not inherited from an app.
+
+[`scripts/ops/refdata.ts`](../scripts/ops/refdata.ts), the scorer in this repo,
+does read `ALL_LOCALES` — correctly, because it answers a different question:
+*would this source serve **us**?* That is a consumer's question, and it is why the
+scorer stays here while the ETL does not.
 
 ### What provenance buys, beyond attribution
 
@@ -719,7 +860,7 @@ licence audit it was introduced for:
 | Countries | CLDR, snapshotted into the model by a generator. Not resolved at render time. |
 | Where does the snapshot live? | The PO's model, same shape as `PROVINCE`, so a name can be overridden by hand. |
 | `tl` | Mapped to `fil` for every ICU call, with a check that no locale silently resolves to another language. |
-| Subdivisions | **dr5hn — decided by the PO, 2026-09-09.** 100% in eight of our thirteen plus `native` at 100%, with GeoNames filling `th`/`vi`/`id` where dr5hn has nothing and GeoNames has 65–74%. `--without dr5hn` stays as an exercised escape hatch, not a theoretical one. |
+| Subdivisions | **dr5hn — decided by the PO, 2026-09-09.** 100% in eight of the thirteen declared then plus `native` at 100%, with GeoNames filling `th`/`vi`/`id` where dr5hn has nothing and GeoNames has 65–74%. `--without dr5hn` stays as an exercised escape hatch, not a theoretical one. |
 | Licences | CLDR is Unicode (free). GeoNames is CC BY 4.0 (a credit). dr5hn is ODbL-1.0, share-alike — **accepted**. Discharged by the service's repo carrying the derived database and the credits under ODbL. |
 | Licence files | **This repo: MIT.** **Places repo: code MIT, data ODbL-1.0, stated separately.** Chosen by the PO 2026-09-09 as "whatever works". MIT here lets anyone run this commercially — a business call, flagged, and irreversible once pushed. |
 | Transliteration | **Deferred, and the schema must not foreclose it.** Provenance carries a `kind` per name and names are addable per (place, locale) without an ETL rerun, so filling `th`/`zh`/`ko` below 100k later is a job rather than a rewrite. |
@@ -738,90 +879,86 @@ licence audit it was introduced for:
 
 ## Steps
 
-- [ ] **1 · Name the `tl → fil` trap in code and hold it with a check.** One
-      mapping beside the locale vocabulary, and a repo check that every declared
-      locale's `Intl` tag resolves to its own language. This is the cheapest step
-      and the one that is already wrong today wherever a locale reaches ICU.
-- [x] **2 · The licence question — answered by the PO, 2026-09-09: dr5hn is in.**
-      All three tiers are built: countries, subdivisions and cities. What replaces
-      this step is smaller and is now step 2b.
-- [ ] **2b · Licences, chosen 2026-09-09** — the PO asked for whatever makes this
-      work, so:
-      - **The places repo: code MIT, data ODbL-1.0**, in two separate statements
-        with a `LICENSE` and a `LICENSE-DATA`, plus the GeoNames credit in the
-        README. This is not really a choice — ODbL is forced by dr5hn, and MIT is
-        the only code licence that does not fight it.
-      - **This repo: MIT.** It is already public, and a public repo with no licence
-        grants nobody anything, which contradicts publishing it at all.
-        **What MIT means, plainly: anyone may take this code, change it, and run it
-        commercially, including as a competitor, provided they keep the copyright
-        notice.** That is a business call rather than a technical one, and it is
-        reversible only until the file is pushed — an MIT grant cannot be retracted
-        for a version somebody already has. Flagged rather than assumed.
-- [ ] **3 · `bun run ops refdata`**, a generator in `scripts/ops/`, writing the
-      CLDR-derived vocabularies in the model's shape — `COUNTRY` first, then
-      `LOCALE`'s endonym and `names`. Same automation as the team, per AGENTS.md
-      — not a one-off script. It is one generator because it is one corpus; a
-      second script per vocabulary is how the tl→fil trap gets re-implemented
-      three times and fixed once.
-- [ ] **4 · A `country` vocabulary table and its seed**, alongside `province`.
-      The seed not compiling is what proves the data and the column agree.
-- [ ] **5 · A repo check that vocabulary `names` cover every released locale** —
-      the equivalent of `messages.test.ts` for data rather than copy. There is no
-      such check today, which is why `PROVINCE` sits at four locales unnoticed.
-- [ ] **6 · Backfill `PROVINCE` to all released locales** once step 5 can see it.
-- [ ] **7 · Retire `CITY_CODES` as an enum** — FK plus boundary validation, the
-      shape `provinceCode` already uses — before any worldwide set is seeded.
-- [ ] **8 · Stand up the public repo and its Worker** once step 2 says which
-      sources are in. It holds the ETL, **the derived database** (without which
-      ODbL is not satisfied), the oRPC contract, its own D1, and two licence
-      statements: data ODbL, code MIT.
-- [ ] **8b · The normaliser streams, from the first line written.** Every source
-      read as a stream into NDJSON in R2, never `JSON.parse` of a whole file. It is
-      the same code whether it runs in CI or in a Workflow, and retrofitting it
-      later means rewriting the ETL rather than moving it.
-- [ ] **8c · Split staging from extraction, so a new language is minutes.**
-      `refdata stage` fetches sources into R2 with a `fetched_at`; `refdata extract`
-      is a pure function of *(staged sources, the model's locale list)* and needs no
-      network except one Wikidata label pass. Five languages were released during
-      the writing of this plan; an ETL that costs 1.2 GB per language is one that
-      gets avoided. Prove it by adding a fourteenth locale and re-running extract
-      alone.
-- [ ] **9 · Subdivisions, merged and provenanced.** dr5hn for the eight it covers,
-      GeoNames for `th`/`vi`/`id`, `native` for the endonym, English as the pivot.
-      Each name records which source and licence it came from — that record is what
-      an attribution line and any future licence audit are built from.
-- [ ] **10 · Cities: inventory from GeoNames, languages from Wikidata,** joined on
-      `P1566` — the GeoNames ID Wikidata carries on 26,282 city items. Romanised
-      pivot always, own-language name from GeoNames, **cross-language from Wikidata
-      at every population band, not only above 100k**: it is 84% `ja` and 89% `ru`
-      in the 15k–100k band where GeoNames is 7% and 20%. A table with a foreign
-      key, never a vocabulary and never an enum.
-- [ ] **10b · Transliteration — deferred, and the schema must keep it possible.**
-      The PO's requirement, 2026-09-09: it **must be addable later**. So it is not
-      built now, and three things are built now so that it can be:
-      - **Provenance per name, with a `kind`** — `translated`, `native`,
-        `romanised`, `transliterated`. Adding a kind later is a migration; adding
-        the *concept* later is a rewrite.
-      - **Names are addable per (place, locale) without re-running the ETL.** A
-        transliteration pass is then a job that fills gaps, not a rebuild.
-      - **Real names always beat generated ones**, by rule, so a later upstream
-        translation silently replaces a transliteration rather than fighting it.
+- [ ] **1 · The repo, its licences, and the Worker skeleton.** `remy-places`:
+      oRPC contract, D1 schema, `wrangler.toml`, `LICENSE` (MIT, code) and
+      `LICENSE-DATA` (ODbL-1.0, data) as two separate statements, plus the
+      GeoNames credit in the README. Local git only — publishing and deploying
+      stay the PO's two commands.
+- [x] **2 · Licence question — answered by the PO 2026-09-09: dr5hn is in.** All
+      three tiers get built. ODbL is discharged by this repo being public and
+      carrying the derived rows.
+- [ ] **3 · `stage` — fetch each source into R2 unchanged**, with a `fetched_at`.
+      Knows nothing about languages. This is the step that costs 1.2 GB, and it
+      runs when a *source* changes, not when a language is added.
+- [ ] **4 · `extract` — stream, never parse whole.** Every source read as a
+      stream into NDJSON, because the 128 MB isolate limit is not negotiable and
+      retrofitting streaming later is a rewrite. **Keeps every language the source
+      carries** — filtering would be extra work, not less.
+- [ ] **5 · `merge` — one row per place, names keyed by (locale, source, kind).**
+      `kind` is `translated` / `native` / `romanised` / `transliterated`, and
+      precedence between them is a rule rather than a judgement. This is what makes
+      a re-run additive, an attribution line buildable, and a licence removable.
+- [ ] **6 · Countries from CLDR** — 280 territories in every locale ICU carries,
+      not just the ones some app declares. Snapshotted, because the runtime's
+      wording is editorial and changes with its ICU version.
+- [ ] **7 · Subdivisions — dr5hn plus GeoNames.** 5,308 rows: dr5hn's nineteen
+      languages, `native` for the endonym, GeoNames for what dr5hn lacks, romanised
+      pivot underneath.
+- [ ] **8 · Cities — inventory from GeoNames, languages from Wikidata**, joined on
+      `P1566` (26,282 city items) or GeoNames' own `wkdt` rows, whichever is denser.
+      Romanised pivot always, own-language name from GeoNames, cross-language from
+      Wikidata at every population band — 84% `ja` and 89% `ru` in the 15k–100k band
+      where GeoNames manages 7% and 20%.
+- [ ] **9 · D1 schema, load, and the indexes the cascade needs.** Country →
+      subdivision → city, each filtered by the one above. A check that no city query
+      can run unfiltered: unfiltered is a 152,970-row scan that D1 bills for and, on
+      the free plan, refuses.
+- [ ] **10 · The oRPC contract, and an OpenAPI document from it.** One contract,
+      three transports — a service binding for a Worker on the same account, a URL
+      for anyone else's, plain HTTP for anything not TypeScript. `locale` is a
+      request parameter: **the service holds every language and the caller asks for
+      what it wants.**
+- [ ] **11 · The cascading picker as a shadcn registry item**, so the control is
+      installable by anyone, not only by us.
+- [ ] **12 · A coverage report per language**, printable before a language is
+      adopted rather than discovered after: "Polish — countries 100%, subdivisions
+      100%, cities over 100k 71%". The data is already there to count.
+- [ ] **13 · Transliteration — deferred by decision, kept possible by design.**
+      Not built now. What is built now: the `kind` on every name, names addable per
+      (place, locale) without an ETL rerun, and real names beating generated ones by
+      rule. The hole it will fill is `th`, `zh` and `ko` below 100,000 people, where
+      a Latin fallback is unreadable to the reader it is for.
 
-      The hole it will fill: `th`, `zh` and `ko` below 100,000 people — 29% and
-      worse — where a Latin fallback inside a Thai sentence is unreadable to the
-      reader it is for. Latin-script locales never need it; the romanisation is
-      what they use anyway.
-- [ ] **11 · The cascading picker**, published as a shadcn registry item — country,
-      then subdivision, then city, each query filtered by the one above and hitting
-      an index. A check that no city query can run unfiltered, because the
-      unfiltered one is a 152,970-row scan that D1 bills for and, on the free plan,
-      refuses.
-- [ ] **12 · Bind it into remy-sport** — the oRPC client over a service binding, a
-      city id plus a name snapshot on `venue`, and a local fallback so `bun run dev`
-      and the full suite pass with the places service unreachable. That last part is
-      the one that will be skipped under time pressure, and it is the one that
-      decides whether every developer now starts two Workers to run one app.
+## Not this plan — the app integration, later
+
+The Product Owner, 2026-09-10: *"the current code has a places system that we do
+not want to couple to yet. We are building a places system that is independent of
+the current app, that will get used in the app later."*
+
+So none of the following is in scope, and an earlier draft of this plan wrongly
+had all of it. It is recorded here because the findings are real and should not
+have to be discovered twice — not as work waiting to be done under this plan.
+
+- **`tl` resolves to `en-US` through ICU**, silently returning English wherever a
+  locale reaches ICU. A live bug in the app, unrelated to any dataset. Needs
+  `tl → fil` and a check that no declared locale resolves to another language.
+- **1,199 of 3,852 name cells in non-Latin-script locales are byte-identical to
+  the English value — 31%**, `PROVINCE` accounting for 847 of them. Both existing
+  checks pass on all of them. The rule that catches it is one line: identical to
+  English, in a locale whose script is not Latin. This belongs to
+  [Translation provenance](2026-09-09-19-translation-provenance.md), which owns
+  copy quality.
+- **`CITY_CODES` is a `z.enum` and a drizzle column enum.** Fine at two cities,
+  fatal at thirty-four thousand. It has to become an FK plus boundary validation
+  before the app consumes this service — but not before the service exists.
+- **A `COUNTRY` vocabulary in the PO's model**, and whether the app keeps
+  vocabularies for places at all once a service owns them.
+- **Binding the app to the service** — the oRPC client over a service binding, a
+  city id plus a name snapshot on `venue`, and a local fallback so `bun run dev`
+  and the suite pass with the service unreachable.
+
+When that work is taken up it wants its own plan, because the question it answers
+is a different one: *what does the app stop owning?*
 
 ## The unattended run
 
@@ -835,7 +972,7 @@ change, and the fourth is a human act that should stay one.
 separate public repo is what makes cheap — the derived database is offered by
 construction, and the obligation never reaches remy-sport.
 
-So subdivisions are built from dr5hn: **100% in eight of our thirteen locales plus
+So subdivisions are built from dr5hn: **100% in eight of our declared locales plus
 `native` at 100%**, with GeoNames filling `th`, `vi` and `id` where dr5hn has
 nothing.
 
@@ -868,7 +1005,7 @@ time *before* that, not after.
 1.2 GB of downloads and a SPARQL endpoint that timed out three times in one
 evening is not something to run unwatched. So the unattended run builds the
 **sample**: Thailand in full, plus the world's countries, plus cities above the
-population floor for the thirteen locales. It proves the pipeline end to end,
+population floor for the declared locales. It proves the pipeline end to end,
 produces a database a developer can work against, and finishes in minutes.
 
 The **full world build stays a separate, explicitly triggered command** — it is a
