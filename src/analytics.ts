@@ -165,6 +165,38 @@ export const EVENTS = {
    * the earliest signal that the copy or the frequency is wrong, and it arrives
    * long before a spam complaint does. No user id — this is a rate, not a log.
    */
+  /**
+   * One email, and what became of it.
+   *
+   * The gap this closes was found on 2026-09-10 by the Product Owner, and the
+   * way it was found is the point: email had been working for them for weeks,
+   * and from the telemetry it was **indistinguishable from completely broken**.
+   *
+   * `notify.batch` counts the EMAIL channel, so bulk notifications were
+   * visible. Everything transactional — the sign-in code, an organisation
+   * invitation — goes through Better Auth and the mailer directly, never
+   * through `notify`, and left no trace at all. The only evidence a
+   * transactional email had ever existed was a *failure*, and Better Auth
+   * swallows the reason, so even that arrived as an anonymous stack.
+   *
+   * A channel you can only see when it breaks is not observable. You cannot
+   * tell "nothing sent" from "everything sent perfectly".
+   *
+   * `kind` is the sender: transactional mail goes out as `EMAIL_FROM` and bulk
+   * as `NOTIFY_EMAIL_FROM`, and those are separate reputations — a spam
+   * complaint against one must not take the sign-in code down with it. So the
+   * row is keyed by the thing that would fail independently.
+   *
+   * **No address, and no subject.** This is a rate, not a log: how many, of
+   * what kind, and how many refused. Who they went to is in the Worker's own
+   * logs for the minutes they matter, and does not belong in a dataset kept for
+   * a year. The same reasoning as `notify.unsubscribed` below.
+   */
+  "mail.sent": defineEvent({
+    blobs: ["kind", "transport", "outcome"],
+    doubles: ["ok"],
+    dimensions: ["kind", "transport", "outcome"],
+  }),
   "notify.unsubscribed": defineEvent({
     blobs: ["typeCode", "channel"],
     doubles: [],

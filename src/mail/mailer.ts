@@ -1,5 +1,6 @@
 import type { Bindings } from "../types"
 import { permits } from "../environment"
+import { track } from "../analytics"
 
 /**
  * Outbound email, with a transport that can be swapped for tests.
@@ -224,5 +225,42 @@ export function usesOutbox(env: Bindings): boolean {
 }
 
 export function mailerFor(env: Bindings): Mailer {
-  return usesOutbox(env) ? outboxMailer(env) : cloudflareMailer(env)
+  return counted(env, usesOutbox(env) ? outboxMailer(env) : cloudflareMailer(env))
+}
+
+/**
+ * Every email leaves a row, whether it worked or not.
+ *
+ * The gap this closes was found by the Product Owner on 2026-09-10, and how it
+ * was found is the argument for it: email had been working for them for weeks,
+ * and from the telemetry it was **indistinguishable from completely broken**.
+ * `notify.batch` counts the EMAIL channel, so bulk notifications were visible;
+ * everything transactional goes through Better Auth and this mailer directly,
+ * never through `notify`, and left no trace at all.
+ *
+ * So the only evidence a sign-in code had ever existed was a *failure* — and
+ * Better Auth swallows the reason, so even that was an anonymous stack. A
+ * channel you can only see when it breaks is not observable: "nothing sent" and
+ * "everything sent perfectly" look the same.
+ *
+ * Wrapped here, at the one door every send goes through, rather than inside
+ * each transport — a transport added later is counted without being asked to
+ * remember. `transport` distinguishes them, so a captured outbox send is not
+ * mistaken for one that really left.
+ *
+ * The failure is re-thrown untouched. This records; it does not decide.
+ */
+function counted(env: Bindings, inner: Mailer): Mailer {
+  const transport = usesOutbox(env) ? "outbox" : "cloudflare"
+  return {
+    async send(mail) {
+      try {
+        await inner.send(mail)
+        track(env, "mail.sent", { kind: mail.kind ?? "transactional", transport, outcome: "sent", ok: 1 })
+      } catch (error) {
+        track(env, "mail.sent", { kind: mail.kind ?? "transactional", transport, outcome: "refused", ok: 0 })
+        throw error
+      }
+    },
+  }
 }

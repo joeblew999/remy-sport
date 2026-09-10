@@ -96,3 +96,45 @@ describe("a refused send", () => {
     expect(failure!.cause).toBeInstanceOf(Error)
   })
 })
+
+/**
+ * Every email leaves a row, including the ones that work.
+ *
+ * Found by the Product Owner on 2026-09-10: email had been working for them for
+ * weeks and was, from the telemetry, indistinguishable from completely broken.
+ * Bulk notifications were counted by `notify.batch`; everything transactional —
+ * the sign-in code, an invitation — went through the mailer directly and left
+ * no trace, so the only evidence one had existed was a failure.
+ *
+ * A channel you can only see when it breaks is not observable.
+ */
+describe("every send is counted", () => {
+  const recorded: { event: string; fields: Record<string, unknown> }[] = []
+  const envWith = (send: () => Promise<void>) =>
+    ({
+      MAIL_TRANSPORT: "cloudflare",
+      EMAIL_FROM: "noreply@example.test",
+      EMAIL: { send },
+      // The writer the Worker uses; capturing it here is what makes the
+      // assertion about telemetry rather than about a mock mailer.
+      ANALYTICS: { writeDataPoint: (p: { blobs?: string[]; doubles?: number[] }) => recorded.push({ event: String(p.blobs?.[0]), fields: p as never }) },
+      ENVIRONMENT: "test",
+    }) as never
+
+  it("records a success, not only a failure", async () => {
+    recorded.length = 0
+    const { mailerFor } = await import("../../src/mail/mailer")
+    await mailerFor(envWith(async () => {})).send({ kind: "transactional", to: "a@example.test", subject: "s", text: "t" } as never)
+    expect(recorded.map((r) => r.event), "a working send must be visible").toContain("mail.sent")
+  })
+
+  it("records a refusal and still throws it", async () => {
+    recorded.length = 0
+    const { mailerFor } = await import("../../src/mail/mailer")
+    const failed = await mailerFor(envWith(async () => { throw new Error("nope") }))
+      .send({ kind: "bulk", to: "a@example.test", subject: "s", text: "t" } as never)
+      .then(() => null, (e: Error) => e)
+    expect(failed, "recording must not swallow the failure").toBeInstanceOf(Error)
+    expect(recorded.map((r) => r.event)).toContain("mail.sent")
+  })
+})
