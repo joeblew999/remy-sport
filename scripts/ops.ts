@@ -113,6 +113,11 @@ const OPS: Record<string, Op> = {
     cmd: ([action = "score", ...rest]) => ["bun", "scripts/ops/refdata.ts", action, ...rest],
     help: "refdata score [candidate...]     is a third-party dataset actually translated into the locales we declare",
   },
+  flake: {
+    group: "report",
+    cmd: (rest) => ["bun", "scripts/ops/flake.ts", ...rest],
+    help: "flake [--runs N] [--tier e2e|render]   run a browser tier until it fails and keep the trace",
+  },
   coverage: {
     group: "report",
     cmd: ([what = "gui", ...rest]) => ["bun", `scripts/ops/coverage-${what}.ts`, ...rest],

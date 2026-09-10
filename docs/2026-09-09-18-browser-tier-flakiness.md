@@ -49,6 +49,16 @@ being changed:
   before it can render a label. Raised to fifteen seconds. This hides nothing:
   an expect timeout governs only how long a *failing* assertion waits.
 
+**Step 1 cost a deploy verification, which was worth knowing.** Turning tracing
+on edits `playwright.config.ts`, and `scripts/e2e.ts` refuses to test a remote
+origin when the tree differs from what is deployed — it classed that file as
+application code. The refusal printed `staging is running e5ee560, and HEAD is
+e5ee560`, the same hash twice, and advised checking out the commit already
+checked out. Fixed on 2026-09-10 in the same commit as this step: the Playwright
+configs are exempt (they are `tests/` in everything but location, and nothing
+bundles them), and the refusal now names the files that tripped it. A guard that
+cannot say what it caught is one people re-run instead of read.
+
 **Two things were also wrongly blamed and are recorded so they are not chased
 again.** The web-server readiness budget was raised from 60s to 180s on the
 theory that seed growth had made startup marginal — then the server was timed
@@ -91,15 +101,24 @@ environment rather than the product.
 
 ## Steps
 
-- [ ] **1 · Turn tracing on for the loop, because there is none today.**
+- [x] **1 · Turn tracing on for the loop, because there is none today.**
       `trace: "on-first-retry"` and `retries: 0` locally are mutually exclusive:
       a trace is written on the first retry and there is no first retry, so
       **every local failure this session produced no trace at all** — checked,
       there are none on disk. The loop must run with tracing forced on, or the
       next step is impossible. This was a hole in this plan's own first draft.
-- [ ] **2 · Reproduce on demand.** A loop that runs `test:e2e` until it fails,
+      **Done 2026-09-10:** `trace: "retain-on-failure"` in `playwright.config.ts`
+      — records every test, keeps the recording only when one fails, so a green
+      run leaves nothing behind.
+- [x] **2 · Reproduce on demand.** A loop that runs `test:e2e` until it fails,
       keeping the trace and the webServer log for the failing run, and recording
       how many runs it took. Without this the rest is guesswork.
+      **Done 2026-09-10:** `bun run ops flake` — `scripts/ops/flake.ts`. Runs a
+      tier until it fails, copies `test-results`, `playwright-report` and the
+      output into `.playwright/flake/<timestamp>-<tier>/`, prints the
+      `show-trace` command. `--runs N`, `--tier render`, and `-- <filter>` to
+      pass a spec filter through. It stops at the first failure: the point is to
+      catch one, not to measure a rate.
 - [ ] **3 · Read the trace, not the assertion.** The failure message says an
       element was missing; the trace says what the page had actually received —
       whether the request was slow, failed, or never made. That distinction is

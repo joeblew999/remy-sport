@@ -11,3 +11,19 @@ it('allows documentation and test-runner repairs against unchanged application c
     expect(affectsDeployment(path), path).toBe(false)
   }
 })
+// The Playwright configs are `tests/` in everything but where they sit — a
+// browser choice, a worker count, a local dev command, none of it bundled.
+// Turning on tracing in one refused a verification of a correct deployment.
+it('allows the test runner to be configured', () => {
+  for (const path of ['playwright.config.ts', 'playwright.render.config.ts']) {
+    expect(affectsDeployment(path), path).toBe(false)
+  }
+})
+// ...but not the ops scripts around them: `fonts.ts` generates what the page
+// downloads and `domain.ts` writes into src/, so the directory does reach the
+// deployment and the rule cannot tell its members apart.
+it('still requires republishing when build tooling changes', () => {
+  for (const path of ['scripts/ops.ts', 'scripts/ops/fonts.ts', 'scripts/ops/domain.ts', 'scripts/ops/flake.ts']) {
+    expect(affectsDeployment(path), path).toBe(true)
+  }
+})

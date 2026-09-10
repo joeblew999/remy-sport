@@ -85,7 +85,22 @@ export default defineConfig({
      */
     browserName: "webkit",
     baseURL,
-    trace: "on-first-retry",
+    /**
+     * `retain-on-failure`, not `on-first-retry`.
+     *
+     * Those two settings and `retries: 0` were mutually exclusive: a trace is
+     * written on the first retry, local runs have no retries, so **no local
+     * failure has ever produced a trace**. Ten runs of evidence in
+     * docs/2026-09-09-18-browser-tier-flakiness.md amount to a list of spec
+     * names and nothing at all about what the pages were doing, which is why
+     * that plan has been guessed at twice and solved zero times.
+     *
+     * `retain-on-failure` records every test and keeps the recording only when
+     * one fails, so a passing run leaves nothing behind and a failing one leaves
+     * the thing worth reading. The cost is tracing overhead on every test, which
+     * is the price of a flaky tier being diagnosable at all.
+     */
+    trace: "retain-on-failure",
   },
   // Seeding is a precondition, not a test. A setup project runs to completion
   // before its dependents start, which fullyParallel + describe.serial cannot

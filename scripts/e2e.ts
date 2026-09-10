@@ -66,19 +66,57 @@ async function sameCode(origin: string, environment: string): Promise<void> {
   const difference = spawnSync("git", ["diff", "--name-only", deployed, "--"])
   const untracked = spawnSync("git", ["ls-files", "--others", "--exclude-standard"])
   const changed = (difference.stdout.toString() + "\n" + untracked.stdout.toString()).split("\n").filter(Boolean)
-  if (difference.status === 0 && untracked.status === 0 && !changed.some(affectsDeployment)) {
+  const blocking = changed.filter(affectsDeployment)
+  if (difference.status === 0 && untracked.status === 0 && blocking.length === 0) {
     console.log(`e2e: application inputs match deployed ${deployed}; testing with this checkout's suite`)
     return
   }
 
+  /**
+   * Name the files, and do not offer a remedy that cannot work.
+   *
+   * This used to print the two commits and stop. On 2026-09-10 it refused a
+   * verification with "staging is running e5ee560, and HEAD is e5ee560" — the
+   * same hash twice, because the difference was three uncommitted files — and
+   * then advised `git checkout e5ee560`, which was already checked out. The
+   * refusal was correct and the explanation sent the reader nowhere.
+   *
+   * A guard that cannot say what tripped it is a guard people learn to re-run
+   * rather than read.
+   */
+  if (difference.status !== 0 || untracked.status !== 0) {
+    console.error(
+      `\ne2e: could not compare this tree against deployed ${deployed}.\n\n` +
+        "  git could not answer, so whether these specs describe the deployed code is\n" +
+        "  unknown — which is refused the same way a known mismatch is.\n\n" +
+        `  ${(difference.stderr.toString() + untracked.stderr.toString()).trim() || "no error text"}\n`,
+    )
+    process.exit(1)
+  }
+
+  const shown = blocking.slice(0, 20)
   console.error(
-    `\ne2e: ${environment} is running ${deployed}, and HEAD is ${local}.\n\n` +
+    (local === deployed
+      ? `\ne2e: ${environment} is running ${deployed}, which is HEAD — but this tree has\n` +
+        `  ${blocking.length} uncommitted change(s) that would reach the deployment.\n`
+      : `\ne2e: ${environment} is running ${deployed}, and HEAD is ${local}, differing in\n` +
+        `  ${blocking.length} file(s) that reach the deployment.\n`) +
+      "\n" +
+      shown.map((f) => `    ${f}`).join("\n") +
+      (blocking.length > shown.length ? `\n    … and ${blocking.length - shown.length} more` : "") +
+      "\n\n" +
       "  The specs would come from here and the code from there. A pass would not mean\n" +
       "  the deployment is good, and a failure could not be fixed from this tree.\n\n" +
-      "  Bring the deployment to the tests:\n" +
-      `    bun run deploy -- --env ${environment}\n\n` +
-      "  or the tests to the deployment:\n" +
-      `    git checkout ${deployed}\n\n` +
+      (local === deployed
+        ? "  Commit and publish them, or set them aside:\n" +
+          `    bun run deploy -- --env ${environment}\n` +
+          "    git stash -u\n\n"
+        : "  Bring the deployment to the tests:\n" +
+          `    bun run deploy -- --env ${environment}\n\n` +
+          "  or the tests to the deployment:\n" +
+          `    git checkout ${deployed}\n\n`) +
+      "  If a file above only describes the test rather than the product, exempt it in\n" +
+      "  scripts/lib/deployed-source.ts and say why.\n\n" +
       `    bun run ops versions      what every environment is running\n`,
   )
   process.exit(1)
