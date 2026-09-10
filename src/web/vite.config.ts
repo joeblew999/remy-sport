@@ -391,6 +391,35 @@ export default defineConfig(({ mode, command }) => {
   build: {
     // The plugin writes dist/client and dist/remy_sport beneath this.
     outDir: resolve(ROOT, "dist"),
+    /**
+     * Empty it first, which Vite will not do on its own here.
+     *
+     * `emptyOutDir` defaults to true only when the output is INSIDE the Vite
+     * root. This root is `src/web` and the output is `<repo>/dist`, so Vite
+     * refused — silently, as a safety measure against deleting something it did
+     * not create — and every build's hashed assets accumulated beside the last.
+     *
+     * By 2026-09-10 that was **765 files and 575MB** in `dist/client/assets`,
+     * all of it uploaded to the asset store on every deploy and all of it
+     * precached by the service worker, whose `globPatterns` quite correctly
+     * globs what is there: `precache 369 entries (90111.55 KiB)`.
+     *
+     * A worker must fetch every precache entry before it installs. Ninety
+     * megabytes of dead bundles is not an install that finishes on a phone, and
+     * a worker that never installs never activates — so the *previous* worker
+     * goes on answering navigations from its own cache and the reader keeps the
+     * build they had, indefinitely. Production served a week-old interface to
+     * anyone who had visited before, while `/api/versions` and `curl` both
+     * correctly reported the new one.
+     *
+     * The window this opens is known and is why it was worth writing down: for
+     * the length of a build, `dist/client` is empty, and a server reading it
+     * then answers 404 for `/`. The deploy builds and publishes in sequence so
+     * it cannot see that window; a watcher rebuilding under a running preview
+     * can, and that is the trade — a moment of 404 in development against a
+     * precache that grows without bound in production.
+     */
+    emptyOutDir: true,
     sourcemap: true,
   },
   };
