@@ -193,13 +193,36 @@ function runSteps(steps: Step[]): void {
   }
 }
 
+/**
+ * A probe run prepares nothing, because it does nothing.
+ *
+ * `REMY_TARGET_PROBE=1 <command> --env staging` prints the resolved environment
+ * and exits — see `probe()` in scripts/lib/cloudflare.ts. Preparing first is
+ * pointless there, and worse than pointless: `bun install` and the i18n
+ * generator both write into the working tree.
+ *
+ * tests/repo/command-targets.test.ts spawns nine commands to ask each which
+ * environment it resolved, and the first version of it ran `bun install`
+ * concurrently with the rest of the suite. Ten unrelated test files failed to
+ * load with "Cannot find module '/src/paraglide/messages/…'" — not an assertion
+ * failure, a tree being rewritten underneath them. The suite passed with the
+ * file removed and failed with it present, which is how it was pinned down.
+ *
+ * A test that damages the tree it runs in is worse than the bug it looks for.
+ */
+function probing(): boolean {
+  return Boolean(process.env.REMY_TARGET_PROBE)
+}
+
 /** Dependencies only — what `ops` and `db` need, since neither builds anything. */
 export function install(): void {
+  if (probing()) return
   runSteps([BUN, INSTALL])
 }
 
 /** What any command needs to BUILD. check and deploy stop here. */
 export function prepare(): void {
+  if (probing()) return
   runSteps(BUILD)
 }
 

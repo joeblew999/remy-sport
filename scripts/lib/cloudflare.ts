@@ -338,15 +338,59 @@ export function withoutEnvironment(argv: string[]): string[] {
   return argv.filter((_, i) => !drop.has(i))
 }
 
+/**
+ * Say which environment was resolved, and do nothing else.
+ *
+ * `REMY_TARGET_PROBE=1 <any command> --env staging` prints `target: staging`
+ * and exits before the command acts. That is the whole mechanism behind
+ * tests/repo/command-targets.test.ts, which asks every command that takes an
+ * environment whether it honours one — the assertion nobody could make before,
+ * because these scripts parse `process.argv` at module scope and export
+ * nothing, so there is no function to call and no way in but a process.
+ *
+ * Until now that question was answered by hand, by running a command and
+ * reading a header line. Every environment bug found on 2026-09-10 would have
+ * been caught by asking it mechanically: `ops analytics --env staging` reported
+ * production, `ops docs check --env=staging` ran locally, and both looked
+ * exactly like success.
+ *
+ * The alternative was extracting 5,381 lines of command scripts into testable
+ * functions, in files where `process.exit` **is** the control flow — a rewrite
+ * of the code that deploys and migrates production, to buy one assertion.
+ *
+ * It fires only when `argv` is the tail of the real command line. Callers that
+ * synthesise arguments — `ops versions` resolves `["--env", name]` for each
+ * environment in turn, to report on both — must not trip a probe about what the
+ * *user* asked for. Comparing against `process.argv` is what distinguishes
+ * "this is the command's own target" from "this is a target it made up".
+ */
+function probe(target: Target): Target {
+  if (!process.env.REMY_TARGET_PROBE) return target
+  // A distinctive token, because the assertion is over a whole process's
+  // output. The first version printed `target:`, which Playwright's own
+  // WebServer output also contains — so a test meant to prove which environment
+  // a command chose passed on somebody else's log line.
+  console.log(`remy-target=${target.environment}`)
+  process.exit(0)
+}
+
+/** Is `argv` the tail of what was actually typed? */
+function fromCommandLine(argv: string[]): boolean {
+  const typed = process.argv.slice(2)
+  if (argv.length > typed.length) return false
+  return argv.every((a, i) => a === typed[typed.length - argv.length + i])
+}
+
 export function resolveTarget(argv: string[], rule: TargetRule = "explicit"): Target {
   const named = namedEnvironment(argv)
+  const answer = (target: Target): Target => (fromCommandLine(argv) ? probe(target) : target)
 
   if (!named) {
     // `ambient` resolves the unknown to production for the same reason
     // `environmentOf()` does — the risk of an unnamed *read* is a wrong answer
     // you can see. The risk of an unnamed write is not, which is why the other
     // branch refuses instead.
-    if (rule === "ambient") return { environment: "production" }
+    if (rule === "ambient") return answer({ environment: "production" })
     fail(
       "no target environment.\n" +
         `  Usage: --env <${DEPLOYABLE.join("|")}>\n\n` +
@@ -366,7 +410,7 @@ export function resolveTarget(argv: string[], rule: TargetRule = "explicit"): Ta
     )
   }
   const environment = named as Environment
-  return { environment, flag: environment === "production" ? undefined : environment }
+  return answer({ environment, flag: environment === "production" ? undefined : environment })
 }
 
 /**
