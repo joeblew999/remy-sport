@@ -160,6 +160,49 @@ rule(
 )
 
 /**
+ * Every declared language says how its words got here.
+ *
+ * Twenty-seven locales shipped in one day and nothing recorded which of them
+ * anybody had read — the answer lived in one agent's memory of a Tuesday, which
+ * is not a place. `provenance` on the model row is where it lives now.
+ *
+ * Deliberately weak: it asks that the question be *answered*, not that the
+ * answer be "reviewed". Requiring review would gate releases, and this project
+ * decided the opposite — an unreviewed translation beats an English fallback for
+ * somebody who has neither. What it stops is a twenty-eighth language arriving
+ * without anyone saying where it came from.
+ *
+ *   source    English. Everything else was translated from it.
+ *   machine   Written by an agent, read by no speaker of it.
+ *   reviewed  A speaker has read it, set with their corrections.
+ *
+ * docs/2026-09-09-19-translation-provenance.md.
+ */
+const PROVENANCES = ["source", "machine", "reviewed"]
+const unprovenanced = LOCALE.flatMap((l) => {
+  const declared = (l as { provenance?: string }).provenance
+  if (!declared) return [`${l.code}: no provenance`]
+  if (!PROVENANCES.includes(declared)) return [`${l.code}: provenance ${JSON.stringify(declared)} is not one of ${PROVENANCES.join(", ")}`]
+  return []
+})
+// Exactly one source language, because "translated from" has to mean something.
+const sources = LOCALE.filter((l) => (l as { provenance?: string }).provenance === "source").map((l) => l.code)
+if (sources.length !== 1) unprovenanced.push(`${sources.length} locale(s) marked "source" (${sources.join(", ") || "none"}); there is one original`)
+
+rule(
+  "every declared language says how its words got here",
+  unprovenanced,
+  `check-messages: ${unprovenanced.length} problem(s):\n` +
+    unprovenanced.map((p) => `  ${p}`).join("\n") +
+    `\n\nAdd \`provenance\` to the row in the Product Owner's model: "machine" for a\n` +
+    `translation an agent produced, "reviewed" once a speaker has read it, "source"\n` +
+    `for the language everything else was translated from.\n\n` +
+    `This does not ask that a language be reviewed. It asks that nobody has to\n` +
+    `guess which ones have been.`,
+  `check-messages: ${LOCALE.length} declared locale(s), each with a provenance`,
+)
+
+/**
  * No right-to-left language ships before the layout can handle one.
  *
  * All thirteen released locales read left to right, so nothing in this app has
@@ -322,4 +365,122 @@ rule(
     `pipeline only ships the subsets a language declares. Usually a typo or a\n` +
     `line copied from the wrong column.`,
   `check-messages: no stray scripts across ${ALL_LOCALES.length} declared locale(s)`,
+)
+
+/**
+ * The English word, in a language that is not written in the English alphabet,
+ * is a translation that did not happen.
+ *
+ * This is the only mechanical signal of copy *quality* available. Every other
+ * check here asks whether a string exists, is non-empty, keeps its placeholders
+ * and stays in one script — all of which an untranslated English sentence
+ * passes. On 2026-09-09 twenty-seven locales shipped and four object types went
+ * out reading "Event", "Organisation", "Game" and "Platform" in eleven
+ * languages, on a screen readers use. Nothing failed.
+ *
+ * Only non-Latin scripts, because only there is identical *evidence*. German
+ * "Sport" and Dutch "Sport" are the English word and are also correct, and no
+ * rule can tell that apart from laziness. In Arabic or Korean it cannot be a
+ * coincidence.
+ *
+ * Which languages those are comes from the model rather than a list here: a
+ * language's `endonym` is by definition written in its own script, so a
+ * twenty-eighth language is classified correctly the day it is declared.
+ */
+const nonLatin = LOCALE.filter((l) => {
+  const endonym = String((l as { endonym?: string }).endonym ?? "")
+  return [...endonym].some((ch) => /\p{L}/u.test(ch) && !/\p{Script=Latin}/u.test(ch))
+}).map((l) => l.code)
+
+/**
+ * A string with nothing to translate is identical on purpose.
+ *
+ * `"{home} {homeScore} – {away} {awayScore}"` and `"{title}"` are placeholders
+ * and punctuation; there is no word in them to put into Bengali. Strip the
+ * placeholders and ask whether a letter is left — that catches the whole class
+ * without naming any of it, which is what keeps the declared list below short
+ * enough to be read.
+ */
+const nothingToTranslate = (english: string) => !/\p{L}/u.test(english.replace(/\{[^}]*\}/g, ""))
+
+/**
+ * Identical on purpose, declared one at a time.
+ *
+ * The plan's rule: exemptions are named, never inferred, because "it looked
+ * deliberate" is how the four object types survived. Each of these is a
+ * decision somebody can disagree with by deleting a line.
+ */
+const SAME_AS_ENGLISH_ON_PURPOSE = new Set([
+  // Vocabularies, whole. Place names are romanised for every locale because
+  // nobody has transliterated seventy-seven provinces, and that is written down
+  // rather than accidental. LOCALE is the N×N `names` matrix the model says is
+  // "not extended for new languages" — the picker reads `endonym`.
+  "PROVINCE", "CITY", "LOCALE", "NOTIFICATION_CHANNEL",
+  // Terms. `3x3` is FIBA's name for the format in every country, and the five
+  // position abbreviations are used as-is in Japanese and Korean basketball.
+  "EVENT_FORMAT.3x3.names",
+  "POSITION.PG.names", "POSITION.SG.names", "POSITION.SF.names",
+  "POSITION.PF.names", "POSITION.C.names",
+  // Messages. An example address stays Latin because an address is; "Q1" is how
+  // a quarter is written on a scoreboard in all of these languages.
+  "email_placeholder", "quarter_short",
+])
+
+/**
+ * `descriptions` are out of scope, measured rather than assumed.
+ *
+ * Nine of them are the English string in all twenty-four locales other than
+ * Thai and Japanese — seven OBJECT_TYPE rows, ACTION.MANAGE_FIXTURES and
+ * ROLE.ORGANIZER. None is rendered: `describe()` is called for `eventTypes` and
+ * `notificationTypes` and nothing else. They are model documentation living in a
+ * translatable field, so including them would add a hundred and seventeen
+ * failures for text no reader meets, and the honest place for that is
+ * docs/2026-09-09-19-translation-provenance.md rather than a suppression list
+ * long enough to hide the next real one.
+ */
+const untranslated: string[] = []
+const englishMessages = base ?? {}
+
+for (const locale of nonLatin) {
+  if (locale === "en") continue
+  const messages = load(locale)
+  for (const [key, english] of Object.entries(englishMessages)) {
+    if (key.startsWith("$") || typeof english !== "string") continue
+    if (SAME_AS_ENGLISH_ON_PURPOSE.has(key) || nothingToTranslate(english)) continue
+    if (messages?.[key] === english) untranslated.push(`${locale}: messages ${key} — "${english.slice(0, 50)}"`)
+  }
+}
+
+for (const [name, entries] of Object.entries(vocabularies)) {
+  if (!Array.isArray(entries) || SAME_AS_ENGLISH_ON_PURPOSE.has(name)) continue
+  for (const row of entries as readonly unknown[]) {
+    if (!row || typeof row !== "object") continue
+    const entry = row as Record<string, unknown>
+    const names = entry.names as Record<string, string> | undefined
+    const english = names?.en
+    if (!english) continue
+    const where = `${name}.${String(entry.code)}.names`
+    if (SAME_AS_ENGLISH_ON_PURPOSE.has(where) || nothingToTranslate(english)) continue
+    for (const locale of nonLatin) {
+      if (locale !== "en" && names?.[locale] === english) {
+        untranslated.push(`${locale}: ${where} — "${english.slice(0, 50)}"`)
+      }
+    }
+  }
+}
+
+rule(
+  "no non-Latin language ships the English word untranslated",
+  untranslated,
+  `check-messages: ${untranslated.length} untranslated value(s):\n` +
+    untranslated.slice(0, 40).map((s) => `  ${s}`).join("\n") +
+    (untranslated.length > 40 ? `\n  … and ${untranslated.length - 40} more` : "") +
+    `\n\nIdentical to English in a language that does not use the English alphabet is\n` +
+    `a translation that did not happen. Every other check here passes an\n` +
+    `untranslated sentence: it exists, it is non-empty, it keeps its placeholders\n` +
+    `and it is all one script.\n\n` +
+    `If it is identical on purpose — a brand, an abbreviation used worldwide —\n` +
+    `add it to SAME_AS_ENGLISH_ON_PURPOSE with the reason, so the next person\n` +
+    `reads a decision rather than a hole.`,
+  `check-messages: ${nonLatin.length} non-Latin locale(s) carry no untranslated English`,
 )

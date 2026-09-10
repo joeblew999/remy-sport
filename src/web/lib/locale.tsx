@@ -115,6 +115,28 @@ export const directionOf = (locale: string): "ltr" | "rtl" =>
     : "ltr";
 
 /**
+ * A language in its own name — `ไทย`, not "Thai".
+ *
+ * Here rather than in the sidebar that used to own it, because it is not the
+ * switcher's private helper: anything that puts a language in front of a reader
+ * wants this, and the alternative is `label("locales", code)`, which reads the
+ * model's N×N `names` matrix — every language named in every other, 27 × 27,
+ * which the model says is "not extended for new languages". Most of those cells
+ * hold the English name, so that path shows an Arabic reader "Thai".
+ *
+ * `endonym` is one string per language, written once, and correct for the same
+ * reason the picker uses it: somebody who cannot read the current interface has
+ * to be able to find theirs, and nobody looking for Japanese scans for
+ * `ญี่ปุ่น`.
+ *
+ * Falls back to the code so a language declared without one is visible rather
+ * than blank; `tests/repo/messages.test.ts` refuses that case anyway.
+ */
+export const endonymOf = (locale: string): string =>
+  (LOCALE.find((l) => l.code === locale) as { endonym?: string } | undefined)?.endonym ??
+  locale.toUpperCase();
+
+/**
  * `dir` goes on the document beside `lang`, and for a different reason.
  *
  * `lang` is read once at load by screen readers and crawlers. `dir` is read

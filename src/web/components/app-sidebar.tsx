@@ -21,8 +21,7 @@ import { isNativeApp } from "../lib/push";
 import type { PwaInstall } from "../lib/installable";
 import type { ComponentProps } from "react";
 import { useSession } from "../lib/session";
-import { directionOf, useLocale, type Locale } from "../lib/locale";
-import { LOCALE } from "../../domain/vocabularies";
+import { directionOf, endonymOf, useLocale, type Locale } from "../lib/locale";
 import { useTheme } from "../lib/theme-provider";
 import { m } from "../lib/i18n";
 import { routeHref, type Page } from "../lib/router";
@@ -57,10 +56,6 @@ import { Label } from "@/components/ui/label";
  * per render — a message is a call, not a constant, and module scope is how
  * the old sidebar froze into English on a Thai page.
  */
-
-/** A language in its own name, from the model. Falls back to the code so a
- *  language declared without one is visible rather than blank. */
-const endonymOf = (code: string) => LOCALE.find((l) => l.code === code)?.endonym ?? code.toUpperCase();
 
 interface NavItem {
   id: Page;
