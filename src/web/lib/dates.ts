@@ -41,8 +41,29 @@
  */
 export const CALENDAR = "gregory";
 
+/**
+ * Locales whose model code is not the code `Intl` knows them by.
+ *
+ * `tl` is the one that matters and it fails in the worst possible way. CLDR and
+ * ICU call Filipino `fil`; `tl` is the older ISO 639-1 tag for Tagalog and
+ * `Intl` does not carry data for it. It is *well-formed*, so nothing throws —
+ * `Intl.DateTimeFormat("tl")` silently resolves to `en-US` and a Filipino
+ * reader gets American English dates on a page that is otherwise in Filipino.
+ *
+ *   Intl.DateTimeFormat.supportedLocalesOf(["tl"])   →  []        resolves en-US
+ *   Intl.DateTimeFormat.supportedLocalesOf(["fil"])  →  ["fil"]   resolves fil
+ *
+ * The model keeps `tl`, because that is what the Product Owner's vocabulary
+ * declares and what the message files are named. The translation happens here,
+ * at the one boundary where `Intl` is spoken to.
+ *
+ * `tests/unit/dates.test.ts` holds every released locale to resolving as its own
+ * language, so the next code with this problem is caught rather than shipped.
+ */
+const INTL_TAG: Record<string, string> = { tl: "fil" };
+
 /** The locale tag as `Intl` should read it, with the calendar decision applied. */
-export const tag = (locale: string) => `${locale}-u-ca-${CALENDAR}`;
+export const tag = (locale: string) => `${INTL_TAG[locale] ?? locale}-u-ca-${CALENDAR}`;
 
 /**
  * `Intl.DateTimeFormat` construction is the expensive part, not `.format()`.

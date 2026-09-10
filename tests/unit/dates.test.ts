@@ -14,6 +14,7 @@
  */
 import { describe, test, expect } from "vitest"
 import { formatDayRange, formatMonthShort, formatTimeOn, tag, CALENDAR } from "../../src/web/lib/dates"
+import { LOCALES } from "../../src/domain/vocabularies"
 
 const AUG_1 = new Date(2026, 7, 1)
 const AT = new Date("2026-08-27T03:00:00Z")
@@ -60,4 +61,29 @@ describe("the calendar is one decision", () => {
     // the site together. That is the property being pinned, not the value.
     expect(formatDayRange("th", AUG_1, null)).toContain("2026")
   })
+})
+
+/**
+ * Every released locale must format as its own language.
+ *
+ * `Intl` does not throw on an unknown but well-formed tag — it falls back and
+ * says nothing. `tl` did exactly that: no ICU data for it, so it resolved to
+ * `en-US` and a Filipino reader got American English dates on an otherwise
+ * Filipino page. Nothing in the suite noticed, because nothing asked.
+ *
+ * Asking is one line per locale, and it is the only way this class of bug is
+ * visible: a silent fallback looks identical to a working one.
+ */
+describe("every released locale reaches Intl as itself", () => {
+  for (const locale of LOCALES) {
+    test(`${locale} does not silently become another language`, () => {
+      const resolved = new Intl.DateTimeFormat(tag(locale)).resolvedOptions().locale
+      // Compare the language subtag: `zh-TW` legitimately resolves to `zh-TW`,
+      // and a locale resolving to a *region* of itself is fine. Resolving to a
+      // different language is the bug.
+      const asked = tag(locale).split("-u-")[0]!.split("-")[0]
+      const got = resolved.split("-")[0]
+      expect(got, `${locale} formats as ${resolved}`).toBe(asked)
+    })
+  }
 })
