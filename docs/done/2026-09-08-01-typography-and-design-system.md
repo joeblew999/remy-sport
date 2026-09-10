@@ -1,6 +1,6 @@
 # Plan — convert the GUI to shadcn
 
-Archive: superseded (2026-09-09). The initial conversion landed; composition and visual acceptance continue in ../2026-09-09-07-main-content-on-the-registry.md. Archiving does not assert the full port was complete.
+Archive: superseded (2026-09-09). The initial conversion landed; composition and visual acceptance continue in 2026-09-09-07-main-content-on-the-registry.md. Archiving does not assert the full port was complete.
 
 Current work: [project index](../README.md). Original evidence follows.
 

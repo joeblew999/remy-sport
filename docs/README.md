@@ -22,9 +22,14 @@ A shipped feature stays here if its acceptance checks or follow-ups are still op
 
 | Work | State | Next step / owning plan |
 | --- | --- | --- |
-| Meeting test | In progress | [Hang two-person test page](2026-09-09-12-hang-meeting-test.md). Reuse media adapters without introducing meeting domain records. |
-| MoQ screens | Implemented; live-media acceptance open | [Watching and broadcasting](2026-09-09-09-moq-on-shadcn.md). Shadcn controls checked directly; post-fix live delivery needs camera permission. No further e2e runs requested. |
-| Public help | Implemented; discovery/integration work open | [Public help](2026-09-09-04-blume-public-help.md). Continue from “Current priority — external discovery and real API use”; use the help package's shared CLI. |
+
+> **Eight plans moved to [done/](done/README.md) on 2026-09-10 with their device
+> or credential acceptance still outstanding** — a one-off clearing by the
+> Product Owner, not a change to the rule above. Each says **Acceptance pending**
+> and what is owed: a phone for the install names, the sign-in code and back
+> navigation; a camera for MoQ; a second person for the meeting test; a real
+> inbox for email; Google credentials for public help. iOS links is superseded
+> because no supported fix exists.
 
 ## Planned, waiting or paused
 
@@ -32,12 +37,7 @@ A shipped feature stays here if its acceptance checks or follow-ups are still op
 | --- | --- | --- |
 | Adopting shadcn-places | Step 1 done; **waiting on a Product Owner decision** | [Adopting shadcn-places](2026-09-10-01-adopting-shadcn-places.md). Places moved out to their own repo and Worker — [shadcn-places](https://github.com/joeblew999/shadcn-places), live at https://shadcn-places.gedw99.workers.dev — where the source measurements and the corrections now live. This plan is only about what *this* app stops owning. Both listed bugs are fixed (2026-09-10): `tl` now reaches Intl as `fil`, held by a check over every released locale, and the identical-to-English rule lives in `tests/repo/messages.test.ts`. What remains is the decision itself — whether places stay vocabularies here — and the `CITY_CODES` `z.enum` blocker behind it. The service's Thai provinces are now 78 to this repo's 77, and 0% English against this repo's 85%. |
 | Translation provenance | Recorded and checked 2026-09-10; none reviewed | [Say which languages a person has read](2026-09-09-19-translation-provenance.md). Twenty-six agent translations plus the English they came from; the older checks prove completeness, placeholder parity and script correctness, and none of them prove the copy reads naturally. `provenance` and `caveat` now on every model row, with a check that the question is answered — it does not gate release. A new rule fails any non-Latin locale shipping the English word, which found the four object types eleven languages were missing. Known weaknesses: `zh-HK` derived from `zh-TW`, `ur` set in Naskh not Nastaliq. |
-| Installed-app Back | **Built 2026-09-10**; web-install device checks open | [Back navigation](2026-09-09-10-installed-app-back-navigation.md). Not a phone problem: **every installed surface loses *return*** — Android, iOS, Windows, Mac and the intended Tauri app for Windows and Mac, where a 1280px window has no chrome and no system back. Phones additionally lose *hierarchy*, because crumbs are folded away below `sm`; the registry's `breadcrumb-responsive` collapses rather than hides and answers that half. Both halves built: the shell's return control at every width, and the ancestors collapsing behind an ellipsis below `sm` instead of being removed. Three hand-rolled escapes deleted, including team's, which pointed at Discover though a team's parent is Teams. Open: iOS A2HS, Android installed, and the installed web app on Windows and Mac — no tier here reaches an installed app. **Tauri is later by decision**; it is designed for, not waited on. |
-| Sign-in autofill | Implemented; phone acceptance open | [Sign-in code](2026-09-09-01-sign-in-code-autofill.md). Watch a real phone offer the emailed code. |
-| Email channel | Deployed 2026-09-10; **one human check left** | [React Email](2026-09-09-02-email-channel-on-react-email.md). The deploy it was waiting for is done — staging and production both on `f2fcfba`. The seeded actors are `@bat.test` addresses no mail server delivers to, so what remains is a person opening a real inbox and confirming the email arrives, renders and is not filed as spam. |
-| Environment install names | Verified locally; phone acceptance open | [Install names](2026-09-08-05-pwa-install-name-per-environment.md). Confirm localhost/staging labels on a phone. |
 | Help after the notification move | Done 2026-09-10 | [Notifications off Devices](done/2026-09-09-06-notifications-off-the-devices-page.md). Help in all three locales told readers to manage notifications on the signed-in devices page, where those settings no longer are — wrong instructions rather than stale prose. Corrected in `notifications`, `troubleshooting` and two frontmatter descriptions, and the page's own name brought up to date: it is "Where you're signed in" now, which is what a reader looks for. |
-| External iPhone links | Unresolved requirement | [Installed web-app links](2026-09-08-04-ios-installed-web-app-links.md). Resume only with evidence of a supported mechanism. |
 | Remote development | Paused | [Remote development](2026-09-08-03-remote-development.md). Read the takeover record; remote startup remains paused pending identity integration and an isolated walkthrough. |
 
 ## Continuing engineering work

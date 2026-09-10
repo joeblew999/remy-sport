@@ -1,5 +1,8 @@
 # Plan — the sign-in code, filled in by the phone
 
+Archive: completed (2026-09-10). The six-digit code and its autofill hints are implemented. **Acceptance pending:** one iPhone session watching a real phone offer the emailed code.
+
+Current work: [project index](../README.md). Original evidence follows.
 Status: implemented 2026-09-09, the phone check open. Re-cut from the
 combined sign-in-and-email plan at the Product Owner's review. Two code
 changes, proven in the rendering and browser tiers; what is left needs a

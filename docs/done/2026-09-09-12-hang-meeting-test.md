@@ -1,5 +1,8 @@
 # Hang meeting test page
 
+Archive: completed (2026-09-10). `#/meeting-test` built and routed as a two-person Hang room on the shared media adapters, with no meeting domain records. **Acceptance pending:** a real two-person call.
+
+Current work: [project index](../README.md). Original evidence follows.
 Status: implementing at the user's request. No meeting domain model or records.
 
 Build `#/meeting-test` as a two-person Hang room: create a random room, share the

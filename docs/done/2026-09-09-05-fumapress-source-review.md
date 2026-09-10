@@ -1,12 +1,12 @@
 # Fumapress source review for Remy Sport
 
-Archive: superseded (2026-09-09). Source review delivered; integration and external discovery continue in ../2026-09-09-04-blume-public-help.md.
+Archive: superseded (2026-09-09). Source review delivered; integration and external discovery continue in 2026-09-09-04-blume-public-help.md.
 
 Current work: [project index](../README.md). Original evidence follows.
 
 This file records the earlier source inspections. The subsequent implemented
 isolation proof and current status are in the
-[public help plan](../2026-09-09-04-blume-public-help.md); its results supersede the
+[public help plan](2026-09-09-04-blume-public-help.md); its results supersede the
 "not installed/built" limits below for the small Fumapress proof only.
 
 Reviewed 2026-09-09. Recommendation: evaluate Fumapress first for public help;
@@ -113,7 +113,7 @@ enables MCP and includes sponsor/CMS packages, so do not copy that app wholesale
 
 ## Next step
 
-Run the [public help integration proof](../2026-09-09-04-blume-public-help.md) with
+Run the [public help integration proof](2026-09-09-04-blume-public-help.md) with
 Fumapress first: three portable Markdown pages, existing Bun/mise automation,
 isolated content build, `/help/`, static output and one release artifact.
 Check dependency resolution and the Sharp mismatch before expanding content.

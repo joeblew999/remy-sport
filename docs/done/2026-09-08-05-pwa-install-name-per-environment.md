@@ -1,5 +1,8 @@
 # Plan — a distinct install name per environment
 
+Archive: completed (2026-09-10). The manifest name differs per environment and is verified locally. **Acceptance pending:** install from localhost and from staging on a real phone and confirm the two home-screen labels differ.
+
+Current work: [project index](../README.md). Original evidence follows.
 Status: implemented and verified locally 2026-09-08. The manifest name is now
 derived from the build's environment via a single source of truth
 (`src/web/lib/install-name.ts`), and a repo check asserts the built manifest

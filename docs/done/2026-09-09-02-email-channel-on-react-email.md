@@ -1,5 +1,8 @@
 # Plan — the email channel, on React Email
 
+Archive: completed (2026-09-10). Every step ticked with its proof; deployed to staging and production on 2026-09-10. **Acceptance pending:** the seeded actors are `@bat.test` addresses no mail server delivers to, so somebody has to open a real inbox and confirm a React email arrives, renders and is not filed as spam.
+
+Current work: [project index](../README.md). Original evidence follows.
 Status: implemented 2026-09-09, every step ticked with its proof below. Re-cut
 from the combined sign-in-and-email plan at the Product Owner's review that
 morning; decided by the Product Owner the same day: emails are React-based,

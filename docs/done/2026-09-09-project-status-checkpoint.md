@@ -16,24 +16,24 @@ claims, not current status. Use [the current index](../README.md).
   proposed 2026-09-09; planning only. Replace the duplicate-looking header jump
   links and stacked content with Roster, Schedule and permission-controlled
   Manage tabs, following the event page pattern and preserving old section URLs.
-- [Back navigation in the installed app](../2026-09-09-10-installed-app-back-navigation.md):
+- [Back navigation in the installed app](2026-09-09-10-installed-app-back-navigation.md):
   proposed 2026-09-09; planning only. Shared shadcn Back control, safe app
   history and named fallbacks for fresh deep links, with automated and actual
   iPhone/Android installed-app acceptance checks.
-- [MoQ watching and broadcasting on shadcn](../2026-09-09-09-moq-on-shadcn.md):
+- [MoQ watching and broadcasting on shadcn](2026-09-09-09-moq-on-shadcn.md):
   proposed 2026-09-09; planning only. Shared registry frame and working controls
   for both surfaces, with typed MoQ state. Fix the obsolete watcher status path,
   premature broadcast heartbeat and loading state as part of the work. Also wire
   the real-media probe into the shared browser test workflow before acceptance.
-- [Public Remy Sport help](../2026-09-09-04-blume-public-help.md): isolated Fumapress package implemented and verified locally. Separate dependencies/build/Worker; no app asset merging. App build, typecheck and lint pass. The two email-related repo checks it found failing were the email work's, and are fixed below; the whole tier is green. Use `bun run ops docs check`.
-- [The sign-in code, filled in by the phone](../2026-09-09-01-sign-in-code-autofill.md)
+- [Public Remy Sport help](2026-09-09-04-blume-public-help.md): isolated Fumapress package implemented and verified locally. Separate dependencies/build/Worker; no app asset merging. App build, typecheck and lint pass. The two email-related repo checks it found failing were the email work's, and are fixed below; the whole tier is green. Use `bun run ops docs check`.
+- [The sign-in code, filled in by the phone](2026-09-09-01-sign-in-code-autofill.md)
   is implemented 2026-09-09. The Product Owner's question — how ChatGPT signs
   you in from an emailed code without opening the mail app — is answered
   there: the phone's autofill does it. The code field is focused as the step
   opens and the sixth digit signs the reader in, proven in the rendering and
   browser tiers. Open: one phone session to watch Mail offer the code, which
   also covers the two install labels and the iOS links check.
-- [The email channel, on React Email](../2026-09-09-02-email-channel-on-react-email.md)
+- [The email channel, on React Email](2026-09-09-02-email-channel-on-react-email.md)
   is implemented 2026-09-09. A verified sign-in registers the address as the
   reader's EMAIL channel, the settings screen has an opt-in email switch per
   type, and every email the app sends is a React Email template composed
@@ -94,12 +94,12 @@ claims, not current status. Use [the current index](../README.md).
   it. Each page names the other's device list, which is what the two being
   adjacent used to do. Open, for the help lane: `sites/help` still tells readers
   the settings are on the devices page.
-- [A distinct install name per environment](../2026-09-08-05-pwa-install-name-per-environment.md)
+- [A distinct install name per environment](2026-09-08-05-pwa-install-name-per-environment.md)
   is implemented, verified locally and committed on 2026-09-09:
   `remy-localhost`, `remy-staging`, the plain name in production, from one
   table that both the build and a repo check import. Open: confirming the
   two labels on a phone.
-- [Why iPhone links open Safari](../2026-09-08-04-ios-installed-web-app-links.md)
+- [Why iPhone links open Safari](2026-09-08-04-ios-installed-web-app-links.md)
   is an accepted, unresolved requirement: no supported iOS mechanism opens an
   installed web app from an external link. Resume only on credible evidence
   of one; the upstream issue is linked there.
@@ -217,7 +217,7 @@ Official host setup: <https://learn.chatgpt.com/docs/extend/mcp?surface=cli>.
 
 | Priority / state | Work | Where to continue |
 | --- | --- | --- |
-| Next | Deploy main to staging: it is ahead of the deployed `e9ce101` by the Bun-pin guard, the forms fix, the taken-over install name, the sign-in autofill and the email channel on React Email, and a staging test run refuses until they match. Then what only staging and a phone can show: a real inbox receiving the HTML mail, Mail offering the sign-in code, the two install labels. Then the product roadmap below, starting with listing moderation. | [Convert the GUI to shadcn — log](2026-09-08-01-typography-and-design-system.md#log); [install name](../2026-09-08-05-pwa-install-name-per-environment.md) |
+| Next | Deploy main to staging: it is ahead of the deployed `e9ce101` by the Bun-pin guard, the forms fix, the taken-over install name, the sign-in autofill and the email channel on React Email, and a staging test run refuses until they match. Then what only staging and a phone can show: a real inbox receiving the HTML mail, Mail offering the sign-in code, the two install labels. Then the product roadmap below, starting with listing moderation. | [Convert the GUI to shadcn — log](2026-09-08-01-typography-and-design-system.md#log); [install name](2026-09-08-05-pwa-install-name-per-environment.md) |
 | Next capture fix | Desktop Devices screenshots intermittently stall in WebKit after data and fonts load. This reproduced in the baseline before the GUI migration; phone captures work. Context cleanup now retains a trace, and the CLI cleans up sessions/storage on failure. Do not call the whole screenshot walk verified. | [GUI consistency implementation record](2026-09-07-06-gui-consistency.md#implementation-record--2026-09-07); reproduce with `bun run shots -- --grep 'devices · ja · desktop' --trace on`. |
 | Local test isolation | Committed with the GUI conversion: the e2e tier runs on 8788 with per-run storage, cleans up sessions and storage on failure, and refuses a staging run from a tree that differs from the deployment. Developer data and session preservation across restarts, and broader failure handling, still need their own evidence. `bun run dev` stays the developer entry point. | `playwright.config.ts`, `scripts/e2e.ts`, `scripts/lib/local-browser.ts`, `scripts/lib/deployed-source.ts` |
 | Next independent product work | Review existing behavior one domain slice at a time: exact fields, relationships, permitted/refused actions, persistence and delivery. The committed report has **1,379 items: 64 classified, 1,315 unreviewed**. Unreviewed does not mean broken or unimplemented. | [Domain register, GAP-01 and GAP-05–08](../2026-09-07-01-react-domain-coverage.md#work-register-and-execution-order); [generated inventory](../react-domain-coverage.md). |

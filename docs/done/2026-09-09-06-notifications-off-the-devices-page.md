@@ -1,6 +1,6 @@
 # Plan — notifications off the devices page
 
-Archive: completed (2026-09-09). Sessions and settings are on their own routes and the model declaration moved to the code that answers it. The page this created is rebuilt in ../2026-09-09-08-notifications-page-two-channels.md, which also carries the unfixed help content.
+Archive: completed (2026-09-09). Sessions and settings are on their own routes and the model declaration moved to the code that answers it. The page this created is rebuilt in 2026-09-09-08-notifications-page-two-channels.md, which also carries the unfixed help content.
 
 Current work: [project index](../README.md). Original evidence follows.
 

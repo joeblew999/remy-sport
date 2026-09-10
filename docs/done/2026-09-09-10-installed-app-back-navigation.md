@@ -1,5 +1,8 @@
 # Back navigation in the installed app
 
+Archive: completed (2026-09-10). Both halves built and live on production at `1c66dd4`, verified in the shipped bundle. The return control at every width — a Tauri window has no chrome and is 1280px, so a phone breakpoint would have missed it — and the ancestors collapsing behind an ellipsis instead of being removed. Three hand-rolled escapes deleted, including team's, which pointed at Discover though a team's parent is Teams. **Acceptance pending:** iOS Add to Home Screen and the installed desktop app; no tier here reaches an installed app.
+
+Current work: [project index](../README.md). Original evidence follows.
 Status: **built and deployed 2026-09-10**; the web-install device checks are
 the only thing left, and they belong to the Product Owner. Live on production
 at `1c66dd4`, verified in the shipped bundle rather than the build. Scope corrected the same day — this is not a phone
@@ -290,7 +293,7 @@ route-level code splitting, or a second hand-rolled history mechanism appearing.
 Any of those, and this stops being a preference.
 
 Coordinate implementation with the ongoing header/main-content changes in
-[the registry plan](done/2026-09-09-07-main-content-on-the-registry.md). The edits
+[the registry plan](2026-09-09-07-main-content-on-the-registry.md). The edits
 that were uncommitted when this plan was written are committed and the tree is
 clean, but that plan still reads *proposed, nothing implemented*, and the status
 index was corrected on 2026-09-09 for claiming the shadcn conversion was

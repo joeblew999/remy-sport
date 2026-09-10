@@ -1,5 +1,8 @@
 # Public help: isolated Fumapress proof
 
+Archive: completed (2026-09-10). Isolated dev, staging and production help/MCP implemented; both remote help Workers deployed and externally verified 2026-09-09. **Acceptance pending:** real Gemini execution and Google indexing need Google credentials nobody here has.
+
+Current work: [project index](../README.md). Original evidence follows.
 Status: **blocked on external access, not on work.** Isolated dev, staging and
 production help/MCP are implemented, and both remote help Workers were deployed
 and externally verified on 2026-09-09. Real Gemini
@@ -123,7 +126,7 @@ manual reload. The marker is not part of the committed content.
 ### Known limits and tracked upstream issues
 
 Reproduction steps, local fixes and upstream submission/removal status are kept
-in the [upstream bug register](done/2026-09-09-05-fumapress-source-review.md#upstream-bug-and-workaround-register).
+in the [upstream bug register](2026-09-09-05-fumapress-source-review.md#upstream-bug-and-workaround-register).
 
 - This remains a local noindex site with a reserved canonical hostname. The
   audit proves document output, not Google indexing or Gemini recommendations.
@@ -174,7 +177,7 @@ For each stage, record commands, results, limitations and relevant commits here.
 A broken required check keeps that stage open. Every framework workaround gets
 an upstream record. Finish with the GUI running and a reproducible README.
 
-References: [Fumapress/editor source review](done/2026-09-09-05-fumapress-source-review.md)
+References: [Fumapress/editor source review](2026-09-09-05-fumapress-source-review.md)
 and [oRPC/Blume measurements](2026-09-09-03-orpc-blume-review.md).
 
 ### Expansion evidence before editor work

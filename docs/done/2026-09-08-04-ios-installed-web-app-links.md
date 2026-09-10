@@ -1,5 +1,8 @@
 # iOS installed web app links — no supported fix identified
 
+Archive: superseded (2026-09-10). **No supported fix exists.** iOS opens links in Safari after Add to Home Screen; the upstream issue (pwa-install #174) was open with no comments. Archived because there is nothing to do here, not because it was solved — resume only on evidence of a supported mechanism.
+
+Current work: [project index](../README.md). Original evidence follows.
 Status: **unresolved requirement; implementation deferred because no supported
 iOS web-app fix has been identified; awaiting upstream guidance.** Updated 2026-09-08.
 
