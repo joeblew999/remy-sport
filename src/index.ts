@@ -196,7 +196,7 @@ app.all("*", (c) => c.env.ASSETS.fetch(c.req.raw))
 /**
  * The Hono app by name, as well as inside the default export.
  *
- * `bun run check:authz` enumerates `app.routes` to prove every non-procedure
+ * `tests/repo/authz.test.ts` enumerates `app.routes` to prove every non-procedure
  * route is accounted for. Wrapping the app in `{ fetch, scheduled }` hid that
  * list behind a closure and the check died with "undefined is not an object" —
  * a security check silently losing its subject, which is the worst way for one

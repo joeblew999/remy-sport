@@ -8,7 +8,7 @@ import { LOCALES, type Locale } from "../../src/domain/vocabularies"
  *
  * The keys come from the same `orpc.*.key()` the components subscribe to, and
  * the data is typed by the procedure's own return type — so a renamed
- * procedure or a changed response shape fails `mise run typecheck`, not a
+ * procedure or a changed response shape fails `bun run typecheck`, not a
  * browser run three minutes later.
  *
  *   await seedCache(page, [entry(orpc.events.list, {}, { events: [...] })])

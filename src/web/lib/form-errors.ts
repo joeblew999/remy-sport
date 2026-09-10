@@ -48,7 +48,7 @@ import { m } from "./i18n"
  * all, and this derives the key.
  *
  * The compile-time guarantee the table gave up is replaced by a build-time one:
- * `bun run check:messages` fails when a code in src/api/errors.ts has no
+ * `tests/repo/messages.test.ts` fails when a code in src/api/errors.ts has no
  * `err_*` message in a released locale, so a missing sentence still cannot ship.
  */
 const keyFor = (code: string) => `err_${code.toLowerCase()}`

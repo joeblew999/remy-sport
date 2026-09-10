@@ -2,7 +2,7 @@
  * Write .dev.vars with the local-dev variables (ADR 006, ADR 010).
  *
  * .dev.vars is gitignored and holds the local-dev counterpart of the remote
- * secret set by `mise run cf:secret:set`. The two are deliberately distinct
+ * secret set by `bun run ops provision --env X --apply`. The two are deliberately distinct
  * values — a local secret should never be able to sign a production session.
  *
  * Idempotent, and additive rather than all-or-nothing: an existing file keeps

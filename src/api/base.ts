@@ -385,7 +385,7 @@ export async function can(
 }
 
 /**
- * The mark every procedure must carry, and how `bun run check:authz` reads it.
+ * The mark every procedure must carry, and how `tests/repo/authz.test.ts` reads it.
  *
  * Model-driven authorisation only works if it cannot be skipped, and until
  * 2026-08-28 it could: `requireAction` was something a person remembered to
@@ -451,7 +451,7 @@ export function openTo(action: keyof typeof GRANTS) {
  * `VIEW_PLAYER` is granted to PUBLIC, but a player list names minors and their
  * jersey numbers, so `/api/players` is behind a session. Being stricter than
  * the model is safe; being stricter *silently* is how a model stops describing
- * the system. `bun run check:authz` prints every one of these, so the
+ * the system. `tests/repo/authz.test.ts` prints every one of these, so the
  * disagreement stays in front of whoever owns the model.
  */
 export function stricterThanModel(action: keyof typeof GRANTS, why: string) {

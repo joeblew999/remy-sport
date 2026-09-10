@@ -308,7 +308,7 @@ export function createAuth(c: AuthHost) {
       // while still needing the fixed code for the deployed suite. Gating this
       // on it made `demo:on` silently do nothing on production for one commit.
       //
-      // `mise run deploy` reruns the whole Playwright suite against the
+      // `bun run deploy --env X` reruns the whole Playwright suite against the
       // deployed Worker (test:deployed), and every test signs in. Passwords
       // made that trivial; a code sent to a real inbox does not, and the dev
       // outbox deliberately does not exist in production. Without this, either

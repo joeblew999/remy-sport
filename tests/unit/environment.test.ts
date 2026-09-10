@@ -91,7 +91,7 @@ describe("production is the strictest row, and unset resolves to it", () => {
  * `seededSignIn` decides whether the picker appears; `signInCode` decides
  * whether those accounts can get in. They disagree on production, and folding
  * them into one boolean shipped a real regression: gating the code on
- * `seededSignIn` made `mise run demo:on` a silent no-op there, so every seeded
+ * `seededSignIn` made `bun run ops demo on --env X` a silent no-op there, so every seeded
  * account got a random code and the deployed suite — which signs in on every
  * test — had nothing to type. Nothing failed until the next deploy.
  */
@@ -106,7 +106,7 @@ describe("the fixed sign-in code is not the account picker", () => {
   it("production has one only when a human set it", () => {
     expect(fixedSignInCode({ ENVIRONMENT: "production" })).toBeUndefined()
     expect(fixedSignInCode({ ENVIRONMENT: "production", TEST_OTP: "123456" })).toBe("123456")
-    // `mise run demo:off` deletes the secret, and that must be the whole of it.
+    // `bun run ops demo off --env X` deletes the secret, and that must be the whole of it.
     expect(fixedSignInCode({ ENVIRONMENT: "production" })).toBeUndefined()
   })
 

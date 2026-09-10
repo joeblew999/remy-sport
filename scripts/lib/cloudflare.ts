@@ -406,7 +406,7 @@ export function resolveTarget(argv: string[], rule: TargetRule = "explicit"): Ta
     fail(
       "dev is local and provisions nothing on the account.\n" +
         "  Its D1 lives in .wrangler/state, its secrets in .dev.vars, and its fixed\n" +
-        "  sign-in code comes from the policy table. Run `bun run dev:vars`.",
+        "  sign-in code comes from the policy table. Run `bun run setup`.",
     )
   }
   const environment = named as Environment
@@ -457,7 +457,7 @@ let cachedToken: string | null | undefined
  * unreachable and everything else as fine, which reads exactly like a
  * Cloudflare outage and is not one.
  *
- * Environment wins, so `CLOUDFLARE_API_TOKEN=... mise run ...` keeps working and
+ * Environment wins, so `CLOUDFLARE_API_TOKEN=… mise run …` keeps working and
  * CI supplies its own without touching a keychain. `fnox get`, not `fnox exec`:
  * exec injects every secret declared in fnox.toml and warns about each one
  * unrelated to the task at hand.

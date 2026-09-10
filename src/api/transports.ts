@@ -110,7 +110,7 @@ const push: Transport = {
  * `mailerFor` picks the Cloudflare transport or the outbox by `MAIL_TRANSPORT`,
  * which is what makes this provable end to end on the dev tunnel: an
  * EMAIL-enabled preference produces a captured message with a real subject, and
- * `mise run cf:smoke` already checks that capture works.
+ * `bun run ops smoke --env X` already checks that capture works.
  *
  * There is no `gone` here. A push service tells us an endpoint is permanently
  * dead and we delete the row; an SMTP bounce arrives asynchronously, to a

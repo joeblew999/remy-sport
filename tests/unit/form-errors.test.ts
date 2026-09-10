@@ -123,7 +123,7 @@ describe("defined errors", () => {
  *
  * `TEAM_PLAYS_ITSELF` reads `err_team_plays_itself`. Adding an error used to
  * touch four files and write the same English twice — once as the code's
- * `message`, once in `en.json`. `bun run check:messages` is what stops a code
+ * `message`, once in `en.json`. `tests/repo/messages.test.ts` is what stops a code
  * shipping without a sentence now that no table declares them.
  */
 describe("codes map to messages by convention", () => {

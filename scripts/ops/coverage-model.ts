@@ -8,7 +8,7 @@
  *
  * Nothing here fails the build, and that is deliberate — most of these are
  * unbuilt on purpose and the roadmap says so. What was missing was a way to
- * *see* it. `bun run model:coverage`.
+ * *see* it. `bun run ops coverage model`.
  *
  * Three honest buckets:
  *
@@ -112,7 +112,7 @@ for (const action of Object.values(RECEIVE_ACTION)) enforced.add(action)
  * scores until a reader asks — and it has nothing to enforce, because there is
  * no resource: it is a display preference held in the browser. No procedure can
  * declare it and no audience consults it, so both this report and the Product
- * Owner's `mise run built` called a working feature missing.
+ * Owner's the Owner.s old `built` task called a working feature missing.
  *
  * Worth noting how that survived: the two repos derive this independently and
  * *agreed*. Agreement is not correctness when both share an assumption — here,

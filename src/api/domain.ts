@@ -40,7 +40,7 @@ type Key = keyof typeof FIXTURE_TABLES
  * endpoints, and an endpoint factory that can produce an undeclared one is how
  * "every generated table is an endpoint" turns into published personal data —
  * which is exactly what the header above warns about, and what nothing checked
- * until `bun run check:authz` existed.
+ * until `tests/repo/authz.test.ts` existed.
  */
 const listOf = <K extends Key>(
   builder: typeof pub | typeof authed,

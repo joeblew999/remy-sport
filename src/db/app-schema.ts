@@ -171,7 +171,7 @@ export const team = sqliteTable("team", {
  * There were eight of them written out here by hand, which meant every new
  * vocabulary upstream needed a table typed out again, in step, by someone who
  * remembered to. There are twenty now and none of them are written here — see
- * scripts/domain-generate.ts and `bun run check:domain`.
+ * scripts/domain-generate.ts and `tests/repo/domain-coverage.test.ts`.
  */
 export * from "./vocabularies-schema"
 

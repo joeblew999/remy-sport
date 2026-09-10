@@ -20,7 +20,7 @@ import { projectGamesIn, projectRoster, projectTeam, type Held } from "../helper
  * It stays type-safe rather than becoming a fixture graveyard: the key comes
  * from `orpc.teams.get.queryKey()`, the same one the component subscribes to,
  * and the data is checked against the procedure's real return type. Rename the
- * procedure or change the response shape and this fails `mise run typecheck` —
+ * procedure or change the response shape and this fails `bun run typecheck` —
  * not a browser run three minutes later.
  */
 

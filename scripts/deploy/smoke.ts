@@ -135,18 +135,28 @@ const WHY_DEV_DIFFERS =
 /**
  * Where the VAPID keys for *this* host are supposed to come from.
  *
- * This used to say "`mise run push:secret:set` has not run" whatever was being
- * smoke-tested, and that task sets secrets on the **deployed** Worker. The dev
- * tunnel is not a deployment: its environment is `.dev.vars`, and no amount of
- * `push:secret:set` will change what it serves.
+ * This has been wrong twice, in opposite directions, and both times silently.
  *
- * A remedy that names the wrong file is worse than none — it sends somebody to
- * re-run a working deploy step and conclude the bug is elsewhere.
+ * First it named one remedy whatever was being smoke-tested — a task that sets
+ * secrets on the **deployed** Worker. The dev tunnel is not a deployment: its
+ * environment is `.dev.vars`, and no amount of setting Worker secrets changes
+ * what it serves. A remedy that names the wrong thing is worse than none, since
+ * it sends somebody to re-run a working step and conclude the bug is elsewhere.
+ *
+ * Then both halves went on naming commands that had been **deleted**. Neither
+ * survived the consolidation of ninety mise tasks into nineteen scripts (see
+ * scripts/db.ts), so the only guidance for a missing Web Push key pointed at two
+ * commands that no longer existed — and one of them was named again, dead, in
+ * scripts/lib/cloudflare.ts.
+ *
+ * A remedy is part of the CLI surface, not prose beside it.
+ * tests/repo/remedies.test.ts now checks every command named anywhere in the
+ * tree, so this cannot rot a third time.
  */
 const vapidRemedy = () =>
   SURFACE === "tunnel" || SURFACE === "local"
-    ? `${HOST} runs from .dev.vars — run \`bun run dev:vars\` and restart wrangler dev`
-    : `\`mise run push:secret:set\` has not run for ${SURFACE}`
+    ? `${HOST} runs from .dev.vars — run \`bun run setup\` and restart wrangler dev`
+    : `\`bun run ops provision --env ${SURFACE} --apply\` has not set them for ${SURFACE}`
 
 const { SEED_ENTITIES } = await import("../../src/domain/model/entities")
 

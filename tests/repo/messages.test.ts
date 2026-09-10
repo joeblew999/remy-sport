@@ -16,7 +16,7 @@
  * error — `m.nope()` does not exist. A missing *translation* is not: the
  * compiler emits `if (locale === "th") return th_x(...)` and falls through to
  * English, and the build passes. Verified by deleting a key and running
- * `mise run i18n:generate`, which succeeded.
+ * the old `i18n:generate` task, which succeeded.
  *
  * So a Thai reader gets English for that one string and nothing says so. That is
  * the same failure the model's own check exists to prevent — `domain/check.ts`

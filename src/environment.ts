@@ -85,7 +85,7 @@ export interface Policy {
    * it silently made `demo:on` a no-op there — every seeded account got a random
    * code and the deployed Playwright suite, which signs in on every test, had no
    * way to authenticate. Nothing failed at deploy time; it would have failed at
-   * the next `mise run deploy`.
+   * the next `bun run deploy --env X`.
    */
   signInCode: "derived" | "secret"
   /**
@@ -164,7 +164,7 @@ export const POLICY: Record<Environment, Policy> = {
     devMailRoutes: false,
     devSessionRoutes: false,
     seededSignIn: false,
-    // The one environment where a human decides. `mise run demo:on` sets the
+    // The one environment where a human decides. `bun run ops demo on --env X` sets the
     // secret so the deployed Playwright suite can sign in; `demo:off` removes
     // it, and must be run before the platform has real users.
     signInCode: "secret",

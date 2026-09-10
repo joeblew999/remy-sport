@@ -9,7 +9,7 @@
  * suspect, time it again — took two minutes and gave 0.23s → 0.01s.
  *
  * The tool that would have made that the first move rather than the last did
- * not exist. `mise run probe` is the equivalent for types ("write a file,
+ * not exist. `bun run ops time` is the equivalent for types ("write a file,
  * typecheck it, delete it") and is cited all over this repo as the reason
  * several wrong beliefs died quickly. This is that, for time.
  *

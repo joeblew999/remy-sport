@@ -82,7 +82,7 @@ export type Bindings = {
    */
   NOTIFICATIONS?: { send(body: unknown): Promise<unknown> }
   /**
-   * Web Push identity — `mise run push:keys` generates the pair, and all three
+   * Web Push identity — `bun run ops keys` generates the pair, and all three
    * are secrets.
    *
    * Optional together: with none of them set the app runs and simply never
