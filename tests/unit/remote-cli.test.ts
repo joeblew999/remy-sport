@@ -53,7 +53,7 @@ function freshCheckout(): string {
   // directory listing of the live tree back into an otherwise hermetic fixture.
   const listed = spawnSync("git", ["ls-tree", "--name-only", "HEAD", "scripts/lib/"], { encoding: "utf8" })
   expect(listed.status, listed.stderr).toBe(0)
-  const files = ["scripts/ops.ts", "scripts/ops/remote.ts", "scripts/ops/tunnel.ts", "scripts/lib/prepare.ts", "scripts/lib/bun-pin.ts", "scripts/lib/app-tunnel.ts", "src/environment.ts",
+  const files = ["scripts/ops.ts", "scripts/ops/remote.ts", "scripts/ops/tunnel.ts", "scripts/lib/prepare.ts", "scripts/lib/bun-pin.ts", "scripts/lib/app-tunnel.ts", "scripts/lib/deploy-lock.ts", "src/environment.ts",
     ...listed.stdout.split("\n").filter(file => /^scripts\/lib\/remote-.*\.ts$/.test(file))]
   const tar = join(root, "fixture.tar")
   // Written to a file and then extracted, rather than piped through a shell, so
