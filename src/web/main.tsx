@@ -382,11 +382,47 @@ function App() {
  * Failure is silent on purpose. A browser that refuses to register a worker
  * loses push, not the app.
  */
+/**
+ * Take the new build at the reader's next navigation.
+ *
+ * A worker precaches the built shell and answers navigations from it, so a
+ * returning reader keeps whatever was deployed the last time they visited —
+ * indefinitely, if nothing makes them take the update. On 2026-09-10 production
+ * moved a week and 284 commits forward and the site still showed the previous
+ * interface to a browser that had one cached. Nothing was broken: the Worker
+ * served the new bundle, `curl` proved it, and the reader saw the old one.
+ * Every check ran without a service worker and so was blind to the only thing
+ * that mattered.
+ *
+ * Reloading the moment a worker is ready is the wrong fix and stays rejected:
+ * this product has live score entry, and a page pulled out from under somebody
+ * mid-form loses what they typed for a change that could have waited.
+ *
+ * A hash change is the boundary where both are true — the reader has finished
+ * with whatever they were doing and the page is being replaced anyway. So the
+ * update is applied there, once, at the destination they asked for. Someone who
+ * stays on one screen keeps their page and keeps the build stamp's button,
+ * which is the immediate way out and the only one that existed before.
+ */
+function applyOnNextNavigation(): void {
+  const take = () => {
+    window.removeEventListener("hashchange", take);
+    // The hash has already moved, so this reloads INTO where they were going.
+    window.location.reload();
+  };
+  window.addEventListener("hashchange", take);
+}
+
 if (
   typeof window !== "undefined" &&
   !("__TAURI_INTERNALS__" in window) &&
   "serviceWorker" in navigator
 ) {
+  // Hung off the event rather than called from `onNeedReload`, so that anything
+  // raising "an update is waiting" gets this — and so a test can raise it.
+  // The build stamp listens to the same event to show its button.
+  window.addEventListener("remy:update-ready", applyOnNextNavigation, { once: true });
+
   import("virtual:pwa-register")
     .then(({ registerSW }) =>
       registerSW({
