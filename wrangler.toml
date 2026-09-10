@@ -150,9 +150,32 @@ migrations_dir = "src/db/migrations"
 binding = "STORAGE"
 bucket_name = "remy-sport-storage"
 
+# Workers Logs — what the Worker said, kept for seven days and queryable.
+#
+# `enabled` alone stores the lines. `invocation_logs` is what makes them
+# readable: it groups every line, error and uncaught exception under the request
+# that produced them, so a failure is one invocation to open rather than four
+# hundred scattered lines to correlate by timestamp.
+#
+# `head_sampling_rate = 1` keeps all of it. That is the right setting while the
+# traffic is small and the wrong one at scale — it is the number to lower when
+# volume makes it expensive, not the `enabled` above.
+#
+# This is the half our own telemetry cannot supply. `src/analytics.ts` records
+# what the application decided; a handler that Cloudflare stops for exceeding
+# CPU never reaches the line that would have recorded anything, and shows up in
+# `ops analytics` as silence. `ops analytics --runtime` sees that it happened;
+# these logs are where the reason lives.
+#
+# Reading them over the API needs a token with **Workers Observability: Read**,
+# which is a different permission from the **Account Analytics: Read** that the
+# runtime metrics and the Analytics Engine SQL both use.
 [observability]
 enabled            = true
 head_sampling_rate = 1
+
+[observability.logs]
+invocation_logs    = true
 
 # Cloudflare Email Service — outbound transactional mail (org invitations).
 #
