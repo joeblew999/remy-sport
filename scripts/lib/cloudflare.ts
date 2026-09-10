@@ -1,22 +1,11 @@
 /**
  * The Cloudflare boundary. One module owns it.
  *
- * Grew out of `cf-ensure`, whose contents were never the problem — it already
- * owned resolved-config reading and the `database_id` write that pointed
- * production at the wrong database on 2026-08-20. Its *name* was the problem:
- * it read like a task entry point, so nothing else grew here and fifteen
- * scripts each re-decided the same four things instead.
+ * Credential, account, target and what an error means are defined here once —
+ * scattered, each was re-decided per script and they disagreed.
  *
- * Credential, account, target and what an error means are defined here once.
- * Before that they were scattered: the credential rule alone existed in three
- * shapes across seven sites, and the unreachable/absent distinction existed in
- * exactly one private function that only provisioning could reach. That is what
- * 2026-09-01 was — fourteen callers would have read "could not ask" as "not
- * there" and carried on.
- *
- * See docs/dev/cloudflare-module.md for the decisions taken before any of this
- * moved, particularly the `--env` rule, which is declared per operation and is
- * deliberately not a global policy.
+ * docs/dev/cloudflare-module.md has the decisions, particularly the `--env`
+ * rule, which is declared per operation and deliberately not a global policy.
  */
 
 import { spawnSync } from "node:child_process"
@@ -107,27 +96,14 @@ function blockOf(lines: string[], databaseName: string): { from: number; to: num
 /**
  * Point one environment's D1 binding at `uuid`, and prove nothing else moved.
  *
- * ## Why this is verified rather than merely careful
+ * Verified rather than careful, because any regex over TOML guesses at a format
+ * with sections, inheritance and comments — and when it guesses wrong it writes
+ * something and exits 0. A first-match `database_id` pattern once meant patching
+ * staging would have pointed production at staging's database.
  *
- * The job is writing a uuid into a config file, and the failure mode is writing
- * it into the wrong block. That happened: `/^database_id\s*=\s*"([^"]*)"/m`
- * matches the first occurrence in the file, which was unambiguous while one
- * environment existed and became production's block the day staging arrived.
- * Patching staging would have pointed **production** at staging's database, and
- * the next deploy would have served production from an empty one — precisely
- * the 2026-08-20 loss this script was written to prevent.
- *
- * A tighter regex is not the fix. Any regex over TOML is a guess about a format
- * with sections, arrays-of-tables, inheritance and comments, and when it guesses
- * wrong it does so **silently** — it writes something, exits 0, and the damage
- * is found later. The property that actually matters is not "the pattern was
- * precise" but "the file now says what I intended and nothing else changed",
- * and that can be checked directly.
- *
- * So: snapshot every environment's resolved D1 bindings, write, re-read, and
- * assert both halves — the target moved to `uuid`, and every other environment
- * is byte-identical. If either fails the original file is restored and the run
- * refuses. A wrong write becomes a loud no-op.
+ * So: snapshot every environment's resolved bindings, write, re-read, assert the
+ * target moved and every other environment is byte-identical. Either failure
+ * restores the file and refuses, turning a wrong write into a loud no-op.
  */
 export function patchDatabaseId(opts: {
   configPath: string
@@ -255,23 +231,13 @@ export type TargetRule = "explicit" | "ambient"
 /**
  * The environment a caller named, in either spelling, or undefined.
  *
- * Both spellings, because both are typed and neither is wrong: `--env staging`
- * is what every help text in this repo shows, and `--env=staging` is what a
- * shell alias or a CI file tends to carry. A reader that knows only one of them
- * does not fail on the other — it reports "no environment named" and falls
- * through to whatever the default is, which is production.
+ * A reader that knows only one spelling does not fail on the other — it reports
+ * nothing named and falls through to production, silently. One reader, so there
+ * is one behaviour to get right.
  *
- * Exported because that failure has now happened three times in files that each
- * rolled their own parse: `ops analytics` accepted only `--env=` and reported
- * production for `--env staging`; `ops docs` accepts only `--env ` and runs a
- * *local* check for `--env=staging` while the caller believes they asked about
- * a deployment. Both were silent. One reader, so there is one behaviour to get
- * right and one place to fix it.
- *
- * This answers "what did they type", not "what should we act on" — callers that
- * need a validated target want `resolveTarget`. The separate question is real:
- * smoke and demo-status both have to know whether an environment was named at
- * all, because `CF_DEPLOY_URL` may only win when nothing more specific was said.
+ * This answers "what did they type", not "what should we act on"; for that use
+ * `resolveTarget`. Smoke and demo-status need the distinction, because
+ * `CF_DEPLOY_URL` may only win when nothing more specific was said.
  */
 export function namedEnvironment(argv: string[]): string | undefined {
   return read(argv).values.env as string | undefined
@@ -341,28 +307,13 @@ export function withoutEnvironment(argv: string[]): string[] {
 /**
  * Say which environment was resolved, and do nothing else.
  *
- * `REMY_TARGET_PROBE=1 <any command> --env staging` prints `target: staging`
- * and exits before the command acts. That is the whole mechanism behind
- * tests/repo/command-targets.test.ts, which asks every command that takes an
- * environment whether it honours one — the assertion nobody could make before,
- * because these scripts parse `process.argv` at module scope and export
- * nothing, so there is no function to call and no way in but a process.
+ * `REMY_TARGET_PROBE=1 <command> --env staging` prints it and exits before the
+ * command acts, which is how tests/repo/command-targets.test.ts asks a script
+ * that parses `process.argv` at module scope and exports nothing.
  *
- * Until now that question was answered by hand, by running a command and
- * reading a header line. Every environment bug found on 2026-09-10 would have
- * been caught by asking it mechanically: `ops analytics --env staging` reported
- * production, `ops docs check --env=staging` ran locally, and both looked
- * exactly like success.
- *
- * The alternative was extracting every command script into testable
- * functions, in files where `process.exit` **is** the control flow — a rewrite
- * of the code that deploys and migrates production, to buy one assertion.
- *
- * It fires only when `argv` is the tail of the real command line. Callers that
- * synthesise arguments — `ops versions` resolves `["--env", name]` for each
- * environment in turn, to report on both — must not trip a probe about what the
- * *user* asked for. Comparing against `process.argv` is what distinguishes
- * "this is the command's own target" from "this is a target it made up".
+ * Only when `argv` is the tail of the real command line: `ops versions`
+ * synthesises a target per environment, and must not trip a probe about what
+ * the user asked for.
  */
 function probe(target: Target): Target {
   if (!process.env.REMY_TARGET_PROBE) return target
@@ -450,22 +401,17 @@ let cachedToken: string | null | undefined
 /**
  * The API token, or null when there is none to be had.
  *
- * `wrangler login` is not enough and the way it fails is why this module
- * exists. The OAuth token records `d1:write` and `whoami` prints it, but every
- * account-scoped D1 call answers 10000 while R2, queues, workers and secrets
- * answer normally on that same token — so a caller on OAuth reports D1 as
- * unreachable and everything else as fine, which reads exactly like a
- * Cloudflare outage and is not one.
+ * `wrangler login` is not enough: on an OAuth token every account-scoped D1 call
+ * answers 10000 while R2, queues, workers and secrets answer normally — so D1
+ * looks unreachable and everything else looks fine, which reads as a Cloudflare
+ * outage and is not one.
  *
- * Environment wins, so `CLOUDFLARE_API_TOKEN=… mise run …` keeps working and
- * CI supplies its own without touching a keychain. `fnox get`, not `fnox exec`:
- * exec injects every secret declared in fnox.toml and warns about each one
- * unrelated to the task at hand.
+ * Environment wins so CI can supply its own. `fnox get`, not `fnox exec`, which
+ * would inject every secret in fnox.toml.
  *
- * Null rather than a refusal when fnox has nothing: a machine that never
- * provisions is correctly configured without it, wrangler still has its OAuth
- * credential for everything that works on OAuth, and the caller that genuinely
- * needed this fails through `unreachable()` with the API's own words.
+ * Null rather than a refusal: a machine that never provisions is correctly
+ * configured without it, and a caller that genuinely needed it fails through
+ * `unreachable()` with the API's own words.
  */
 export function token(): string | null {
   if (cachedToken !== undefined) return cachedToken
@@ -537,33 +483,14 @@ export function accountId(): string {
  * call site.
  */
 export function credentialEnv(): NodeJS.ProcessEnv {
-  // Discarded from the spread, not overwritten: an empty CLOUDFLARE_API_TOKEN
-  // means unset, `token()` reads it that way, and a child that still received
-  // "" would be authenticating differently from what this module decided.
+  // Both discarded from the spread rather than overwritten. An empty
+  // CLOUDFLARE_API_TOKEN means unset, and a child receiving "" would
+  // authenticate differently from what this module decided.
   //
-  // CLOUDFLARE_ENV goes for a different reason, and a sharper one. It is
-  // wrangler's environment variable equivalent of `--env`, so an exported
-  // CLOUDFLARE_ENV silently retargets any wrangler call that does not pass the
-  // flag — and **production is exactly that call**, because `Target.flag` is
-  // undefined for the top-level config.
-  //
-  // Measured 2026-09-10, against the real account: `wrangler secret list` with
-  // nothing set returned production's secrets; with CLOUDFLARE_ENV=staging in
-  // the shell it returned a different Worker's. Same command, no
-  // warning. `wrangler deploy --dry-run` likewise resolved every binding —
-  // D1, R2, queue, dataset, BETTER_AUTH_URL and the ENVIRONMENT var itself —
-  // to staging while the tool believed it was acting on production.
-  //
-  // So `ops demo on --env production` could have written its sign-in secret to
-  // staging, and `ops provision --env production --apply` its secrets too,
-  // reporting success about production either way. `deploy` was already safe:
-  // `publish()` deletes the variable by hand, with a comment recording the day
-  // it published a Worker called `remy-sport-staging-staging`. That fix was
-  // right and was in one function; this is the same fix for every other call.
-  //
-  // Nothing here needs it. Every caller states its target as an argument, and
-  // the build — the one place CLOUDFLARE_ENV is genuinely read, to pick the
-  // PWA install name — is vite, not wrangler, and does not come through here.
+  // CLOUDFLARE_ENV is wrangler's variable equivalent of `--env`, so it retargets
+  // any call that does not pass the flag — and production is exactly that call,
+  // since `Target.flag` is undefined for the top-level config. No caller needs
+  // it: every one states its target as an argument.
   const { CLOUDFLARE_API_TOKEN: _discarded, CLOUDFLARE_ENV: _ambient, ...rest } = process.env
   const t = token()
   return {
@@ -598,23 +525,12 @@ export function wrangler(
    * A named target always says which environment, production included.
    *
    * `--env ""` is wrangler's own way of naming the top-level environment, and
-   * it is what wrangler's warning asks for: with several environments declared
-   * and no flag, it prints "no target environment was specified ... to avoid
-   * unintentional changes to the wrong environment". That warning has been on
-   * every production operation this repo runs, and was correct.
+   * what its "no target environment was specified" warning asks for. Omitting
+   * the flag hands the decision to CLOUDFLARE_ENV instead.
    *
-   * Omitting the flag is not neutral — it hands the decision to CLOUDFLARE_ENV,
-   * and thence to whatever a shell happens to export. `credentialEnv` now
-   * removes that variable, so this is the second lock rather than the first: it
-   * makes the intent explicit in the command itself, which is what shows up in
-   * a log when somebody is working out what an operation actually touched.
-   *
-   * Only when a target was passed. `undefined` means the caller deliberately
-   * supplies a fully resolved config — deploy's generated dist/<worker>/
-   * wrangler.json — where naming an environment is *not* idempotent: a config
-   * with no `env` section plus a named environment makes wrangler fall back to
-   * legacy behaviour and publish `remy-sport-staging-staging`, which it did
-   * once, taking the custom domain with it. See publish() in scripts/deploy.ts.
+   * Only when a target was passed. `undefined` means a fully resolved config —
+   * deploy's generated wrangler.json — where naming an environment is not
+   * idempotent and once published `remy-sport-staging-staging`.
    */
   const environment = target ? ["--env", target.flag ?? ""] : []
   const full = ["x", "wrangler", ...args, ...environment]

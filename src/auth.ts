@@ -136,37 +136,24 @@ function localeFrom(headers: Headers | undefined): ReleasedLocale {
 export function createAuth(c: AuthHost) {
   const db = drizzle(c.env.DB, { schema })
 
-  // Trust the origin the request actually arrived on, rather than a hardcoded
-  // list. The Worker answers on several hostnames — localhost in dev, the
-  // custom domain in production — and a fixed list cannot cover them all.
+  // Trust the origin the request arrived on, not a fixed list: the Worker
+  // answers on several hostnames. With a custom_domain route declared,
+  // `wrangler dev` rewrites Host and Origin to it but keeps http, so a
+  // localhost request never matches an https baseURL and every cookie-bearing
+  // sign-in 403s with INVALID_ORIGIN.
   //
-  // Specifically: once wrangler.toml declares a [[routes]] custom_domain,
-  // `wrangler dev` simulates that route locally. It rewrites c.req.url, Host,
-  // Origin and Referer to the custom domain but keeps the **http** scheme, so
-  // a request to localhost:8787 reaches the Worker as
-  // http://remy.ubuntusoftware.net — which never matches the https baseURL.
-  // That mismatch 403s every cookie-bearing sign-in with INVALID_ORIGIN.
-  //
-  // This is safe because the GUI is served from this same Worker (see the
-  // [assets] block in wrangler.toml), so a same-origin request is by
-  // definition first-party — which is exactly what the check is protecting.
+  // Safe because the GUI is served from this same Worker, so same-origin is
+  // first-party by definition — which is what the check protects.
   /**
    * The scheme the *browser* used, which is not always the one the Worker sees.
    *
-   * Behind the dev tunnel, cloudflared terminates TLS and forwards plain http
-   * to the local server, and `wrangler dev --host` rewrites the Host on top of
-   * that — so `c.req.url` arrives as `http://192.168.1.100` for a request the
-   * reader made to `https://dev-remy.ubuntusoftware.net`. Believing it means
-   * Better Auth issues a non-secure cookie over a genuinely secure connection.
+   * Behind the tunnel, cloudflared terminates TLS and forwards http, so the URL
+   * says http for a request the reader made over https — and Better Auth would
+   * issue a non-secure cookie over a secure connection. `x-forwarded-proto` and
+   * `cf-visitor` are more truthful once a proxy is in front.
    *
-   * `x-forwarded-proto` is what a reverse proxy sets for exactly this, and
-   * Cloudflare sends `cf-visitor` saying the same thing. Either is more
-   * truthful than the URL once a proxy is in front.
-   *
-   * Only the scheme is taken from headers. The host is left as the Worker sees
-   * it, because these cookies carry no `Domain` — they are host-only, so the
-   * browser scopes them to the name it asked for and the internal rewrite does
-   * not reach it.
+   * Scheme only. These cookies carry no `Domain`, so the browser scopes them to
+   * the host it asked for and the internal rewrite never reaches it.
    */
   const forwardedScheme = (() => {
     const proto = c.headers?.get("x-forwarded-proto")?.split(",")[0]?.trim()
@@ -299,35 +286,18 @@ export function createAuth(c: AuthHost) {
         await mailer.send({ to: email, ...otpMail({ otp, purpose }, args.locale) })
       },
 
-      // Fixed code for the seeded demo accounts, where the environment has one.
+      // Fixed code for the seeded demo accounts, where the environment has one
+      // — `signInCode` in the policy table. Not gated on `seededSignIn`: that
+      // row decides whether the account picker appears, which production
+      // refuses while still needing the code for the deployed suite.
       //
-      // Where it comes from is `signInCode` in the policy table: derived on dev
-      // and staging, and on production only from a human-set TEST_OTP that
-      // `bun run ops demo off` removes. **Not gated on `seededSignIn`** — that row
-      // decides whether the account picker appears, which production says no to
-      // while still needing the fixed code for the deployed suite. Gating this
-      // on it made `demo:on` silently do nothing on production for one commit.
+      // The deployed suite signs in on every test, and production has no outbox
+      // to read a real code from. Scope is the mitigation: TEST_OTP must be set
+      // explicitly, and it applies only to seeded addresses that are not the
+      // admin — see DEMO_EMAILS for why that one differs in kind.
       //
-      // `bun run deploy --env X` reruns the whole Playwright suite against the
-      // deployed Worker (test:deployed), and every test signs in. Passwords
-      // made that trivial; a code sent to a real inbox does not, and the dev
-      // outbox deliberately does not exist in production. Without this, either
-      // the suite loses its auth coverage on deploys or the app grows a way to
-      // read production mail — both worse.
-      //
-      // Scope is the mitigation, and it is two-layered: TEST_OTP must be set
-      // explicitly, and it only ever applies to seeded addresses that are not
-      // the admin. Real addresses always get a random code, and so does the
-      // seeded admin — see DEMO_EMAILS for why that one is different in kind.
-      //
-      // Keyed on the seeded set rather than a domain, because the PO's people
-      // are at their own schools and federations and there is no one demo
-      // domain to match on. Strictly narrower than what it replaced: seed.ts
-      // once committed working passwords for these same accounts.
-      //
-      // Still unset this before the platform has real users. A demo account
-      // cannot reach anyone else's data, but it can edit shared fixture data,
-      // and once real events exist those are not fixtures any more.
+      // Unset it before the platform has real users: a demo account can edit
+      // shared fixture data, and once real events exist those are not fixtures.
       ...(fixedSignInCode(c.env)
         ? {
             generateOTP: ({ email }: { email: string }) =>

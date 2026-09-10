@@ -343,28 +343,14 @@ export default defineConfig(({ mode, command }) => {
   /**
    * The two dependencies the scanner cannot find on its own.
    *
-   * Vite pre-bundles what it can reach by walking static imports from the entry.
-   * `workbox-window` is reached only through `import("virtual:pwa-register")` —
-   * a dynamic import in main.tsx, deliberately, so a browser that refuses a
-   * service worker loses push and not the app — and `workbox-precaching` only
-   * from the service worker, which is a separate entry the client scan never
-   * sees. So neither is bundled at startup. Both are discovered the moment the
-   * first page actually runs that import, and a discovery mid-session makes Vite
-   * re-bundle and broadcast a full reload to every open page:
+   * Vite pre-bundles what it reaches by walking static imports. Both of these
+   * are reached only dynamically — `workbox-window` through
+   * `import("virtual:pwa-register")`, `workbox-precaching` from the service
+   * worker's separate entry — so Vite discovers them mid-session and broadcasts
+   * a full reload to every open page. In the e2e tier that lands in the middle
+   * of a test and fails a different spec each run.
    *
-   *   [vite] (client) dependency optimized: workbox-window
-   *   [vite] (client) optimized dependencies changed. reloading
-   *
-   * On a developer's machine that is a flicker on the first load of the day. On
-   * the e2e tier it is a page reload landing in the middle of a test, which
-   * loses whatever the SPA had navigated to and fails an assertion somewhere
-   * that looks nothing like a service worker — a different spec nearly every
-   * run, and at least six deploys.
-   *
-   * Naming them here bundles them at startup, when no page is open to reload.
-   * It does not hide anything: if a third dynamic-only dependency appears, the
-   * same message will say so, and the e2e webServer now pipes its output so it
-   * is one grep away rather than a morning's work.
+   * Naming them bundles them at startup, when no page is open to reload.
    * docs/done/2026-09-09-18-browser-tier-flakiness.md.
    */
   optimizeDeps: { include: ["workbox-window", "workbox-precaching"] },
@@ -394,30 +380,19 @@ export default defineConfig(({ mode, command }) => {
     /**
      * Empty it first, which Vite will not do on its own here.
      *
-     * `emptyOutDir` defaults to true only when the output is INSIDE the Vite
+     * `emptyOutDir` defaults to true only when the output is inside the Vite
      * root. This root is `src/web` and the output is `<repo>/dist`, so Vite
-     * refused — silently, as a safety measure against deleting something it did
-     * not create — and every build's hashed assets accumulated beside the last.
+     * silently refused and every build's hashed assets accumulated — hundreds
+     * of megabytes, all uploaded on every deploy and all precached.
      *
-     * By 2026-09-10 that was **765 files and 575MB** in `dist/client/assets`,
-     * all of it uploaded to the asset store on every deploy and all of it
-     * precached by the service worker, whose `globPatterns` quite correctly
-     * globs what is there: `precache 369 entries (90111.55 KiB)`.
+     * A service worker must fetch every precache entry before it installs, and
+     * one that never installs never activates: the previous worker goes on
+     * answering from its own cache, so readers keep a stale build indefinitely
+     * while `/api/versions` correctly reports the new one.
      *
-     * A worker must fetch every precache entry before it installs. Ninety
-     * megabytes of dead bundles is not an install that finishes on a phone, and
-     * a worker that never installs never activates — so the *previous* worker
-     * goes on answering navigations from its own cache and the reader keeps the
-     * build they had, indefinitely. Production served a week-old interface to
-     * anyone who had visited before, while `/api/versions` and `curl` both
-     * correctly reported the new one.
-     *
-     * The window this opens is known and is why it was worth writing down: for
-     * the length of a build, `dist/client` is empty, and a server reading it
-     * then answers 404 for `/`. The deploy builds and publishes in sequence so
-     * it cannot see that window; a watcher rebuilding under a running preview
-     * can, and that is the trade — a moment of 404 in development against a
-     * precache that grows without bound in production.
+     * The trade: for the length of a build `dist/client` is empty and a server
+     * reading it answers 404. Deploy builds and publishes in sequence so it
+     * cannot see that window; a watcher under a running preview can.
      */
     emptyOutDir: true,
     sourcemap: true,
