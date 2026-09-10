@@ -354,7 +354,7 @@ export function withoutEnvironment(argv: string[]): string[] {
  * production, `ops docs check --env=staging` ran locally, and both looked
  * exactly like success.
  *
- * The alternative was extracting 5,381 lines of command scripts into testable
+ * The alternative was extracting every command script into testable
  * functions, in files where `process.exit` **is** the control flow — a rewrite
  * of the code that deploys and migrates production, to buy one assertion.
  *
@@ -548,8 +548,8 @@ export function credentialEnv(): NodeJS.ProcessEnv {
   // undefined for the top-level config.
   //
   // Measured 2026-09-10, against the real account: `wrangler secret list` with
-  // nothing set returns production's 7 secrets; with CLOUDFLARE_ENV=staging in
-  // the shell it returns staging's 8. Same command, different Worker, no
+  // nothing set returned production's secrets; with CLOUDFLARE_ENV=staging in
+  // the shell it returned a different Worker's. Same command, no
   // warning. `wrangler deploy --dry-run` likewise resolved every binding —
   // D1, R2, queue, dataset, BETTER_AUTH_URL and the ENVIRONMENT var itself —
   // to staging while the tool believed it was acting on production.

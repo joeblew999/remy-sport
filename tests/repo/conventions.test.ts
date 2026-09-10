@@ -15,7 +15,7 @@
  *
  * What belongs here: a rule that a regression would silently violate, and that
  * is cheap to detect. What does not: anything a test already
- * covers (`tests/auth.spec.ts` proves password sign-in is gone far better than
+ * covers (the old auth spec proved password sign-in is gone far better than
  * a grep could), and anything a type-checker catches.
  */
 
@@ -262,7 +262,16 @@ const RULES: Rule[] = [
     claim: '"A step is named for what it runs, and nothing uses a colon or a space."',
     check: () => {
       const bad: string[] = []
-      for (const file of ["scripts/check.ts", "scripts/deploy.ts", "scripts/lib/prepare.ts", "scripts/dev.ts"]) {
+      // `check.ts` and `dev.ts` were in this list and do not
+      // exist — `check` is a chain of scripts in package.json and `dev` is
+      // vite. `read` returns "" for a missing file, so this rule silently
+      // checked two files while claiming four, and stayed green throughout.
+      // Existence is asserted below so a renamed file fails loudly instead.
+      for (const file of ["scripts/deploy.ts", "scripts/lib/prepare.ts", "scripts/model.ts"]) {
+        if (!existsSync(join(ROOT, file))) {
+          bad.push(`${file} is named by this rule and does not exist`)
+          continue
+        }
         const body = read(file)
         for (const [, name] of body.matchAll(/name: "([^"]+)"/g)) {
           if (/[: ]/.test(name)) bad.push(`${file}: step "${name}" uses a colon or a space`)
@@ -376,7 +385,7 @@ const RULES: Rule[] = [
       const cfg = read("src/auth.config.ts")
       // The plugins must get their OWN scoped controllers (adminAc/adminRoles,
       // orgAc/orgRoles). Passing the bare platform `ac`/`roles` from
-      // src/auth/access-control.ts REPLACES the plugin's built-in roles, which
+      // the old `access-control.ts` REPLACED the plugin's built-in roles, which
       // is what made `owner` resolve to nothing and locked the admin out.
       return cfg
         .split("\n")

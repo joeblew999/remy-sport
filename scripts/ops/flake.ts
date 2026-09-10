@@ -7,7 +7,7 @@
  * twice and solved zero times, because every failure so far has been a sample
  * of one with no trace behind it.
  *
- * This is step 2 of docs/2026-09-09-18-browser-tier-flakiness.md: make one
+ * This is step 2 of docs/done/2026-09-09-18-browser-tier-flakiness.md: make one
  * failure reproducible and keep the evidence, so the next step reads a trace
  * instead of a spec name.
  *

@@ -179,7 +179,7 @@ const stale = Object.keys(OFFSCREEN).filter((key) => {
 if (stale.length) {
   console.error("gui-coverage: these are listed as never rendered, but the SPA names them now:\n")
   for (const key of stale) console.error(`  ${key}  — "${OFFSCREEN[key]}"`)
-  console.error("\nRemove them from OFFSCREEN in scripts/gui-coverage.ts.")
+  console.error("\nRemove them from OFFSCREEN in scripts/ops/coverage-gui.ts.")
   process.exit(1)
 }
 

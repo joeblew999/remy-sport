@@ -2,7 +2,7 @@ import { test, expect } from "./fixture"
 import { visit } from "../helpers/surfaces"
 
 /**
- * The code step, the way a phone uses it — docs/2026-09-09-01-sign-in-code-autofill.md.
+ * The code step, the way a phone uses it — docs/done/2026-09-09-01-sign-in-code-autofill.md.
  *
  * Mail hands a one-time code to the keyboard and one tap fills all six slots.
  * For that to sign the reader in with no second press, two things have to be

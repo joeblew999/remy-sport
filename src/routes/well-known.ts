@@ -16,7 +16,7 @@ import type { AppEnv } from "../types"
  *
  * This is the native app's file: an installed Tauri app claims links through
  * it. A web app added to the home screen never reads it, which is why it is no
- * answer to docs/2026-09-08-04-ios-installed-web-app-links.md.
+ * answer to docs/done/2026-09-08-04-ios-installed-web-app-links.md.
  */
 const wellKnown = new Hono<AppEnv>()
 

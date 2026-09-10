@@ -103,7 +103,7 @@ export function Topbar() {
    * is not: installing removes the browser's Back on iOS entirely and in a
    * Tauri window entirely, and a Tauri window is 1280px wide. A return control
    * gated on screen size would be missing from the desktop app that has no
-   * other way back. docs/2026-09-09-10-installed-app-back-navigation.md.
+   * other way back. docs/done/2026-09-09-10-installed-app-back-navigation.md.
    */
   const back = backTarget(route);
   return (

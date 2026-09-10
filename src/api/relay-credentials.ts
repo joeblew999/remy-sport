@@ -33,7 +33,7 @@ async function mintCapability(jwk: string, root: string, grants: { put?: string[
  * and computes its peer as "the other one of a and b". A meeting has any number
  * of people, so the peers are passed in — they are the participants the caller
  * is entitled to watch, decided by the handler against `meeting_participant`.
- * docs/2026-09-09-13-meetings.md.
+ * docs/done/2026-09-09-13-meetings.md.
  */
 export async function mintRoomToken(
   jwk: string,

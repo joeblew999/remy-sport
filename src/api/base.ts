@@ -418,7 +418,7 @@ function marked<T extends object>(middleware: T, policy: Policy): T {
   return middleware
 }
 
-/** Read a policy off a middleware, for scripts/check-authz.ts. */
+/** Read a policy off a middleware, for tests/repo/authz.test.ts. */
 export function policyOf(middleware: unknown): Policy | null {
   return (middleware as Record<symbol, Policy> | null)?.[POLICY] ?? null
 }

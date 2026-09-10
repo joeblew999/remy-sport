@@ -24,7 +24,7 @@ import { MoqPublisher, MoqWatcher } from "../components/moq-video";
  *
  * Joining is explicit. A page that opened a camera on arrival would be a
  * surprise, and the credentials are only minted once you ask.
- * docs/2026-09-09-13-meetings.md.
+ * docs/done/2026-09-09-13-meetings.md.
  */
 export function MeetingPage({ route }: { route: Route }) {
   const { user, loading } = useSession();

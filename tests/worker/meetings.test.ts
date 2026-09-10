@@ -15,7 +15,7 @@ import { signIn } from "./helpers"
  * to the invited; a seeded query cannot exercise any of that, because it never
  * reaches the code.
  *
- * That gap was step 6 of docs/2026-09-09-13-meetings.md, half-done for a day
+ * That gap was step 6 of docs/done/2026-09-09-13-meetings.md, half-done for a day
  * while the plan's status line still said "proposed" and the feature was live
  * in production.
  *

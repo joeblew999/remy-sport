@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import { rule } from "./helpers"
 import { ROOT, sources } from "./lib/ast"
 
@@ -14,7 +14,7 @@ import { ROOT, sources } from "./lib/ast"
  * That is not hypothetical. On 2026-09-10 the only guidance for a missing Web
  * Push key told the reader to run a `dev:vars` script, or a `push:secret:set`
  * mise task, depending on the surface. Neither existed: `dev:vars` was not among
- * the nineteen scripts and `push:secret:set` was not a task — both went when
+ * package.json and `push:secret:set` was not a task — both went when
  * ninety mise tasks were consolidated, the change recorded in scripts/db.ts. The
  * dead `dev:vars` was named twice more, including in the refusal a developer
  * sees for `--env dev`.
@@ -93,12 +93,40 @@ for (const path of [...sources("scripts"), ...sources("tests"), ...sources("src"
       problems.push(`${path} names \`mise run ${name}\` — not a task in mise.toml.`)
     }
   }
+
+  /**
+   * Every file a comment points at must exist.
+   *
+   * The same failure as a dead command, in the other half of the sentence.
+   * Sixty-three pointers had rotted the day this was written — thirty-seven
+   * paths and twenty-six commands — and every test in the repo was green,
+   * because **nothing type-checks a comment**. `src/db/schema.ts` said the
+   * domain model was "GENERATED", naming a domain-generate script while the
+   * file it describes said "AUTHORED. Not generated" in its first line, and
+   * that contradiction survived a rename and a redesign.
+   *
+   * Comments only. A path inside code is usually a fixture written into a temp
+   * directory — `tests/repo/docs-isolation.test.ts` creates an `app.ts` under src/ that
+   * is *supposed* not to exist — and flagging those would train people to add
+   * exclusions until the rule meant nothing. A line is a comment when it starts
+   * with `*`, `//` or `/*`, which is every doc comment and note in this repo.
+   */
+  for (const line of text.split("\n")) {
+    if (!/^\s*(\*|\/\/|\/\*)/.test(line)) continue
+    for (const [, ref] of line.matchAll(
+      /\b((?:docs|src|scripts|tests)\/[A-Za-z0-9._/-]+\.(?:tsx|ts|md|json|css|sql))/g,
+    )) {
+      if (!existsSync(`${ROOT}/${ref}`)) {
+        problems.push(`${path} points at ${ref}, which does not exist.`)
+      }
+    }
+  }
 }
 
 rule(
   "every command named in an error, a remedy or a comment exists",
   problems,
-  `remedies: ${problems.length} dead command reference(s):\n` +
+  `remedies: ${problems.length} dead reference(s) — a command or a file that does not exist:\n` +
     problems.map((p) => `  ✗ ${p}`).join("\n\n"),
   `remedies: every \`bun run\` and \`mise run\` reference in src/, scripts/ and tests/ ` +
     `names one of ${scripts.length} scripts, ${opsCommands.length} ops commands or ` +

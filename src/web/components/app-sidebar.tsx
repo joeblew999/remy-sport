@@ -68,7 +68,7 @@ const YOU = (): NavItem[] => [
   { id: "home", label: m.nav_home(), icon: HomeIcon },
   { id: "profile", label: m.nav_profile(), icon: UserIcon },
   // Under You rather than Browse: a meeting is a thing you are in, not
-  // something you look through. docs/2026-09-09-13-meetings.md.
+  // something you look through. docs/done/2026-09-09-13-meetings.md.
   { id: "meetings", label: m.meetings(), icon: VideoIcon },
 ];
 

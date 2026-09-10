@@ -232,7 +232,7 @@ export function NotificationSettings() {
       {/* The native app, which used to land in "this browser cannot show
           notifications" — true of PushManager, false of the machine. It says
           what native actually offers and what it does not: nothing arrives
-          while the app is closed (docs/dev/native-notifications.md). */}
+          while the app is closed. */}
       {state?.status === "native" || state?.status === "native-off" || state?.status === "native-denied" ? (
         <div className="flex flex-col gap-3" data-testid="push-native">
           {state.status === "native-denied" ? (
@@ -439,7 +439,7 @@ export function NotificationSettings() {
         column from the model's own vocabulary rather than on every row.
 
         Grouped by the model's categories, which it has carried all along.
-        docs/2026-09-09-08-notifications-page-two-channels.md.
+        docs/done/2026-09-09-08-notifications-page-two-channels.md.
       */}
       <section className="flex flex-col gap-3">
         <SubHeading>{m.what_to_hear_about()}</SubHeading>

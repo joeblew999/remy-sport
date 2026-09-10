@@ -57,7 +57,7 @@ export type VapidDecision =
  *
  * Written here rather than twice because the mechanisms differ — a gitignored
  * file, and `wrangler secret put` — while the decision and its consequence do
- * not. `scripts/push-secrets.ts` had this as a bash `grep -q VAPID_PRIVATE_KEY`
+ * not. the old push-secrets script had this as a bash `grep -q VAPID_PRIVATE_KEY`
  * that saw only the private half, so a deployment holding a public key and no
  * private one silently rotated every production subscription and exited 0.
  */

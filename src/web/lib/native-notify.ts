@@ -9,8 +9,7 @@
  * ## What this is not
  *
  * It is not push. Nothing arrives while the app is closed: there is no APNs or
- * FCM registration, deliberately — docs/dev/native-notifications.md says why,
- * and the profile page says so to the reader rather than implying delivery we
+ * FCM registration, deliberately, and the profile page says so to the reader rather than implying delivery we
  * do not have.
  *
  * ## The trigger is a poll, not a socket

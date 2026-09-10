@@ -9,7 +9,7 @@ import { SEED_ENTITIES } from "../../src/domain/model/entities"
  * Meetings, as a reader sees them.
  *
  * The feature shipped on 2026-09-09 with no rendering check at all — step 6 of
- * docs/2026-09-09-13-meetings.md, "Proof", was never done. What that cost was
+ * docs/done/2026-09-09-13-meetings.md, "Proof", was never done. What that cost was
  * visible immediately: the button that invites your colleagues to a meeting
  * said **"Create test room"**, borrowed from the dev-only two-seat media
  * experiment, and it said it in three languages. Every other check was green,
@@ -162,7 +162,7 @@ test.describe("Starting one", () => {
    * It read as a flaky test tier for a fortnight — `orgs.spec.ts:54` clicked
    * "Add" and no `addMember` request was ever sent — and it is a reader
    * reaching for the button while the list loads.
-   * docs/2026-09-09-18-browser-tier-flakiness.md.
+   * docs/done/2026-09-09-18-browser-tier-flakiness.md.
    *
    * Asserted on the button rather than the box, because the button moving is
    * the thing that breaks; how the picker reserves the space is its business.

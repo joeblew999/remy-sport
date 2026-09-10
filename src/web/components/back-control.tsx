@@ -27,7 +27,7 @@ import { m } from "../lib/i18n";
  * immediately. So the control is an arrow and one word, available before any
  * query answers.
  *
- * docs/2026-09-09-10-installed-app-back-navigation.md.
+ * docs/done/2026-09-09-10-installed-app-back-navigation.md.
  */
 
 /**

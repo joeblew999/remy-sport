@@ -489,7 +489,7 @@ export async function signInThroughLoginForm(page: Page, email: string): Promise
 
   const otp = fixedCodeFor(email) ?? (await codeFromOutboxViaPage(page, email))
   await otpField.fill(otp)
-  // No Sign in press: the sixth digit submits — docs/2026-09-09-01-sign-in-code-autofill.md.
+  // No Sign in press: the sixth digit submits — docs/done/2026-09-09-01-sign-in-code-autofill.md.
   //
   // spa-login.spec.ts was moved off the button when that landed; this shared
   // helper was not, and kept clicking a button the completed field had already

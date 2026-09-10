@@ -74,7 +74,7 @@ export { orpc }
  *
  * `reference.list` takes a locale now — it answers in one language instead of
  * sending all twenty-seven to render one
- * (docs/2026-09-09-17-reference-payload-per-locale.md) — so the locale is part
+ * (docs/done/2026-09-09-17-reference-payload-per-locale.md) — so the locale is part
  * of its query key. A single `entry(orpc.reference.list, undefined, …)` no
  * longer matches, and a spec that *switches* language would need two keys
  * whatever it seeded.

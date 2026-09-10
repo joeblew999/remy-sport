@@ -167,7 +167,7 @@ describe("Session listing is per-user", () => {
  * remy-sport-biz into route files with nothing checking the copy. They are
  * tables with foreign keys now, and these are the check.
  *
- * Converted from tests/reference.spec.ts, which never opened a browser.
+ * Converted from the old `reference.spec.ts`, which never opened a browser.
  */
 
 type Row = { code: string; names?: Record<string, string> }
@@ -237,7 +237,7 @@ describe("Controlled vocabularies", () => {
     // Asked once per locale, because the endpoint now answers in one language.
     //
     // It used to return every locale on every row, so one request proved the
-    // whole model. Since docs/2026-09-09-17-reference-payload-per-locale.md it
+    // whole model. Since docs/done/2026-09-09-17-reference-payload-per-locale.md it
     // sends the requested language plus English — 98KB of names for twenty-seven
     // languages was sent to every reader to render one. So this asks for each in
     // turn, which proves more than it did before: that the model names every
@@ -383,7 +383,7 @@ describe("Associated Domains / App Links", () => {
 })
 
 describe("Routing — what the Worker serves and what it refuses", () => {
-  // Moved from tests/home.spec.ts. These are HTTP status assertions; a browser
+  // Moved from tests/render/home.spec.ts. These are HTTP status assertions; a browser
   // was only ever transport for them.
   //
   // Serving the document at / lived here too, asserting the same 200 and the

@@ -763,7 +763,7 @@ describe("The register for a camp session", () => {
     expect((await mark(sessionId, outsider.id, true, cookie)).status).toBe(404)
   })
 
-  it("cannot yet reach a coach, and scripts/check/tables.ts says why", async () => {
+  it("cannot yet reach a coach, and tests/repo/domain-coverage.test.ts says why", async () => {
     /**
      * The model grants RECORD_ATTENDANCE to a camp's HEAD_COACH and
      * ASSISTANT_COACH as well as its organisers. Those two grants cannot be
@@ -773,7 +773,7 @@ describe("The register for a camp session", () => {
      *
      * Already known and deliberately tracked — `RECORD_ATTENDANCE/HEAD_COACH`
      * and `/ASSISTANT_COACH` are two of the four pairs in KNOWN_UNRESOLVABLE in
-     * scripts/check/tables.ts, listed individually so the next mismatch is not
+     * tests/repo/domain-coverage.test.ts, listed individually so the next mismatch is not
      * hidden by a blanket exemption.
      *
      * Asserted rather than left implicit: when the model gains a way for a coach

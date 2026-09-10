@@ -9,7 +9,6 @@
  * It returns an id and a name and nothing else — no address, no role, no
  * status. That is what a picker needs and the whole of what this exposes.
  *
- * docs/2026-09-09-14-people-picker.md.
  */
 
 import { ne } from "drizzle-orm"

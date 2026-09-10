@@ -196,7 +196,7 @@ export function EventSessions({ eventId, can, timezone }: { eventId: string; can
  * `can.RECORD_ATTENDANCE` is the event's answer. It is wider than defining above — the
  * model gives a camp's coaches the register and withholds the timetable — though
  * today it reaches only the organisers, because HEAD_COACH is a relation to a
- * team and this action acts on an event. `scripts/check-tables.ts` tracks that
+ * team and this action acts on an event. `tests/repo/domain-coverage.test.ts` tracks that
  * pair as a known unresolvable grant.
  */
 function Register({

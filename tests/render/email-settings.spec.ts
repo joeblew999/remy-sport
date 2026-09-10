@@ -5,7 +5,7 @@ import { stubPushRpc } from "../helpers/push"
 
 /**
  * The email switches on the notification settings, in every released locale,
- * light and dark — docs/2026-09-09-02-email-channel-on-react-email.md.
+ * light and dark — docs/done/2026-09-09-02-email-channel-on-react-email.md.
  *
  * Email is opt-in, so each switch starts off and says so; only a verified
  * address can turn one on, and the sentence above the list names the address

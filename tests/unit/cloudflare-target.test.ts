@@ -69,7 +69,7 @@ describe("a target resolves the same way whatever the shell says", () => {
    * that call, because `Target.flag` is undefined for the top-level config.
    *
    * Measured against the real account on 2026-09-10: `wrangler secret list`
-   * returned production's 7 secrets with nothing set and staging's 8 with
+   * returned production's secrets with nothing set, and a different Worker's with
    * CLOUDFLARE_ENV=staging exported. Same command, different Worker, no warning.
    * A dry-run deploy resolved D1, R2, the queue, the dataset, BETTER_AUTH_URL
    * and the ENVIRONMENT variable itself to staging while the tool believed it

@@ -365,7 +365,7 @@ export default defineConfig(({ mode, command }) => {
    * It does not hide anything: if a third dynamic-only dependency appears, the
    * same message will say so, and the e2e webServer now pipes its output so it
    * is one grep away rather than a morning's work.
-   * docs/2026-09-09-18-browser-tier-flakiness.md.
+   * docs/done/2026-09-09-18-browser-tier-flakiness.md.
    */
   optimizeDeps: { include: ["workbox-window", "workbox-precaching"] },
   /**

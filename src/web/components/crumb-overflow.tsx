@@ -29,7 +29,7 @@ import { m } from "../lib/i18n";
  * crumb leads to a team's parent and Back leads to the schedule the reader
  * actually came from — see `back-control.tsx`.
  *
- * docs/2026-09-09-10-installed-app-back-navigation.md.
+ * docs/done/2026-09-09-10-installed-app-back-navigation.md.
  */
 export function CrumbOverflow({ children }: { children: ReactNode[] }) {
   if (children.length === 0) return null;

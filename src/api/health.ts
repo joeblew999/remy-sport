@@ -17,7 +17,7 @@ export const get = pub
       /**
        * Which environment this is, so a caller can stop guessing.
        *
-       * `scripts/smoke.ts` used to classify the deployment by hostname: a
+       * `scripts/deploy/smoke.ts` used to classify the deployment by hostname: a
        * `TUNNEL_HOSTNAME` match meant the tunnel, localhost meant local,
        * anything else meant production. That was already the second version of
        * the same mistake — the first sniffed a "dev-" prefix and would have

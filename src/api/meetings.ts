@@ -13,7 +13,7 @@
  * no mail. That is "via their chosen notification option" — the machinery
  * already meant it, and the only new part is the copy.
  *
- * docs/2026-09-09-13-meetings.md.
+ * docs/done/2026-09-09-13-meetings.md.
  */
 
 import { and, desc, eq, inArray } from "drizzle-orm"

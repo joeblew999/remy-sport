@@ -4,7 +4,7 @@ import { decideFromNames, decideVapid, halfPairMessage } from "../../scripts/ops
 /**
  * What to do about a VAPID keypair, given what is already stored.
  *
- * The only place these branches can be exercised. `scripts/push-secrets.ts`
+ * The only place these branches can be exercised. the old push-secrets script
  * acts on the deployed Worker, and reaching its half-pair branch for real would
  * mean deleting a production key to see what happens — which is the thing the
  * branch exists to prevent.

@@ -88,7 +88,7 @@ const OPS: Record<string, Op> = {
     /**
      * Reads, where it used to write.
      *
-     * This pointed at scripts/deploy/versions.ts, the stamp WRITER — so a person
+     * This pointed at scripts/ops/versions.ts, the stamp WRITER — so a person
      * typing the obvious command to find out what was deployed instead silently
      * restamped versions.json, and with no --env it stamped production's
      * hostname. That is one of the ways the file came to claim production was

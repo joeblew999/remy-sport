@@ -19,7 +19,7 @@ import { seedCache, entry, orpc } from "../helpers/seed-cache"
  * where the hierarchy says. The installed surfaces themselves are a person on
  * real hardware; see the plan's acceptance table.
  *
- * docs/2026-09-09-10-installed-app-back-navigation.md.
+ * docs/done/2026-09-09-10-installed-app-back-navigation.md.
  */
 
 const ORG = projectOrg("org_001", ["ORG_ADMIN"])

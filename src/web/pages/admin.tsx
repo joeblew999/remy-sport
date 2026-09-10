@@ -2,7 +2,7 @@ import { CreateEvent } from "../components/create-event";
 /**
  * The admin console, in the product GUI (ADR 013, moved here by ADR 020).
  *
- * This was `src/views/dashboard.ts` — 386 lines of Hono template literal with
+ * This was the old `dashboard.ts` — 386 lines of Hono template literal with
  * DaisyUI from a CDN, served at /dashboard, and the sole reason a second GUI
  * existed. AGENTS.md justified that second GUI on the grounds that it was "the
  * only place authorization is exercised end to end against real data". That was

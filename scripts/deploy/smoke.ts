@@ -144,7 +144,7 @@ const WHY_DEV_DIFFERS =
  * it sends somebody to re-run a working step and conclude the bug is elsewhere.
  *
  * Then both halves went on naming commands that had been **deleted**. Neither
- * survived the consolidation of ninety mise tasks into nineteen scripts (see
+ * survived the consolidation of ninety mise tasks into the scripts in package.json (see
  * scripts/db.ts), so the only guidance for a missing Web Push key pointed at two
  * commands that no longer existed — and one of them was named again, dead, in
  * scripts/lib/cloudflare.ts.
@@ -248,7 +248,7 @@ await check("the SPA is served", async () => {
  *
  * On 2026-09-10 that was for ever. `build.emptyOutDir` is false by default when
  * the output sits outside the Vite root, which it does here, so every build's
- * assets accumulated: 765 files, 575MB, all uploaded and all globbed into the
+ * assets accumulated — 765 files and 575MB by 2026-09-10 — all uploaded and all globbed into the
  * manifest — 369 entries, 90MB. Production served a week-old interface to
  * anyone who had visited before.
  *

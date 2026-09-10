@@ -2,7 +2,7 @@
  * The Product Owner's model, plus the three mappings this application owns.
  *
  * The model itself is copied verbatim from remy-sport-biz — see
- * scripts/domain-sync.ts. Re-exported from here so nothing downstream has to
+ * scripts/ops/domain.ts. Re-exported from here so nothing downstream has to
  * know whether a name is the PO's or ours.
  *
  * What stays here is what is not the PO's business: which drizzle table a
@@ -101,7 +101,7 @@ export const STORED_ORG_ROLE = Object.fromEntries(
  *
  * Not in the Product Owner's model file: it is the storage of a response, not a
  * fact about basketball, and the model already carries MEETING and its two
- * actions. docs/2026-09-09-13-meetings.md.
+ * actions. docs/done/2026-09-09-13-meetings.md.
  */
 export const MEETING_STATUS_CODES = ["INVITED", "ACCEPTED", "DECLINED"] as const
 export type MeetingStatusCode = (typeof MEETING_STATUS_CODES)[number]

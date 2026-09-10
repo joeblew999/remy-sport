@@ -4,7 +4,7 @@ import { ACTORS, ADMIN_SIGN_IN, stateFor } from "../helpers/auth"
 
 // What is LEFT here after ADR 020: only the tests that genuinely drive a
 // browser. The request-level six-role matrix — 20 tests that never opened one —
-// moved to tests/worker/authz.test.ts, where the Worker runs in workerd and
+// moved to tests/repo/authz.test.ts, where the Worker runs in workerd and
 // they finish in milliseconds instead of taking a slice of a 1.6-minute suite.
 //
 // The six actor consts, WRITERS/READERS and the vocabulary imports went with

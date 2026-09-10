@@ -10,7 +10,7 @@ import { rule } from "./helpers"
  * message per email holding the HTML, which is the same sentence written
  * twice in three languages and kept in step by hand; or one template that lays
  * out the message the text part already is. The second is the design
- * (docs/2026-09-09-02-email-channel-on-react-email.md), and it only stays the
+ * (docs/done/2026-09-09-02-email-channel-on-react-email.md), and it only stays the
  * design while no template grows a sentence of its own — which a template will
  * do the first time somebody wants a footer and finds typing it quicker than
  * adding a message. So this reads every template's syntax tree and fails on:

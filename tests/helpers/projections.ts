@@ -65,7 +65,7 @@ import type { ApiEntries, ApiGame, ApiRegistered, ApiRoster } from "./api-fixtur
 /**
  * The generator's fixed timestamp, as the API serializes it.
  *
- * `scripts/lib/seed.ts` writes every created_at and updated_at as this constant
+ * `src/db/seed.ts` writes every created_at and updated_at as this constant
  * so a seeded database is byte-identical between runs; the procedures call
  * `.toISOString()` on the way out.
  */

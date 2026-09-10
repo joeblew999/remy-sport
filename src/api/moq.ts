@@ -94,7 +94,7 @@ export const meetingConfig = authed
  *
  * A declined participant still gets them: declining takes the meeting out of
  * your list, it does not lock the door if you change your mind.
- * docs/2026-09-09-13-meetings.md.
+ * docs/done/2026-09-09-13-meetings.md.
  */
 export const meetingRoom = authed
   .use(requireAction("RESPOND_TO_MEETING_INVITE"))

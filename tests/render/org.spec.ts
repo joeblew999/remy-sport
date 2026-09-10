@@ -245,7 +245,7 @@ test.describe("A school's teams", () => {
  * answered before the first paint — so `me.mine` is left unseeded and held open
  * on the wire, which is the real shape of a slow answer.
  *
- * docs/2026-09-09-18-browser-tier-flakiness.md, step 9.
+ * docs/done/2026-09-09-18-browser-tier-flakiness.md, step 9.
  */
 test.describe("A section that renders above the list", () => {
   /** Holds one procedure open until the test lets it answer. */

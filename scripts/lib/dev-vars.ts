@@ -127,7 +127,7 @@ for (const [key, make] of Object.entries(DEFAULTS)) {
  * So the pair is handled as a unit, and the three states are distinguished:
  *
  *   both present   leave them alone. **Rotating invalidates every subscription**
- *                  a browser has already pinned — see scripts/vapid.ts.
+ *                  a browser has already pinned — see scripts/ops/keys.ts.
  *   both absent    generate one pair and write it.
  *   one present    refuse. Generating the partner produces a mismatched pair and
  *                  overwriting the survivor rotates it; both are silent 403s

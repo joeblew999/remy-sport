@@ -78,7 +78,7 @@ rule(
  *
  * On 2026-09-10 that was for ever. `build.emptyOutDir` defaults to false when
  * the output sits outside the Vite root, which it does here, so every build's
- * hashed assets accumulated: **765 files and 575MB**, all of them uploaded and
+ * hashed assets accumulated — **765 files and 575MB** by 2026-09-10 — all of them uploaded and
  * all of them globbed into the manifest — `precache 369 entries (90111.55
  * KiB)`. Production served a week-old interface to anyone who had visited
  * before, while `/api/versions` and `curl` both reported the new one correctly,

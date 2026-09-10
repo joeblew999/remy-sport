@@ -28,7 +28,7 @@ const COACH = actorFor("COACH")
 const SPECTATOR = actorFor("SPECTATOR")
 
 /**
- * Sign-in, in workerd. Converted from tests/auth.spec.ts and tests/otp.spec.ts.
+ * Sign-in, in workerd. Converted from the old `auth.spec.ts` and the old `otp.spec.ts`.
  *
  * Neither ever needed a browser: both drove the API with Playwright's `request`
  * fixture. What they cost was a wrangler dev server, a Playwright runner, and a
@@ -332,7 +332,7 @@ describe("ownership — layer 2", () => {
  * an object-scoped one (is this person part of *this* school). The organization
  * plugin's `member` table supplies the second.
  *
- * Converted from tests/org-teams.spec.ts, which never opened a browser. Two
+ * Converted from the old `org-teams.spec.ts`, which never opened a browser. Two
  * constraints it carried are gone with it: it needed one sign-in per test
  * because a second sign-in on the same Playwright request context arrives
  * carrying a cookie, and its create/delete pair had to be `describe.serial`

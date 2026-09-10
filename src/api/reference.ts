@@ -32,7 +32,7 @@ import { infrastructure, pub } from "./base"
  * requested locale would render an untranslated term blank instead of in
  * English. Two entries, never one.
  *
- * docs/2026-09-09-17-reference-payload-per-locale.md.
+ * docs/done/2026-09-09-17-reference-payload-per-locale.md.
  */
 function forLocale<T>(rows: T[], locale: string): T[] {
   const keep = new Set([locale, FALLBACK])

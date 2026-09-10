@@ -22,7 +22,7 @@
  * was wrong by one column. Silently, because a shifted string is still a string.
  *
  * `EVENTS` is the fix, and it only works because **both ends read it**. Writers
- * pass named fields and never a position. `scripts/analytics.ts` builds its SQL
+ * pass named fields and never a position. `scripts/ops/analytics.ts` builds its SQL
  * from `blobColumn`/`doubleColumn` here, so a report cannot disagree with the
  * writer about which column is which — there is no second place to be wrong.
  *
@@ -121,8 +121,8 @@ export const EVENTS = {
    * `service` is coarse and derived from the endpoint's **hostname only**. A
    * push endpoint is a device identifier and is never stored or logged; its
    * hostname is shared by every subscriber of that vendor. This is what will
-   * answer "is Web Push failing our iOS PWA users" — which is the evidence
-   * docs/dev/native-notifications.md says we cannot currently produce.
+   * answer "is Web Push failing our iOS PWA users" — evidence that did not
+   * exist before this event did.
    */
   /**
    * One send batch, per channel, with what became of it.
@@ -308,7 +308,7 @@ export const FIXED_BLOBS = ["event", "environment", "country"] as const
  * the other events were added. Four rows of video telemetry is a fair price for
  * a queryable environment dimension.
  *
- * `scripts/analytics.ts` filters every query to `timestamp >= CUTOVER`, so
+ * `scripts/ops/analytics.ts` filters every query to `timestamp >= CUTOVER`, so
  * pre-cutover rows are never read under the new layout. That makes a mixed
  * result impossible rather than merely flagged.
  *
@@ -323,7 +323,7 @@ export const LAYOUT_CUTOVER = "2026-09-01T00:00:00Z"
  * Where an event's own field N lives, physically.
  *
  * The single place a column number is computed. Both the writer below and the
- * report SQL in `scripts/analytics.ts` go through these, which is what makes
+ * report SQL in `scripts/ops/analytics.ts` go through these, which is what makes
  * the two halves incapable of disagreeing.
  */
 export const blobColumn = (i: number) => `blob${FIXED_BLOBS.length + i + 1}`

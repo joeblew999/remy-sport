@@ -7,7 +7,7 @@ it('requires republishing changes to application inputs and deployment configura
   }
 })
 it('allows documentation and test-runner repairs against unchanged application code', () => {
-  for (const path of ['README.md', 'docs/plan.md', 'tests/e2e/login.spec.ts', 'scripts/e2e.ts', 'scripts/lib/staging-test-access.ts', '.github/workflows/check.yml']) {
+  for (const path of ['README.md', 'docs/plan.md', 'tests/render/login.spec.ts', 'scripts/e2e.ts', 'scripts/lib/staging-test-access.ts', '.github/workflows/check.yml']) {
     expect(affectsDeployment(path), path).toBe(false)
   }
 })

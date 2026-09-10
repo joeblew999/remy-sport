@@ -89,7 +89,7 @@ export function OrgsPage() {
    *
    * So the region waits for both. It costs the time of the slower request on a
    * page that is a list of schools, and nothing is ever inserted above something
-   * already on screen. docs/2026-09-09-18-browser-tier-flakiness.md.
+   * already on screen. docs/done/2026-09-09-18-browser-tier-flakiness.md.
    */
   const holdings = useMine("ORG");
   const mine = holdings.data;
@@ -196,7 +196,7 @@ export function OrgPage({ id }: { id?: string }) {
           * (`orgs.spec.ts:24`) and is the same shape here. No spec clicks these
           * sections today, which is why this was found by looking rather than by
           * failing; it is a defect for a reader either way.
-          * docs/2026-09-09-18-browser-tier-flakiness.md.
+          * docs/done/2026-09-09-18-browser-tier-flakiness.md.
           */}
         {!sessionLoading && !createTeam.isLoading && (
           <>
@@ -451,7 +451,7 @@ function OrgMembers({ id }: { id: string }) {
              * platform meant knowing and retyping their address — and getting
              * it wrong was the "Invalid email address" this form is best known
              * for. The picker is the Product Owner's meeting-invite control,
-             * reused (docs/2026-09-09-14-people-picker.md); the box stays for
+             * reused; the box stays for
              * somebody who has no account yet, which a picker cannot express.
              */
             add.mutate(

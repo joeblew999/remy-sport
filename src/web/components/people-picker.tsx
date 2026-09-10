@@ -40,7 +40,6 @@ export interface Person {
  * row, which is why the referee picker is not converted. This is for a form
  * with room, where the reader may not know the name they are looking for.
  *
- * docs/2026-09-09-14-people-picker.md.
  */
 export function PeoplePicker({
   people,
@@ -125,7 +124,7 @@ export function PeoplePicker({
        * gives a 222px content box, and a list allowed its own 224px pushed the
        * box two pixels taller when it filled. Two pixels is still a moving
        * button. The box owns the height; the list is capped by it.
-       * docs/2026-09-09-18-browser-tier-flakiness.md.
+       * docs/done/2026-09-09-18-browser-tier-flakiness.md.
        */}
       <div className="h-56 overflow-hidden rounded-lg border">
         {/* `peer`, because inline mode has no popup to carry the

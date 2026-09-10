@@ -28,7 +28,7 @@ export type PushState =
    * A distinct state rather than "on", because what it offers is genuinely
    * narrower: the app shows notifications *while it is running*. Nothing
    * arrives when it is closed — there is no APNs or FCM registration, by
-   * decision, see docs/dev/native-notifications.md. Collapsing it into "on"
+   * decision. Collapsing it into "on"
    * would promise the reader delivery we do not have.
    */
   | { status: "native" }

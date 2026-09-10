@@ -38,7 +38,7 @@ import { DateField } from "../components/date-field";
  * open if you change your mind, which is the Product Owner's rule that the
  * invitee decides rather than the door being locked.
  *
- * docs/2026-09-09-13-meetings.md.
+ * docs/done/2026-09-09-13-meetings.md.
  */
 /**
  * When a meeting is, on the reader's own clock and in their language.

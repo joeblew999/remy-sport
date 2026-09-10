@@ -191,7 +191,7 @@ export function createAuth(c: AuthHost) {
 
   return betterAuth({
     // Schema-shaping options live in auth.config.ts so the Better Auth CLI can
-    // read them without a request Context — see `bun scripts/deploy/auth-schema.ts --write`.
+    // read them without a request Context — see `bun scripts/ops/auth-schema.ts --write`.
     //
     // Built through the factory rather than spread as a constant, because
     // sendInvitationEmail needs `env` — the EMAIL binding and the base URL —

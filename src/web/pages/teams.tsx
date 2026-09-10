@@ -52,7 +52,7 @@ export function TeamsPage() {
    * shape as the one whose test did fail — `orgs.spec.ts:24`, a click that
    * completed and navigated nowhere. Waiting for a second spec to catch the
    * second copy is how a known defect ships twice.
-   * docs/2026-09-09-18-browser-tier-flakiness.md.
+   * docs/done/2026-09-09-18-browser-tier-flakiness.md.
    */
   const holdings = useMine("TEAM");
   const mine = holdings.data;

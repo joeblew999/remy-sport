@@ -167,7 +167,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   // The locale is an input, so the endpoint sends this reader's language and
   // English rather than all twenty-seven — and it joins the query key, so
   // switching language fetches a different entry instead of invalidating this
-  // one. docs/2026-09-09-17-reference-payload-per-locale.md.
+  // one. docs/done/2026-09-09-17-reference-payload-per-locale.md.
   const { data: reference } = useQuery(
     orpc.reference.list.queryOptions({ input: { locale }, staleTime: Infinity }),
   );

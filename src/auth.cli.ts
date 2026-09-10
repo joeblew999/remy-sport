@@ -11,7 +11,7 @@ import * as schema from "./db/schema"
  * only reads `auth.options` — plugins and field definitions — and never opens a
  * connection, so an adapter with no live database is sufficient here.
  *
- * Consumed by `bun scripts/deploy/auth-schema.ts --write`, which regenerates
+ * Consumed by `bun scripts/ops/auth-schema.ts --write`, which regenerates
  * `src/db/schema.ts`. Do not import this from application code.
  */
 export const auth = betterAuth({

@@ -107,7 +107,7 @@ rule(
  * for the one case types cannot see: a page listed with a parent that is not
  * itself a page.
  *
- * docs/2026-09-09-10-installed-app-back-navigation.md.
+ * docs/done/2026-09-09-10-installed-app-back-navigation.md.
  */
 const backControl = readFileSync("src/web/components/back-control.tsx", "utf8")
 const router = readFileSync("src/web/lib/router.tsx", "utf8")
