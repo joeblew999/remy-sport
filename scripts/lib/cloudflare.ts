@@ -20,6 +20,7 @@
  */
 
 import { spawnSync } from "node:child_process"
+import { parseArgs } from "node:util"
 import { readFileSync, writeFileSync } from "node:fs"
 import { experimental_readRawConfig, unstable_readConfig } from "wrangler"
 import { ENVIRONMENTS, type Environment } from "../../src/environment.ts"
@@ -273,9 +274,32 @@ export type TargetRule = "explicit" | "ambient"
  * all, because `CF_DEPLOY_URL` may only win when nothing more specific was said.
  */
 export function namedEnvironment(argv: string[]): string | undefined {
-  const at = argv.indexOf("--env")
-  if (at !== -1) return argv[at + 1]
-  return argv.find((a) => a.startsWith("--env="))?.slice("--env=".length)
+  return read(argv).values.env as string | undefined
+}
+
+/**
+ * `--env` parsed by Node, not by hand.
+ *
+ * Knowing that `--env staging` and `--env=staging` are the same flag is the job
+ * of an argument parser, and hand-rolling it is what produced two of today's
+ * bugs — one reader that knew only the joined form, another that knew only the
+ * separated one, each falling through to production on the spelling it did not
+ * know. `node:util.parseArgs` has known both since it shipped.
+ *
+ * `strict: false` because every caller forwards what it does not consume:
+ * `test:e2e` hands the rest to Playwright, `ops analytics` takes bare `24` and
+ * `--logs`. Strict mode would reject those as unknown options. Declaring `env`
+ * is still required — without it, `--env staging` parses as a boolean followed
+ * by a stray positional.
+ */
+function read(argv: string[]) {
+  return parseArgs({
+    args: argv,
+    options: { env: { type: "string" } },
+    strict: false,
+    allowPositionals: true,
+    tokens: true,
+  })
 }
 
 /**
@@ -297,13 +321,21 @@ export function normalisedEnvironmentArgs(argv: string[]): string[] {
  *
  * For a command that consumes `--env` itself and forwards the remainder to
  * another tool — `test:e2e` passes the rest to Playwright, which would refuse an
- * argument it has never heard of. Both spellings, and the separated form's value
- * too, which is the part a hand-rolled filter forgets.
+ * argument it has never heard of.
+ *
+ * By token index rather than by string. The hand-rolled version dropped any
+ * argument whose predecessor happened to be the string `--env`, which is a
+ * guess that is usually right; `parseArgs` reports the flag's own index and
+ * whether its value was inline, so removal is exact.
  */
 export function withoutEnvironment(argv: string[]): string[] {
-  return argv.filter(
-    (a, i) => !(a === "--env" || a.startsWith("--env=") || (i > 0 && argv[i - 1] === "--env")),
-  )
+  const drop = new Set<number>()
+  for (const token of read(argv).tokens) {
+    if (token.kind !== "option" || token.name !== "env") continue
+    drop.add(token.index)
+    if (!token.inlineValue) drop.add(token.index + 1)
+  }
+  return argv.filter((_, i) => !drop.has(i))
 }
 
 export function resolveTarget(argv: string[], rule: TargetRule = "explicit"): Target {
