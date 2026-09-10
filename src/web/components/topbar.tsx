@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import { ancestorsOf, useRouter } from "../lib/router";
 import { RouteCrumb } from "./route-crumb";
+import { BackLink, backTarget } from "./back-control";
 import { Account } from "./account";
 import { m } from "../lib/i18n";
 import { Fragment } from "react";
@@ -94,6 +95,16 @@ export function Topbar() {
   const trail = usePageTitle();
   const { route } = useRouter();
   const taken = ancestorsOf(route);
+  /**
+   * At every width, on every surface — not behind `sm`.
+   *
+   * The crumbs below fold away on a phone, and that is a width decision. This
+   * is not: installing removes the browser's Back on iOS entirely and in a
+   * Tauri window entirely, and a Tauri window is 1280px wide. A return control
+   * gated on screen size would be missing from the desktop app that has no
+   * other way back. docs/2026-09-09-10-installed-app-back-navigation.md.
+   */
+  const back = backTarget(route);
   return (
     <header className="topbar flex h-(--header-height) shrink-0 items-center gap-2 border-b bg-background px-3 lg:px-4">
       <Button
@@ -106,6 +117,7 @@ export function Topbar() {
         <PanelLeftIcon />
       </Button>
       <Brand />
+      {back && <BackLink target={back} />}
       {trail && (
         <>
           <Separator orientation="vertical" className="mx-1 h-4 shrink-0 data-vertical:self-auto" />

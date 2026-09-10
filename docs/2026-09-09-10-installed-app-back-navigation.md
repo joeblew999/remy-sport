@@ -1,7 +1,26 @@
 # Back navigation in the installed app
 
-Status: proposed 2026-09-09, scope corrected 2026-09-10. Planning only;
-application behavior is unchanged.
+Status: **step 1 built 2026-09-10**; the return control ships and the device
+checks below remain. Scope corrected the same day — this is not a phone
+problem.
+
+Built: `src/web/components/back-control.tsx`, rendered by the shell at every
+width. `backTarget` takes the last entry of `ancestorsOf(route)` — the nested
+`from=` trail — and falls back to `PARENT`, which is `Record<Page, …>` with no
+`default`, so a route added without an exit is a type error. Held twice:
+`tests/repo/navigation.test.ts` fails a route with no exit and a route exiting
+to a page that does not exist (both proved by breaking them), and
+`tests/render/back-control.spec.ts` covers phone width, desktop width, trail
+over hierarchy, and the cold-link fallback (all four proved red without the
+control). Whole gate: 1100 unit, 415 render, 49 e2e.
+
+Deliberately an arrow and one word rather than the destination's name:
+`RouteCrumb` renders nothing until it has resolved a label, which is right for
+a trail and wrong for an escape hatch — a reader on a page that is loading or
+failing is exactly the one who needs it, immediately.
+
+Still open: the responsive breadcrumb for the phone *hierarchy* half, replacing
+the three bespoke escape links, and every device check in the acceptance table.
 
 The user reports that installing through Add to Home Screen removes the browser
 Back button. Every app screen must provide a usable route out without browser

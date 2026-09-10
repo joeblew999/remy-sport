@@ -91,3 +91,46 @@ rule(
     `top-level screen passes no crumbs at all.`,
   `check-nav: every crumb on ${readdirSync(PAGES).filter(f => f.endsWith(".tsx")).length} pages is a link`,
 )
+
+/**
+ * Every route has a way out, and the type system is what says so.
+ *
+ * Installing removes the browser's Back. On iOS there is nothing behind it but
+ * an undiscoverable edge swipe, and in the Tauri window there is nothing at
+ * all — so on most surfaces this product ships to, the application is the only
+ * thing that can offer a way back. A route added without one is not a cosmetic
+ * gap; it is a reader who has to force-quit.
+ *
+ * `PARENT` in `src/web/components/back-control.tsx` is `Record<Page, …>` with no
+ * `default` branch, so a new entry in `PAGES` is already a type error. This is
+ * the same rule stated where a reader of the tests will meet it, and it fails
+ * for the one case types cannot see: a page listed with a parent that is not
+ * itself a page.
+ *
+ * docs/2026-09-09-10-installed-app-back-navigation.md.
+ */
+const backControl = readFileSync("src/web/components/back-control.tsx", "utf8")
+const router = readFileSync("src/web/lib/router.tsx", "utf8")
+
+const declaredPages = [...(router.match(/export const PAGES = \[([\s\S]*?)\] as const/)?.[1] ?? "")
+  .matchAll(/"([\w-]+)"/g)].map(m => m[1]!)
+const parentBlock = backControl.match(/const PARENT: Record<Page, Page \| null> = \{([\s\S]*?)\n\}/)?.[1] ?? ""
+const parented = new Map(
+  [...parentBlock.matchAll(/^\s*"?([\w-]+)"?:\s*(?:"([\w-]+)"|null)/gm)].map(m => [m[1]!, m[2] ?? null]),
+)
+
+const exitless = [
+  ...declaredPages.filter(p => !parented.has(p)).map(p => `${p}: no exit declared in PARENT`),
+  ...[...parented].filter(([, to]) => to !== null && !declaredPages.includes(to))
+    .map(([from, to]) => `${from}: exits to "${to}", which is not a page`),
+]
+
+rule(
+  "every route declares where Back goes",
+  exitless,
+  `check-nav: ${exitless.length} route(s) with no usable exit:\n  ${exitless.join("\n  ")}\n\n` +
+    `Installing removes the browser's Back — on iOS entirely, and in the Tauri window\n` +
+    `entirely. A route with no exit strands the reader with the sidebar or a force-quit.\n` +
+    `Add it to PARENT in src/web/components/back-control.tsx.`,
+  `check-nav: all ${declaredPages.length} routes declare where Back goes`,
+)
