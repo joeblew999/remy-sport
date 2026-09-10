@@ -1,6 +1,6 @@
 import { test, expect } from "./fixture"
 import { switchLanguage, visit } from "../helpers/surfaces"
-import { seedCache, entry, orpc } from "../helpers/seed-cache"
+import { seedCache, entry, referenceEntries, orpc } from "../helpers/seed-cache"
 import { m } from "../../src/web/lib/i18n"
 import { VOCABULARY, LOCALES } from "../../src/domain/vocabularies"
 import { VOCABULARY as REF } from "../../src/domain/vocabularies"
@@ -41,7 +41,7 @@ const event = projectEvent("evt_002")
 const seeded = (page: Parameters<typeof seedCache>[0]) =>
   seedCache(page, [
     entry(orpc.events.list, undefined, { events: [event] }),
-    entry(orpc.reference.list, undefined, apiReference(REF)),
+    ...referenceEntries(apiReference(REF)),
   ])
 
 test.describe("Localisation, rendered", () => {

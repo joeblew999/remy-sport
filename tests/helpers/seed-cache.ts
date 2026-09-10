@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test"
 import type { ProcedureUtils } from "@orpc/tanstack-query"
 import { orpc } from "../../src/web/lib/orpc"
+import { LOCALES, type Locale } from "../../src/domain/vocabularies"
 
 /**
  * Hand the SPA's query cache its data, so a rendering test needs no backend.
@@ -67,3 +68,30 @@ export function entry<TInput, TOutput>(
 }
 
 export { orpc }
+
+/**
+ * The reference list, seeded under every locale the app might ask for.
+ *
+ * `reference.list` takes a locale now — it answers in one language instead of
+ * sending all twenty-seven to render one
+ * (docs/2026-09-09-17-reference-payload-per-locale.md) — so the locale is part
+ * of its query key. A single `entry(orpc.reference.list, undefined, …)` no
+ * longer matches, and a spec that *switches* language would need two keys
+ * whatever it seeded.
+ *
+ * So seed them all. It costs a few cache entries in a test that has no network
+ * anyway, it keeps the call site a single line, and a twenty-eighth language
+ * does not quietly stop five specs from matching.
+ *
+ * `undefined` is included because the endpoint still accepts no locale and
+ * answers in English, and a component reading it that way should be seeded too.
+ */
+export function referenceEntries<TOutput>(
+  data: NoInfer<TOutput> extends never ? never : TOutput,
+): { queryKey: readonly unknown[]; data: unknown }[] {
+  const locales = [undefined, ...LOCALES] as (Locale | undefined)[]
+  return locales.map((locale) => ({
+    queryKey: orpc.reference.list.queryKey({ input: locale ? { locale } : undefined }),
+    data,
+  }))
+}

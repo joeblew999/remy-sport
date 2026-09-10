@@ -172,8 +172,8 @@ describe("Session listing is per-user", () => {
 
 type Row = { code: string; names?: Record<string, string> }
 
-const reference = async () => {
-  const res = await api("/api/reference")
+const reference = async (locale?: string) => {
+  const res = await api(`/api/reference${locale ? `?locale=${locale}` : ""}`)
   expect(res.status).toBe(200)
   return (await res.json()) as Record<string, Row[]>
 }
@@ -234,13 +234,40 @@ describe("Controlled vocabularies", () => {
     const locales = declared.filter((l) => l.status === "released").map((l) => l.code)
     expect(locales.sort()).toEqual([...LOCALES].sort())
 
-    for (const name of VOCABULARIES) {
-      for (const row of ref[name]!) {
-        for (const locale of locales) {
+    // Asked once per locale, because the endpoint now answers in one language.
+    //
+    // It used to return every locale on every row, so one request proved the
+    // whole model. Since docs/2026-09-09-17-reference-payload-per-locale.md it
+    // sends the requested language plus English — 98KB of names for twenty-seven
+    // languages was sent to every reader to render one. So this asks for each in
+    // turn, which proves more than it did before: that the model names every
+    // term, *and* that the endpoint actually serves the locale it was asked for.
+    for (const locale of locales) {
+      const one = await reference(locale)
+      for (const name of VOCABULARIES) {
+        for (const row of one[name]!) {
           expect(row.names?.[locale], `${name}.${row.code} has no '${locale}' name`).toBeTruthy()
         }
       }
     }
+  })
+
+  it("sends one language and its fallback, not all of them", async () => {
+    // The invariant, rather than a byte budget: a budget is a number that
+    // drifts and then gets raised. "This locale plus English" is the thing that
+    // has to stay true, and it is what makes the response small.
+    const one = await reference("th")
+    const offenders = VOCABULARIES.flatMap((name) =>
+      (one[name] ?? []).flatMap((row) => {
+        const extra = Object.keys(row.names ?? {}).filter((l) => l !== "th" && l !== "en")
+        return extra.length ? [`${name}.${row.code} also carries ${extra.join(", ")}`] : []
+      }),
+    )
+    expect(offenders, offenders.slice(0, 5).join("; ")).toEqual([])
+
+    // And English still rides along, or an untranslated term renders blank.
+    const anyRow = one[VOCABULARIES[0]!]![0]!
+    expect(Object.keys(anyRow.names ?? {}).sort()).toEqual(["en", "th"])
   })
 
   it("returns no per-language fields — names are rows, not columns", async () => {

@@ -1,7 +1,7 @@
 import { test, expect } from "./fixture"
 import { VISITOR, sessionFor } from "../helpers/actors"
 import { visit } from "../helpers/surfaces"
-import { seedCache, entry, orpc } from "../helpers/seed-cache"
+import { seedCache, entry, referenceEntries, orpc } from "../helpers/seed-cache"
 import { apiMine, apiReference } from "../helpers/api-fixtures"
 import { VOCABULARY } from "../../src/domain/vocabularies"
 import {
@@ -33,7 +33,7 @@ const gamesOf = (teamId: string) =>
 
 /** Everything Home asks for, answered emptily, so a section that is absent is absent by decision. */
 const base = [
-  entry(orpc.reference.list, undefined, apiReference(VOCABULARY)),
+  ...referenceEntries(apiReference(VOCABULARY)),
   entry(orpc.events.list, undefined, { events: projectEvents() }),
   entry(orpc.teams.list, undefined, { teams: projectTeams() }),
   entry(orpc.events.invitations, undefined, { invitations: [] }),

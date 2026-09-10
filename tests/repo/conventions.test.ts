@@ -406,3 +406,51 @@ describe("the rules this repo keeps", () => {
     })
   }
 })
+
+/**
+ * Every `X_CODES` tuple lists exactly the codes its vocabulary declares.
+ *
+ * The model writes these as `X.map((t) => t.code) as unknown as ["A", "B"]`.
+ * The runtime value is correct — it *is* the map — but the type is the hand
+ * written tuple beside it, and `as unknown as` tells the compiler to accept
+ * whatever is there. So the two can disagree and nothing notices: the code
+ * behaves, the types lie, and the lie only surfaces when somebody finally uses
+ * the type where it matters.
+ *
+ * `LOCALE_CODES` did exactly that. It claimed `["th", "en", "ja"]` from the day
+ * a fourth language was added until twenty-seven were live, and it was found
+ * only when `/api/reference` first took a locale as a typed input and the
+ * compiler rejected `"ar"` as not being a locale.
+ *
+ * Twenty-three tuples share the shape, so this checks all of them rather than
+ * the one that broke.
+ */
+const MODEL = readFileSync(resolve(import.meta.dirname, "../../src/domain/model/vocabularies.ts"), "utf8")
+
+const drifted = [...MODEL.matchAll(
+  /export const ([A-Z_]+)_CODES = ([A-Z_]+)\.map\(\(t\) => t\.code\) as unknown as \[\n((?:\s*"[^"]*",?\n)*)\s*\]/g,
+)].flatMap(([, name, source, body]) => {
+  const declared = [...body!.matchAll(/"([^"]*)"/g)].map((m) => m[1])
+  // The vocabulary's own rows, read the same way the sync reads ALL_LOCALES.
+  const block = MODEL.match(new RegExp(`export const ${source} = \\[(.*?)\\n\\] as const`, "s"))?.[1] ?? ""
+  const actual = [...block.matchAll(/\{ code: "([^"]+)"/g)].map((m) => m[1])
+  if (declared.length === actual.length && declared.every((c, i) => c === actual[i])) return []
+  const missing = actual.filter((c) => !declared.includes(c!))
+  const extra = declared.filter((c) => !actual.includes(c!))
+  return [
+    `${name}_CODES declares ${declared.length}, ${source} has ${actual.length}` +
+      (missing.length ? ` — missing ${missing.join(", ")}` : "") +
+      (extra.length ? ` — extra ${extra.join(", ")}` : ""),
+  ]
+})
+
+it("every X_CODES tuple lists exactly the codes its vocabulary declares", () => {
+  if (drifted.length === 0) return
+  throw new Error(
+    `BROKEN: a code tuple disagrees with its vocabulary\n` +
+      drifted.map((d) => `  ${d}`).join("\n") +
+      `\n\n\`as unknown as\` means the compiler cannot see this. The runtime value is\n` +
+      `right and the type is wrong, so the code works until somebody uses the type.\n` +
+      `Fix the tuple in the Product Owner's repo and run \`bun run ops domain\`.`,
+  )
+})

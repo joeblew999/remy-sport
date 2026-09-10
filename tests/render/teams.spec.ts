@@ -4,7 +4,7 @@ import { apiMine, apiReference } from "../helpers/api-fixtures"
 import { projectTeams } from "../helpers/projections"
 import { VOCABULARY } from "../../src/domain/vocabularies"
 import { visit } from "../helpers/surfaces"
-import { seedCache, entry, orpc } from "../helpers/seed-cache"
+import { seedCache, entry, referenceEntries, orpc } from "../helpers/seed-cache"
 
 /**
  * The teams directory.
@@ -40,7 +40,7 @@ test.describe("The teams directory", () => {
     await seedCache(page, [
       sessionFor("COACH"),
       teams(),
-      entry(orpc.reference.list, undefined, apiReference(VOCABULARY)),
+      ...referenceEntries(apiReference(VOCABULARY)),
       // The relation comes back from ListObjects with the id. A row saying only
       // "yours" would be the page deciding; this is the model's own word for it
       // — the word, in the reader's language, not the code. It printed

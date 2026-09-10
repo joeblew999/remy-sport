@@ -1,6 +1,6 @@
 import { test, expect } from "./fixture"
 import { switchLanguage, visit } from "../helpers/surfaces"
-import { seedCache, entry, orpc } from "../helpers/seed-cache"
+import { seedCache, entry, referenceEntries, orpc } from "../helpers/seed-cache"
 import { apiReference } from "../helpers/api-fixtures"
 import { VOCABULARY as REF } from "../../src/domain/vocabularies"
 import { projectEvents } from "../helpers/projections"
@@ -31,7 +31,7 @@ const alsoBangkok = all.filter((e) => e.provinceCode === "BKK")[1]!
 const seeded = (page: Parameters<typeof seedCache>[0], events = [bangkok, chiangMai, alsoBangkok]) =>
   seedCache(page, [
     entry(orpc.events.list, undefined, { events }),
-    entry(orpc.reference.list, undefined, apiReference(REF)),
+    ...referenceEntries(apiReference(REF)),
   ])
 
 test.describe("Filtering events by province", () => {

@@ -1,6 +1,7 @@
 # Plan — `/api/reference` should send one language, not twenty-seven
 
-Status: proposed 2026-09-09. Measured, not estimated; nothing implemented.
+Status: **done 2026-09-09.** Measured before, built, measured after — the
+numbers below are both sets.
 
 Every reader downloads all twenty-seven languages in order to render one.
 
@@ -79,15 +80,15 @@ question with different trade-offs.
 
 ## Steps
 
-- [ ] **1 · A locale input on `reference.list`.** Optional, defaulting to the
+- [x] **1 · A locale input on `reference.list`.** Optional, defaulting to the
       base locale so an unversioned caller keeps working. The procedure keeps
       its existing `infrastructure(...)` policy — this changes the shape of the
       answer, not who may ask.
-- [ ] **2 · Trim `names` and `descriptions` server-side** to the requested
+- [x] **2 · Trim `names` and `descriptions` server-side** to the requested
       locale plus `FALLBACK`. One helper, applied where the rows are shaped.
-- [ ] **3 · The client passes its locale** and puts it in the query key.
+- [x] **3 · The client passes its locale** and puts it in the query key.
       `LocaleProvider` already knows it — it is the only real caller.
-- [ ] **3a · Update the render stubs in the same commit.** Five specs stub this
+- [x] **3a · Update the render stubs in the same commit.** Five specs stub this
       endpoint with an *undefined* input — `crash`, `home`, `i18n`, `geography`
       and `teams` in `tests/render/`. The moment the client sends a locale those
       stubs stop matching, the query never resolves, and the failure looks like a
@@ -96,13 +97,49 @@ question with different trade-offs.
 
       (This plan first said three specs and named the wrong set. Counted
       properly: five. A wrong list here costs more than no list.)
-- [ ] **4 · A check that holds the size.** A worker test that asserts the
+- [x] **4 · A check that holds the size.** A worker test that asserts the
       payload for one locale carries at most two entries per `names` object.
       Not a byte budget — a byte budget is a number that drifts and gets
       raised; the invariant is *"one locale plus its fallback"*, which is the
       thing that must stay true.
-- [ ] **5 · Re-measure and record it here,** the same way the 346 KB above was
-      taken, so the next person sees the before and after rather than a claim.
+- [x] **5 · Re-measure and record it here,** the same way the first numbers
+      were taken, so the next person sees the before and after rather than a
+      claim.
+
+## What it actually did
+
+Measured the same way, after the change:
+
+| Request | Raw | **On the wire (gzip)** | Against 98 KB before |
+| --- | --- | --- | --- |
+| no locale (English) | 44.8 KB | **8.3 KB** | **12× smaller** |
+| `?locale=ar` | 56.0 KB | **11.8 KB** | 8.3× |
+| `?locale=th` | 64.0 KB | **12.7 KB** | 7.7× |
+
+Predicted 8 KB / 12 KB / 13 KB. Measured 8.3 / 11.8 / 12.7. The estimate held
+because it was taken from the real payload rather than guessed at.
+
+The invariant that matters is not the size: **the widest `names` object on any
+of the 300 rows now carries 2 entries, where it carried 27.** That is what
+`tests/worker/read.test.ts` asserts — "this locale plus English" — because a
+byte budget is a number that drifts and then gets raised.
+
+### Two things this turned up that the plan did not predict
+
+- **`LOCALE_CODES` had been lying since the fourth language.** The model writes
+  it as `LOCALE.map((t) => t.code) as unknown as ["th", "en", "ja"]` — the
+  runtime value is the map and is correct, the *type* is the tuple beside it,
+  and `as unknown as` stops the compiler seeing the difference. It surfaced only
+  when this endpoint first took a locale as a typed input and `"ar"` was
+  rejected as not being a locale. Three more tuples had drifted the same way
+  with the meetings work: `OBJECT_TYPE_CODES`, `ACTION_CODES` and
+  `NOTIFICATION_CATEGORY_CODES`, all missing their `MEETING` entries. A check in
+  `tests/repo/conventions.test.ts` now holds all twenty-three.
+- **Seeding the render stubs needed a helper, not an edit.** The locale is part
+  of the query key, so a spec that *switches* language needs more than one key
+  whatever it seeds. `referenceEntries()` seeds every locale at once, which
+  keeps the call sites one line and means a twenty-eighth language does not
+  quietly stop five specs matching.
 
 ## Not in this plan
 

@@ -59,6 +59,7 @@ export const OBJECT_TYPE_CODES = OBJECT_TYPE.map((t) => t.code) as unknown as [
   "EVENT",
   "TEAM",
   "PLAYER",
+  "MEETING",
   "ORG",
   "GAME",
   "PLATFORM",
@@ -147,7 +148,6 @@ export const ACTION = [
 ] as const
 
 export const ACTION_CODES = ACTION.map((t) => t.code) as unknown as [
-  "BROADCAST_GAME",
   "SIGN_IN_OUT",
   "SIGN_UP_AS_SPECTATOR",
   "SIGN_UP_AS_PLAYER",
@@ -184,6 +184,8 @@ export const ACTION_CODES = ACTION.map((t) => t.code) as unknown as [
   "FOLLOW_PLAYER",
   "UNFOLLOW_PLAYER",
   "RECEIVE_PLAYER_NOTIFICATIONS",
+  "CREATE_MEETING",
+  "RESPOND_TO_MEETING_INVITE",
   "FOLLOW_TEAM",
   "UNFOLLOW_TEAM",
   "RECEIVE_TEAM_NOTIFICATIONS",
@@ -199,6 +201,7 @@ export const ACTION_CODES = ACTION.map((t) => t.code) as unknown as [
   "GENERATE_FIXTURES",
   "DEFINE_SESSION_SCHEDULE",
   "ASSIGN_COURTS",
+  "BROADCAST_GAME",
   "ENTER_SCORES",
   "CONFIRM_MATCH_STATUS",
   "RECORD_ATTENDANCE",
@@ -641,6 +644,30 @@ export const LOCALE_CODES = LOCALE.map((t) => t.code) as unknown as [
   "th",
   "en",
   "ja",
+  "zh",
+  "es",
+  "pt",
+  "id",
+  "fr",
+  "tl",
+  "vi",
+  "ko",
+  "de",
+  "ru",
+  "tr",
+  "it",
+  "pl",
+  "uk",
+  "hi",
+  "ar",
+  "ms",
+  "bn",
+  "zh-TW",
+  "zh-HK",
+  "ur",
+  "fa",
+  "sw",
+  "nl",
 ]
 
 export type LocaleCode = (typeof LOCALE_CODES)[number]
@@ -661,6 +688,7 @@ export const NOTIFICATION_CATEGORY = [
 export const NOTIFICATION_CATEGORY_CODES = NOTIFICATION_CATEGORY.map((t) => t.code) as unknown as [
   "LIVE",
   "REMINDER",
+  "MEETING",
   "DISCOVERY",
   "TEAM",
   "REGISTRATION",
@@ -710,10 +738,10 @@ export const NOTIFICATION_TYPE = [
 ] as const
 
 export const NOTIFICATION_TYPE_CODES = NOTIFICATION_TYPE.map((t) => t.code) as unknown as [
-  "MEETING_INVITE",
   "MATCH_START",
   "MATCH_END",
   "SCORE_UPDATE",
+  "MEETING_INVITE",
   "EVENT_REMINDER",
   "EVENT_CREATED",
   "ROSTER_CHANGE",
