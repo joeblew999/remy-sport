@@ -99,13 +99,44 @@ export function PeoplePicker({
           )}
         </ComboboxValue>
       </ComboboxChips>
-      <div className="rounded-lg border">
+      {/**
+       * A fixed height, so the list cannot move the rest of the form.
+       *
+       * The candidates arrive from a query, so this box grows from nothing to
+       * `max-h-56` the moment it resolves — and everything below it, including
+       * the submit button, moves down 224px. A `click` event only fires on the
+       * element that received both `mousedown` and `mouseup`; when the button
+       * moves between them the browser fires `click` on the nearest common
+       * ancestor instead, and a click on a `<form>` submits nothing. The reader
+       * gets no error, because from the page's point of view nothing happened.
+       *
+       * Measured in WebKit, which is what this app is tested in: a form whose
+       * spacer grows during `mousedown` reports a successful click and does not
+       * submit. It cost a day of a flaky test tier before anyone asked what the
+       * page was doing, and a reader reaching for "Add" as the list loads
+       * misses it exactly the same way.
+       *
+       * A fixed height and not a skeleton, because the height is the fix: the
+       * list already scrolls at this size, so a populated picker looks as it did
+       * and an empty one holds its place.
+       *
+       * `h-56` on the box and `max-h-full` on the list, not `min-h-56` and
+       * `max-h-56` on each: heights are border-box here, so a 224px minimum
+       * gives a 222px content box, and a list allowed its own 224px pushed the
+       * box two pixels taller when it filled. Two pixels is still a moving
+       * button. The box owns the height; the list is capped by it.
+       * docs/2026-09-09-18-browser-tier-flakiness.md.
+       */}
+      <div className="h-56 overflow-hidden rounded-lg border">
         {/* `peer`, because inline mode has no popup to carry the
             `group/combobox-content` the registry's Empty looks for — the list
             itself is what knows it matched nothing. */}
-        <ComboboxList className="peer max-h-56" data-testid={testId}>
+        <ComboboxList className="peer max-h-full" data-testid={testId}>
           {(p: Person) => (
-            <ComboboxItem value={p} data-testid={`pick-${p.id}`}>
+            // Keyed by the person, not by position. Without it React reconciles
+            // this collection by index and says so on every page that renders a
+            // picker.
+            <ComboboxItem key={p.id} value={p} data-testid={`pick-${p.id}`}>
               {p.name}
             </ComboboxItem>
           )}

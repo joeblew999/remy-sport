@@ -149,6 +149,63 @@ test.describe("Starting one", () => {
     await expect(list).toContainText(niran.name)
   })
 
+  /**
+   * The control holds its height, whatever is in it.
+   *
+   * The candidates arrive from a query, so this list used to grow from nothing
+   * to 224px when it resolved and push everything below it — including the
+   * button — down the page. A `click` fires only on the element that received
+   * both `mousedown` and `mouseup`; when the button moves between them the
+   * browser fires `click` on the nearest common ancestor, and a click on a
+   * `<form>` submits nothing. No error, no request, nothing on screen.
+   *
+   * It read as a flaky test tier for a fortnight — `orgs.spec.ts:54` clicked
+   * "Add" and no `addMember` request was ever sent — and it is a reader
+   * reaching for the button while the list loads.
+   * docs/2026-09-09-18-browser-tier-flakiness.md.
+   *
+   * Asserted on the button rather than the box, because the button moving is
+   * the thing that breaks; how the picker reserves the space is its business.
+   */
+  test("the picker does not move the button when its list arrives", async ({ page }) => {
+    const form = await openDialog(page)
+    const send = page.getByTestId("meeting-send")
+
+    /**
+     * Where the button is once it has stopped moving on its own.
+     *
+     * The dialog animates in, so a box read straight after opening is still
+     * travelling — the first version of this test measured 623.2, 626.8 and
+     * 628.5 for three reads with no interaction between the last two, and
+     * blamed the picker for the difference. Poll until two reads agree, then
+     * the only thing left that can move it is the thing under test.
+     */
+    const restingY = async () => {
+      let previous = Number.NaN
+      for (let attempt = 0; attempt < 40; attempt++) {
+        const box = await send.boundingBox()
+        if (box && box.y === previous) return box.y
+        previous = box?.y ?? Number.NaN
+        await page.waitForTimeout(50)
+      }
+      throw new Error("the send button never stopped moving")
+    }
+
+    const before = await restingY()
+    // Every candidate filtered away is the emptiest the list can be; the box
+    // must not collapse and lift the button.
+    await form.getByTestId("meeting-people-search").fill("zzzz")
+    await expect(page.getByTestId("meeting-people-none")).toBeVisible()
+    const empty = await restingY()
+
+    await form.getByTestId("meeting-people-search").fill("")
+    await expect(page.getByTestId("meeting-people").getByTestId(/^pick-/)).toHaveCount(people.length)
+    const full = await restingY()
+
+    expect(empty, "an empty list must not lift the button").toBe(before)
+    expect(full, "a full list must not push the button down").toBe(before)
+  })
+
   test("says so when nobody matches, rather than showing an empty box", async ({ page }) => {
     const form = await openDialog(page)
 

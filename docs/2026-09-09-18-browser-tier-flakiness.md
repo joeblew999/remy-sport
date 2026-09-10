@@ -1,9 +1,17 @@
 # Plan — the browser tier fails differently every time
 
-Status: open, 2026-09-10. **The cause this plan was written to find has been
-found, named and fixed** — Vite re-optimising a dynamically-imported dependency
-mid-run and reloading every open page (steps 1–5). A *second*, unrelated flake
-survives it and is step 6, recorded with its evidence and no theory attached.
+Status: **done, 2026-09-10.** Two causes, both found by reading a trace rather
+than guessing, both fixed and both proved. Step 8 — whether local runs should
+retry — is left open on purpose and is now a real question with an informed
+answer available.
+
+1. **Vite re-optimising a dynamically-imported dependency mid-run** and
+   reloading every open page, discarding whatever a test had navigated to.
+2. **The people picker moving the submit button between `mousedown` and
+   `mouseup`**, so the browser fired `click` on the form and nothing submitted.
+   A product defect a reader meets too, not a test defect.
+
+`bun run ops flake --runs 15`: **15 of 15**, against run 3 of 8 before.
 
 `bun run test:e2e` passes, then fails, then fails differently, with nothing
 changed between runs. It has cost at least six deploy attempts.
@@ -228,25 +236,59 @@ written down a day before it was understood.
         failed **for a different reason** — no second boot in its trace, and no
         optimiser line anywhere in its now-piped server log. See below.
       `bun run build` unchanged (exit 0, 369 precache entries).
-- [ ] **6 · The second cause: a click that lands before the form is listening.**
-      Found by run 6 above, and *not* the same thing — recorded with its
-      evidence and no theory attached, which is what the first cause needed and
-      did not get:
+- [x] **6 · The second cause: the form moves out from under the click.**
+      Found by run 6 above, and *not* the same thing. **A `click` event only
+      fires on the element that received both `mousedown` and `mouseup`. If they
+      land on different elements the browser fires `click` on their nearest
+      common ancestor instead — and a click on a `<div>` or a `<form>` does not
+      submit anything.**
+
       `orgs.spec.ts:54` fills the add-member email, clicks submit, and waits for
       `org-members-error`, which never arrives. What the trace says:
-      - The click completed — "performing click action / click action done".
-      - **No request followed it.** The whole trace holds two calls,
-        `/rpc/orgs/get` and `/rpc/orgs/members`. The mutation was never sent, so
+      - The click completed — "performing click action / click action done" —
+        and the submit button carries `__playwright_target__`, so Playwright's
+        hit-target check passed. It aimed correctly and reported success.
+      - The email held `nobody@example.invalid` at click time, so `required` was
+        satisfied and constraint validation was not the blocker. (Nor was the
+        combobox: it is not `required`.)
+      - **No `addMember` request followed.** The mutation was never sent, so
         there was no error to render and the assertion was waiting for something
-        nothing was going to produce.
-      - The click ran **1.31s** after `goto` began, while `/rpc/orgs/members`
-        was still in flight.
-      - One `[vite] connecting`, one boot. React logged a missing-`key` warning
-        from `ComboboxList` on the same page.
-      The shape to test first is whether the members list resolving re-renders
-      the section and replaces the form between the click and its handler — but
-      that is a hypothesis, and step 4's rule applies to it too.
-- [ ] **7 · Then consider retries.** Once the cause is known and fixed, whether
+        nothing would produce.
+      - The people picker's inline list carried `data-list-empty` during the
+        fill and **not** during the click: `people.list` resolved in between.
+        That list sits above the email field and the submit button, so
+        populating it moves the button down by up to `max-h-56` — 224px.
+
+      Proved against the engine, with no app, no server and no auth: a WebKit
+      page with a form whose spacer grows during `mousedown`.
+      ```
+      shift during mousedown: false  → form: SUBMITTED   click fired on: BUTTON#go
+      shift during mousedown: true   → form: no-submit   click fired on: FORM#f
+      ```
+      Which is the whole failure: a reported-successful click, no submit, no
+      request, no error. It is timing-dependent because the window is the few
+      milliseconds between the two mouse events, which is why it is rare.
+
+      **This is a product defect, not a test defect.** A reader reaching for
+      "Add" while the picker loads misses it in exactly the same way, and is
+      told nothing. The fix is to stop the list changing the height of the form.
+- [x] **7 · Prove step 6 the way step 5 was proved** — the shift probe green
+      both ways, and the loop run enough times to mean something.
+      **Done 2026-09-10:**
+      - **The engine, both ways.** A WebKit form whose spacer grows during
+        `mousedown` submits nothing and fires `click` on `FORM#f`; without the
+        shift it submits and fires on `BUTTON#go`.
+      - **A guard that fails without the fix.** `tests/render/meetings.spec.ts`
+        asserts the send button does not move as the picker's list fills or
+        empties. Reverted the fix: the button jumps 94px and the test is red.
+        Restored: green. It polls until two reads of the box agree, because the
+        dialog animates in and the first version of the test was measuring that
+        instead — 623.2, 626.8, 628.5 across three reads with no interaction.
+      - **The tier: `bun run ops flake --runs 15` → 15 of 15, no failure.**
+        Against run 3 of 8 before cause one was fixed, and run 6 of 12 with only
+        cause one fixed.
+      `bun run check` green throughout: 1097 unit, 409 render.
+- [ ] **8 · Then consider retries.** Once the cause is known and fixed, whether
       local runs should retry is a real question with an informed answer. It is
       not one now.
 
