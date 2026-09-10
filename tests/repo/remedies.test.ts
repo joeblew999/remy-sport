@@ -3,36 +3,12 @@ import { rule } from "./helpers"
 import { ROOT, sources } from "./lib/ast"
 
 /**
- * Every command this repo tells you to run must exist.
+ * Every command and file path a comment names must exist.
  *
- * A remedy is part of the CLI surface, not prose beside it. It is the *only*
- * part most people meet: nobody reads `bun run ops` for pleasure, they hit a
- * failure and type what it tells them. So a remedy naming a command that was
- * deleted is worse than a bare error — it spends somebody's afternoon proving
- * that a command which cannot work does not work.
+ * Nothing type-checks a comment, so pointers rot on any rename and no test
+ * notices. Sixty-three had, before this ran.
  *
- * That is not hypothetical. On 2026-09-10 the only guidance for a missing Web
- * Push key told the reader to run a `dev:vars` script, or a `push:secret:set`
- * mise task, depending on the surface. Neither existed: `dev:vars` was not among
- * package.json and `push:secret:set` was not a task — both went when
- * ninety mise tasks were consolidated, the change recorded in scripts/db.ts. The
- * dead `dev:vars` was named twice more, including in the refusal a developer
- * sees for `--env dev`.
- *
- * Twenty-six such references were found across twenty files the day this was
- * written, which is what a map maintained by hand looks like after a rename.
- *
- * (Written without the literal `bun run …` form on purpose — this file is
- * scanned by the very rule it defines.)
- *
- * The comment above that remedy already said "a remedy that names the wrong
- * file is worse than none". It had been fixed once, for naming the wrong
- * surface, and rotted again in the other direction — which is the argument for
- * checking it rather than writing it down.
- *
- * Read from source text rather than the AST, because a remedy is usually inside
- * a template literal or split across concatenated lines, where the command is
- * text and not a node worth naming.
+ * Source text, not the AST: a remedy is usually inside a template literal.
  */
 
 const scripts = Object.keys(
@@ -40,11 +16,7 @@ const scripts = Object.keys(
     .scripts ?? {},
 )
 
-/**
- * `mise.toml` tasks, by heading. Parsed as text: this is one regex over section
- * headers, against a file that would need a TOML reader for anything more, and
- * the alternative is a dependency for six lines.
- */
+/** `mise.toml` tasks. Text, not a TOML reader: one regex over section headers. */
 const miseTasks = [
   ...readFileSync(`${ROOT}/mise.toml`, "utf8").matchAll(/^\[tasks\.["']?([\w:.-]+)["']?\]/gm),
 ].map((m) => m[1]!)
@@ -57,22 +29,13 @@ const opsCommands = [
 const problems: string[] = []
 
 for (const path of [...sources("scripts"), ...sources("tests"), ...sources("src")]) {
-  /**
-   * `src/domain/model/` is not ours to edit.
-   *
-   * `bun run ops domain` copies it verbatim from ../remy-sport-biz, so a fix
-   * made here is reverted by the next sync — and `bun run check:model` fails in
-   * the meantime, which is how this exclusion was found rather than reasoned
-   * about. One dead reference lives there today, in vocabularies.ts, and
-   * belongs in the Product Owner's repo.
-   */
+  // Copied verbatim from ../remy-sport-biz by `bun run ops domain`, so a fix
+  // here is reverted by the next sync and fails `bun run check:model` meanwhile.
   if (path.startsWith("src/domain/model/")) continue
 
   const text = readFileSync(`${ROOT}/${path}`, "utf8")
 
-  // `bun run ops <name>` before plain `bun run <name>`, so the dispatcher's
-  // subcommand is checked against its table rather than against package.json,
-  // where only `ops` itself appears.
+  // Before the plain form: only `ops` itself appears in package.json.
   for (const [, name] of text.matchAll(/bun run ops ([a-z][a-z-]*)/g)) {
     if (!opsCommands.includes(name!)) {
       problems.push(`${path} names \`bun run ops ${name}\` — not in the table in scripts/ops.ts.`)
@@ -94,23 +57,8 @@ for (const path of [...sources("scripts"), ...sources("tests"), ...sources("src"
     }
   }
 
-  /**
-   * Every file a comment points at must exist.
-   *
-   * The same failure as a dead command, in the other half of the sentence.
-   * Sixty-three pointers had rotted the day this was written — thirty-seven
-   * paths and twenty-six commands — and every test in the repo was green,
-   * because **nothing type-checks a comment**. `src/db/schema.ts` said the
-   * domain model was "GENERATED", naming a domain-generate script while the
-   * file it describes said "AUTHORED. Not generated" in its first line, and
-   * that contradiction survived a rename and a redesign.
-   *
-   * Comments only. A path inside code is usually a fixture written into a temp
-   * directory — `tests/repo/docs-isolation.test.ts` creates an `app.ts` under src/ that
-   * is *supposed* not to exist — and flagging those would train people to add
-   * exclusions until the rule meant nothing. A line is a comment when it starts
-   * with `*`, `//` or `/*`, which is every doc comment and note in this repo.
-   */
+  // Comments only: a path in code is usually a fixture written to a temp
+  // directory, which is supposed not to exist.
   for (const line of text.split("\n")) {
     if (!/^\s*(\*|\/\/|\/\*)/.test(line)) continue
     for (const [, ref] of line.matchAll(
