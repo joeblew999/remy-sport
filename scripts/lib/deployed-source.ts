@@ -19,10 +19,18 @@
  * the model into `src/`, so the directory as a whole does reach the deployment
  * and the rule cannot tell which member is which. A false refusal there is
  * answered by the message naming the file, not by widening this.
+ *
+ * The repository ROOT is the one place where a loose document or image is not
+ * an application input: it holds configuration, lock files and readmes, the
+ * app's own assets live under `src/web`, and the built bundle is served from
+ * `dist/client`. A root-level `.md` was already exempt for that reason; images
+ * are the same thing, and a screenshot left beside a README refused a
+ * verification of a correct deployment on 2026-09-10. Anything in a
+ * subdirectory is still assumed to matter.
  */
 export function affectsDeployment(path: string): boolean {
   return !(path.startsWith('docs/') || path.startsWith('tests/') || path.startsWith('.github/') ||
-    (!path.includes('/') && path.endsWith('.md')) ||
+    (!path.includes('/') && /\.(md|png|jpe?g|gif|svg|webp|avif)$/i.test(path)) ||
     ['scripts/e2e.ts', 'scripts/lib/staging-test-access.ts', 'scripts/lib/deployed-source.ts',
       'playwright.config.ts', 'playwright.render.config.ts'].includes(path))
 }

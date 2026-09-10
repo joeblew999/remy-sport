@@ -27,3 +27,17 @@ it('still requires republishing when build tooling changes', () => {
     expect(affectsDeployment(path), path).toBe(true)
   }
 })
+// A readme's screenshot is not an application input: the root holds config and
+// documentation, the app's assets live under src/web, and the bundle is served
+// from dist/client. One of these refused a verification of a good deployment.
+it('allows a loose document or image at the repository root', () => {
+  for (const path of ['README.md', 'shadcn-places-demo.png', 'screenshot.JPG', 'diagram.svg']) {
+    expect(affectsDeployment(path), path).toBe(false)
+  }
+})
+// Only at the root, though — an image in a subdirectory may well be shipped.
+it('still requires republishing for assets inside the app', () => {
+  for (const path of ['src/web/public/icon.png', 'public/logo.svg', 'src/web/hero.webp']) {
+    expect(affectsDeployment(path), path).toBe(true)
+  }
+})
