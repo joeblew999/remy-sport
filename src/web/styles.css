@@ -21,16 +21,31 @@
 /* The faces, as Tailwind theme tokens so the registry's components inherit
    them: its `font-sans` is our Inter, its `font-mono` our Plex.
 
-   The tails are load-bearing, not politeness: Latin and Thai are self-hosted
-   (scripts/ops/fonts.ts); CJK is deliberately not, because Noto Sans JP alone
-   is 5.3MB and every device that reads it ships a better face already.
-   `system-ui` is what renders Japanese, Korean and Chinese here — drop it and
-   a declared locale becomes tofu. `font-thai` is the Thai-first face for a
-   line that is Thai with a Latin word or two in it: one face for the whole
-   line reads better than Inter's Latin spliced into Noto's Thai. The mono
-   face carries no Thai on purpose: it is only ever used for code and digits. */
+   The tails are load-bearing, not politeness: Latin, Thai, Arabic, Devanagari
+   and Bengali are self-hosted (scripts/ops/fonts.ts); CJK is deliberately not,
+   because Noto Sans JP alone is 5.3MB and every device that reads it ships a
+   better face already. `system-ui` is what renders Japanese, Korean and Chinese
+   here — drop it and a declared locale becomes tofu. `font-thai` is the
+   Thai-first face for a line that is Thai with a Latin word or two in it: one
+   face for the whole line reads better than Inter's Latin spliced into Noto's
+   Thai. The mono face carries no Thai on purpose: it is only ever used for code
+   and digits.
+
+   `--font-scripts` is generated — every self-hosted script face, derived from
+   the locales the Product Owner's model declares, written by
+   `bun run ops fonts` into fonts.css. It is interpolated rather than retyped
+   because this list used to be typed by hand and fell behind: the
+   twenty-seven-locale release taught the pipeline to vendor Arabic, Devanagari
+   and Bengali and nothing taught this line to ask for them, so 510KB sat in the
+   repository that no element ever referenced and those scripts quietly rendered
+   in the system face. Two lists, one derived and one manual, is the defect;
+   there is one now, and declaring a locale upstream is the whole change.
+
+   Naming them costs a reader who cannot read them nothing: every @font-face
+   carries a `unicode-range`, so a browser fetches a face only when it has a
+   character to put in it. The repository grows; no reader's page does. */
 @theme {
-  --font-sans: 'Inter', 'Noto Sans Thai', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans: 'Inter', var(--font-scripts), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-thai: 'Noto Sans Thai', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
   /* The preset's own value, restored. `ui.shadcn.com/init` returns

@@ -41,59 +41,101 @@ const OUT = join(ROOT, "src/web/fonts")
  *            CJK face than we would send it. The font stack in styles.css falls
  *            through to system-ui.
  *
- * Keyed by locale so this follows the same rule as everything else here:
- * shipping a language is a change to the model's ALL_LOCALES plus
- * `bun run ops domain`, not an edit to a list in this file. A declared
- * locale with no entry below is a hard failure, not silent tofu.
+ * Keyed by WRITING SYSTEM, not by language, and the language's writing system
+ * is not written down here either — `Intl.Locale(code).maximize().script` is
+ * CLDR's own answer and every runtime ships it:
+ *
+ *   th → Thai    hi → Deva    ar → Arab    bn → Beng    ru, uk → Cyrl
+ *   ja → Jpan    ko → Kore    zh → Hans    zh-TW, zh-HK → Hant
+ *   en, es, fr, de, id, tl, vi, tr, it, pl, ms, sw, nl → Latn
+ *   ur → Aran  ← Arabic in Nastaliq style, which CLDR distinguishes from Arab
+ *
+ * This used to be a locale→font table, and it grew by a line for every language
+ * whether or not that language brought a new script: thirteen of its
+ * twenty-seven rows said `{ subsets: [] }` and existed only to stop the check
+ * below refusing to run. Adding Dutch was a font decision. It should not have
+ * been one.
+ *
+ * Keyed by script, the table converges. A twenty-eighth language that reads in
+ * Latin, Cyrillic, Arabic or Devanagari needs nothing here at all; only a
+ * genuinely new writing system does, which is the only case where somebody
+ * really does have to decide something.
+ *
+ * A script with no entry is still a hard failure rather than silent tofu — the
+ * check below just asks the question once per writing system instead of once
+ * per language.
  *
  * `latin`/`latin-ext` are unconditional: names, codes and numerals appear in
  * every language, and a Thai school's roster carries accented Latin names.
  */
-const SCRIPTS: Record<string, { subsets: string[]; family?: string }> = {
-  en: { subsets: [] },
-  th: { subsets: ["thai"], family: "Noto+Sans+Thai:wght@400;500;600" },
-  vi: { subsets: ["vietnamese"] },
+const WRITING_SYSTEMS: Record<string, { subsets: string[]; family?: string }> = {
+  // Latin is the brand — Inter and IBM Plex Mono — and `latin`/`latin-ext` are
+  // in KEEP unconditionally, so a Latin-script language downloads nothing new.
+  Latn: { subsets: [] },
 
-  // Latin, and therefore free: `latin` and `latin-ext` are in KEEP
-  // unconditionally, so declaring one of these downloads nothing new. That is
-  // why they are the first eleven — docs/done/2026-09-09-15-language-picker-at-fifteen.md.
-  es: { subsets: [] },
-  pt: { subsets: [] },
-  fr: { subsets: [] },
-  de: { subsets: [] },
-  id: { subsets: [] },
-  tl: { subsets: [] },
-  tr: { subsets: [] },
-  it: { subsets: [] },
-  pl: { subsets: [] },
-  uk: { subsets: ["cyrillic", "cyrillic-ext"] },
-  hi: { subsets: ["devanagari"], family: "Noto+Sans+Devanagari:wght@400;500;600" },
-  ar: { subsets: ["arabic"], family: "Noto+Sans+Arabic:wght@400;500;600" },
-  ms: { subsets: [] },
-  bn: { subsets: ["bengali"], family: "Noto+Sans+Bengali:wght@400;500;600" },
-  "zh-TW": { subsets: [] },
-  "zh-HK": { subsets: [] },
-  ur: { subsets: ["arabic"], family: "Noto+Sans+Arabic:wght@400;500;600" },
-  fa: { subsets: ["arabic"], family: "Noto+Sans+Arabic:wght@400;500;600" },
-  sw: { subsets: [] },
-  nl: { subsets: [] },
-  ru: { subsets: ["cyrillic", "cyrillic-ext"] },
-  el: { subsets: ["greek", "greek-ext"] },
+  Thai: { subsets: ["thai"], family: "Noto+Sans+Thai:wght@400;500;600" },
+  Deva: { subsets: ["devanagari"], family: "Noto+Sans+Devanagari:wght@400;500;600" },
+  Beng: { subsets: ["bengali"], family: "Noto+Sans+Bengali:wght@400;500;600" },
+  Arab: { subsets: ["arabic"], family: "Noto+Sans+Arabic:wght@400;500;600" },
 
-  // CJK carries no `family` on purpose — see the note above. The subsets are
-  // named so the keep-filter is honest about what is being relied on
-  // elsewhere, but nothing is downloaded.
-  ja: { subsets: [] },
-  ko: { subsets: [] },
-  zh: { subsets: [] },
+  /**
+   * Urdu, in Naskh — knowingly, and this is the row that says so.
+   *
+   * CLDR calls Urdu's script `Aran`: Arabic written in the Nastaliq style,
+   * which slopes and stacks and is what an Urdu reader expects. `Noto Nastaliq
+   * Urdu` exists and is 234KB against Naskh's 209KB, which is not the obstacle.
+   * The obstacle is that nobody has looked at 27 screens set in a face whose
+   * line-height behaves differently, so this ships the Naskh that is correct
+   * and readable rather than the Nastaliq that is expected.
+   *
+   * The model carries the same admission as a `caveat` on the `ur` row, so a
+   * reader of the data meets it too. Step 4 of
+   * docs/2026-09-09-19-translation-provenance.md.
+   */
+  Aran: { subsets: ["arabic"], family: "Noto+Sans+Arabic:wght@400;500;600" },
+
+  // Inter carries Cyrillic and Greek itself; the subsets are named so they
+  // survive the keep-filter below rather than being stripped as unreachable.
+  Cyrl: { subsets: ["cyrillic", "cyrillic-ext"] },
+  Grek: { subsets: ["greek", "greek-ext"] },
+
+  // CJK carries no `family` on purpose — see the note above. Named so the
+  // keep-filter is honest about what is relied on elsewhere; nothing downloads.
+  Jpan: { subsets: [] },
+  Kore: { subsets: [] },
+  Hans: { subsets: [] },
+  Hant: { subsets: [] },
 }
+
+/** CLDR's answer for what a language is written in. */
+const writingSystemOf = (locale: string): string =>
+  new Intl.Locale(locale).maximize().script ?? "Latn"
+
+/**
+ * Kept so the rest of this file, and its callers, still read per locale.
+ * Vietnamese is the one language that needs a subset its script does not imply:
+ * it is Latin, but its tone marks live in a `vietnamese` subset of their own.
+ */
+const SCRIPTS: Record<string, { subsets: string[]; family?: string }> = Object.fromEntries(
+  ALL_LOCALES.map((locale) => {
+    const system = WRITING_SYSTEMS[writingSystemOf(locale)]
+    if (!system) return [locale, undefined]
+    const subsets = locale === "vi" ? [...system.subsets, "vietnamese"] : system.subsets
+    return [locale, { ...system, subsets }]
+  }).filter(([, v]) => v) as [string, { subsets: string[]; family?: string }][],
+)
 
 const unknown = ALL_LOCALES.filter((l) => !(l in SCRIPTS))
 if (unknown.length) {
+  const missing = [...new Set(unknown.map((l) => `${writingSystemOf(l)} (${l})`))]
   console.error(
-    `fonts: no script mapping for locale(s) ${unknown.join(", ")}.\n` +
-      `Add them to SCRIPTS in this file — a declared locale with no font renders\n` +
-      `as empty boxes, and nothing else would have told you.`,
+    `fonts: no entry for writing system(s) ${missing.join(", ")}.\n\n` +
+      `Add the SCRIPT — not the language — to WRITING_SYSTEMS in this file, and\n` +
+      `every language that reads in it is covered from then on. Decide two things:\n` +
+      `  · which Google subset(s) carry it, so the keep-filter does not strip them\n` +
+      `  · whether to self-host a face, or leave it to system-ui as CJK is\n\n` +
+      `A declared locale with no font renders as empty boxes, and nothing else\n` +
+      `would have told you.`,
   )
   process.exit(1)
 }
@@ -202,11 +244,41 @@ if (seen.size) {
  * A generator that rewrites identical bytes is not idempotent, whatever its
  * output says.
  */
+/**
+ * The script faces, as a token the stylesheet composes rather than retypes.
+ *
+ * Downloading a face and *using* one are two different things, and for three
+ * languages this repository did the first and not the second. The
+ * twenty-seven-locale release added Arabic, Devanagari and Bengali to SCRIPTS
+ * above — so `ops fonts` dutifully vendored 510KB — while `--font-sans` in
+ * styles.css stayed a hand-typed list of Inter and Thai. Nothing referenced the
+ * new families, so no browser ever requested them, and the scripts fell through
+ * to the system face. Nothing looked broken, because every OS ships Arabic.
+ *
+ * Two lists, one derived from the model and one maintained by hand, is the
+ * whole defect. This is the derived one, and styles.css now interpolates it:
+ *
+ *   --font-sans: 'Inter', var(--font-scripts), system-ui, …
+ *
+ * So declaring a locale in the Product Owner's model and running this command
+ * is the entire change. There is no second place to remember.
+ *
+ * `unicode-range` on every @font-face is what makes naming them all free: a
+ * browser fetches a face only when it has a character to put in it, so a reader
+ * of English downloads none of these.
+ */
+const scriptFamilies = [
+  ...new Set(ALL_LOCALES.map((l) => SCRIPTS[l]!.family).filter(Boolean) as string[]),
+].map((f) => `'${f.split(":")[0]!.replaceAll("+", " ")}'`)
+
 const cssPath = join(ROOT, "src/web/fonts.css")
 const generated =
   `/* GENERATED by \`bun run ops fonts\` — do not edit.\n` +
   `   Locales: ${ALL_LOCALES.join(", ")}\n` +
-  `   Families: ${FAMILIES.join(", ")} */\n\n${local}`
+  `   Families: ${FAMILIES.join(", ")} */\n\n` +
+  `/* Every self-hosted script face, in one token. styles.css puts it between\n` +
+  `   Inter and the system tail; see the note in this file's generator. */\n` +
+  `:root {\n  --font-scripts: ${scriptFamilies.join(", ")};\n}\n\n${local}`
 
 if (!existsSync(cssPath) || readFileSync(cssPath, "utf-8") !== generated) {
   writeFileSync(cssPath, generated)

@@ -2,6 +2,12 @@
    Locales: th, en, ja, zh, es, pt, id, fr, tl, vi, ko, de, ru, tr, it, pl, uk, hi, ar, ms, bn, zh-TW, zh-HK, ur, fa, sw, nl
    Families: Inter:wght@400;500;600, IBM+Plex+Mono:wght@400;500;600, Noto+Sans+Thai:wght@400;500;600, Noto+Sans+Devanagari:wght@400;500;600, Noto+Sans+Arabic:wght@400;500;600, Noto+Sans+Bengali:wght@400;500;600 */
 
+/* Every self-hosted script face, in one token. styles.css puts it between
+   Inter and the system tail; see the note in this file's generator. */
+:root {
+  --font-scripts: 'Noto Sans Thai', 'Noto Sans Devanagari', 'Noto Sans Arabic', 'Noto Sans Bengali';
+}
+
 /* cyrillic-ext */
 @font-face {
   font-family: 'IBM Plex Mono';

@@ -175,10 +175,21 @@ would notice and no test ever will.
       `zh-HK` derived from `zh-TW`, `ur` set in Naskh — so they live next to the
       data rather than in a plan nobody re-reads.
       **Done 2026-09-10** in the same commit as step 1.
-- [ ] **4 · Nastaliq for Urdu**, if and when Urdu matters: a `family` on the
-      `ur` entry in `SCRIPTS`, the same one-line change every other font took.
-      Measure it first — Nastaliq is a heavier face than Naskh and the number
-      should be in front of whoever decides.
+- [ ] **4 · Nastaliq for Urdu.** Measured 2026-09-10, and the measurement is
+      **not the obstacle**: `Noto Nastaliq Urdu` is **234KB** against
+      `Noto Sans Arabic`'s **162KB** for the arabic subset — 72KB more, fetched
+      only by a reader whose text is in that unicode-range.
+      The standard agrees it is wanted, which this plan previously asserted on
+      an agent's say-so: **CLDR gives Urdu the script `Aran`** — Arabic in
+      Nastaliq style — where Arabic and Persian are `Arab`.
+      `new Intl.Locale("ur").maximize().script === "Aran"`, and
+      `scripts/ops/fonts.ts` now keys on exactly that, so the `Aran` row is
+      where the decision lives and it currently says Naskh in as many words.
+      What is left is not a number and not a font: **nobody has looked at
+      twenty-seven screens set in a face whose line-height and ascenders behave
+      differently.** Nastaliq slopes and stacks. That is a design review, and
+      shipping it unlooked-at would trade a face an Urdu reader does not expect
+      for a layout they cannot use.
 - [x] **5 · The identical-to-English rule.** Identical to the English value, in
       a locale whose script is not Latin, is a missed translation — with the
       exemptions declared rather than assumed, because place names and `LINE`
