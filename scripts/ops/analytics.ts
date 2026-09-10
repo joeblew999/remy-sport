@@ -383,3 +383,105 @@ if (process.argv.includes("--runtime")) {
   }
   console.log()
 }
+
+// ── what the Worker actually said ──────────────────────────────────────────
+
+/**
+ * The third view, and the only one that answers *why*.
+ *
+ * The event catalogue above says what the application decided. `--runtime` says
+ * what Cloudflare made of running it. Neither carries a stack trace, and
+ * neither exists for a request that died before reaching the line that would
+ * have recorded it.
+ *
+ * Workers Logs does. `[observability.logs] invocation_logs` in wrangler.toml
+ * groups every line, error and uncaught exception under the request that
+ * produced it, so a failure is one invocation to open rather than four hundred
+ * lines to correlate by timestamp.
+ *
+ * Defaults to errors and warnings only. A day of `info` from a healthy Worker
+ * is thousands of lines saying nothing happened, and a report nobody reads is
+ * not observability — `--level info` when you actually want the noise.
+ *
+ * Needs **Workers Observability: Read**, which is NOT the Account Analytics:
+ * Read that everything else here uses. Added to this account's token on
+ * 2026-09-10; the 403 before that was the permission, not the query.
+ */
+interface LogEvent {
+  timestamp: number
+  $workers?: { scriptName?: string; outcome?: string; requestId?: string; cpuTimeMs?: number; wallTimeMs?: number }
+  $metadata?: { level?: string; message?: string; error?: string; service?: string; trigger?: string; requestId?: string }
+}
+
+async function logs(): Promise<void> {
+  const to = Date.now()
+  const from = to - HOURS * 3600 * 1000
+  const at = process.argv.indexOf("--level")
+  const wanted = at === -1 ? ["error", "warn"] : [String(process.argv[at + 1] ?? "error")]
+  const all = process.argv.includes("--all")
+
+  const res = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/workers/observability/telemetry/query`,
+    {
+      method: "POST",
+      headers: { authorization: `Bearer ${TOKEN}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        queryId: "remy-ops-logs",
+        timeframe: { from, to },
+        parameters: { datasets: ["cloudflare-workers"], limit: 200 },
+        view: "events",
+        limit: 200,
+      }),
+    },
+  )
+  const body = (await res.json()) as { success?: boolean; errors?: { message: string }[]; result?: { events?: { events?: LogEvent[] } } }
+  if (!res.ok || body.success === false) {
+    const why = body.errors?.map((e) => e.message).join("; ") ?? String(res.status)
+    console.error(
+      `\nlogs: ${why.slice(0, 200)}\n` +
+        (res.status === 403
+          ? "  The token needs Workers Observability: Read — a different permission from the\n" +
+            "  Account Analytics: Read the rest of this command uses.\n"
+          : ""),
+    )
+    return
+  }
+
+  const events = body.result?.events?.events ?? []
+  const mine = events.filter((e) => {
+    const script = e.$workers?.scriptName ?? e.$metadata?.service ?? ""
+    return all || script.startsWith("remy-")
+  })
+  const interesting = mine.filter((e) => {
+    const level = (e.$metadata?.level ?? "").toLowerCase()
+    return wanted.includes(level) || (e.$workers?.outcome && e.$workers.outcome !== "ok")
+  })
+
+  console.log(
+    `\n${bold("logs")}  ${dim(`${wanted.join("/")} · last ${HOURS}h · ${mine.length} event(s) seen`)}`,
+  )
+  if (!interesting.length) {
+    console.log(dim(`  Nothing at ${wanted.join(" or ")}. That is the good outcome; --level info to see everything.`))
+    return
+  }
+  for (const e of interesting.slice(0, 40)) {
+    const when = new Date(e.timestamp).toISOString().slice(11, 19)
+    const who = e.$workers?.scriptName ?? e.$metadata?.service ?? "?"
+    const outcome = e.$workers?.outcome && e.$workers.outcome !== "ok" ? ` ${bold(e.$workers.outcome)}` : ""
+    const text = e.$metadata?.error ?? e.$metadata?.message ?? ""
+    // The request id is the point of invocation_logs: it is what you paste into
+    // the dashboard to see everything else that request did.
+    const req = e.$workers?.requestId ?? e.$metadata?.requestId ?? ""
+    console.log(`  ${when}  ${who}${outcome}  ${text.slice(0, 120)}`)
+    if (req) console.log(dim(`            request ${req}`))
+  }
+}
+
+if (process.argv.includes("--logs")) {
+  if (!ACCOUNT || !TOKEN) {
+    console.error("\nlogs needs CLOUDFLARE_ACCOUNT_ID and a token with Workers Observability: Read.")
+  } else {
+    await logs()
+  }
+  console.log()
+}
