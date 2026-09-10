@@ -1,17 +1,22 @@
 # Plan — the browser tier fails differently every time
 
-Status: **done, 2026-09-10.** Two causes, both found by reading a trace rather
-than guessing, both fixed and both proved. Step 8 — whether local runs should
-retry — is left open on purpose and is now a real question with an informed
-answer available.
+Status: open, 2026-09-10. Two causes found by reading traces rather than
+guessing, and a third reading of the second one that is the general case.
 
 1. **Vite re-optimising a dynamically-imported dependency mid-run** and
    reloading every open page, discarding whatever a test had navigated to.
-2. **The people picker moving the submit button between `mousedown` and
-   `mouseup`**, so the browser fired `click` on the form and nothing submitted.
-   A product defect a reader meets too, not a test defect.
+   Fixed; `optimizeDeps.include`.
+2. **Something moving between `mousedown` and `mouseup`,** so the browser fires
+   `click` on the nearest common ancestor and the button is never pressed, the
+   link never followed. A product defect a reader meets too, not a test defect.
+   Found in the people picker, fixed there — and then found again on the
+   organisations list, which has no picker. **The picker was an instance; the
+   cause is content inserted above content already on screen.** Fixed in both
+   places that carry that shape.
 
-`bun run ops flake --runs 15`: **15 of 15**, against run 3 of 8 before.
+`bun run ops flake --runs 15` after cause 1 and the picker: **15 of 15**,
+against run 3 of 8 before. That run did not exercise `orgs.spec.ts:24`'s
+timing, which is the honest reason a second instance survived it.
 
 `bun run test:e2e` passes, then fails, then fails differently, with nothing
 changed between runs. It has cost at least six deploy attempts.
@@ -288,7 +293,35 @@ written down a day before it was understood.
         Against run 3 of 8 before cause one was fixed, and run 6 of 12 with only
         cause one fixed.
       `bun run check` green throughout: 1097 unit, 409 render.
-- [ ] **8 · Then consider retries.** Once the cause is known and fixed, whether
+- [x] **8 · The picker was one instance, not the cause.** Named after the fix
+      for step 6 shipped and the very next deploy failed at `orgs.spec.ts:24` —
+      a *different* page with no picker on it.
+
+      The trace says the same sentence in a different place: the click completed,
+      the URL never left `#/orgs`, and the page grew from 282 characters to 780
+      between the `goto` and the click. What arrived in that window was the
+      signed-in chrome and an entire **"Your organisations"** section, which
+      renders **above** the list. The row being clicked moved down while the
+      click was in flight.
+
+      So the defect is not the people picker. It is **content arriving
+      asynchronously and being inserted above content already on screen**, and
+      the picker was the first example anyone read a trace for.
+
+      `OrgsPage` and `TeamsPage` are the same component shape: a `yours` section
+      gated on `useMine(...)` sitting above a list gated on its own query. Both
+      now wait for both answers, so nothing is inserted above something a reader
+      is already looking at. **`teams.tsx` was fixed without a failing test** —
+      it is the same code and waiting for a second spec to catch the second copy
+      is how a known defect ships twice.
+
+      One trap, caught by the render tier on its first run: the holdings query
+      is `enabled: Boolean(user)`, and a **disabled TanStack query stays
+      `isPending` for ever**. Gating on `isPending` left every signed-out visitor
+      watching "Loading" on a public list — 16 render specs went red, including
+      "lists every squad, signed out". `isLoading` is the predicate that means
+      "actually fetching", and is false for a disabled query.
+- [ ] **9 · Then consider retries.** Once the cause is known and fixed, whether
       local runs should retry is a real question with an informed answer. It is
       not one now.
 

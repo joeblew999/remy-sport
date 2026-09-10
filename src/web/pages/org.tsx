@@ -72,16 +72,40 @@ export function OrgsPage() {
    * is browsing, which the model says is genuinely most of what happens here for
    * schools. Yours is the shortcut on top of it, marked so a person can see why
    * a row is there.
+   *
+   * **Both answers, or neither**, because this section goes ABOVE the list.
+   * `mine` and `orgs` are separate requests that resolve separately, so
+   * rendering the list as soon as `orgs` arrived meant that when `mine` landed a
+   * moment later a whole section was inserted above rows a reader was already
+   * looking at, and everything below moved down the page.
+   *
+   * That is not cosmetic. A `click` fires only on the element that received both
+   * `mousedown` and `mouseup`; when the target moves between them the browser
+   * fires `click` on the nearest common ancestor instead, and a click on a
+   * `<div>` follows no link. `orgs.spec.ts:24` caught it — the click completed,
+   * no navigation happened, and the page sat on `#/orgs` — and a reader tapping
+   * a school as their own list appears loses the tap the same way, with nothing
+   * on screen to say why.
+   *
+   * So the region waits for both. It costs the time of the slower request on a
+   * page that is a list of schools, and nothing is ever inserted above something
+   * already on screen. docs/2026-09-09-18-browser-tier-flakiness.md.
    */
-  const { data: mine } = useMine("ORG");
+  const holdings = useMine("ORG");
+  const mine = holdings.data;
   const held = new Map(mine.map((h) => [h.id, h.relation]));
   const yours = (orgs.data ?? []).filter((o) => held.has(o.id));
+  // `isLoading`, not `isPending`: this query is `enabled: Boolean(user)`, and a
+  // disabled query stays pending forever. Gating on `isPending` left every
+  // signed-out visitor watching "Loading" on a public list — caught by the
+  // render tier the first time it ran.
+  const pending = orgs.isPending || holdings.isLoading;
 
   return (
     <div data-testid="orgs-page">
       <PageHeader  title={m.orgs_heading()} sub={m.orgs_sub()} />
       <PageInner className="flex flex-col gap-6">
-        {yours.length > 0 && (
+        {!pending && yours.length > 0 && (
           <section>
             <SectionHeading title={m.your_orgs()} className="mt-0" />
             <ItemGroup data-testid="your-orgs">
@@ -103,7 +127,7 @@ export function OrgsPage() {
         )}
 
         {orgs.error && <QueryError error={orgs.error} retry={orgs.refetch} pending={orgs.isFetching} />}
-        {orgs.isPending ? (
+        {pending ? (
           <Loading>{m.loading_orgs()}</Loading>
         ) : orgs.data?.length ? (
           <ItemGroup data-testid="orgs-list">

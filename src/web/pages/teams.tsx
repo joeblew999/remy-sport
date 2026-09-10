@@ -39,16 +39,35 @@ export function TeamsPage() {
    * `useMine("TEAM")` is ListObjects — head coach, assistant, manager, the
    * player themselves, a follower. The relation comes back with it, so the row
    * can say *why* it is yours instead of just that it is.
+   *
+   * **Both answers, or neither**, the same rule as the organisations list and
+   * for the same reason: this section sits ABOVE the list, so rendering as soon
+   * as `teams` arrived meant a section appearing over rows a reader was already
+   * looking at and pushing them down. A `click` fires only on the element that
+   * received both `mousedown` and `mouseup`; when the target moves between them
+   * the browser fires it on the nearest common ancestor and the link is never
+   * followed.
+   *
+   * Fixed here without a failing test, because this page is the same component
+   * shape as the one whose test did fail — `orgs.spec.ts:24`, a click that
+   * completed and navigated nowhere. Waiting for a second spec to catch the
+   * second copy is how a known defect ships twice.
+   * docs/2026-09-09-18-browser-tier-flakiness.md.
    */
-  const { data: mine } = useMine("TEAM");
+  const holdings = useMine("TEAM");
+  const mine = holdings.data;
   const held = new Map(mine.map((h) => [h.id, h.relation]));
   const yours = (teams.data ?? []).filter((t) => held.has(t.id));
+  // `isLoading`, not `isPending` — see the note on the organisations list: the
+  // holdings query is disabled without a session, and a disabled query is
+  // pending for ever.
+  const pending = teams.isPending || holdings.isLoading;
 
   return (
     <div data-testid="teams-page">
       <PageHeader title={m.teams_heading()} sub={m.teams_sub()} />
       <PageInner className="flex flex-col gap-6">
-        {yours.length > 0 && (
+        {!pending && yours.length > 0 && (
           <section>
             <SectionHeading title={m.your_teams()} className="mt-0" />
             <ItemGroup data-testid="your-teams">
@@ -76,7 +95,7 @@ export function TeamsPage() {
         )}
 
         {teams.error && <QueryError error={teams.error} retry={teams.refetch} pending={teams.isFetching} />}
-        {teams.isPending ? (
+        {pending ? (
           <Loading>{m.loading_teams()}</Loading>
         ) : teams.data?.length ? (
           <ItemGroup data-testid="teams-list">
