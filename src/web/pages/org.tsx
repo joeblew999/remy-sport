@@ -17,26 +17,17 @@ import { ChevronRightIcon } from "lucide-react";
 /**
  * Organisations — the GUI for `/api/orgs`.
  *
- * The backend has read, profile edit and member management since the
- * organization plugin was removed; nothing reached any of it, so a school could
- * be edited only with a curl command.
- *
- * **There is no permission model in this file, deliberately.** The page does not
- * ask what the viewer's role is and does not carry a copy of the access matrix.
- * It asks the server for the member list; a 403 means "not yours" and the
- * section renders as denied. Every relation is derived upstream from the Product
- * Owner's model (`src/api/relations.ts`), and a mirror of that here is exactly
- * the second answer to "may you" that keeps drifting from the first — the same
- * objection ADR 007 raised, and what `admin.tsx`'s ROLE_PERMISSIONS is careful
- * to label display-only.
+ * **No permission model in this file, deliberately.** The page never asks the
+ * viewer's role and carries no copy of the access matrix: it asks the server,
+ * and a 403 renders as denied. A mirror here would be the second answer to "may
+ * you" that drifts from the first — ADR 007's objection, and why `admin.tsx`'s
+ * ROLE_PERMISSIONS is labelled display-only.
  *
  * So the shape is: try, and let the answer decide what renders.
  *
- * The same idea runs through the forms. A failed write comes back with the
- * server's own validation issues, and `getIssueMessage` puts each one under the
- * field it belongs to — so "Invalid email address" appears beneath the email
- * box rather than as a banner saying "Input validation failed". The rules are
- * the procedure's zod schema and are never restated here.
+ * The forms work the same way. A failed write returns the server's own
+ * validation issues and `getIssueMessage` puts each under its field, so the
+ * rules stay in the procedure's zod schema and are never restated here.
  */
 
 import { useState } from "react";
@@ -63,33 +54,20 @@ export function OrgsPage() {
   /**
    * Yours first, then the rest.
    *
-   * The list showed every school on the platform with no way to find your own —
-   * a hole found by asking, for each kind of thing a person can hold, where
-   * they see *theirs*. `me.mine` has answered ORG holdings since it was written
-   * and nothing read them.
+   * The list showed every school with no way to find your own, although `me.mine`
+   * had answered ORG holdings since it was written.
    *
-   * A section rather than a separate screen, and not a filter: this page's job
-   * is browsing, which the model says is genuinely most of what happens here for
-   * schools. Yours is the shortcut on top of it, marked so a person can see why
-   * a row is there.
+   * A section rather than a filter: this page's job is browsing, and yours is a
+   * shortcut on top of it, marked so a person can see why a row is there.
    *
-   * **Both answers, or neither**, because this section goes ABOVE the list.
-   * `mine` and `orgs` are separate requests that resolve separately, so
-   * rendering the list as soon as `orgs` arrived meant that when `mine` landed a
-   * moment later a whole section was inserted above rows a reader was already
-   * looking at, and everything below moved down the page.
+   * **Both answers, or neither**, because this section sits ABOVE the list.
+   * Rendering as soon as `orgs` arrived inserted a whole section over rows the
+   * reader was already looking at. A `click` fires only on the element that
+   * received both `mousedown` and `mouseup`; when the target moves between them
+   * the browser fires it on the common ancestor and the link is never followed.
    *
-   * That is not cosmetic. A `click` fires only on the element that received both
-   * `mousedown` and `mouseup`; when the target moves between them the browser
-   * fires `click` on the nearest common ancestor instead, and a click on a
-   * `<div>` follows no link. `orgs.spec.ts:24` caught it — the click completed,
-   * no navigation happened, and the page sat on `#/orgs` — and a reader tapping
-   * a school as their own list appears loses the tap the same way, with nothing
-   * on screen to say why.
-   *
-   * So the region waits for both. It costs the time of the slower request on a
-   * page that is a list of schools, and nothing is ever inserted above something
-   * already on screen. docs/done/2026-09-09-18-browser-tier-flakiness.md.
+   * So the region waits for both, at the cost of the slower request.
+   * docs/done/2026-09-09-18-browser-tier-flakiness.md.
    */
   const holdings = useMine("ORG");
   const mine = holdings.data;

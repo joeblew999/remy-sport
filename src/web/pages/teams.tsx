@@ -13,18 +13,13 @@ import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle }
  *
  * Every team on the platform, and yours at the top.
  *
- * `BROWSE_TEAMS` is granted to PUBLIC and `teams.list` has declared exactly
- * that action since it was written — `openTo("BROWSE_TEAMS")`, one line above
- * the route. The endpoint was built, enforced, and read by nothing except the
- * admin console's delete list and two screens that filter it down to one team.
- * So a parent looking for their child's opponents next Saturday had no way to
- * see who else plays.
+ * `teams.list` declared `BROWSE_TEAMS` since it was written and was read by
+ * nothing but the admin console's delete list, so a parent looking for their
+ * child's opponents had no way to see who else plays.
  *
- * Modelled on `OrgsPage` deliberately, down to the "yours first" section. Two
+ * Modelled on `OrgsPage` deliberately, down to the "yours first" section: two
  * directories over the same kind of data that looked different would be two
- * things to learn, and the reasoning recorded there holds here unchanged: this
- * page's job is browsing, and yours is a shortcut on top of it rather than a
- * filter, marked so a person can see why a row is above the fold.
+ * things to learn.
  *
  * A row goes to the team page that already exists. Nothing here is a second
  * home for a team — it is the way in.
@@ -36,21 +31,17 @@ export function TeamsPage() {
   /**
    * Which of them are yours, from the model rather than from a role.
    *
-   * `useMine("TEAM")` is ListObjects — head coach, assistant, manager, the
-   * player themselves, a follower. The relation comes back with it, so the row
-   * can say *why* it is yours instead of just that it is.
+   * `useMine("TEAM")` is ListObjects — coach, manager, the player themselves, a
+   * follower. The relation comes back with it, so a row can say *why* it is
+   * yours rather than just that it is.
    *
    * **Both answers, or neither**, the same rule as the organisations list and
-   * for the same reason: this section sits ABOVE the list, so rendering as soon
-   * as `teams` arrived meant a section appearing over rows a reader was already
-   * looking at and pushing them down. A `click` fires only on the element that
-   * received both `mousedown` and `mouseup`; when the target moves between them
-   * the browser fires it on the nearest common ancestor and the link is never
-   * followed.
+   * for the same reason: a section inserted above rows already on screen moves
+   * them, and a `click` whose target moves between `mousedown` and `mouseup`
+   * fires on the common ancestor, following no link.
    *
-   * Fixed here without a failing test, because this page is the same component
-   * shape as the one whose test did fail — `orgs.spec.ts:24`, a click that
-   * completed and navigated nowhere. Waiting for a second spec to catch the
+   * Fixed here without a failing test, because this is the same component shape
+   * as the page whose test did fail. Waiting for a second spec to catch the
    * second copy is how a known defect ships twice.
    * docs/done/2026-09-09-18-browser-tier-flakiness.md.
    */

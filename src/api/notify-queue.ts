@@ -21,16 +21,12 @@
  *
  * ## The message carries identity, not rendered text
  *
- * The row is read at consumption, so a score renders as of delivery rather
- * than as of the tap — and a correction arriving first produces a final card
- * with the corrected score, where carrying rendered text would leave the wrong
- * final permanently.
+ * The row is read at consumption, so a score renders as of delivery — and a
+ * correction arriving first produces a card with the corrected score, where
+ * rendered text would leave the wrong final permanently. It would also render
+ * locales nobody in the audience speaks, since the audience is unknown then.
  *
- * Rendering at enqueue would also render locales nobody in the audience
- * speaks, since the audience is not known then.
- *
- * A row gone at consumption is the one real loss, and it is correct: a deleted
- * game sends nothing.
+ * A row gone at consumption is correct: a deleted game sends nothing.
  */
 
 import { z } from "zod"
@@ -266,16 +262,12 @@ async function runGameJob(db: Db, env: Bindings, job: GameJob): Promise<JobOutco
  * message that exhausted its retries would be lost for good — the claim says
  * done and no later sweep retries it.
  *
- * Claiming here inverts that: a message that dies writes no claim, so the next
- * sweep enqueues it again. The cost is that the sweep may enqueue twice, and
- * the claim below makes that at most one *send* — `onConflictDoNothing` plus a
- * changed-row count is one atomic statement.
+ * Claiming here inverts that: a message that dies writes no claim and the next
+ * sweep enqueues it again. `onConflictDoNothing` plus a changed-row count is
+ * one atomic statement, so that is still at most one *send*.
  *
  * **Topic collapsing does not rescue this** the way it rescues score updates:
  * two reminder pushes an hour apart are two cards at 6am.
- *
- * The sweep also reads this table to skip sent reminders. That is an
- * optimisation, allowed to be stale; correctness is entirely in the claim.
  */
 async function runReminderJob(db: Db, env: Bindings, job: ReminderJob): Promise<JobOutcome> {
   const event = await db.query.event.findFirst({

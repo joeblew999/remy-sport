@@ -200,26 +200,6 @@ export function createAuth(c: AuthHost) {
         return row?.statusCode ?? null
       },
       /**
-       * Where this session is starting, for the devices page.
-       *
-       * Captured at creation because that is the question being asked — "where
-       * was this signed in from" — not "where is that IP now". Cloudflare has
-       * already resolved it at the edge, so there is no lookup, no geo-IP
-       * database and no third party in the path.
-       */
-      /**
-       * Local dev shows ONE place for everybody, and that is miniflare, not a
-       * bug here. It fetches Cloudflare's geo data once per machine into
-       * `node_modules/.mf/cf.json` and serves that blob to every request — so
-       * two phones in two countries both report whatever this laptop was when
-       * the file was written. The IP stays live because it comes from a header,
-       * which is what makes the mismatch visible: a Thai address beside an
-       * Australian city meant the cache was stale from a VPN session hours
-       * earlier. `rm node_modules/.mf/cf.json` and restart to refresh it.
-       *
-       * On the edge it is resolved per request and is correct.
-       */
-      /**
        * The address the code just proved becomes the reader's EMAIL channel —
        * src/api/email-channel.ts. Never fails the sign-in: a missing channel
        * row is not worth a person locked out.
@@ -231,6 +211,18 @@ export function createAuth(c: AuthHost) {
           console.error("email channel: not registered", error)
         }
       },
+      /**
+       * Where this session is starting, for the devices page.
+       *
+       * Captured at creation, because the question is "where was this signed in
+       * from" rather than "where is that IP now". Cloudflare resolves it at the
+       * edge, so there is no lookup and no third party in the path.
+       *
+       * Local dev shows one place for everybody: miniflare fetches the geo data
+       * once per machine into `node_modules/.mf/cf.json` and serves that blob to
+       * every request. The IP stays live because it comes from a header, which
+       * is what makes the mismatch visible. Delete that file to refresh it.
+       */
       sessionPlace: () => ({
         city: c.cf?.city,
         country: c.cf?.country,
@@ -339,23 +331,17 @@ export function createAuth(c: AuthHost) {
     /**
      * The origin this request arrived on, not the pinned production URL.
      *
-     * There are three now — localhost, the dev tunnel, and production — and
-     * `baseURL` decides the session cookie's shape. Pinned to
-     * `https://remy.ubuntusoftware.net`, Better Auth saw https everywhere and
-     * always issued a `__Secure-` prefixed cookie. A browser refuses to store
-     * one of those over plain http, so signing in on http://localhost returned
-     * 200 with a token and then had no session — visible in WebKit, hidden in
-     * Chromium, which is why 35 passing e2e tests never showed it.
+     * `baseURL` decides the session cookie's shape, and there are three origins
+     * — localhost, the tunnel, production. Pinned to the https production URL,
+     * Better Auth always issued a `__Secure-` cookie, which a browser refuses
+     * to store over plain http: signing in on localhost returned 200 with a
+     * token and no session. Visible in WebKit, hidden in Chromium, which is why
+     * 35 passing e2e tests never showed it.
      *
-     * Derived, it is correct in all three: http on localhost gets a plain
-     * cookie, both https origins get a secure one. This is the same reasoning
-     * that already governs `trustedOrigins` directly below, and the opposite of
-     * the invite email above — that one keeps BETTER_AUTH_URL on purpose,
-     * because a link in somebody's inbox outlives the request that sent it.
-     * A cookie does not.
-     *
-     * BETTER_AUTH_URL is still the canonical address and still what emails use;
-     * it is simply not what decides how a cookie is scoped.
+     * Derived, all three are correct. Same reasoning as `trustedOrigins` below,
+     * and the opposite of the invite email above — a link in an inbox outlives
+     * the request that sent it, a cookie does not. BETTER_AUTH_URL is still the
+     * canonical address and still what emails use.
      */
     baseURL: requestOrigin,
     // baseURL's own origin is added automatically by Better Auth.

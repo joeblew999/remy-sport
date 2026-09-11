@@ -20,11 +20,9 @@
  * next 24 hours and more than 1 hour away", so a missed run sends late instead
  * of not at all, and the claim stops the catch-up duplicating.
  *
- * **It reports what it did.** `bun run ops analytics` shows every run: how many
- * events matched, how many reminders were claimed, how many devices took them.
- * A scheduled job you cannot see is exactly the thing that makes a system hard
- * to reason about, and the reason to resist one — so this one is observable
- * before it is anything else.
+ * **It reports what it did.** `bun run ops analytics` shows every run — events
+ * matched, reminders claimed, devices reached. A scheduled job you cannot see
+ * is the thing that makes a system hard to reason about.
  */
 
 import { and, eq, gt, inArray, lte } from "drizzle-orm"
@@ -44,25 +42,14 @@ const WINDOWS = [
  * One pass. Exported so a test can call it directly with a fixed `now` — a
  * scheduled job that can only be exercised by waiting is one nobody tests.
  *
- * ## It enqueues; it no longer sends
+ * **It enqueues; it no longer sends.** Calling `notify` per due event inside
+ * one invocation had the same subrequest exposure `announce()` moved off the
+ * request path, and the same silence — a throw in a cron handler has no request
+ * to fail and nobody watching.
  *
- * This used to call `notify` per due event inside one scheduled invocation, so
- * a busy hour had the identical subrequest exposure `announce()` just moved off
- * the request path — and the identical silence, because a throw in a cron
- * handler has no request to fail and nobody watching.
- *
- * ## The claim is NOT here
- *
- * It is in the consumer, and the reason is written where it lives, in
- * ./api/notify-queue.ts. In short: claiming here would record "sent" for
- * something not yet sent, so a message that exhausts its retries would be a
- * reminder lost for good. Claiming at consumption means a message that dies is
- * re-enqueued by the next sweep and recovered.
- *
- * What happens here instead is a *read* of the same table, to skip reminders
- * already sent. That is an optimisation — it keeps the queue quiet — and it is
- * allowed to be stale, because the consumer's claim is what makes a send
- * happen at most once.
+ * **The claim is not here**; it is in the consumer, for reasons written in
+ * ./api/notify-queue.ts. This only *reads* that table to skip sent reminders,
+ * which is an optimisation and is allowed to be stale.
  */
 export async function sendDueReminders(env: Bindings, now = Date.now()): Promise<void> {
   const db = drizzle(env.DB, { schema })
