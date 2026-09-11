@@ -83,6 +83,11 @@ const OPS: Record<string, Op> = {
     cmd: (rest) => ["bun", "scripts/ops/ui.ts", ...rest],
     help: "ui add <item...> | check         copy shadcn components in and lock them; never edit them by hand",
   },
+  openapi: {
+    group: "report",
+    cmd: (rest) => ["bun", "scripts/ops/openapi.ts", ...rest],
+    help: "openapi [--write|--check] [--internal]  the published API document, from the router",
+  },
   committed: {
     group: "maintenance",
     cmd: (rest) => ["bun", "scripts/ops/committed.ts", ...rest],

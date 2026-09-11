@@ -1,9 +1,11 @@
+import type { OpenAPI } from "@orpc/openapi"
 import { OpenAPIHandler } from "@orpc/openapi/fetch"
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins"
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4"
 import { CORSPlugin } from "@orpc/server/plugins"
 import { router } from "./index"
 import { telemetryInterceptor } from "./telemetry"
+import { APP_VERSION } from "./version"
 
 /**
  * The REST surface: the API, its specification, and its reference page.
@@ -14,12 +16,76 @@ import { telemetryInterceptor } from "./telemetry"
  * lets the paths in the document match the paths in the router.
  *
  * Here rather than in src/index.ts so the dispatch has no route strings of its
- * own, and so a generator can build the same document without a server — the
- * options are the contract, and two callers of one object cannot drift.
+ * own, and so `scripts/ops/openapi.ts` can build the same document without a
+ * server. **The generator calls the spec generator directly — it does not
+ * fetch a deployment.** Fetching would make the committed snapshot agree with
+ * whatever was last deployed rather than with this tree, which is a check
+ * reporting the state of a deploy instead of the state of the code.
  *
  * Security schemes are declared once; `authedRoute` in ./base.ts says which
  * operations demand them.
  */
+
+/**
+ * Tag every operation with its first path segment — `events`, `games`, `dev`.
+ *
+ * At generation time, over the finished document, because that is where the
+ * fact lives: a builder cannot know its own router key (`dev("seedRoute")` has
+ * no idea it will be mounted at `dev.seed`), and writing the tag onto each
+ * procedure would put it somewhere a person has to remember — which is how
+ * eight hand-kept tags come back.
+ *
+ * So a new router key is tagged the moment it exists, and nothing in
+ * `src/api/` is touched to make that true. The audience split is the other
+ * half and comes from the policy, not from here: two facts, each read from the
+ * thing that actually owns it.
+ */
+export function withDomainTags(document: OpenAPI.Document): OpenAPI.Document {
+  for (const [path, operations] of Object.entries(document.paths ?? {})) {
+    const domain = path.split("/").filter(Boolean)[0]
+    if (!domain) continue
+    for (const operation of Object.values(operations ?? {})) {
+      if (!operation || typeof operation !== "object" || Array.isArray(operation)) continue
+      const op = operation as { tags?: string[] }
+      op.tags = [...new Set([...(op.tags ?? []), domain])]
+    }
+  }
+  return document
+}
+
+/** How Zod schemas become JSON Schema. One list, both consumers. */
+export const SCHEMA_CONVERTERS = [new ZodToJsonSchemaConverter()]
+
+/** What the document says about itself, and how a caller authenticates. */
+export const SPEC_OPTIONS = {
+  // Read from package.json rather than pinned, so a published reference says
+  // which release it describes instead of "0.1.0" forever.
+  info: { version: APP_VERSION, title: "Remy Sport API" },
+  components: {
+    securitySchemes: {
+      Session: {
+        type: "http",
+        scheme: "bearer",
+        description: "Better Auth session token (browser)",
+      },
+      /**
+       * The integration surface, and where an agent one would attach.
+       *
+       * When something serves MCP it is `@orpc/ai-sdk` over this same router,
+       * filtered by tag, through an MCP adapter — never a hand-written tool
+       * list, which would be a second description of the API that could
+       * disagree with this one. Rate limiting for that surface is
+       * `@orpc/cloudflare`'s limiter as a handler plugin. Neither is built.
+       */
+      ApiKey: {
+        type: "apiKey",
+        in: "header",
+        name: "x-api-key",
+        description: "Better Auth API key (integrations, MCP)",
+      },
+    },
+  },
+} as const
 
 /**
  * CORS, on this handler only.
@@ -37,38 +103,11 @@ export const openApiHandler = new OpenAPIHandler(router, {
   plugins: [
     new CORSPlugin({ origin: "*" }),
     new OpenAPIReferencePlugin({
-      schemaConverters: [new ZodToJsonSchemaConverter()],
+      schemaConverters: SCHEMA_CONVERTERS,
       specPath: "/openapi.json",
       docsPath: "/doc",
       docsTitle: "Remy Sport API",
-      specGenerateOptions: {
-        info: { version: "0.1.0", title: "Remy Sport API" },
-        components: {
-          securitySchemes: {
-            Session: {
-              type: "http",
-              scheme: "bearer",
-              description: "Better Auth session token (browser)",
-            },
-            /**
-             * The integration surface, and where an agent one would attach.
-             *
-             * When something serves MCP it is `@orpc/ai-sdk` over this same
-             * router, filtered by tag, through an MCP adapter — never a
-             * hand-written tool list, which would be a second description of
-             * the API that could disagree with this one. Rate limiting for
-             * that surface is `@orpc/cloudflare`'s limiter as a handler plugin.
-             * Neither is built.
-             */
-            ApiKey: {
-              type: "apiKey",
-              in: "header",
-              name: "x-api-key",
-              description: "Better Auth API key (integrations, MCP)",
-            },
-          },
-        },
-      },
+      specGenerateOptions: SPEC_OPTIONS,
     }),
   ],
 })
