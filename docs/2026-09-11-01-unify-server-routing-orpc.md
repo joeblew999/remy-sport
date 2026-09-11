@@ -10,7 +10,7 @@ migration's A2 (shell for every path) is subsumed by Part C.
 
 ## Corrections to the brief, found by reading the tree first
 
-Twelve things the specification assumes are not quite what is there. Each changes
+Fourteen things the specification assumes are not quite what is there. Each changes
 work, so each is settled here before any code moves.
 
 ### 1. Removing Hono silently destroys a security check
@@ -251,6 +251,50 @@ get the app rather than a 404.
 The owned prefixes are derived from `DISPATCH` rather than repeated, so a
 prefix added to the table is excluded from the shell the same day.
 
+### 13. Part F's target file, origin and endpoints were all something else
+
+Three assumptions, none of which held, found by looking before writing:
+
+- **`sites/help/schema/openapi.json` is not a copy of this API.** It is "Remy
+  Sport Help Retrieval", describing the help site's own `/help-index.json` and
+  `/llms-full.txt`, and `press.config.tsx` creates exactly those endpoints.
+  Regenerating into it deleted both — 12,850 insertions against 5 deletions,
+  measured and reverted.
+- **`toolsOrigin` is not the app origin.** `deployment.generated.json` carries
+  `toolsOrigin` at :8792, the separate `remy-help-local` Worker, and
+  `appOrigin` at :8787.
+- **`/application-openapi.json`, `/gemini-tools.json` and `/mcp` are not 404.**
+  All three are served by `sites/help-tools/worker.mjs`, deployed from this
+  repo by `ops docs-release`.
+
+**Decision:** the app publishes the full document at `/api/openapi.json`, which
+it already does. `sites/help-tools/` keeps its curated six read-only operations
+at `/application-openapi.json` on its own origin, and nothing at the app origin
+is ever named that. The generator writes no file at all — a `--write` pointed
+at the help schema is how the next person makes the same mistake, so there is
+no path to it in the code.
+
+### 14. The `developer*.mdx` links are already correct — raised, not changed
+
+The instruction was to point the three at the app's document. Reading them
+first: the page is titled "Public help API and assistant tools" and opens with
+
+> This API serves help content only. It has no access to accounts, live scores,
+> team administration or broadcast controls. No API key is needed.
+
+and the `/openapi.json` link sits in a three-item list beside `/help-index.json`
+and `/llms-full.txt` — the help site's own retrieval endpoints, which is what
+that schema describes. Repointing it at the app's full API would contradict the
+paragraph above it and break the list it belongs to.
+
+There is also no mechanism: the MDX content interpolates nothing, so
+`${site.appOrigin}` cannot be written there. It would have to be a literal
+origin per environment, in three locales.
+
+**Left alone, pending a decision.** If a developer should be able to find the
+app's API from the help site, the honest shape is a new line saying so, not a
+relabelled link to the help schema.
+
 Two further details to preserve, not change:
 
 - The `dev` base builder is parameterised by flag, not a single gate.
@@ -413,7 +457,13 @@ Recorded as a comment in `src/dispatch.ts`.
 
 ## Part E — `bun run ops`
 
-- [ ] `ops smoke` derives its public-route list from the served spec, not a hand list
+- [x] `ops smoke` derives its public-route list from the generated spec, not a
+      hand list. Done 2026-09-11 — it calls `generate("public")`, the same call
+      that produces the published document, so an endpoint added to the router
+      is smoked the day it exists. It found a bug in its own first draft:
+      `/standings` takes a required `eventId` and answered 400, which read as a
+      broken endpoint and was a probe calling it wrongly. Parameterless GETs
+      only now.
 - [x] `ops provision` asserts the `BUILD` var resolves for each environment, with
       every field present. Done 2026-09-11. `/api/versions` answers "unknown"
       rather than 500 when the var is absent — right for the deploy poll, but it
@@ -425,17 +475,30 @@ Recorded as a comment in `src/dispatch.ts`.
 - [x] Extract handler options to `src/api/openapi.ts`. Done 2026-09-11 as part
       of Part C — `specPath` and `docsPath` are route strings, and the dispatch
       rule forbids those in `index.ts`.
-- [ ] Generator at `scripts/ops/openapi.ts` <!-- docs-check-ignore --> writes
-      `sites/help/schema/openapi.json`; no server, no fetch
-- [ ] `--audience public|internal`, filtered by tag; `dev` and `infrastructure`
-      dropped from public
-- [ ] `ops docs check` and `tests/repo/docs.test.ts` fail on drift
-- [ ] `info.version` reads `package.json`. The `developer*.mdx` links stay as
-      they are: the help site publishes its own `/openapi.json`
-      (`sites/help/press.config.tsx`), so they never pointed at the Worker and
-      the deleted redirect does not affect them. F1's generator plus the docs
-      check is what makes leaving them correct.
-- [ ] Note the future agent surface beside the tag list; do not build it
+- [x] Generator at `scripts/ops/openapi.ts`, calling the spec generator
+      directly — no server, no fetch. Done 2026-09-11. **It writes nothing.**
+      See correction 13: the file the brief named belongs to the help site, and
+      the app publishes its own document at `/api/openapi.json`, so there is no
+      copy to keep.
+- [x] `--internal` includes everything; the default drops the `infrastructure`
+      policy, which is what `dev(capability)` and `infrastructure(why)` both
+      mark. Done 2026-09-11. 57 public operations, 76 internal.
+- [x] `ops openapi --check --env X` compares a deployment against this tree —
+      the operation set, not the bytes, because the served document carries its
+      own `servers` and is generated by the reference plugin. Done 2026-09-11;
+      production answers with the same 98 operations. There is no committed
+      snapshot for `docs.test.ts` to check, because there is no snapshot.
+- [x] `info.version` reads `package.json` (`src/api/version.ts`), so a
+      published reference says which release it describes instead of `0.1.0`
+      forever. Done 2026-09-11.
+- [ ] **The `developer*.mdx` links: raised, not changed.** See correction 14.
+- [ ] Note the future agent surface beside the tag list; do not build it. It is
+      noted in `src/api/openapi.ts` beside the `ApiKey` scheme.
+- [ ] **F5's first task, recorded:** generate `sites/help-tools/`'s six
+      read-only operations from this router instead of the hand-kept list in
+      `application.mjs`, so there is one description of the API rather than two
+      that agree by inspection. `worker-check.mjs` pins the count, the methods
+      and the server URL, so its premise changes with it.
 
 ## Delivery order
 

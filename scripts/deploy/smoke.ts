@@ -18,6 +18,7 @@
 
 import { namedEnvironment, originOf, resolveTarget } from "../lib/cloudflare.ts"
 import { createApiClient } from "../../src/api-client.ts"
+import { generate } from "../ops/openapi.ts"
 
 /**
  * An explicit --env beats the ambient override.
@@ -336,6 +337,44 @@ await check("if seeded sign-in is on, it excludes the admin", async () => {
   // real generated one instead. So on dev this check failed twice over, and the
   // Worker was right both times.
   why: "dev offers the admin on purpose — mail is captured and only the operator reads it",
+})
+
+/**
+ * Every public GET the document promises actually answers.
+ *
+ * Derived from the generated spec, not a list kept here: `generate("public")`
+ * is the same call that produces the published document, so an endpoint added
+ * to the router is smoked the day it exists and one removed stops being
+ * probed without anybody editing this file. A hand-kept list would drift, and
+ * a drifting smoke list is worse than none — it reads as coverage.
+ *
+ * Only GETs that need no argument. An operation with a required parameter —
+ * a path id or a query filter — needs a value that exists on *this*
+ * deployment, which is a fixture question rather than a reachability one, and
+ * the read paths above already cover that shape.
+ *
+ * The required-parameter half was missed first time round and this check found
+ * it: `/standings` takes a required `eventId` and answered 400, which read as
+ * a broken endpoint and was a probe calling it wrongly.
+ */
+await check("every public GET the document promises answers", async () => {
+  const document = await generate("public")
+  const paths = Object.entries(document.paths ?? {})
+    .filter(([path]) => !path.includes("{"))
+    .filter(([, methods]) => {
+      const get = ((methods ?? {}) as { get?: { parameters?: { required?: boolean }[] } }).get
+      return get !== undefined && !(get.parameters ?? []).some((parameter) => parameter.required)
+    })
+    .map(([path]) => path)
+
+  const refused: string[] = []
+  for (const path of paths) {
+    const res = await fetch(`${BASE}/api${path}`)
+    // 401 is an answer: the document says which operations demand a session,
+    // and a public probe getting one is the contract working, not a failure.
+    if (!res.ok && res.status !== 401) refused.push(`${path} answered ${res.status}`)
+  }
+  return refused.length ? refused.join("; ") : null
 })
 
 /**

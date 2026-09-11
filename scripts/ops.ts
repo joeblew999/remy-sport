@@ -86,7 +86,7 @@ const OPS: Record<string, Op> = {
   openapi: {
     group: "report",
     cmd: (rest) => ["bun", "scripts/ops/openapi.ts", ...rest],
-    help: "openapi [--write|--check] [--internal]  the published API document, from the router",
+    help: "openapi [--check --env X] [--internal]  the API document, generated from the router",
   },
   committed: {
     group: "maintenance",
