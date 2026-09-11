@@ -1,6 +1,8 @@
 # Unify server routing: oRPC owns every endpoint, Hono is removed
 
-**Status:** in progress, started 2026-09-11. One PR.
+Archive: completed (2026-09-11). Hono is gone; every endpoint is an oRPC procedure and `src/index.ts` is a fetch handler over a dispatch table. Deployed to staging and production, both verified on the real edge. Return to [current work](../README.md).
+
+**Status:** complete. One PR, 2026-09-11.
 **Principle:** every endpoint is an oRPC procedure. There is no server-side router
 library. `src/index.ts` is a fetch handler that dispatches by prefix to Better
 Auth, oRPC and assets, and nothing else.
@@ -571,8 +573,63 @@ forged token and `tests/worker/push.test.ts` refused it: a refusal that answers
 reads a query parameter on a method whose input oRPC would otherwise take from
 the body.
 
+## Closing
+
+Hono is gone. `src/index.ts` iterates a dispatch table and owns no prefix of
+its own; the routes directory no longer exists; the package is uninstalled.
+Both environments run it and all three edge behaviours were checked against
+Cloudflare rather than the pool.
+
+<!-- That sentence first named the routes directory as a path, and the docs
+check rejected it — for naming a directory this PR deleted. Which is the rule
+the section below is about, arriving on the section that describes it. -->
+
+What the PR actually cost, and what it bought, in the order it happened:
+
+| Part | Outcome |
+|---|---|
+| A | 9 endpoints became procedures; 4 raw routers deleted |
+| B | CSRF, CORS, logging and `.well-known` moved off Hono |
+| C | The fetch handler; both dispatch rules went green in the commit that removed `hono` from `package.json` |
+| D | `scripts/` at 0 raw procedure fetches; `tests/` at 19, each one named and justified |
+| E | `ops smoke` derives its route list from the generated spec |
+| F | `ops openapi` generates the document from the router — no server, no fetch |
+
+**Fourteen corrections** to the brief, every one found by reading the tree
+before writing to it. The costly ones were not the code: three separate
+assumptions about `sites/` were wrong, and acting on the first cost a 12,850-line
+overwrite of the help site's own retrieval schema, reverted.
+
+**What the checks caught that review did not.** The pattern worth keeping is
+that almost every real defect here was found by something mechanical, and
+several were found by a check catching its own author:
+
+- `tests/repo/docs.test.ts` rejected the plan on its first write, for naming a
+  path that did not exist.
+- The `remedies` rule caught a comment citing the file the same commit deleted.
+- `push.test.ts` caught a refusal answering 200 where it had answered 400.
+- The e2e gate caught a base URL of `""` that `tsc` could not see.
+- The deploy's own `wait` caught a build stamp disagreeing by three minutes.
+- The new smoke check caught a bug in its own first draft — `/standings` takes
+  a required parameter and was being probed without one.
+- And `ops committed` exists because I pushed a commit containing only a
+  deletion, having tested a working tree that was correct while the commit was
+  not.
+
+**The shape that recurred.** Twice, a check had no subject and therefore
+reported success: `authz.test.ts` would have iterated an empty route table once
+Hono was deleted, and `csrf()` was mounted after the handlers that return on a
+match. Both were replaced by things that cannot become empty — a `DISPATCH`
+array, and a test that sends a foreign `Origin`. The question that found both
+was *what is this check looking at*, not *is it passing*.
+
 ## Follow-ups, not this PR
 
+- **F5's first task:** generate `sites/help-tools/`'s six read-only operations
+  from this router instead of the hand-kept list in `application.mjs`, so there
+  is one description of the API rather than two that agree by inspection.
+  `worker-check.mjs` pins the count, the methods and the server URL, so its
+  premise changes with it.
 - **`tests/repo/manifest.test.ts` reads a build artefact it does not own.** It
   asserts on whatever `dist/client` currently holds, so deploying staging from
   a machine leaves `bun run test` red there until the next production build —

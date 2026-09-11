@@ -15,6 +15,7 @@ Return to [current work](../README.md) before starting anything.
 
 | Record | Disposition | Evidence or remaining owner |
 | --- | --- | --- |
+| [Plan — unify server routing on oRPC](2026-09-11-01-unify-server-routing-orpc.md) | Completed | Hono removed; every endpoint is a procedure and `src/index.ts` dispatches from a table. Deployed to staging and production 2026-09-11 and verified on the real edge. Fourteen corrections to the brief are recorded in it. Two follow-ups remain outside it: generating help-tools' six operations from this router, and `manifest.test.ts` reading a build artefact. |
 | [Plan — modern tools do what `scripts/` does by hand](2026-09-05-01-modern-tooling.md) | Completed | Tooling migration; wider CLI redesign was stopped. |
 | [Plan — every dependency at latest, and staying there](2026-09-05-02-latest.md) | Completed | Dependency migration; later upgrades require a fresh task. CI and Dependabot were removed by request. |
 | [Plan — fewer dependencies](2026-09-05-03-fewer-dependencies.md) | Completed | Dependency cleanup verified September 6. |
