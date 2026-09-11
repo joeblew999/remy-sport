@@ -245,6 +245,11 @@ Recorded as a comment in `src/dispatch.ts`.
 ## Part E — `bun run ops`
 
 - [ ] `ops smoke` derives its public-route list from the served spec, not a hand list
+- [x] `ops provision` asserts the `BUILD` var resolves for each environment, with
+      every field present. Done 2026-09-11. `/api/versions` answers "unknown"
+      rather than 500 when the var is absent — right for the deploy poll, but it
+      makes a forgotten var look like a real gap, so provision refuses instead.
+      Verified on staging and production.
 
 ## Part F — One source for the API reference
 

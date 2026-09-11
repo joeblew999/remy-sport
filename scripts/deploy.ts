@@ -29,7 +29,7 @@ import { spawnSync } from "node:child_process"
 import { setTimeout as sleep } from "node:timers/promises"
 import { prepare } from "./lib/prepare.ts"
 import { Refused, accountId, originOf, resolveTarget, workerName, wrangler, type Target } from "./lib/cloudflare.ts"
-import { buildConfig } from "./deploy/build-config.ts"
+import { prepareConfig } from "./deploy/build-config.ts"
 import { holdDeployLock } from "./lib/deploy-lock.ts"
 
 /**
@@ -125,7 +125,7 @@ function step(label: string, argv: string[], env: Record<string, string> = {}): 
  */
 function publish(target: Target): void {
   console.log(`\n── publish`)
-  const generated = buildConfig("dist", workerName(target), accountId())
+  const generated = prepareConfig("dist", workerName(target), accountId())
   delete process.env.CLOUDFLARE_ENV
   const published = wrangler(["deploy", "--config", generated], undefined, { inherit: true })
   if (published.code !== 0) throw new Refused("publish failed")

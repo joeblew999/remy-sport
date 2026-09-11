@@ -76,6 +76,51 @@ const EXPECTED: Record<Outcome, string> = {
   unknown: "? unknown",
 }
 
+// ── Build stamp ──────────────────────────────────────────────────────────────
+
+/**
+ * The `BUILD` var resolves for this environment.
+ *
+ * `/api/versions` answers "unknown" rather than 500 when the var is absent,
+ * because the deploy polls that endpoint to ask whether the edge has caught up
+ * and one that fails while being asked is useless. The cost of that kindness is
+ * that a forgotten var looks exactly like a real gap — so it is asserted here
+ * instead, and "unknown" can then only mean something genuinely wrong.
+ */
+function planBuildVar(target: Target, config: ReturnType<typeof resolvedConfig>): Step[] {
+  const build = (config.vars as Record<string, unknown> | undefined)?.BUILD
+  const fields = ["commit", "branch", "builtAt", "environment", "app", "github"]
+  const missing =
+    build && typeof build === "object"
+      ? fields.filter((f) => !(f in (build as Record<string, unknown>)))
+      : fields
+  if (!build || typeof build !== "object") {
+    return [
+      {
+        resource: "BUILD var",
+        outcome: "refuse",
+        detail: `no BUILD var resolves for ${target.environment} — /api/versions would report "unknown" forever; add it to [vars] in wrangler.toml`,
+      },
+    ]
+  }
+  if (missing.length) {
+    return [
+      {
+        resource: "BUILD var",
+        outcome: "refuse",
+        detail: `BUILD var for ${target.environment} is missing ${missing.join(", ")} — the deploy overwrites it, but the placeholder must carry every field`,
+      },
+    ]
+  }
+  return [
+    {
+      resource: "BUILD var",
+      outcome: "exists",
+      detail: "placeholder resolves; `bun run deploy` overwrites it with the real stamp",
+    },
+  ]
+}
+
 // ── D1 ───────────────────────────────────────────────────────────────────────
 
 function planD1(target: Target, config: ReturnType<typeof resolvedConfig>): Step[] {
@@ -684,6 +729,7 @@ export async function run(argv: string[], mode: "plan" | "apply"): Promise<void>
   }
 
   const steps = [
+    ...planBuildVar(target, config),
     ...planD1(target, config),
     ...planR2(target, config),
     ...planQueues(target, config),

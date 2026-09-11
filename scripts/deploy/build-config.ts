@@ -2,10 +2,16 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { stamp } from "../lib/build-stamp.ts"
 
-/** The gate builds production before staging, so dist may contain both. Never
+/**
+ * Select this target's generated config, and stamp this build into it.
+ *
+ * Two jobs, and the name says so: a `buildConfig` that mutated what it
+ * returned is the kind of thing the next reader trips on.
+ *
+ * The gate builds production before staging, so dist may contain both. Never
  * select by directory order: the resolved Worker name must match the target.
  */
-export function buildConfig(directory: string, worker: string, account: string): string {
+export function prepareConfig(directory: string, worker: string, account: string): string {
   const matches = readdirSync(directory)
     .map(name => join(directory, name, "wrangler.json"))
     .filter(path => existsSync(path))
