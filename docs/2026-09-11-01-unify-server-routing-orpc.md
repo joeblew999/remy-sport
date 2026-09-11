@@ -291,9 +291,13 @@ There is also no mechanism: the MDX content interpolates nothing, so
 `${site.appOrigin}` cannot be written there. It would have to be a literal
 origin per environment, in three locales.
 
-**Left alone, pending a decision.** If a developer should be able to find the
-app's API from the help site, the honest shape is a new line saying so, not a
-relabelled link to the help schema.
+**Decision:** the three links stay, and each page gains one new line naming the
+app's API as separate — reference at `/api/doc`, schema at `/api/openapi.json`,
+both absolute against the production origin. A literal origin is fine: the help
+site is published for production, and one URL in three files is not a
+maintenance burden. Both URLs are absolute rather than one of each, because a
+relative `/api/openapi.json` on the help site is precisely the ambiguity that
+produced corrections 13 and 14.
 
 Two further details to preserve, not change:
 
@@ -491,7 +495,9 @@ Recorded as a comment in `src/dispatch.ts`.
 - [x] `info.version` reads `package.json` (`src/api/version.ts`), so a
       published reference says which release it describes instead of `0.1.0`
       forever. Done 2026-09-11.
-- [ ] **The `developer*.mdx` links: raised, not changed.** See correction 14.
+- [x] The `developer*.mdx` links stay; each page gains one line naming the
+      app's API as separate. Done 2026-09-11 in all three locales. See
+      correction 14.
 - [ ] Note the future agent surface beside the tag list; do not build it. It is
       noted in `src/api/openapi.ts` beside the `ApiKey` scheme.
 - [ ] **F5's first task, recorded:** generate `sites/help-tools/`'s six
@@ -576,6 +582,19 @@ the body.
   deploying twice in one session.
 
 ## Log
+
+- 2026-09-11 — **reconciling 98 against 57 and 76.** They are different units,
+  not a bug. `--check` counts *operations* — a method on a path, so
+  `/dev/outbox` is two — against the **internal** document, which is the right
+  audience because the served `/api/openapi.json` applies no filter. The
+  earlier figures counted *paths*. In full: internal 76 paths / 98 operations,
+  public 57 paths / 77 operations. The check now prints both numbers, because
+  one alone invites the question.
+- 2026-09-11 — measuring that found a second defect. The document is half a
+  megabyte and a pipe holds 64 KB: `ops openapi | jq` delivered exactly 65,536
+  bytes and a parse error, while a redirect to a file delivered all 510,058.
+  Neither `console.log` nor a synchronous write to fd 1 fixed it — the process
+  was exiting with the rest unflushed. Awaiting the write callback does.
 
 - 2026-09-11 — **a failed staging deploy, and the right lesson from it.** The
   e2e gate refused `tests/e2e/seed.setup.ts`: `apiFor(request)` defaulted its

@@ -34,6 +34,7 @@ import { originOf, resolveTarget } from "../lib/cloudflare.ts"
  * `/application-openapi.json` on its own origin. Nothing at the app origin is
  * ever named that. Generating those six from this router instead of the
  * hand-kept list in `application.mjs` is F5's first task.
+ */
 
 /**
  * What the help site publishes: everything a reader outside this repo can call.
@@ -109,6 +110,7 @@ if (argv.includes("--check")) {
 
   const missing = here.filter((op) => !there.includes(op))
   const extra = there.filter((op) => !here.includes(op))
+  const paths = new Set(here.map((op) => op.split(" ")[1]))
   if (missing.length || extra.length) {
     console.error(`openapi: ${origin} does not describe what this tree describes.\n`)
     for (const op of missing) console.error(`  – ${op}  in the tree, not on the deployment`)
@@ -116,8 +118,27 @@ if (argv.includes("--check")) {
     console.error("\n  Usually this means the deployment is behind. Deploy, or say why not.")
     process.exit(1)
   }
-  console.log(`openapi: ${origin} describes the same ${here.length} operations as this tree`)
+  // Both numbers, because they are different things and one alone invites the
+  // question: an operation is a method on a path, so /dev/outbox is two.
+  console.log(
+    `openapi: ${origin} describes the same ${here.length} operations ` +
+      `across ${paths.size} paths as this tree (internal audience — the served ` +
+      `document is unfiltered)`,
+  )
 } else {
   const audience = argv.includes("--internal") ? "internal" : "public"
-  console.log(JSON.stringify(await generate(audience), null, 2))
+  /**
+   * Written, then awaited until it has actually gone.
+   *
+   * The document is half a megabyte and a pipe holds 64 KB. Both `console.log`
+   * and a synchronous write to fd 1 delivered exactly 65,536 bytes through a
+   * pipe while a redirect to a file delivered all 510,058 — the process was
+   * exiting with the rest unflushed, so `ops openapi | jq` got truncated JSON
+   * and a parse error rather than an answer. Awaiting the write callback is
+   * what makes the process outlive its own output.
+   */
+  const document = JSON.stringify(await generate(audience), null, 2) + "\n"
+  await new Promise<void>((resolve, reject) => {
+    process.stdout.write(document, (error) => (error ? reject(error) : resolve()))
+  })
 }
