@@ -163,11 +163,9 @@ export const viewer = pub.use(async ({ context, next }) => {
  * `requireOrgMember`. It reads the PO's compiled grants: the action names the
  * relations that satisfy it, and the caller needs **any one** of them.
  *
- * Nothing here is a policy decision. `GRANTS` is generated from
- * the model's GRANTS, and the relations resolve themselves from their own
- * structured derivation, so changing who may do what is an edit upstream, not a
- * code change. That is the whole point: the previous arrangement restated a
- * fraction of the same policy by hand, in a different shape, and drifted.
+ * Nothing here is a policy decision. `GRANTS` is generated from the model, so
+ * changing who may do what is an edit upstream. The previous arrangement
+ * restated a fraction of the same policy by hand and drifted.
  *
  * `objectFrom` returning null is a 404, not a 403 — answering "forbidden" for an
  * id that does not exist tells a caller which ids are real.
@@ -187,26 +185,19 @@ const defaultId = (input: { id?: string }) => input.id ?? ""
  * May this user take this action on this object? The same question
  * `requireAction` asks, answered rather than enforced.
  *
- * It exists because a page needs it too. `org.tsx` shows a Save button on a
- * profile, and until this existed it had no way to know whether saving would
- * work — so a coach at another school was offered a control that 403s. The fix
- * is not for the client to work it out from the viewer's role: that is a second
- * copy of the access matrix, which is the drift this whole file exists to
- * remove. The server already knows, so the server says.
+ * A page needs it too: `org.tsx` offered a Save button that 403s for a coach at
+ * another school. Having the client work it out from the viewer's role would be
+ * a second copy of the access matrix. The server already knows, so it says.
  *
- * `user` is null for a signed-out viewer, who holds exactly PUBLIC — see
- * `holdsPlatform` in src/domain/grants.ts. A table lookup would match no row
- * for them, because no row has an empty user id, so none is made.
+ * `user` is null for a signed-out viewer, who holds exactly PUBLIC — no row has
+ * an empty user id, so no lookup is made.
  *
- * Says nothing about whether the object exists — that is a 404, and a different
- * question. `requireAction` keeps it.
+ * Says nothing about whether the object exists; that is a 404 and
+ * `requireAction` keeps it.
  *
- * `eventContext` is for the actions that are about a *pair*. Registering a team
- * asks two things of two different objects: are you this team's coach, and is
- * this event one you may enter. The relation resolves against the team; the
- * `eventTypes` narrowing belongs to the event, and only the caller knows which
- * event that is. Where the object's own type declares an EVENT parent — a game
- * — it is derived instead and this stays undefined.
+ * `eventContext` is for actions about a *pair*: registering a team asks whether
+ * you are its coach and whether the event is one you may enter. Where the
+ * object's own type declares an EVENT parent it is derived instead.
  */
 type Grant = { relation: string; eventTypes: readonly string[] }
 
@@ -286,21 +277,13 @@ async function relationsHeld(
  *
  * ## Why this exists
  *
- * `/api/games?eventId=evt_002` took **246ms** for 28 rows, against 11ms for the
- * four rows of `/api/events`. Stubbing `can` took it to 10ms, so ~96% of it was
- * here. The cost was structural rather than slow code: `serialize` asks four
- * questions per game, every grant on them names `GAME_EVENT_OWNER` or
- * `GAME_EVENT_CO_ORGANIZER` — `via: "parent"`, so a hop to the event and a join
- * — and each also narrows by `eventTypes`, which resolved the subtype again per
- * call. Around 700 reads to render one schedule.
+ * Asking per row cost ~700 reads to render one schedule: every grant on a game
+ * names a `via: "parent"` relation, so a hop to the event and a join, and each
+ * narrows by `eventTypes`, resolving the subtype again per call.
  *
- * Nothing here is per row. The parents resolve in one query, their subtypes in
- * one more, and each relation answers for the whole list at once through
- * `heldAmong`. A schedule costs about six reads whatever its length.
- *
- * The comment this replaces said the fix "then is to answer it in one query —
- * the relations are all derivable in SQL — not to move the decision into the
- * client". That is what this is; the decision has not moved.
+ * Nothing here is per row. Parents resolve in one query, subtypes in one more,
+ * and each relation answers for the whole list through `heldAmong`. A schedule
+ * costs about six reads whatever its length — and the decision stays server-side.
  */
 export async function canAll(
   db: Db,

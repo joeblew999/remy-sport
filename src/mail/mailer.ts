@@ -5,25 +5,17 @@ import { track } from "../analytics"
 /**
  * Outbound email, with a transport that can be swapped for tests.
  *
- * Cloudflare's `send_email` binding is the real transport (ADR 010). Two
- * account-level facts shape everything here:
+ * Cloudflare's `send_email` binding is the real transport (ADR 010). Sending to
+ * arbitrary recipients needs the Workers Paid plan and a sending domain
+ * onboarded to Email Service — until then the binding reaches only verified
+ * addresses, and an invitation by definition goes to someone not yet in the
+ * account.
  *
- *   - Sending to *arbitrary* recipients needs the Workers **Paid** plan and a
- *     sending domain onboarded to Email Service. Until the domain is onboarded,
- *     the binding may only send to verified destination addresses in the
- *     account. Invitations by definition go to people who are not in the
- *     account yet, so both prerequisites are load-bearing.
- *   - `wrangler dev` simulates the binding locally: nothing leaves the machine
- *     and the message *body* is written to a temp file. Safe, but awkward to
- *     assert on — the recipient and subject appear only in wrangler's stdout,
- *     which Playwright's webServer owns, and the files are UUID-named with
- *     nothing tying one to the test that caused it.
- *
- * Hence two transports. `cloudflare` is production. `outbox` captures the
+ * Hence two transports. `cloudflare` is production; `outbox` captures the
  * message so a test can read it back through `/api/dev/outbox` and assert on
- * the recipient, the subject and the invitation link. That is the difference
- * between "the endpoint returned 200" and "an invitation addressed to this
- * person, carrying this token, actually left the building".
+ * the recipient, subject and link. `wrangler dev` does simulate the binding,
+ * but writes only the body to a UUID-named temp file, with nothing tying one to
+ * the test that caused it.
  */
 
 export interface Mail {
@@ -34,23 +26,16 @@ export interface Mail {
   /**
    * Which sending identity this is, and it is not decoration.
    *
-   * Sign-in is email OTP, so authentication *is* email. Bulk notification mail
-   * sharing one From address with it means a spam complaint about scores takes
-   * sign-in down with it — nobody can log in to turn the notifications off,
-   * which is the worst possible order for those two things to fail in.
+   * Sign-in is email OTP, so authentication *is* email. Sharing one From address
+   * with bulk mail means a spam complaint about scores takes sign-in down with
+   * it — and nobody can log in to turn the notifications off.
    *
-   * DKIM and reputation attach at the domain level, so the split is a
-   * subdomain rather than a different local part: `noreply@remy.…` for
-   * transactional, `notifications@notify.remy.…` for bulk. What it buys
-   * today is less than it looks: Cloudflare enables Email Sending per zone,
-   * so both identities sign with the zone key and share its reputation —
-   * `enabledZones` in scripts/ops/provision.ts is the record. The split costs
-   * nothing and is right the day sending moves per domain.
+   * Reputation attaches at the domain, so the split is a subdomain rather than
+   * a local part. Today both still sign with the zone key and share its
+   * reputation; the split costs nothing and is right the day sending moves per
+   * domain.
    *
-   * Transactional is the default because it is the one that must never be
-   * skipped: a new caller that forgets to say gets the *safer* identity, and
-   * the mistake is a notification sent from the sign-in domain rather than a
-   * sign-in code sent from a bulk one.
+   * Transactional is the default: a caller who forgets gets the safer identity.
    */
   kind?: "transactional" | "bulk"
   /**
@@ -231,22 +216,15 @@ export function mailerFor(env: Bindings): Mailer {
 /**
  * Every email leaves a row, whether it worked or not.
  *
- * The gap this closes was found by the Product Owner on 2026-09-10, and how it
- * was found is the argument for it: email had been working for them for weeks,
- * and from the telemetry it was **indistinguishable from completely broken**.
- * `notify.batch` counts the EMAIL channel, so bulk notifications were visible;
- * everything transactional goes through Better Auth and this mailer directly,
- * never through `notify`, and left no trace at all.
- *
- * So the only evidence a sign-in code had ever existed was a *failure* — and
+ * `notify.batch` counts the EMAIL channel, so bulk mail was visible; everything
+ * transactional goes through Better Auth and this mailer directly and left no
+ * trace. The only evidence a sign-in code had existed was a failure — and
  * Better Auth swallows the reason, so even that was an anonymous stack. A
- * channel you can only see when it breaks is not observable: "nothing sent" and
- * "everything sent perfectly" look the same.
+ * channel you can only see when it breaks is not observable.
  *
- * Wrapped here, at the one door every send goes through, rather than inside
- * each transport — a transport added later is counted without being asked to
- * remember. `transport` distinguishes them, so a captured outbox send is not
- * mistaken for one that really left.
+ * Wrapped at the one door every send goes through, so a transport added later
+ * is counted without being asked to remember. `transport` keeps a captured
+ * outbox send from being mistaken for one that really left.
  *
  * The failure is re-thrown untouched. This records; it does not decide.
  */

@@ -33,7 +33,10 @@ for (const path of [...sources("scripts"), ...sources("tests"), ...sources("src"
   // here is reverted by the next sync and fails `bun run check:model` meanwhile.
   if (path.startsWith("src/domain/model/")) continue
 
-  const text = readFileSync(`${ROOT}/${path}`, "utf8")
+  const raw = readFileSync(`${ROOT}/${path}`, "utf8")
+  // Continuation lines joined first: a command wrapped across a comment's `*`
+  // margin — `mise run\n * demo:off` — matched nothing and was missed.
+  const text = raw.replace(/\n\s*\*[ \t]*/g, " ")
 
   // Before the plain form: only `ops` itself appears in package.json.
   for (const [, name] of text.matchAll(/bun run ops ([a-z][a-z-]*)/g)) {
@@ -59,7 +62,7 @@ for (const path of [...sources("scripts"), ...sources("tests"), ...sources("src"
 
   // Comments only: a path in code is usually a fixture written to a temp
   // directory, which is supposed not to exist.
-  for (const line of text.split("\n")) {
+  for (const line of raw.split("\n")) {
     if (!/^\s*(\*|\/\/|\/\*)/.test(line)) continue
     for (const [, ref] of line.matchAll(
       /\b((?:docs|src|scripts|tests)\/[A-Za-z0-9._/-]+\.(?:tsx|ts|md|json|css|sql))/g,

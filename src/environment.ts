@@ -1,20 +1,15 @@
 /**
  * Which environment this is, and what that permits.
  *
- * Eight unrelated behaviours used to be decided by `usesOutbox(env)` — mail
- * capture, the analytics dataset, the telemetry sampling rate, whether seeded
- * sign-in offers the admin, and whether four dev routes exist at all. That
- * worked because there were two environments and the answers happened to agree.
- *
- * Staging is the counterexample. Staging must send **real mail** and still have
- * the seed route, seeded accounts and its own telemetry — a combination the
- * proxy cannot express. Under it, turning on real mail for staging would
- * silently delete four routes and start writing staging's telemetry into
- * production's dataset. Neither would error; both would be discovered later.
+ * Eight unrelated behaviours were once decided by `usesOutbox(env)`, which
+ * worked only while two environments happened to agree. Staging is the
+ * counterexample: real mail **and** the seed route, seeded accounts and its own
+ * telemetry — a combination that proxy cannot express, where turning on real
+ * mail would silently delete four routes and write staging's telemetry into
+ * production's dataset.
  *
  * So the environment is declared, not inferred, and each capability is a named
- * row. "Does staging have the seed route" is now readable rather than deduced
- * from what its mail transport happens to be.
+ * row.
  *
  * ## Unset means production
  *
@@ -68,24 +63,19 @@ export interface Policy {
   /**
    * Where the fixed sign-in code comes from, if anywhere.
    *
-   * The second half of seeded sign-in, and it must be its own row — `seededSignIn`
-   * decides whether the picker *appears*, this decides whether those accounts
-   * can actually get *in*. They differ on production, which is why one boolean
-   * cannot carry both:
+   * Its own row, not part of `seededSignIn`: that decides whether the picker
+   * *appears*, this decides whether those accounts can get *in*, and they
+   * differ on production.
    *
-   *   * `"derived"` — the code is `DEMO_SIGN_IN_CODE`, always present, nothing
-   *     to provision. Dev and staging, where every seeded address is `.test` and
-   *     reaches nobody.
-   *   * `"secret"` — only a human-set `TEST_OTP` fixes it, and `mise run
-   *     demo:off` removes it without a redeploy. **Production, and production
-   *     only.**
+   *   * `"derived"` — `DEMO_SIGN_IN_CODE`, always present. Dev and staging,
+   *     where every seeded address is `.test` and reaches nobody.
+   *   * `"secret"` — only a human-set `TEST_OTP`, which
+   *     `bun run ops demo off --env X` removes without a redeploy. Production
+   *     only.
    *
-   * Collapsing this into `seededSignIn` is not hypothetical: it shipped that way
-   * for one commit. Production has `seededSignIn: false`, so gating the code on
-   * it silently made `demo:on` a no-op there — every seeded account got a random
-   * code and the deployed Playwright suite, which signs in on every test, had no
-   * way to authenticate. Nothing failed at deploy time; it would have failed at
-   * the next `bun run deploy --env X`.
+   * Collapsing the two shipped once: production has `seededSignIn: false`, so
+   * gating the code on it made turning the demo on a silent no-op there, and
+   * the deployed suite had no way to authenticate.
    */
   signInCode: "derived" | "secret"
   /**
@@ -242,24 +232,18 @@ export const fixedSignInCode = (env: HasEnvironment): string | undefined =>
 /**
  * Whether the seeded ADMIN may use the fixed code here.
  *
- * The policy row is the default and stays false on every deployment, for the
- * reason written beside it: a deployment never *publishes* a way in as the
- * account that can impersonate. That property is about what a deployment offers
- * to the public, and it is preserved — nothing here changes unless a human sets
- * a secret, and `ops -- demo off` removes it.
+ * The policy row stays false on every deployment: a deployment never
+ * *publishes* a way in as the account that can impersonate. Nothing here
+ * changes unless a human sets a secret, and `ops demo off` removes it.
  *
- * The secret exists because the alternative was worse. `admin-console.spec.ts`
- * and `authz.spec.ts` are the only cover the admin console has, and they could
- * not run anywhere but dev — so the surface that decides who may impersonate
- * whom was verified exclusively against a local Worker, and a deployment could
- * break it with nothing to say so. Fifteen tests skipped on staging, silently,
- * which is the shape of coverage that is worse than none because it reads green.
+ * The secret exists because the admin console's only cover could otherwise run
+ * nowhere but dev — so the surface deciding who may impersonate whom was
+ * verified against a local Worker alone, with fifteen tests skipped on staging,
+ * silently, which reads green.
  *
- * Separate from `TEST_OTP` on purpose. That one governs every seeded actor and
- * is derived on dev and staging; this governs the one account that can reach
- * every other, so it is never derived and never on by default — a human sets it,
- * for a run, and takes it off. Two questions, two switches, so turning on the
- * ordinary demo cannot quietly turn on the admin.
+ * Separate from `TEST_OTP` on purpose: that governs every seeded actor, this
+ * governs the one account that can reach every other. Two switches, so turning
+ * on the ordinary demo cannot quietly turn on the admin.
  */
 export const adminSignInAllowed = (env: HasEnvironment): boolean =>
   policyFor(env).offersAdminSignIn || Boolean(env.TEST_ADMIN_OTP)
@@ -267,27 +251,20 @@ export const adminSignInAllowed = (env: HasEnvironment): boolean =>
 /**
  * The address space the e2e suite owns, so it never borrows a person's account.
  *
- * Every spec used to sign in as one of the PO's seeded people — and so does
- * anyone using the dev tunnel, which exists for exactly that. Two writers on one
- * account: sessions appear and vanish under a running test, two specs consume
- * each other's OTP, "sign out all other devices" signs the human out, and any
- * assertion about how many sessions someone has is a guess about what everybody
- * else is doing. Every one of those was fixed individually at least once, which
- * is the signature of treating symptoms.
+ * Specs used to sign in as the PO's seeded people, and so does anyone on the
+ * dev tunnel. Two writers on one account means sessions vanish under a running
+ * test, two specs consume each other's OTP, and "sign out all other devices"
+ * signs the human out. Each was fixed individually at least once, which is the
+ * signature of treating symptoms.
  *
- * An account per test removes the class. The test owns every session on it, so
- * counts mean something again, `revoke-other-sessions` is safe, and a person
- * clicking around on the tunnel is invisible to it.
+ * An account per test removes the class: the test owns every session on it.
  *
  * `.test` is IANA-reserved and unroutable (RFC 2606), so a code mailed here
- * reaches nobody — the same property that lets staging derive a public code for
- * the seeded `.test` fixtures. And an account minted here starts empty with the
- * default role: the fixed code opens a door onto nothing, which is strictly less
- * than the seeded accounts it replaces, since those hold fixture data.
+ * reaches nobody. An account minted here starts empty with the default role —
+ * strictly less reach than the seeded accounts it replaces.
  *
- * Deliberately NOT reachable on production by default. There the code lives in a
- * secret and `signInCode: "secret"` means `fixedSignInCode()` is undefined until
- * a human runs `ops -- demo on`, so this predicate is never consulted.
+ * Not reachable on production by default: there `signInCode: "secret"` leaves
+ * `fixedSignInCode()` undefined until a human turns the demo on.
  */
 export const E2E_EMAIL_DOMAIN = "e2e.test"
 
