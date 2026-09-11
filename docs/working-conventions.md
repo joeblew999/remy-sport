@@ -76,6 +76,18 @@ followed held only a deletion. Being careful is not the fix — **run
 rather than your tree, and takes a few seconds. Pass a ref to check an older
 commit.
 
+## Writing a plan must not fail a deploy
+
+`bun run deploy` gates on `check:ship`, not `check`. Two repo rules are about
+prose rather than about whether the Worker works — one asserts every path a
+document names exists, the other that every document is indexed — and a plan
+being written names files it intends to create and is not indexed until it is
+real. On 2026-09-11 writing one failed a production deploy.
+
+Both still run in `bun run check`, which is what a person runs before pushing,
+and the deploy prints which two it left out. Nothing else moved: every rule
+that can make a deployment wrong is still in the gate.
+
 ## Use the registry, do not reinvent the widget
 
 Every generic GUI element is its shadcn registry item. Bespoke surfaces are only

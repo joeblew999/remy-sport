@@ -2,6 +2,7 @@ import { OpenAPIGenerator } from "@orpc/openapi"
 import { router } from "../../src/api/index.ts"
 import { SCHEMA_CONVERTERS, SPEC_OPTIONS, excludeInternal, withDomainTags } from "../../src/api/openapi.ts"
 import { originOf, resolveTarget } from "../lib/cloudflare.ts"
+import type { Bindings } from "../../src/types.ts"
 
 /**
  * The published OpenAPI document, generated from the router.
@@ -55,14 +56,16 @@ import { originOf, resolveTarget } from "../lib/cloudflare.ts"
  * `withDomainTags` — see src/api/openapi.ts for why that belongs to generation
  * rather than to the builder.
  */
-export async function generate(audience: "public" | "internal" = "public") {
+export async function generate(audience: "public" | "internal" | Bindings = "public") {
   const generator = new OpenAPIGenerator({ schemaConverters: SCHEMA_CONVERTERS })
   return withDomainTags(await generator.generate(router, {
     ...SPEC_OPTIONS,
-    // The same predicate the served document uses, with no environment — so
-    // "public" here means what every deployment publishes, whatever any one of
-    // them additionally mounts.
-    ...(audience === "public" ? { exclude: excludeInternal() } : {}),
+    // The same predicate the served document uses. "public" means what every
+    // deployment publishes; an environment means what that one mounts, which
+    // is what a deployment's own document describes.
+    ...(audience === "internal"
+      ? {}
+      : { exclude: excludeInternal(audience === "public" ? undefined : audience) }),
   }))
 }
 
@@ -104,14 +107,21 @@ if (!import.meta.main) {
    * from the router — this compares a deployment against the tree, it does not
    * take a deployment's word for what the tree says.
    */
-  const origin = originOf(resolveTarget(argv))
+  const target = resolveTarget(argv)
+  const origin = originOf(target)
   const served = (await (await fetch(`${origin}/api/openapi.json`)).json()) as {
     paths?: Record<string, unknown>
   }
-  // Like for like: the deployment now filters its own document by what it
-  // mounts, so the tree's public set is what should match. It no longer serves
-  // everything and this no longer compares against everything.
-  const here = operationsOf(await generate("public"))
+  /**
+   * Like for like, which means asking the tree the same question.
+   *
+   * The deployment filters its own document by the capabilities it mounts, so
+   * comparing against the published set fails on staging for the two dev
+   * endpoints it legitimately serves. The environment is what makes the two
+   * questions the same one — and `ENVIRONMENT` is the only binding
+   * `excludeInternal` reads, so naming it is enough.
+   */
+  const here = operationsOf(await generate({ ENVIRONMENT: target.environment } as Bindings))
   const there = operationsOf(served)
 
   const missing = here.filter((op) => !there.includes(op))

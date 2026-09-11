@@ -94,7 +94,28 @@ const PIPELINE: Phase[] = [
   {
     name: "check",
     why: "the gate — nothing reaches the account until it is green",
-    go: () => step("check", ["bun", "run", "check"]),
+    /**
+     * `check:ship`, not `check`.
+     *
+     * Two of the repo rules are about prose, not about whether this Worker
+     * works: `docs.test.ts` asserts every path named in a document exists, and
+     * `docs-organisation.test.ts` asserts every document is indexed. A plan
+     * being written names files it intends to create and is not indexed until
+     * it is real — so writing one failed a production deploy, which is
+     * backwards. It happened, on 2026-09-11.
+     *
+     * Both still run in `bun run check`, which is what a person runs. What is
+     * lifted here is only the pair that cannot make a deployment wrong, and
+     * the skip is printed rather than silent — a check that vanishes quietly
+     * is indistinguishable from one somebody deleted.
+     */
+    go: () => {
+      console.log(
+        "   (docs.test.ts and docs-organisation.test.ts are not in this gate:\n" +
+          "    prose rules cannot make a deployment wrong. `bun run check` has them.)",
+      )
+      step("check", ["bun", "run", "check:ship"])
+    },
   },
   {
     name: "test",
