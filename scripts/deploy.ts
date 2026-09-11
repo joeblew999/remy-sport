@@ -41,6 +41,20 @@ import { holdDeployLock } from "./lib/deploy-lock.ts"
  * two deploys of one commit are two builds.
  */
 const BUILD_ID = new Date().toISOString()
+/**
+ * Exported, not just passed to the build.
+ *
+ * `prepareConfig` stamps the same instant into the Worker's `BUILD` var, and it
+ * runs in *this* process rather than a child — so without this it read no
+ * BUILD_ID and fell back to `new Date()`, stamping the moment the config was
+ * written. `wait` then compared the served stamp against this one and could
+ * never match: staging published correctly and reported a time three minutes
+ * later, for five minutes, before failing.
+ *
+ * It only became possible when the Worker stopped reading the `__BUILD__`
+ * define — that came from the build child, which did have BUILD_ID.
+ */
+process.env.BUILD_ID = BUILD_ID
 
 /**
  * How the Vite plugin and wrangler are told which environment: the variable,
