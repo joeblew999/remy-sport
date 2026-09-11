@@ -502,6 +502,16 @@ forged token and `tests/worker/push.test.ts` refused it: a refusal that answers
 reads a query parameter on a method whose input oRPC would otherwise take from
 the body.
 
+## Follow-ups, not this PR
+
+- **`tests/repo/manifest.test.ts` reads a build artefact it does not own.** It
+  asserts on whatever `dist/client` currently holds, so deploying staging from
+  a machine leaves `bun run test` red there until the next production build —
+  the test is reporting the state of the last deploy rather than the state of
+  the tree. It should build or fixture what it asserts on, so the fast tier is
+  green regardless of what was last deployed. Pre-existing; surfaced by
+  deploying twice in one session.
+
 ## Log
 
 - 2026-09-11 — **a failed staging deploy, and the right lesson from it.** The
