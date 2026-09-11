@@ -4,63 +4,29 @@ import { SEED_STATEMENTS } from "../../src/db/seed"
 /**
  * Give every test file a migrated database, in one batch.
  *
- * `applyD1Migrations` walks the thirteen migrations one at a time and maintains
- * the `d1_migrations` bookkeeping table as it goes. None of that is needed
- * here: `isolatedStorage` throws the database away after each file, so nothing
- * ever migrates a second time. Batching the 163 statements halved setup.
+ * `applyD1Migrations` walks the migrations one at a time and maintains the
+ * `d1_migrations` bookkeeping table. None of that is needed: `isolatedStorage`
+ * throws the database away after each file, so nothing migrates twice. The
+ * statements arrive pre-split from `readD1Migrations` in vitest.config.ts,
+ * which reads the real `src/db/migrations` — so a migration that breaks the app
+ * breaks these tests too. `batch` is one implicit transaction, so a broken
+ * migration fails the file loudly rather than leaving half a schema.
  *
- * The statements arrive pre-split and pre-ordered from `readD1Migrations` in
- * vitest.config.ts, which reads the real `src/db/migrations` — so a migration
- * that breaks the app breaks these tests too, rather than passing against a
- * hand-kept fixture schema.
+ * ## Two measurements, so they are not re-derived
  *
- * `batch` is one implicit transaction, so a broken migration fails the file
- * loudly instead of leaving a half-built schema behind it.
+ * **The SQL is not the cost.** An empty setup is 10ms; one that runs a single
+ * `SELECT 1` is 4.00s; one that runs all 840 statements is 4.15s. The cost is
+ * the first touch of `env.DB` — Miniflare standing up D1 for this file — paid
+ * by whatever query is first. So building the database once and restoring a
+ * snapshot per file would remove ~4% and still pay the rest, because restoring
+ * is itself a query.
  *
- * What is left is not SQL. A worker test file costs ~5s of workerd and
- * Miniflare startup before a single assertion runs.
+ * **The tier is bounded by its slowest file, not the sum.** Files run in
+ * parallel, so removing one buys nothing above the ~5s floor; splitting the
+ * largest took the tier from 24.5s to 16.2s.
  *
- * ## "Six files is ~18s of that, and the only lever is having fewer files"
- *
- * That is what this said, and it is wrong. Vitest runs test files in *parallel*,
- * so the startup cost is paid concurrently and the tier's wall clock is its
- * slowest file, not the sum of them.
- *
- * The difference is not academic — it points at the opposite fix. Acting on the
- * serial reading on 2026-08-31, I merged authz-equivalence.test.ts into
- * relations.test.ts to remove a file, measured, and the tier did not move by a
- * tenth of a second. It was 24.5s because write.test.ts had grown to 2279 lines
- * and 21.5s on its own, while every other file finished in about five.
- * Splitting it in two took the tier to 16.2s.
- *
- * So the lever is a smaller *biggest* file. Fewer files buys nothing above the
- * ~5s floor, and merging two small ones makes the tier slower to no purpose.
- *
- * ## The statements below are not the floor. Measured, 2026-09-01.
- *
- * The obvious next optimisation is to stop replaying 115 migration and 725 seed
- * statements for all twelve files — build the database once and restore a
- * snapshot per file. **It would save almost nothing**, and the measurement is
- * recorded here because the idea is a good one that happens to be wrong:
- *
- *     setup file empty ............................  10ms
- *     setup file does ONE `SELECT 1` .............. 4.00s
- *     setup file does all 840 statements .......... 4.15s
- *
- * The cost is not the SQL. It is the **first touch of `env.DB`** — Miniflare
- * standing up the D1 simulator for this file's isolated storage — and it is paid
- * by whatever query happens to be first. All 840 statements cost about 150ms on
- * top of it, so a snapshot-and-restore scheme would remove 3.6% of the setup and
- * still pay the other 96%, because restoring is itself a query.
- *
- * Nor is that 4s the tier's bound. Twelve files pay ~4s of setup each — 73s in
- * total — while the tier finishes in 13s, because it overlaps almost perfectly.
- * The tier is bounded by its slowest *file*, and lowering a floor that is paid
- * in parallel changes nothing until it exceeds that file.
- *
- * The only way past it is to stop giving each file its own database, which is
- * `isolatedStorage: false` — and that trades a real guarantee (specs cannot race
- * or see each other's writes) for a few seconds. Not worth it.
+ * Past that floor means `isolatedStorage: false`, which trades a real guarantee
+ * — specs cannot race or see each other's writes — for a few seconds.
  */
 const migrations = (env as unknown as { TEST_MIGRATIONS: { queries: string[] }[] }).TEST_MIGRATIONS
 

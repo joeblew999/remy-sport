@@ -2,13 +2,11 @@
  * Which of the Product Owner's actions the product actually implements.
  *
  * Written because a gap this size stayed invisible: the model declared what an
- * organiser may do with a schedule, the API had no way to create a game at all,
- * and nothing connected the two. An organiser could create an event, register
- * teams, and then schedule nothing. It was found by reading the router by hand.
+ * organiser may do with a schedule, the API had no way to create a game, and
+ * nothing connected the two. Found by reading the router by hand.
  *
- * Nothing here fails the build, and that is deliberate — most of these are
- * unbuilt on purpose and the roadmap says so. What was missing was a way to
- * *see* it. `bun run ops coverage model`.
+ * Nothing here fails the build — most of these are unbuilt on purpose. What was
+ * missing was a way to *see* it.
  *
  * Three honest buckets:
  *
@@ -25,31 +23,20 @@
  *
  * ## The router is walked, not grepped
  *
- * This used to scan src/api for the literal string `requireAction("X")`. There
- * are four policy kinds and that found one, so every action declared with
- * `checkedInHandler` read as unbuilt — all six follow/unfollow actions, which
- * are built, reachable from the event and team pages, and shipped weeks ago.
- * Six of twenty-six, wrong in the direction that invents work, in the report
- * whose own text calls itself the list to read before choosing what to build.
- *
- * `policyOf` over the real router is what tests/repo/authz.test.ts already does,
- * and now the two tools answer "is this enforced" from one source. Two
- * derivations of one fact is how they disagree, and the grep was simply the
- * worse of the two.
+ * Scanning for the literal `requireAction("X")` found one of four policy kinds,
+ * so six built-and-shipped actions read as unbuilt — wrong in the direction
+ * that invents work, in the report meant to say what to build next. `policyOf`
+ * over the real router is what tests/repo/authz.test.ts already uses, so both
+ * tools now answer "is this enforced" from one source.
  *
  * ## Enforcement is not the only way an action is implemented
  *
- * That fix assumed it was, and three more actions read as unbuilt because of it:
- * RECEIVE_TEAM_NOTIFICATIONS, RECEIVE_EVENT_NOTIFICATIONS and
- * RECEIVE_PLAYER_NOTIFICATIONS. No procedure enforces them, because they are not
- * permission checks — `notify()` hands them to `audienceFor` to work out **who
- * should hear** about a write. They are as built as anything here, and reading a
- * table directly instead of asking them is how Web Push once notified only a
+ * Three RECEIVE_*_NOTIFICATIONS actions are not permission checks at all:
+ * `notify()` hands them to `audienceFor` to decide **who should hear**. Reading
+ * a table directly instead of asking them is how Web Push once notified a
  * team's followers and not its own coaches.
  *
- * So the map is imported from src/api/push.ts rather than restated. A second
- * copy of "these three actions decide an audience" is exactly the drift this
- * report exists to catch.
+ * So the map is imported from src/api/push.ts rather than restated.
  */
 
 import { readdirSync, readFileSync } from "node:fs"

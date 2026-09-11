@@ -1,53 +1,34 @@
 /**
  * Nothing in the database is empty by accident.
  *
- * The project's notes named this mechanism on 2026-08-30 and said nothing
- * enforced it: "The mechanism would be a gate over the schema — 48 tables, 282
- * columns are enumerable — and a rule that must be remembered is the same class
- * of thing that already failed." It was 51 tables and 293 columns four days
- * later, which is the argument in one sentence.
+ * Noticing was not enough. The notes named this gate and said nothing enforced
+ * it; four days later `event.description` was still a column no row filled, and
+ * two tables the model describes had never held a row — so the Sessions tab
+ * shipped empty and the test covering it passed by inventing a session.
  *
- * What went wrong while nothing checked: `event.description` was named in that
- * same paragraph as a column no row filled, whose section had only ever shown
- * its empty state. It was still empty four days later. Two whole tables the
- * model describes — a camp's timetable and its register — had never held a row,
- * so the Sessions tab shipped empty and the test covering it passed by inventing
- * a session at an event it called by a name no row holds. **Noticing was not
- * enough.**
- *
- * ## Three questions, because one of them was never asked
- *
- * `bun run ops coverage data` asks which *vocabulary codes* a fixture uses, and
- * answers 80/80. That is a real question and not this one — a code can be used
- * by one row while the column it sits in is null everywhere else.
+ * ## Four questions, because one was never asked
  *
  *   1. Does every table hold a row?
  *   2. Does every column hold a value?
  *   3. Does every parent row have the thing that hangs off it?
+ *   4. Does every column have a fixture field at all?
  *
- * And a fourth that is the mirror of (2) and is the one that hid
- * `event.description` for four days: **does every column have a fixture field at
- * all?** The old report asked whether every fixture field has a column and said
- * "none missing", which was true and useless — the gap was the other way round,
- * and closing it needed a field added to the Product Owner's model rather than a
- * row added here. Somebody looking would have read a green line.
+ * The fourth is the mirror of the second and is what hid `event.description`:
+ * the old report asked whether every fixture *field* has a column and said
+ * "none missing", which was true and useless. `ops coverage data` asks a third
+ * question — which vocabulary codes a fixture uses — and a code can be used by
+ * one row while its column is null everywhere else.
  *
  * ## Declared, not maximised
  *
  * **100% is the wrong target and chasing it makes the data worse.** Only some
- * users are players. Most schools do not run events. 119 children do not all
- * attend one camp in Chiang Mai.
+ * users are players; most schools run no events. The seed carries the scar: all
+ * four guardian rows were once one person who was PARENT, GRANDPARENT,
+ * LEGAL_GUARDIAN and OTHER to four children, so a report would print 4/4. It
+ * did. It is not a family anybody has.
  *
- * The seed already carries the scar from optimising a coverage number: all four
- * guardian rows used to be one person who was at once a PARENT, GRANDPARENT,
- * LEGAL_GUARDIAN and OTHER to four different children — written that way so the
- * vocabulary report would print GUARDIAN_TYPE 4/4. It did. It is not a family
- * anybody has.
- *
- * So every gap is *declared* rather than closed, and a declaration is a sentence
- * somebody can disagree with. What fails is a gap nobody has written a sentence
- * about — a new column, a new table, a new foreign key. Those arrive silently
- * today and are the entire reason this exists.
+ * So a gap is *declared* — a sentence somebody can disagree with — and what
+ * fails is a gap nobody has written a sentence about.
  *
  * The seed is read as its statements rather than as fixtures on purpose: these
  * are the bytes the database receives, so nothing here can be true of a model
