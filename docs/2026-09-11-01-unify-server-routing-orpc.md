@@ -313,6 +313,37 @@ Recorded as a comment in `src/dispatch.ts`.
 - [ ] 5. Part F, expecting a large schema diff — that is the drift being paid off.
 - [ ] 6. Part E, `ops smoke --env staging`, `ops docs check`.
 
+## Part A, as the authz walk sees it
+
+Quoted rather than inferred. `bunx vitest run tests/repo/authz.test.ts
+--silent=false --disable-console-intercept` — the second flag matters, because
+`--silent=false` alone does not defeat vitest's console interception and the
+summary stays invisible:
+
+```
+check-authz: 96 procedures, 52 enforced by the model, 44 declared otherwise;
+             11 non-procedure routes accounted for
+
+  infrastructure  dev.accounts          — the demo sign-in picker; offered only where a code
+                                          can actually be read, and never offering the admin
+                                          on a deployment
+  infrastructure  dev.analyticsEvents   — dev only — 404s unless POLICY[env].hasLocalEventStore
+  infrastructure  dev.mail.preview      — dev only — 404s unless POLICY[env].devMailRoutes
+  infrastructure  dev.otp.clear         — dev only — 404s unless POLICY[env].devMailRoutes
+  infrastructure  dev.outbox.clear      — dev only — 404s unless POLICY[env].devMailRoutes
+  infrastructure  dev.outbox.list       — dev only — 404s unless POLICY[env].devMailRoutes
+  infrastructure  dev.seed              — dev only — 404s unless POLICY[env].seedRoute
+  infrastructure  dev.sessions.prune    — dev only — 404s unless POLICY[env].devSessionRoutes
+  infrastructure  health.versions       — build metadata — the commit, branch and time this
+                                          Worker was built from, plus its own URL; it names nobody
+  infrastructure  telemetry.report      — a beacon, deliberately unauthenticated; writes only to
+                                          Analytics Engine, reads nothing and names nobody
+```
+
+Each gate names the `POLICY` key it reads, so the capability a reader has to
+check is in the line rather than in the handler. The non-procedure count is
+down to 11 — everything left there is Part B.
+
 ## Log
 
 - 2026-09-11 — plan recorded; six corrections above found by reading the tree
