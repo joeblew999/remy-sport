@@ -68,23 +68,19 @@ function FormAlert({ children, ...props }: { children: React.ReactNode; "data-te
 /**
  * When a game starts, on a named clock, in the reader's language.
  *
- * `startsAt` is an instant in UTC. That is unambiguous and useless on its own:
- * "10:00" means nothing until it says whose ten o'clock. So this takes the zone
- * explicitly and never falls back to the machine's — a page that guesses is how
- * a coach turns up an hour late.
+ * `startsAt` is a UTC instant, which is unambiguous and useless alone: "10:00"
+ * means nothing until it says whose. So the zone is explicit and never the
+ * machine's — a page that guesses is how a coach turns up an hour late.
  *
- * The locale is the app's, not the browser's — `undefined` here meant a Thai
- * page rendered "Aug 27" because the browser was set to English.
+ * The locale is the app's, not the browser's: `undefined` here rendered "Aug
+ * 27" on a Thai page because the browser was English.
  *
- * The calendar is not chosen here. `CALENDAR` in lib/dates.ts is, once, for
- * every date on the site — which is what makes "offer Buddhist dates" a
- * decision somebody can actually take rather than a hunt through call sites.
+ * The calendar is chosen once in lib/dates.ts, which is what makes "offer
+ * Buddhist dates" a decision rather than a hunt through call sites.
  *
- * Formatting goes through `Intl`, not through the date library this repo does
- * now depend on. That is not an inconsistency, it is the split described in
- * lib/dates.ts: `temporal-polyfill/fns` does arithmetic `Date` cannot do
- * correctly, and `Intl` does formatting no library should be re-shipping —
- * `date-fns-tz`'s `formatInTimeZone` is a wrapper over exactly this call.
+ * Formatting goes through `Intl` rather than the date library — the split in
+ * lib/dates.ts: the library does arithmetic `Date` cannot, `Intl` does
+ * formatting no library should be re-shipping.
  */
 function timeOf(startsAt: string, locale: string, timeZone: string | null): string {
   const d = new Date(startsAt);
@@ -297,12 +293,11 @@ export function GameRow({
  *
  * ## The time is edited on the venue's clock
  *
- * `startsAt` is a UTC instant and `<input type="datetime-local">` holds a naive
- * wall-clock string, so something has to say *whose* clock. It is the venue's,
- * never the machine's: an organiser in Bangkok editing a Bangkok fixture from a
- * laptop still set to UTC would otherwise be shown a time seven hours off the
- * one printed on the schedule, change nothing, press Save, and move the game.
- * Nothing would error and nobody would notice until people turned up.
+ * `datetime-local` holds a naive wall-clock string, so something must say whose
+ * clock. It is the venue's: an organiser editing a Bangkok fixture from a
+ * laptop set to UTC would otherwise see a time hours off the schedule, change
+ * nothing, press Save, and move the game — with no error until people turned
+ * up.
  *
  * ## Removing asks first
  *

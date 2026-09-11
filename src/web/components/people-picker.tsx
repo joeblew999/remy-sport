@@ -19,27 +19,18 @@ export interface Person {
 /**
  * Choosing a person, or several, by typing part of their name.
  *
- * The Product Owner liked the meeting invite form and asked whether the pattern
- * could be reused wherever the app needs to pick a user. This is that form's
- * control, lifted out unchanged in behaviour.
- *
  * The registry's `Combobox` in `inline` mode does the work: chips for who is
- * chosen, typing narrows the list, and the list sits in the form rather than in
- * a popup layered over it — on a phone that popup covers the very form it
- * belongs to. Filtering, keyboard navigation and announcing how many matches
- * remain are Base UI's, not ours; a search box over a filtered `.map()` is the
- * wheel this repo does not reinvent.
+ * chosen, typing narrows the list, and the list sits in the form rather than a
+ * popup that on a phone covers the form it belongs to. Filtering, keyboard
+ * navigation and match announcements are Base UI's — a search box over a
+ * filtered `.map()` is the wheel this repo does not reinvent.
  *
- * **Presentational on purpose.** The candidates are passed in rather than
- * fetched, because who may be picked is the caller's question and differs every
- * time — everyone on the platform for a meeting, people not already in a school
- * for a membership. Baking a query in is what would make it wrong for its
- * second use.
+ * **Presentational on purpose.** Candidates are passed in, because who may be
+ * picked is the caller's question and differs every time. Baking a query in is
+ * what would make it wrong for its second use.
  *
- * A native select is still right for one person chosen inline in a dense table
- * row, which is why the referee picker is not converted. This is for a form
- * with room, where the reader may not know the name they are looking for.
- *
+ * A native select is still right for one person picked inline in a dense table
+ * row, which is why the referee picker is not converted.
  */
 export function PeoplePicker({
   people,
@@ -101,29 +92,17 @@ export function PeoplePicker({
       {/**
        * A fixed height, so the list cannot move the rest of the form.
        *
-       * The candidates arrive from a query, so this box grows from nothing to
-       * `max-h-56` the moment it resolves — and everything below it, including
-       * the submit button, moves down 224px. A `click` event only fires on the
-       * element that received both `mousedown` and `mouseup`; when the button
-       * moves between them the browser fires `click` on the nearest common
-       * ancestor instead, and a click on a `<form>` submits nothing. The reader
-       * gets no error, because from the page's point of view nothing happened.
+       * Candidates arrive from a query, so an unsized box grows the moment it
+       * resolves and moves the submit button down with it. A `click` fires only
+       * on the element that received both `mousedown` and `mouseup`; when the
+       * button moves between them the browser fires `click` on the common
+       * ancestor instead, and a click on a `<form>` submits nothing — with no
+       * error, because from the page's view nothing happened.
        *
-       * Measured in WebKit, which is what this app is tested in: a form whose
-       * spacer grows during `mousedown` reports a successful click and does not
-       * submit. It cost a day of a flaky test tier before anyone asked what the
-       * page was doing, and a reader reaching for "Add" as the list loads
-       * misses it exactly the same way.
-       *
-       * A fixed height and not a skeleton, because the height is the fix: the
-       * list already scrolls at this size, so a populated picker looks as it did
-       * and an empty one holds its place.
-       *
-       * `h-56` on the box and `max-h-full` on the list, not `min-h-56` and
-       * `max-h-56` on each: heights are border-box here, so a 224px minimum
-       * gives a 222px content box, and a list allowed its own 224px pushed the
-       * box two pixels taller when it filled. Two pixels is still a moving
-       * button. The box owns the height; the list is capped by it.
+       * `h-56` on the box and `max-h-full` on the list, not `min-h-56` on each:
+       * heights are border-box, so a 224px minimum gives a 222px content box
+       * and a full list pushes it two pixels taller. Two pixels is still a
+       * moving button. The box owns the height; the list is capped by it.
        * docs/done/2026-09-09-18-browser-tier-flakiness.md.
        */}
       <div className="h-56 overflow-hidden rounded-lg border">

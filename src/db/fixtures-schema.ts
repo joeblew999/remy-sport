@@ -136,36 +136,22 @@ export const game = sqliteTable("game", {
 /**
  * What one player did in one game — the box score.
  *
- * The `game` docstring has said since it was written that per-quarter scoring is
- * absent and "a box score is a separate table when it arrives, not four more
- * columns here". This is it arriving.
+ * The `game` docstring always said a box score would be a separate table when
+ * it arrived rather than four more columns. This is it arriving: a score was
+ * per team and nothing recorded what anybody did, so `VIEW_PLAYER_STATS` was
+ * public and answered by no screen.
  *
- * Until now a score was per team — `homeScore`, `awayScore` — and nothing
- * recorded what anybody did. So a player's page was a name, a number and a
- * position, `VIEW_PLAYER_STATS` was granted to the public and answered by no
- * screen, and a "Top performers" section was deleted rather than faked because
- * the numbers existed nowhere.
+ * **Four columns, and no more.** Points, rebounds, assists and fouls are what a
+ * paper scoresheet at a school game carries, filled in by a volunteer at the
+ * table. Steals, blocks and minutes are a different level of competition and a
+ * different person keeping them; columns nobody records are a renderer that
+ * only ever shows its empty state.
  *
- * ## Four columns, and why not more
+ * **Written under `ENTER_SCORES`**, deliberately not a new action: the person
+ * typing 68–54 reads the player lines off the same sheet.
  *
- * Points, rebounds, assists and fouls are what a paper scoresheet at a Thai
- * school game actually carries, and a volunteer at the scorer's table is who
- * fills it in. Steals, blocks, turnovers and minutes are a different level of
- * competition and a different person keeping them; adding columns nobody
- * records would put us back where `event.description` was — a field with no row
- * and a renderer that has only ever shown its empty state.
- *
- * ## Who writes it
- *
- * `ENTER_SCORES`, which the model grants to a game's event owner,
- * co-organiser, assigned referee and the platform admin — the people at the
- * table with the sheet. There is deliberately no new action: the person typing
- * 68–54 is the person reading the player lines off the same page, and the model
- * already says who that is.
- *
- * Nullable counts rather than zero-defaults, for the reason the game's own
- * scores are nullable: a player with no line recorded is not a player who
- * scored nothing.
+ * Nullable rather than zero-defaulted, like the game's own scores — a player
+ * with no line recorded is not a player who scored nothing.
  */
 export const playerGameStat = sqliteTable("playerGameStat", {
   gameId: text("game_id").notNull().references(() => game.id),
@@ -419,23 +405,18 @@ export const userNotificationChannel = sqliteTable("userNotificationChannel", {
   /**
    * One label per person per channel — except for push.
    *
-   * The rule this protects is real for the channels a person *chooses* an
-   * address for: one "primary" email, one "mobile" number, one "in-app". The
-   * seed is the argument — EMAIL and LINE are `primary` for everybody, SMS is
-   * `mobile`. Two rows called "primary" for one person is a mistake there.
+   * Real for the channels a person *chooses* an address for: one "primary"
+   * email, one "mobile" number. Two rows called "primary" is a mistake there.
    *
-   * PUSH is the one channel where many rows per person is the whole point, and
-   * its labels are not chosen at all: `deviceLabel()` derives them from the user
-   * agent, so two devices routinely produce the same string. On macOS an
-   * installed web app and the Safari it was installed from share a user agent
-   * exactly, so both said "Safari on Mac" — the app's registration violated
-   * this index, `subscribe` upserts on the ENDPOINT index and so did not catch
-   * it, and the reader got a 500. The installed app could never register, and
-   * every push went to the browser instead.
+   * PUSH is the one channel where many rows per person is the point, and its
+   * labels are derived from the user agent rather than chosen. An installed
+   * macOS web app and the Safari it was installed from share a user agent
+   * exactly, so both derived "Safari on Mac" — the app's registration violated
+   * this index, `subscribe` upserts on the endpoint index and so missed it, and
+   * the reader got a 500 with every push going to the browser.
    *
-   * Scoped rather than dropped: what it forbids is right everywhere it still
-   * applies, and the endpoint index below is what actually keeps push rows
-   * unique. A label is a name, not an identity.
+   * Scoped rather than dropped: the endpoint index keeps push rows unique. A
+   * label is a name, not an identity.
    */
   uniqueIndex("userNotificationChannel_key")
     .on(t.userId, t.channelCode, t.addressLabel)
