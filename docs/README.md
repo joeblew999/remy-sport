@@ -35,6 +35,15 @@ A shipped feature stays here if its acceptance checks or follow-ups are still op
 > inbox for email; Google credentials for public help. iOS links is superseded
 > because no supported fix exists.
 
+## Not yet started
+
+Ideas with a file but no plan. Listed so the index is complete and so the note
+is findable, not because anything is underway — the file names say so too.
+
+| Idea | What it is |
+| --- | --- |
+| [GeoName](geoname-plan-not-ready.md) | Geographic names for weather and places. A sketch of why, with no plan behind it yet. |
+
 ## Planned, waiting or paused
 
 | Work | State | Next step / owning plan |

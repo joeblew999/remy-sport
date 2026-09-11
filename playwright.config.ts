@@ -1,8 +1,16 @@
 import { LOCAL_BROWSER_ORIGIN } from "./scripts/lib/local-browser.ts"
 import { defineConfig } from "@playwright/test"
 
-const baseURL = process.env.BASE_URL || LOCAL_BROWSER_ORIGIN
-const isLocal = !process.env.BASE_URL
+/**
+ * The origin this suite is pointed at, or the local dev server.
+ *
+ * `E2E_ORIGIN`, not `BASE_URL`: Vite defines its own `BASE_URL` meaning the
+ * public base path, and Vitest injects `"/"` for it into `process.env`. The
+ * same expression therefore read as a deployment here and as `/` in the unit
+ * tier, which cost a failed deploy once. One name, one meaning.
+ */
+const baseURL = process.env.E2E_ORIGIN || LOCAL_BROWSER_ORIGIN
+const isLocal = !process.env.E2E_ORIGIN
 // Reading configuration (lint, editor tooling) must not require a running test.
 // Migration and Vite validate the run directory before touching local storage.
 

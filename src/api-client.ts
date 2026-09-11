@@ -56,6 +56,21 @@ export interface ApiClientOptions {
  * script ends up smoking production while its neighbour smokes staging.
  */
 export function createApiClient(baseUrl: string, options: ApiClientOptions = {}): RouterClient<Router> {
+  /**
+   * Absolute, and said so here rather than fifteen frames down.
+   *
+   * The link builds a `new URL` from this lazily, at the first call, so a
+   * relative base surfaced as "Invalid URL" from inside the codec with a stack
+   * that named neither this function nor its caller. It cost a failed deploy to
+   * read. `tsc` cannot see it — the type is `string` either way.
+   */
+  if (!/^https?:\/\//.test(baseUrl)) {
+    throw new Error(
+      `createApiClient: baseUrl must be absolute, got ${JSON.stringify(baseUrl)}. ` +
+        "Scripts resolve it with originOf(resolveTarget(argv)); Playwright has it as the `baseURL` fixture.",
+    )
+  }
+
   const link = new OpenAPILink(router, {
     url: `${baseUrl.replace(/\/+$/, "")}/api`,
     headers: () => options.headers ?? {},

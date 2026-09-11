@@ -231,7 +231,7 @@ async function preflight(origin: string, environment: string, adminConfirmed = f
 
 /**
  * Where the tier points. Null is localhost — and `--env dev` is null too,
- * deliberately: leaving `BASE_URL` unset is what keeps the suite reading real
+ * deliberately: leaving `E2E_ORIGIN` unset is what keeps the suite reading real
  * codes out of the dev outbox and starting a Worker if none is up. Naming dev
  * and saying nothing are the same run.
  *
@@ -265,14 +265,14 @@ if (cleanupAt !== -1) {
   process.exit(0)
 }
 const env: NodeJS.ProcessEnv = { ...process.env, E2E_STATE_DIR: `.playwright/runs/${randomUUID()}` }
-delete env.BASE_URL
+delete env.E2E_ORIGIN
 delete env.TEST_OTP
 delete env.TEST_ADMIN_SIGNIN
 const rest = withoutEnvironment(argv).filter((a) => a !== "--shots" && a !== "--media")
 
 async function run(adminConfirmed = false): Promise<void> {
   if (TARGET) {
-    env.BASE_URL = TARGET.origin
+    env.E2E_ORIGIN = TARGET.origin
     env.TEST_OTP = DEMO_SIGN_IN_CODE
     const admin = await preflight(TARGET.origin, TARGET.environment, adminConfirmed)
     env.TEST_ADMIN_SIGNIN = admin ? "1" : "0"

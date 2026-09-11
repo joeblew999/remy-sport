@@ -504,6 +504,32 @@ the body.
 
 ## Log
 
+- 2026-09-11 — **a failed staging deploy, and the right lesson from it.** The
+  e2e gate refused `tests/e2e/seed.setup.ts`: `apiFor(request)` defaulted its
+  base URL to `""`, so the link built `new URL("/api")` and threw from inside
+  its codec before any fetch happened. Not the `NOT_FOUND` seam — staging
+  permits `seedRoute` — and not the fetch adapter, which was never reached.
+
+  Four local checks were blind to it. `tsc` and `ops committed` cannot see it:
+  `""` is a valid `string`. `tests/worker/api-client.test.ts` passed an
+  absolute URL and exercised only the working path. And `bun run test` never
+  imported the helper at all, because it reached `@playwright/test` through
+  `./auth.ts` — which put it outside the fast tier entirely.
+
+  **The tempting conclusion is that `check` should run e2e. That is the wrong
+  lesson.** e2e is slow and belongs in the deploy gate, which ran it and caught
+  this exactly as intended. The right lesson is to keep Playwright-only code to
+  the thin adapter, so everything else is reachable from the fast tier —
+  `tests/helpers/api.ts` no longer imports `@playwright/test`, and a unit test
+  now covers the default that broke.
+
+  That unit test found a second instance the moment it existed. `BASE_URL` was
+  two names: this repo's "origin the suite is pointed at", and Vite's "public
+  base path", which Vitest injects as `"/"`. The same broken value by a
+  different route. Renamed to `E2E_ORIGIN` across `scripts/e2e.ts`,
+  `playwright.config.ts` and `tests/helpers/auth.ts`; the absoluteness check
+  stays because it is cheap.
+
 - 2026-09-11 — **the contract is the router key.** The rename test renames the
   *key*, not the export. Renaming `export const versions` while `src/api/index.ts`
   still read `versions: health.versions` changed nothing the client can see, and

@@ -1,5 +1,22 @@
 import type { APIRequestContext } from "@playwright/test"
 import { createApiClient } from "../../src/api-client.ts"
+import { LOCAL_BROWSER_ORIGIN } from "../../scripts/lib/local-browser.ts"
+
+/**
+ * The default base, resolved here rather than imported from ./auth.ts.
+ *
+ * That import pulled `@playwright/test` into this module's graph, which put the
+ * whole helper out of reach of the unit tier — and the unit tier is where the
+ * bug that cost a deploy would have been caught in a second.
+ *
+ * `E2E_ORIGIN`, because the name it used to share — `BASE_URL` — is Vite's for
+ * the public base path, and Vitest injects `"/"` for it. The rename closes that
+ * route; the absoluteness check stays anyway, because it is cheap and it says
+ * what this value has to be.
+ */
+const DEFAULT_BASE = /^https?:\/\//.test(process.env.E2E_ORIGIN ?? "")
+  ? process.env.E2E_ORIGIN!
+  : LOCAL_BROWSER_ORIGIN
 
 /**
  * The typed client, built from whichever fetch the caller has.
@@ -25,16 +42,17 @@ import { createApiClient } from "../../src/api-client.ts"
 /**
  * A client over any fetch.
  *
- * `baseUrl` is empty by default because both tiers resolve relative URLs
- * themselves: Playwright against its `baseURL`, `SELF.fetch` against the
- * Worker it is bound to.
+ * `baseUrl` is required and must be absolute. The link builds a `new URL` from
+ * it eagerly, so a relative base throws "Invalid URL" at the first call rather
+ * than at construction — which `tsc` cannot see and the e2e gate caught on the
+ * first deploy after this landed.
  */
-export function apiWith(fetch: (request: Request) => Promise<Response>, baseUrl = "") {
+export function apiWith(fetch: (request: Request) => Promise<Response>, baseUrl: string) {
   return createApiClient(baseUrl, { fetch })
 }
 
 /** The same client, over Playwright's request context. */
-export function apiFor(request: APIRequestContext, baseUrl = "") {
+export function apiFor(request: APIRequestContext, baseUrl: string = DEFAULT_BASE) {
   return apiWith(async (req) => {
     const body = req.method === "GET" || req.method === "HEAD" ? undefined : await req.text()
     const res = await request.fetch(req.url, {

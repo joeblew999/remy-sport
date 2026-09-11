@@ -18,15 +18,15 @@ import { apiFor } from "./api.ts"
  *   - **Local** — read the real code out of `/api/dev/outbox`. Higher fidelity:
  *     the code is genuinely generated, mailed and parsed back out, so the whole
  *     path is under test rather than stubbed.
- *   - **Deployed** (`BASE_URL` set) — use `TEST_OTP`. There is no outbox in
+ *   - **Deployed** (`E2E_ORIGIN` set) — use `TEST_OTP`. There is no outbox in
  *     production and no way to read a real inbox, so a fixed code for the
  *     seeded @remy.dev accounts is what keeps auth coverage on `test:deployed`.
  *     The Worker only honours it when its own `TEST_OTP` secret is set, and
  *     only for that domain.
  */
 
-export const BASE = process.env.BASE_URL || LOCAL_BROWSER_ORIGIN
-export const IS_LOCAL = !process.env.BASE_URL
+export const BASE = process.env.E2E_ORIGIN || LOCAL_BROWSER_ORIGIN
+export const IS_LOCAL = !process.env.E2E_ORIGIN
 
 /**
  * Whether the seeded ADMIN can sign in wherever this run points.
