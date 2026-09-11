@@ -76,3 +76,52 @@ rule(
     "  layout only. Add a message under messages/ and call it from the template.",
   `mail-templates: ${templates.length} templates hold no words of their own`,
 )
+
+/**
+ * Every template that composes a mail is previewable.
+ *
+ * `PREVIEWS` in src/mail/templates/index.ts is what `/api/dev/email/{name}`
+ * derives its accepted names from, so the types already guarantee one
+ * direction: a name a caller may ask for is a name that renders. They cannot
+ * state the other, because nothing forces a template into the record.
+ *
+ * That direction is the one that failed. `meeting.tsx` shipped with no preview
+ * and nobody noticed until the record was written — the Product Owner could
+ * read five of the app's six mails without a deploy and had no way to tell the
+ * sixth was missing rather than absent by design.
+ *
+ * Keyed on the lowercase `*Mail` composer, not the `*Mail` component beside it:
+ * `otpMail` returns a `Composed` and `OtpMail` is the JSX it renders through.
+ * Only the former is a mail somebody could preview.
+ */
+const composers = readdirSync(DIR)
+  .filter((name) => name.endsWith(".tsx"))
+  .flatMap((name) => {
+    const source = readFileSync(join(DIR, name), "utf8")
+    return [...source.matchAll(/^export function ([a-z]\w*Mail)\b/gm)].map((m) => ({
+      file: `src/mail/templates/${name}`,
+      composer: m[1]!,
+    }))
+  })
+
+const previewed = new Set(
+  [...readFileSync(join(DIR, "index.ts"), "utf8").matchAll(/^\s{2}"?([\w-]+)"?:\s*\(/gm)].map((m) => m[1]!),
+)
+
+// `gameMail` is three previews — start, end and score — so a composer counts as
+// covered when any preview mentions it, not when a key matches its name.
+const registry = readFileSync(join(DIR, "index.ts"), "utf8")
+const unpreviewed = composers
+  .filter(({ composer }) => !registry.includes(`${composer}(`))
+  .map(({ file, composer }) => `${file}: ${composer} has no PREVIEWS entry`)
+
+rule(
+  "every mail template can be previewed",
+  unpreviewed,
+  `mail-templates: ${unpreviewed.length} template(s) cannot be previewed\n\n` +
+    unpreviewed.map((u) => `  ${u}`).join("\n") +
+    "\n\nAdd an entry to PREVIEWS in src/mail/templates/index.ts. The preview is how\n" +
+    "the copy gets read without a deploy or an inbox, and a template missing from\n" +
+    "it is indistinguishable from one that was never written.",
+  `mail-templates: ${composers.length} composers, all previewable (${previewed.size} preview names)`,
+)

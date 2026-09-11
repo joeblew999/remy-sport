@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import { TEMPLATES } from "../../src/mail/templates"
 import { api } from "./helpers"
 
 /**
@@ -54,6 +55,19 @@ describe("GET /api/dev/email/{name}", () => {
     expect(res.status).toBe(200)
     expect(res.headers.get("content-type")).toContain("text/plain")
     expect(await res.text()).toContain("424242")
+  })
+
+  /**
+   * Every preview, not just the one. A registry entry can be present and still
+   * throw — a fixture index that does not exist, a message key that was
+   * renamed — and the repo rule next door only proves the entry is *there*.
+   */
+  it("renders every template the registry offers", async () => {
+    for (const name of TEMPLATES) {
+      const res = await api(`/api/dev/email/${name}`)
+      expect(res.status, `${name} should render`).toBe(200)
+      expect((await res.text()).length, `${name} rendered empty`).toBeGreaterThan(0)
+    }
   })
 
   it("refuses a template that does not exist, naming the ones that do", async () => {

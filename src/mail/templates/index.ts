@@ -9,8 +9,12 @@
  *
  * `/api/dev/email/{name}` derives its accepted names from these keys, so the
  * list a caller may ask for and the list that can actually be rendered are the
- * same thing. `meeting.tsx` is currently absent: a real template with no
- * preview, which is the drift this record exists to make visible.
+ * same thing.
+ *
+ * Completeness the other way — every template having an entry — is not something
+ * the type system can state, so `tests/repo/mail-templates.test.ts` asserts it.
+ * It had to: `meeting.tsx` shipped with no preview and nobody noticed until the
+ * registry was written.
  */
 
 import { SEED_ENTITIES, SEED_RELATIONSHIPS } from "../../domain/model/entities"
@@ -19,6 +23,7 @@ import type { ReleasedLocale } from "../../domain/vocabularies"
 import { m } from "../../paraglide/messages.js"
 import { gameMail } from "./game"
 import { inviteMail } from "./invite"
+import { meetingMail } from "./meeting"
 import { otpMail } from "./otp"
 import { reminderMail } from "./reminder"
 import type { Bulk, Composed } from "./render"
@@ -61,6 +66,19 @@ export const PREVIEWS = {
   "game-start": (ctx: PreviewContext) => bulkOf(gamePreview("start", ctx), ctx),
   "game-end": (ctx: PreviewContext) => bulkOf(gamePreview("end", ctx), ctx),
   score: (ctx: PreviewContext) => bulkOf(gamePreview("score", ctx), ctx),
+  meeting: (ctx: PreviewContext) =>
+    bulkOf(
+      meetingMail(
+        {
+          // Their name, not their address — the template says so.
+          from: SEED_ENTITIES.users[0]?.names.en ?? "",
+          title: pick(SEED_ENTITIES.events[0]?.names as Names, ctx.locale),
+          url: `${ctx.origin}/#/meetings`,
+        },
+        ctx.locale,
+      ),
+      ctx,
+    ),
   reminder: (ctx: PreviewContext) =>
     bulkOf(
       reminderMail(
