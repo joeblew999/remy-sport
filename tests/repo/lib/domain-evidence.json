@@ -2334,6 +2334,156 @@
         }
       ]
     },
+    "output.dev.accounts.accounts": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET /api/dev/accounts in the oRPC unification, 2026-09-11. Keeps its own gate — seededSignIn, offersAdminSignIn and whether a code can be read — rather than a single dev capability.",
+      "surfaces": [],
+      "operations": [
+        "dev.accounts"
+      ],
+      "audience": [
+        "seededSignIn"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/dev-accounts.test.ts",
+          "test": "lists seeded accounts with what each one holds",
+          "level": "worker",
+          "result": "Every offered account carries an address and a holds list; no code is published where mail is captured."
+        },
+        {
+          "file": "tests/worker/dev-accounts.test.ts",
+          "test": "offers nobody the model refuses a session to",
+          "level": "worker",
+          "result": "Every offered address can be sent a sign-in code."
+        }
+      ]
+    },
+    "output.dev.accounts.accounts[].email": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET /api/dev/accounts in the oRPC unification, 2026-09-11. Keeps its own gate — seededSignIn, offersAdminSignIn and whether a code can be read — rather than a single dev capability.",
+      "surfaces": [],
+      "operations": [
+        "dev.accounts"
+      ],
+      "audience": [
+        "seededSignIn"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/dev-accounts.test.ts",
+          "test": "lists seeded accounts with what each one holds",
+          "level": "worker",
+          "result": "Every offered account carries an address and a holds list; no code is published where mail is captured."
+        },
+        {
+          "file": "tests/worker/dev-accounts.test.ts",
+          "test": "offers nobody the model refuses a session to",
+          "level": "worker",
+          "result": "Every offered address can be sent a sign-in code."
+        }
+      ]
+    },
+    "output.dev.accounts.accounts[].holds": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET /api/dev/accounts in the oRPC unification, 2026-09-11. Keeps its own gate — seededSignIn, offersAdminSignIn and whether a code can be read — rather than a single dev capability.",
+      "surfaces": [],
+      "operations": [
+        "dev.accounts"
+      ],
+      "audience": [
+        "seededSignIn"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/dev-accounts.test.ts",
+          "test": "lists seeded accounts with what each one holds",
+          "level": "worker",
+          "result": "Every offered account carries an address and a holds list; no code is published where mail is captured."
+        },
+        {
+          "file": "tests/worker/dev-accounts.test.ts",
+          "test": "offers nobody the model refuses a session to",
+          "level": "worker",
+          "result": "Every offered address can be sent a sign-in code."
+        }
+      ]
+    },
+    "output.dev.accounts.accounts[].name": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET /api/dev/accounts in the oRPC unification, 2026-09-11. Keeps its own gate — seededSignIn, offersAdminSignIn and whether a code can be read — rather than a single dev capability.",
+      "surfaces": [],
+      "operations": [
+        "dev.accounts"
+      ],
+      "audience": [
+        "seededSignIn"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/dev-accounts.test.ts",
+          "test": "lists seeded accounts with what each one holds",
+          "level": "worker",
+          "result": "Every offered account carries an address and a holds list; no code is published where mail is captured."
+        },
+        {
+          "file": "tests/worker/dev-accounts.test.ts",
+          "test": "offers nobody the model refuses a session to",
+          "level": "worker",
+          "result": "Every offered address can be sent a sign-in code."
+        }
+      ]
+    },
+    "output.dev.accounts.accounts[].role": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET /api/dev/accounts in the oRPC unification, 2026-09-11. Keeps its own gate — seededSignIn, offersAdminSignIn and whether a code can be read — rather than a single dev capability.",
+      "surfaces": [],
+      "operations": [
+        "dev.accounts"
+      ],
+      "audience": [
+        "seededSignIn"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/dev-accounts.test.ts",
+          "test": "lists seeded accounts with what each one holds",
+          "level": "worker",
+          "result": "Every offered account carries an address and a holds list; no code is published where mail is captured."
+        },
+        {
+          "file": "tests/worker/dev-accounts.test.ts",
+          "test": "offers nobody the model refuses a session to",
+          "level": "worker",
+          "result": "Every offered address can be sent a sign-in code."
+        }
+      ]
+    },
+    "output.dev.accounts.code": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET /api/dev/accounts in the oRPC unification, 2026-09-11. Keeps its own gate — seededSignIn, offersAdminSignIn and whether a code can be read — rather than a single dev capability.",
+      "surfaces": [],
+      "operations": [
+        "dev.accounts"
+      ],
+      "audience": [
+        "seededSignIn"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/dev-accounts.test.ts",
+          "test": "lists seeded accounts with what each one holds",
+          "level": "worker",
+          "result": "Every offered account carries an address and a holds list; no code is published where mail is captured."
+        },
+        {
+          "file": "tests/worker/dev-accounts.test.ts",
+          "test": "offers nobody the model refuses a session to",
+          "level": "worker",
+          "result": "Every offered address can be sent a sign-in code."
+        }
+      ]
+    },
     "output.dev.analyticsEvents.events": {
       "intent": "internal",
       "reason": "Moved from Hono raw route GET /api/dev/events in the oRPC unification, 2026-09-11. Gated by POLICY[env].hasLocalEventStore, the same capability that decides whether the ring is filled.",
@@ -2464,6 +2614,240 @@
           "test": "keeps the accepted event where the local ring can be read back",
           "level": "worker",
           "result": "The event reported through the beacon is readable from the local ring, with a `since` stamp."
+        }
+      ]
+    },
+    "output.dev.otp.clear.cleared": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route DELETE /api/dev/otp in the oRPC unification, 2026-09-11. Gated by POLICY[env].devMailRoutes.",
+      "surfaces": [],
+      "operations": [
+        "dev.otp.clear"
+      ],
+      "audience": [
+        "devMailRoutes"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/dev-mail.test.ts",
+          "test": "requires a recipient rather than silently clearing everything",
+          "level": "worker",
+          "result": "A DELETE with no ?to= is refused 400."
+        },
+        {
+          "file": "tests/worker/dev-mail.test.ts",
+          "test": "answers the identifiers it removed",
+          "level": "worker",
+          "result": "A ?to= with no pending code answers cleared: []."
+        }
+      ]
+    },
+    "output.dev.outbox.clear.cleared": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET|DELETE /api/dev/outbox in the oRPC unification, 2026-09-11. Gated by POLICY[env].devMailRoutes; mail bodies carry sign-in codes.",
+      "surfaces": [],
+      "operations": [
+        "dev.outbox.clear"
+      ],
+      "audience": [
+        "devMailRoutes"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/dev-mail.test.ts",
+          "test": "answers the captured messages, and DELETE empties it",
+          "level": "worker",
+          "result": "Listing answers a messages array; DELETE answers cleared:true and the next list is empty."
+        }
+      ]
+    },
+    "output.dev.outbox.list.messages": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET|DELETE /api/dev/outbox in the oRPC unification, 2026-09-11. Gated by POLICY[env].devMailRoutes; mail bodies carry sign-in codes.",
+      "surfaces": [],
+      "operations": [
+        "dev.outbox.list"
+      ],
+      "audience": [
+        "devMailRoutes"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/dev-mail.test.ts",
+          "test": "answers the captured messages, and DELETE empties it",
+          "level": "worker",
+          "result": "Listing answers a messages array; DELETE answers cleared:true and the next list is empty."
+        }
+      ]
+    },
+    "output.dev.outbox.list.messages[].body": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET|DELETE /api/dev/outbox in the oRPC unification, 2026-09-11. Gated by POLICY[env].devMailRoutes; mail bodies carry sign-in codes.",
+      "surfaces": [],
+      "operations": [
+        "dev.outbox.list"
+      ],
+      "audience": [
+        "devMailRoutes"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/dev-mail.test.ts",
+          "test": "answers the captured messages, and DELETE empties it",
+          "level": "worker",
+          "result": "Listing answers a messages array; DELETE answers cleared:true and the next list is empty."
+        }
+      ]
+    },
+    "output.dev.outbox.list.messages[].createdAt": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET|DELETE /api/dev/outbox in the oRPC unification, 2026-09-11. Gated by POLICY[env].devMailRoutes; mail bodies carry sign-in codes.",
+      "surfaces": [],
+      "operations": [
+        "dev.outbox.list"
+      ],
+      "audience": [
+        "devMailRoutes"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/dev-mail.test.ts",
+          "test": "answers the captured messages, and DELETE empties it",
+          "level": "worker",
+          "result": "Listing answers a messages array; DELETE answers cleared:true and the next list is empty."
+        }
+      ]
+    },
+    "output.dev.outbox.list.messages[].from": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET|DELETE /api/dev/outbox in the oRPC unification, 2026-09-11. Gated by POLICY[env].devMailRoutes; mail bodies carry sign-in codes.",
+      "surfaces": [],
+      "operations": [
+        "dev.outbox.list"
+      ],
+      "audience": [
+        "devMailRoutes"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/dev-mail.test.ts",
+          "test": "answers the captured messages, and DELETE empties it",
+          "level": "worker",
+          "result": "Listing answers a messages array; DELETE answers cleared:true and the next list is empty."
+        }
+      ]
+    },
+    "output.dev.outbox.list.messages[].headers": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET|DELETE /api/dev/outbox in the oRPC unification, 2026-09-11. Gated by POLICY[env].devMailRoutes; mail bodies carry sign-in codes.",
+      "surfaces": [],
+      "operations": [
+        "dev.outbox.list"
+      ],
+      "audience": [
+        "devMailRoutes"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/dev-mail.test.ts",
+          "test": "answers the captured messages, and DELETE empties it",
+          "level": "worker",
+          "result": "Listing answers a messages array; DELETE answers cleared:true and the next list is empty."
+        }
+      ]
+    },
+    "output.dev.outbox.list.messages[].headers.*": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET|DELETE /api/dev/outbox in the oRPC unification, 2026-09-11. Gated by POLICY[env].devMailRoutes; mail bodies carry sign-in codes.",
+      "surfaces": [],
+      "operations": [
+        "dev.outbox.list"
+      ],
+      "audience": [
+        "devMailRoutes"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/dev-mail.test.ts",
+          "test": "answers the captured messages, and DELETE empties it",
+          "level": "worker",
+          "result": "Listing answers a messages array; DELETE answers cleared:true and the next list is empty."
+        }
+      ]
+    },
+    "output.dev.outbox.list.messages[].html": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET|DELETE /api/dev/outbox in the oRPC unification, 2026-09-11. Gated by POLICY[env].devMailRoutes; mail bodies carry sign-in codes.",
+      "surfaces": [],
+      "operations": [
+        "dev.outbox.list"
+      ],
+      "audience": [
+        "devMailRoutes"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/dev-mail.test.ts",
+          "test": "answers the captured messages, and DELETE empties it",
+          "level": "worker",
+          "result": "Listing answers a messages array; DELETE answers cleared:true and the next list is empty."
+        }
+      ]
+    },
+    "output.dev.outbox.list.messages[].id": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET|DELETE /api/dev/outbox in the oRPC unification, 2026-09-11. Gated by POLICY[env].devMailRoutes; mail bodies carry sign-in codes.",
+      "surfaces": [],
+      "operations": [
+        "dev.outbox.list"
+      ],
+      "audience": [
+        "devMailRoutes"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/dev-mail.test.ts",
+          "test": "answers the captured messages, and DELETE empties it",
+          "level": "worker",
+          "result": "Listing answers a messages array; DELETE answers cleared:true and the next list is empty."
+        }
+      ]
+    },
+    "output.dev.outbox.list.messages[].subject": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET|DELETE /api/dev/outbox in the oRPC unification, 2026-09-11. Gated by POLICY[env].devMailRoutes; mail bodies carry sign-in codes.",
+      "surfaces": [],
+      "operations": [
+        "dev.outbox.list"
+      ],
+      "audience": [
+        "devMailRoutes"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/dev-mail.test.ts",
+          "test": "answers the captured messages, and DELETE empties it",
+          "level": "worker",
+          "result": "Listing answers a messages array; DELETE answers cleared:true and the next list is empty."
+        }
+      ]
+    },
+    "output.dev.outbox.list.messages[].to": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET|DELETE /api/dev/outbox in the oRPC unification, 2026-09-11. Gated by POLICY[env].devMailRoutes; mail bodies carry sign-in codes.",
+      "surfaces": [],
+      "operations": [
+        "dev.outbox.list"
+      ],
+      "audience": [
+        "devMailRoutes"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/dev-mail.test.ts",
+          "test": "answers the captured messages, and DELETE empties it",
+          "level": "worker",
+          "result": "Listing answers a messages array; DELETE answers cleared:true and the next list is empty."
         }
       ]
     },
@@ -2651,6 +3035,31 @@
       ],
       "cases": []
     },
+    "procedure.dev.accounts": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET /api/dev/accounts in the oRPC unification, 2026-09-11. Keeps its own gate — seededSignIn, offersAdminSignIn and whether a code can be read — rather than a single dev capability.",
+      "surfaces": [],
+      "operations": [
+        "dev.accounts"
+      ],
+      "audience": [
+        "seededSignIn"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/dev-accounts.test.ts",
+          "test": "lists seeded accounts with what each one holds",
+          "level": "worker",
+          "result": "Every offered account carries an address and a holds list; no code is published where mail is captured."
+        },
+        {
+          "file": "tests/worker/dev-accounts.test.ts",
+          "test": "offers nobody the model refuses a session to",
+          "level": "worker",
+          "result": "Every offered address can be sent a sign-in code."
+        }
+      ]
+    },
     "procedure.dev.analyticsEvents": {
       "intent": "internal",
       "reason": "Moved from Hono raw route GET /api/dev/events in the oRPC unification, 2026-09-11. Gated by POLICY[env].hasLocalEventStore, the same capability that decides whether the ring is filled.",
@@ -2667,6 +3076,100 @@
           "test": "keeps the accepted event where the local ring can be read back",
           "level": "worker",
           "result": "The event reported through the beacon is readable from the local ring, with a `since` stamp."
+        }
+      ]
+    },
+    "procedure.dev.mail.preview": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET /api/dev/email/:name in the oRPC unification, 2026-09-11, and renamed: it previews a template and reads no outbox. Gated by POLICY[env].devMailRoutes.",
+      "surfaces": [],
+      "operations": [
+        "dev.mail.preview"
+      ],
+      "audience": [
+        "devMailRoutes"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/dev-mail.test.ts",
+          "test": "renders a template as raw HTML, not as JSON",
+          "level": "worker",
+          "result": "Content-Type is text/html and the body is not JSON-wrapped."
+        },
+        {
+          "file": "tests/worker/dev-mail.test.ts",
+          "test": "serves the text part as text/plain when asked",
+          "level": "worker",
+          "result": "?part=text answers text/plain carrying the same code."
+        },
+        {
+          "file": "tests/worker/dev-mail.test.ts",
+          "test": "refuses a template that does not exist, naming the ones that do",
+          "level": "worker",
+          "result": "An unknown name is 400 and the response names the valid templates."
+        }
+      ]
+    },
+    "procedure.dev.otp.clear": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route DELETE /api/dev/otp in the oRPC unification, 2026-09-11. Gated by POLICY[env].devMailRoutes.",
+      "surfaces": [],
+      "operations": [
+        "dev.otp.clear"
+      ],
+      "audience": [
+        "devMailRoutes"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/dev-mail.test.ts",
+          "test": "requires a recipient rather than silently clearing everything",
+          "level": "worker",
+          "result": "A DELETE with no ?to= is refused 400."
+        },
+        {
+          "file": "tests/worker/dev-mail.test.ts",
+          "test": "answers the identifiers it removed",
+          "level": "worker",
+          "result": "A ?to= with no pending code answers cleared: []."
+        }
+      ]
+    },
+    "procedure.dev.outbox.clear": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET|DELETE /api/dev/outbox in the oRPC unification, 2026-09-11. Gated by POLICY[env].devMailRoutes; mail bodies carry sign-in codes.",
+      "surfaces": [],
+      "operations": [
+        "dev.outbox.clear"
+      ],
+      "audience": [
+        "devMailRoutes"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/dev-mail.test.ts",
+          "test": "answers the captured messages, and DELETE empties it",
+          "level": "worker",
+          "result": "Listing answers a messages array; DELETE answers cleared:true and the next list is empty."
+        }
+      ]
+    },
+    "procedure.dev.outbox.list": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET|DELETE /api/dev/outbox in the oRPC unification, 2026-09-11. Gated by POLICY[env].devMailRoutes; mail bodies carry sign-in codes.",
+      "surfaces": [],
+      "operations": [
+        "dev.outbox.list"
+      ],
+      "audience": [
+        "devMailRoutes"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/dev-mail.test.ts",
+          "test": "answers the captured messages, and DELETE empties it",
+          "level": "worker",
+          "result": "Listing answers a messages array; DELETE answers cleared:true and the next list is empty."
         }
       ]
     },

@@ -10,7 +10,7 @@ migration's A2 (shell for every path) is subsumed by Part C.
 
 ## Corrections to the brief, found by reading the tree first
 
-Eight things the specification assumes are not quite what is there. Each changes
+Nine things the specification assumes are not quite what is there. Each changes
 work, so each is settled here before any code moves.
 
 ### 1. Removing Hono silently destroys a security check
@@ -149,6 +149,28 @@ than being exported from it — the deploy script cannot import that file withou
 pulling the whole plugin graph, and `src/web/vite.config.ts` already imports
 from `scripts/lib/`.
 
+### 9. `dev.outbox.get` is the wrong name for the template preview
+
+The brief maps `GET /api/dev/email/:name` to `dev.outbox.get`, read off the URL
+shape. It reads no outbox and no database: it renders a named template with the
+fixtures' names, and the code it shows is the literal 424242, never anyone's
+issued one. Nothing it returns was ever sent.
+
+**Decision:** `dev.mail.preview`, beside the templates it renders. `name` is a
+Zod enum so an unknown one is a 400 naming the valid choices, not a 404 that
+reads like a routing fault. The enum derives from `PREVIEWS` in
+`src/mail/templates/index.ts` — a deliberately dumb `Record<name, render>`, so
+the notifications unification collapsing game, meeting and reminder into one
+generic template is a deletion from that record rather than a refactor.
+
+The registry made an existing gap visible on arrival: `src/mail/templates/meeting.tsx`
+is a real template with no preview, and nothing noticed.
+
+Output is a `File`, which the OpenAPI handler serves as a raw body with its own
+Content-Type. The Product Owner opens this in a browser to read the copy, and
+JSON-wrapped HTML would be unreadable. A worker test asserts the content type
+rather than the status, because a regression to JSON would still be a 200.
+
 Two further details to preserve, not change:
 
 - The `dev` base builder is parameterised by flag, not a single gate.
@@ -194,10 +216,13 @@ adding when `dev.accounts` lands.
 - [x] `GET /api/dev/events` → `router.dev.analyticsEvents`. Done 2026-09-11,
       gated on `hasLocalEventStore` — the same capability that decides whether
       the ring is filled, so the endpoint cannot exist without data behind it.
-- [ ] `GET|DELETE /api/dev/outbox` → `router.dev.outbox.list` / `.clear`
-- [ ] `GET /api/dev/email/:name` → `router.dev.outbox.get`
-- [ ] `DELETE /api/dev/otp` → `router.dev.otp.clear`
-- [ ] `GET /api/dev/accounts` → `router.dev.accounts` (own gate, see above)
+- [x] `GET|DELETE /api/dev/outbox` → `router.dev.outbox.list` / `.clear`. Done 2026-09-11.
+- [x] `GET /api/dev/email/{name}` → `router.dev.mail.preview`. Done 2026-09-11;
+      renamed, see correction 9.
+- [x] `DELETE /api/dev/otp` → `router.dev.otp.clear`. Done 2026-09-11, with
+      `inputStructure: "detailed"` so `?to=` keeps working.
+- [x] `GET /api/dev/accounts` → `router.dev.accounts`. Done 2026-09-11, keeping
+      its own three-part gate rather than a `dev(capability)`.
 - [x] `POST /api/dev/prune-sessions` → `router.dev.sessions.prune`. Done
       2026-09-11, with a new worker test asserting the five-per-user window
       rather than "some rows went".
@@ -207,8 +232,10 @@ adding when `dev.accounts` lands.
       ledger enrolled as `reviewed`. The dispatch worklist fell 12 → 11.
       Its worker test passes since correction 8 was resolved.
 - [ ] Delete the raw routers. The seed and dev-session routers are gone
-      (2026-09-11) along with the analytics router and the inline
-      `/api/versions`; `src/routes/dev-mail.ts` remains.
+- [x] Delete the raw routers. Seed, dev-sessions, analytics and dev-mail are
+      all gone (2026-09-11), along with the inline `/api/versions`. Part A is
+      complete; `src/routes/` still holds `auth.ts` and `well-known.ts`, which
+      are Part B.
 
 ## Part B — Remove Hono
 

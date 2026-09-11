@@ -10,7 +10,6 @@ import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4"
 import { router } from "./api"
 import { scheduled } from "./scheduled"
 import { telemetryInterceptor } from "./api/telemetry"
-import devMailRoutes from "./routes/dev-mail"
 import wellKnownRoutes from "./routes/well-known"
 import unsubscribeRoutes from "./api/unsubscribe"
 import type { AppEnv } from "./types"
@@ -120,9 +119,6 @@ app.use("/rpc/*", async (c, next) => {
   })
   return matched ? response : next()
 })
-
-// Dev-only: 404s unless the outbox mail transport is active (ADR 010).
-app.route("/", devMailRoutes)
 
 // Apple/Android deep-link association files. Must be before CSRF — they are
 // fetched by Apple's and Google's crawlers, not by a browser session.

@@ -319,7 +319,7 @@ await check("if seeded sign-in is on, it excludes the admin", async () => {
   return null
 }, {
   on: PRODUCTION_ONLY,
-  // Both halves are deployment rules. src/routes/dev-mail.ts offers the admin
+  // Both halves are deployment rules. src/api/dev-accounts.ts offers the admin
   // exactly when `usesOutbox(env)` — locally the mail is captured and only the
   // operator can read it, and the admin console is a thing to develop against.
   // The published `code` is absent for the same reason: the outbox carries a

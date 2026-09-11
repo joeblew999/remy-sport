@@ -18,6 +18,7 @@ import * as reference from "./reference"
 import * as health from "./health"
 import * as devRoutes from "./dev"
 import * as telemetry from "./telemetry"
+import * as devAccounts from "./dev-accounts"
 import * as me from "./me"
 import * as domain from "./domain"
 import * as moq from "./moq"
@@ -126,6 +127,10 @@ export const router = {
     seed: devRoutes.seed,
     sessions: { prune: devRoutes.pruneSessions },
     analyticsEvents: devRoutes.analyticsEvents,
+    outbox: { list: devRoutes.outboxList, clear: devRoutes.outboxClear },
+    otp: { clear: devRoutes.otpClear },
+    mail: { preview: devRoutes.mailPreview },
+    accounts: devAccounts.accounts,
   },
   telemetry: { report: telemetry.report },
   me: { mine: me.mine, chooseRole: me.chooseRole },

@@ -100,7 +100,7 @@ export function useAdminAction() {
 // The outbox 404s unless MAIL_TRANSPORT=outbox and must never do otherwise: it
 // would expose real people's codes. The account *list* also opens up on a
 // deployment where TEST_OTP is set, because `.test` addresses have no inbox and
-// a published code is the only way in — see src/routes/dev-mail.ts. Either way
+// a published code is the only way in — see src/api/dev-accounts.ts. Either way
 // a 404 yields an empty list and the UI renders nothing, so no page branches on
 // the environment.
 
