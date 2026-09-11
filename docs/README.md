@@ -42,6 +42,7 @@ is findable, not because anything is underway — the file names say so too.
 | Idea | What it is |
 | --- | --- |
 | [GeoName](geoname-plan-not-ready.md) | Geographic names for weather and places. A sketch of why, with no plan behind it yet. |
+| [Localisation and the public surface](2026-09-11-01-localisation-and-public-surface-plan.md) | The plan is empty so far; the tool for writing it is not. `2026-09-11-01-localisation-and-public-surface-plan.ts` beside it runs the seed venues against hosted places APIs — Photon, Nominatim, Open-Meteo and keyed sources — in English and Thai, and reports which of them return a name in both. The plan is meant to be written from what that measures. Related to [GeoName](geoname-plan-not-ready.md). |
 
 ## Planned, waiting or paused
 
