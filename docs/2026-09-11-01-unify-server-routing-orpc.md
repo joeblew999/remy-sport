@@ -583,6 +583,13 @@ the body.
 
 ## Log
 
+- 2026-09-11 — a module that did something on import. `scripts/deploy/smoke.ts`
+  imports `generate` from `scripts/ops/openapi.ts`, and the CLI branch there
+  had no guard — so every smoke run printed half a megabyte of JSON before its
+  first check, and `ops smoke --env production` opened with a stray `{`.
+  Guarded with `import.meta.main`. Noticed by reading smoke's own output rather
+  than by a check, which is the kind of thing only reading catches.
+
 - 2026-09-11 — **reconciling 98 against 57 and 76.** They are different units,
   not a bug. `--check` counts *operations* — a method on a path, so
   `/dev/outbox` is two — against the **internal** document, which is the right

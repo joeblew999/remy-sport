@@ -81,9 +81,20 @@ export function operationsOf(document: { paths?: Record<string, unknown> }): str
     .sort()
 }
 
+/**
+ * The CLI, only when this file *is* the command.
+ *
+ * `scripts/deploy/smoke.ts` imports `generate` from here, and without this
+ * guard that import ran the branch below — so every smoke run printed half a
+ * megabyte of JSON before its first check, and `ops smoke --env production`
+ * opened with a stray `{`. A module that does something on import is a module
+ * nobody can reuse.
+ */
 const argv = process.argv.slice(2)
 
-if (argv.includes("--check")) {
+if (!import.meta.main) {
+  // Imported for `generate`. Nothing else here should happen.
+} else if (argv.includes("--check")) {
   /**
    * Does the deployment describe what this tree describes?
    *
