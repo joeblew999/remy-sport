@@ -2334,12 +2334,132 @@
         }
       ]
     },
+    "output.health.versions.current": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.",
+      "surfaces": [],
+      "operations": [
+        "health.versions"
+      ],
+      "audience": [
+        "operations"
+      ],
+      "cases": []
+    },
+    "output.health.versions.current._generated": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.",
+      "surfaces": [],
+      "operations": [
+        "health.versions"
+      ],
+      "audience": [
+        "operations"
+      ],
+      "cases": []
+    },
+    "output.health.versions.current.app": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.",
+      "surfaces": [],
+      "operations": [
+        "health.versions"
+      ],
+      "audience": [
+        "operations"
+      ],
+      "cases": []
+    },
+    "output.health.versions.current.environment": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.",
+      "surfaces": [],
+      "operations": [
+        "health.versions"
+      ],
+      "audience": [
+        "operations"
+      ],
+      "cases": []
+    },
+    "output.health.versions.current.git": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.",
+      "surfaces": [],
+      "operations": [
+        "health.versions"
+      ],
+      "audience": [
+        "operations"
+      ],
+      "cases": []
+    },
+    "output.health.versions.current.git.branch": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.",
+      "surfaces": [],
+      "operations": [
+        "health.versions"
+      ],
+      "audience": [
+        "operations"
+      ],
+      "cases": []
+    },
+    "output.health.versions.current.git.commit": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.",
+      "surfaces": [],
+      "operations": [
+        "health.versions"
+      ],
+      "audience": [
+        "operations"
+      ],
+      "cases": []
+    },
+    "output.health.versions.current.git.github": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.",
+      "surfaces": [],
+      "operations": [
+        "health.versions"
+      ],
+      "audience": [
+        "operations"
+      ],
+      "cases": []
+    },
+    "output.health.versions.current.url": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.",
+      "surfaces": [],
+      "operations": [
+        "health.versions"
+      ],
+      "audience": [
+        "operations"
+      ],
+      "cases": []
+    },
     "procedure.health.get": {
       "intent": "internal",
       "reason": "Infrastructure health probe, not a GUI operation.",
       "surfaces": [],
       "operations": [
         "health.get"
+      ],
+      "audience": [
+        "operations"
+      ],
+      "cases": []
+    },
+    "procedure.health.versions": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.",
+      "surfaces": [],
+      "operations": [
+        "health.versions"
       ],
       "audience": [
         "operations"

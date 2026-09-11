@@ -10,7 +10,7 @@ migration's A2 (shell for every path) is subsumed by Part C.
 
 ## Corrections to the brief, found by reading the tree first
 
-Four things the specification assumes are not quite what is there. Each changes
+Six things the specification assumes are not quite what is there. Each changes
 work, so each is settled here before any code moves.
 
 ### 1. Removing Hono silently destroys a security check
@@ -27,13 +27,13 @@ Deleting Hono deletes `app.routes`. The check's subject vanishes and the rule
 passes over an empty set — the failure mode `src/index.ts` already warns about
 in its own comment: a security check silently losing its subject.
 
-**Decision:** the non-procedure surface list moves into the new
-`http-surface` test <!-- docs-check-ignore --> and is asserted against the
-dispatch branches in `src/index.ts`, not against a router's route table. After
-Part A the list is short — Better Auth's subtree, the asset fallback, the shell
-— because everything else has become a procedure and is covered by rule one.
-The second rule in `tests/repo/authz.test.ts` is deleted only when its
-replacement is green, never before.
+**Decision:** the non-procedure list becomes the `DISPATCH` array in
+`src/dispatch.ts`, and `tests/repo/dispatch.test.ts` asserts against that array
+— not against a router's route table, and not against `index.ts` source. An
+array cannot lose its subject the way `app.routes` does. After Part A the list
+is short: Better Auth's subtree, the asset fallback, the shell. Everything else
+has become a procedure and is covered by rule one. The second rule in
+`tests/repo/authz.test.ts` is deleted only when this is green, never before.
 
 ### 2. Part C's sketch drops the dead-letter queue
 
@@ -72,7 +72,7 @@ oRPC procedures only.
 
 **Decision:** it goes at `src/api-client.ts` <!-- docs-check-ignore --> beside
 the other cross-cutting modules (`src/analytics.ts`, `src/environment.ts`), so
-`src/api/` stays procedures only and the rule in the `http-surface` test can say
+`src/api/` stays procedures only and the rule in the `dispatch` test can say
 so without an exception.
 
 ### 6. The docs check found correction 5, not a person
@@ -81,6 +81,56 @@ Worth recording because it is the argument for the check: this plan failed
 `tests/repo/docs.test.ts` on first write, naming a path that does not exist.
 That is exactly the drift the check was built for, on the first document written
 after it was pointed at a new plan.
+
+### 7. `.well-known` is emitted by Vite, not by `scripts/build.ts`
+
+The Vite plugin owns `dist/client`, so anything written there from outside is at
+risk of being clobbered on the next build. The two association files go in
+`src/web/public/.well-known/` <!-- docs-check-ignore --> and are copied verbatim
+if the values are static, or emitted by a small Vite plugin if they need the app
+ID from the environment.
+
+`buildConfig` must keep the `[assets]` block's `html_handling = "none"` and
+`not_found_handling = "none"` in the generated config, since the generated one
+is what deploys. Worth a one-line check that both keys survive.
+
+### 8. `__BUILD__` is undefined in the worker test tier — a live defect
+
+Found by writing the worker test for `/api/versions`. `GET /api/versions`
+answers **500** there; with the `__BUILD__` reads replaced by literals it
+answers 200, so the build stamp is the cause.
+
+Production is unaffected: `src/web/vite.config.ts` uses `@cloudflare/vite-plugin`
+and its `define` covers the Worker, and `wrangler deploy` ships the built
+`dist/`. The gap is the test pool, which builds `src/index.ts` from
+`wrangler.toml` and never performs that substitution.
+
+**The finding is not "the harness is wrong" — it is that Worker code depends on
+a compile-time define at all.** `__BUILD__` is a constant smuggled past the
+environment model this repo already has: it is the one value that differs
+between dev, staging and production without `POLICY` or provisioning knowing.
+The Worker inherited that dependency from the Hono route; the move to a
+procedure did not create it, it revealed it, because a procedure gets a test
+and a raw `c.json(...)` never did.
+
+So it is named here rather than worked around. Attempted and rejected, recorded
+so nobody retries them: Miniflare `globals` (not honoured); a `pre`-enforce Vite
+plugin doing the substitution (it *runs* — it logs a transform of
+`src/api/health.ts` — yet the Worker still 500s, so the worker graph is not the
+graph that transform feeds); project-level `define` (reaches test files only);
+`[define]` in `wrangler.toml` (would bake a fixed stamp into the deploy config).
+Every one of those extends the problem.
+
+The resolution that fits the repo's own model is that a Worker value comes from
+`[vars]` in `wrangler.toml`, read from `env`, which the pool honours because it
+reads that file directly. Making the build stamp a var touches `buildConfig` and
+the deploy path, so it is its own change and not smuggled into Part A.
+`src/api/health.ts` is the only Worker reader of `__BUILD__` — the SPA's three
+readers are client-side and unaffected — so the blast radius is one procedure.
+
+**Until it is resolved, `health.versions` has no worker-tier test.** The test is
+written (`tests/worker/versions.test.ts`) and fails honestly at 500 rather than
+being softened to pass.
 
 Two further details to preserve, not change:
 
@@ -94,6 +144,30 @@ Two further details to preserve, not change:
 
 URLs do not change; each procedure keeps `.route({ method, path })`.
 
+**Each one enrols in `tests/repo/lib/domain-evidence.json` as `reviewed`, never
+`unreviewed`.** The unreviewed list is the queue for behaviour nobody has looked
+at; these are existing endpoints changing owner and have been looked at twice.
+`intent` is `internal` for every `dev.*` and for `health.versions` (matching the
+38 existing internal entries) and `derived` for `telemetry.report`; `reason`
+names the Hono route it moved from and this date; `audience` carries the
+`POLICY` key that gates it. The procedure **and** each of its output fields get
+a row.
+
+Two limits of the ledger schema, found by writing the first one:
+
+- `cases` accepts only `render`, `worker` and `persistence` levels, mapped to
+  `tests/render/`, `tests/worker/` and `tests/e2e/`. A repo-tier test such as
+  `tests/repo/envs.test.ts` **cannot** be cited as a case, so policy-gating
+  evidence lives in `reason` and `audience` rather than in `cases`.
+- `audience` must be non-empty, so a `pub` procedure cannot record "none".
+  `health.versions` uses `["operations"]`, matching the existing
+  `procedure.health.get`.
+
+`audience` is currently only checked for non-emptiness — writing the `POLICY`
+key there *records* each gate but nothing yet *asserts* the string names a real
+key. A rule that validates it against `POLICY` would close that, and is worth
+adding when `dev.accounts` lands.
+
 - [ ] `POST /api/seed` → `router.dev.seed`, `dev(seedRoute)`
 - [ ] `POST /api/analytics` → `router.telemetry.report`, `pub`
 - [ ] `GET /api/dev/events` → `router.dev.analyticsEvents`
@@ -102,7 +176,11 @@ URLs do not change; each procedure keeps `.route({ method, path })`.
 - [ ] `DELETE /api/dev/otp` → `router.dev.otp.clear`
 - [ ] `GET /api/dev/accounts` → `router.dev.accounts` (own gate, see above)
 - [ ] `POST /api/dev/prune-sessions` → `router.dev.sessions.prune`
-- [ ] `GET /api/versions` → `router.health.versions`, `pub`
+- [x] `GET /api/versions` → `router.health.versions`, `pub`. Done 2026-09-11.
+      `infrastructure` policy, Zod output preserving the `current` wrapper the
+      three callers index into. Hono route deleted, `HONO_ROUTES` entry removed,
+      ledger enrolled as `reviewed`. The dispatch worklist fell 12 → 11.
+      **Its worker test is red** at 500 on correction 8, not softened.
 - [ ] Delete `src/routes/seed.ts`, `src/routes/analytics.ts`,
       `src/routes/dev-mail.ts`, `src/routes/dev-sessions.ts`, and the inline
       `/api/versions`
@@ -121,8 +199,24 @@ URLs do not change; each procedure keeps `.route({ method, path })`.
 
 ## Part C — One `index.ts`
 
+**The table declares order and ownership; the handlers decide matches.**
+`index.ts` iterates `DISPATCH` in order, calls each owner's handler, and takes
+the first that answers `matched: true`. It must **not** test
+`pathname.startsWith(prefix)` itself and then assume that owner will answer:
+`/api/auth/` and `/api` overlap, so a prefix test would hand every Better Auth
+request to the OpenAPI handler, which would 404 it instead of falling through.
+oRPC's `handle(request, { prefix })` already returns `{ matched: false }` for
+anything its router does not own — that is the signal to try the next entry.
+Recorded as a comment in `src/dispatch.ts`.
+
 - [ ] Fetch handler: auth → RPC → OpenAPI → assets → shell. Order is the
       documentation. `POLICY` gating lives in the `dev` builder, not here.
+- [ ] Keep the existing `queue` export verbatim — dead-letter handling and
+      per-message ack/retry (correction 2)
+- [ ] Worker-tier test: `GET /api/auth/session` reaches Better Auth, not the
+      OpenAPI handler
+- [ ] Worker-tier test: an undeclared path under `/api/` gets oRPC's own 404,
+      never a raw `Response`
 
 ## Part D — One typed client
 
@@ -149,9 +243,9 @@ URLs do not change; each procedure keeps `.route({ method, path })`.
 
 ## Delivery order
 
-- [x] **1. The `http-surface` test — it fails, and that failure is the list of
-      work.** Done 2026-09-11. `src/surface.ts` holds the dispatch table as
-      data; `tests/repo/http-surface.test.ts` asserts four rules against it.
+- [x] **1. The `dispatch` test — it fails, and that failure is the list of
+      work.** Done 2026-09-11. `src/dispatch.ts` holds the dispatch table as
+      data; `tests/repo/dispatch.test.ts` asserts four rules against it.
       Two pass (every prefix carries a guard sentence; no prefix is shadowed by
       an earlier one) and two fail with the worklist: **11 Hono imports across 8
       files** and **12 stray route literals in `src/index.ts`**. Repo tier 36/37
@@ -168,6 +262,6 @@ URLs do not change; each procedure keeps `.route({ method, path })`.
   against the brief before starting. The fifth was found by
   `tests/repo/docs.test.ts` rejecting this file on first write.
 - 2026-09-11 — step 1 green-as-designed. The surface table is data
-  (`src/surface.ts`) rather than branches, at the Product Owner's refinement, so
+  (`src/dispatch.ts`) rather than branches, at the Product Owner's refinement, so
   the replacement rule has a subject that cannot go empty — which is the exact
   way the rule it replaces would have died.

@@ -1,12 +1,12 @@
 import { readFileSync } from "node:fs"
-import { SURFACE } from "../../src/surface"
+import { DISPATCH } from "../../src/dispatch"
 import { ROOT, parse, sources, walk, lineOf, type Node } from "./lib/ast"
 import { rule } from "./helpers"
 
 /**
- * There is no server-side router library, and the surface is enumerable.
+ * There is no server-side router library, and every prefix is enumerable.
  *
- * Four rules. The first three are about `src/surface.ts` and the dispatch that
+ * Four rules. The first three are about `src/dispatch.ts` and the dispatch that
  * reads it; the last is the one that makes them true — no Hono anywhere in
  * `src`, so there is no second place a route can be mounted from.
  *
@@ -17,7 +17,7 @@ import { rule } from "./helpers"
  *
  * The runtime half — an undeclared path under /api/ answering oRPC's 404 rather
  * than a raw Response — is a worker-tier test, and lands with Part C. What is
- * checkable here is that nothing but SURFACE can name a prefix at all.
+ * checkable here is that nothing but DISPATCH can name a prefix at all.
  */
 
 const INDEX = "src/index.ts"
@@ -25,41 +25,41 @@ const indexSource = readFileSync(`${ROOT}/${INDEX}`, "utf8")
 
 // ── 1. Every entry carries a guard sentence ─────────────────────────────────
 
-const unguarded = SURFACE.filter((entry) => entry.guard.trim().length === 0).map(
+const unguarded = DISPATCH.filter((entry) => entry.guard.trim().length === 0).map(
   (entry) => `${entry.prefix} (${entry.owner}): guard is empty`,
 )
 
 rule(
-  "every surface entry says how it is guarded",
+  "every dispatch entry says how it is guarded",
   unguarded,
-  `http-surface: ${unguarded.length} prefix(es) declare no guard\n\n` +
+  `dispatch: ${unguarded.length} prefix(es) declare no guard\n\n` +
     unguarded.map((u) => `  ${u}`).join("\n") +
-    "\n\nAdd a sentence to `guard` in src/surface.ts saying what authorises requests\n" +
+    "\n\nAdd a sentence to `guard` in src/dispatch.ts saying what authorises requests\n" +
     "there. `POST /api/seed` was an unauthenticated write for months because\n" +
     "nothing enumerated it — an entry without a guard is that, with extra steps.",
-  `http-surface: ${SURFACE.length} prefixes, each with a guard`,
+  `dispatch: ${DISPATCH.length} prefixes, each with a guard`,
 )
 
 // ── 2. Order is the dispatch, so a general prefix cannot shadow a specific ──
 
 const shadowed: string[] = []
-SURFACE.forEach((entry, i) => {
-  const earlier = SURFACE.slice(0, i).find((before) => entry.prefix.startsWith(before.prefix))
+DISPATCH.forEach((entry, i) => {
+  const earlier = DISPATCH.slice(0, i).find((before) => entry.prefix.startsWith(before.prefix))
   if (earlier) {
     shadowed.push(`${entry.prefix} is unreachable: "${earlier.prefix}" matches it first`)
   }
 })
 
 rule(
-  "no surface prefix is shadowed by an earlier one",
+  "no dispatch prefix is shadowed by an earlier one",
   shadowed,
-  `http-surface: ${shadowed.length} unreachable prefix(es)\n\n` +
+  `dispatch: ${shadowed.length} unreachable prefix(es)\n\n` +
     shadowed.map((s) => `  ${s}`).join("\n") +
-    "\n\nSURFACE is matched in order with startsWith, so the most specific prefix\n" +
+    "\n\nDISPATCH is matched in order with startsWith, so the most specific prefix\n" +
     "must come first: /api/auth/ before /api.",
 )
 
-// ── 3. Dispatch reads SURFACE, and nothing else names a prefix ──────────────
+// ── 3. Dispatch reads DISPATCH, and nothing else names a prefix ──────────────
 
 /**
  * A route-shaped literal anywhere in `src/index.ts`.
@@ -71,7 +71,7 @@ rule(
 const strays: string[] = []
 {
   const parsed = parse(INDEX, indexSource)
-  const declared = new Set<string>(SURFACE.map((entry) => entry.prefix))
+  const declared = new Set<string>(DISPATCH.map((entry) => entry.prefix))
   walk(parsed.program, (node: Node) => {
     if (node.type !== "Literal") return
     const value = node.value
@@ -82,16 +82,16 @@ const strays: string[] = []
   })
 }
 
-const importsSurface = /from\s+"\.\/surface"/.test(indexSource)
+const importsDispatch = /from\s+"\.\/dispatch"/.test(indexSource)
 
 rule(
-  "the fetch handler dispatches from SURFACE and names no prefix of its own",
-  [...(importsSurface ? [] : [`${INDEX} does not import SURFACE`]), ...strays],
-  `http-surface: dispatch is not driven by src/surface.ts\n\n` +
-    (importsSurface ? "" : `  ${INDEX} does not import SURFACE from "./surface"\n`) +
+  "the fetch handler dispatches from DISPATCH and names no prefix of its own",
+  [...(importsDispatch ? [] : [`${INDEX} does not import DISPATCH`]), ...strays],
+  `dispatch: dispatch is not driven by src/dispatch.ts\n\n` +
+    (importsDispatch ? "" : `  ${INDEX} does not import DISPATCH from "./dispatch"\n`) +
     strays.map((s) => `  ${s}`).join("\n") +
-    "\n\nEach literal above is a route the surface table does not declare. Move it\n" +
-    "into a procedure (its URL does not change) or add it to SURFACE with a guard.",
+    "\n\nEach literal above is a route the dispatch table does not declare. Move it\n" +
+    "into a procedure (its URL does not change) or add it to DISPATCH with a guard.",
 )
 
 // ── 4. No Hono in src ───────────────────────────────────────────────────────
@@ -110,10 +110,10 @@ for (const path of sources("src")) {
 rule(
   "hono is not importable anywhere in src",
   honoImports,
-  `http-surface: ${honoImports.length} Hono import(s) remain in src\n\n` +
+  `dispatch: ${honoImports.length} Hono import(s) remain in src\n\n` +
     honoImports.map((h) => `  ${h}`).join("\n") +
     "\n\nEvery endpoint is an oRPC procedure and src/index.ts is the only dispatch.\n" +
     "This list is the migration: each import is a file that still mounts routes of\n" +
     "its own. See docs/2026-09-11-01-unify-server-routing-orpc.md.",
-  "http-surface: no Hono in src",
+  "dispatch: no Hono in src",
 )

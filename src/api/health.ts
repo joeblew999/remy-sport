@@ -43,3 +43,48 @@ export const get = pub
     // unrecognised is production.
     environment: environmentOf(context.env),
   }))
+
+/**
+ * What this Worker is: the build stamp vite.config.ts baked in (src/build.d.ts).
+ *
+ * Read by the SPA's build stamp, by `bun run ops versions`, and by the deploy
+ * while it waits for the edge to serve the build it just published. `url` is
+ * where this deployment thinks it lives — the same variable every emailed link
+ * is built from.
+ *
+ * The `current` wrapper is load-bearing, not decoration: three callers reach
+ * through it (`d.current._generated`, `d.current.git.commit`, and the stamp
+ * table in scripts/ops/versions.ts), so the shape is preserved exactly as the
+ * Hono route served it.
+ */
+export const versions = pub
+  .use(
+    infrastructure(
+      "build metadata — the commit, branch and time this Worker was built from, plus its own URL; it names nobody",
+    ),
+  )
+  .route({ method: "GET", path: "/versions", summary: "Which build this deployment is running" })
+  .output(
+    z.object({
+      current: z.object({
+        _generated: z.string(),
+        app: z.string(),
+        environment: z.string(),
+        url: z.string(),
+        git: z.object({
+          commit: z.string(),
+          branch: z.string(),
+          github: z.string().nullable(),
+        }),
+      }),
+    }),
+  )
+  .handler(async ({ context }) => ({
+    current: {
+      _generated: __BUILD__.builtAt,
+      app: __BUILD__.app,
+      environment: __BUILD__.environment,
+      url: context.env.BETTER_AUTH_URL,
+      git: { commit: __BUILD__.commit, branch: __BUILD__.branch, github: __BUILD__.github },
+    },
+  }))

@@ -8,7 +8,7 @@ Five accepted feature designs remain unimplemented; internal data is accounted f
 
 ## Evidence baseline
 
-Qualified items: 1434. Unreviewed: 1370. Explicit classifications: 64.
+Qualified items: 1444. Unreviewed: 1370. Explicit classifications: 74.
 
 [The evidence ledger](../tests/repo/lib/domain-evidence.json) records exact schema fields, foreign keys, procedures and nested output paths.
 Report regeneration cannot enroll new items or turn unreviewed items into covered ones.
@@ -79,7 +79,17 @@ Named tests describe specific cases, not exhaustive permission coverage or the l
 | operation.auth.sign-in/email-otp | edit | Better Auth owns this operation; evidence covers the stated browser journey. [tests/e2e/spa-login.spec.ts](../tests/e2e/spa-login.spec.ts): a correct code signs in and the session is shared across the app — A real OTP creates a session used by the application. |
 | operation.auth.sign-out | edit | Better Auth owns this operation; evidence covers the stated browser journey. [tests/e2e/spa-login.spec.ts](../tests/e2e/spa-login.spec.ts): once signed in the topbar shows who you are, and can sign you out — Sign-out replaces the identity and authenticated controls. |
 | operation.browser.install | edit | The browser owns installation; application evidence establishes a manually opened prompt, not successful OS installation. [tests/render/install.spec.ts](../tests/render/install.spec.ts): is set to manual, so it cannot prompt on arrival — The install element does not automatically prompt on arrival. |
+| output.health.versions.current | internal | Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.  |
+| output.health.versions.current._generated | internal | Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.  |
+| output.health.versions.current.app | internal | Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.  |
+| output.health.versions.current.environment | internal | Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.  |
+| output.health.versions.current.git | internal | Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.  |
+| output.health.versions.current.git.branch | internal | Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.  |
+| output.health.versions.current.git.commit | internal | Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.  |
+| output.health.versions.current.git.github | internal | Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.  |
+| output.health.versions.current.url | internal | Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.  |
 | procedure.health.get | internal | Infrastructure health probe, not a GUI operation.  |
+| procedure.health.versions | internal | Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.  |
 
 ## Actions
 
@@ -1377,6 +1387,15 @@ These remain unreviewed unless explicitly classified in the ledger. Arrays and r
 - output.health.get.environment
 - output.health.get.status
 - output.health.get.timestamp
+- output.health.versions.current
+- output.health.versions.current._generated
+- output.health.versions.current.app
+- output.health.versions.current.environment
+- output.health.versions.current.git
+- output.health.versions.current.git.branch
+- output.health.versions.current.git.commit
+- output.health.versions.current.git.github
+- output.health.versions.current.url
 - output.me.chooseRole.role
 - output.me.chooseRole.statusCode
 - output.me.mine.can
