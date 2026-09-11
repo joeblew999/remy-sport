@@ -29,6 +29,15 @@ import { router, type Router } from "./api"
 
 export interface ApiClientOptions {
   /**
+   * The fetch to send through. Defaults to the global one.
+   *
+   * The worker tier passes `SELF.fetch` so calls run inside the pool rather
+   * than leaving it, and Playwright passes an adapter over its
+   * `APIRequestContext` so they carry the suite's stored session. Both need
+   * the client to reach the app the *test* is driving, not a network.
+   */
+  fetch?: (request: Request) => Promise<Response>
+  /**
    * Sent on every call. A signed-in caller passes its session cookie here.
    *
    * A function rather than a value would let a caller refresh mid-run; nothing
@@ -50,6 +59,7 @@ export function createApiClient(baseUrl: string, options: ApiClientOptions = {})
   const link = new OpenAPILink(router, {
     url: `${baseUrl.replace(/\/+$/, "")}/api`,
     headers: () => options.headers ?? {},
+    ...(options.fetch ? { fetch: (request: Request) => options.fetch!(request) } : {}),
     // Cookies are passed explicitly through `headers` when a caller has a
     // session. Nothing here runs in a browser, so there is no ambient cookie
     // jar to include and `credentials` would be meaningless.

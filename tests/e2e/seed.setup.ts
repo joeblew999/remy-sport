@@ -1,5 +1,6 @@
 import { test as setup, expect } from "@playwright/test"
 import { SEED_ENTITIES } from "../../src/domain/model/entities"
+import { apiFor } from "../helpers/api.ts"
 
 /**
  * Seed the target database before any test project runs.
@@ -19,17 +20,15 @@ import { SEED_ENTITIES } from "../../src/domain/model/entities"
  * fresh local D1 and an already-seeded remote.
  */
 setup("seed actors and reference data", async ({ request }) => {
-  const res = await request.post("/api/seed")
-  expect(res.ok()).toBeTruthy()
-  const body = (await res.json()) as { statements: number; written: number }
+  // Setup, not the subject — so the typed client, and a renamed procedure
+  // stops the suite at compile time rather than at the first spec.
+  const body = await apiFor(request).dev.seed()
   expect(body.statements).toBeGreaterThan(0)
 
   // Assert the database, not the response. The route used to return a per-user
   // `created | exists` array built from its own bookkeeping, which reported
   // success for a user whose account row had not been written.
-  const list = await request.get("/api/events")
-  expect(list.ok()).toBeTruthy()
-  const { events } = (await list.json()) as { events: unknown[] }
+  const { events } = await apiFor(request).events.list({})
   expect(
     events.length,
     "the seed defines the PO's events; the read path should return them",

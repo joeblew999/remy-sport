@@ -381,10 +381,34 @@ Recorded as a comment in `src/dispatch.ts`.
       2026-09-11. **OpenAPI for everything outside `src/web/`**: that is the
       surface external clients use, CORS is open on it, and no CSRF header is
       involved — a question that means nothing for a CLI.
-- [ ] Replace every raw `fetch` call site found by grep (see correction 4).
-      **31 procedure calls at the start; `scripts/` is at 0, `tests/` has 22
-      left.** The other 18 of the original 49 are `/api/auth/*` — Better Auth's
+- [x] Replace every raw `fetch` call site the criterion says should move.
+      **31 procedure calls at the start; `scripts/` is at 0 and `tests/` at
+      19.** The other 18 of the original 49 are `/api/auth/*` — Better Auth's
       own routes, which have no oRPC client and are not a target.
+
+      **Zero is not the target in `tests/`, and the criterion says why:**
+
+      - *The raw request is the assertion* → it stays. A typed client would
+        hide exactly what the test exists to see.
+      - *The endpoint is setup or observation* → typed client.
+
+      Three moved on the second rule: seeding a suite (`tests/e2e/seed.setup.ts`,
+      two calls) and reading a code out of the dev outbox
+      (`tests/helpers/auth.ts`). The nineteen that stay, and why:
+
+      | Where | n | Why it stays |
+      |---|---|---|
+      | `tests/worker/write.test.ts` | 4 | The status *is* the assertion — 200 without a session, 404 for an unknown id rather than leaking which exist, 403 for an organizer who did not create the event |
+      | `tests/worker/schedule.test.ts` | 4 | Same: 400 and 403 on authorisation boundaries |
+      | `tests/e2e/domain-coverage.spec.ts` | 4 | `.ok()` on the HTTP surface, which is the coverage being measured |
+      | `tests/worker/unsubscribe.test.ts` | 2 | A forged token must answer **400**; through a client that is an exception, not a status |
+      | `tests/helpers/auth.ts` | 2 | Inside `page.evaluate` — they run in the browser on purpose, so the request carries the page's own session. A Node-side client cannot run there |
+      | `tests/e2e/spa.spec.ts` | 1 | Also in-page |
+      | `tests/e2e/admin-console.spec.ts` | 1 | `expect(users.ok())` is the precondition for the impersonation refusal that follows |
+      | `tests/integration/cloudflare-video.mjs` | 1 | Plain `.mjs`, outside the typed build |
+
+      **Zero was never the right number here.** The equivalent of the Hono
+      count is `scripts/`, which is at zero.
 - [ ] `knip` reports zero unused exports
 
 ## Part E — `bun run ops`
@@ -480,6 +504,11 @@ the body.
 
 ## Log
 
+- 2026-09-11 — **the contract is the router key.** The rename test renames the
+  *key*, not the export. Renaming `export const versions` while `src/api/index.ts`
+  still read `versions: health.versions` changed nothing the client can see, and
+  `tsc` passed — which would have been reported as D working. Anyone re-running
+  this proof will reach for the export first; it is the key that is the API.
 - 2026-09-11 — **D's premise, demonstrated rather than asserted.** Renaming the
   router key `health.versions` to `buildInfo` fails `tsc` at two call sites in
   `scripts/ops/versions.ts`. The first attempt renamed the *export* and proved
@@ -492,6 +521,14 @@ the body.
   its own `EventName`. Tightened to `z.enum` derived from `EVENTS` in
   `src/analytics.ts` — the same registry rule as the mail templates: one list,
   so an event added to the tracker is an event the procedure accepts.
+- 2026-09-11 — one helper, both tiers. `tests/helpers/api.ts` takes the fetch
+  as a parameter rather than hardcoding one: Playwright holds an
+  `APIRequestContext` carrying the suite's session, the worker pool holds
+  `SELF.fetch`, and neither is the global fetch. A helper that picked either
+  would work for one tier and quietly sign the other out.
+  `tests/worker/api-client.test.ts` guards that shape — build the client from
+  the global fetch and the Playwright suites keep passing while this one stops,
+  which is the right way round.
 - 2026-09-11 — the one behavioural seam in Part D, flagged by the Product Owner
   before it bit: a dev-gated procedure answers `ORPCError` with code
   `NOT_FOUND`, not a 404 *status*. `smoke.ts` asserted `res.status === 404` to

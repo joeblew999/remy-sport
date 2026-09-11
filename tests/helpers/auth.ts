@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from "node:fs"
 import { saveSession, endSession } from "./session-cleanup"
 import { SEED_ENTITIES } from "../../src/domain/model/entities"
 import { E2E_EMAIL_DOMAIN, isReservedTestEmail } from "../../src/environment"
+import { apiFor } from "./api.ts"
 
 /**
  * Signing in, now that there are no passwords (ADR 012).
@@ -285,9 +286,10 @@ function fixedCodeFor(email: string): string | null {
 }
 
 async function codeFromOutbox(request: APIRequestContext, email: string): Promise<string> {
-  const res = await request.get(`/api/dev/outbox?to=${encodeURIComponent(email)}`)
-  expect(res.ok(), "dev outbox should exist locally").toBeTruthy()
-  const { messages } = (await res.json()) as { messages: { body: string }[] }
+  // Observation, not the subject — so the typed client. The outbox's shape is
+  // the procedure's now, and a renamed field stops the build rather than
+  // every e2e sign-in at once.
+  const { messages } = await apiFor(request).dev.outbox.list({ to: email })
   const match = messages.map((m: { body: string }) => m.body.match(CODE_RE)).find(Boolean)
   expect(match, `no sign-in code was emailed to ${email}`).toBeTruthy()
   return match![1]!
