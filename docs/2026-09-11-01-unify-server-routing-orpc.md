@@ -10,7 +10,7 @@ migration's A2 (shell for every path) is subsumed by Part C.
 
 ## Corrections to the brief, found by reading the tree first
 
-Nine things the specification assumes are not quite what is there. Each changes
+Ten things the specification assumes are not quite what is there. Each changes
 work, so each is settled here before any code moves.
 
 ### 1. Removing Hono silently destroys a security check
@@ -171,6 +171,40 @@ Content-Type. The Product Owner opens this in a browser to read the copy, and
 JSON-wrapped HTML would be unreadable. A worker test asserts the content type
 rather than the status, because a regression to JSON would still be a 200.
 
+### 10. `csrf()` protected nothing, and `/rpc` was unprotected
+
+The brief asks for parity: prove the existing auth tests still reject the same
+cross-origin POSTs, then delete `csrf()`. Two things were not as assumed.
+
+**No such test existed.** Every test in the suite sends `Origin: ORIGIN`, so a
+suite-wide pass proved only that same-origin requests work. Deleting the
+middleware would have gone unnoticed.
+
+**The middleware stopped nothing.** Written against it, the auth assertion
+stayed green with `csrf()` commented out — Better Auth compares the Origin
+against its own `trustedOrigins` and refuses with `INVALID_ORIGIN`
+(`src/auth.ts`). It was a second lock on a door Better Auth already holds.
+
+**And `/rpc` was never behind it.** `app.use(csrf())` sat at line 128, after
+the oRPC handlers, which return on a match — so a cross-site POST carrying the
+reader's cookies reached a procedure. Measured, not reasoned:
+
+| surface | same-origin | cross-origin, before |
+|---|---|---|
+| `/api/auth/*` | 200 | 403 (Better Auth, not `csrf()`) |
+| `/rpc/*` | 200 | **200** |
+| `/api/*` | — | 200 (correct — the CORS-open REST surface) |
+
+So this step is not parity, it closes a hole. `SimpleCsrfProtectionHandlerPlugin`
+on the RPC handler requires `x-csrf-token: orpc`, which a cross-site page cannot
+set without a preflight `/rpc` does not grant — stronger than an Origin the
+caller writes. **Its client pair is mandatory**: `SimpleCsrfProtectionLinkPlugin`
+in `src/web/lib/orpc.ts`, because the server plugin alone breaks every SPA call.
+
+The plugin is deliberately NOT on the OpenAPI handler: `/api` grants
+`cors({ origin: "*" })` for external clients, and the same header requirement
+would refuse all of them.
+
 Two further details to preserve, not change:
 
 - The `dev` base builder is parameterised by flag, not a single gate.
@@ -241,8 +275,10 @@ adding when `dev.accounts` lands.
 
 - [ ] `logger()` → oRPC interceptor over the existing points in `src/api/telemetry.ts`
 - [ ] `cors()` → `CORSPlugin` on the OpenAPI handler only
-- [ ] `csrf()` → `SimpleCsrfProtectionHandlerPlugin` on the RPC handler, with the
-      existing auth tests proving it rejects the same cross-origin POSTs first
+- [x] `csrf()` → `SimpleCsrfProtectionHandlerPlugin` on the RPC handler. Done
+      2026-09-11 in the order asked: write the missing test, prove it red
+      without the guard, add the plugin, remove the middleware, suite green.
+      The proving step is what found correction 10.
 - [ ] `/api/auth/*` → `auth.handler(request)` called directly
 - [ ] `.well-known` files → written by `scripts/build.ts` into the client bundle
 - [ ] `GET /api/unsubscribe` → SPA route; `POST` → form-encoded procedure at the

@@ -1,9 +1,9 @@
 import { Hono } from "hono"
 import { cors } from "hono/cors"
 import { logger } from "hono/logger"
-import { csrf } from "hono/csrf"
 import authRoutes from "./routes/auth"
 import { RPCHandler } from "@orpc/server/fetch"
+import { SimpleCsrfProtectionHandlerPlugin } from "@orpc/server/plugins"
 import { OpenAPIHandler } from "@orpc/openapi/fetch"
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins"
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4"
@@ -101,7 +101,22 @@ const api = new OpenAPIHandler(router, {
     }),
   ],
 })
-const rpc = new RPCHandler(router, { interceptors: intercept })
+/**
+ * The SPA's transport, and the only surface that needs CSRF protection.
+ *
+ * Header-based: the plugin requires `x-csrf-token: orpc`, which a cross-site
+ * page cannot set without a CORS preflight, and `/rpc` grants no CORS. `/api`
+ * deliberately does grant it — it is the REST surface for external clients —
+ * so the same plugin there would refuse every one of them.
+ *
+ * This replaces `csrf()`, which never covered `/rpc` at all: the handlers
+ * above return before the middleware ran. Its only other target, /api/auth/*,
+ * Better Auth already refuses on `trustedOrigins`. See tests/worker/csrf.test.ts.
+ */
+const rpc = new RPCHandler(router, {
+  interceptors: intercept,
+  plugins: [new SimpleCsrfProtectionHandlerPlugin()],
+})
 app.use("/api/*", async (c, next) => {
   const { matched, response } = await api.handle(c.req.raw, {
     prefix: "/api",
@@ -125,9 +140,11 @@ app.use("/rpc/*", async (c, next) => {
 app.route("/", wellKnownRoutes)
 app.route("/", unsubscribeRoutes)
 
-app.use(csrf())
-
-// Browser routes (CSRF protected)
+// Better Auth owns its own origin checking: it compares the request Origin
+// against `trustedOrigins` and refuses with INVALID_ORIGIN. `csrf()` used to
+// sit here as a second lock on that door, and covered nothing else — the oRPC
+// handlers above return before a middleware mounted here would run, so /rpc
+// was never behind it. tests/worker/csrf.test.ts pins both facts.
 app.route("/", authRoutes)
 
 // `/api/versions` is `health.versions` in src/api/health.ts — a procedure, so

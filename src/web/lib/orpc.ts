@@ -12,6 +12,7 @@
 import { createORPCClient } from "@orpc/client";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 import { RPCLink } from "@orpc/client/fetch";
+import { SimpleCsrfProtectionLinkPlugin } from "@orpc/client/plugins";
 import type { RouterClient } from "@orpc/server";
 import type { Router } from "../../api/index";
 
@@ -27,6 +28,12 @@ const link = new RPCLink({
   // Cookies carry the Better Auth session; the SPA is same-origin so this is
   // simply "send them", not a CORS credentials dance.
   fetch: (request, init) => globalThis.fetch(request, { ...init, credentials: "include" }),
+  // Sends `x-csrf-token: orpc`, which the handler now requires. A cross-site
+  // page cannot set that header without a CORS preflight and /rpc grants no
+  // CORS, so this is what separates our own calls from a forged one. Its pair
+  // is SimpleCsrfProtectionHandlerPlugin in src/index.ts — adding one without
+  // the other breaks every call the SPA makes.
+  plugins: [new SimpleCsrfProtectionLinkPlugin()],
 });
 
 export const api: RouterClient<Router> = createORPCClient(link);
