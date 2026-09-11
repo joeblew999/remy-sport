@@ -1,20 +1,15 @@
 /**
  * Web Push: who should hear about a change, and how it reaches their phone.
  *
- * No table was added for any of this. The PO's model already had the three
- * pieces and they compose exactly:
+ * No table was added. The PO's model already had the three pieces —
+ * `subscription` (who follows what), `userNotificationChannel` (one row per
+ * device) and `userNotificationPreference` — so "notify everyone following this
+ * game" is a join, not a feature.
  *
- *   `subscription`               who follows which object (EVENT / TEAM / GAME)
- *   `userNotificationChannel`    one row per device — PUSH endpoint in `address`
- *   `userNotificationPreference` which NOTIFICATION_TYPE, on which channel
- *
- * So "notify everyone following this game" is a join, not a feature.
- *
- * **Following an object is the opt-in.** A preference row is how a reader turns
- * one type off; no row means on. The alternative — send nothing until a
- * preference exists — means a reader who followed a team, granted the browser
- * permission and registered a device still gets silence, with no way to tell
- * whether it is broken. Consent was already given three times by then.
+ * **Following an object is the opt-in.** A preference row turns a type off; no
+ * row means on. Sending nothing until a preference exists would leave a reader
+ * who followed a team, granted permission and registered a device in silence,
+ * having already consented three times.
  *
  * Text is translated *here*, not in the service worker. That worker runs with
  * no page open: no locale context, no store, no React. It receives finished
@@ -337,20 +332,6 @@ function groupBy<T>(xs: T[], key: (x: T) => string): Map<string, T[]> {
   return out
 }
 
-/**
- * Send one already-rendered notification to a list of stored addresses.
- *
- * The half that talks to push services, shared by `notify` and by the test
- * button — including the pruning of dead endpoints, which must happen wherever
- * we discover one rather than only on the path that usually does.
- */
-/**
- * Send one already-rendered notification to a list of stored addresses.
- *
- * The half that talks to push services, shared by `notify` and by the test
- * button — including the pruning of dead endpoints, which must happen wherever
- * we discover one rather than only on the path that usually does.
- */
 /**
  * `deliver`, for a caller that already knows which rows it means — the test
  * button, which deliberately bypasses following and mutes.

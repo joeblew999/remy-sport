@@ -166,31 +166,23 @@ function summarise(held: string[]): string[] {
 /**
  * Every seeded account, with what each one holds.
  *
- * The login screens used to build `${role}@remy.dev` and hope the seed route
- * had created it. The accounts are the Product Owner's people now, with their
- * own addresses at their own schools, so the screens ask rather than guess.
+ * The login screens used to build an address from the role and hope the seed
+ * route had created it. The accounts are the PO's people now, with their own
+ * addresses, so the screens ask rather than guess — all of them bar the admin,
+ * because differences *within* a role are the point of a permission model.
  *
- * All of them bar the admin: the differences *within* a role are the whole point
- * of a permission model, and they are what you need to sign in as to see whether
- * the GUI agrees with the matrix.
+ * Two situations only: locally, where mail is captured, and on a deployment
+ * where TEST_OTP fixes the code for seeded non-admin accounts.
  *
- * Available in two situations, and only these. Locally, where mail is captured
- * in the outbox. And on a deployment where TEST_OTP is set, which fixes the code
- * for seeded non-admin accounts — without that there is no way in, because the
- * fixtures' addresses are `.test` and nothing delivers to them.
- *
- * `/api/dev/outbox` is NOT enabled by the second case and must never be: it
- * would expose real people's sign-in codes. Only the account *list* opens up.
+ * `/api/dev/outbox` is NOT enabled by the second case and must never be — it
+ * would expose real people's codes. Only the account *list* opens up.
  */
 /**
  * Forget a pending sign-in code, so the next request issues a fresh one.
  *
- * Dev and tests only, on the same gate as the outbox. Better Auth invalidates an
- * OTP after `allowedAttempts` and throttles re-sends, so a suite that signs an
- * actor in twice — once through the API to save a session, once through the form
- * to test the form — races that throttle: the second request returns 200,
- * issues nothing, and the fixed code is rejected against a spent OTP. It failed
- * about half the time and named the identity element rather than the code.
+ * Dev and tests only, on the outbox's gate. Better Auth throttles re-sends, so
+ * a suite signing an actor in twice races it: the second request returns 200,
+ * issues nothing, and the fixed code is rejected against a spent OTP.
  */
 devMail.delete("/api/dev/otp", async (c) => {
   if (!permits(c.env, "devMailRoutes")) return c.notFound()
@@ -243,16 +235,13 @@ devMail.get("/api/dev/accounts", (c) => {
   /**
    * Nobody the model does not call ACTIVE, either.
    *
-   * The fixtures gained a SUSPENDED and a DEACTIVATED account on 2026-08-29, to
-   * exercise a lifecycle the model had always described. Both were offered here
-   * as one-click sign-ins that then failed at `session.create.before` with a
-   * 403 and no explanation — a button that cannot work, which is the thing this
-   * list exists to avoid. They are still in the fixtures and still refused;
-   * they are simply not offered.
+   * The fixtures hold a SUSPENDED and a DEACTIVATED account to exercise a
+   * lifecycle the model describes. Offering them gave a one-click sign-in that
+   * failed at `session.create.before` with an unexplained 403 — a button that
+   * cannot work, which is what this list exists to avoid.
    *
    * `isRefusedStatus`, not `=== "ACTIVE"`: PENDING_APPROVAL signs in, and the
-   * first version of this filter dropped a referee awaiting approval — an
-   * account the fixtures have precisely so that case is exercised.
+   * first filter dropped a referee awaiting approval.
    */
   const signable = SEED_ENTITIES.users.filter((u) => !isRefusedStatus(u.statusCode))
   const people = withAdmin ? signable : signable.filter((u) => u.roleCode !== "ADMIN")

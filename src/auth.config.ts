@@ -7,17 +7,13 @@ import { adminAc, adminRoles } from "./auth/admin-access-control"
 /**
  * Per-request collaborators the options need but the CLI cannot supply.
  *
- * `sendInvitationEmail` is the awkward one: it is not schema-shaping, so by the
- * rule below it does not belong here — but it is an *option of the organization
- * plugin*, and the plugin is constructed here, so there is nowhere else to put
- * it. It also needs `env` (the EMAIL binding, the base URL) which only exists
- * per request.
+ * `sendInvitationEmail` is the awkward one: not schema-shaping, so by the rule
+ * below it does not belong here — but it is an option of a plugin constructed
+ * here, and it needs the per-request `env`.
  *
- * Hence a factory. The CLI calls `buildAuthOptions()` with no deps and gets
- * exactly the same tables; `createAuth` calls it with a mailer. Duplicating the
- * `organization({...})` block in auth.ts instead would have meant two copies of
- * the schema-shaping config drifting apart, which is what ADR 006 §9e exists to
- * prevent.
+ * Hence a factory. The CLI calls `buildAuthOptions()` with no deps and gets the
+ * same tables. Duplicating the plugin block in auth.ts would mean two copies of
+ * the schema-shaping config drifting apart — what ADR 006 §9e prevents.
  */
 /**
  * The statuses that are refused a session.
@@ -304,28 +300,20 @@ export function buildAuthOptions(deps: AuthDeps = {}) {
       // and are distinct from the six domain roles: a user has exactly one
       // platform role and may additionally belong to organizations.
       //
-      // This table is also the domain's "organising body" — biz calls it `orgs`
-      // (schools, clubs, federations) and hangs `teams.org_id` off it. They are
-      // the same noun: the school a coach belongs to is the school its teams play
-      // for, so modelling them separately would mean two org tables that must be
-      // kept in step by hand. The extra columns below are the canonical `orgs`
-      // fields the PO's model declares for an org — see ORG_TYPE and the org
-      // entities in src/domain/model/, copied verbatim from remy-sport-biz.
+      // This table is also the domain's "organising body" — the school a coach
+      // belongs to is the school its teams play for, so modelling them
+      // separately would mean two org tables kept in step by hand. The extra
+      // columns are the canonical `orgs` fields the PO's model declares.
       //
-      // Declared here rather than bolted on in a migration so the generated
-      // src/db/auth-schema.ts knows about them — a hand-added column Better Auth
-      // cannot see is exactly the drift `auth:schema:check` exists to catch.
-      // No organization plugin, deliberately.
+      // Declared here rather than in a migration so the generated
+      // src/db/auth-schema.ts knows about them: a hand-added column Better Auth
+      // cannot see is the drift tests/repo/auth-schema.test.ts catches.
       //
-      // It owned six tables — organization, member, invitation, organizationRole,
-      // orgTeam and orgTeamMember — and all six are the domain's. Better Auth
-      // owns authentication: user, session, account, verification. Membership is
-      // `org_member`, from the Product Owner's model, and the ORG relations
-      // derive from it by the columns that model already declares.
-      //
-      // What went with it was an invitation flow no part of the product could
-      // start — there was never a way to send one — and a shadow `organization`
-      // table carrying the same ids as `org`.
+      // No organization plugin, deliberately. All six of its tables are the
+      // domain's; Better Auth owns authentication alone. Membership is
+      // `org_member`, and the ORG relations derive from columns the model
+      // already declares. What went with it was an invitation flow nothing
+      // could start and a shadow table carrying the same ids as `org`.
     ],
     // `satisfies`, not a type annotation: an annotation would widen the plugins
     // array and `createAuth` spreads this object, so Better Auth would lose the
