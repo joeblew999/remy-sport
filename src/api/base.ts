@@ -163,7 +163,8 @@ export const viewer = pub.use(async ({ context, next }) => {
  * One middleware over `POLICY[env]`, replacing the per-route checks each dev
  * Hono router carried. It takes which capability gates it rather than being a
  * single `dev` switch, because the table does not group them: staging grants
- * `seedRoute` and `devSessionRoutes` and withholds `devMailRoutes`.
+ * `seedRoute` and `devSessionRoutes` and withholds `devMailRoutes`, and the
+ * local event ring is a fourth answer again (`hasLocalEventStore`).
  *
  * 404 and not 403: on a deployment these must be indistinguishable from routes
  * that were never built, so nothing advertises that an outbox exists.
@@ -172,7 +173,11 @@ export const viewer = pub.use(async ({ context, next }) => {
  * it is the escape hatch the authz walk prints every run, which is where a
  * reader should see them.
  */
-export type DevCapability = "seedRoute" | "devMailRoutes" | "devSessionRoutes"
+export type DevCapability =
+  | "seedRoute"
+  | "devMailRoutes"
+  | "devSessionRoutes"
+  | "hasLocalEventStore"
 
 export function dev(capability: DevCapability) {
   return pub.use(

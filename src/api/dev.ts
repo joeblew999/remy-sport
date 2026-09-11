@@ -15,6 +15,7 @@ import { sql } from "drizzle-orm"
 import { z } from "zod"
 import { SEED_STATEMENTS } from "../db/seed"
 import * as schema from "../db/schema"
+import { recent } from "../analytics"
 import { dev } from "./base"
 
 /**
@@ -79,4 +80,39 @@ export const pruneSessions = dev("devSessionRoutes")
     `)
 
     return { before, after: await count() }
+  })
+
+/**
+ * The telemetry ring, when there is no dataset to send it to.
+ *
+ * Gated on the same capability that decides whether the ring is *filled*
+ * (`hasLocalEventStore`), so the endpoint cannot exist without data behind it
+ * or vice versa. An earlier version guarded on the Analytics Engine binding
+ * being absent, which sounded self-enforcing and was wrong: `wrangler dev`
+ * binds it and quietly discards the writes, so the ring stayed empty and this
+ * always 404'd.
+ */
+export const analyticsEvents = dev("hasLocalEventStore")
+  .route({ method: "GET", path: "/dev/events", summary: "Recent telemetry, held locally" })
+  .output(
+    z.object({
+      // When this isolate started collecting. Reported alongside the events
+      // because an empty ring is ambiguous: "nothing has failed" and "the
+      // worker reloaded and threw the evidence away" need opposite responses.
+      since: z.string(),
+      events: z.array(
+        z.object({
+          event: z.string(),
+          country: z.string(),
+          at: z.string(),
+          fields: z.record(z.string(), z.union([z.string(), z.number()])),
+        }),
+      ),
+    }),
+  )
+  // Spread because the ring is exposed `readonly` — deliberately, so nothing
+  // can mutate the record in place — and the serialised output is a plain list.
+  .handler(async () => {
+    const { since, events } = recent()
+    return { since, events: [...events] }
   })

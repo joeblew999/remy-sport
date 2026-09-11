@@ -33,7 +33,15 @@
  * a `FORBIDDEN` is the system working and a `TypeError` is not.
  */
 
-import { track } from "../analytics"
+import { z } from "zod"
+import {
+  EVENTS,
+  isEventName,
+  track,
+  trackDynamic,
+  type EventSpec,
+} from "../analytics"
+import { infrastructure, pub } from "./base"
 import type { Bindings } from "../types"
 import { permits } from "../environment"
 
@@ -154,3 +162,61 @@ export function telemetryInterceptor(options: InterceptorOptions): Promise<unkno
     },
   )
 }
+
+/**
+ * `POST /api/analytics` — the browser's way to report what happened to it.
+ *
+ * A beacon. `navigator.sendBeacon` fires during page teardown and on a
+ * connection that has just died, which is exactly when the event is most worth
+ * having and exactly when a normal fetch is cancelled.
+ *
+ * **Unauthenticated on purpose.** A session cookie may be absent — a spectator
+ * who never signed in — or already discarded by a closing page. Requiring one
+ * would drop precisely the sessions that went wrong and leave a dataset saying
+ * the product works.
+ *
+ * The input is deliberately unvalidated by the schema and checked in the
+ * handler instead. A beacon cannot read a response, so a malformed one must be
+ * *dropped*, not answered 400 — and a 400 here would also be recorded as
+ * `api.refused` by the interceptor above, so rejecting junk would pollute the
+ * very dataset this endpoint feeds.
+ */
+export const report = pub
+  .use(
+    infrastructure(
+      "a beacon, deliberately unauthenticated; writes only to Analytics Engine, reads nothing and names nobody",
+    ),
+  )
+  .route({
+    method: "POST",
+    path: "/analytics",
+    summary: "Report a client event",
+    successStatus: 204,
+  })
+  .input(z.object({ event: z.unknown().optional(), fields: z.unknown().optional() }).loose())
+  .output(z.void())
+  .handler(async ({ input, context }) => {
+    // Checked against the catalogue rather than merely being a short string.
+    // Anyone can POST here, and without this the dataset is an open bucket a
+    // bored person can fill with event names nobody defined — which is the
+    // same thing as losing it.
+    if (!isEventName(input.event) || !input.fields || typeof input.fields !== "object") return
+
+    const spec: EventSpec = EVENTS[input.event]
+    const sent = input.fields as Record<string, unknown>
+    // Only declared fields, coerced to their declared kind. An undeclared key
+    // would have nowhere to go, and a number where a string belongs would land
+    // in the wrong sort of column.
+    const fields: Record<string, string | number> = {}
+    for (const k of spec.blobs) if (k in sent) fields[k] = String(sent[k]).slice(0, 256)
+    for (const k of spec.doubles) fields[k] = Number(sent[k]) || 0
+
+    // The country comes from `request.cf`, not the client: it costs nothing,
+    // cannot be forged, and is what makes a failure rate legible — "6% fall
+    // back to WebSocket" is a different problem in one country than in twenty.
+    const cf = (context.request as Request & { cf?: { country?: string } }).cf
+    // `trackDynamic`, not `track`: the event name came off the wire. It has
+    // been checked and the fields filtered, but that is a runtime fact no type
+    // can assert, and the honest signature says so rather than casting.
+    trackDynamic(context.env, input.event, fields, cf?.country)
+  })

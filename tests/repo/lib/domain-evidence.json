@@ -2334,6 +2334,139 @@
         }
       ]
     },
+    "output.dev.analyticsEvents.events": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET /api/dev/events in the oRPC unification, 2026-09-11. Gated by POLICY[env].hasLocalEventStore, the same capability that decides whether the ring is filled.",
+      "surfaces": [],
+      "operations": [
+        "dev.analyticsEvents"
+      ],
+      "audience": [
+        "hasLocalEventStore"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/analytics-beacon.test.ts",
+          "test": "keeps the accepted event where the local ring can be read back",
+          "level": "worker",
+          "result": "The event reported through the beacon is readable from the local ring, with a `since` stamp."
+        }
+      ]
+    },
+    "output.dev.analyticsEvents.events[].at": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET /api/dev/events in the oRPC unification, 2026-09-11. Gated by POLICY[env].hasLocalEventStore, the same capability that decides whether the ring is filled.",
+      "surfaces": [],
+      "operations": [
+        "dev.analyticsEvents"
+      ],
+      "audience": [
+        "hasLocalEventStore"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/analytics-beacon.test.ts",
+          "test": "keeps the accepted event where the local ring can be read back",
+          "level": "worker",
+          "result": "The event reported through the beacon is readable from the local ring, with a `since` stamp."
+        }
+      ]
+    },
+    "output.dev.analyticsEvents.events[].country": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET /api/dev/events in the oRPC unification, 2026-09-11. Gated by POLICY[env].hasLocalEventStore, the same capability that decides whether the ring is filled.",
+      "surfaces": [],
+      "operations": [
+        "dev.analyticsEvents"
+      ],
+      "audience": [
+        "hasLocalEventStore"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/analytics-beacon.test.ts",
+          "test": "keeps the accepted event where the local ring can be read back",
+          "level": "worker",
+          "result": "The event reported through the beacon is readable from the local ring, with a `since` stamp."
+        }
+      ]
+    },
+    "output.dev.analyticsEvents.events[].event": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET /api/dev/events in the oRPC unification, 2026-09-11. Gated by POLICY[env].hasLocalEventStore, the same capability that decides whether the ring is filled.",
+      "surfaces": [],
+      "operations": [
+        "dev.analyticsEvents"
+      ],
+      "audience": [
+        "hasLocalEventStore"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/analytics-beacon.test.ts",
+          "test": "keeps the accepted event where the local ring can be read back",
+          "level": "worker",
+          "result": "The event reported through the beacon is readable from the local ring, with a `since` stamp."
+        }
+      ]
+    },
+    "output.dev.analyticsEvents.events[].fields": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET /api/dev/events in the oRPC unification, 2026-09-11. Gated by POLICY[env].hasLocalEventStore, the same capability that decides whether the ring is filled.",
+      "surfaces": [],
+      "operations": [
+        "dev.analyticsEvents"
+      ],
+      "audience": [
+        "hasLocalEventStore"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/analytics-beacon.test.ts",
+          "test": "keeps the accepted event where the local ring can be read back",
+          "level": "worker",
+          "result": "The event reported through the beacon is readable from the local ring, with a `since` stamp."
+        }
+      ]
+    },
+    "output.dev.analyticsEvents.events[].fields.*": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET /api/dev/events in the oRPC unification, 2026-09-11. Gated by POLICY[env].hasLocalEventStore, the same capability that decides whether the ring is filled.",
+      "surfaces": [],
+      "operations": [
+        "dev.analyticsEvents"
+      ],
+      "audience": [
+        "hasLocalEventStore"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/analytics-beacon.test.ts",
+          "test": "keeps the accepted event where the local ring can be read back",
+          "level": "worker",
+          "result": "The event reported through the beacon is readable from the local ring, with a `since` stamp."
+        }
+      ]
+    },
+    "output.dev.analyticsEvents.since": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET /api/dev/events in the oRPC unification, 2026-09-11. Gated by POLICY[env].hasLocalEventStore, the same capability that decides whether the ring is filled.",
+      "surfaces": [],
+      "operations": [
+        "dev.analyticsEvents"
+      ],
+      "audience": [
+        "hasLocalEventStore"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/analytics-beacon.test.ts",
+          "test": "keeps the accepted event where the local ring can be read back",
+          "level": "worker",
+          "result": "The event reported through the beacon is readable from the local ring, with a `since` stamp."
+        }
+      ]
+    },
     "output.dev.seed.statements": {
       "intent": "internal",
       "reason": "Moved from Hono raw route POST /api/seed in the oRPC unification, 2026-09-11. Gated by POLICY[env].seedRoute; not a GUI operation.",
@@ -2518,6 +2651,25 @@
       ],
       "cases": []
     },
+    "procedure.dev.analyticsEvents": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route GET /api/dev/events in the oRPC unification, 2026-09-11. Gated by POLICY[env].hasLocalEventStore, the same capability that decides whether the ring is filled.",
+      "surfaces": [],
+      "operations": [
+        "dev.analyticsEvents"
+      ],
+      "audience": [
+        "hasLocalEventStore"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/analytics-beacon.test.ts",
+          "test": "keeps the accepted event where the local ring can be read back",
+          "level": "worker",
+          "result": "The event reported through the beacon is readable from the local ring, with a `since` stamp."
+        }
+      ]
+    },
     "procedure.dev.seed": {
       "intent": "internal",
       "reason": "Moved from Hono raw route POST /api/seed in the oRPC unification, 2026-09-11. Gated by POLICY[env].seedRoute; not a GUI operation.",
@@ -2579,6 +2731,31 @@
         "operations"
       ],
       "cases": []
+    },
+    "procedure.telemetry.report": {
+      "intent": "derived",
+      "reason": "Moved from Hono raw route POST /api/analytics in the oRPC unification, 2026-09-11. A client beacon: unauthenticated by necessity, writes only to Analytics Engine and reads nothing.",
+      "surfaces": [],
+      "operations": [
+        "telemetry.report"
+      ],
+      "audience": [
+        "operations"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/analytics-beacon.test.ts",
+          "test": "drops a malformed body rather than answering 400",
+          "level": "worker",
+          "result": "Four malformed bodies each answer 204, so a beacon is never refused and 4xx never pollutes the dataset."
+        },
+        {
+          "file": "tests/worker/analytics-beacon.test.ts",
+          "test": "accepts a declared event and answers 204 with no body",
+          "level": "worker",
+          "result": "A catalogue event is accepted and answered 204 with an empty body."
+        }
+      ]
     }
   }
 }

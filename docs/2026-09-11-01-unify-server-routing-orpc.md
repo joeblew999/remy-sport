@@ -187,8 +187,13 @@ adding when `dev.accounts` lands.
 
 - [x] `POST /api/seed` → `router.dev.seed`, `dev(seedRoute)`. Done 2026-09-11;
       covered by the two existing seed tests in `tests/worker/write.test.ts`.
-- [ ] `POST /api/analytics` → `router.telemetry.report`, `pub`
-- [ ] `GET /api/dev/events` → `router.dev.analyticsEvents`
+- [x] `POST /api/analytics` → `router.telemetry.report`, `pub`. Done
+      2026-09-11. Input is deliberately permissive and checked in the handler:
+      a beacon must be *dropped*, not answered 400, and a 400 would be recorded
+      as `api.refused` by the interceptor — polluting the dataset it feeds.
+- [x] `GET /api/dev/events` → `router.dev.analyticsEvents`. Done 2026-09-11,
+      gated on `hasLocalEventStore` — the same capability that decides whether
+      the ring is filled, so the endpoint cannot exist without data behind it.
 - [ ] `GET|DELETE /api/dev/outbox` → `router.dev.outbox.list` / `.clear`
 - [ ] `GET /api/dev/email/:name` → `router.dev.outbox.get`
 - [ ] `DELETE /api/dev/otp` → `router.dev.otp.clear`
@@ -202,8 +207,8 @@ adding when `dev.accounts` lands.
       ledger enrolled as `reviewed`. The dispatch worklist fell 12 → 11.
       Its worker test passes since correction 8 was resolved.
 - [ ] Delete the raw routers. The seed and dev-session routers are gone
-      (2026-09-11) along with the inline `/api/versions`; `src/routes/analytics.ts`
-      and `src/routes/dev-mail.ts` remain.
+      (2026-09-11) along with the analytics router and the inline
+      `/api/versions`; `src/routes/dev-mail.ts` remains.
 
 ## Part B — Remove Hono
 
