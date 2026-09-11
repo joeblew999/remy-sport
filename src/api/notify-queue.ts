@@ -1,61 +1,36 @@
 /**
  * Notification fan-out, off the request path.
  *
- * `announce()` in ./games.ts was awaited inside the score mutation, and
- * `notify` → `deliver` does one `fetch` per recipient to Apple, Google or
- * Mozilla. So a coach tapping "+2" waited on N HTTP round trips — and N is
- * bounded by the Workers per-request subrequest limit. A well-followed game
- * walks into that ceiling and nothing in the code notices: the push simply
- * stops partway through the audience.
+ * `announce()` was awaited inside the score mutation, and `notify` does one
+ * fetch per recipient — so a coach tapping "+2" waited on N round trips, and N
+ * is bounded by the Workers subrequest limit. A well-followed game walks into
+ * that ceiling and the push stops partway through the audience, silently.
  *
- * Now `announce()` enqueues an event and returns, and this resolves the
- * audience and delivers.
+ * ## At-least-once is safe, and here is why
  *
- * ## AT-LEAST-ONCE IS SAFE, AND HERE IS WHY
+ * Queues redeliver, which is fine for one load-bearing reason: **every push
+ * carries a `tag`, and a repeat with the same tag replaces the previous card
+ * rather than stacking.** That is what lets this run with no idempotency
+ * ledger and no dedupe key.
  *
- * Queues redeliver. That is fine — and it is fine for one specific reason,
- * which is load-bearing rather than incidental:
+ * **If anyone makes tags unique per send** — a timestamp, a nonce, a retry
+ * counter — this breaks *silently*: every retry becomes a second notification
+ * on somebody's lock screen and nothing here will fail. The tag is built in
+ * `announce()` as `score:<gameId>` and must stay a function of the event,
+ * never of the attempt.
  *
- *   **Every push carries a `topic` (push service) and a `tag` (browser), and a
- *   repeated push with the same tag REPLACES the previous card rather than
- *   stacking.**
+ * ## The message carries identity, not rendered text
  *
- * A duplicate delivery is invisible to the reader. That property is what lets
- * this be a queue with no idempotency ledger, no "already sent" table and no
- * dedupe key. It is not a nice-to-have.
+ * The row is read at consumption, so a score renders as of delivery rather
+ * than as of the tap — and a correction arriving first produces a final card
+ * with the corrected score, where carrying rendered text would leave the wrong
+ * final permanently.
  *
- * **If anyone makes tags unique per send** — appending a timestamp, a nonce, a
- * retry counter — this design breaks *silently*: every retry becomes a second
- * notification on somebody's lock screen, and nothing here will fail. The tag
- * is built in `announce()` as `score:<gameId>` / `status:<gameId>` and must stay
- * a function of the event, never of the attempt.
+ * Rendering at enqueue would also render locales nobody in the audience
+ * speaks, since the audience is not known then.
  *
- * ## Why the message carries identity, not rendered text
- *
- * A queue message must be serialisable and `notify` takes a `render` closure
- * over the game row. The alternative was to render every locale at enqueue time
- * and carry the strings.
- *
- * Identity won, for three reasons.
- *
- * The row is read at consumption, so a `SCORE_UPDATE` renders the score as of
- * delivery rather than as of the tap. That is *more* correct: the reader wants
- * to know the score, not the score a few seconds ago, and topic collapsing
- * makes a slightly-late duplicate harmless.
- *
- * `MATCH_END` followed by a correction is the case worth thinking about, and it
- * lands the same way. Under this design a correction that arrives before
- * consumption produces a final card with the *corrected* score. Under the
- * alternative the reader keeps the wrong final permanently, because the next
- * `status:` push that would replace it may never come.
- *
- * And rendering at enqueue means rendering locales nobody in the audience
- * speaks — `notify` deliberately renders once per locale actually present, and
- * the audience is not known at enqueue. Doing more work at the moment we are
- * trying to do less is the wrong direction.
- *
- * The row being *gone* at consumption is the one real loss, and it is handled:
- * a deleted game sends nothing, which is correct.
+ * A row gone at consumption is the one real loss, and it is correct: a deleted
+ * game sends nothing.
  */
 
 import { z } from "zod"
@@ -284,33 +259,23 @@ async function runGameJob(db: Db, env: Bindings, job: GameJob): Promise<JobOutco
 /**
  * An event starting soon.
  *
- * ## THE CLAIM LIVES HERE, AND MOVING IT LOSES REMINDERS
+ * ## The claim lives here, and moving it loses reminders
  *
  * `notification_sent` is claimed **at consumption**, not when the sweep
- * enqueues. That choice is the difference between a reminder that is late and
- * a reminder that never arrives, and it is not obvious from either side:
+ * enqueues. Claiming in the sweep would record "sent" before it was, so a
+ * message that exhausted its retries would be lost for good — the claim says
+ * done and no later sweep retries it.
  *
- * Claiming in the sweep would mean the sweep records "sent" for something that
- * has not been sent yet. A message that then exhausts its retries and lands in
- * the dead letter queue is a reminder **lost for good** — the claim row says
- * done, so no later sweep will try again, and the only trace is a DLQ entry.
- * A lost reminder is silence, and silence is what this whole design is trying
- * not to have.
+ * Claiming here inverts that: a message that dies writes no claim, so the next
+ * sweep enqueues it again. The cost is that the sweep may enqueue twice, and
+ * the claim below makes that at most one *send* — `onConflictDoNothing` plus a
+ * changed-row count is one atomic statement.
  *
- * Claiming here inverts that. A message that dies never writes a claim, so the
- * next sweep — five minutes later, inside the same window — enqueues it again
- * and it is recovered. The cost is that the sweep can enqueue a reminder more
- * than once; the claim below is what makes that at most one *send*, because
- * `onConflictDoNothing` plus a changed-row count is one atomic statement.
+ * **Topic collapsing does not rescue this** the way it rescues score updates:
+ * two reminder pushes an hour apart are two cards at 6am.
  *
- * **Topic collapsing does not rescue this**, the way it rescues score updates.
- * Two score pushes an hour apart replace each other; two reminder pushes an
- * hour apart are two cards on somebody's lock screen at 6am. The claim is doing
- * real work here that the tag cannot do.
- *
- * The sweep also *reads* this table to skip reminders already sent. That is an
- * optimisation and nothing more — it reduces queue traffic and is allowed to be
- * stale. The correctness is entirely in the claim below.
+ * The sweep also reads this table to skip sent reminders. That is an
+ * optimisation, allowed to be stale; correctness is entirely in the claim.
  */
 async function runReminderJob(db: Db, env: Bindings, job: ReminderJob): Promise<JobOutcome> {
   const event = await db.query.event.findFirst({
@@ -388,30 +353,25 @@ export async function claimReminder(db: Db, eventId: string, window: string): Pr
   return res.meta.changes > 0
 }
 
-/**
- * One message, and what to tell the queue about it.
- *
- * `notify` swallows its own failures so it cannot fail the write it follows.
- * Inside a consumer that would be exactly wrong: swallowing tells the queue the
- * message succeeded, and a transient D1 outage would silently drop every
- * notification during it. So the decision is made explicitly here.
- *
- *   **ack** — the work is finished, or repeating it cannot help. A malformed
- *             message (retrying a bad shape three times then dead-lettering it
- *             is three wasted attempts and a delayed diagnosis), a deleted
- *             game, and a delivered slice. Individual push failures are already
- *             counted inside `deliver` and must NOT fail the message: one dead
- *             endpoint out of a hundred would otherwise re-deliver to the other
- *             ninety-nine.
- *   **retry** — the failure is infrastructural and might not repeat: the D1
- *             read threw, or the re-enqueue did. Redelivery is safe (see the
- *             tag note above), so retrying costs nothing but a duplicate card
- *             the reader never sees.
- */
 /** What to call this job in telemetry: the notification type it will send. */
 const jobLabel = (job: NotificationJob): string =>
   job.kind === "reminder" ? "EVENT_REMINDER" : job.typeCode
 
+/**
+ * One message, and what to tell the queue about it.
+ *
+ * `notify` swallows its own failures so it cannot fail the write it follows.
+ * In a consumer that is exactly wrong — swallowing tells the queue the message
+ * succeeded — so the decision is made explicitly here.
+ *
+ *   **ack** — finished, or repeating cannot help: a malformed message, a
+ *             deleted game, a delivered slice. Individual push failures are
+ *             counted inside `deliver` and must NOT fail the message, or one
+ *             dead endpoint re-delivers to the other ninety-nine.
+ *   **retry** — infrastructural and might not repeat: the D1 read threw, or the
+ *             re-enqueue did. Redelivery is safe, so it costs only a duplicate
+ *             card the reader never sees.
+ */
 export async function handleNotification(
   env: Bindings,
   body: unknown,

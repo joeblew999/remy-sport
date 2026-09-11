@@ -1,33 +1,24 @@
 /**
  * Product telemetry: what happened, where, and how often.
  *
- * An app-level capability whose first consumer happened to be the MoQ video
- * demo. It is deliberately not a MoQ pipeline — procedure failures, push
- * delivery and video sessions belong in one dataset keyed by an event name,
- * because the questions worth asking cut across features. "What is failing,
- * where, how often" is one query or it is three dashboards nobody opens.
+ * One dataset keyed by an event name, because the questions worth asking cut
+ * across features: "what is failing, where, how often" is one query or it is
+ * three dashboards nobody opens.
  *
- * Analytics Engine rather than D1. A D1 row is a fact somebody can edit and a
- * foreign key means something; this is append-only, unbounded, and read only in
- * aggregate — the shape D1 is worst at and this is built for.
+ * Analytics Engine rather than D1 — append-only, unbounded, read only in
+ * aggregate, which is the shape D1 is worst at.
  *
  * ## Why there is a catalogue and not just a write call
  *
- * Analytics Engine's own model is twenty string columns called `blob1`…`blob20`
- * and twenty numbers called `double1`…`double20`. Nothing names them, nothing
- * types them, and nothing connects the code that writes column four to the query
- * that reads it. That is not a small inconvenience — it is a bug generator, and
- * it generated one immediately: the browser beacon put the country in `blob2`
- * and the server-side calls put the route there, so every report reading both
- * was wrong by one column. Silently, because a shifted string is still a string.
+ * Analytics Engine's model is twenty columns called `blob1`…`blob20`. Nothing
+ * names or types them, and nothing connects the code writing column four to the
+ * query reading it — which generated a bug immediately, the beacon putting
+ * country where the server put route, silently wrong by one column.
  *
- * `EVENTS` is the fix, and it only works because **both ends read it**. Writers
- * pass named fields and never a position. `scripts/ops/analytics.ts` builds its SQL
- * from `blobColumn`/`doubleColumn` here, so a report cannot disagree with the
- * writer about which column is which — there is no second place to be wrong.
+ * `EVENTS` works only because **both ends read it**: writers pass named fields,
+ * and `scripts/ops/analytics.ts` builds its SQL from `blobColumn` here.
  *
- * **It can never fail a request.** Every path is wrapped and returns silently:
- * telemetry that can take down the thing it measures is worse than none.
+ * **It can never fail a request.** Every path is wrapped and returns silently.
  */
 
 import type { Bindings } from "./types"
@@ -102,54 +93,58 @@ export const EVENTS = {
     dimensions: ["host", "status"],
   }),
   /**
-   * One send batch, per push service, with what became of it.
-   *
-   * `push.sent` above is per attempt and cannot see two things this can.
-   *
-   * The first is a **network failure**. That row is written after `fetch`
-   * returns, so a request that throws — DNS, connection refused, a service
-   * that is simply down — writes nothing at all. A total outage of one push
-   * service produced *zero* telemetry, which reads identically to sending
-   * nothing, which is what we would be doing.
-   *
-   * The second is the difference between "the subscription is dead" and
-   * "the send failed". `gone` is a 404 or 410: the service telling us this
-   * endpoint is permanently finished, and the row is deleted. `failed` is
-   * everything else — a 5xx, a rejected promise. They need opposite responses
-   * and were indistinguishable in aggregate.
-   *
-   * `service` is coarse and derived from the endpoint's **hostname only**. A
-   * push endpoint is a device identifier and is never stored or logged; its
-   * hostname is shared by every subscriber of that vendor. This is what will
-   * answer "is Web Push failing our iOS PWA users" — evidence that did not
-   * exist before this event did.
-   */
-  /**
    * One send batch, per channel, with what became of it.
    *
-   * Renamed from `push.batch` rather than kept and bent. The send path is
-   * channel-agnostic now — PUSH and EMAIL go through the same dispatch — and a
-   * row named "push" describing an email is the kind of small lie that makes a
-   * dataset untrustworthy.
+   * Channel-agnostic, unlike `push.sent`, which is per attempt and cannot see a
+   * network failure at all: that row is written after `fetch` returns, so an
+   * outage writes nothing and reads identically to sending nothing.
    *
-   * Free to rename precisely now: `push.batch` was added in this same series of
-   * changes and has never been deployed, so it has no history to lose. It would
-   * not be free later, which is the argument for doing it here.
+   * It also separates "the subscription is dead" from "the send failed" —
+   * `gone` is a 404 or 410 and deletes the row, `failed` is everything else.
+   * They need opposite responses and were indistinguishable in aggregate.
    *
-   * `push.sent` below stays push-named and push-shaped, because it is: per
-   * attempt, keyed by which push service took it, carrying an HTTP status. None
-   * of that generalises to email, and a channel that gains its own per-attempt
-   * detail should gain its own event rather than blur this one.
-   *
-   * `service` is the push service for PUSH and a marker otherwise — "-" for a
-   * normal send, or why nothing went out: "no-transport" for a channel the
-   * vocabulary defines and this Worker cannot deliver on, "no-copy" for one the
-   * caller wrote no renderer for. Both are silent failures made visible.
+   * `service` is the push service for PUSH and a marker otherwise: "-" for a
+   * normal send, "no-transport" for a channel this Worker cannot deliver on,
+   * "no-copy" for one the caller wrote no renderer for. Derived from the
+   * endpoint hostname only — an endpoint is a device identifier and is never
+   * stored or logged.
    */
   "notify.batch": defineEvent({
     blobs: ["type", "channel", "service", "source"],
     doubles: ["sent", "gone", "failed"],
     dimensions: ["type", "channel", "service", "source"],
+  }),
+  /**
+   * One email, and what became of it.
+   *
+   * `notify.batch` counts the EMAIL channel, so bulk mail was visible.
+   * Everything transactional goes through Better Auth and the mailer directly,
+   * never through `notify`, and left no trace — so the only evidence a sign-in
+   * code had existed was a failure, and Better Auth swallows the reason. A
+   * channel you can only see when it breaks is not observable.
+   *
+   * `kind` is the sender: transactional goes out as `EMAIL_FROM` and bulk as
+   * `NOTIFY_EMAIL_FROM`, separate reputations, so a complaint against one must
+   * not take the sign-in code down with it.
+   *
+   * No address and no subject: this is a rate, not a log.
+   */
+  "mail.sent": defineEvent({
+    blobs: ["kind", "transport", "outcome"],
+    doubles: ["ok"],
+    dimensions: ["kind", "transport", "outcome"],
+  }),
+  /**
+   * Somebody stopped an email.
+   *
+   * Worth its own row: a rising unsubscribe rate on one notification type is
+   * the earliest signal that the copy or the frequency is wrong, and it arrives
+   * long before a spam complaint does. No user id — this is a rate, not a log.
+   */
+  "notify.unsubscribed": defineEvent({
+    blobs: ["typeCode", "channel"],
+    doubles: [],
+    dimensions: ["typeCode", "channel"],
   }),
   /**
    * A notification that could not be delivered and will not be retried.
@@ -158,50 +153,6 @@ export const EVENTS = {
    * "notifications silently stopped" — so the DLQ has a consumer, and it writes
    * this, beside push.batch, where somebody already looks.
    */
-  /**
-   * Somebody stopped an email.
-   *
-   * Worth its own row: a rising unsubscribe rate on one notification type is
-   * the earliest signal that the copy or the frequency is wrong, and it arrives
-   * long before a spam complaint does. No user id — this is a rate, not a log.
-   */
-  /**
-   * One email, and what became of it.
-   *
-   * The gap this closes was found on 2026-09-10 by the Product Owner, and the
-   * way it was found is the point: email had been working for them for weeks,
-   * and from the telemetry it was **indistinguishable from completely broken**.
-   *
-   * `notify.batch` counts the EMAIL channel, so bulk notifications were
-   * visible. Everything transactional — the sign-in code, an organisation
-   * invitation — goes through Better Auth and the mailer directly, never
-   * through `notify`, and left no trace at all. The only evidence a
-   * transactional email had ever existed was a *failure*, and Better Auth
-   * swallows the reason, so even that arrived as an anonymous stack.
-   *
-   * A channel you can only see when it breaks is not observable. You cannot
-   * tell "nothing sent" from "everything sent perfectly".
-   *
-   * `kind` is the sender: transactional mail goes out as `EMAIL_FROM` and bulk
-   * as `NOTIFY_EMAIL_FROM`, and those are separate reputations — a spam
-   * complaint against one must not take the sign-in code down with it. So the
-   * row is keyed by the thing that would fail independently.
-   *
-   * **No address, and no subject.** This is a rate, not a log: how many, of
-   * what kind, and how many refused. Who they went to is in the Worker's own
-   * logs for the minutes they matter, and does not belong in a dataset kept for
-   * a year. The same reasoning as `notify.unsubscribed` below.
-   */
-  "mail.sent": defineEvent({
-    blobs: ["kind", "transport", "outcome"],
-    doubles: ["ok"],
-    dimensions: ["kind", "transport", "outcome"],
-  }),
-  "notify.unsubscribed": defineEvent({
-    blobs: ["typeCode", "channel"],
-    doubles: [],
-    dimensions: ["typeCode", "channel"],
-  }),
   "notify.dead": defineEvent({
     blobs: ["reason", "typeCode"],
     doubles: ["attempts"],
@@ -293,29 +244,18 @@ export const FIXED_BLOBS = ["event", "environment", "country"] as const
 /**
  * When the column layout changed, and when this line should be deleted.
  *
- * `environment` was inserted at position 2 rather than appended, so every blob
- * after it shifted by one. Rows written before this instant have `country`
- * where rows after it have `environment`, and a query spanning the cutover
- * would mix them with no error at all — a shifted string is still a string.
- *
- * Appending would have avoided the shift and cost the thing the column is for:
- * its index would then vary per event, so "show me everything from staging"
+ * `environment` was inserted at position 2 rather than appended, so every later
+ * blob shifted by one and a query spanning the cutover would mix the layouts
+ * with no error — a shifted string is still a string. Appending instead would
+ * have varied the column's index per event, and "everything from staging"
  * stops being one query.
  *
- * The discontinuity was measured before it was accepted, not assumed. The
- * dataset held **four rows**, all `moq.session`, all from 2026-08-29 — nothing
- * else had ever been written, because production has not been deployed since
- * the other events were added. Four rows of video telemetry is a fair price for
- * a queryable environment dimension.
- *
  * `scripts/ops/analytics.ts` filters every query to `timestamp >= CUTOVER`, so
- * pre-cutover rows are never read under the new layout. That makes a mixed
- * result impossible rather than merely flagged.
+ * a mixed result is impossible rather than merely flagged.
  *
- * **DELETE THIS, AND THE WHERE CLAUSE, AFTER 2026-11-30.** Analytics Engine
- * retention is 90 days, so by then the last pre-cutover row has aged out and
- * the filter excludes nothing. Left undated it becomes a line nobody dares
- * touch for years — which is how a temporary guard turns into folklore.
+ * **DELETE THIS, AND THE WHERE CLAUSE, AFTER 2026-11-30** — retention is 90
+ * days, so by then the filter excludes nothing. Undated, a temporary guard
+ * becomes folklore nobody dares touch.
  */
 export const LAYOUT_CUTOVER = "2026-09-01T00:00:00Z"
 
