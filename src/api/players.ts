@@ -1,28 +1,16 @@
 /**
  * The players you are responsible for.
  *
- * The `guardians` table has been in the model since the fixtures were written —
- * four rows, three guardian types, a `GUARDIAN` relation on PLAYER — and
- * nothing in the app has ever read it. The Product Owner grants a guardian
- * three things: `REGISTER_PLAYER_FOR_EVENT`, `EDIT_PLAYER_PROFILE` and
- * `RECEIVE_PLAYER_NOTIFICATIONS`. None was reachable from any screen, because
- * there was no screen that knew a guardian existed.
+ * The `guardians` table has been in the model since the fixtures were written
+ * and nothing in the app had ever read it, so a guardian's three grants were
+ * unreachable from any screen. For a youth sports platform that is close to the
+ * whole point: a parent signing in to see which team their child is on.
  *
- * For a youth sports platform that is close to the whole point: a parent in
- * Bangkok signing in to see which team their child is on and when they play
- * next.
- *
- * ## Why GUARDIAN and SELF, and not "whoever may edit"
- *
- * `EDIT_PLAYER_PROFILE` is granted to SELF, GUARDIAN, HEAD_COACH,
- * ASSISTANT_COACH and PLATFORM_ADMIN. Deriving this list from that action would
- * put every player a coach trains under the heading "your players", which is a
- * different relationship and a much longer list.
- *
- * The two named here are the ones that make a player *yours* rather than
- * *your responsibility at work*. That is a product judgement and it is written
- * down here rather than smuggled into a query — if the PO decides a coach's
- * squad belongs on their profile too, this is the line that changes.
+ * GUARDIAN and SELF rather than "whoever may edit": `EDIT_PLAYER_PROFILE` also
+ * covers coaches, and deriving the list from it would put every player a coach
+ * trains under "your players". These two make a player *yours* rather than
+ * *your responsibility at work* — a product judgement, written here rather than
+ * smuggled into a query.
  */
 
 import { ORPCError } from "@orpc/server"
@@ -165,22 +153,14 @@ export const mine = authed
 /**
  * Change a player's profile.
  *
- * `EDIT_PLAYER_PROFILE` is granted to SELF, GUARDIAN, HEAD_COACH,
- * ASSISTANT_COACH and PLATFORM_ADMIN — so a parent may correct their child's
- * jersey number and a coach may set the position they actually play. The action
- * has existed since the fixtures were written and there was no procedure behind
- * it at all, so none of those people could change anything.
+ * `EDIT_PLAYER_PROFILE` covers SELF, GUARDIAN and both coaches, so a parent may
+ * correct a jersey number and a coach the position played. The action existed
+ * with no procedure behind it, so none of them could change anything.
  *
- * ## What is not editable, and why
- *
- * **`dob`.** It decides which age group a player is eligible for, which decides
- * which events a team can enter them in. Letting a guardian edit it from a
- * profile form makes the eligibility rules advisory — and the honest way to
- * correct a birth date is a request to somebody who can check it, not a text
- * box. The model has no action for it, which is the PO saying the same thing.
- *
- * **`userId`.** Linking a player row to a sign-in is an identity claim, not a
- * profile edit. It is how a person would attach themselves to a child's record.
+ * Not editable: **`dob`**, which decides age-group eligibility — editing it from
+ * a profile form makes the rules advisory, and the model grants no action for
+ * it. And **`userId`**, since linking a player to a sign-in is an identity
+ * claim, not a profile edit.
  */
 /** The row every create returns, so a page can render it without a round trip. */
 const PlayerRow = z.object({

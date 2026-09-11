@@ -1,32 +1,19 @@
 /**
  * Verify a deployed Worker, without a sign-in backdoor.
  *
- * This is what `bun run deploy` ends with. It used to end with `test:deployed`
- * — the whole Playwright suite pointed at production — which never actually ran:
- * it needs `TEST_OTP` as both a local env var and a Worker secret, and no task
- * provisions either, so the pipeline always exited red even when the deploy had
- * succeeded.
+ * What `bun run deploy` ends with. Running the whole Playwright suite here was
+ * the obvious alternative and the wrong one: the suite *writes* as it runs, and
+ * the stray accounts that used to sit in the deployed database are what earlier
+ * runs against production left behind.
  *
- * Provisioning it to run the whole suite was the obvious fix and the wrong one:
- * the suite *writes* as it runs, and the `hook-*@remy.dev` accounts that used to
- * sit in the deployed database are what previous runs against production left
- * behind.
- *
- * `TEST_OTP` itself is now set deliberately, for a different reason — it fixes
- * the sign-in code for seeded accounts so the demo picker can offer them, since
- * `.test` addresses have no inbox. Two things keep that honest and both are
- * checked below: the seeded **admin** is excluded, because it can impersonate
- * and therefore reach a real person; and the outbox stays 404, because it would
- * expose everyone else's codes.
- *
- * The suite already runs against a real Worker earlier in the same pipeline
- * (`bun run test:e2e`, wrangler dev + local D1). Running it twice mostly re-proves
- * the same things. What it cannot prove there — and all this needs to — is that
- * *this deployment* boots, reaches its own D1, and matches the schema that was
- * just migrated onto it.
+ * `bun run test:e2e` already runs that suite against a real Worker earlier in
+ * the pipeline. What it cannot prove there is that *this deployment* boots,
+ * reaches its own D1, and matches the schema just migrated onto it.
  *
  * So: read-only, plus one write that must be a no-op. Nothing here sends mail
- * or creates an account.
+ * or creates an account. `TEST_OTP` fixes the sign-in code for seeded accounts,
+ * and two checks below keep that honest — the admin is excluded because it can
+ * impersonate, and the outbox stays 404 because it would expose everyone's codes.
  */
 
 import { namedEnvironment, originOf, resolveTarget } from "../lib/cloudflare.ts"
@@ -47,26 +34,16 @@ const BASE = NAMED
 /**
  * Which deployment this is — asked, not guessed.
  *
- * Not every check means something on every surface. Three of them assert what
- * production must *refuse* — no dev outbox, no seed route, no admin in the demo
- * picker — and dev and staging open some of those deliberately. A run that is
- * permanently red is a run nobody reads, and the next genuine failure arrives
- * in a list somebody has already learned to skip.
+ * Three checks assert what production must *refuse*, and dev and staging open
+ * some of those deliberately. A permanently red run is one nobody reads.
  *
- * This classified by hostname: TUNNEL_HOSTNAME meant the tunnel, localhost
- * meant local, anything else meant production. That was already the second
- * version of the mistake. The first sniffed a `dev-` prefix and would have read
- * a real deployment at `dev-remy-staging` as dev, skipping every
- * deployment-safety check on it.
- *
- * Guessing does not survive a third environment. Staging is a public hostname
- * running a deployment whose checks *differ from production's* — the policy
- * table in src/environment.ts gives it the seed route and seeded sign-in
- * deliberately — so "not the tunnel, therefore production" would fail it for a
- * rule that is no longer true.
+ * This classified by hostname twice, and both were wrong: a `dev-` prefix would
+ * have read a real deployment at `dev-remy-staging` as dev and skipped every
+ * safety check, and "not the tunnel, therefore production" fails staging, whose
+ * checks differ from production's by policy.
  *
  * So `/api/health` reports it and this reads it. A fourth environment becomes a
- * row in the policy table and a case below, not a new hostname rule.
+ * row in the policy table, not a new hostname rule.
  */
 const SURFACES = ["production", "staging", "tunnel", "local"] as const
 type Surface = (typeof SURFACES)[number]
@@ -135,23 +112,13 @@ const WHY_DEV_DIFFERS =
 /**
  * Where the VAPID keys for *this* host are supposed to come from.
  *
- * This has been wrong twice, in opposite directions, and both times silently.
- *
- * First it named one remedy whatever was being smoke-tested — a task that sets
- * secrets on the **deployed** Worker. The dev tunnel is not a deployment: its
- * environment is `.dev.vars`, and no amount of setting Worker secrets changes
- * what it serves. A remedy that names the wrong thing is worse than none, since
- * it sends somebody to re-run a working step and conclude the bug is elsewhere.
- *
- * Then both halves went on naming commands that had been **deleted**. Neither
- * survived the consolidation of ninety mise tasks into the scripts in package.json (see
- * scripts/db.ts), so the only guidance for a missing Web Push key pointed at two
- * commands that no longer existed — and one of them was named again, dead, in
- * scripts/lib/cloudflare.ts.
+ * Wrong twice, both times silently. First it named the deployed-Worker remedy
+ * whatever was being smoked — but the tunnel reads `.dev.vars`, so setting
+ * Worker secrets changes nothing it serves. Then both halves went on naming
+ * commands that had since been deleted.
  *
  * A remedy is part of the CLI surface, not prose beside it.
- * tests/repo/remedies.test.ts now checks every command named anywhere in the
- * tree, so this cannot rot a third time.
+ * tests/repo/remedies.test.ts checks every command named in the tree.
  */
 const vapidRemedy = () =>
   SURFACE === "tunnel" || SURFACE === "local"
@@ -246,18 +213,15 @@ await check("the SPA is served", async () => {
  * on a reader's machine goes on answering navigations from its own cache — so a
  * returning reader keeps the build they had, for as long as that takes.
  *
- * On 2026-09-10 that was for ever. `build.emptyOutDir` is false by default when
- * the output sits outside the Vite root, which it does here, so every build's
- * assets accumulated — 765 files and 575MB by 2026-09-10 — all uploaded and all globbed into the
- * manifest — 369 entries, 90MB. Production served a week-old interface to
- * anyone who had visited before.
+ * That happened: `emptyOutDir` is false by default when the output sits outside
+ * the Vite root, so every build's assets accumulated into the precache manifest
+ * until it was too large to install, and production served a week-old interface
+ * to anyone who had visited before.
  *
- * **Every check passed throughout**, which is the reason this one exists at the
- * origin rather than only over the built artefact. `/api/versions` was correct.
- * Smoke was correct. The browser tiers were correct — and all of them are
- * first-time visitors holding no worker and no cache, so not one of them could
- * see the only thing that was wrong. This asks the deployment the question a
- * returning reader's browser asks.
+ * **Every check passed throughout** — which is why this one asks the origin
+ * rather than the built artefact. Every other tier is a first-time visitor
+ * holding no worker and no cache, so none could see the only thing wrong. This
+ * asks the question a returning reader's browser asks.
  */
 await check("the service worker it publishes can finish installing", async () => {
   const res = await get("/sw.js")
@@ -376,29 +340,18 @@ await check("the dev outbox does NOT exist", async () => {
 /**
  * Where mail is captured, prove the capture actually works.
  *
- * The three deployment-safety checks are skipped on dev, correctly — but that
- * left the two surfaces where the outbox *is* the mail path with nothing
- * verifying it. If the outbox route broke, smoke stayed green on the tunnel and
- * you found out when a sign-in code never arrived.
+ * The deployment-safety checks are skipped on dev, correctly — which left the
+ * two surfaces where the outbox *is* the mail path with nothing verifying it.
  *
- * ## Gated on a probe, not on the surface
+ * Gated on a probe rather than the surface: `MAIL_TRANSPORT` is the Worker's
+ * environment and not readable here, but the route is mounted exactly when it
+ * is set. So this asks, and skips rather than passing by default.
  *
- * The condition is `MAIL_TRANSPORT=outbox`, which is the Worker's environment
- * and not readable from here. It is observable, though: the route is mounted
- * exactly when that is set. So this asks, and reports a skip when the answer is
- * "mail really goes out here" rather than passing by default.
- *
- * ## Why an address nobody owns
- *
- * `example.invalid` is reserved by RFC 2606 and can never resolve, so even if
- * this somehow ran against a host that really sends mail, there is no inbox to
- * reach. It is deliberately not a seeded account either: Better Auth writes one
- * verification row per request, so probing a real fixture user would invalidate
- * a pending code a developer was in the middle of using.
- *
- * The captured message costs nothing to leave — the outbox is an array on
- * `globalThis` (src/mail/mailer.ts), so it does not survive a restart and is
- * not in the database. The verification row is real, so that is cleaned up.
+ * `example.invalid` is reserved by RFC 2606 and can never resolve. Deliberately
+ * not a seeded account: Better Auth writes one verification row per request, so
+ * probing a fixture user would invalidate a code somebody was using. The
+ * captured message lives on `globalThis` and costs nothing to leave; the
+ * verification row is real and is cleaned up.
  */
 await check("where mail is captured, the outbox actually captures it", async () => {
   const probe = await get("/api/dev/outbox")

@@ -61,30 +61,17 @@ const withNames = {
 } as const
 
 /**
- * One `can` per game, and that is the honest cost of a per-game permission.
- *
- * A schedule of three is six extra reads; a season of three hundred would not
- * be. When that day comes the fix is to answer it in one query — the relations
- * are all derivable in SQL — not to move the decision into the client.
- */
-/**
  * The three things a game needs that are not on its own row, fetched for the
  * whole list at once.
  *
  * This was two queries *per game* inside `serialize` — the referee join and the
- * broadcast check — so one event's schedule of twenty-nine games made
- * fifty-eight round trips before any permission was resolved.
+ * broadcast check — so a schedule of twenty-nine games made fifty-eight round
+ * trips before any permission was resolved. `availableReferees` was worse: the
+ * same list of every REFEREE user, read and filtered once per game.
  *
- * Worth recording how that was found, because the first diagnosis was wrong.
- * The obvious suspect was the five `can()` calls per row, and removing one of
- * them moved 0.25s to 0.23s — eight per cent, when a fifth of the cost should
- * have moved a fifth. The measurement that settled it: an **anonymous** request
- * takes the same 0.24s, and for an anonymous caller every `can()` returns false
- * without touching a relation table. So `can()` was never the cost, and an hour
- * went into optimising it on an assertion nobody had tested.
- *
- * `availableReferees` is here too. It read every REFEREE user *per game* and
- * then filtered in memory — the same list, twenty-nine times.
+ * The first diagnosis blamed the `can()` calls and was wrong — an anonymous
+ * request, where every `can()` returns false without touching a relation table,
+ * took the same time.
  */
 interface GameContext {
   /** gameId -> the officials on it. */
@@ -320,26 +307,18 @@ export const setStatus = authed
  * Tell everyone following this game — or either team, or the event — what just
  * happened.
  *
- * **Enqueues and returns.** It used to be awaited here and do one `fetch` per
- * recipient, so a coach tapping "+2" waited on N HTTP round trips to Apple and
- * Google — and N is bounded by the Workers per-request subrequest limit, which
- * a well-followed game walks into with nothing in the code noticing. The push
- * simply stopped partway through the audience.
+ * **Enqueues and returns.** Awaited, it did one fetch per recipient, so a coach
+ * tapping "+2" waited on N round trips — and N is bounded by the subrequest
+ * limit, which a well-followed game walks into with the push stopping partway
+ * through the audience. Delivery now lives in ./notify-queue.ts, which explains
+ * why the message carries identity rather than rendered text.
  *
- * Now it is one queue send. The audience resolution, the rendering and the
- * delivery all moved verbatim into `runNotificationJob` in ./notify-queue.ts,
- * which also explains why the message carries the event's identity rather than
- * rendered text, and why at-least-once redelivery is safe.
+ * Four targets, because "follow" means different things to different people —
+ * a parent follows the team, a spectator the game, an organiser the event — and
+ * `notify` de-duplicates by user.
  *
- * The four targets stay the shape they were: "follow" means different things to
- * different people — a parent follows the team, a spectator follows the game,
- * an organiser follows the event — and `notify` de-duplicates by user, so
- * somebody following both is woken once.
- *
- * A failure to enqueue does not fail the write it follows: the score is already
- * saved and refusing the mutation would lose it. It is recorded rather than
- * swallowed, which is the difference from before — "notifications stopped" used
- * to be invisible here too.
+ * A failure to enqueue does not fail the write it follows: the score is saved
+ * and refusing would lose it. It is recorded rather than swallowed.
  */
 async function announce(
   env: Bindings,
@@ -551,23 +530,18 @@ const GenerateInput = z.object({
 /**
  * The fixtures for a league or a tournament, one round robin per division.
  *
- * An organiser registered fifteen teams and then typed thirty-one fixtures into
- * a form, one at a time. `GENERATE_FIXTURES` is the model's answer and had no
- * endpoint.
+ * `GENERATE_FIXTURES` is the model's answer to typing thirty-one fixtures into
+ * a form one at a time, and had no endpoint.
  *
- * **Per division, not per event.** evt_002's fifteen teams are six U16 boys'
- * teams, five U16 girls' and four U18 girls'; a round robin across all fifteen
- * would schedule exactly the games the guard above now refuses. Same rule, and
- * the reason that fix came first.
+ * **Per division, not per event**: an event's teams span age groups, and a
+ * round robin across all of them schedules exactly the games the guard above
+ * refuses.
  *
- * **Idempotent.** It adds the pairings that do not exist and leaves the rest
- * alone — so running it twice does not double the schedule, and running it
- * after entering a few by hand does not duplicate them. The dates it assigns
- * are for the fixtures it creates; an existing one keeps whatever it was given.
+ * **Idempotent**: it adds the pairings that do not exist and leaves the rest,
+ * so running it twice does not double the schedule. Dates are assigned only to
+ * fixtures it creates.
  *
- * TOURNAMENT and LEAGUE only, because that is what the model grants. A camp has
- * `DEFINE_SESSION_SCHEDULE` and a showcase has `GENERATE_BRACKETS` — different
- * shapes, and neither is a round robin.
+ * TOURNAMENT and LEAGUE only, because that is what the model grants.
  */
 export const generateFixtures = authed
   .route({
@@ -698,24 +672,14 @@ export const update = authed
  * season produced thirty-one fixtures that read "Venue TBC" and stayed that way
  * — the schedule could show a court and nothing could ever set one.
  *
- * ## Why this is not just a field on `update`
+ * Not a field on `update`: the model names two actions, and although they carry
+ * identical grants today, routing courts through `update` would quietly keep
+ * requiring the wider right the moment the PO grants `ASSIGN_COURTS` to anyone
+ * else. Two actions, two doors.
  *
- * `FixtureInput` accepts `venueId`, so `MANAGE_FIXTURES` could already set one.
- * The model names two actions, and today they carry identical grants — OWNER,
- * CO_ORGANIZER and PLATFORM_ADMIN on TOURNAMENT, LEAGUE and SHOWCASE — so
- * routing courts through `update` was invisible rather than wrong. It would
- * stop being invisible the moment the Product Owner grants `ASSIGN_COURTS` to
- * anyone else, and the bug would be that court assignment quietly kept
- * requiring the wider right. `venueId` is off `update` for that reason: two
- * actions, two doors, and no way to use one to do the other's job.
- *
- * ## Only venues the event actually plays at
- *
- * `eventVenue` says which courts an event runs on. Offering every venue on the
- * platform would let an organiser schedule a Bangkok fixture into a Chiang Mai
- * sports hall by picking the wrong row of a long dropdown — the same mistake
- * `setDivisions` and the fixture guard exist to prevent, and the same fix: the
- * form filters, and the endpoint refuses.
+ * Only venues the event plays at. Offering every venue on the platform would
+ * let an organiser schedule a Bangkok fixture into a Chiang Mai sports hall
+ * from a long dropdown — so the form filters and the endpoint refuses.
  */
 export const assignVenue = authed
   .route({
