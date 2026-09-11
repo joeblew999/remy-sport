@@ -3,7 +3,6 @@ import { cors } from "hono/cors"
 import { logger } from "hono/logger"
 import { csrf } from "hono/csrf"
 import authRoutes from "./routes/auth"
-import seedRoutes from "./routes/seed"
 import { RPCHandler } from "@orpc/server/fetch"
 import { OpenAPIHandler } from "@orpc/openapi/fetch"
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins"
@@ -13,7 +12,6 @@ import { scheduled } from "./scheduled"
 import { telemetryInterceptor } from "./api/telemetry"
 import analyticsRoutes from "./routes/analytics"
 import devMailRoutes from "./routes/dev-mail"
-import devSessionRoutes from "./routes/dev-sessions"
 import wellKnownRoutes from "./routes/well-known"
 import unsubscribeRoutes from "./api/unsubscribe"
 import type { AppEnv } from "./types"
@@ -47,9 +45,6 @@ app.use("/api/*", cors({ origin: "*" }))
 // the Worker saw — including each hashed JS and CSS bundle falling through to
 // the asset store — cost a D1 session lookup. `authed` in src/api/base.ts
 // resolves the session where it is actually needed.
-
-// API routes registered before CSRF — called via curl/scripts/tests
-app.route("/", seedRoutes)
 
 // ── The API, from one router ────────────────────────────────────────────────
 // Events, teams and reference are oRPC procedures. The same `router` object
@@ -130,7 +125,6 @@ app.use("/rpc/*", async (c, next) => {
 // Dev-only: 404s unless the outbox mail transport is active (ADR 010).
 app.route("/", analyticsRoutes)
 app.route("/", devMailRoutes)
-app.route("/", devSessionRoutes)
 
 // Apple/Android deep-link association files. Must be before CSRF — they are
 // fetched by Apple's and Google's crawlers, not by a browser session.

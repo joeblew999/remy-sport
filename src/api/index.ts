@@ -16,6 +16,7 @@ import * as teams from "./teams"
 import * as admin from "./admin"
 import * as reference from "./reference"
 import * as health from "./health"
+import * as devRoutes from "./dev"
 import * as me from "./me"
 import * as domain from "./domain"
 import * as moq from "./moq"
@@ -120,6 +121,10 @@ export const router = {
   standings: { list: standings.list },
   reference: { list: reference.list },
   health: { get: health.get, versions: health.versions },
+  dev: {
+    seed: devRoutes.seed,
+    sessions: { prune: devRoutes.pruneSessions },
+  },
   me: { mine: me.mine, chooseRole: me.chooseRole },
 
   // The Product Owner's domain model. One generic implementation serves all of

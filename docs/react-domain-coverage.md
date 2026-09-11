@@ -8,7 +8,7 @@ Five accepted feature designs remain unimplemented; internal data is accounted f
 
 ## Evidence baseline
 
-Qualified items: 1444. Unreviewed: 1370. Explicit classifications: 74.
+Qualified items: 1450. Unreviewed: 1370. Explicit classifications: 80.
 
 [The evidence ledger](../tests/repo/lib/domain-evidence.json) records exact schema fields, foreign keys, procedures and nested output paths.
 Report regeneration cannot enroll new items or turn unreviewed items into covered ones.
@@ -79,6 +79,10 @@ Named tests describe specific cases, not exhaustive permission coverage or the l
 | operation.auth.sign-in/email-otp | edit | Better Auth owns this operation; evidence covers the stated browser journey. [tests/e2e/spa-login.spec.ts](../tests/e2e/spa-login.spec.ts): a correct code signs in and the session is shared across the app — A real OTP creates a session used by the application. |
 | operation.auth.sign-out | edit | Better Auth owns this operation; evidence covers the stated browser journey. [tests/e2e/spa-login.spec.ts](../tests/e2e/spa-login.spec.ts): once signed in the topbar shows who you are, and can sign you out — Sign-out replaces the identity and authenticated controls. |
 | operation.browser.install | edit | The browser owns installation; application evidence establishes a manually opened prompt, not successful OS installation. [tests/render/install.spec.ts](../tests/render/install.spec.ts): is set to manual, so it cannot prompt on arrival — The install element does not automatically prompt on arrival. |
+| output.dev.seed.statements | internal | Moved from Hono raw route POST /api/seed in the oRPC unification, 2026-09-11. Gated by POLICY[env].seedRoute; not a GUI operation. [tests/worker/write.test.ts](../tests/worker/write.test.ts): is idempotent against an already-seeded database — Re-seeding duplicates no row; statements exceed the fixture user count. |
+| output.dev.seed.written | internal | Moved from Hono raw route POST /api/seed in the oRPC unification, 2026-09-11. Gated by POLICY[env].seedRoute; not a GUI operation. [tests/worker/write.test.ts](../tests/worker/write.test.ts): is idempotent against an already-seeded database — Re-seeding duplicates no row; statements exceed the fixture user count. |
+| output.dev.sessions.prune.after | internal | Moved from Hono raw route POST /api/dev/prune-sessions in the oRPC unification, 2026-09-11. Gated by POLICY[env].devSessionRoutes; not a GUI operation. [tests/worker/prune-sessions.test.ts](../tests/worker/prune-sessions.test.ts): keeps the five most recent sessions for a user and drops the rest — Seven sign-ins prune to exactly five, so the window is asserted rather than 'some rows went'. |
+| output.dev.sessions.prune.before | internal | Moved from Hono raw route POST /api/dev/prune-sessions in the oRPC unification, 2026-09-11. Gated by POLICY[env].devSessionRoutes; not a GUI operation. [tests/worker/prune-sessions.test.ts](../tests/worker/prune-sessions.test.ts): keeps the five most recent sessions for a user and drops the rest — Seven sign-ins prune to exactly five, so the window is asserted rather than 'some rows went'. |
 | output.health.versions.current | internal | Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.  |
 | output.health.versions.current._generated | internal | Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.  |
 | output.health.versions.current.app | internal | Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.  |
@@ -88,6 +92,8 @@ Named tests describe specific cases, not exhaustive permission coverage or the l
 | output.health.versions.current.git.commit | internal | Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.  |
 | output.health.versions.current.git.github | internal | Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.  |
 | output.health.versions.current.url | internal | Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.  |
+| procedure.dev.seed | internal | Moved from Hono raw route POST /api/seed in the oRPC unification, 2026-09-11. Gated by POLICY[env].seedRoute; not a GUI operation. [tests/worker/write.test.ts](../tests/worker/write.test.ts): is idempotent against an already-seeded database — Re-seeding duplicates no row; statements exceed the fixture user count. |
+| procedure.dev.sessions.prune | internal | Moved from Hono raw route POST /api/dev/prune-sessions in the oRPC unification, 2026-09-11. Gated by POLICY[env].devSessionRoutes; not a GUI operation. [tests/worker/prune-sessions.test.ts](../tests/worker/prune-sessions.test.ts): keeps the five most recent sessions for a user and drops the rest — Seven sign-ins prune to exactly five, so the window is asserted rather than 'some rows went'. |
 | procedure.health.get | internal | Infrastructure health probe, not a GUI operation.  |
 | procedure.health.versions | internal | Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.  |
 
@@ -978,6 +984,10 @@ These remain unreviewed unless explicitly classified in the ledger. Arrays and r
 
 - output.admin.approveReferee.id
 - output.admin.approveReferee.statusCode
+- output.dev.seed.statements
+- output.dev.seed.written
+- output.dev.sessions.prune.after
+- output.dev.sessions.prune.before
 - output.divisions.list.items
 - output.divisions.list.items[].ageGroupCode
 - output.divisions.list.items[].genderCode

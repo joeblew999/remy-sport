@@ -34,6 +34,7 @@ import {
 } from "./relations"
 import { createAuth } from "../auth"
 import type { Bindings } from "../types"
+import { permits } from "../environment"
 
 export interface ApiContext {
   env: Bindings
@@ -155,6 +156,37 @@ export const viewer = pub.use(async ({ context, next }) => {
   const session = await auth.api.getSession({ headers: context.request.headers })
   return next({ context: { ...context, user: (session?.user as SessionUser) ?? null } })
 })
+
+/**
+ * A procedure that does not exist unless the environment allows it.
+ *
+ * One middleware over `POLICY[env]`, replacing the per-route checks each dev
+ * Hono router carried. It takes which capability gates it rather than being a
+ * single `dev` switch, because the table does not group them: staging grants
+ * `seedRoute` and `devSessionRoutes` and withholds `devMailRoutes`.
+ *
+ * 404 and not 403: on a deployment these must be indistinguishable from routes
+ * that were never built, so nothing advertises that an outbox exists.
+ *
+ * `infrastructure` is the honest policy — these are not domain objects — and
+ * it is the escape hatch the authz walk prints every run, which is where a
+ * reader should see them.
+ */
+export type DevCapability = "seedRoute" | "devMailRoutes" | "devSessionRoutes"
+
+export function dev(capability: DevCapability) {
+  return pub.use(
+    marked(
+      base.$context<ApiContext>().middleware(({ context, next }) => {
+        if (!permits(context.env, capability)) {
+          throw new ORPCError("NOT_FOUND", { message: "Not found" })
+        }
+        return next()
+      }),
+      { kind: "infrastructure", why: `dev only — 404s unless POLICY[env].${capability}` },
+    ),
+  )
+}
 
 /**
  * May this user perform this action on this object?

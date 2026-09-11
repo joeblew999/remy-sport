@@ -185,22 +185,25 @@ key there *records* each gate but nothing yet *asserts* the string names a real
 key. A rule that validates it against `POLICY` would close that, and is worth
 adding when `dev.accounts` lands.
 
-- [ ] `POST /api/seed` → `router.dev.seed`, `dev(seedRoute)`
+- [x] `POST /api/seed` → `router.dev.seed`, `dev(seedRoute)`. Done 2026-09-11;
+      covered by the two existing seed tests in `tests/worker/write.test.ts`.
 - [ ] `POST /api/analytics` → `router.telemetry.report`, `pub`
 - [ ] `GET /api/dev/events` → `router.dev.analyticsEvents`
 - [ ] `GET|DELETE /api/dev/outbox` → `router.dev.outbox.list` / `.clear`
 - [ ] `GET /api/dev/email/:name` → `router.dev.outbox.get`
 - [ ] `DELETE /api/dev/otp` → `router.dev.otp.clear`
 - [ ] `GET /api/dev/accounts` → `router.dev.accounts` (own gate, see above)
-- [ ] `POST /api/dev/prune-sessions` → `router.dev.sessions.prune`
+- [x] `POST /api/dev/prune-sessions` → `router.dev.sessions.prune`. Done
+      2026-09-11, with a new worker test asserting the five-per-user window
+      rather than "some rows went".
 - [x] `GET /api/versions` → `router.health.versions`, `pub`. Done 2026-09-11.
       `infrastructure` policy, Zod output preserving the `current` wrapper the
       three callers index into. Hono route deleted, `HONO_ROUTES` entry removed,
       ledger enrolled as `reviewed`. The dispatch worklist fell 12 → 11.
       Its worker test passes since correction 8 was resolved.
-- [ ] Delete `src/routes/seed.ts`, `src/routes/analytics.ts`,
-      `src/routes/dev-mail.ts`, `src/routes/dev-sessions.ts`, and the inline
-      `/api/versions`
+- [ ] Delete the raw routers. The seed and dev-session routers are gone
+      (2026-09-11) along with the inline `/api/versions`; `src/routes/analytics.ts`
+      and `src/routes/dev-mail.ts` remain.
 
 ## Part B — Remove Hono
 

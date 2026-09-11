@@ -119,7 +119,6 @@ rule(
  * as a failure rather than as silence.
  */
 const HONO_ROUTES: Record<string, string> = {
-  "POST /api/seed": "dev only — 404s unless MAIL_TRANSPORT=outbox; deploys seed via wrangler",
   "POST /api/analytics": "a beacon, deliberately unauthenticated — see src/routes/analytics.ts; writes only to Analytics Engine, reads nothing, answers 204",
   "GET /api/dev/events": "dev only — 404s on a deployment, on the same MAIL_TRANSPORT gate as the outbox; serves the in-memory telemetry ring, which a deployment never fills",
   "GET /api/dev/outbox": "dev only — 404s on a deployment; would expose sign-in codes",
@@ -127,7 +126,6 @@ const HONO_ROUTES: Record<string, string> = {
   "DELETE /api/dev/otp": "dev only — same gate as the outbox; clears a pending sign-in code so a test can request a fresh one",
   "GET /api/dev/email/:name": "dev only — same gate as the outbox; renders a mail template with the fixtures' names so the copy can be read without a deploy. Reads no database and no outbox: the fixed code it shows is the literal 424242, not anyone's issued one",
   "GET /api/dev/accounts": "the demo picker; gated on TEST_OTP and never offers the admin",
-  "POST /api/dev/prune-sessions": "dev only — 404s on a deployment; bulk session delete",
   "ALL /api/auth/*": "Better Auth owns its own authorisation, including the admin plugin; the wrapper records the outcome of POSTs and reads no request body",
   "GET /.well-known/apple-app-site-association": "public by specification; 404s until configured",
   "GET /.well-known/assetlinks.json": "public by specification; 404s until configured",

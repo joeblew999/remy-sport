@@ -2334,6 +2334,82 @@
         }
       ]
     },
+    "output.dev.seed.statements": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route POST /api/seed in the oRPC unification, 2026-09-11. Gated by POLICY[env].seedRoute; not a GUI operation.",
+      "surfaces": [],
+      "operations": [
+        "dev.seed"
+      ],
+      "audience": [
+        "seedRoute"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/write.test.ts",
+          "test": "is idempotent against an already-seeded database",
+          "level": "worker",
+          "result": "Re-seeding duplicates no row; statements exceed the fixture user count."
+        }
+      ]
+    },
+    "output.dev.seed.written": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route POST /api/seed in the oRPC unification, 2026-09-11. Gated by POLICY[env].seedRoute; not a GUI operation.",
+      "surfaces": [],
+      "operations": [
+        "dev.seed"
+      ],
+      "audience": [
+        "seedRoute"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/write.test.ts",
+          "test": "is idempotent against an already-seeded database",
+          "level": "worker",
+          "result": "Re-seeding duplicates no row; statements exceed the fixture user count."
+        }
+      ]
+    },
+    "output.dev.sessions.prune.after": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route POST /api/dev/prune-sessions in the oRPC unification, 2026-09-11. Gated by POLICY[env].devSessionRoutes; not a GUI operation.",
+      "surfaces": [],
+      "operations": [
+        "dev.sessions.prune"
+      ],
+      "audience": [
+        "devSessionRoutes"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/prune-sessions.test.ts",
+          "test": "keeps the five most recent sessions for a user and drops the rest",
+          "level": "worker",
+          "result": "Seven sign-ins prune to exactly five, so the window is asserted rather than 'some rows went'."
+        }
+      ]
+    },
+    "output.dev.sessions.prune.before": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route POST /api/dev/prune-sessions in the oRPC unification, 2026-09-11. Gated by POLICY[env].devSessionRoutes; not a GUI operation.",
+      "surfaces": [],
+      "operations": [
+        "dev.sessions.prune"
+      ],
+      "audience": [
+        "devSessionRoutes"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/prune-sessions.test.ts",
+          "test": "keeps the five most recent sessions for a user and drops the rest",
+          "level": "worker",
+          "result": "Seven sign-ins prune to exactly five, so the window is asserted rather than 'some rows went'."
+        }
+      ]
+    },
     "output.health.versions.current": {
       "intent": "internal",
       "reason": "Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.",
@@ -2441,6 +2517,44 @@
         "operations"
       ],
       "cases": []
+    },
+    "procedure.dev.seed": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route POST /api/seed in the oRPC unification, 2026-09-11. Gated by POLICY[env].seedRoute; not a GUI operation.",
+      "surfaces": [],
+      "operations": [
+        "dev.seed"
+      ],
+      "audience": [
+        "seedRoute"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/write.test.ts",
+          "test": "is idempotent against an already-seeded database",
+          "level": "worker",
+          "result": "Re-seeding duplicates no row; statements exceed the fixture user count."
+        }
+      ]
+    },
+    "procedure.dev.sessions.prune": {
+      "intent": "internal",
+      "reason": "Moved from Hono raw route POST /api/dev/prune-sessions in the oRPC unification, 2026-09-11. Gated by POLICY[env].devSessionRoutes; not a GUI operation.",
+      "surfaces": [],
+      "operations": [
+        "dev.sessions.prune"
+      ],
+      "audience": [
+        "devSessionRoutes"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/prune-sessions.test.ts",
+          "test": "keeps the five most recent sessions for a user and drops the rest",
+          "level": "worker",
+          "result": "Seven sign-ins prune to exactly five, so the window is asserted rather than 'some rows went'."
+        }
+      ]
     },
     "procedure.health.get": {
       "intent": "internal",
