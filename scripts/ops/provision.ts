@@ -10,29 +10,21 @@
  *
  * ## What this replaces
  *
- * Provisioning was six entry points with three different idempotency stories:
- * `cf:secret:set` guarded by a substring `grep`, `push:secret:set` correct,
- * `moq:relay:set` and `demo:on` with no guard at all, and `cf:d1:create` /
- * `cf:r2:create` duplicating the ensure path without the `database_id` write.
- * `cf:env:bootstrap` claimed to provision "all Cloudflare resources" and ran
- * three of them; two were called by nothing.
+ * Six entry points with three different idempotency stories, one of them a
+ * substring `grep` and two with no guard at all. The queues were the sharpest
+ * version: `wrangler.toml` declares a producer and two consumers, and nothing
+ * anywhere created them.
  *
- * The queues were the sharpest version of it: `wrangler.toml` declares a
- * producer and two consumers, and **nothing anywhere created them**.
+ * ## Environment-aware rather than parameterised later
  *
- * ## Why it is environment-aware rather than parameterised later
+ * The old path resolved names from mise literals pinned to production, which
+ * cannot express three environments — and the failure would not be an error,
+ * just the right thing done to the wrong account resource. Names come from
+ * resolved wrangler config for a named target, with no default.
  *
- * The old path resolved names from `CF_D1_NAME` and `CF_R2_NAME`, mise `[env]`
- * literals pinned to production. Those cannot express three environments, and
- * the failure would not be an error — every task would quietly do the right
- * thing to the wrong account resource. So names come from **resolved wrangler
- * config** for a named target, the same mechanism `check-envs.ts` uses, and
- * there is no default: a run that cannot identify its target refuses.
- *
- * Never defaulting to production is the same rule as everywhere else in this
- * codebase, pointed the other way. `environmentOf()` resolves the unknown to
- * production because the risk there is an *opened door*. Here the risk is a
- * *write*, and the strictest answer for a write is to not perform it.
+ * Never defaulting to production is the usual rule pointed the other way:
+ * `environmentOf()` resolves the unknown to production because the risk there
+ * is an opened door. Here the risk is a *write*.
  */
 
 import { DEMO_SIGN_IN_CODE, POLICY, type Environment } from "../../src/environment.ts"
@@ -560,16 +552,13 @@ function setGroup(target: Target, values: Record<string, string>, only?: string[
 /**
  * Which zones have Email Sending enabled, from the account.
  *
- * `wrangler email sending list` exists, so this is checked rather than
- * asserted. The first version of this printout told you to onboard
- * `remy.ubuntusoftware.net` — a domain that is not in the list and from which
- * production nonetheless sends successfully, with `dkim=pass`. Enablement is
- * per **zone**: `ubuntusoftware.net` is enabled (through
- * `mail.ubuntusoftware.net`) and every subdomain of it signs with the zone key.
+ * `wrangler email sending list` exists, so this is checked rather than asserted.
+ * The first printout told you to onboard a domain that is not in the list and
+ * from which production sends successfully with `dkim=pass` — enablement is per
+ * **zone**, and every subdomain signs with the zone key.
  *
- * That is also why the bulk/transactional split does not buy separate DKIM
- * reputation today — src/mail/mailer.ts says so beside the split — worth
- * knowing before relying on it.
+ * That is also why the bulk/transactional split buys no separate DKIM
+ * reputation today; src/mail/mailer.ts says so beside the split.
  */
 function enabledZones(): Set<string> | null {
   const listed = wrangler(["email", "sending", "list"])

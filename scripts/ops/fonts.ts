@@ -41,29 +41,17 @@ const OUT = join(ROOT, "src/web/fonts")
  *            CJK face than we would send it. The font stack in styles.css falls
  *            through to system-ui.
  *
- * Keyed by WRITING SYSTEM, not by language, and the language's writing system
- * is not written down here either — `Intl.Locale(code).maximize().script` is
- * CLDR's own answer and every runtime ships it:
+ * Keyed by WRITING SYSTEM, not by language, and the mapping is not written down
+ * here either — `Intl.Locale(code).maximize().script` is CLDR's own answer.
+ * (Note `ur → Aran`: Arabic in Nastaliq style, which CLDR distinguishes.)
  *
- *   th → Thai    hi → Deva    ar → Arab    bn → Beng    ru, uk → Cyrl
- *   ja → Jpan    ko → Kore    zh → Hans    zh-TW, zh-HK → Hant
- *   en, es, fr, de, id, tl, vi, tr, it, pl, ms, sw, nl → Latn
- *   ur → Aran  ← Arabic in Nastaliq style, which CLDR distinguishes from Arab
+ * A locale→font table grew by a line per language whether or not it brought a
+ * new script; half its rows were empty and existed only to stop the check
+ * refusing to run. Adding Dutch was a font decision, and should not have been.
  *
- * This used to be a locale→font table, and it grew by a line for every language
- * whether or not that language brought a new script: thirteen of its
- * twenty-seven rows said `{ subsets: [] }` and existed only to stop the check
- * below refusing to run. Adding Dutch was a font decision. It should not have
- * been one.
- *
- * Keyed by script, the table converges. A twenty-eighth language that reads in
- * Latin, Cyrillic, Arabic or Devanagari needs nothing here at all; only a
- * genuinely new writing system does, which is the only case where somebody
- * really does have to decide something.
- *
- * A script with no entry is still a hard failure rather than silent tofu — the
- * check below just asks the question once per writing system instead of once
- * per language.
+ * Keyed by script it converges: another language in Latin, Cyrillic, Arabic or
+ * Devanagari needs nothing here. A script with no entry is still a hard failure
+ * rather than silent tofu.
  *
  * `latin`/`latin-ext` are unconditional: names, codes and numerals appear in
  * every language, and a Thai school's roster carries accented Latin names.
@@ -247,25 +235,19 @@ if (seen.size) {
 /**
  * The script faces, as a token the stylesheet composes rather than retypes.
  *
- * Downloading a face and *using* one are two different things, and for three
- * languages this repository did the first and not the second. The
- * twenty-seven-locale release added Arabic, Devanagari and Bengali to SCRIPTS
- * above — so `ops fonts` dutifully vendored 510KB — while `--font-sans` in
- * styles.css stayed a hand-typed list of Inter and Thai. Nothing referenced the
- * new families, so no browser ever requested them, and the scripts fell through
- * to the system face. Nothing looked broken, because every OS ships Arabic.
+ * Downloading a face and *using* one are different things, and for three
+ * scripts this repo did the first and not the second: `ops fonts` vendored the
+ * files while `--font-sans` stayed a hand-typed list, so nothing referenced
+ * them and no browser requested them. Nothing looked broken, because every OS
+ * ships Arabic.
  *
- * Two lists, one derived from the model and one maintained by hand, is the
- * whole defect. This is the derived one, and styles.css now interpolates it:
+ * Two lists, one derived and one maintained by hand, is the whole defect. This
+ * is the derived one, and styles.css interpolates it:
  *
  *   --font-sans: 'Inter', var(--font-scripts), system-ui, …
  *
- * So declaring a locale in the Product Owner's model and running this command
- * is the entire change. There is no second place to remember.
- *
- * `unicode-range` on every @font-face is what makes naming them all free: a
- * browser fetches a face only when it has a character to put in it, so a reader
- * of English downloads none of these.
+ * `unicode-range` is what makes naming them all free: a browser fetches a face
+ * only when it has a character to put in it.
  */
 const scriptFamilies = [
   ...new Set(ALL_LOCALES.map((l) => SCRIPTS[l]!.family).filter(Boolean) as string[]),

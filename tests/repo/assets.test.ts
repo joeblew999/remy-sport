@@ -5,15 +5,12 @@
  * a hashed bundle answered by the asset store costs nothing, where the same
  * request through the Worker is billed and writes an observability log.
  *
- * The cost of that choice is stated in wrangler.toml and is real: **a new
- * top-level file in `dist/web` that collides with a Worker route would silently
- * win it.** Silently is the word that matters. Nothing would throw. `/doc` would
- * start returning a static file, or `/api` would stop being an API, and the
- * first sign would be a support question.
+ * The cost is real: **a new top-level file in `dist/web` that collides with a
+ * Worker route silently wins it.** Nothing throws — `/api` just stops being an
+ * API, and the first sign is a support question.
  *
- * So the invariant is checked rather than remembered. The Worker's routes come
- * from Hono itself — `app.routes` — not from a list here that could fall behind
- * the routes it claims to describe.
+ * So the routes come from Hono itself, `app.routes`, not from a list here that
+ * could fall behind what it describes.
  *
  * Only top-level names matter. Assets live at `/index.html` and `/assets/*`;
  * a collision can only happen at the first path segment, because that is all
@@ -76,14 +73,11 @@ rule(
  * worker goes on answering navigations from its own cache — so a returning
  * reader keeps the build they already had, for as long as that takes.
  *
- * On 2026-09-10 that was for ever. `build.emptyOutDir` defaults to false when
- * the output sits outside the Vite root, which it does here, so every build's
- * hashed assets accumulated — **765 files and 575MB** by 2026-09-10 — all of them uploaded and
- * all of them globbed into the manifest — `precache 369 entries (90111.55
- * KiB)`. Production served a week-old interface to anyone who had visited
- * before, while `/api/versions` and `curl` both reported the new one correctly,
- * because neither holds a cache. Emptying the directory took it to 61 entries
- * and 4MB.
+ * That happened. `build.emptyOutDir` defaults to false when the output sits
+ * outside the Vite root, so every build's hashed assets accumulated into the
+ * manifest until the worker could not install. Production served a week-old
+ * interface to anyone who had visited before, while `/api/versions` and `curl`
+ * reported the new one correctly, because neither holds a cache.
  *
  * The number matters more than the count: this is a budget for what a phone on
  * a hotel connection must download before it can be given the new build. Ten
