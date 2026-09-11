@@ -8,7 +8,7 @@ Five accepted feature designs remain unimplemented; internal data is accounted f
 
 ## Evidence baseline
 
-Qualified items: 1482. Unreviewed: 1370. Explicit classifications: 112.
+Qualified items: 1484. Unreviewed: 1370. Explicit classifications: 114.
 
 [The evidence ledger](../tests/repo/lib/domain-evidence.json) records exact schema fields, foreign keys, procedures and nested output paths.
 Report regeneration cannot enroll new items or turn unreviewed items into covered ones.
@@ -127,6 +127,8 @@ Named tests describe specific cases, not exhaustive permission coverage or the l
 | procedure.dev.sessions.prune | internal | Moved from Hono raw route POST /api/dev/prune-sessions in the oRPC unification, 2026-09-11. Gated by POLICY[env].devSessionRoutes; not a GUI operation. [tests/worker/prune-sessions.test.ts](../tests/worker/prune-sessions.test.ts): keeps the five most recent sessions for a user and drops the rest — Seven sign-ins prune to exactly five, so the window is asserted rather than 'some rows went'. |
 | procedure.health.get | internal | Infrastructure health probe, not a GUI operation.  |
 | procedure.health.versions | internal | Moved from Hono raw route GET /api/versions in the oRPC unification, 2026-09-11. Build metadata for operators and the deploy's wait loop, not a GUI operation.  |
+| procedure.notifications.unsubscribeConfirm | internal | Moved off Hono in the oRPC unification, 2026-09-11. Unauthenticated by necessity — somebody who has stopped opening the app is exactly who it is for; the token authorises one (userId, typeCode, EMAIL) preference to false and nothing else. [tests/worker/unsubscribe.test.ts](../tests/worker/unsubscribe.test.ts): renders a form and changes nothing — The page carries a POST form; a scanner following the link leaves preferences as it found them.; [tests/worker/unsubscribe.test.ts](../tests/worker/unsubscribe.test.ts): says so plainly when the token is not ours — An unsigned token answers 400. |
+| procedure.notifications.unsubscribeOneClick | internal | Moved off Hono in the oRPC unification, 2026-09-11. Unauthenticated by necessity — somebody who has stopped opening the app is exactly who it is for; the token authorises one (userId, typeCode, EMAIL) preference to false and nothing else. [tests/worker/unsubscribe.test.ts](../tests/worker/unsubscribe.test.ts): accepts the exact body a mail client sends — List-Unsubscribe=One-Click as application/x-www-form-urlencoded answers 200 and confirms.; [tests/worker/unsubscribe.test.ts](../tests/worker/unsubscribe.test.ts): accepts an empty body too, because not every client sends the marker — An empty form body is honoured.; [tests/worker/unsubscribe.test.ts](../tests/worker/unsubscribe.test.ts): refuses a token that was not signed by us — A forged token answers 400 and changes nothing. |
 | procedure.telemetry.report | derived | Moved from Hono raw route POST /api/analytics in the oRPC unification, 2026-09-11. A client beacon: unauthenticated by necessity, writes only to Analytics Engine and reads nothing. [tests/worker/analytics-beacon.test.ts](../tests/worker/analytics-beacon.test.ts): drops a malformed body rather than answering 400 — Four malformed bodies each answer 204, so a beacon is never refused and 4xx never pollutes the dataset.; [tests/worker/analytics-beacon.test.ts](../tests/worker/analytics-beacon.test.ts): accepts a declared event and answers 204 with no body — A catalogue event is accepted and answered 204 with an empty body. |
 
 ## Actions

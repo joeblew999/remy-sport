@@ -41,11 +41,12 @@
  * and proxy logs, and the userId is opaque where an address is not.
  */
 
-import { Hono } from "hono"
+import { ORPCError } from "@orpc/server"
+import { z } from "zod"
 import * as schema from "../db/schema"
-import { database } from "./base"
+import { infrastructure, pub } from "./base"
 import { track } from "../analytics"
-import type { AppEnv, Bindings } from "../types"
+import type { Bindings } from "../types"
 
 /** What the token authorises. Deliberately the whole of it. */
 export type UnsubscribeClaim = {
@@ -142,87 +143,137 @@ export async function unsubscribeHeaders(
   }
 }
 
-const unsubscribe = new Hono<AppEnv>()
+/** The token is echoed into an attribute, so it is escaped as one. */
+const escapeAttr = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;")
+
+const page = (title: string, body: string) =>
+  `<!doctype html><meta charset="utf-8">` +
+  `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+  `<title>${title}</title>` +
+  `<style>body{font:16px/1.5 system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1rem}` +
+  `button{font:inherit;padding:.6rem 1.2rem;border-radius:6px;border:1px solid #333;background:#111;color:#fff;cursor:pointer}</style>` +
+  body
+
+const html = (title: string, body: string) =>
+  new File([page(title, body)], "unsubscribe.html", { type: "text/html; charset=utf-8" })
+
+/**
+ * An unsigned or edited token answers 400, and changes nothing.
+ *
+ * Thrown rather than returned: a `File` output carries the success body, and
+ * oRPC expresses a non-2xx as an error. The status is the part that is pinned
+ * — tests/worker/push.test.ts asserts 400 for a forged token and for one whose
+ * claim was edited, because a refused link that answered 200 would look, to
+ * anything reading the response, like it had worked.
+ */
+function refuse(): never {
+  throw new ORPCError("BAD_REQUEST", { message: "This unsubscribe link is not valid." })
+}
 
 /**
  * Render, and change nothing.
  *
  * A scanner following this link must leave the reader's preferences exactly as
- * it found them. The page is plain HTML with a form: no app, no session, no
- * JavaScript, because somebody who has stopped using the app should not have to
- * load it to stop the email.
+ * it found them. Plain HTML with a form — no app, no session, no JavaScript —
+ * because somebody who has stopped using the app should not have to load it to
+ * stop the email. That is why this stayed a rendered page rather than becoming
+ * an SPA route when it left Hono.
  */
-unsubscribe.get("/api/unsubscribe", async (c) => {
-  const claim = await verifyToken(c.env, c.req.query("t") ?? "")
-  if (!claim) return c.text("This unsubscribe link is not valid.", 400)
-
-  // Deliberately no database read either. Rendering must not confirm that a
-  // user exists — a valid-looking token that says "already unsubscribed" for
-  // one id and "confirm?" for another is an enumeration oracle.
-  return c.html(
-    `<!doctype html><meta charset="utf-8">` +
-      `<meta name="viewport" content="width=device-width,initial-scale=1">` +
-      `<title>Unsubscribe</title>` +
-      `<style>body{font:16px/1.5 system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1rem}` +
-      `button{font:inherit;padding:.6rem 1.2rem;border-radius:6px;border:1px solid #333;background:#111;color:#fff;cursor:pointer}</style>` +
-      `<h1>Stop these emails?</h1>` +
-      `<p>You will stop receiving this kind of email. Push notifications and ` +
-      `sign-in emails are not affected.</p>` +
-      `<form method="post" action="/api/unsubscribe?t=${escapeAttr(c.req.query("t") ?? "")}">` +
-      `<button type="submit">Unsubscribe</button></form>`,
+export const confirm = pub
+  .use(
+    infrastructure(
+      "unauthenticated by necessity — somebody who has stopped opening the app is exactly who it is for. Renders a page and changes nothing",
+    ),
   )
-})
+  .route({
+    method: "GET",
+    path: "/unsubscribe",
+    summary: "The unsubscribe confirmation page",
+    inputStructure: "detailed",
+  })
+  .input(z.object({ query: z.object({ t: z.string().optional() }) }))
+  .output(z.instanceof(File))
+  .handler(async ({ input, context }) => {
+    const token = input.query.t ?? ""
+    const claim = await verifyToken(context.env, token)
+    if (!claim) refuse()
+
+    // Deliberately no database read either. Rendering must not confirm that a
+    // user exists — a valid-looking token that says "already unsubscribed" for
+    // one id and "confirm?" for another is an enumeration oracle.
+    return html(
+      "Unsubscribe",
+      `<h1>Stop these emails?</h1>` +
+        `<p>You will stop receiving this kind of email. Push notifications and ` +
+        `sign-in emails are not affected.</p>` +
+        `<form method="post" action="/api/unsubscribe?t=${escapeAttr(token)}">` +
+        `<button type="submit">Unsubscribe</button></form>`,
+    )
+  })
 
 /**
  * Act, with no confirmation. This is the RFC 8058 path.
  *
  * A mail client posts here on the reader's behalf when they press the client's
- * own unsubscribe button, and the confirmation page above is what the same link
- * shows a human who follows it. One URL, two methods, two very different
- * meanings.
+ * own unsubscribe button; the page above is what the same link shows a human
+ * who follows it. One URL, two methods, two very different meanings.
+ *
+ * The token is in the query, because that is what `List-Unsubscribe` carries.
+ * The **body** is the RFC's marker, `List-Unsubscribe=One-Click`, sent as
+ * `application/x-www-form-urlencoded` — so the input is declared detailed and
+ * the body loose: a client that sends the marker and a client that sends an
+ * empty body must both be honoured, and refusing either would look to Gmail
+ * like an unsubscribe that does not work.
  */
-unsubscribe.post("/api/unsubscribe", async (c) => {
-  const claim = await verifyToken(c.env, c.req.query("t") ?? "")
-  if (!claim) return c.text("This unsubscribe link is not valid.", 400)
-
-  const db = database(c.env)
-  /**
-   * Exactly one row, and only ever to `false`.
-   *
-   * An upsert rather than an update: the preference may not exist yet, because
-   * absence means "not stated" and EMAIL treats that as off — but a reader who
-   * has pressed unsubscribe has stated it, and the difference matters if the
-   * default ever changes.
-   */
-  await db
-    .insert(schema.userNotificationPreference)
-    .values({
-      userId: claim.userId,
-      notificationTypeCode: claim.typeCode,
-      channelCode: "EMAIL",
-      isEnabled: false,
-    })
-    .onConflictDoUpdate({
-      target: [
-        schema.userNotificationPreference.userId,
-        schema.userNotificationPreference.notificationTypeCode,
-        schema.userNotificationPreference.channelCode,
-      ],
-      set: { isEnabled: false },
-    })
-
-  track(c.env, "notify.unsubscribed", { typeCode: claim.typeCode, channel: "EMAIL" })
-  return c.html(
-    `<!doctype html><meta charset="utf-8">` +
-      `<meta name="viewport" content="width=device-width,initial-scale=1">` +
-      `<title>Unsubscribed</title>` +
-      `<style>body{font:16px/1.5 system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1rem}</style>` +
-      `<h1>Unsubscribed</h1><p>You will not get this kind of email again.</p>`,
+export const oneClick = pub
+  .use(
+    infrastructure(
+      "the RFC 8058 one-click path; the token authorises one (userId, typeCode, EMAIL) preference to false and nothing else",
+    ),
   )
-})
+  .route({
+    method: "POST",
+    path: "/unsubscribe",
+    summary: "One-click unsubscribe (RFC 8058)",
+    inputStructure: "detailed",
+  })
+  .input(
+    z.object({
+      query: z.object({ t: z.string().optional() }),
+      body: z.unknown().optional(),
+    }),
+  )
+  .output(z.instanceof(File))
+  .handler(async ({ input, context }) => {
+    const claim = await verifyToken(context.env, input.query.t ?? "")
+    if (!claim) refuse()
 
-/** The token is echoed into an attribute, so it is escaped as one. */
-const escapeAttr = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;")
+    /**
+     * Exactly one row, and only ever to `false`.
+     *
+     * An upsert rather than an update: the preference may not exist yet,
+     * because absence means "not stated" and EMAIL treats that as off — but a
+     * reader who has pressed unsubscribe has stated it, and the difference
+     * matters if the default ever changes.
+     */
+    await context.db
+      .insert(schema.userNotificationPreference)
+      .values({
+        userId: claim.userId,
+        notificationTypeCode: claim.typeCode,
+        channelCode: "EMAIL",
+        isEnabled: false,
+      })
+      .onConflictDoUpdate({
+        target: [
+          schema.userNotificationPreference.userId,
+          schema.userNotificationPreference.notificationTypeCode,
+          schema.userNotificationPreference.channelCode,
+        ],
+        set: { isEnabled: false },
+      })
 
-export default unsubscribe
+    track(context.env, "notify.unsubscribed", { typeCode: claim.typeCode, channel: "EMAIL" })
+    return html("Unsubscribed", `<h1>Unsubscribed</h1><p>You will not get this kind of email again.</p>`)
+  })

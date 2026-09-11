@@ -3235,6 +3235,62 @@
       ],
       "cases": []
     },
+    "procedure.notifications.unsubscribeConfirm": {
+      "intent": "internal",
+      "reason": "Moved off Hono in the oRPC unification, 2026-09-11. Unauthenticated by necessity — somebody who has stopped opening the app is exactly who it is for; the token authorises one (userId, typeCode, EMAIL) preference to false and nothing else.",
+      "surfaces": [],
+      "operations": [
+        "notifications.unsubscribeConfirm"
+      ],
+      "audience": [
+        "email recipients"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/unsubscribe.test.ts",
+          "test": "renders a form and changes nothing",
+          "level": "worker",
+          "result": "The page carries a POST form; a scanner following the link leaves preferences as it found them."
+        },
+        {
+          "file": "tests/worker/unsubscribe.test.ts",
+          "test": "says so plainly when the token is not ours",
+          "level": "worker",
+          "result": "An unsigned token answers 400."
+        }
+      ]
+    },
+    "procedure.notifications.unsubscribeOneClick": {
+      "intent": "internal",
+      "reason": "Moved off Hono in the oRPC unification, 2026-09-11. Unauthenticated by necessity — somebody who has stopped opening the app is exactly who it is for; the token authorises one (userId, typeCode, EMAIL) preference to false and nothing else.",
+      "surfaces": [],
+      "operations": [
+        "notifications.unsubscribeOneClick"
+      ],
+      "audience": [
+        "email recipients"
+      ],
+      "cases": [
+        {
+          "file": "tests/worker/unsubscribe.test.ts",
+          "test": "accepts the exact body a mail client sends",
+          "level": "worker",
+          "result": "List-Unsubscribe=One-Click as application/x-www-form-urlencoded answers 200 and confirms."
+        },
+        {
+          "file": "tests/worker/unsubscribe.test.ts",
+          "test": "accepts an empty body too, because not every client sends the marker",
+          "level": "worker",
+          "result": "An empty form body is honoured."
+        },
+        {
+          "file": "tests/worker/unsubscribe.test.ts",
+          "test": "refuses a token that was not signed by us",
+          "level": "worker",
+          "result": "A forged token answers 400 and changes nothing."
+        }
+      ]
+    },
     "procedure.telemetry.report": {
       "intent": "derived",
       "reason": "Moved from Hono raw route POST /api/analytics in the oRPC unification, 2026-09-11. A client beacon: unauthenticated by necessity, writes only to Analytics Engine and reads nothing.",

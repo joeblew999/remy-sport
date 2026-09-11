@@ -25,7 +25,7 @@ A shipped feature stays here if its acceptance checks or follow-ups are still op
 
 | Work | State | Next step / owning plan |
 | --- | --- | --- |
-| Unify server routing on oRPC | Started 2026-09-11 | [Unify server routing](2026-09-11-01-unify-server-routing-orpc.md). Hono is removed; every endpoint becomes an oRPC procedure and `src/index.ts` becomes a prefix-dispatching fetch handler. Ten corrections to the brief are recorded at the top of the plan — most importantly that deleting Hono destroys the second rule in `tests/repo/authz.test.ts`, which enumerates every non-procedure route; its replacement must be green before that rule is removed. Part A is complete — all nine endpoints are procedures and four raw routers are deleted. Part B started: CSRF is on the oRPC plugin. Next: `.well-known` to the client build, then the unsubscribe split. |
+| Unify server routing on oRPC | Started 2026-09-11 | [Unify server routing](2026-09-11-01-unify-server-routing-orpc.md). Hono is removed; every endpoint becomes an oRPC procedure and `src/index.ts` becomes a prefix-dispatching fetch handler. Eleven corrections to the brief are recorded at the top of the plan — most importantly that deleting Hono destroys the second rule in `tests/repo/authz.test.ts`, which enumerates every non-procedure route; its replacement must be green before that rule is removed. Part A is complete — all nine endpoints are procedures and four raw routers are deleted. Part B is done bar the Better Auth forwarder. Next: Part C — the fetch handler, which is where the two red dispatch rules go green. |
 
 > **Eight plans moved to [done/](done/README.md) on 2026-09-10 with their device
 > or credential acceptance still outstanding** — a one-off clearing by the

@@ -120,8 +120,6 @@ rule(
  */
 const HONO_ROUTES: Record<string, string> = {
   "ALL /api/auth/*": "Better Auth owns its own authorisation, including the admin plugin; the wrapper records the outcome of POSTs and reads no request body",
-  "GET /api/unsubscribe": "unauthenticated by necessity — somebody who has stopped opening the app is exactly who it is for. Renders a confirmation page and changes NOTHING, because mail scanners follow GET links; the token is HMAC'd with BETTER_AUTH_SECRET and authorises one preference row going to off",
-  "POST /api/unsubscribe": "the RFC 8058 one-click path. Same token, same single scope: one (userId, typeCode, EMAIL) preference to false. Cannot read, enumerate or change anything else",
   "GET /openapi.json": "a 301 to /api/openapi.json, where the handler serves the published contract",
   "GET /doc": "a 301 to /api/doc, the reference page the handler serves",
   "GET /": "the SPA shell",

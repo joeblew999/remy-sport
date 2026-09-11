@@ -10,7 +10,7 @@ migration's A2 (shell for every path) is subsumed by Part C.
 
 ## Corrections to the brief, found by reading the tree first
 
-Ten things the specification assumes are not quite what is there. Each changes
+Eleven things the specification assumes are not quite what is there. Each changes
 work, so each is settled here before any code moves.
 
 ### 1. Removing Hono silently destroys a security check
@@ -205,6 +205,28 @@ The plugin is deliberately NOT on the OpenAPI handler: `/api` grants
 `cors({ origin: "*" })` for external clients, and the same header requirement
 would refuse all of them.
 
+### 11. The unsubscribe page is not an SPA route
+
+The brief moves `GET /api/unsubscribe` to an SPA route. The code it would have
+replaced argues against that in its own comment, and the argument holds:
+
+> Plain HTML with a form — no app, no session, no JavaScript — because somebody
+> who has stopped using the app should not have to load it to stop the email.
+
+Making it an SPA route would download the whole bundle so a person who has
+already left can press one button. **Decision, confirmed by the Product Owner:
+it stays a rendered page.** It leaves Hono the same way the mail preview did —
+an oRPC procedure returning a `File`, so the handler serves raw HTML with its
+own Content-Type and no SPA is involved.
+
+The POST needed no coercion plugin. oRPC's OpenAPI handler parses
+`application/x-www-form-urlencoded` natively; the input is declared
+`inputStructure: "detailed"` because the token is a query parameter while the
+body carries the RFC's marker, and the body is left loose so a client sending
+`List-Unsubscribe=One-Click` and one sending nothing are both honoured.
+Refusing either would read to Gmail as an unsubscribe that does not work, which
+is a deliverability problem long before it is a 400.
+
 Two further details to preserve, not change:
 
 - The `dev` base builder is parameterised by flag, not a single gate.
@@ -292,9 +314,14 @@ adding when `dev.accounts` lands.
       where the Worker route had set `application/json`. A `_headers` file is
       emitted beside it, and smoke asserts the type rather than only the
       status.
-- [ ] `GET /api/unsubscribe` → SPA route; `POST` → form-encoded procedure at the
-      same URL, RFC 8058 semantics unchanged
-- [ ] Delete `src/routes/`, the Hono half of `src/api/unsubscribe.ts`, and `hono`
+- [x] `GET /api/unsubscribe` stays a rendered page (correction 11); `POST` is a
+      form-encoded procedure at the same URL, RFC 8058 semantics unchanged.
+      Done 2026-09-11, gated by a worker test posting the exact body a mail
+      client sends.
+- [x] The Hono half of `src/api/unsubscribe.ts` is deleted (2026-09-11); the
+      token helpers stay, since `src/api/transports.ts` signs every bulk mail
+      with them.
+- [ ] Delete the last router and the `hono` package — Part C
 
 ## Part C — One `index.ts`
 

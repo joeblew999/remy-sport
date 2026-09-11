@@ -10,7 +10,6 @@ import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4"
 import { router } from "./api"
 import { scheduled } from "./scheduled"
 import { telemetryInterceptor } from "./api/telemetry"
-import unsubscribeRoutes from "./api/unsubscribe"
 import type { AppEnv } from "./types"
 import { handleNotification } from "./api/notify-queue"
 import { track } from "./analytics"
@@ -138,7 +137,6 @@ app.use("/rpc/*", async (c, next) => {
 // dist/client/.well-known by `deepLinkAssociations` in src/web/vite.config.ts
 // and served by ASSETS. They were never dynamic: static JSON off four env vars,
 // none of which is set in any environment.
-app.route("/", unsubscribeRoutes)
 
 // Better Auth owns its own origin checking: it compares the request Origin
 // against `trustedOrigins` and refuses with INVALID_ORIGIN. `csrf()` used to

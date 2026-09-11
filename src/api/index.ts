@@ -19,6 +19,7 @@ import * as health from "./health"
 import * as devRoutes from "./dev"
 import * as telemetry from "./telemetry"
 import * as devAccounts from "./dev-accounts"
+import * as unsubscribe from "./unsubscribe"
 import * as me from "./me"
 import * as domain from "./domain"
 import * as moq from "./moq"
@@ -50,6 +51,13 @@ export const router = {
     following: notifications.following,
     setPreference: notifications.setPreference,
     sendTest: notifications.sendTest,
+    /**
+     * The email unsubscribe pair, at one URL with two meanings: GET renders a
+     * confirmation page and changes nothing, POST acts. See src/api/unsubscribe.ts
+     * for why that split is load-bearing — mail scanners follow GET links.
+     */
+    unsubscribeConfirm: unsubscribe.confirm,
+    unsubscribeOneClick: unsubscribe.oneClick,
   },
   moq: {
     config: moq.config,
