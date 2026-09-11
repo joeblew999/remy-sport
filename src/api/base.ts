@@ -188,7 +188,7 @@ export function dev(capability: DevCapability) {
         }
         return next()
       }),
-      { kind: "infrastructure", why: `dev only — 404s unless POLICY[env].${capability}` },
+      { kind: "infrastructure", why: `dev only — 404s unless POLICY[env].${capability}`, capability },
     ),
   )
 }
@@ -425,8 +425,17 @@ export type Policy =
   | { kind: "open"; action: string }
   /** The handler calls `can()` itself, because the action depends on the input. */
   | { kind: "handler"; actions: readonly string[] }
-  /** Not a domain object at all — health, vocabularies. Named, so it is countable. */
-  | { kind: "infrastructure"; why: string }
+  /**
+   * Not a domain object at all — health, vocabularies, the dev endpoints.
+   * Named, so it is countable.
+   *
+   * `capability` is set when the mark came from `dev(...)`: it is the `POLICY`
+   * key that decides whether this procedure exists in a given environment, and
+   * src/api/openapi.ts reads it to keep the published document describing only
+   * what the deployment actually mounts. Carried as a field rather than parsed
+   * back out of `why`, because a prose string is not an interface.
+   */
+  | { kind: "infrastructure"; why: string; capability?: DevCapability }
   /** The model permits more than we do. Deliberate, and reported every run. */
   | { kind: "stricter"; action: string; why: string }
 

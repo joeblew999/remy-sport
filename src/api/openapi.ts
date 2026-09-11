@@ -4,6 +4,9 @@ import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins"
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4"
 import { CORSPlugin } from "@orpc/server/plugins"
 import { router } from "./index"
+import { policyOf } from "./base"
+import { permits } from "../environment"
+import type { Bindings } from "../types"
 import { telemetryInterceptor } from "./telemetry"
 import { APP_VERSION } from "./version"
 
@@ -51,6 +54,34 @@ export function withDomainTags(document: OpenAPI.Document): OpenAPI.Document {
     }
   }
   return document
+}
+
+/**
+ * Which procedures a document leaves out, per the environment asking.
+ *
+ * A deployment passes its own `env` and gets a document describing what it
+ * mounts: production withholds every `dev` capability and publishes none,
+ * staging grants `seedRoute` and `devSessionRoutes` and publishes those two.
+ * The generator passes none and gets the published set.
+ *
+ * Production was serving all seven dev operations, with schemas, while
+ * answering 404 to each. The 404s were right; advertising an internal surface
+ * to whoever fetched the document was not.
+ *
+ * Plain infrastructure — health, the beacon, unsubscribe — stays out of both:
+ * reachable, but not an API anyone is meant to build against.
+ */
+export function excludeInternal(env?: Bindings) {
+  return (procedure: unknown) => {
+    const middlewares = ((procedure as { "~orpc"?: { middlewares?: unknown[] } })["~orpc"]
+      ?.middlewares ?? []) as unknown[]
+    const policy = middlewares.map(policyOf).find((p) => p?.kind === "infrastructure")
+    if (!policy || policy.kind !== "infrastructure") return false
+    // A dev endpoint this deployment actually mounts is worth describing to
+    // whoever is on call; one it withholds does not exist here.
+    if (env && policy.capability) return !permits(env, policy.capability)
+    return true
+  }
 }
 
 /** How Zod schemas become JSON Schema. One list, both consumers. */
@@ -107,7 +138,16 @@ export const openApiHandler = new OpenAPIHandler(router, {
       specPath: "/openapi.json",
       docsPath: "/doc",
       docsTitle: "Remy Sport API",
-      specGenerateOptions: SPEC_OPTIONS,
+      /**
+       * A function, not a value, so the document can depend on the request.
+       *
+       * The plugin hands the interceptor options through, and `context.env` is
+       * how this deployment knows which `dev` capabilities it mounts.
+       */
+      specGenerateOptions: (options: { context?: { env?: Bindings } }) => ({
+        ...SPEC_OPTIONS,
+        exclude: excludeInternal(options.context?.env),
+      }),
     }),
   ],
 })

@@ -1,7 +1,6 @@
 import { OpenAPIGenerator } from "@orpc/openapi"
 import { router } from "../../src/api/index.ts"
-import { SCHEMA_CONVERTERS, SPEC_OPTIONS, withDomainTags } from "../../src/api/openapi.ts"
-import { policyOf } from "../../src/api/base.ts"
+import { SCHEMA_CONVERTERS, SPEC_OPTIONS, excludeInternal, withDomainTags } from "../../src/api/openapi.ts"
 import { originOf, resolveTarget } from "../lib/cloudflare.ts"
 
 /**
@@ -60,15 +59,10 @@ export async function generate(audience: "public" | "internal" = "public") {
   const generator = new OpenAPIGenerator({ schemaConverters: SCHEMA_CONVERTERS })
   return withDomainTags(await generator.generate(router, {
     ...SPEC_OPTIONS,
-    ...(audience === "public"
-      ? {
-          exclude: (procedure: unknown) => {
-            const middlewares = ((procedure as { "~orpc"?: { middlewares?: unknown[] } })["~orpc"]
-              ?.middlewares ?? []) as unknown[]
-            return middlewares.map(policyOf).some((policy) => policy?.kind === "infrastructure")
-          },
-        }
-      : {}),
+    // The same predicate the served document uses, with no environment — so
+    // "public" here means what every deployment publishes, whatever any one of
+    // them additionally mounts.
+    ...(audience === "public" ? { exclude: excludeInternal() } : {}),
   }))
 }
 
@@ -114,9 +108,10 @@ if (!import.meta.main) {
   const served = (await (await fetch(`${origin}/api/openapi.json`)).json()) as {
     paths?: Record<string, unknown>
   }
-  // The served document is the internal one: the handler applies no audience
-  // filter, so it describes everything the Worker will answer.
-  const here = operationsOf(await generate("internal"))
+  // Like for like: the deployment now filters its own document by what it
+  // mounts, so the tree's public set is what should match. It no longer serves
+  // everything and this no longer compares against everything.
+  const here = operationsOf(await generate("public"))
   const there = operationsOf(served)
 
   const missing = here.filter((op) => !there.includes(op))
@@ -133,8 +128,7 @@ if (!import.meta.main) {
   // question: an operation is a method on a path, so /dev/outbox is two.
   console.log(
     `openapi: ${origin} describes the same ${here.length} operations ` +
-      `across ${paths.size} paths as this tree (internal audience — the served ` +
-      `document is unfiltered)`,
+      `across ${paths.size} paths as this tree`,
   )
 } else {
   const audience = argv.includes("--internal") ? "internal" : "public"

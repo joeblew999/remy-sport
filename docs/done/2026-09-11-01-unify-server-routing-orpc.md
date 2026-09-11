@@ -573,6 +573,32 @@ forged token and `tests/worker/push.test.ts` refused it: a refusal that answers
 reads a query parameter on a method whose input oRPC would otherwise take from
 the body.
 
+## The last thing it promised
+
+F2 said the reference plugin would filter the served document by the same
+policy. It did not, and the closing report said so without noticing what it
+meant: production's `/api/openapi.json` published all seven dev operations —
+seed, the outbox pair, the OTP clear, the template preview, the account picker,
+prune-sessions — with their schemas, while answering 404 to every one. The 404s
+were right. A document handing an internal surface to anyone who fetched it was
+not.
+
+Fixed 2026-09-11 with what was already built. `excludeInternal(env?)` in
+`src/api/openapi.ts` is one predicate with two callers: a deployment passes its
+own `env` and gets a document describing what it mounts, and the generator
+passes none and gets the published set. The `dev` capability travels on the
+policy mark itself rather than being parsed back out of its `why` string.
+
+So production publishes 57 paths, staging publishes those plus the two it
+mounts, and `--check` compares like with like — the "internal audience" caveat
+in its output is gone, because the deployment no longer serves everything.
+
+Covered both ways: `tests/unit/openapi-audience.test.ts` proves production
+drops all seven and staging keeps exactly the two it grants, and
+`tests/worker/openapi-audience.test.ts` proves the dev pool still *describes*
+what it mounts — a filter that dropped them everywhere would pass a test that
+only checked production.
+
 ## Closing
 
 Hono is gone. `src/index.ts` iterates a dispatch table and owns no prefix of
