@@ -13,6 +13,27 @@ export type Bindings = {
    */
   ENVIRONMENT?: string
   /**
+   * What this build is — commit, branch, time, app version.
+   *
+   * A var, not the `__BUILD__` define: that one is the SPA's, and a Worker
+   * reading it would be reading a value that differs per environment without
+   * POLICY or provisioning knowing — absent entirely wherever Vite did not do
+   * the substitution. wrangler.toml carries a placeholder so `wrangler dev`
+   * and the worker tests have one; a deploy overwrites it with the real stamp
+   * (scripts/deploy/build-config.ts).
+   *
+   * `github` is "" rather than null because TOML has no null; `/api/versions`
+   * maps it back so the published shape is unchanged.
+   */
+  BUILD?: {
+    commit: string
+    branch: string
+    builtAt: string
+    environment: string
+    app: string
+    github: string
+  }
+  /**
    * The dev tunnel's hostname, local only — written into `.dev.vars` by
    * `bun run dev` and absent everywhere else.
    *

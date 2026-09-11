@@ -1,4 +1,5 @@
 import { localBrowserState } from "../../scripts/lib/local-browser.ts";
+import { stamp } from "../../scripts/lib/build-stamp.ts";
 import { i18nOptions } from "../../scripts/lib/i18n.ts";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
@@ -12,8 +13,6 @@ import { VitePWA } from "vite-plugin-pwa";
 import { installName } from "./lib/install-name.ts";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
-import { execSync } from "node:child_process";
-import { readFileSync } from "node:fs";
 
 // Hash routing only — required for Tauri webview compatibility.
 // See remy-sport-biz/decisions/decision-003-frontend-targets.md.
@@ -122,25 +121,6 @@ function legacyWorkerKillSwitch(): Plugin {
  * environment from CLOUDFLARE_ENV — dev when serving, production otherwise,
  * since the top-level config has no name.
  */
-const git = (args: string): string => {
-  try {
-    return execSync(`git ${args}`, { encoding: "utf8" }).trim();
-  } catch {
-    return "";
-  }
-};
-function stamp(command: "build" | "serve", environment: string) {
-  const commit = git("rev-parse --short HEAD");
-  const repo = process.env.GITHUB_REPO_URL;
-  return {
-    commit,
-    branch: git("branch --show-current"),
-    builtAt: process.env.BUILD_ID ?? new Date().toISOString(),
-    environment,
-    app: (JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8")) as { version: string }).version,
-    github: repo && commit ? `${repo}/commit/${git("rev-parse HEAD")}` : null,
-  };
-}
 
 /**
  * The Add to Home Screen name, per environment.

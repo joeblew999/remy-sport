@@ -227,3 +227,39 @@ rule(
       .map(({ label, config }) => `${label} → ${hostsOf(config).join(",") || "no route"}`)
       .join(", "),
 )
+
+/**
+ * The Worker reads no compile-time build constant.
+ *
+ * `__BUILD__` is the SPA's, substituted by src/web/vite.config.ts. In Worker
+ * code it would be a value that differs across dev, staging and production
+ * with neither POLICY nor provisioning knowing — and present only where the
+ * substitution ran. It does not run in the worker test pool, which builds from
+ * wrangler.toml, so `/api/versions` answered a bare 500 there for as long as
+ * the Worker read it, unnoticed because the endpoint was a raw route with no
+ * test. The stamp is `env.BUILD`, a var, like every other per-environment
+ * value. See src/build.d.ts.
+ *
+ * `.d.ts` files are not in `sources`, so the declaration itself is exempt
+ * without naming an exception.
+ */
+const defines: string[] = []
+for (const path of sources("src")) {
+  if (path.startsWith("src/web/")) continue
+  const parsed = parse(path)
+  walk(parsed.program, (node) => {
+    if (node.type !== "Identifier" || node.name !== "__BUILD__") return
+    defines.push(`${path}:${lineOf(parsed, node)}`)
+  })
+}
+
+rule(
+  "no Worker module reads the SPA's build define",
+  defines,
+  `check-envs: ${defines.length} Worker reference(s) to __BUILD__\n\n` +
+    defines.map((d) => `  ${d}`).join("\n") +
+    "\n\nRead `env.BUILD` instead — wrangler.toml carries a placeholder and\n" +
+    "scripts/deploy/build-config.ts writes the real stamp into the generated\n" +
+    "config. A define is absent wherever Vite did not substitute it.",
+  "check-envs: no Worker module reads __BUILD__",
+)

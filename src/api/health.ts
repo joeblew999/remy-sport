@@ -79,12 +79,26 @@ export const versions = pub
       }),
     }),
   )
-  .handler(async ({ context }) => ({
-    current: {
-      _generated: __BUILD__.builtAt,
-      app: __BUILD__.app,
-      environment: __BUILD__.environment,
-      url: context.env.BETTER_AUTH_URL,
-      git: { commit: __BUILD__.commit, branch: __BUILD__.branch, github: __BUILD__.github },
-    },
-  }))
+  .handler(async ({ context }) => {
+    // A var, never the SPA's `__BUILD__` define — see src/build.d.ts. Absent
+    // is possible (a deployment provisioned before this var existed), and the
+    // honest answer there is "unknown", not a 500: this endpoint is what the
+    // deploy polls to find out whether the edge has caught up, so it has to
+    // answer even when it has nothing to report.
+    const build = context.env.BUILD
+    return {
+      current: {
+        _generated: build?.builtAt ?? "",
+        app: build?.app ?? "unknown",
+        environment: build?.environment ?? "unknown",
+        url: context.env.BETTER_AUTH_URL,
+        git: {
+          commit: build?.commit ?? "unknown",
+          branch: build?.branch ?? "unknown",
+          // TOML has no null, so the var carries "". The published shape keeps
+          // null, which is what the field meant before it was a var.
+          github: build?.github || null,
+        },
+      },
+    }
+  })

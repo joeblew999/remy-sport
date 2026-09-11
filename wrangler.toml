@@ -198,6 +198,17 @@ MAIL_TRANSPORT  = "cloudflare"
 # unrecognised resolves to production, so this line is a courtesy rather than
 # load-bearing: the strict answer is the default.
 ENVIRONMENT     = "production"
+
+# The build stamp, as a var rather than a compile-time define.
+#
+# `/api/versions` answers from this, and `bun run deploy` overwrites it in the
+# generated config with the real commit and time (scripts/deploy/build-config.ts).
+# The placeholder below is what `wrangler dev` and the worker test tier see,
+# and it exists because they build from this file: a define would be a value
+# differing across dev, staging and production that neither POLICY nor
+# provisioning knows about, and the Worker would 500 wherever the substitution
+# did not run. The SPA keeps its own `__BUILD__` define — that one is client-side.
+BUILD = { commit = "dev", branch = "dev", builtAt = "1970-01-01T00:00:00.000Z", environment = "dev", app = "0.0.0", github = "" }
 EMAIL_FROM      = "noreply@remy.ubuntusoftware.net"
 
 # TEST_OTP is deliberately NOT here, and production is the only environment
@@ -335,6 +346,8 @@ BETTER_AUTH_URL = "https://staging-remy.ubuntusoftware.net"
 # table exists to express. `capturesMail: false`.
 MAIL_TRANSPORT  = "cloudflare"
 ENVIRONMENT     = "staging"
+# Overwritten in the generated config at deploy time; see the [vars] note above.
+BUILD = { commit = "dev", branch = "dev", builtAt = "1970-01-01T00:00:00.000Z", environment = "staging", app = "0.0.0", github = "" }
 # Staging's own sending identity, for the reason src/mail/mailer.ts gives for
 # splitting bulk from transactional: reputation attaches per domain,
 # and a staging test that trips a spam filter must not be able to take

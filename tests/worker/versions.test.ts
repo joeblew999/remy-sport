@@ -22,6 +22,8 @@ describe("GET /api/versions", () => {
     const res = await api("/api/versions")
     expect(res.status).toBe(200)
 
+    // The placeholder `[vars] BUILD` from wrangler.toml, which is what this
+    // tier and `wrangler dev` see; a deploy overwrites it with the real stamp.
     const body = (await res.json()) as { current: Record<string, unknown> }
     expect(body.current).toEqual({
       _generated: "1970-01-01T00:00:00.000Z",
@@ -30,10 +32,10 @@ describe("GET /api/versions", () => {
       // Whatever this deployment thinks it is; the value is the binding's, but
       // a caller reading `.url` must never get undefined.
       url: expect.any(String),
-      // `github` is nullable, and null is the value a local build carries.
-      // Asserted because an output schema that dropped the field would still
-      // serialise, and `toEqual` is what notices.
-      git: { commit: "test", branch: "test", github: null },
+      // `github` is "" in TOML and null on the wire. Asserted because that
+      // mapping is the one place the var's shape and the published shape
+      // differ, and `toEqual` is what notices if either moves.
+      git: { commit: "dev", branch: "dev", github: null },
     })
   })
 })

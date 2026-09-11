@@ -10,7 +10,7 @@ migration's A2 (shell for every path) is subsumed by Part C.
 
 ## Corrections to the brief, found by reading the tree first
 
-Six things the specification assumes are not quite what is there. Each changes
+Eight things the specification assumes are not quite what is there. Each changes
 work, so each is settled here before any code moves.
 
 ### 1. Removing Hono silently destroys a security check
@@ -128,9 +128,26 @@ the deploy path, so it is its own change and not smuggled into Part A.
 `src/api/health.ts` is the only Worker reader of `__BUILD__` — the SPA's three
 readers are client-side and unaffected — so the blast radius is one procedure.
 
-**Until it is resolved, `health.versions` has no worker-tier test.** The test is
-written (`tests/worker/versions.test.ts`) and fails honestly at 500 rather than
-being softened to pass.
+**Resolved 2026-09-11, in its own commit before the remaining eight endpoints.**
+`stamp()` moved to `scripts/lib/build-stamp.ts` as the single definition, with
+two readers: the SPA keeps its `__BUILD__` define (client-side, where a
+compile-time constant is the honest shape), and the Worker reads `env.BUILD`.
+`wrangler.toml` carries a placeholder `BUILD` var so `wrangler dev` and the
+worker tier have a value; `buildConfig` overwrites it with the real stamp in
+the generated config at deploy time, taking `environment` from that config's
+own `vars.ENVIRONMENT` so the two cannot disagree.
+
+`tests/repo/envs.test.ts` gains the rule: no module under `src/` outside
+`src/web/` may read `__BUILD__`. It lives there rather than with the dispatch
+rules because this is the environment model, not routing.
+
+Proven end to end: the client bundle still carries the injected `BUILD_ID`; the
+generated config carries the placeholder before `buildConfig` and the real
+commit, branch and `builtAt` after it; `tests/worker/versions.test.ts` passes
+against the placeholder shape. `stamp()` moved out of the Vite config rather
+than being exported from it — the deploy script cannot import that file without
+pulling the whole plugin graph, and `src/web/vite.config.ts` already imports
+from `scripts/lib/`.
 
 Two further details to preserve, not change:
 
@@ -180,7 +197,7 @@ adding when `dev.accounts` lands.
       `infrastructure` policy, Zod output preserving the `current` wrapper the
       three callers index into. Hono route deleted, `HONO_ROUTES` entry removed,
       ledger enrolled as `reviewed`. The dispatch worklist fell 12 → 11.
-      **Its worker test is red** at 500 on correction 8, not softened.
+      Its worker test passes since correction 8 was resolved.
 - [ ] Delete `src/routes/seed.ts`, `src/routes/analytics.ts`,
       `src/routes/dev-mail.ts`, `src/routes/dev-sessions.ts`, and the inline
       `/api/versions`
