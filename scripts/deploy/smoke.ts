@@ -17,6 +17,7 @@
  */
 
 import { namedEnvironment, originOf, resolveTarget } from "../lib/cloudflare.ts"
+import { createApiClient } from "../../src/api-client.ts"
 
 /**
  * An explicit --env beats the ambient override.
@@ -71,13 +72,22 @@ const HOST = (() => {
  * identical code and differ only in how you reach them, so the distinction is
  * genuinely about the URL rather than about the deployment.
  */
+/**
+ * Did the API say this does not exist?
+ *
+ * `ORPCError` carries a code, and `NOT_FOUND` is what both a gated-off
+ * procedure and an absent one raise. Checked structurally rather than with
+ * `instanceof`: the error crosses a client boundary, and a message match would
+ * break on a wording change.
+ */
+function isNotFound(e: unknown): boolean {
+  return typeof e === "object" && e !== null && (e as { code?: unknown }).code === "NOT_FOUND"
+}
+
 async function classify(): Promise<Surface> {
   let declared: string | undefined
   try {
-    const res = await fetch(`${BASE}/api/health`)
-    if (res.ok) {
-      declared = ((await res.json()) as { environment?: string }).environment
-    }
+    declared = (await createApiClient(BASE).health.get()).environment
   } catch {
     // Unreachable. Strictest, and the health check below will say so properly.
   }
@@ -409,9 +419,7 @@ await check("where mail is captured, the outbox actually captures it", async () 
   } finally {
     // Targeted, so a developer's own pending sign-in survives. Never
     // `DELETE /api/dev/outbox`, which clears everyone's.
-    await fetch(`${BASE}/api/dev/otp?to=${encodeURIComponent(to)}`, { method: "DELETE" }).catch(
-      () => undefined,
-    )
+    await createApiClient(BASE).dev.otp.clear({ query: { to } }).catch(() => undefined)
   }
 })
 
@@ -451,8 +459,23 @@ await check("the seed route does NOT exist", async () => {
   // plus vocabulary upserts that re-asserted the PO's labels over edited ones.
   // Seeding is an operator action now — `bun run db seed-remote` applies the SQL
   // through wrangler — so on a deployment this must be as absent as the outbox.
-  const res = await fetch(`${BASE}/api/seed`, { method: "POST" })
-  return res.status === 404 ? null : `expected 404, got ${res.status}`
+  /**
+   * Absence, read as an error code rather than a status.
+   *
+   * The typed client raises a procedure that does not exist here as an
+   * ORPCError with code NOT_FOUND — the `dev` builder throws exactly that when
+   * POLICY withholds the capability, and a route that was never built answers
+   * the same way. Indistinguishable on purpose: nothing should be able to tell
+   * "gated off" from "does not exist" from outside.
+   *
+   * So a *rejection* is the pass here, and a resolution is the failure.
+   */
+  try {
+    await createApiClient(BASE).dev.seed()
+    return "the seed route answered — it must not exist on a deployment"
+  } catch (e) {
+    return isNotFound(e) ? null : `expected NOT_FOUND, got ${(e as Error).message}`
+  }
 }, { on: PRODUCTION_ONLY, why: WHY_DEV_DIFFERS })
 
 // The skips are restated at the end as well as inline, because the inline note

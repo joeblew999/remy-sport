@@ -9,6 +9,7 @@ import { once } from "node:events"
 import { fnoxGet, namedEnvironment, normalisedEnvironmentArgs } from "../lib/cloudflare"
 import { helpTarget, writeHelpTarget, releaseHelp } from "./docs-release"
 import { assertPinnedBun } from "../lib/bun-pin"
+import { createApiClient } from "../../src/api-client.ts"
 
 const root = resolve(import.meta.dirname, "../..")
 const site = join(root, "sites/help")
@@ -103,9 +104,7 @@ async function freePort(preferred = 0) {
 async function ensureLocalApp() {
   const ready = async () => {
     try {
-      const response = await fetch("http://127.0.0.1:8787/api/health", { signal: AbortSignal.timeout(1000) })
-      if (!response.ok) return false
-      const health = await response.json() as { environment?: string }
+      const health = await createApiClient("http://127.0.0.1:8787").health.get()
       if (health.environment !== "dev") throw new Error("docs: local app is not the dev environment")
       return true
     } catch (error) {

@@ -30,6 +30,7 @@ import { setTimeout as sleep } from "node:timers/promises"
 import { prepare } from "./lib/prepare.ts"
 import { Refused, accountId, originOf, resolveTarget, resolvedConfig, workerName, wrangler, type Target } from "./lib/cloudflare.ts"
 import { prepareConfig } from "./deploy/build-config.ts"
+import { createApiClient } from "../src/api-client.ts"
 import { holdDeployLock } from "./lib/deploy-lock.ts"
 
 /**
@@ -156,9 +157,12 @@ function publish(target: Target): void {
 async function waitFor(origin: string): Promise<void> {
   console.log(`\n── wait for ${origin}`)
   for (let i = 0; i < 60; i++) {
-    const got = await fetch(`${origin}/api/versions`, { signal: AbortSignal.timeout(10_000) })
-      .then((r) => (r.ok ? (r.json() as Promise<{ current?: { _generated?: string } }>) : null))
-      .then((d) => d?.current?._generated ?? "")
+    // Through the typed client, so the field this waits on cannot be renamed
+    // without breaking the build. An edge that is not up yet throws, and an
+    // empty answer is the loop's "not yet".
+    const got = await createApiClient(origin)
+      .health.versions()
+      .then((d) => d.current._generated)
       .catch(() => "")
     if (got === BUILD_ID) {
       console.log(`   ${origin} is serving ${BUILD_ID}`)

@@ -23,14 +23,17 @@
 import { spawnSync } from "node:child_process"
 import { ENVIRONMENTS } from "../../src/environment.ts"
 import { originOf, resolveTarget } from "../lib/cloudflare.ts"
+import { createApiClient } from "../../src/api-client.ts"
 
-interface Stamp {
-  _generated?: string
-  app?: string
-  environment?: string
-  url?: string
-  git?: { commit?: string; branch?: string }
-}
+/**
+ * The stamp, as the procedure declares it — not as this file remembers it.
+ *
+ * It used to be a hand-written interface beside a hand-written fetch, so a
+ * renamed field failed here at runtime against a deployment. `tsc` is the test
+ * now: rename `current.git.commit` in src/api/health.ts and this stops
+ * compiling.
+ */
+type Stamp = Awaited<ReturnType<ReturnType<typeof createApiClient>["health"]["versions"]>>["current"]
 
 const run = (cmd: string): string => {
   const [bin, ...args] = cmd.split(" ")
@@ -57,10 +60,10 @@ function distance(commit: string): string {
 
 async function ask(origin: string): Promise<Stamp | { error: string }> {
   try {
-    const res = await fetch(`${origin}/api/versions`, { signal: AbortSignal.timeout(10_000) })
-    if (!res.ok) return { error: `HTTP ${res.status}` }
-    const body = (await res.json()) as { current?: Stamp }
-    return body.current ?? { error: "no `current` in /api/versions" }
+    // An unreachable laptop and a deployment that answers nonsense are both
+    // caught here: a dev environment being off is not a failure to report.
+    const { current } = await createApiClient(origin).health.versions()
+    return current
   } catch (e) {
     return { error: e instanceof Error ? e.message.slice(0, 40) : "unreachable" }
   }

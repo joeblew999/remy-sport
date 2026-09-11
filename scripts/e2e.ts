@@ -23,6 +23,7 @@ import { assertPinnedBun } from "./lib/bun-pin.ts"
 import { refuseWhileDeploying } from "./lib/deploy-lock.ts"
 import { DEMO_SIGN_IN_CODE } from "../src/environment.ts"
 import { SEED_ENTITIES } from "../src/domain/model/entities.ts"
+import { createApiClient } from "../src/api-client.ts"
 
 /**
  * Refuse to test a deployment that is not running the code these tests describe.
@@ -47,9 +48,9 @@ import { SEED_ENTITIES } from "../src/domain/model/entities.ts"
 async function sameCode(origin: string, environment: string): Promise<void> {
   const local = spawnSync("git", ["rev-parse", "--short", "HEAD"]).stdout.toString().trim()
 
-  const deployed = await fetch(`${origin}/api/versions`, { signal: AbortSignal.timeout(20_000) })
-    .then((r) => (r.ok ? (r.json() as Promise<{ current?: { git?: { commit?: string } } }>) : null))
-    .then((d) => d?.current?.git?.commit ?? null)
+  const deployed = await createApiClient(origin)
+    .health.versions()
+    .then((d) => d.current.git.commit || null)
     .catch(() => null)
 
   if (!deployed) {

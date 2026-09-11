@@ -24,6 +24,7 @@
 
 import { accountId, namedEnvironment, resolveTarget, resolvedConfig, token } from "../lib/cloudflare.ts"
 
+import { createApiClient } from "../../src/api-client.ts"
 import {
   EVENTS,
   blobColumn,
@@ -237,11 +238,11 @@ interface Recorded {
 
 async function fromDev(): Promise<{ since: string; events: Recorded[] } | null> {
   try {
-    const res = await fetch(`${DEV}/api/dev/events`, { signal: AbortSignal.timeout(1500) })
-    // 404 is the deployed shape: a deployment keeps nothing in memory, so the
-    // endpoint that serves it does not exist there.
-    if (!res.ok) return null
-    return (await res.json()) as { since: string; events: Recorded[] }
+    // A deployment keeps nothing in memory, so this procedure does not exist
+    // there — the typed client raises that as an ORPCError with code
+    // NOT_FOUND rather than a 404 status, and the catch below treats it the
+    // same as no dev server at all, which is what it means here.
+    return await createApiClient(DEV).dev.analyticsEvents()
   } catch {
     // No dev server. Not an error: the deployment is the other half of this.
     return null

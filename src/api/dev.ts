@@ -15,7 +15,7 @@ import { like, sql } from "drizzle-orm"
 import { z } from "zod"
 import { SEED_STATEMENTS } from "../db/seed"
 import * as schema from "../db/schema"
-import { recent } from "../analytics"
+import { EVENTS, recent, type EventName } from "../analytics"
 import { clearOutbox, readOutbox } from "../mail/mailer"
 import { LOCALES, type ReleasedLocale } from "../domain/vocabularies"
 import { PREVIEWS, TEMPLATES } from "../mail/templates"
@@ -105,7 +105,11 @@ export const analyticsEvents = dev("hasLocalEventStore")
       since: z.string(),
       events: z.array(
         z.object({
-          event: z.string(),
+          // The catalogue, not a free string. `bun run ops analytics` reads
+          // this into its own EventName union, and a bare string made the
+          // published contract vaguer than the thing it describes — the
+          // typed client is what noticed.
+          event: z.enum(Object.keys(EVENTS) as [EventName, ...EventName[]]),
           country: z.string(),
           at: z.string(),
           fields: z.record(z.string(), z.union([z.string(), z.number()])),

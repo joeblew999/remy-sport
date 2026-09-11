@@ -376,9 +376,15 @@ Recorded as a comment in `src/dispatch.ts`.
 
 ## Part D — One typed client
 
-- [ ] `createApiClient(baseUrl, { headers? })` in `src/api-client.ts` <!-- docs-check-ignore -->
-      over the OpenAPI link; the SPA's `src/web/lib/orpc.ts` stays on `RPCLink`
-- [ ] Replace every raw `fetch` call site found by grep (see correction 4)
+- [x] `createApiClient(baseUrl, { headers? })` in `src/api-client.ts`, over the
+      OpenAPI link; the SPA's `src/web/lib/orpc.ts` stays on `RPCLink`. Done
+      2026-09-11. **OpenAPI for everything outside `src/web/`**: that is the
+      surface external clients use, CORS is open on it, and no CSRF header is
+      involved — a question that means nothing for a CLI.
+- [ ] Replace every raw `fetch` call site found by grep (see correction 4).
+      **31 procedure calls at the start; `scripts/` is at 0, `tests/` has 22
+      left.** The other 18 of the original 49 are `/api/auth/*` — Better Auth's
+      own routes, which have no oRPC client and are not a target.
 - [ ] `knip` reports zero unused exports
 
 ## Part E — `bun run ops`
@@ -473,6 +479,24 @@ reads a query parameter on a method whose input oRPC would otherwise take from
 the body.
 
 ## Log
+
+- 2026-09-11 — **D's premise, demonstrated rather than asserted.** Renaming the
+  router key `health.versions` to `buildInfo` fails `tsc` at two call sites in
+  `scripts/ops/versions.ts`. The first attempt renamed the *export* and proved
+  nothing: the router key still read `versions:`, so the client saw the same
+  shape. The client sees router keys, and that is the thing a rename has to
+  move.
+- 2026-09-11 — the typed client found a loose contract on its first use.
+  `dev.analyticsEvents` declared `event: z.string()` where the tracker's
+  catalogue is a closed set, so `ops analytics` could not assign the result to
+  its own `EventName`. Tightened to `z.enum` derived from `EVENTS` in
+  `src/analytics.ts` — the same registry rule as the mail templates: one list,
+  so an event added to the tracker is an event the procedure accepts.
+- 2026-09-11 — the one behavioural seam in Part D, flagged by the Product Owner
+  before it bit: a dev-gated procedure answers `ORPCError` with code
+  `NOT_FOUND`, not a 404 *status*. `smoke.ts` asserted `res.status === 404` to
+  mean "absent here" and now catches the code — a rejection is the pass. Gated
+  off and never built are indistinguishable from outside, which is the point.
 
 - 2026-09-11 — `bun run ops committed` added after breaking `origin/main` for a
   few minutes. It typechecks `git archive HEAD`, not the working tree, which is

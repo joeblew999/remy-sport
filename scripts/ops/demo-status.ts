@@ -36,6 +36,7 @@ import { namedEnvironment, originOf, resolveTarget } from "../lib/cloudflare.ts"
 
 import { DEMO_SIGN_IN_CODE } from "../../src/environment.ts"
 import { SEED_ENTITIES } from "../../src/domain/model/entities.ts"
+import { createApiClient } from "../../src/api-client.ts"
 
 /**
  * An explicit `--env` beats the ambient override, which it did not.
@@ -163,8 +164,19 @@ console.log(`      code ${CODE} signs in ${probe.names.en} <${probe.email}>`)
  * the code above works perfectly. Where it *is* served, the account list is
  * still worth checking, because the invariant below can only be read from it.
  */
-const listed = await fetch(`${BASE}/api/dev/accounts`).catch(() => null)
-if (!listed || listed.status === 404) {
+/**
+ * The picker, or the news that it is not served here.
+ *
+ * Absence arrives as an ORPCError with code NOT_FOUND now, not a 404 status:
+ * the procedure keeps its own gate — seededSignIn, and whether a code can
+ * actually be read — and the typed client raises that the same way it raises a
+ * procedure that does not exist. Both mean "not here", which is the answer
+ * this needs.
+ */
+const listed = await createApiClient(BASE)
+  .dev.accounts()
+  .catch(() => null)
+if (!listed) {
   console.log(`      The account picker is not served here, which is separate and expected`)
   console.log(`      wherever seededSignIn is false — production publishes no list of who`)
   console.log(`      can be signed in as.`)
@@ -172,14 +184,7 @@ if (!listed || listed.status === 404) {
   process.exit(0)
 }
 
-if (!listed.ok) {
-  console.error(`demo: the picker answered ${listed.status}`)
-  process.exit(1)
-}
-
-const { accounts = [] } = (await listed.json()) as {
-  accounts?: { name: string; role: string; holds: string[] }[]
-}
+const { accounts } = listed
 console.log(`      ${accounts.length} accounts offered:\n`)
 for (const a of accounts) {
   console.log(`        ${a.name.padEnd(24)} ${a.role.padEnd(10)} ${a.holds.join(" · ")}`)
