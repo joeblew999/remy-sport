@@ -3,37 +3,21 @@
  *
  * ## Why this reads resolved config and not wrangler.toml
  *
- * Named environments inherit some top-level keys and not others, and the split
- * is the reason this file exists. The keys wrangler does NOT inherit are safe:
- * it prints a warning naming each one and the binding is absent, so a missing
- * `d1_databases` under `[env.staging]` is loud and cannot reach production.
+ * The keys wrangler does not inherit are safe: it warns and the binding is
+ * absent. The inherited ones are dangerous, because inheriting is legal —
+ * `routes` is inherited, so an `[env.staging]` with no override resolves to
+ * production's hostname and `deploy --env staging` publishes a staging build
+ * onto the domain real people use.
  *
- * The inherited keys are the dangerous ones, because inheriting is legal.
- * `routes` is inherited: an `[env.staging]` with no route override resolves to
- * `remy.ubuntusoftware.net` — production's hostname — and
- * `wrangler deploy --env staging` then publishes a staging build, pointed at a
- * staging database, onto the domain real people use.
+ * Wrangler warns about that only by luck: with `custom_domain = true` the dry
+ * run says so unmissably, and with an ordinary route pattern it says nothing at
+ * all. So the protection is conditional on a config detail unrelated to
+ * environments, and this does not care which kind of route it is.
  *
- * **Wrangler warns about that today, and only by luck.** Measured, both cases:
- * when the inherited route is `custom_domain = true` the dry run says
- * "Deploying this environment will reassign these custom domains away from the
- * top-level Worker", which is unmissable. When it is an ordinary route pattern
- * with a `zone_name`, the same inheritance produces **no warning at all** — the
- * dry run is clean and the deploy takes the hostname.
- *
- * So the existing protection is conditional on a config detail that has nothing
- * to do with environments. Changing production from a custom domain to a zone
- * route — a reasonable thing to do for a path split — silently removes it. That
- * is the gap this file closes: it does not care which kind of route it is.
- *
- * Reading the TOML directly would not catch that, because the hazard is
- * precisely what is *absent* from the file. So this asks wrangler to resolve
- * each environment the way a deploy would, and compares the answers.
- *
- * Cloudflare's own inheritable-keys documentation is wrong in the direction
- * that matters here — it omits `send_email`, `d1_databases` and
- * `analytics_engine_datasets` from the non-inheritable column while wrangler
- * warns about all three. Resolved config is the only trustworthy source.
+ * Reading the TOML would not catch it, because the hazard is what is *absent*.
+ * Cloudflare's own inheritable-keys documentation is wrong here too, omitting
+ * three keys wrangler warns about. Resolved config is the only trustworthy
+ * source.
  */
 
 import { declaredEnvs, resolvedConfig } from "../../scripts/lib/cloudflare"
@@ -163,37 +147,22 @@ for (const { label, config } of resolved) {
 
 // ── 4. No code names one environment's resource ──────────────────────────────
 //
-// Rule 1 keeps the environments' resources distinct. This keeps the *tools*
-// honest about that, which is a separate failure, and the one that actually
-// happened — twice, six months apart, in the same shape.
+// Rule 1 keeps the environments' resources distinct; this keeps the *tools*
+// honest about that, which is a separate failure and has happened twice.
 //
-// On 2026-09-10, `scripts/ops/analytics.ts` held
-// `const DATASET = "remy_sport_events"`. Every report therefore read
-// production's table, and `--env staging` filtered that table by
-// `environment = 'staging'` — a condition no row in it can satisfy, because
-// staging writes somewhere else entirely. The result was not an error. It was
-// an empty report, which is indistinguishable from a healthy silence. So
-// `mail.sent` shipped, recorded 47 refused sends on staging, and the command
-// built to read telemetry said `(nothing)`; the conclusion drawn was that the
-// new counter was broken.
+// A telemetry report held its dataset as a constant, so every report read
+// production's table and `--env staging` filtered it by a condition no row
+// there can satisfy — an empty report, indistinguishable from a healthy
+// silence. Earlier, a literal database name pinned `migrations:apply:remote
+// --env staging` to **production**.
 //
-// Earlier, `CF_D1_NAME` was a mise literal pinned to production's database, so
-// `migrations:apply:remote --env staging` migrated **production**. That one is
-// written up in the header of scripts/db.ts, which was rewritten to resolve the
-// name — and which had since grown a fresh `"remy-sport-db"` literal in its
-// status block, found by this rule on the day it was added.
+// Every resource in `exclusive()` is checked, not just the one that last bit
+// us: each name identifies one deployment, so a name in code that runs for all
+// of them silently serves the wrong one, and the symptom is never an exception.
 //
-// That is why this checks every resource in `exclusive()` rather than only the
-// one that just bit us. The shared property is what makes them dangerous: each
-// name identifies **one** deployment, so a name written into code that runs for
-// all of them silently serves the wrong one. And the symptom is never an
-// exception — it is a plausible-looking answer about somewhere else.
+// The fix is always to resolve it from wrangler config for the target in hand.
 //
-// The fix is always the same: resolve it from wrangler config for the target in
-// hand, as `databaseName` and `datasetFor` do.
-//
-// String literals only, via the AST. Several files discuss these names in
-// prose — this one does, at length — and a comment naming a database is
+// String literals only, via the AST — a comment naming a database is
 // documentation, not a binding.
 const owned = new Map<string, string>()
 for (const { label, config } of resolved) {
@@ -224,25 +193,15 @@ for (const path of [...sources("src"), ...sources("scripts")]) {
 
 // ── 5. One reader for `--env` ────────────────────────────────────────────────
 //
-// `--env staging` and `--env=staging` are both typed, and a reader that knows
-// only one of them does not fail on the other. It reports "no environment
-// named" and falls through to the default, which is production. Silently, and
-// about the wrong deployment.
+// Both spellings are typed, and a reader that knows one falls through to the
+// default on the other — silently, about the wrong deployment. Both halves have
+// happened: one command knew only the joined form and reported production, and
+// another knew only the separated form and ran a local check.
 //
-// Both halves of that have now happened. `ops analytics` accepted only
-// `--env=`, so `--env staging` reported production's telemetry under a heading
-// that did not say which environment it was. `ops docs` accepted only `--env `,
-// so `docs check --env=staging` ran a **local** check while the caller believed
-// they were asking about a deployment — and a local check's output looks like a
-// remote one's.
+// So the parse lives in `namedEnvironment`, once. The literal `--env=` is the
+// tell: nothing writes that except a parser.
 //
-// So the parse lives in `namedEnvironment`, once, and this keeps it there. The
-// literal `--env=` is the tell: nothing needs to write that except a parser, and
-// a file that writes it has started a second one.
-//
-// Passing `"--env"` to a child process is untouched by this — that is
-// *constructing* an argument, which deploy.ts and demo.ts legitimately do, and
-// it is `"--env"` without the `=`.
+// Constructing `"--env"` for a child process is untouched — that has no `=`.
 for (const path of sources("scripts")) {
   if (path === "scripts/lib/cloudflare.ts") continue
   const parsed = parse(path)

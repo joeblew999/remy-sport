@@ -1,25 +1,19 @@
 /**
  * The refusals a person can actually read, as codes rather than prose.
  *
- * Every one of these used to be an English sentence thrown from a handler and
- * rendered raw by the page — so a Thai coach on a fully Thai page got "A team
- * cannot play itself" in English. The API was a hole in the localisation.
+ * These were English sentences thrown from handlers and rendered raw, so a Thai
+ * coach on a fully Thai page got "A team cannot play itself" in English — the
+ * API was a hole in the localisation. A code plus its facts fixes that: the
+ * browser renders the sentence (src/web/lib/form-errors.ts) and `data` carries
+ * what it needs to name.
  *
- * A code plus its facts fixes that: the browser renders the sentence in the
- * reader's language (src/web/lib/form-errors.ts), and `data` carries what the
- * sentence needs to name.
+ * **No `message`, deliberately.** oRPC defaults it to the code, which is the
+ * contract a non-browser caller should read; an English sentence here would
+ * duplicate `messages/en.json` and drift from it.
  *
- * **There is no `message` here, deliberately.** oRPC defaults it to the code, so
- * a non-browser caller — curl, another service, the OpenAPI document — sees
- * `TEAM_PLAYS_ITSELF`, which is the contract they should be reading anyway. An
- * English sentence here would be the same sentence as `messages/en.json`, in a
- * second place, drifting from the first. One string, one home.
- *
- * Not everything is here, deliberately. `UNAUTHORIZED` and `FORBIDDEN` are
- * produced by the middleware in base.ts and are never rendered as prose — a 401
- * sends you to sign in and a 403 means the control should not have been offered.
- * A bare `NOT_FOUND` for a missing object is the same: the page says "that does
- * not exist" in its own words. Typing those would be ceremony.
+ * Not everything is here. `UNAUTHORIZED` and `FORBIDDEN` come from base.ts and
+ * are never prose — a 401 sends you to sign in, a 403 means the control should
+ * not have been offered — and a bare `NOT_FOUND` is the page's own words.
  */
 
 import { z } from "zod"
@@ -55,15 +49,12 @@ export const ERRORS = {
    * Two teams with no division in common, put in the same fixture.
    *
    * A different rule from DIVISION_MISMATCH above, which is about one team
-   * against the division it is entering. This is about the pairing, and until
-   * 2026-08-31 nothing checked it: `games.create` verified that neither team
-   * was playing itself and that both were entered, and a U16 boys' team could
-   * be scheduled against a U18 girls' team in a league whose whole structure is
-   * divisions. Confirmed against a running server — the API answered 201.
+   * against the division it enters. This is about the *pairing*, and nothing
+   * checked it: a U16 boys' team could be scheduled against a U18 girls' team
+   * in a league whose whole structure is divisions.
    *
-   * Carries each side's divisions rather than a sentence, like its neighbour:
-   * the page says "these teams are in different divisions" in the reader's
-   * language, from the codes.
+   * Carries each side's divisions rather than a sentence, so the page names
+   * them in the reader's language.
    */
   /**
    * A division the organiser tried to drop while teams are registered in it.

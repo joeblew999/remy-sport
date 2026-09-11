@@ -1,30 +1,24 @@
 /**
  * The one thing that happens without somebody asking for it.
  *
- * Everything else in this Worker traces to a request: a score is entered
- * because a referee pressed a button, a push goes out because a write happened.
- * That property is what makes the system explainable, and a scheduler breaks
- * it — so this file is deliberately the whole of it. One trigger, one job, one
- * place to look when something arrives that nobody asked for.
+ * Everything else in this Worker traces to a request, which is what makes the
+ * system explainable — so a scheduler is deliberately confined to this one
+ * file. One trigger, one job, one place to look when something arrives that
+ * nobody asked for.
  *
- * `EVENT_REMINDER` is why it exists. The PO's description names both windows:
- * "An event is starting soon (24h or 1h before)". There is no other way to send
- * that — it is the one notification whose cause is the passage of time rather
- * than an action.
+ * `EVENT_REMINDER` is why it exists: the one notification whose cause is the
+ * passage of time rather than an action, at 24h and 1h before.
  *
  * ## Three things that keep it comprehensible
  *
- * **It is idempotent, by claim rather than by clock.** The sender inserts into
- * `notification_sent` *before* it sends and treats a unique-constraint conflict
- * as "already done". Cron is not exactly-once — Cloudflare may retry a firing,
- * a deploy may overlap two runs, and a missed hour has to be recoverable on the
- * next one. A job that works out what to send from the clock alone survives
- * none of those, and the failure is somebody's phone buzzing twice at 6am.
+ * **Idempotent by claim, not by clock.** The sender inserts into
+ * `notification_sent` before it sends and treats a conflict as already done.
+ * Cron is not exactly-once, and a job deriving what to send from the clock
+ * alone fails as somebody's phone buzzing twice at 6am.
  *
- * **It catches up rather than firing on an exact boundary.** The 24-hour window
- * is "starts within the next 24 hours and more than 1 hour away", not "starts in
- * exactly 24 hours". A missed run therefore sends late instead of not at all,
- * and the claim table stops the catch-up becoming a duplicate.
+ * **It catches up rather than firing on a boundary.** The window is "within the
+ * next 24 hours and more than 1 hour away", so a missed run sends late instead
+ * of not at all, and the claim stops the catch-up duplicating.
  *
  * **It reports what it did.** `bun run ops analytics` shows every run: how many
  * events matched, how many reminders were claimed, how many devices took them.
