@@ -1,41 +1,48 @@
 # Working here
 
+This file is short on purpose. What must hold is **checked** under `tests/repo/`,
+not remembered — so read the checks, not a list of past incidents.
 
-`AGENTS.md` is short on purpose:
-what must hold is checked under `tests/repo/`, not remembered.
+New here? [Working conventions](docs/working-conventions.md) has the handful of
+rules a check cannot express, and why each one exists.
 
-fix things along the way if you can. If you cant then make sure you tell me and make sure the broken things or badly done things is fixed next. I want to avoid tech debt all the time. Communicate when you find tech debt.
+## Plans and context live in the tree
 
-Communicate in a way that is easy to understand.
+`docs/` holds every plan and all project context. Keep it tidy — a messy `docs/`
+is how work gets lost between sessions and after a crash.
 
-docs folder has all your plans, etc so you can pick up things in case your crash or between sessions.  its vital you manage the docs folder so its does not get into a mess !!!
-
-Many agents work on this repo, in parallel and in turn. Never save a plan, a
-note or any project context outside it — not in a private memory, a scratchpad
-or a chat. What is there is invisible to the next agent, and what the next agent
-cannot see does not exist. If it matters, it goes in the tree and is committed:
-as a check under `tests/repo/`, as a comment beside the code it is about, or
-as a file here.
-
-Plans must go into the docs folder.
+Many agents work on this repo, in parallel and in turn. **Never** put a plan, a
+note or any project context anywhere else — not in a private memory, not in a
+scratchpad, not in a chat. The next agent cannot see those, and what the next
+agent cannot see does not exist. If it matters, commit it: a check under
+`tests/repo/`, a comment beside the code it is about, or a file in `docs/`.
 
 ## Use the same automation as the team
 
-Use the repository's documented automation CLI for setup, testing, deployment,
-seeding, credentials and cleanup. Read `package.json` and the CLI help first.
-Agents and developers must use the same commands and get the same behavior.
+Use the repository's documented CLI for setup, testing, deployment, seeding,
+credentials and cleanup. Read `package.json` and the CLI help before you start.
+Agents and developers run the same commands and get the same behaviour.
 
-Do not replace or wrap those workflows with inline scripts, custom API calls,
-direct Wrangler commands, hidden environment overrides, or temporary checkouts
-that bypass a CLI check. A one-off success is not a fix for the team.
+Do not bypass it — no inline scripts, no custom API calls, no direct Wrangler
+commands, no hidden environment overrides, no temporary checkouts that dodge a
+check. **A one-off success is not a fix for the team.** Never claim a workflow
+works based on a private workaround that a developer cannot reproduce through
+the documented command.
 
-If the CLI cannot do the required job, fix or extend the CLI in the repository,
-document and test that change, then use it. Keep setup, verification and cleanup
-in that shared automation, including failure handling. Never claim a workflow
-works based on a private workaround that developers cannot reproduce through
-the documented command. Ordinary source inspection, editing and Git operations
-are not replacements for these application workflows.
+If the CLI cannot do the job, extend the CLI: fix it here, document it, test it,
+then use it. Ordinary source editing and Git operations are not a substitute for
+these workflows.
 
-## The CLI MUST not make developers be super human
+## The CLI must not require superhuman developers
 
-it must not require a large surface. We both know that means it must be linear and not require co-ordination by the user !!! developers coordinating steps manually is BAD DESIGN !!! 
+Keep the surface small and the steps **linear**. If using it requires a developer
+to coordinate steps by hand, that is bad design — fix the design, not the
+instructions.
+
+## Fix things as you go
+
+Fix what you can along the way. If you cannot, **say so clearly** and make sure
+it is fixed next. Call out tech debt whenever you find it; the goal is to never
+let it accumulate.
+
+Write for a reader in a hurry: plain words, short sentences, the answer first.
