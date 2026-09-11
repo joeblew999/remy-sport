@@ -10,7 +10,7 @@ migration's A2 (shell for every path) is subsumed by Part C.
 
 ## Corrections to the brief, found by reading the tree first
 
-Eleven things the specification assumes are not quite what is there. Each changes
+Twelve things the specification assumes are not quite what is there. Each changes
 work, so each is settled here before any code moves.
 
 ### 1. Removing Hono silently destroys a security check
@@ -227,6 +227,30 @@ body carries the RFC's marker, and the body is left loose so a client sending
 Refusing either would read to Gmail as an unsubscribe that does not work, which
 is a deliverability problem long before it is a 400.
 
+### 12. The shell fallback in Part C's sketch was too wide
+
+The sketch answers `asset.status === 404 && request.method === "GET"` with the
+shell. That would serve an HTML page for
+`/.well-known/apple-app-site-association` when the identifiers are unset — and
+iOS caches the association file, so it would be cached as a page and universal
+links would fail silently, months later, with nothing pointing at the cause.
+The same reasoning covers a mail client following a link and the SPA's own
+`fetch` for a chunk a deploy has renamed.
+
+**Decision, from the Product Owner:** serve the shell only for a navigation —
+a GET, whose `Accept` includes `text/html` (or `Sec-Fetch-Dest: document`),
+whose path carries no file extension and is not under `/.well-known/`, `/api/`
+or `/rpc/`. The `Accept` check is the one that matters: every caller that must
+not get HTML asks for something else.
+
+`/` is the one exception, added after `tests/worker/assets.test.ts` went red:
+the root answered the shell unconditionally before this rule existed, has no
+competing meaning, and a curl or a health probe with no `Accept` header should
+get the app rather than a 404.
+
+The owned prefixes are derived from `DISPATCH` rather than repeated, so a
+prefix added to the table is excluded from the shell the same day.
+
 Two further details to preserve, not change:
 
 - The `dev` base builder is parameterised by flag, not a single gate.
@@ -290,8 +314,8 @@ adding when `dev.accounts` lands.
 - [ ] Delete the raw routers. The seed and dev-session routers are gone
 - [x] Delete the raw routers. Seed, dev-sessions, analytics and dev-mail are
       all gone (2026-09-11), along with the inline `/api/versions`. Part A is
-      complete. `src/routes/` now holds only the Better Auth forwarder, which
-      is Part B.
+      complete. The routes directory held only the Better Auth forwarder after
+      this, and is gone too (Part C).
 
 ## Part B — Remove Hono
 
@@ -321,9 +345,13 @@ adding when `dev.accounts` lands.
 - [x] The Hono half of `src/api/unsubscribe.ts` is deleted (2026-09-11); the
       token helpers stay, since `src/api/transports.ts` signs every bulk mail
       with them.
-- [ ] Delete the last router and the `hono` package — Part C
+- [x] The last router and the `hono` package are deleted (2026-09-11). The
+      routes directory no longer exists; Better Auth's subtree is
+      `src/auth-handler.ts`, a function rather than a router — it forwards the
+      request untouched and adds the `auth.attempt` telemetry the brief's
+      "Hono only forwarded to it" overlooked.
 
-## Part C — One `index.ts`
+## Part C — One `index.ts` — **done 2026-09-11**
 
 **The table declares order and ownership; the handlers decide matches.**
 `index.ts` iterates `DISPATCH` in order, calls each owner's handler, and takes
@@ -335,14 +363,16 @@ oRPC's `handle(request, { prefix })` already returns `{ matched: false }` for
 anything its router does not own — that is the signal to try the next entry.
 Recorded as a comment in `src/dispatch.ts`.
 
-- [ ] Fetch handler: auth → RPC → OpenAPI → assets → shell. Order is the
+- [x] Fetch handler: auth → RPC → OpenAPI → assets → shell. Order is the
       documentation. `POLICY` gating lives in the `dev` builder, not here.
-- [ ] Keep the existing `queue` export verbatim — dead-letter handling and
+- [x] Keep the existing `queue` export verbatim — dead-letter handling and
       per-message ack/retry (correction 2)
-- [ ] Worker-tier test: `GET /api/auth/session` reaches Better Auth, not the
-      OpenAPI handler
-- [ ] Worker-tier test: an undeclared path under `/api/` gets oRPC's own 404,
-      never a raw `Response`
+- [x] Worker-tier test: Better Auth's subtree reaches Better Auth, not the
+      OpenAPI handler — covered by `tests/worker/csrf.test.ts`, which only
+      passes if the auth routes are answered by Better Auth's own origin check.
+- [x] Worker-tier test: the shell is served for a navigation and for nothing
+      else — `tests/worker/shell-fallback.test.ts`. See correction 12 for why
+      the sketch's rule was too wide.
 
 ## Part D — One typed client
 
@@ -362,14 +392,19 @@ Recorded as a comment in `src/dispatch.ts`.
 
 ## Part F — One source for the API reference
 
-- [ ] Extract handler options to `src/api/openapi.ts` <!-- docs-check-ignore -->
+- [x] Extract handler options to `src/api/openapi.ts`. Done 2026-09-11 as part
+      of Part C — `specPath` and `docsPath` are route strings, and the dispatch
+      rule forbids those in `index.ts`.
 - [ ] Generator at `scripts/ops/openapi.ts` <!-- docs-check-ignore --> writes
       `sites/help/schema/openapi.json`; no server, no fetch
 - [ ] `--audience public|internal`, filtered by tag; `dev` and `infrastructure`
       dropped from public
 - [ ] `ops docs check` and `tests/repo/docs.test.ts` fail on drift
-- [ ] `developer*.mdx` links move to `/api/openapi.json`; `info.version` reads
-      `package.json`
+- [ ] `info.version` reads `package.json`. The `developer*.mdx` links stay as
+      they are: the help site publishes its own `/openapi.json`
+      (`sites/help/press.config.tsx`), so they never pointed at the Worker and
+      the deleted redirect does not affect them. F1's generator plus the docs
+      check is what makes leaving them correct.
 - [ ] Note the future agent surface beside the tag list; do not build it
 
 ## Delivery order
@@ -417,6 +452,25 @@ check-authz: 96 procedures, 52 enforced by the model, 44 declared otherwise;
 Each gate names the `POLICY` key it reads, so the capability a reader has to
 check is in the line rather than in the handler. The non-procedure count is
 down to 11 — everything left there is Part B.
+
+## Returning HTML from a procedure
+
+The reusable form, found twice — the mail preview and the unsubscribe page.
+
+**`File` for the success body, a thrown `ORPCError` for anything non-2xx.** The
+OpenAPI handler serves a `File` as a raw body with its own Content-Type, which
+is what a page opened in a browser needs.
+
+`outputStructure: "detailed"` looks like the better instrument and is not. It
+JSON-wraps the body — an HTML page comes back as `"<!doctype html>…"` with the
+quotes escaped — and it will not carry a non-2xx at all. Both were measured
+while moving the unsubscribe pair, after a first version answered 200 to a
+forged token and `tests/worker/push.test.ts` refused it: a refusal that answers
+200 reads, to anything inspecting the response, like it worked.
+
+`inputStructure: "detailed"` is unrelated and does work; it is how a procedure
+reads a query parameter on a method whose input oRPC would otherwise take from
+the body.
 
 ## Log
 

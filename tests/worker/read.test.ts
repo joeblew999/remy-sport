@@ -127,13 +127,17 @@ describe("The published OpenAPI document", () => {
     expect(spec.paths["/events/{id}"]!.get!.security).toBeFalsy()
   })
 
-  it("serves the reference page at /api/doc, and the old address still arrives", async () => {
+  it("serves the reference page at /api/doc, and the old address is gone", async () => {
     const res = await api("/api/doc")
     expect(res.status).toBe(200)
     expect((await res.text()).toLowerCase()).toContain("scalar")
+
+    // The /doc and /openapi.json redirects were deleted with Hono. They were
+    // aliases for addresses that moved under the handler that serves the API,
+    // and the help site publishes its own copy of the schema rather than
+    // linking here — so nothing was pointing at them.
     const old = await api("/doc", { redirect: "manual" })
-    expect(old.status).toBe(301)
-    expect(old.headers.get("location")).toContain("/api/doc")
+    expect(old.status).toBe(404)
   })
 })
 

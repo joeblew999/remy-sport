@@ -9,8 +9,10 @@
  * Worker route silently wins it.** Nothing throws — `/api` just stops being an
  * API, and the first sign is a support question.
  *
- * So the routes come from Hono itself, `app.routes`, not from a list here that
- * could fall behind what it describes.
+ * So the prefixes come from `DISPATCH` in src/dispatch.ts — the table the
+ * fetch handler iterates — not from a list here that could fall behind what it
+ * describes. It used to read Hono's own route table, which stopped existing
+ * when Hono did.
  *
  * Only top-level names matter. Assets live at `/index.html` and `/assets/*`;
  * a collision can only happen at the first path segment, because that is all
@@ -19,10 +21,7 @@
 
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
 import { resolve } from "node:path"
-// The named export, not the default. The Worker's default became
-// `{ fetch, scheduled }` when it grew a cron trigger, and `.routes` is not on
-// it — a check that reads a route table has to fail loudly or not at all.
-import { app } from "../../src/index"
+import { DISPATCH } from "../../src/dispatch"
 import { rule } from "./helpers"
 
 const ROOT = resolve(import.meta.dirname, "../..")
@@ -38,15 +37,12 @@ const skipped = /^\s*run_worker_first\s*=\s*true/m.test(wrangler)
     ? "dist/client is not built — run 'bun run build' to check for real"
     : null
 
-/** Every first path segment the Worker answers on, from the router itself. */
-const routes = (app as unknown as { routes: { path: string }[] }).routes
-const owned = new Set<string>()
-for (const r of routes) {
-  const first = r.path.split("/").filter(Boolean)[0]
-  // `*` is the catch-all that forwards to the asset store, and `:id` is a
-  // parameter — neither is a name a file could collide with.
-  if (first && first !== "*" && !first.startsWith(":")) owned.add(first)
-}
+/** Every first path segment the Worker answers on, from the dispatch table. */
+const owned = new Set(
+  DISPATCH.map((entry) => entry.prefix.split("/").filter(Boolean)[0]).filter(
+    (segment): segment is string => Boolean(segment),
+  ),
+)
 
 const built = skipped ? [] : readdirSync(DIST)
 const clashes = built.filter((name) => owned.has(name))

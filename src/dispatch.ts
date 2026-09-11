@@ -34,7 +34,7 @@
  */
 export interface DispatchEntry {
   /** Passed to the owner's handler; ordered most specific first. */
-  readonly prefix: string
+  readonly prefix: `/${string}`
   /** Which handler answers. Named in the dispatch in src/index.ts. */
   readonly owner: "better-auth" | "orpc-rpc" | "orpc-openapi"
   /**

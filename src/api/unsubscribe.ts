@@ -241,6 +241,17 @@ export const oneClick = pub
   .input(
     z.object({
       query: z.object({ t: z.string().optional() }),
+      /**
+       * Loose on purpose, and this is a deliverability decision.
+       *
+       * RFC 8058 says the client posts `List-Unsubscribe=One-Click`, and most
+       * do. Some send an empty body, and some add fields of their own. A
+       * schema that refused any of those would answer 400 to a reader who
+       * pressed unsubscribe in their mail client — and Gmail reads a failing
+       * one-click endpoint as a sender who does not honour unsubscribes, which
+       * costs inbox placement for everyone. The token in the query is what
+       * authorises the change; the body is a marker, not an instruction.
+       */
       body: z.unknown().optional(),
     }),
   )

@@ -1,198 +1,140 @@
-import { Hono } from "hono"
-import { cors } from "hono/cors"
-import { logger } from "hono/logger"
-import authRoutes from "./routes/auth"
 import { RPCHandler } from "@orpc/server/fetch"
 import { SimpleCsrfProtectionHandlerPlugin } from "@orpc/server/plugins"
-import { OpenAPIHandler } from "@orpc/openapi/fetch"
-import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins"
-import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4"
 import { router } from "./api"
-import { scheduled } from "./scheduled"
+import { openApiHandler } from "./api/openapi"
 import { telemetryInterceptor } from "./api/telemetry"
-import type { AppEnv } from "./types"
+import { handleAuth } from "./auth-handler"
+import { DISPATCH } from "./dispatch"
+import { scheduled } from "./scheduled"
 import { handleNotification } from "./api/notify-queue"
 import { track } from "./analytics"
 import type { Bindings } from "./types"
 
-const app = new Hono<AppEnv>()
-
-// Request logging, scoped to the API rather than mounted on everything.
-//
-// `run_worker_first = true` plus the catch-all at the bottom of this file means
-// every hashed JS and CSS bundle is a Worker invocation, and hono's logger
-// writes two console lines per request — so an unscoped `app.use(logger())`
-// buried each API call under a page's worth of asset fetches.
-//
-// Nothing is lost by scoping it. `[observability]` already records method,
-// path, status and timing for every invocation, asset requests included, which
-// is the same information these lines carry; what they add over it is the local
-// `wrangler dev` terminal, and that is API traffic too.
-app.use("/api/*", logger())
-app.use("/rpc/*", logger())
-
-// CORS applies only to /api/*, and only for anonymous cross-origin reads.
-// `origin: "*"` with `credentials: true` is rejected by browsers, so credentials
-// are deliberately absent — the GUI is served from this same origin (see the
-// [assets] block in wrangler.toml) and therefore needs no CORS at all.
-app.use("/api/*", cors({ origin: "*" }))
-
-// No global session middleware. It used to be mounted on "*", so every request
-// the Worker saw — including each hashed JS and CSS bundle falling through to
-// the asset store — cost a D1 session lookup. `authed` in src/api/base.ts
-// resolves the session where it is actually needed.
-
-// ── The API, from one router ────────────────────────────────────────────────
-// Events, teams and reference are oRPC procedures. The same `router` object
-// produces these HTTP handlers, the OpenAPI document below, and the SPA's
-// types — so a shape is declared once and cannot drift between the three.
-// Two handlers over one router, which is the oRPC pattern: /api speaks REST
-// for external clients and the tests, /rpc speaks oRPC for our own SPA. The
-// SPA uses /rpc because an OpenAPI link needs the contract at runtime, and
-// importing it would pull server code into the browser bundle.
-// One interceptor across both transports, so a failure is recorded once and the
-// same way whether it came from the REST surface or the SPA's own.
-// Cast because oRPC parameterises an interceptor by the router's whole merged
-// context — a type that changes with every middleware — while this reads three
-// fields. src/api/telemetry.ts names exactly what it depends on.
-const intercept = [telemetryInterceptor] as never
 /**
- * The API, its specification and its reference page, from one handler.
+ * The whole server surface: Better Auth, oRPC, assets.
  *
- * `/api/openapi.json` is generated from the same router that serves the
- * requests — the document cannot describe an endpoint that does not exist —
- * and `/api/doc` renders it. Both used to be routes of their own beside a
- * Swagger UI package: a second generator call, a function that rewrote every
- * path to say `/api`, and a package whose only job the API library already
- * did. The plugin states the prefix as `servers` instead, which is the same
- * OpenAPI and lets the paths in the document match the paths in the router.
+ * There is no router library. `DISPATCH` in src/dispatch.ts declares which
+ * handler owns which prefix and in what order; this file iterates it. Order is
+ * the documentation — auth before oRPC because Better Auth owns its subtree,
+ * RPC before OpenAPI because the SPA is the hot path, assets before the shell
+ * because a real file wins.
  *
- * Security schemes are declared once here; `authedRoute` in src/api/base.ts
- * says which operations demand them.
+ * Environment gating lives in the `dev` base builder over `POLICY[env]`, not
+ * here. This file does not know which environment it is in.
+ *
+ * There is no middleware stack, so the CSRF ordering bug the August review
+ * found cannot recur — that guard was mounted after the handlers that return
+ * on a match, which left it with no subject at all.
  */
-const api = new OpenAPIHandler(router, {
-  interceptors: intercept,
-  plugins: [
-    new OpenAPIReferencePlugin({
-      schemaConverters: [new ZodToJsonSchemaConverter()],
-      specPath: "/openapi.json",
-      docsPath: "/doc",
-      docsTitle: "Remy Sport API",
-      specGenerateOptions: {
-        info: { version: "0.1.0", title: "Remy Sport API" },
-        components: {
-          securitySchemes: {
-            Session: {
-              type: "http",
-              scheme: "bearer",
-              description: "Better Auth session token (browser)",
-            },
-            ApiKey: {
-              type: "apiKey",
-              in: "header",
-              name: "x-api-key",
-              description: "Better Auth API key (integrations, MCP)",
-            },
-          },
-        },
-      },
-    }),
-  ],
-})
+
 /**
- * The SPA's transport, and the only surface that needs CSRF protection.
+ * The SPA's transport.
  *
- * Header-based: the plugin requires `x-csrf-token: orpc`, which a cross-site
- * page cannot set without a CORS preflight, and `/rpc` grants no CORS. `/api`
- * deliberately does grant it — it is the REST surface for external clients —
- * so the same plugin there would refuse every one of them.
- *
- * This replaces `csrf()`, which never covered `/rpc` at all: the handlers
- * above return before the middleware ran. Its only other target, /api/auth/*,
- * Better Auth already refuses on `trustedOrigins`. See tests/worker/csrf.test.ts.
+ * CSRF is header-based: the plugin requires `x-csrf-token: orpc`, which a
+ * cross-site page cannot set without a preflight this surface never grants.
+ * Its client pair is SimpleCsrfProtectionLinkPlugin in src/web/lib/orpc.ts —
+ * one without the other refuses every call the SPA makes.
  */
-const rpc = new RPCHandler(router, {
-  interceptors: intercept,
+const rpcHandler = new RPCHandler(router, {
+  interceptors: [telemetryInterceptor] as never,
   plugins: [new SimpleCsrfProtectionHandlerPlugin()],
 })
-app.use("/api/*", async (c, next) => {
-  const { matched, response } = await api.handle(c.req.raw, {
-    prefix: "/api",
-    // Headers, not a resolved user: `authed` in src/api/base.ts asks Better
-    // Auth for the session, so a public read never touches D1 for one.
-    context: { env: c.env, request: c.req.raw },
-  })
-  return matched ? response : next()
-})
-
-app.use("/rpc/*", async (c, next) => {
-  const { matched, response } = await rpc.handle(c.req.raw, {
-    prefix: "/rpc",
-    context: { env: c.env, request: c.req.raw },
-  })
-  return matched ? response : next()
-})
-
-// The deep-link association files are build artefacts now, written into
-// dist/client/.well-known by `deepLinkAssociations` in src/web/vite.config.ts
-// and served by ASSETS. They were never dynamic: static JSON off four env vars,
-// none of which is set in any environment.
-
-// Better Auth owns its own origin checking: it compares the request Origin
-// against `trustedOrigins` and refuses with INVALID_ORIGIN. `csrf()` used to
-// sit here as a second lock on that door, and covered nothing else — the oRPC
-// handlers above return before a middleware mounted here would run, so /rpc
-// was never behind it. tests/worker/csrf.test.ts pins both facts.
-app.route("/", authRoutes)
-
-// `/api/versions` is `health.versions` in src/api/health.ts — a procedure, so
-// it appears in /api/doc and the typed client like everything else. Its URL
-// did not change.
-
-// The spec and its reference page moved under the handler that serves the
-// API (see the plugin above). The old addresses still arrive somewhere.
-app.get("/openapi.json", (c) => c.redirect("/api/openapi.json", 301))
-app.get("/doc", (c) => c.redirect("/api/doc", 301))
-
-// ── The GUI (src/web) ───────────────────────────────────────────────────────
-// One GUI, served at the root (ADR 020). It used to live at /app while `/`,
-// /login and /dashboard were a second, server-rendered one; that harness is
-// gone and there is no reason for the product to sit on a sub-path.
-//
-// No aliases for the old paths. There are no users, so nothing is holding a
-// link to /app or /dashboard, and a redirect kept "just in case" is how two
-// URLs for one page become permanent.
-//
-// Hash routing (#/event/e1) means every deep link resolves to this document,
-// so no server-side rewrite table is needed. `not_found_handling = "none"` in
-// wrangler.toml is why `/` must be handled here rather than falling through to
-// the asset store.
-const spa = (c: { env: { ASSETS: Fetcher }; req: { url: string; raw: Request } }) =>
-  c.env.ASSETS.fetch(new Request(new URL("/index.html", c.req.url), c.req.raw))
-
-app.get("/", spa)
-
-// Hashed JS/CSS bundles and any other static file.
-app.all("*", (c) => c.env.ASSETS.fetch(c.req.raw))
 
 /**
- * `fetch` and `scheduled`, rather than the Hono app on its own.
+ * Ask each owner whether it answers, in the order the table declares.
  *
- * The app *is* the fetch handler — exporting it directly was correct while
- * every effect in this Worker traced to a request. `EVENT_REMINDER` is the one
- * that cannot: its cause is the passage of time. See src/scheduled.ts for why
- * that file is deliberately the whole of the scheduler.
+ * **The table declares order and ownership; the handlers decide matches.** The
+ * oRPC handlers return `matched: false` for anything their router does not
+ * own, and that is the signal to try the next entry — testing the prefix here
+ * and assuming the owner will answer would hand every Better Auth request to
+ * the OpenAPI handler, which would 404 it rather than falling through.
+ *
+ * Better Auth is the one exception and it is safe: it is a plain fetch handler
+ * with no `matched` to report, so its prefix is tested — and `/api/auth/` is
+ * first in the table and more specific than `/api`, which
+ * tests/repo/dispatch.test.ts asserts can never stop being true.
  */
+async function answer(
+  owner: (typeof DISPATCH)[number]["owner"],
+  prefix: `/${string}`,
+  request: Request,
+  env: Bindings,
+): Promise<Response | null> {
+  const context = { env, request }
+  if (owner === "better-auth") {
+    return new URL(request.url).pathname.startsWith(prefix) ? handleAuth(request, env) : null
+  }
+  const handler = owner === "orpc-rpc" ? rpcHandler : openApiHandler
+  const { matched, response } = await handler.handle(request, { prefix, context })
+  return matched ? response : null
+}
+
 /**
- * The Hono app by name, as well as inside the default export.
+ * Is this a browser asking for a page?
  *
- * `tests/repo/authz.test.ts` enumerates `app.routes` to prove every non-procedure
- * route is accounted for. Wrapping the app in `{ fetch, scheduled }` hid that
- * list behind a closure and the check died with "undefined is not an object" —
- * a security check silently losing its subject, which is the worst way for one
- * to break.
+ * Only a navigation gets the SPA shell when the asset store has nothing. The
+ * check is narrow on purpose, because every one of the callers that must NOT
+ * get HTML asks for something else: Apple's crawler fetching the association
+ * file, a mail client following a link, and the SPA's own `fetch` for a chunk
+ * that has been renamed by a deploy. Answering those with a 200 page is worse
+ * than a 404 — iOS caches the association file, and a JSON parse of an HTML
+ * document is a confusing error a long way from its cause.
+ *
+ * Four conditions, and all of them must hold: a GET, asking for HTML, with no
+ * file extension, outside the prefixes something else owns.
+ *
+ * `/` is the exception, and it is not a loophole: the root has no competing
+ * meaning — nothing else is served there, and it answered the shell
+ * unconditionally before this rule existed. A curl or a health probe hitting
+ * `/` with no Accept header should get the app, not a 404.
  */
-export { app }
+const OWNED = [
+  // Association files and anything else the asset store answers by exact path.
+  // Not in DISPATCH: nothing in the Worker owns it, and that is the point — a
+  // 404 here must stay a 404, because iOS caches what it is given.
+  "/.well-known/",
+  // Derived, so a prefix added to the table is excluded from the shell the
+  // same day rather than the day somebody remembers this list.
+  ...DISPATCH.map((entry) => entry.prefix),
+]
+
+function isNavigation(request: Request, pathname: string): boolean {
+  if (request.method !== "GET") return false
+  if (pathname === "/") return true
+  const accept = request.headers.get("accept") ?? ""
+  const wantsHtml = accept.includes("text/html") || request.headers.get("sec-fetch-dest") === "document"
+  if (!wantsHtml) return false
+  if (OWNED.some((prefix) => pathname.startsWith(prefix))) return false
+  // `/events/abc` is a route; `/assets/main-a1b2.js` is a file that has gone.
+  return !/\.[^/]+$/.test(pathname)
+}
+
+/**
+ * The shell, for a path the SPA routes itself.
+ *
+ * `not_found_handling = "none"` in wrangler.toml is why this is here rather
+ * than a setting: the asset store is told to 404 rather than guess, and this
+ * decides which of those 404s is really a page.
+ */
+const shell = (request: Request, env: Bindings) =>
+  env.ASSETS.fetch(new Request(new URL("/index.html", request.url), request))
+
+export default {
+  async fetch(request: Request, env: Bindings): Promise<Response> {
+    const { pathname } = new URL(request.url)
+
+    for (const { owner, prefix } of DISPATCH) {
+      const response = await answer(owner, prefix, request, env)
+      if (response) return response
+    }
+
+    const asset = await env.ASSETS.fetch(request)
+    if (asset.status !== 404) return asset
+    return isNavigation(request, pathname) ? shell(request, env) : asset
+  },
+  scheduled,
+  queue,
+}
 
 /**
  * Notification fan-out, and the dead letter queue that catches what it cannot
@@ -236,8 +178,3 @@ async function queue(
   }
 }
 
-export default {
-  fetch: app.fetch,
-  scheduled,
-  queue,
-}

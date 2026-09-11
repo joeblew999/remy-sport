@@ -95,6 +95,19 @@ for (const { path, policy } of found) {
 
 const enforced = found.filter((f) => f.policy?.kind === "action").length
 
+/**
+ * The second rule this file used to carry is gone, and its subject with it.
+ *
+ * It read Hono's own route table off the exported app and asserted it against
+ * a hand-written list, so that a route mounted outside the router could not
+ * appear without a sentence saying how it was guarded. Deleting Hono deletes
+ * `app.routes` — the rule would have iterated an empty set and passed, which
+ * is the failure it existed to prevent, turned on itself.
+ *
+ * Its replacement is tests/repo/dispatch.test.ts, asserting against the
+ * `DISPATCH` array, which cannot become empty. This was removed only once that
+ * was green.
+ */
 rule(
   "every procedure declares how it is authorised",
   problems,
@@ -102,57 +115,8 @@ rule(
     problems.map((p) => `  ${p}`).join("\n") +
     "\n\nAuthorisation is the model's answer and every procedure must say which. " +
     "A procedure that declares nothing is not public — it is unreviewed.",
-)
-
-/**
- * The routes that are not oRPC procedures at all.
- *
- * The walk above covers the router, and I claimed that was the whole API
- * surface. It was not: five Hono sub-routers are mounted alongside it, and one
- * of them — `POST /api/seed` — was an unauthenticated write on a public domain.
- * A check that enumerates only the easy half is worse than none, because it
- * reads as a clean bill of health.
- *
- * These cannot carry a policy: they are not procedures, and several exist
- * precisely to sit outside the model (Better Auth's own routes, `.well-known`).
- * So they are listed here by hand and the list is asserted — a new one appears
- * as a failure rather than as silence.
- */
-const HONO_ROUTES: Record<string, string> = {
-  "ALL /api/auth/*": "Better Auth owns its own authorisation, including the admin plugin; the wrapper records the outcome of POSTs and reads no request body",
-  "GET /openapi.json": "a 301 to /api/openapi.json, where the handler serves the published contract",
-  "GET /doc": "a 301 to /api/doc, the reference page the handler serves",
-  "GET /": "the SPA shell",
-  "ALL /*": "SPA fallback — static assets and hash routes, no database access",
-  // The two the procedure walk above already covers in full: every oRPC
-  // procedure is served through these, and each one declares its own policy.
-  "ALL /api/*": "the oRPC handler — every procedure under it is policied above",
-  "ALL /rpc/*": "the same handler, on the SPA's transport",
-}
-
-// The named export, not the default. The default is `{ fetch, scheduled }`
-// now that the Worker has a cron trigger, and reading `.routes` off that gave
-// undefined — this check has to fail loudly or not at all.
-const { app } = await import("../../src/index")
-const live = new Set(
-  (app as unknown as { routes: { method: string; path: string }[] }).routes.map(
-    (r) => `${r.method} ${r.path}`,
-  ),
-)
-const undeclared = [...live].filter((r) => !(r in HONO_ROUTES))
-const stale = Object.keys(HONO_ROUTES).filter((r) => !live.has(r))
-
-rule(
-  "every route mounted outside the router is listed, with how it is guarded",
-  undeclared,
-  "check-authz: routes mounted outside the oRPC router with no note:\n\n" +
-    undeclared.map((r) => `  ${r}`).join("\n") +
-    "\n\nAdd it to HONO_ROUTES in this file with a sentence on how it is guarded. " +
-    "`POST /api/seed` sat here unauthenticated for months because nothing listed it.",
   `check-authz: ${found.length} procedures, ${enforced} enforced by the model, ` +
-    `${escapes.length} declared otherwise; ${live.size} non-procedure routes accounted for` +
-    (stale.length ? `\n  (no longer mounted: ${stale.join(", ")})` : "") +
-    // Printed rather than hidden: these are the ones a person should re-read.
+    `${escapes.length} declared otherwise` +
     escapes
       .sort()
       .map((line) => `\n${line}`)
