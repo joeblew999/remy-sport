@@ -385,6 +385,17 @@ down to 11 — everything left there is Part B.
 - 2026-09-11 — plan recorded; six corrections above found by reading the tree
   against the brief before starting. The fifth was found by
   `tests/repo/docs.test.ts` rejecting this file on first write.
+- 2026-09-11 — **the recurring shape, twice in one PR.** The August review
+  filed the CSRF ordering as "csrf after routes that need it", which reads as a
+  guard applied too weakly. It was not weakened: mounted after the handlers
+  that return on a match, it had no subject at all — `/rpc` was never behind
+  it, and its only other target was a door Better Auth already holds. That is
+  the same class as the finding this PR opened with, where deleting Hono would
+  have left `tests/repo/authz.test.ts` iterating an empty route table and
+  passing. **A check whose subject is empty reports success.** Both were found
+  by asking what the check was looking at rather than whether it passed, and
+  both are now asserted against something that cannot become empty — a
+  `DISPATCH` array, and a test that sends a foreign Origin.
 - 2026-09-11 — step 1 green-as-designed. The surface table is data
   (`src/dispatch.ts`) rather than branches, at the Product Owner's refinement, so
   the replacement rule has a subject that cannot go empty — which is the exact
