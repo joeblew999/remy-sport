@@ -328,6 +328,33 @@ await check("if seeded sign-in is on, it excludes the admin", async () => {
   why: "dev offers the admin on purpose — mail is captured and only the operator reads it",
 })
 
+/**
+ * Whether this deployment claims deep links, said out loud either way.
+ *
+ * Not a failure when absent: universal links are off until an app exists to
+ * claim them, and none of the identifiers is set in any environment today. But
+ * "not configured" has to be a line rather than a silence — a check that
+ * vanishes when a feature is off is indistinguishable from one somebody
+ * deleted, which is the argument the skip helper above already makes.
+ *
+ * When it IS configured the assertions are Apple's: exactly that path, JSON,
+ * and no redirect, because their crawler follows none.
+ */
+await check("app links", async () => {
+  const res = await fetch(`${BASE}/.well-known/apple-app-site-association`, { redirect: "manual" })
+  if (res.status === 404) return { skip: "not configured — no association file is published" }
+  if (res.status !== 200) return `the association path answered ${res.status}`
+  const type = res.headers.get("content-type") ?? ""
+  // Measured once and worth keeping: the path carries no extension, so the
+  // asset store infers nothing and serves it with no Content-Type unless the
+  // `_headers` file emitted beside it says otherwise. Apple requires JSON.
+  if (!type.includes("application/json")) return `served as "${type}", and Apple requires application/json`
+  const body = (await res.json()) as { applinks?: { details?: { appIDs?: string[] }[] } }
+  const ids = body.applinks?.details?.[0]?.appIDs ?? []
+  if (!ids.length) return "published, but names no appIDs — iOS will cache that"
+  return null
+})
+
 await check("the dev outbox does NOT exist", async () => {
   // The outbox is mounted only under MAIL_TRANSPORT=outbox, and unlike the
   // account list above it must NEVER open on a deployment: it would let anyone

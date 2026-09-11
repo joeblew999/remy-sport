@@ -76,6 +76,42 @@ const EXPECTED: Record<Outcome, string> = {
   unknown: "? unknown",
 }
 
+// ── Deep links ───────────────────────────────────────────────────────────────
+
+/**
+ * The app-link identifiers, listed whether or not they are set.
+ *
+ * Optional, and never a blocker: universal links are simply off until an app
+ * exists to claim them. Listed rather than skipped because an absent row and a
+ * row nobody thought about look identical in a plan that prints neither — and
+ * these are the values `deepLinkAssociations` in src/web/vite.config.ts reads
+ * at build time to decide whether to emit a `.well-known` file at all.
+ *
+ * No placeholder is ever invented. iOS caches the association file, so a wrong
+ * team ID is worse than no file.
+ */
+function planDeepLinks(config: ReturnType<typeof resolvedConfig>): Step[] {
+  const vars = (config.vars ?? {}) as Record<string, unknown>
+  const pairs = [
+    { what: "universal links", keys: ["APPLE_TEAM_ID", "APPLE_BUNDLE_ID"] },
+    { what: "Android app links", keys: ["ANDROID_PACKAGE_NAME", "ANDROID_CERT_FINGERPRINT"] },
+  ]
+  return pairs.map(({ what, keys }) => {
+    const missing = keys.filter((k) => !(typeof vars[k] === "string" && vars[k]))
+    return missing.length
+      ? {
+          resource: what,
+          outcome: "skip" as const,
+          detail: `absent ${missing.join(", ")} — off until set; no .well-known file is emitted`,
+        }
+      : {
+          resource: what,
+          outcome: "exists" as const,
+          detail: "identifiers resolve; the client build emits the association file",
+        }
+  })
+}
+
 // ── Build stamp ──────────────────────────────────────────────────────────────
 
 /**
@@ -730,6 +766,7 @@ export async function run(argv: string[], mode: "plan" | "apply"): Promise<void>
 
   const steps = [
     ...planBuildVar(target, config),
+    ...planDeepLinks(config),
     ...planD1(target, config),
     ...planR2(target, config),
     ...planQueues(target, config),

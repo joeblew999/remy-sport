@@ -29,8 +29,10 @@ reports that **notifications work** (2026-09-08). Preserve that working behavior
 The result of tapping a notification and navigating to its destination has not
 been specified; do not infer that result or external-link handling from this test.
 
-This concerns the web app. Native Tauri work, Universal Links and
-`src/routes/well-known.ts` are outside this task.
+This concerns the web app. Native Tauri work and Universal Links are outside
+this task. The association files it mentions moved out of the Worker on
+2026-09-11 and are emitted by the client build; see
+`src/web/vite.config.ts`.
 
 ## Steps to reproduce
 

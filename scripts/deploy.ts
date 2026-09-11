@@ -28,7 +28,7 @@
 import { spawnSync } from "node:child_process"
 import { setTimeout as sleep } from "node:timers/promises"
 import { prepare } from "./lib/prepare.ts"
-import { Refused, accountId, originOf, resolveTarget, workerName, wrangler, type Target } from "./lib/cloudflare.ts"
+import { Refused, accountId, originOf, resolveTarget, resolvedConfig, workerName, wrangler, type Target } from "./lib/cloudflare.ts"
 import { prepareConfig } from "./deploy/build-config.ts"
 import { holdDeployLock } from "./lib/deploy-lock.ts"
 
@@ -45,7 +45,29 @@ const BUILD_ID = new Date().toISOString()
  * How the Vite plugin and wrangler are told which environment: the variable,
  * not the flag. Production is the top-level configuration and has no name.
  */
-const envFor = (target: Target): Record<string, string> => (target.flag ? { CLOUDFLARE_ENV: target.flag } : {})
+/**
+ * What the build needs from the environment it is building for.
+ *
+ * `CLOUDFLARE_ENV` selects the policy row and the install name. The deep-link
+ * identifiers come from the same resolved config every other value does, so
+ * they are declared in wrangler.toml `[vars]` rather than exported by hand —
+ * and `deepLinkAssociations` in src/web/vite.config.ts emits the
+ * `.well-known` files only for the ones that are actually set.
+ */
+const APP_LINK_VARS = [
+  "APPLE_TEAM_ID",
+  "APPLE_BUNDLE_ID",
+  "ANDROID_PACKAGE_NAME",
+  "ANDROID_CERT_FINGERPRINT",
+] as const
+
+const envFor = (target: Target): Record<string, string> => {
+  const vars = (resolvedConfig(target.flag).vars ?? {}) as Record<string, unknown>
+  const links = Object.fromEntries(
+    APP_LINK_VARS.filter((k) => typeof vars[k] === "string" && vars[k]).map((k) => [k, String(vars[k])]),
+  )
+  return { ...links, ...(target.flag ? { CLOUDFLARE_ENV: target.flag } : {}) }
+}
 
 interface Phase {
   name: string

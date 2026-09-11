@@ -268,8 +268,8 @@ adding when `dev.accounts` lands.
 - [ ] Delete the raw routers. The seed and dev-session routers are gone
 - [x] Delete the raw routers. Seed, dev-sessions, analytics and dev-mail are
       all gone (2026-09-11), along with the inline `/api/versions`. Part A is
-      complete; `src/routes/` still holds `auth.ts` and `well-known.ts`, which
-      are Part B.
+      complete. `src/routes/` now holds only the Better Auth forwarder, which
+      is Part B.
 
 ## Part B — Remove Hono
 
@@ -280,7 +280,18 @@ adding when `dev.accounts` lands.
       without the guard, add the plugin, remove the middleware, suite green.
       The proving step is what found correction 10.
 - [ ] `/api/auth/*` → `auth.handler(request)` called directly
-- [ ] `.well-known` files → written by `scripts/build.ts` into the client bundle
+- [x] `.well-known` files → emitted by `deepLinkAssociations` in
+      `src/web/vite.config.ts`, per correction 7. Done 2026-09-11. Emitted only
+      when the identifiers resolve, and never with a placeholder — iOS caches
+      the association file, so a wrong team ID is worse than none. Identifiers
+      come from the resolved config like every other value. Absence is visible
+      rather than silent: `ops provision` lists both pairs as optional rows,
+      and `ops smoke` reports "not configured" as a line, not a failure.
+      **Found in the move:** the Apple path carries no extension by Apple's
+      requirement, so the asset store served it with *no* `Content-Type` at all
+      where the Worker route had set `application/json`. A `_headers` file is
+      emitted beside it, and smoke asserts the type rather than only the
+      status.
 - [ ] `GET /api/unsubscribe` → SPA route; `POST` → form-encoded procedure at the
       same URL, RFC 8058 semantics unchanged
 - [ ] Delete `src/routes/`, the Hono half of `src/api/unsubscribe.ts`, and `hono`

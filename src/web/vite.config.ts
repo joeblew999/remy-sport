@@ -82,6 +82,95 @@ function seedOnStart(): Plugin {
  *
  * `serve` only, and before the plugin: a build writes the real worker there.
  */
+/**
+ * The deep-link association files, as build artefacts.
+ *
+ * `.well-known/apple-app-site-association` and `assetlinks.json` were Worker
+ * routes reading four env vars. They are static JSON that changes only when
+ * the app identifiers change, so they belong to the client build — and only
+ * Vite may write into dist/client, which the plugin owns and rewrites.
+ *
+ * **Nothing is emitted when the identifiers are unset**, so the path 404s from
+ * the asset store exactly as the route did. That is deliberate rather than
+ * tidy: Apple caches the AASA aggressively, and a placeholder with wrong IDs
+ * is worse than no file at all. None of the four is set in any environment
+ * today.
+ *
+ * No extension on the Apple path, and `application/json` on both: Apple's
+ * crawler requires that exact path and type, and will not follow a redirect.
+ */
+function deepLinkAssociations(): Plugin {
+  const appleId = () =>
+    process.env.APPLE_TEAM_ID && process.env.APPLE_BUNDLE_ID
+      ? `${process.env.APPLE_TEAM_ID}.${process.env.APPLE_BUNDLE_ID}`
+      : null;
+  return {
+    name: "remy:deep-link-associations",
+    apply: "build",
+    generateBundle() {
+      // The Worker build runs through this config too; these are client assets.
+      if (this.environment?.name !== "client") return;
+
+      const appId = appleId();
+      if (appId) {
+        this.emitFile({
+          type: "asset",
+          fileName: ".well-known/apple-app-site-association",
+          source: JSON.stringify({
+            applinks: {
+              details: [
+                {
+                  appIDs: [appId],
+                  // Every SPA route is reachable by universal link. The SPA uses
+                  // hash routing, so the server only ever sees /app.
+                  components: [{ "/": "/app*", comment: "SPA and all hash routes beneath it" }],
+                },
+              ],
+            },
+            // Declared so the same file works if Handoff or App Clips arrive.
+            webcredentials: { apps: [appId] },
+          }),
+        });
+        /**
+         * The AASA path carries no extension, by Apple's requirement, so the
+         * asset store infers no Content-Type and serves it with none at all —
+         * measured, not assumed. Apple demands `application/json`, so the
+         * header is stated here. The Worker route this replaced set it
+         * explicitly; dropping it would have been a silent regression that
+         * only an iPhone would have shown.
+         *
+         * Emitted only beside the file it describes, and only as long as no
+         * other `_headers` exists in this build to collide with.
+         */
+        this.emitFile({
+          type: "asset",
+          fileName: "_headers",
+          source: "/.well-known/apple-app-site-association\n  Content-Type: application/json\n",
+        });
+      }
+
+      const pkg = process.env.ANDROID_PACKAGE_NAME;
+      const fingerprint = process.env.ANDROID_CERT_FINGERPRINT;
+      if (pkg && fingerprint) {
+        this.emitFile({
+          type: "asset",
+          fileName: ".well-known/assetlinks.json",
+          source: JSON.stringify([
+            {
+              relation: ["delegate_permission/common.handle_all_urls"],
+              target: {
+                namespace: "android_app",
+                package_name: pkg,
+                sha256_cert_fingerprints: [fingerprint],
+              },
+            },
+          ]),
+        });
+      }
+    },
+  };
+}
+
 function legacyWorkerKillSwitch(): Plugin {
   const script = [
     "// The old worker's way out — legacyWorkerKillSwitch in src/web/vite.config.ts.",
@@ -146,6 +235,7 @@ export default defineConfig(({ mode, command }) => {
   resolve: { alias: { "@": __dirname } },
   plugins: [
     legacyWorkerKillSwitch(),
+    deepLinkAssociations(),
     tailwindcss(),
     ...(mode === "render"
       ? []

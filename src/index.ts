@@ -10,7 +10,6 @@ import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4"
 import { router } from "./api"
 import { scheduled } from "./scheduled"
 import { telemetryInterceptor } from "./api/telemetry"
-import wellKnownRoutes from "./routes/well-known"
 import unsubscribeRoutes from "./api/unsubscribe"
 import type { AppEnv } from "./types"
 import { handleNotification } from "./api/notify-queue"
@@ -135,9 +134,10 @@ app.use("/rpc/*", async (c, next) => {
   return matched ? response : next()
 })
 
-// Apple/Android deep-link association files. Must be before CSRF — they are
-// fetched by Apple's and Google's crawlers, not by a browser session.
-app.route("/", wellKnownRoutes)
+// The deep-link association files are build artefacts now, written into
+// dist/client/.well-known by `deepLinkAssociations` in src/web/vite.config.ts
+// and served by ASSETS. They were never dynamic: static JSON off four env vars,
+// none of which is set in any environment.
 app.route("/", unsubscribeRoutes)
 
 // Better Auth owns its own origin checking: it compares the request Origin
