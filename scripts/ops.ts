@@ -83,6 +83,11 @@ const OPS: Record<string, Op> = {
     cmd: (rest) => ["bun", "scripts/ops/ui.ts", ...rest],
     help: "ui add <item...> | check         copy shadcn components in and lock them; never edit them by hand",
   },
+  committed: {
+    group: "maintenance",
+    cmd: (rest) => ["bun", "scripts/ops/committed.ts", ...rest],
+    help: "committed                        typecheck HEAD, not the working tree — run before pushing",
+  },
   versions: {
     group: "report",
     /**

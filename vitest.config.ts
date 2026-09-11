@@ -92,6 +92,9 @@ export default defineConfig({
           name: "worker",
           include: ["tests/worker/**/*.test.ts"],
           setupFiles: ["./tests/worker/apply-migrations.ts"],
+          // Runs in node, before the pool reads dist/client. See the file for
+          // why the `_headers` contract cannot be checked any other way.
+          globalSetup: ["./tests/worker/assets-fixture.ts"],
           // No `dangerouslyIgnoreUnhandledErrors`. Better Auth used to leave an
           // unhandled rejection behind because workerd fired `unhandledrejection`
           // before the microtask checkpoint; `unhandled_rejection_after_microtask_checkpoint`

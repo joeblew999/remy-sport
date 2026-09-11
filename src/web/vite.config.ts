@@ -90,6 +90,13 @@ function seedOnStart(): Plugin {
  * the app identifiers change, so they belong to the client build — and only
  * Vite may write into dist/client, which the plugin owns and rewrites.
  *
+ * The identifiers arrive as `process.env` because that is what a build reads,
+ * and `envFor` in scripts/deploy.ts puts them there: it lifts them out of the
+ * resolved wrangler config and `step()` spawns the build with them, the same
+ * path `CLOUDFLARE_ENV` above takes. They are declared in wrangler.toml
+ * `[vars]`, so there is one source. This cannot go through `env.BUILD`'s route
+ * — that is a runtime binding, and a file written at build time has no runtime.
+ *
  * **Nothing is emitted when the identifiers are unset**, so the path 404s from
  * the asset store exactly as the route did. That is deliberate rather than
  * tidy: Apple caches the AASA aggressively, and a placeholder with wrong IDs

@@ -393,6 +393,14 @@ down to 11 — everything left there is Part B.
 
 ## Log
 
+- 2026-09-11 — `bun run ops committed` added after breaking `origin/main` for a
+  few minutes. It typechecks `git archive HEAD`, not the working tree, which is
+  the difference that mattered: every check was green against a tree that was
+  correct while the commit was not. Proven against the offending commit itself
+  — `ops committed ac36d53` reports the dangling
+  `./routes/well-known` import. The next two steps each delete a file
+  `index.ts` imports, so it runs before every push from here.
+
 - 2026-09-11 — plan recorded; six corrections above found by reading the tree
   against the brief before starting. The fifth was found by
   `tests/repo/docs.test.ts` rejecting this file on first write.

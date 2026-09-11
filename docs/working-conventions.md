@@ -69,6 +69,13 @@ unrelated commit. Their libraries were never committed, so `origin/main` failed
 to typecheck on a fresh clone while the dirty local tree passed. "passes in my
 tree" is unproven until a clean checkout agrees.
 
+It happened again on 2026-09-11, the other way round: a `git add` naming a path
+`git rm` had already staged aborted without adding anything, and the commit that
+followed held only a deletion. Being careful is not the fix — **run
+`bun run ops committed` before pushing.** It typechecks `git archive HEAD`
+rather than your tree, and takes a few seconds. Pass a ref to check an older
+commit.
+
 ## Use the registry, do not reinvent the widget
 
 Every generic GUI element is its shadcn registry item. Bespoke surfaces are only
