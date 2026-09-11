@@ -427,21 +427,17 @@ export const remove = authed
 /**
  * One player, as a page shows them.
  *
- * `VIEW_PLAYER` is granted to PUBLIC and there was no way to look at a player.
- * The model has five object types and the app had a page for four — a player was
- * a row in somebody else's roster and nothing else. So `FOLLOW_PLAYER` had a
- * button that was never rendered, `RECEIVE_PLAYER_NOTIFICATIONS` had nothing to
- * attach to, and `VIEW_PLAYER` was answered only for a guardian looking at their
- * own child.
+ * The model has five object types and the app had a page for four, so a player
+ * was a row in somebody else's roster: `FOLLOW_PLAYER` had a button nothing
+ * rendered and `RECEIVE_PLAYER_NOTIFICATIONS` had nothing to attach to.
  *
  * ## Behind a session, which is stricter than the model
  *
- * The same decision `domain.ts` already made for every player list, and for the
- * same reason in its own words: "these rows name minors, so a session is
- * required". A public page naming a child, their school and their fixtures is
- * not what PUBLIC is for here, whatever the matrix says. Declared as `stricter`
- * so the gap between this and the model is visible to `check-authz` rather than
- * hidden in a handler.
+ * The same decision `domain.ts` made for every player list, in its own words:
+ * "these rows name minors, so a session is required". A public page naming a
+ * child, their school and their fixtures is not what PUBLIC is for here.
+ * Declared as `stricter` so the gap is visible to tests/repo/authz.test.ts
+ * rather than hidden in a handler.
  *
  * ## What it does not return
  *

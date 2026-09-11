@@ -51,24 +51,20 @@ export const ADMIN_SIGN_IN = IS_LOCAL || process.env.TEST_ADMIN_SIGNIN === "1"
 /**
  * An account belonging to one test and nobody else.
  *
- * This is the fix the rest of this file kept working around. Specs shared the
- * PO's seeded people, and so does anyone on the dev tunnel — which exists so a
- * person can use the app while the suite runs. Two writers on one account is why
- * a session appeared under a running assertion, why "sign out all other devices"
- * could sign the reader out, why two specs ate each other's OTP, and why every
- * count assertion was a guess about what everybody else was doing.
+ * The fix the rest of this file kept working around. Specs shared the PO's
+ * seeded people, and so does anyone on the dev tunnel — two writers on one
+ * account is why sessions appeared under a running assertion, why two specs ate
+ * each other's OTP, and why every count assertion was a guess.
  *
- * A test that mints its own account owns everything on it. Counts become
- * legitimate again, `revoke-other-sessions` is scoped to that test by
- * definition, and a person clicking around on the tunnel cannot be seen.
+ * A test that mints its own account owns everything on it, so counts are
+ * legitimate and `revoke-other-sessions` is scoped by definition.
  *
- * Sign-in creates the account on first use — verified against dev on
- * 2026-09-03: a never-seen `@e2e.test` address returns 200 with a new user. The
- * address space is reserved and unroutable; see `isReservedTestEmail`.
+ * Sign-in creates the account on first use. The address space is reserved and
+ * unroutable; see `isReservedTestEmail`.
  *
- * Nothing to clean up on purpose. The account holds one session, which the
- * per-test revoke ends, and an empty ownerless row in a fixture database is not
- * worth a deletion endpoint that would exist only for tests.
+ * Nothing to clean up on purpose: the account holds one session, which the
+ * per-test revoke ends, and an empty row in a fixture database is not worth a
+ * deletion endpoint that exists only for tests.
  */
 let minted = 0
 export function freshActor(): string {
@@ -147,19 +143,15 @@ const first = (role: string) => {
 /**
  * A role's Nth seeded actor, so two specs need not share one.
  *
- * The e2e tier runs against one local D1 with one set of seeded people, and
  * Better Auth refuses a sign-in whose OTP was superseded by another request for
- * the same address. Two specs signing in as *the* organizer at the same time
- * therefore make one of them fail with INVALID_OTP — and which one loses moves
- * between runs, so it reads as a bug in whichever spec happened to be second.
+ * the same address, so two specs signing in as *the* organizer make one fail
+ * with INVALID_OTP — and which one loses moves between runs.
  *
- * The fixtures already seed three organizers and three coaches at three
- * different schools. Nothing needed adding; the specs were simply all taking
- * the first one. `actor("ORGANIZER", 1)` takes the second.
+ * The fixtures already seed three of each role; the specs were all taking the
+ * first. `actor("ORGANIZER", 1)` takes the second.
  *
- * Ordering is the fixtures' own, so a given index is stable across runs. Ask
- * for one past the end and it throws rather than silently wrapping onto an
- * actor another spec is already using.
+ * Ordering is the fixtures' own, so an index is stable across runs. Past the end
+ * it throws rather than wrapping onto an actor another spec is using.
  */
 /**
  * The display name of a specific actor.
@@ -235,26 +227,18 @@ export const EVERY_SEEDED_ACTOR = SEED_ENTITIES.users
   /**
    * The admin, but only against a deployment — where the Worker refuses it.
    *
-   * `src/auth.ts` scopes the fixed sign-in code to "seeded addresses that are
-   * not the admin": every real address gets a random code, and so does the
-   * seeded admin, deliberately, because that one account can reach everything.
-   * Measured against staging on 2026-09-03 — every other seeded actor signs in
-   * with the demo code and returns 200; the admin returns INVALID_OTP.
-   *
-   * So a deployed run cannot hold an admin session, and `auth.setup.ts` asking
-   * for one failed the setup project outright — 33 tests did not run, and the
-   * reported reason was "sign-in for admin@remysport.test should succeed",
-   * which reads as a broken deployment rather than a rule working as designed.
+   * `src/auth.ts` scopes the fixed code to seeded addresses that are *not* the
+   * admin, because that one account can reach everything — so a deployed run
+   * cannot hold an admin session, and asking for one failed the setup project
+   * outright with "sign-in for admin should succeed", which reads as a broken
+   * deployment rather than a rule working as designed.
    *
    * Keyed on `ADMIN_SIGN_IN`, the same signal the specs use, so setup and specs
-   * cannot disagree about whether there is an admin session to adopt — and so
-   * `ops -- demo on --env staging` makes both halves change together. Two
-   * separate guesses at one fact is how a spec ends up adopting a state file
-   * that setup was never asked to write.
+   * cannot disagree about whether there is a session to adopt. Two guesses at
+   * one fact is how a spec adopts a state file setup never wrote.
    *
-   * Idempotent either way: the list is derived from the answer, so running the
-   * setup again against the same deployment produces the same set, and turning
-   * the switch converges rather than accumulating.
+   * Idempotent: the list is derived from the answer, so turning the switch
+   * converges rather than accumulating.
    */
   .filter((u) => ADMIN_SIGN_IN || u.roleCode !== "ADMIN")
   .map((u) => u.email)

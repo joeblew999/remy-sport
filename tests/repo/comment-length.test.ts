@@ -22,7 +22,7 @@ const LIMIT = 20
  *
  * 188 when this was written, over 3,518 blocks in total.
  */
-const BUDGET = 158
+const BUDGET = 152
 
 const oversized: string[] = []
 

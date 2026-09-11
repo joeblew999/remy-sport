@@ -1,32 +1,25 @@
 /**
  * Read the telemetry back: what is failing, where, how often.
  *
- * Writing events is half a system. Analytics Engine has no dashboard of its own
- * — the data is reachable only over a SQL API — so without this the whole thing
+ * Analytics Engine has no dashboard of its own, so without this the catalogue
  * is a write-only pipe that feels like observability and provides none.
  *
  * ## Nothing here knows a column number
  *
- * Every query is generated from `EVENTS` in src/analytics.ts, through the same
- * `blobColumn`/`doubleColumn` the writer uses. That is the point of this file
- * rather than tidiness: the first version hand-wrote `blob3 AS route`, was wrong
- * by one column against a writer that had shifted, and nothing caught it —
- * because a shifted string is still a string. Two halves reading one
- * declaration cannot disagree; two halves that each know the layout will.
- *
- * Adding an event to the catalogue adds its report here. There is no list to
- * keep in step.
+ * Every query is generated from `EVENTS` in src/analytics.ts through the same
+ * `blobColumn`/`doubleColumn` the writer uses. Hand-writing `blob3 AS route`
+ * was wrong by one column against a writer that had shifted, and nothing caught
+ * it — a shifted string is still a string. Adding an event adds its report;
+ * there is no list to keep in step.
  *
  * ## Local first, deployment second
  *
  * `wrangler dev` binds Analytics Engine and discards every write, so a dev
- * server's telemetry lives in an in-memory ring served at `/api/dev/events`.
- * This prefers it when a dev server is up, because that is the loop worth
- * having, and falls back to the real dataset over the SQL API.
+ * server's telemetry lives in a ring at `/api/dev/events`. This prefers it when
+ * one is up, unless an environment was named.
  *
- * The SQL API needs an account API token with **Account Analytics: Read** — the
- * wrangler OAuth token has no analytics scope at all. Same convention as
- * `cf:audit`: `$CLOUDFLARE_API_TOKEN`, or fnox.
+ * The SQL API needs **Account Analytics: Read**; the wrangler OAuth token has
+ * no analytics scope at all.
  */
 
 import { accountId, namedEnvironment, resolveTarget, resolvedConfig, token } from "../lib/cloudflare.ts"
@@ -378,26 +371,18 @@ console.log()
 /**
  * The other half of the question, and the half our own telemetry cannot answer.
  *
- * Everything above is what the *application* recorded: an invalid code, a
- * client error, a reminder that ran. None of it exists if the Worker never got
- * far enough to write it. A handler killed for exceeding CPU writes nothing at
- * all, and reads here as silence — which is indistinguishable from a quiet hour.
+ * Everything above is what the *application* recorded, and none of it exists if
+ * the Worker never got far enough to write it. A handler killed for exceeding
+ * CPU writes nothing, and reads here as a quiet hour.
  *
- * `workersInvocationsAdaptive` is the platform's own view: how long each
- * invocation took, how many subrequests it made, and — the column worth the
- * whole query — its `status`. `exceededResources` means Cloudflare stopped the
- * code; `scriptThrewException` means it threw; `clientDisconnected` means the
- * reader left first, which for a long request usually means they gave up.
+ * `workersInvocationsAdaptive` is the platform's own view, and `status` is the
+ * column worth the query: `exceededResources` means Cloudflare stopped the
+ * code, `scriptThrewException` means it threw, `clientDisconnected` usually
+ * means the reader gave up.
  *
- * Found on 2026-09-10, the first time this was run: a sibling Worker with two
- * requests at **thirty seconds of CPU** — the limit itself — and one uncaught
- * exception. Nothing in that project's own telemetry showed either, because
- * neither request lived long enough to record anything.
- *
- * This uses the GraphQL analytics API and the token already needed for the SQL
- * above: **Account Analytics: Read** covers both. The newer Workers
- * Observability *logs* API is a different scope and answers 403 with this
- * token — worth knowing before somebody spends an afternoon on it.
+ * Uses the GraphQL analytics API, covered by the same **Account Analytics:
+ * Read** as the SQL above. The Workers Observability *logs* API is a different
+ * scope and answers 403 with this token.
  */
 const CPU_LIMIT_US = 30_000_000
 

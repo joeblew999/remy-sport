@@ -140,21 +140,13 @@ function PendingApprovalNotice() {
  *
  * ## It asks when asked, not on arrival
  *
- * It used to prompt by itself, and on localhost that looked fine: the install
- * criteria are never met there, so the element stays inert and every local test
- * passed. On staging — a real origin, a real manifest, a real service worker —
- * it threw its dialog over the app on load at z-index 2147483001, and the first
- * e2e run against a deployment could not click Sign out. Playwright named the
- * element: "<pwa-install> intercepts pointer events".
+ * Prompting by itself looked fine locally, where the install criteria are never
+ * met and the element stays inert. On a real origin it threw its dialog over
+ * the app on load, before the reader had seen anything to want installed.
  *
- * A reader would have hit the same thing, one dialog before they had seen
- * anything to want installed.
- *
- * `manual-apple` and `manual-chrome` turn the automatic prompt off. The way in
- * is a menu item beside Devices and Admin, which appears only while the element
- * reports that installing is actually available — so it is not the "always
- * visible, correct only sometimes" button this comment used to warn against.
- * The element knows; it just was not being asked.
+ * `manual-apple` and `manual-chrome` turn that off. The way in is a menu item
+ * that appears only while the element reports installing is available — so it
+ * is not an always-visible button that is correct only sometimes.
  */
 function App() {
   const tweaks = { ...DEFAULTS, ...(window.TWEAK_DEFAULTS ?? {}) } as Required<TweakDefaults>;
@@ -368,41 +360,30 @@ function App() {
 /**
  * The service worker — in a browser only, never inside Tauri.
  *
- * Web Push on iOS requires one, and it only works for a PWA installed to the
- * home screen. But desktop and iOS run this same bundle inside a Tauri webview
- * (decision-003: one bundle, three targets), where a service worker is at best
- * dead weight and at worst caches the app shell against a native build that
- * ships its own assets.
+ * Web Push on iOS needs one, but desktop and iOS run this same bundle inside a
+ * Tauri webview (decision-003: one bundle, three targets), where a worker is
+ * dead weight at best and caches the shell against a native build at worst.
  *
- * So `vite-plugin-pwa` is configured with `injectRegister: null` — it emits the
- * worker and the manifest but writes no registration into index.html — and the
- * decision is made here at runtime, on the same `__TAURI_INTERNALS__` check the
- * logger below uses. A build flag could not do it: there is one bundle.
+ * So `vite-plugin-pwa` uses `injectRegister: null` and the decision is made
+ * here at runtime — a build flag could not, since there is one bundle.
  *
- * Failure is silent on purpose. A browser that refuses to register a worker
- * loses push, not the app.
+ * Failure is silent: a browser that refuses a worker loses push, not the app.
  */
 /**
  * Take the new build at the reader's next navigation.
  *
- * A worker precaches the built shell and answers navigations from it, so a
- * returning reader keeps whatever was deployed the last time they visited —
- * indefinitely, if nothing makes them take the update. On 2026-09-10 production
- * moved a week and 284 commits forward and the site still showed the previous
- * interface to a browser that had one cached. Nothing was broken: the Worker
- * served the new bundle, `curl` proved it, and the reader saw the old one.
- * Every check ran without a service worker and so was blind to the only thing
- * that mattered.
+ * A worker answers navigations from its precache, so a returning reader keeps
+ * whatever was deployed when they last visited — indefinitely, unless something
+ * makes them take the update. That happened: production moved a week forward
+ * and the site still showed the old interface to any browser holding a cache,
+ * while `curl` correctly showed the new one.
  *
- * Reloading the moment a worker is ready is the wrong fix and stays rejected:
- * this product has live score entry, and a page pulled out from under somebody
- * mid-form loses what they typed for a change that could have waited.
+ * Reloading the moment a worker is ready stays rejected: this product has live
+ * score entry, and a page pulled out mid-form loses what was typed.
  *
- * A hash change is the boundary where both are true — the reader has finished
- * with whatever they were doing and the page is being replaced anyway. So the
- * update is applied there, once, at the destination they asked for. Someone who
- * stays on one screen keeps their page and keeps the build stamp's button,
- * which is the immediate way out and the only one that existed before.
+ * A hash change is the boundary where the reader has finished and the page is
+ * being replaced anyway. Someone who stays on one screen keeps their page and
+ * the build stamp's button, which is the immediate way out.
  */
 function applyOnNextNavigation(): void {
   const take = () => {
@@ -479,37 +460,18 @@ if (
 /**
  * The install-prompt component — in a browser only, never inside Tauri.
  *
- * Same reasoning as the service worker block above: Tauri users already have
- * the native app, so beforeinstallprompt/Web Install concepts do not apply
- * and showing an "Add to Home Screen" dialog inside an already-installed
- * native shell would be confusing at best. Gated on the same isNativeApp()
- * this file already imports for push, rather than re-deriving the check.
+ * Same reasoning as the service worker above: a Tauri reader already has the
+ * native app, so an "Add to Home Screen" dialog inside it makes no sense.
  *
- * Its dialog is not translated into Thai, and that cannot be fixed from here.
- * 0.6.4 ships 33 locales and `th` is not among them, so a Thai reader gets
- * English copy inside an otherwise Thai app. The component resolves its
- * language from navigator.language alone — exact code, then the two-letter
- * prefix, then a bare `catch {}` that leaves it on English — so an unsupported
- * language is indistinguishable from a supported one at runtime, which is why
- * this went unnoticed. That lookup also ignores our locale, which is
- * localStorage-first (lib/locale.tsx), so a reader on a Japanese browser who
- * chose English still gets a Japanese dialog; en and ja mismatch that way
- * today. It declares `changeLocale` in its .d.ts but does not expose it
- * through `exports` — the entry resolves to a bundle whose only export is
- * PWAInstallElement — so there is nothing to call and no local workaround
- * short of importing past the exports map. Both asked upstream:
- * https://github.com/khmyznikov/pwa-install/issues/169
+ * Its dialog has no Thai, and that cannot be fixed from here: the component
+ * resolves its language from `navigator.language` alone, ignoring our
+ * localStorage-first locale, and exposes no `changeLocale` through its exports.
+ * Both asked upstream — khmyznikov/pwa-install#169 — and the PO's own #170 adds
+ * Thai. A version bump here when it ships.
  *
- * Why the package stays: its GUI is right, and Thai is a translation to
- * contribute rather than a component to rewrite. The Product Owner's own
- * pull request, khmyznikov/pwa-install#170, adds it; a version bump here when
- * it ships.
- *
- * Why `lit` is listed beside it in package.json although nothing of ours
- * imports it: the component's ES build externalizes `lit` instead of bundling
- * it, so without `lit` installed the vite build cannot resolve `import "lit"`.
- * knip is fine with that. The gate runs it as `--include files,unlisted`, and
- * declared-but-unimported is a different report.
+ * `lit` is in package.json although nothing of ours imports it: the component's
+ * ES build externalizes it, so the vite build cannot resolve `import "lit"`
+ * without it.
  */
 if (typeof window !== "undefined" && !isNativeApp()) {
   import("@khmyznikov/pwa-install").catch(() => {
