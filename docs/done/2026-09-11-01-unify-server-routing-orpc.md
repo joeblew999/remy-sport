@@ -655,14 +655,18 @@ was *what is this check looking at*, not *is it passing*.
   from this router instead of the hand-kept list in `application.mjs`, so there
   is one description of the API rather than two that agree by inspection.
   `worker-check.mjs` pins the count, the methods and the server URL, so its
-  premise changes with it.
-- **`tests/repo/manifest.test.ts` reads a build artefact it does not own.** It
-  asserts on whatever `dist/client` currently holds, so deploying staging from
-  a machine leaves `bun run test` red there until the next production build —
-  the test is reporting the state of the last deploy rather than the state of
-  the tree. It should build or fixture what it asserts on, so the fast tier is
-  green regardless of what was last deployed. Pre-existing; surfaced by
-  deploying twice in one session.
+  premise changes with it. **Absorbed into the ops api issue**, where the same
+  executor serves both the CLI and help-tools' six operations.
+- ~~**`tests/repo/manifest.test.ts` reads a build artefact it does not own.**~~
+  **Fixed 2026-09-11.** It compared the built manifest against the *ambient*
+  `CLOUDFLARE_ENV`, so the answer depended on what the machine last did rather
+  than on what is in `dist/` — deploying staging left `bun run test` red until
+  the next production build. It now reads the environment from the Worker
+  config the same build wrote beside the client, so it compares two artefacts
+  of one invocation: disagreeing is a real bug, agreeing is real agreement, and
+  neither depends on this shell. Proven both ways — green after a staging build
+  with no environment exported, and still red when a staging build carries the
+  production name.
 
 ## Log
 
