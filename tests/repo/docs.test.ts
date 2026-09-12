@@ -15,7 +15,8 @@
  * What this CAN catch: a path that no longer resolves.
  * What this CANNOT catch: prose whose every path resolves and whose meaning is
  * wrong. Only a human re-reading the section after changing the code finds
- * that. See the convention in AGENTS.md.
+ * that. See the convention in AGENTS.md. An unfinished plan is exempt, for the
+ * reason `isUnfinishedPlan` below gives.
  */
 
 import { readdirSync, readFileSync, existsSync } from "fs"
@@ -38,6 +39,38 @@ function docFiles(): string[] {
   // other "not there" that had to stop meaning "something is wrong".
   if (existsSync(join(ROOT, "docs"))) walk("docs")
   return out.filter((f) => existsSync(join(ROOT, f)))
+}
+
+/**
+ * What sits beside the plans without being one.
+ *
+ * Each describes the repository as it is rather than as it will be, so each is
+ * checked like any other prose. Named rather than inferred, because there is
+ * no signal in a plan's text that reliably separates the two — headings vary
+ * from "# Plan —" to "# Task —" to a bare title.
+ */
+const REFERENCE = new Set([
+  "docs/README.md",
+  "docs/working-conventions.md",
+  "docs/react-domain-coverage.md",
+])
+
+/**
+ * A plan still being worked, whose paths are intentions rather than claims.
+ *
+ * The bug this file exists for was prose claiming something *exists*. A plan
+ * does the opposite: it names the files it intends to create, and every one is
+ * missing because the work has not happened. Four plans arrived on 2026-09-11
+ * naming 37 such paths between them.
+ *
+ * So the rule follows the lifecycle, which is the one thing it can read.
+ * `docs/*.md` is work in progress and exempt. `docs/done/**` is work that
+ * happened, so a plan that named a file it never built fails the day it is
+ * archived — the original bug, caught as the claim changes tense. Everything
+ * else describes what is, and is checked as before.
+ */
+function isUnfinishedPlan(doc: string): boolean {
+  return /^docs\/[^/]+\.md$/.test(doc) && !REFERENCE.has(doc)
 }
 
 /**
@@ -164,7 +197,13 @@ const basenames = new Set<string>()
 const problems: string[] = []
 let checked = 0
 
+const exempt: string[] = []
+
 for (const doc of docFiles()) {
+  if (isUnfinishedPlan(doc)) {
+    exempt.push(doc)
+    continue
+  }
   for (const { path: raw, line } of refsIn(readFileSync(join(ROOT, doc), "utf-8"))) {
     const p = raw.split("#")[0]!.trim()
     if (!p) continue
@@ -210,5 +249,9 @@ rule(
     `the start of every session, so a wrong note there becomes wrong work.\n\n` +
     `A line that names a path on purpose (to say it is absent, or as an example) can\n` +
     `carry <!-- docs-check-ignore -->.`,
-  `docs-check: ${checked} documented paths all resolve`,
+  `docs-check: ${checked} documented paths all resolve` +
+    (exempt.length
+      ? `\n  (${exempt.length} unfinished plan(s) exempt — their paths are intentions ` +
+        `until the plan is archived: ${exempt.map((d) => d.replace("docs/", "")).join(", ")})`
+      : ""),
 )
